@@ -8,7 +8,7 @@ export const Notes = () => {
       </h2>
       
       <div className="flex gap-6">
-        <div className="flex flex-col gap-2 w-full max-w-[519px]">
+        <div className="flex flex-col gap-2 w-full sm:max-w-[519px]">
           <label className="text-white text-base leading-6">
             Performance Notes & Observations
           </label>
