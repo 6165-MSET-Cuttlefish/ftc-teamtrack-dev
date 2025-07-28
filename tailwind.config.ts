@@ -13,7 +13,24 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        'inter': ['Inter', 'system-ui', 'sans-serif'],
+        'montserrat': ['Montserrat', 'system-ui', 'sans-serif'],
+      },
       colors: {
+        // TeamTrack Design System
+        'team-dark': '#191919',
+        'team-blue': '#B0E5FE',
+        'team-white': '#FFFFFF',
+        'team-white-40': 'rgba(255, 255, 255, 0.4)',
+        'team-white-60': 'rgba(255, 255, 255, 0.6)',
+        'team-white-10': 'rgba(255, 255, 255, 0.1)',
+        'team-white-20': 'rgba(255, 255, 255, 0.2)',
+        'team-blue-40': 'rgba(176, 229, 254, 0.4)',
+        'team-blue-10': 'rgba(176, 229, 254, 0.1)',
+        'team-dark-20': 'rgba(25, 25, 25, 0.2)',
+
+        // Keep existing shadcn colors for compatibility
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
