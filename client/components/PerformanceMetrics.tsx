@@ -1,15 +1,15 @@
 import { ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 
-const MetricField = ({ 
-  label, 
+const MetricField = ({
+  label,
   placeholder,
-  hasDropdown = true 
-}: { 
-  label: string; 
-  placeholder: string; 
+  hasDropdown = true
+}: {
+  label: string;
+  placeholder: string;
   hasDropdown?: boolean;
 }) => (
-  <div className="flex flex-col gap-2 w-full max-w-[296px]">
+  <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
     <div className="flex items-center gap-2">
       <label className="text-white text-base leading-6">{label}</label>
       {hasDropdown && <ChevronRight className="w-4 h-4 text-white" />}
