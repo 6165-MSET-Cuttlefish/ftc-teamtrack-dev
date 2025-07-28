@@ -74,16 +74,16 @@ const NavigationMenu = () => (
 
 export const Header = () => {
   return (
-    <header className="w-full px-8 py-4 flex justify-between items-center border-b border-team-white-20 bg-transparent">
-      <div className="flex items-center w-80">
+    <header className="w-full px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 border-b border-team-white-20 bg-transparent">
+      <div className="flex items-center w-full sm:w-80">
         <TeamTrackLogo />
       </div>
-      
-      <div className="flex items-center w-80">
+
+      <div className="hidden lg:flex items-center w-80">
         <SearchBox />
       </div>
-      
-      <div className="flex items-center w-80 justify-end">
+
+      <div className="flex items-center w-full sm:w-80 justify-center sm:justify-end">
         <NavigationMenu />
       </div>
     </header>
