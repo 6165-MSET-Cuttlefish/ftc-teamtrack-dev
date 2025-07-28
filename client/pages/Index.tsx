@@ -9,13 +9,13 @@ export default function Index() {
     <div className="min-h-screen bg-team-dark">
       <Header />
       
-      <div className="flex items-start max-w-[1216px] mx-auto px-8 py-10 gap-10">
+      <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-4 sm:px-8 py-10 gap-10">
         {/* Left Column - Session Form */}
-        <div className="flex-1 max-w-[776px] py-14 pr-12 border-r border-team-blue-10">
-          <div className="space-y-16">
+        <div className="flex-1 w-full lg:max-w-[776px] py-8 lg:py-14 lg:pr-12 lg:border-r border-team-blue-10">
+          <div className="space-y-12 lg:space-y-16">
             {/* Header */}
-            <div className="text-center px-24 space-y-6">
-              <h1 className="text-team-blue text-5xl font-semibold leading-9">
+            <div className="text-center px-4 lg:px-24 space-y-6">
+              <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-tight lg:leading-9">
                 Active Practice Session
               </h1>
               <p className="text-white text-base leading-6">
@@ -35,7 +35,7 @@ export default function Index() {
         </div>
 
         {/* Right Column - Live Preview */}
-        <div className="w-[413px] py-14 px-4">
+        <div className="w-full lg:w-[413px] py-8 lg:py-14 px-4">
           <LivePreview />
         </div>
       </div>
