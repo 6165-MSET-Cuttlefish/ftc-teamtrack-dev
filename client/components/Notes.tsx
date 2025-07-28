@@ -3,10 +3,8 @@ import { ChevronUp, ChevronDown } from "lucide-react";
 export const Notes = () => {
   return (
     <div className="space-y-6">
-      <h2 className="text-team-blue text-2xl font-semibold leading-6">
-        Notes
-      </h2>
-      
+      <h2 className="text-team-blue text-2xl font-semibold leading-6">Notes</h2>
+
       <div className="flex gap-6">
         <div className="flex flex-col gap-2 w-full sm:max-w-[519px]">
           <label className="text-white text-base leading-6">

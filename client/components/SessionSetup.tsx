@@ -3,7 +3,7 @@ import { ChevronUp, ChevronDown } from "lucide-react";
 const FormField = ({
   label,
   placeholder,
-  value
+  value,
 }: {
   label: string;
   placeholder: string;
@@ -29,14 +29,11 @@ export const SessionSetup = () => {
       <h2 className="text-team-blue text-2xl font-semibold leading-6">
         Session Setup
       </h2>
-      
+
       <div className="space-y-6">
         {/* First Row */}
         <div className="flex flex-col sm:flex-row gap-6">
-          <FormField
-            label="Session Name"
-            placeholder="ex. practice"
-          />
+          <FormField label="Session Name" placeholder="ex. practice" />
           <FormField
             label="Driver Name"
             placeholder="Ethan Yang"
@@ -46,10 +43,7 @@ export const SessionSetup = () => {
 
         {/* Second Row */}
         <div className="flex flex-col sm:flex-row gap-6">
-          <FormField
-            label="Session Duration"
-            placeholder="minutes"
-          />
+          <FormField label="Session Duration" placeholder="minutes" />
           <FormField
             label="Match Type"
             placeholder="Autonomous"

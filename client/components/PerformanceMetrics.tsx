@@ -3,7 +3,7 @@ import { ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 const MetricField = ({
   label,
   placeholder,
-  hasDropdown = true
+  hasDropdown = true,
 }: {
   label: string;
   placeholder: string;
@@ -32,34 +32,22 @@ export const PerformanceMetrics = () => {
       <h2 className="text-team-blue text-2xl font-semibold leading-6">
         Performance Metrics
       </h2>
-      
+
       <div className="space-y-6">
         {/* First Row */}
         <div className="flex flex-col gap-6">
-          <MetricField 
-            label="Final Score" 
-            placeholder="ex. 438" 
-          />
-          <MetricField 
-            label="Autonomous Score" 
-            placeholder="ex. 200" 
-          />
+          <MetricField label="Final Score" placeholder="ex. 438" />
+          <MetricField label="Autonomous Score" placeholder="ex. 200" />
         </div>
-        
+
         {/* Second Row */}
         <div className="flex flex-col gap-6">
-          <MetricField 
-            label="TeleOp Score" 
-            placeholder="ex. 208" 
-          />
+          <MetricField label="TeleOp Score" placeholder="ex. 208" />
         </div>
-        
+
         {/* Third Row */}
         <div className="flex flex-col gap-6">
-          <MetricField 
-            label="End Game Score" 
-            placeholder="ex. 208" 
-          />
+          <MetricField label="End Game Score" placeholder="ex. 208" />
         </div>
       </div>
     </div>

@@ -1,17 +1,7 @@
-const DataCard = ({ 
-  value, 
-  label 
-}: { 
-  value: string; 
-  label: string; 
-}) => (
+const DataCard = ({ value, label }: { value: string; label: string }) => (
   <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
-    <div className="text-team-blue text-3xl font-medium leading-6">
-      {value}
-    </div>
-    <div className="text-team-white-60 text-base leading-6">
-      {label}
-    </div>
+    <div className="text-team-blue text-3xl font-medium leading-6">{value}</div>
+    <div className="text-team-white-60 text-base leading-6">{label}</div>
   </div>
 );
 
@@ -57,9 +47,7 @@ export const LivePreview = () => {
           <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-tight lg:leading-9">
             Live Preview
           </h1>
-          <p className="text-white text-base leading-6">
-            Real time analysis
-          </p>
+          <p className="text-white text-base leading-6">Real time analysis</p>
         </div>
 
         <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
