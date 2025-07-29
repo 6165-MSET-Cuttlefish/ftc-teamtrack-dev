@@ -1,67 +1,40 @@
-import { Header } from "../components/Header";
-import { SessionSetup } from "../components/SessionSetup";
-import { PerformanceMetrics } from "../components/PerformanceMetrics";
-import { Notes } from "../components/Notes";
-import { LivePreview } from "../components/LivePreview";
-import { FigmaDesign } from "../components/FigmaDesign";
+import { Link } from "react-router-dom";
 
 export default function Index() {
   return (
-    <div className="min-h-screen bg-team-dark">
-      <div className="flex gap-8 overflow-x-auto">
-        {/* Original Implementation */}
-        <div className="flex-shrink-0 w-1/2 min-w-[640px] border-r border-team-white-20 pr-8">
-          <div className="text-center py-8">
-            <h2 className="text-team-blue text-2xl font-semibold mb-2">Original Implementation</h2>
-            <p className="text-team-white-60">Current responsive design</p>
-          </div>
-
-          <Header />
-
-          <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-4 sm:px-8 py-5 lg:py-10 gap-6 lg:gap-10">
-            {/* Left Column - Session Form */}
-            <div className="flex-1 w-full lg:max-w-[776px] py-8 lg:py-14 lg:pr-12 lg:border-r border-team-blue-10">
-              <div className="space-y-12 lg:space-y-16">
-                {/* Header */}
-                <div className="text-center px-4 lg:px-24 space-y-6">
-                  <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-tight lg:leading-9">
-                    Active Practice Session
-                  </h1>
-                  <p className="text-white text-base leading-6">
-                    6165 Mset Cuttlefish
-                  </p>
-                </div>
-
-                {/* Session Setup */}
-                <SessionSetup />
-
-                {/* Performance Metrics */}
-                <PerformanceMetrics />
-
-                {/* Notes */}
-                <Notes />
-              </div>
-            </div>
-
-            {/* Right Column - Live Preview */}
-            <div className="w-full lg:w-[413px] py-8 lg:py-14 px-4">
-              <LivePreview />
-            </div>
-          </div>
+    <div className="min-h-screen bg-team-dark flex flex-col items-center justify-center">
+      <div className="text-center space-y-12">
+        <div className="space-y-6">
+          <h1 className="text-team-blue text-5xl font-semibold">TeamTrack Implementations</h1>
+          <p className="text-white text-xl">Choose which implementation to view</p>
         </div>
 
-        {/* Figma Design Implementation */}
-        <div className="flex-shrink-0 w-1/2 min-w-[640px] pl-8">
-          <div className="text-center py-8">
-            <h2 className="text-team-blue text-2xl font-semibold mb-2">Figma Design Implementation</h2>
-            <p className="text-team-white-60">Pixel-perfect recreation from Figma</p>
-          </div>
-
-          <div className="flex justify-center overflow-x-auto">
-            <div className="scale-50 origin-top">
-              <FigmaDesign />
+        <div className="flex gap-12">
+          <Link
+            to="/original"
+            className="flex flex-col items-center gap-6 p-8 rounded-2xl border border-team-blue-40 bg-team-dark-20 hover:bg-team-blue-10 transition-colors"
+          >
+            <div className="w-16 h-16 rounded-full bg-team-blue flex items-center justify-center">
+              <span className="text-team-dark text-2xl font-bold">O</span>
             </div>
-          </div>
+            <div className="text-center space-y-2">
+              <h2 className="text-team-blue text-2xl font-semibold">Original Implementation</h2>
+              <p className="text-team-white-60">Current responsive design</p>
+            </div>
+          </Link>
+
+          <Link
+            to="/figma"
+            className="flex flex-col items-center gap-6 p-8 rounded-2xl border border-team-blue-40 bg-team-dark-20 hover:bg-team-blue-10 transition-colors"
+          >
+            <div className="w-16 h-16 rounded-full bg-team-blue flex items-center justify-center">
+              <span className="text-team-dark text-2xl font-bold">F</span>
+            </div>
+            <div className="text-center space-y-2">
+              <h2 className="text-team-blue text-2xl font-semibold">Figma Implementation</h2>
+              <p className="text-team-white-60">Pixel-perfect recreation</p>
+            </div>
+          </Link>
         </div>
       </div>
     </div>
