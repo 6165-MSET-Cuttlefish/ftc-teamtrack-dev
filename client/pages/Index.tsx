@@ -8,9 +8,9 @@ import { FigmaDesign } from "../components/FigmaDesign";
 export default function Index() {
   return (
     <div className="min-h-screen bg-team-dark">
-      <div className="space-y-16">
+      <div className="flex gap-8 overflow-x-auto">
         {/* Original Implementation */}
-        <div className="border-b border-team-white-20 pb-16">
+        <div className="flex-shrink-0 w-1/2 min-w-[640px] border-r border-team-white-20 pr-8">
           <div className="text-center py-8">
             <h2 className="text-team-blue text-2xl font-semibold mb-2">Original Implementation</h2>
             <p className="text-team-white-60">Current responsive design</p>
@@ -51,14 +51,16 @@ export default function Index() {
         </div>
 
         {/* Figma Design Implementation */}
-        <div className="pb-16">
+        <div className="flex-shrink-0 w-1/2 min-w-[640px] pl-8">
           <div className="text-center py-8">
             <h2 className="text-team-blue text-2xl font-semibold mb-2">Figma Design Implementation</h2>
             <p className="text-team-white-60">Pixel-perfect recreation from Figma</p>
           </div>
 
           <div className="flex justify-center overflow-x-auto">
-            <FigmaDesign />
+            <div className="scale-50 origin-top">
+              <FigmaDesign />
+            </div>
           </div>
         </div>
       </div>
