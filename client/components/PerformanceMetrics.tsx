@@ -90,21 +90,31 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
         return (
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Preload</label>
+              <label className="text-white text-base">Basket</label>
               <input
                 type="text"
-                value={preload}
-                onChange={(e) => handleIntegerChange(e.target.value, setPreload)}
+                value={basket}
+                onChange={(e) => handleIntegerChange(e.target.value, setBasket)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
                 placeholder="0"
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Ascent</label>
+              <label className="text-white text-base">Specimen</label>
               <input
                 type="text"
-                value={ascent}
-                onChange={(e) => handleIntegerChange(e.target.value, setAscent)}
+                value={autonomousSpecimen}
+                onChange={(e) => handleIntegerChange(e.target.value, setAutonomousSpecimen)}
+                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
+                placeholder="0"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-base">Floor Mark</label>
+              <input
+                type="text"
+                value={autonomousFloorMark}
+                onChange={(e) => handleIntegerChange(e.target.value, setAutonomousFloorMark)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
                 placeholder="0"
               />
