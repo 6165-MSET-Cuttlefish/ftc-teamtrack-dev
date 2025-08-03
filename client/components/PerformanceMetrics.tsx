@@ -68,7 +68,13 @@ const MetricField = ({
   );
 };
 
-const MetricModal = ({ title, onClose }: { title: string; onClose: () => void }) => {
+const MetricModal = ({
+  title,
+  onClose,
+}: {
+  title: string;
+  onClose: () => void;
+}) => {
   const [samples, setSamples] = useState(0);
   const [specimen, setSpecimen] = useState(0);
   const [floorMark, setFloorMark] = useState(0);
@@ -78,7 +84,10 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
   const [climb, setClimb] = useState(0);
   const [park, setPark] = useState(0);
 
-  const handleIntegerChange = (value: string, setter: (value: number) => void) => {
+  const handleIntegerChange = (
+    value: string,
+    setter: (value: number) => void,
+  ) => {
     // Only allow integers (remove any non-digit characters)
     const integerValue = value.replace(/[^0-9]/g, "");
     setter(integerValue ? parseInt(integerValue) : 0);
@@ -116,7 +125,9 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
         <div className="flex items-center gap-1">
           {hasHButton && (
             <div className="flex items-center justify-center px-1 py-1 rounded">
-              <span className="text-team-white-40 text-2xl font-medium leading-[18px]">H</span>
+              <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
+                H
+              </span>
             </div>
           )}
           <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
@@ -165,11 +176,7 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
       case "TeleOp Score":
         return (
           <div className="space-y-4">
-            <ModalField
-              label="Samples"
-              value={samples}
-              onChange={setSamples}
-            />
+            <ModalField label="Samples" value={samples} onChange={setSamples} />
             <ModalField
               label="Specimen"
               value={specimen}
@@ -186,16 +193,8 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
       case "End Game Score":
         return (
           <div className="space-y-4">
-            <ModalField
-              label="Climb"
-              value={climb}
-              onChange={setClimb}
-            />
-            <ModalField
-              label="Park"
-              value={park}
-              onChange={setPark}
-            />
+            <ModalField label="Climb" value={climb} onChange={setClimb} />
+            <ModalField label="Park" value={park} onChange={setPark} />
           </div>
         );
       default:
@@ -290,9 +289,7 @@ export const PerformanceMetrics = () => {
         onClose={closeModal}
         title={modalOpen || ""}
       >
-        {modalOpen && (
-          <MetricModal title={modalOpen} onClose={closeModal} />
-        )}
+        {modalOpen && <MetricModal title={modalOpen} onClose={closeModal} />}
       </Modal>
     </div>
   );
