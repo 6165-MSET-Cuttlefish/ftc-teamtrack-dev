@@ -1,5 +1,3 @@
-import { ChevronUp, ChevronDown } from "lucide-react";
-
 const FormField = ({
   label,
   placeholder,
