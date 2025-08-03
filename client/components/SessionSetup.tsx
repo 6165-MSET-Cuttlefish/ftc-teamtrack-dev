@@ -1,21 +1,48 @@
+import { useState } from "react";
+
 const FormField = ({
   label,
   placeholder,
   value,
+  onChange,
+  type = "text",
 }: {
   label: string;
   placeholder: string;
-  value?: string;
-}) => (
-  <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-    <label className="text-white text-base leading-6">{label}</label>
-    <div className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-team-white-40 text-base font-normal leading-6">
-      {value || placeholder}
+  value: string;
+  onChange: (value: string) => void;
+  type?: "text" | "number";
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (type === "number") {
+      // Only allow numbers
+      const numericValue = e.target.value.replace(/[^0-9]/g, "");
+      onChange(numericValue);
+    } else {
+      onChange(e.target.value);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+      <label className="text-white text-base leading-6">{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={handleChange}
+        placeholder={placeholder}
+        className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40"
+      />
     </div>
-  </div>
-);
+  );
+};
 
 export const SessionSetup = () => {
+  const [sessionName, setSessionName] = useState("");
+  const [driverName, setDriverName] = useState("Ethan Yang");
+  const [sessionDuration, setSessionDuration] = useState("");
+  const [matchType, setMatchType] = useState("Autonomous");
+
   return (
     <div className="space-y-8">
       <h2 className="text-team-blue text-2xl font-semibold leading-6">
@@ -25,21 +52,34 @@ export const SessionSetup = () => {
       <div className="space-y-6">
         {/* First Row */}
         <div className="flex flex-col sm:flex-row gap-6">
-          <FormField label="Session Name" placeholder="ex. practice" />
+          <FormField
+            label="Session Name"
+            placeholder="ex. practice"
+            value={sessionName}
+            onChange={setSessionName}
+          />
           <FormField
             label="Driver Name"
             placeholder="Ethan Yang"
-            value="Ethan Yang"
+            value={driverName}
+            onChange={setDriverName}
           />
         </div>
 
         {/* Second Row */}
         <div className="flex flex-col sm:flex-row gap-6">
-          <FormField label="Session Duration" placeholder="minutes" />
+          <FormField
+            label="Session Duration"
+            placeholder="minutes"
+            value={sessionDuration}
+            onChange={setSessionDuration}
+            type="number"
+          />
           <FormField
             label="Match Type"
             placeholder="Autonomous"
-            value="Autonomous"
+            value={matchType}
+            onChange={setMatchType}
           />
         </div>
       </div>
