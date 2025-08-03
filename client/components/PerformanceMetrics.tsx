@@ -69,20 +69,74 @@ const MetricField = ({
 };
 
 const MetricModal = ({ title, onClose }: { title: string; onClose: () => void }) => {
-  const [samples, setSamples] = useState("");
-  const [specimen, setSpecimen] = useState("");
-  const [floorMark, setFloorMark] = useState("");
-  const [basket, setBasket] = useState("");
-  const [autonomousSpecimen, setAutonomousSpecimen] = useState("");
-  const [autonomousFloorMark, setAutonomousFloorMark] = useState("");
-  const [climb, setClimb] = useState("");
-  const [park, setPark] = useState("");
+  const [samples, setSamples] = useState(0);
+  const [specimen, setSpecimen] = useState(0);
+  const [floorMark, setFloorMark] = useState(0);
+  const [basket, setBasket] = useState(0);
+  const [autonomousSpecimen, setAutonomousSpecimen] = useState(0);
+  const [autonomousFloorMark, setAutonomousFloorMark] = useState(0);
+  const [climb, setClimb] = useState(0);
+  const [park, setPark] = useState(0);
 
-  const handleIntegerChange = (value: string, setter: (value: string) => void) => {
+  const handleIntegerChange = (value: string, setter: (value: number) => void) => {
     // Only allow integers (remove any non-digit characters)
     const integerValue = value.replace(/[^0-9]/g, "");
-    setter(integerValue);
+    setter(integerValue ? parseInt(integerValue) : 0);
   };
+
+  const handleIncrement = (value: number, setter: (value: number) => void) => {
+    setter(value + 1);
+  };
+
+  const handleDecrement = (value: number, setter: (value: number) => void) => {
+    setter(Math.max(0, value - 1));
+  };
+
+  const ModalField = ({
+    label,
+    value,
+    onChange,
+    hasHButton = false,
+  }: {
+    label: string;
+    value: number;
+    onChange: (value: number) => void;
+    hasHButton?: boolean;
+  }) => (
+    <div className="flex flex-col gap-2">
+      <label className="text-white text-base">{label}</label>
+      <div className="flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => handleIntegerChange(e.target.value, onChange)}
+          className="flex-1 bg-transparent text-white text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40"
+          placeholder="0"
+        />
+        <div className="flex items-center gap-1">
+          {hasHButton && (
+            <div className="flex items-center justify-center px-1 py-1 rounded">
+              <span className="text-team-white-40 text-2xl font-medium leading-[18px]">H</span>
+            </div>
+          )}
+          <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
+            <button
+              onClick={() => handleIncrement(value, onChange)}
+              className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
+            >
+              <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
+            </button>
+            <button
+              onClick={() => handleDecrement(value, onChange)}
+              className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
+            >
+              <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderContent = () => {
     switch (title) {
