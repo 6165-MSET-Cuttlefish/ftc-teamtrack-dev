@@ -20,6 +20,11 @@ const MetricField = ({
     onChange(Math.max(0, value - 1)); // Prevent negative values
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numericValue = e.target.value.replace(/[^0-9]/g, "");
+    onChange(numericValue ? parseInt(numericValue) : 0);
+  };
+
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
       <div className="flex items-center gap-2">
@@ -27,9 +32,13 @@ const MetricField = ({
         {hasDropdown && <ChevronRight className="w-4 h-4 text-white" />}
       </div>
       <div className="flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark">
-        <span className="text-team-white-40 text-base font-light leading-6">
-          {value}
-        </span>
+        <input
+          type="text"
+          value={value}
+          onChange={handleInputChange}
+          className="flex-1 bg-transparent text-white text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40"
+          placeholder="0"
+        />
         <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
           <button
             onClick={handleIncrement}
