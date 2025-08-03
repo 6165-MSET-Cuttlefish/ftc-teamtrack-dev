@@ -68,11 +68,131 @@ const MetricField = ({
   );
 };
 
+const MetricModal = ({ title, onClose }: { title: string; onClose: () => void }) => {
+  const [samples, setSamples] = useState("");
+  const [specimen, setSpecimen] = useState("");
+  const [floorMark, setFloorMark] = useState("");
+
+  const renderContent = () => {
+    switch (title) {
+      case "Autonomous Score":
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-base">Preload</label>
+              <input
+                type="text"
+                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
+                placeholder=""
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-base">Ascent</label>
+              <input
+                type="text"
+                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
+                placeholder=""
+              />
+            </div>
+          </div>
+        );
+      case "TeleOp Score":
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-base">Samples</label>
+              <input
+                type="text"
+                value={samples}
+                onChange={(e) => setSamples(e.target.value)}
+                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
+                placeholder=""
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-base">Specimen</label>
+              <input
+                type="text"
+                value={specimen}
+                onChange={(e) => setSpecimen(e.target.value)}
+                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
+                placeholder=""
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-base">Floor mark</label>
+              <input
+                type="text"
+                value={floorMark}
+                onChange={(e) => setFloorMark(e.target.value)}
+                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
+                placeholder=""
+              />
+            </div>
+          </div>
+        );
+      case "End Game Score":
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-base">Climb</label>
+              <input
+                type="text"
+                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
+                placeholder=""
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-white text-base">Park</label>
+              <input
+                type="text"
+                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
+                placeholder=""
+              />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {renderContent()}
+      <div className="flex justify-end gap-3 mt-6">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 rounded bg-team-white-10 text-white hover:bg-team-white-20 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onClose}
+          className="px-4 py-2 rounded bg-team-blue text-team-dark hover:bg-team-blue/90 transition-colors"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const PerformanceMetrics = () => {
   const [finalScore, setFinalScore] = useState(438);
   const [autonomousScore, setAutonomousScore] = useState(200);
   const [teleOpScore, setTeleOpScore] = useState(208);
   const [endGameScore, setEndGameScore] = useState(208);
+
+  const [modalOpen, setModalOpen] = useState<string | null>(null);
+
+  const openModal = (metricType: string) => {
+    setModalOpen(metricType);
+  };
+
+  const closeModal = () => {
+    setModalOpen(null);
+  };
 
   return (
     <div className="space-y-8">
@@ -87,11 +207,13 @@ export const PerformanceMetrics = () => {
             label="Final Score"
             value={finalScore}
             onChange={setFinalScore}
+            hasDropdown={false}
           />
           <MetricField
             label="Autonomous Score"
             value={autonomousScore}
             onChange={setAutonomousScore}
+            onDropdownClick={() => openModal("Autonomous Score")}
           />
         </div>
 
@@ -101,7 +223,7 @@ export const PerformanceMetrics = () => {
             label="TeleOp Score"
             value={teleOpScore}
             onChange={setTeleOpScore}
-            hasDropdown={false}
+            onDropdownClick={() => openModal("TeleOp Score")}
           />
         </div>
 
@@ -111,9 +233,21 @@ export const PerformanceMetrics = () => {
             label="End Game Score"
             value={endGameScore}
             onChange={setEndGameScore}
+            onDropdownClick={() => openModal("End Game Score")}
           />
         </div>
       </div>
+
+      {/* Modals */}
+      <Modal
+        isOpen={modalOpen !== null}
+        onClose={closeModal}
+        title={modalOpen || ""}
+      >
+        {modalOpen && (
+          <MetricModal title={modalOpen} onClose={closeModal} />
+        )}
+      </Modal>
     </div>
   );
 };
