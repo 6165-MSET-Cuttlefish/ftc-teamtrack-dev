@@ -143,96 +143,59 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
       case "Autonomous Score":
         return (
           <div className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Basket</label>
-              <input
-                type="text"
-                value={basket}
-                onChange={(e) => handleIntegerChange(e.target.value, setBasket)}
-                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder="0"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Specimen</label>
-              <input
-                type="text"
-                value={autonomousSpecimen}
-                onChange={(e) => handleIntegerChange(e.target.value, setAutonomousSpecimen)}
-                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder="0"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Floor Mark</label>
-              <input
-                type="text"
-                value={autonomousFloorMark}
-                onChange={(e) => handleIntegerChange(e.target.value, setAutonomousFloorMark)}
-                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder="0"
-              />
-            </div>
+            <ModalField
+              label="Basket"
+              value={basket}
+              onChange={setBasket}
+              hasHButton={true}
+            />
+            <ModalField
+              label="Specimen"
+              value={autonomousSpecimen}
+              onChange={setAutonomousSpecimen}
+              hasHButton={true}
+            />
+            <ModalField
+              label="Floor Mark"
+              value={autonomousFloorMark}
+              onChange={setAutonomousFloorMark}
+            />
           </div>
         );
       case "TeleOp Score":
         return (
           <div className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Samples</label>
-              <input
-                type="text"
-                value={samples}
-                onChange={(e) => handleIntegerChange(e.target.value, setSamples)}
-                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder="0"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Specimen</label>
-              <input
-                type="text"
-                value={specimen}
-                onChange={(e) => handleIntegerChange(e.target.value, setSpecimen)}
-                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder="0"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Floor mark</label>
-              <input
-                type="text"
-                value={floorMark}
-                onChange={(e) => handleIntegerChange(e.target.value, setFloorMark)}
-                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder="0"
-              />
-            </div>
+            <ModalField
+              label="Samples"
+              value={samples}
+              onChange={setSamples}
+            />
+            <ModalField
+              label="Specimen"
+              value={specimen}
+              onChange={setSpecimen}
+              hasHButton={true}
+            />
+            <ModalField
+              label="Floor mark"
+              value={floorMark}
+              onChange={setFloorMark}
+            />
           </div>
         );
       case "End Game Score":
         return (
           <div className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Climb</label>
-              <input
-                type="text"
-                value={climb}
-                onChange={(e) => handleIntegerChange(e.target.value, setClimb)}
-                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder="0"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-white text-base">Park</label>
-              <input
-                type="text"
-                value={park}
-                onChange={(e) => handleIntegerChange(e.target.value, setPark)}
-                className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder="0"
-              />
-            </div>
+            <ModalField
+              label="Climb"
+              value={climb}
+              onChange={setClimb}
+            />
+            <ModalField
+              label="Park"
+              value={park}
+              onChange={setPark}
+            />
           </div>
         );
       default:
