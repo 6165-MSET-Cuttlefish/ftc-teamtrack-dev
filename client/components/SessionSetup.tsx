@@ -84,7 +84,7 @@ export const SessionSetup = () => {
             placeholder="minutes"
             value={sessionDuration}
             onChange={setSessionDuration}
-            type="number"
+            type="decimal"
           />
           <FormField
             label="Match Type"
