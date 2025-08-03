@@ -1,5 +1,6 @@
 import { ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { Modal } from "./ui/modal";
 
 const MetricField = ({
   label,
