@@ -11,13 +11,24 @@ const FormField = ({
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
-  type?: "text" | "number";
+  type?: "text" | "number" | "decimal";
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (type === "number") {
       // Only allow numbers
       const numericValue = e.target.value.replace(/[^0-9]/g, "");
       onChange(numericValue);
+    } else if (type === "decimal") {
+      // Allow numbers and one decimal point
+      const decimalValue = e.target.value.replace(/[^0-9.]/g, "");
+      // Ensure only one decimal point
+      const parts = decimalValue.split(".");
+      if (parts.length > 2) {
+        // If more than one decimal point, keep only the first one
+        onChange(parts[0] + "." + parts.slice(1).join(""));
+      } else {
+        onChange(decimalValue);
+      }
     } else {
       onChange(e.target.value);
     }
