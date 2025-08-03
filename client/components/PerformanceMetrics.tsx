@@ -72,8 +72,9 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
   const [samples, setSamples] = useState("");
   const [specimen, setSpecimen] = useState("");
   const [floorMark, setFloorMark] = useState("");
-  const [preload, setPreload] = useState("");
-  const [ascent, setAscent] = useState("");
+  const [basket, setBasket] = useState("");
+  const [autonomousSpecimen, setAutonomousSpecimen] = useState("");
+  const [autonomousFloorMark, setAutonomousFloorMark] = useState("");
   const [climb, setClimb] = useState("");
   const [park, setPark] = useState("");
 
