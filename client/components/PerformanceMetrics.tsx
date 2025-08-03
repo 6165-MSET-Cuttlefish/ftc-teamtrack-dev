@@ -72,6 +72,16 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
   const [samples, setSamples] = useState("");
   const [specimen, setSpecimen] = useState("");
   const [floorMark, setFloorMark] = useState("");
+  const [preload, setPreload] = useState("");
+  const [ascent, setAscent] = useState("");
+  const [climb, setClimb] = useState("");
+  const [park, setPark] = useState("");
+
+  const handleIntegerChange = (value: string, setter: (value: string) => void) => {
+    // Only allow integers (remove any non-digit characters)
+    const integerValue = value.replace(/[^0-9]/g, "");
+    setter(integerValue);
+  };
 
   const renderContent = () => {
     switch (title) {
@@ -82,16 +92,20 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
               <label className="text-white text-base">Preload</label>
               <input
                 type="text"
+                value={preload}
+                onChange={(e) => handleIntegerChange(e.target.value, setPreload)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder=""
+                placeholder="0"
               />
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-white text-base">Ascent</label>
               <input
                 type="text"
+                value={ascent}
+                onChange={(e) => handleIntegerChange(e.target.value, setAscent)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder=""
+                placeholder="0"
               />
             </div>
           </div>
@@ -104,9 +118,9 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
               <input
                 type="text"
                 value={samples}
-                onChange={(e) => setSamples(e.target.value)}
+                onChange={(e) => handleIntegerChange(e.target.value, setSamples)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder=""
+                placeholder="0"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -114,9 +128,9 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
               <input
                 type="text"
                 value={specimen}
-                onChange={(e) => setSpecimen(e.target.value)}
+                onChange={(e) => handleIntegerChange(e.target.value, setSpecimen)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder=""
+                placeholder="0"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -124,9 +138,9 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
               <input
                 type="text"
                 value={floorMark}
-                onChange={(e) => setFloorMark(e.target.value)}
+                onChange={(e) => handleIntegerChange(e.target.value, setFloorMark)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder=""
+                placeholder="0"
               />
             </div>
           </div>
@@ -138,16 +152,20 @@ const MetricModal = ({ title, onClose }: { title: string; onClose: () => void })
               <label className="text-white text-base">Climb</label>
               <input
                 type="text"
+                value={climb}
+                onChange={(e) => handleIntegerChange(e.target.value, setClimb)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder=""
+                placeholder="0"
               />
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-white text-base">Park</label>
               <input
                 type="text"
+                value={park}
+                onChange={(e) => handleIntegerChange(e.target.value, setPark)}
                 className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base focus:outline-none focus:border-team-blue placeholder:text-team-white-40"
-                placeholder=""
+                placeholder="0"
               />
             </div>
           </div>
