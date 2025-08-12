@@ -258,6 +258,7 @@ const AnalysisContent = () => {
                   value={insight.value}
                   isPositive={insight.isPositive}
                   onToggle={() => toggleInsight(insight.id)}
+                  onShowGraph={() => showGraph(insight.metric || `Metric ${insight.id}`)}
                 />
               ))}
             </div>
