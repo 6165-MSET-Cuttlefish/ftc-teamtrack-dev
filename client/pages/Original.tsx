@@ -11,7 +11,7 @@ const OriginalContent = () => {
   const { isDarkMode } = useTheme();
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
+    <div className={`min-h-screen ${isDarkMode ? "bg-team-dark" : "bg-white"}`}>
       <Header />
 
       <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-4 sm:px-8 py-5 lg:py-10 gap-6 lg:gap-10">
@@ -23,7 +23,9 @@ const OriginalContent = () => {
               <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-[48px]">
                 Active Practice Session
               </h1>
-              <p className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>
+              <p
+                className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+              >
                 6165 Mset Cuttlefish
               </p>
             </div>

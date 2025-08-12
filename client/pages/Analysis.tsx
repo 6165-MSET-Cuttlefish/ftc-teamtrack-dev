@@ -9,13 +9,22 @@ const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
   return (
     <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
-      <div className="text-team-blue text-3xl font-medium leading-6">{value}</div>
+      <div className="text-team-blue text-3xl font-medium leading-6">
+        {value}
+      </div>
       <div className="text-team-white-60 text-base leading-6">{label}</div>
     </div>
   );
 };
 
-const SensorOverviewCard = ({ sessionName, driverName, matchType, sessionDuration, finalScore, totalTime }: {
+const SensorOverviewCard = ({
+  sessionName,
+  driverName,
+  matchType,
+  sessionDuration,
+  finalScore,
+  totalTime,
+}: {
   sessionName: string;
   driverName: string;
   matchType: string;
@@ -26,30 +35,48 @@ const SensorOverviewCard = ({ sessionName, driverName, matchType, sessionDuratio
   const { isDarkMode } = useTheme();
   return (
     <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-4">
-      <h3 className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>
+      <h3
+        className={`text-base font-medium leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+      >
         Sensor Overview
       </h3>
       <div className="grid grid-cols-2 gap-6">
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-2.5">
-            <div className="text-team-white-60 text-xs leading-6">Session Name</div>
+            <div className="text-team-white-60 text-xs leading-6">
+              Session Name
+            </div>
             <div className="text-team-white-60 text-xs leading-6">Driver</div>
-            <div className="text-team-white-60 text-xs leading-6">Match Type</div>
+            <div className="text-team-white-60 text-xs leading-6">
+              Match Type
+            </div>
           </div>
           <div className="flex flex-col gap-2.5">
-            <div className="text-team-blue text-xs leading-6">{sessionName || "N/A"}</div>
-            <div className="text-team-blue text-xs leading-6">{driverName || "N/A"}</div>
-            <div className="text-team-blue text-xs leading-6">{matchType || "N/A"}</div>
+            <div className="text-team-blue text-xs leading-6">
+              {sessionName || "N/A"}
+            </div>
+            <div className="text-team-blue text-xs leading-6">
+              {driverName || "N/A"}
+            </div>
+            <div className="text-team-blue text-xs leading-6">
+              {matchType || "N/A"}
+            </div>
           </div>
         </div>
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-2.5">
             <div className="text-team-white-60 text-xs leading-6">Duration</div>
-            <div className="text-team-white-60 text-xs leading-6">Final Score</div>
-            <div className="text-team-white-60 text-xs leading-6">Total Finished Time</div>
+            <div className="text-team-white-60 text-xs leading-6">
+              Final Score
+            </div>
+            <div className="text-team-white-60 text-xs leading-6">
+              Total Finished Time
+            </div>
           </div>
           <div className="flex flex-col gap-2.5">
-            <div className="text-team-blue text-xs leading-6">{sessionDuration || "N/A"}</div>
+            <div className="text-team-blue text-xs leading-6">
+              {sessionDuration || "N/A"}
+            </div>
             <div className="text-team-blue text-xs leading-6">{finalScore}</div>
             <div className="text-team-blue text-xs leading-6">{totalTime}</div>
           </div>
@@ -62,7 +89,7 @@ const SensorOverviewCard = ({ sessionName, driverName, matchType, sessionDuratio
 const GraphModal = ({
   isOpen,
   onClose,
-  metric
+  metric,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -78,13 +105,17 @@ const GraphModal = ({
       <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
 
       {/* Modal */}
-      <div className={`relative rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-team-dark' : 'bg-white'} border border-team-blue-40`}>
+      <div
+        className={`relative rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto ${isDarkMode ? "bg-team-dark" : "bg-white"} border border-team-blue-40`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-team-blue text-xl font-semibold">{metric || "Metric"} Graph</h2>
+          <h2 className="text-team-blue text-xl font-semibold">
+            {metric || "Metric"} Graph
+          </h2>
           <button
             onClick={onClose}
-            className={`hover:opacity-80 transition-opacity ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+            className={`hover:opacity-80 transition-opacity ${isDarkMode ? "text-white" : "text-[#191919]"}`}
           >
             ✕
           </button>
@@ -92,10 +123,14 @@ const GraphModal = ({
 
         {/* Graph Content */}
         <div className="h-80 flex items-center justify-center border border-team-blue-40 rounded-lg">
-          <div className={`text-center ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>
+          <div
+            className={`text-center ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+          >
             <BarChart3 className="w-16 h-16 mx-auto mb-4 text-team-blue" />
             <p className="text-lg font-medium">Line Graph Placeholder</p>
-            <p className="text-sm text-team-white-60 mt-2">Graph visualization will be implemented here</p>
+            <p className="text-sm text-team-white-60 mt-2">
+              Graph visualization will be implemented here
+            </p>
           </div>
         </div>
       </div>
@@ -108,7 +143,7 @@ const PerformanceInsightCard = ({
   value,
   isPositive,
   onToggle,
-  onShowGraph
+  onShowGraph,
 }: {
   metric: string;
   value: string;
@@ -120,7 +155,9 @@ const PerformanceInsightCard = ({
   return (
     <div className="flex items-center justify-between px-6 py-4 rounded-lg border border-team-blue-40">
       <div className="flex items-center gap-4">
-        <span className={`text-base font-medium ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>
+        <span
+          className={`text-base font-medium ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        >
           {metric || "Metric Name"}
         </span>
         <span className="text-team-blue text-base font-medium">
@@ -130,7 +167,7 @@ const PerformanceInsightCard = ({
       <div className="flex items-center gap-2">
         <button
           onClick={onShowGraph}
-          className={`p-2 rounded transition-colors hover:bg-team-blue-10 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+          className={`p-2 rounded transition-colors hover:bg-team-blue-10 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
           title="Show Graph"
         >
           <BarChart3 className="w-5 h-5" />
@@ -139,8 +176,8 @@ const PerformanceInsightCard = ({
           onClick={onToggle}
           className={`p-2 rounded transition-colors ${
             isPositive
-              ? 'text-green-500 hover:bg-green-500/10'
-              : 'text-red-500 hover:bg-red-500/10'
+              ? "text-green-500 hover:bg-green-500/10"
+              : "text-red-500 hover:bg-red-500/10"
           }`}
         >
           {isPositive ? (
@@ -158,9 +195,12 @@ const AnalysisContent = () => {
   const { sessionData } = useSession();
   const { isDarkMode } = useTheme();
   const [timer, setTimer] = useState(0);
-  const [graphModal, setGraphModal] = useState<{ isOpen: boolean; metric: string }>({
+  const [graphModal, setGraphModal] = useState<{
+    isOpen: boolean;
+    metric: string;
+  }>({
     isOpen: false,
-    metric: ""
+    metric: "",
   });
 
   // Performance insights state
@@ -188,12 +228,12 @@ const AnalysisContent = () => {
   };
 
   const toggleInsight = (id: number) => {
-    setInsights(prev =>
-      prev.map(insight =>
+    setInsights((prev) =>
+      prev.map((insight) =>
         insight.id === id
           ? { ...insight, isPositive: !insight.isPositive }
-          : insight
-      )
+          : insight,
+      ),
     );
   };
 
@@ -206,7 +246,7 @@ const AnalysisContent = () => {
   };
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
+    <div className={`min-h-screen ${isDarkMode ? "bg-team-dark" : "bg-white"}`}>
       <Header />
 
       <div className="max-w-[800px] mx-auto px-4 sm:px-8 py-8 lg:py-16">
@@ -216,7 +256,9 @@ const AnalysisContent = () => {
             <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-[48px]">
               {sessionData.sessionName || "Session"} Analysis
             </h1>
-            <p className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>
+            <p
+              className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+            >
               Detailed performance analysis
             </p>
           </div>
@@ -230,13 +272,16 @@ const AnalysisContent = () => {
 
           {/* Data Cards */}
           <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 justify-center">
-            <DataCard value={sessionData.finalScore.toString()} label="Final Score" />
+            <DataCard
+              value={sessionData.finalScore.toString()}
+              label="Final Score"
+            />
             <DataCard value="87%" label="Consistency" />
             <DataCard value="92%" label="Accuracy" />
           </div>
 
           {/* Sensor Overview */}
-          <SensorOverviewCard 
+          <SensorOverviewCard
             sessionName={sessionData.sessionName}
             driverName={sessionData.driverName}
             matchType={sessionData.matchType}
@@ -258,7 +303,9 @@ const AnalysisContent = () => {
                   value={insight.value}
                   isPositive={insight.isPositive}
                   onToggle={() => toggleInsight(insight.id)}
-                  onShowGraph={() => showGraph(insight.metric || `Metric ${insight.id}`)}
+                  onShowGraph={() =>
+                    showGraph(insight.metric || `Metric ${insight.id}`)
+                  }
                 />
               ))}
             </div>

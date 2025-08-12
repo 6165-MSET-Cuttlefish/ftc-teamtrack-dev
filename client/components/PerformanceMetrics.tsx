@@ -34,24 +34,30 @@ const MetricField = ({
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
       <div className="flex items-center justify-between">
-        <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>{label}</label>
+        <label
+          className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        >
+          {label}
+        </label>
         <div className="w-6 h-6 flex items-center justify-center">
           {hasDropdown && (
             <button
               onClick={onDropdownClick}
-              className={`hover:text-team-blue transition-colors ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+              className={`hover:text-team-blue transition-colors ${isDarkMode ? "text-white" : "text-[#191919]"}`}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
-      <div className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
+      <div
+        className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? "bg-team-dark" : "bg-white"}`}
+      >
         <input
           type="text"
           value={value}
           onChange={handleInputChange}
-          className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+          className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
           placeholder="0"
         />
         <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
@@ -119,13 +125,19 @@ export const PerformanceMetrics = () => {
 
     return (
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-        <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>{label}</label>
-        <div className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
+        <label
+          className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        >
+          {label}
+        </label>
+        <div
+          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? "bg-team-dark" : "bg-white"}`}
+        >
           <input
             type="text"
             value={value}
             onChange={(e) => handleIntegerChange(e.target.value, onChange)}
-            className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+            className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
             placeholder="0"
           />
           <div className="flex items-center gap-1">
@@ -159,11 +171,14 @@ export const PerformanceMetrics = () => {
     );
   };
 
-
-  const setFinalScore = (value: number) => updateSessionData({ finalScore: value });
-  const setAutonomousScore = (value: number) => updateSessionData({ autonomousScore: value });
-  const setTeleOpScore = (value: number) => updateSessionData({ teleOpScore: value });
-  const setEndGameScore = (value: number) => updateSessionData({ endGameScore: value });
+  const setFinalScore = (value: number) =>
+    updateSessionData({ finalScore: value });
+  const setAutonomousScore = (value: number) =>
+    updateSessionData({ autonomousScore: value });
+  const setTeleOpScore = (value: number) =>
+    updateSessionData({ teleOpScore: value });
+  const setEndGameScore = (value: number) =>
+    updateSessionData({ endGameScore: value });
 
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
@@ -215,7 +230,12 @@ export const PerformanceMetrics = () => {
       case "TeleOp Score":
         return (
           <div className="space-y-6">
-            <InlineBreakdownField label="Samples" value={samples} onChange={setSamples} hasHButton={true} />
+            <InlineBreakdownField
+              label="Samples"
+              value={samples}
+              onChange={setSamples}
+              hasHButton={true}
+            />
             <InlineBreakdownField
               label="Specimen"
               value={specimen}
@@ -232,8 +252,16 @@ export const PerformanceMetrics = () => {
       case "End Game Score":
         return (
           <div className="space-y-6">
-            <InlineBreakdownField label="Climb" value={climb} onChange={setClimb} />
-            <InlineBreakdownField label="Park" value={park} onChange={setPark} />
+            <InlineBreakdownField
+              label="Climb"
+              value={climb}
+              onChange={setClimb}
+            />
+            <InlineBreakdownField
+              label="Park"
+              value={park}
+              onChange={setPark}
+            />
           </div>
         );
       default:
@@ -286,9 +314,7 @@ export const PerformanceMetrics = () => {
           {getSectionTitle()}
         </h2>
 
-        <div className="min-h-[200px]">
-          {getBreakdownFields()}
-        </div>
+        <div className="min-h-[200px]">{getBreakdownFields()}</div>
       </div>
     </div>
   );

@@ -39,16 +39,18 @@ const FormField = ({
 
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-      <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>{label}</label>
+      <label
+        className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+      >
+        {label}
+      </label>
       <input
         type="text"
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
         className={`px-2.5 py-2.5 rounded border border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40 ${
-          isDarkMode
-            ? 'bg-team-dark text-white'
-            : 'bg-white text-[#191919]'
+          isDarkMode ? "bg-team-dark text-white" : "bg-white text-[#191919]"
         }`}
       />
     </div>
@@ -58,10 +60,14 @@ const FormField = ({
 export const SessionSetup = () => {
   const { sessionData, updateSessionData } = useSession();
 
-  const setSessionName = (value: string) => updateSessionData({ sessionName: value });
-  const setDriverName = (value: string) => updateSessionData({ driverName: value });
-  const setSessionDuration = (value: string) => updateSessionData({ sessionDuration: value });
-  const setMatchType = (value: string) => updateSessionData({ matchType: value });
+  const setSessionName = (value: string) =>
+    updateSessionData({ sessionName: value });
+  const setDriverName = (value: string) =>
+    updateSessionData({ driverName: value });
+  const setSessionDuration = (value: string) =>
+    updateSessionData({ sessionDuration: value });
+  const setMatchType = (value: string) =>
+    updateSessionData({ matchType: value });
 
   return (
     <div className="space-y-8">
