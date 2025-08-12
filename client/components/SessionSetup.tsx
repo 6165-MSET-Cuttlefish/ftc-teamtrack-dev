@@ -49,10 +49,12 @@ const FormField = ({
 };
 
 export const SessionSetup = () => {
-  const [sessionName, setSessionName] = useState("");
-  const [driverName, setDriverName] = useState("Ethan Yang");
-  const [sessionDuration, setSessionDuration] = useState("");
-  const [matchType, setMatchType] = useState("Autonomous");
+  const { sessionData, updateSessionData } = useSession();
+
+  const setSessionName = (value: string) => updateSessionData({ sessionName: value });
+  const setDriverName = (value: string) => updateSessionData({ driverName: value });
+  const setSessionDuration = (value: string) => updateSessionData({ sessionDuration: value });
+  const setMatchType = (value: string) => updateSessionData({ matchType: value });
 
   return (
     <div className="space-y-8">
