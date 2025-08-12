@@ -149,58 +149,6 @@ export const PerformanceMetrics = () => {
     </div>
   );
 
-  const renderBreakdownFields = (section: string) => {
-    switch (section) {
-      case "Autonomous Score":
-        return (
-          <div className="flex gap-4 ml-6 mt-4">
-            <InlineBreakdownField
-              label="Basket"
-              value={basket}
-              onChange={setBasket}
-              hasHButton={true}
-            />
-            <InlineBreakdownField
-              label="Specimen"
-              value={autonomousSpecimen}
-              onChange={setAutonomousSpecimen}
-              hasHButton={true}
-            />
-            <InlineBreakdownField
-              label="Floor Mark"
-              value={autonomousFloorMark}
-              onChange={setAutonomousFloorMark}
-            />
-          </div>
-        );
-      case "TeleOp Score":
-        return (
-          <div className="flex gap-4 ml-6 mt-4">
-            <InlineBreakdownField label="Samples" value={samples} onChange={setSamples} />
-            <InlineBreakdownField
-              label="Specimen"
-              value={specimen}
-              onChange={setSpecimen}
-              hasHButton={true}
-            />
-            <InlineBreakdownField
-              label="Floor mark"
-              value={floorMark}
-              onChange={setFloorMark}
-            />
-          </div>
-        );
-      case "End Game Score":
-        return (
-          <div className="flex gap-4 ml-6 mt-4">
-            <InlineBreakdownField label="Climb" value={climb} onChange={setClimb} />
-            <InlineBreakdownField label="Park" value={park} onChange={setPark} />
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
 
   const setFinalScore = (value: number) => updateSessionData({ finalScore: value });
   const setAutonomousScore = (value: number) => updateSessionData({ autonomousScore: value });
