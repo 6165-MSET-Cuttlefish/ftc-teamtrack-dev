@@ -30,16 +30,18 @@ const MetricField = ({
 
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between">
         <label className="text-white text-base leading-6">{label}</label>
-        {hasDropdown && (
-          <button
-            onClick={onDropdownClick}
-            className="text-white hover:text-team-blue transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        )}
+        <div className="w-6 h-6 flex items-center justify-center">
+          {hasDropdown && (
+            <button
+              onClick={onDropdownClick}
+              className="text-white hover:text-team-blue transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
       <div className="flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark">
         <input
