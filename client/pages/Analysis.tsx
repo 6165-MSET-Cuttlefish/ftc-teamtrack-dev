@@ -188,13 +188,21 @@ const AnalysisContent = () => {
   };
 
   const toggleInsight = (id: number) => {
-    setInsights(prev => 
-      prev.map(insight => 
-        insight.id === id 
+    setInsights(prev =>
+      prev.map(insight =>
+        insight.id === id
           ? { ...insight, isPositive: !insight.isPositive }
           : insight
       )
     );
+  };
+
+  const showGraph = (metric: string) => {
+    setGraphModal({ isOpen: true, metric });
+  };
+
+  const closeGraph = () => {
+    setGraphModal({ isOpen: false, metric: "" });
   };
 
   return (
