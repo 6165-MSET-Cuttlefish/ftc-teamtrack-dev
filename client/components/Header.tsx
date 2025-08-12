@@ -1,4 +1,5 @@
 import { Search, Sun, Settings } from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
 
 const TeamTrackLogo = () => (
   <div className="flex items-center gap-6">
