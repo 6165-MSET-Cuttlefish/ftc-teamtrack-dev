@@ -68,13 +68,10 @@ const MetricField = ({
   );
 };
 
-const MetricModal = ({
-  title,
-  onClose,
-}: {
-  title: string;
-  onClose: () => void;
-}) => {
+export const PerformanceMetrics = () => {
+  const { sessionData, updateSessionData } = useSession();
+
+  // Breakdown field states
   const [samples, setSamples] = useState(0);
   const [specimen, setSpecimen] = useState(0);
   const [floorMark, setFloorMark] = useState(0);
