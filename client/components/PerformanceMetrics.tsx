@@ -150,24 +150,24 @@ const MetricModal = ({
     </div>
   );
 
-  const renderContent = () => {
-    switch (title) {
+  const renderBreakdownFields = (section: string) => {
+    switch (section) {
       case "Autonomous Score":
         return (
-          <div className="space-y-4">
-            <ModalField
+          <div className="flex gap-4 ml-6 mt-4">
+            <InlineBreakdownField
               label="Basket"
               value={basket}
               onChange={setBasket}
               hasHButton={true}
             />
-            <ModalField
+            <InlineBreakdownField
               label="Specimen"
               value={autonomousSpecimen}
               onChange={setAutonomousSpecimen}
               hasHButton={true}
             />
-            <ModalField
+            <InlineBreakdownField
               label="Floor Mark"
               value={autonomousFloorMark}
               onChange={setAutonomousFloorMark}
@@ -176,15 +176,15 @@ const MetricModal = ({
         );
       case "TeleOp Score":
         return (
-          <div className="space-y-4">
-            <ModalField label="Samples" value={samples} onChange={setSamples} />
-            <ModalField
+          <div className="flex gap-4 ml-6 mt-4">
+            <InlineBreakdownField label="Samples" value={samples} onChange={setSamples} />
+            <InlineBreakdownField
               label="Specimen"
               value={specimen}
               onChange={setSpecimen}
               hasHButton={true}
             />
-            <ModalField
+            <InlineBreakdownField
               label="Floor mark"
               value={floorMark}
               onChange={setFloorMark}
@@ -193,9 +193,9 @@ const MetricModal = ({
         );
       case "End Game Score":
         return (
-          <div className="space-y-4">
-            <ModalField label="Climb" value={climb} onChange={setClimb} />
-            <ModalField label="Park" value={park} onChange={setPark} />
+          <div className="flex gap-4 ml-6 mt-4">
+            <InlineBreakdownField label="Climb" value={climb} onChange={setClimb} />
+            <InlineBreakdownField label="Park" value={park} onChange={setPark} />
           </div>
         );
       default:
