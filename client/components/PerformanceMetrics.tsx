@@ -232,14 +232,10 @@ export const PerformanceMetrics = () => {
   const setTeleOpScore = (value: number) => updateSessionData({ teleOpScore: value });
   const setEndGameScore = (value: number) => updateSessionData({ endGameScore: value });
 
-  const [modalOpen, setModalOpen] = useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
-  const openModal = (metricType: string) => {
-    setModalOpen(metricType);
-  };
-
-  const closeModal = () => {
-    setModalOpen(null);
+  const toggleSection = (metricType: string) => {
+    setExpandedSection(expandedSection === metricType ? null : metricType);
   };
 
   return (
