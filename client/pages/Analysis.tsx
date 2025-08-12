@@ -158,7 +158,11 @@ const AnalysisContent = () => {
   const { sessionData } = useSession();
   const { isDarkMode } = useTheme();
   const [timer, setTimer] = useState(0);
-  
+  const [graphModal, setGraphModal] = useState<{ isOpen: boolean; metric: string }>({
+    isOpen: false,
+    metric: ""
+  });
+
   // Performance insights state
   const [insights, setInsights] = useState([
     { id: 1, metric: "Consistency", value: "87%", isPositive: true },
