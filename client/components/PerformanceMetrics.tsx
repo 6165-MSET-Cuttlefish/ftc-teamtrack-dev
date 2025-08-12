@@ -253,13 +253,13 @@ export const PerformanceMetrics = () => {
         <div className="flex flex-col gap-6">
           <MetricField
             label="Final Score"
-            value={finalScore}
+            value={sessionData.finalScore}
             onChange={setFinalScore}
             hasDropdown={false}
           />
           <MetricField
             label="Autonomous Score"
-            value={autonomousScore}
+            value={sessionData.autonomousScore}
             onChange={setAutonomousScore}
             onDropdownClick={() => openModal("Autonomous Score")}
           />
@@ -269,7 +269,7 @@ export const PerformanceMetrics = () => {
         <div className="flex flex-col gap-6">
           <MetricField
             label="TeleOp Score"
-            value={teleOpScore}
+            value={sessionData.teleOpScore}
             onChange={setTeleOpScore}
             onDropdownClick={() => openModal("TeleOp Score")}
           />
@@ -279,7 +279,7 @@ export const PerformanceMetrics = () => {
         <div className="flex flex-col gap-6">
           <MetricField
             label="End Game Score"
-            value={endGameScore}
+            value={sessionData.endGameScore}
             onChange={setEndGameScore}
             onDropdownClick={() => openModal("End Game Score")}
           />
