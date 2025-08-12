@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSession } from "../contexts/SessionContext";
+import { useTheme } from "../contexts/ThemeContext";
 
 const DataCard = ({ value, label }: { value: string; label: string }) => (
   <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
