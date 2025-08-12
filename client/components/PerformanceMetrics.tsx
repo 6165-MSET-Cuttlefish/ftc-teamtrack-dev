@@ -244,8 +244,7 @@ export const PerformanceMetrics = () => {
             label="Final Score"
             value={sessionData.finalScore}
             onChange={setFinalScore}
-            hasDropdown={true}
-            onDropdownClick={() => toggleSection("Final Score")}
+            hasDropdown={false}
           />
 
           <MetricField
@@ -260,7 +259,6 @@ export const PerformanceMetrics = () => {
             value={sessionData.teleOpScore}
             onChange={setTeleOpScore}
             onDropdownClick={() => toggleSection("TeleOp Score")}
-            hasDropdown={true}
           />
 
           <MetricField
