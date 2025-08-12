@@ -59,16 +59,62 @@ const SensorOverviewCard = ({ sessionName, driverName, matchType, sessionDuratio
   );
 };
 
-const PerformanceInsightCard = ({ 
-  metric, 
-  value, 
-  isPositive, 
-  onToggle 
-}: { 
-  metric: string; 
-  value: string; 
-  isPositive: boolean; 
-  onToggle: () => void; 
+const GraphModal = ({
+  isOpen,
+  onClose,
+  metric
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  metric: string;
+}) => {
+  const { isDarkMode } = useTheme();
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+
+      {/* Modal */}
+      <div className={`relative rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-team-dark' : 'bg-white'} border border-team-blue-40`}>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-team-blue text-xl font-semibold">{metric || "Metric"} Graph</h2>
+          <button
+            onClick={onClose}
+            className={`hover:opacity-80 transition-opacity ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Graph Content */}
+        <div className="h-80 flex items-center justify-center border border-team-blue-40 rounded-lg">
+          <div className={`text-center ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>
+            <BarChart3 className="w-16 h-16 mx-auto mb-4 text-team-blue" />
+            <p className="text-lg font-medium">Line Graph Placeholder</p>
+            <p className="text-sm text-team-white-60 mt-2">Graph visualization will be implemented here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PerformanceInsightCard = ({
+  metric,
+  value,
+  isPositive,
+  onToggle,
+  onShowGraph
+}: {
+  metric: string;
+  value: string;
+  isPositive: boolean;
+  onToggle: () => void;
+  onShowGraph: () => void;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -81,20 +127,29 @@ const PerformanceInsightCard = ({
           {value || "Value"}
         </span>
       </div>
-      <button 
-        onClick={onToggle}
-        className={`p-2 rounded transition-colors ${
-          isPositive 
-            ? 'text-green-500 hover:bg-green-500/10' 
-            : 'text-red-500 hover:bg-red-500/10'
-        }`}
-      >
-        {isPositive ? (
-          <TrendingUp className="w-5 h-5" />
-        ) : (
-          <TrendingDown className="w-5 h-5" />
-        )}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onShowGraph}
+          className={`p-2 rounded transition-colors hover:bg-team-blue-10 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+          title="Show Graph"
+        >
+          <BarChart3 className="w-5 h-5" />
+        </button>
+        <button
+          onClick={onToggle}
+          className={`p-2 rounded transition-colors ${
+            isPositive
+              ? 'text-green-500 hover:bg-green-500/10'
+              : 'text-red-500 hover:bg-red-500/10'
+          }`}
+        >
+          {isPositive ? (
+            <TrendingUp className="w-5 h-5" />
+          ) : (
+            <TrendingDown className="w-5 h-5" />
+          )}
+        </button>
+      </div>
     </div>
   );
 };
