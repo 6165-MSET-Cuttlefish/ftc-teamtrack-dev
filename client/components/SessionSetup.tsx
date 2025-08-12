@@ -14,6 +14,8 @@ const FormField = ({
   onChange: (value: string) => void;
   type?: "text" | "number" | "decimal";
 }) => {
+  const { isDarkMode } = useTheme();
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (type === "number") {
       // Only allow numbers
@@ -37,13 +39,17 @@ const FormField = ({
 
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-      <label className="text-white text-base leading-6">{label}</label>
+      <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>{label}</label>
       <input
         type="text"
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
-        className="px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark text-white text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40"
+        className={`px-2.5 py-2.5 rounded border border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40 ${
+          isDarkMode
+            ? 'bg-team-dark text-white'
+            : 'bg-white text-[#191919]'
+        }`}
       />
     </div>
   );
