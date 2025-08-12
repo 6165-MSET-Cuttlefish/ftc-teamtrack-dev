@@ -170,13 +170,16 @@ export const PerformanceMetrics = () => {
       case "End Game Score":
         return "End Game Score";
       default:
-        return "TeleOp Score"; // Default to TeleOp Score
+        return ""; // Default to blank
     }
   };
 
   const getBreakdownFields = () => {
-    const activeSection = expandedSection || "TeleOp Score"; // Default to TeleOp Score
-    switch (activeSection) {
+    if (!expandedSection) {
+      return null; // Return nothing when no section is selected
+    }
+
+    switch (expandedSection) {
       case "Autonomous Score":
         return (
           <div className="space-y-6">
@@ -224,22 +227,7 @@ export const PerformanceMetrics = () => {
           </div>
         );
       default:
-        return (
-          <div className="space-y-6">
-            <InlineBreakdownField label="Samples" value={samples} onChange={setSamples} hasHButton={true} />
-            <InlineBreakdownField
-              label="Specimen"
-              value={specimen}
-              onChange={setSpecimen}
-              hasHButton={false}
-            />
-            <InlineBreakdownField
-              label="Floor mark"
-              value={floorMark}
-              onChange={setFloorMark}
-            />
-          </div>
-        );
+        return null;
     }
   };
 
