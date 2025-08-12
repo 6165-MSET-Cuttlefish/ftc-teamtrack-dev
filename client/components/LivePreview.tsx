@@ -112,9 +112,12 @@ export const LivePreview = () => {
         <InsightsCard />
 
         {/* CTA Button */}
-        <button className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal">
+        <Link
+          to="/analysis"
+          className="inline-block w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors"
+        >
           View Full Analysis Report
-        </button>
+        </Link>
       </div>
     </div>
   );
