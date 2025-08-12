@@ -245,51 +245,49 @@ export const PerformanceMetrics = () => {
       </h2>
 
       <div className="space-y-6">
-        {/* First Row */}
-        <div className="flex flex-col gap-6">
+        {/* Final Score */}
+        <div>
           <MetricField
             label="Final Score"
             value={sessionData.finalScore}
             onChange={setFinalScore}
             hasDropdown={false}
           />
+        </div>
+
+        {/* Autonomous Score */}
+        <div>
           <MetricField
             label="Autonomous Score"
             value={sessionData.autonomousScore}
             onChange={setAutonomousScore}
-            onDropdownClick={() => openModal("Autonomous Score")}
+            onDropdownClick={() => toggleSection("Autonomous Score")}
           />
+          {expandedSection === "Autonomous Score" && renderBreakdownFields("Autonomous Score")}
         </div>
 
-        {/* Second Row */}
-        <div className="flex flex-col gap-6">
+        {/* TeleOp Score */}
+        <div>
           <MetricField
             label="TeleOp Score"
             value={sessionData.teleOpScore}
             onChange={setTeleOpScore}
-            onDropdownClick={() => openModal("TeleOp Score")}
+            onDropdownClick={() => toggleSection("TeleOp Score")}
           />
+          {expandedSection === "TeleOp Score" && renderBreakdownFields("TeleOp Score")}
         </div>
 
-        {/* Third Row */}
-        <div className="flex flex-col gap-6">
+        {/* End Game Score */}
+        <div>
           <MetricField
             label="End Game Score"
             value={sessionData.endGameScore}
             onChange={setEndGameScore}
-            onDropdownClick={() => openModal("End Game Score")}
+            onDropdownClick={() => toggleSection("End Game Score")}
           />
+          {expandedSection === "End Game Score" && renderBreakdownFields("End Game Score")}
         </div>
       </div>
-
-      {/* Modals */}
-      <Modal
-        isOpen={modalOpen !== null}
-        onClose={closeModal}
-        title={modalOpen || ""}
-      >
-        {modalOpen && <MetricModal title={modalOpen} onClose={closeModal} />}
-      </Modal>
     </div>
   );
 };
