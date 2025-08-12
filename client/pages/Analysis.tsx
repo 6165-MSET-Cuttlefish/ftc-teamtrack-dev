@@ -99,7 +99,7 @@ const PerformanceInsightCard = ({
   );
 };
 
-export default function Analysis() {
+const AnalysisContent = () => {
   const { sessionData } = useSession();
   const { isDarkMode } = useTheme();
   const [timer, setTimer] = useState(0);
