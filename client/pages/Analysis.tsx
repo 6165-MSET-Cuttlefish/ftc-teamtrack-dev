@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useSession } from "../contexts/SessionContext";
-import { useTheme } from "../contexts/ThemeContext";
+import { useSession, SessionProvider } from "../contexts/SessionContext";
+import { useTheme, ThemeProvider } from "../contexts/ThemeContext";
 import { Header } from "../components/Header";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
