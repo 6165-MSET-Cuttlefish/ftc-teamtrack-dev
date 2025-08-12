@@ -83,7 +83,7 @@ export const LivePreview = () => {
           <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-tight lg:leading-9">
             Live Preview
           </h1>
-          <p className="text-white text-base leading-6">Real time analysis</p>
+          <p className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>Real time analysis</p>
         </div>
 
         <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
