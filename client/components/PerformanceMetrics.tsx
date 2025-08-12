@@ -110,46 +110,50 @@ export const PerformanceMetrics = () => {
     value: number;
     onChange: (value: number) => void;
     hasHButton?: boolean;
-  }) => (
-    <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-      <div className="flex items-center gap-2">
+  }) => {
+    const [isHighNet, setIsHighNet] = useState(true); // true = H, false = L
+
+    return (
+      <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
         <label className="text-white text-base leading-6">{label}</label>
-        <ChevronRight className="w-4 h-4 text-white" />
-      </div>
-      <div className="flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => handleIntegerChange(e.target.value, onChange)}
-          className="flex-1 bg-transparent text-white text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40"
-          placeholder="ex. 438"
-        />
-        <div className="flex items-center gap-1">
-          {hasHButton && (
-            <div className="flex items-center justify-center px-1 py-1 rounded">
-              <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
-                H
-              </span>
+        <div className="flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark">
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => handleIntegerChange(e.target.value, onChange)}
+            className="flex-1 bg-transparent text-white text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40"
+            placeholder="0"
+          />
+          <div className="flex items-center gap-1">
+            {hasHButton && (
+              <button
+                onClick={() => setIsHighNet(!isHighNet)}
+                className="flex items-center justify-center px-1 py-1 rounded hover:bg-team-white-10 transition-colors"
+              >
+                <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
+                  {isHighNet ? "H" : "L"}
+                </span>
+              </button>
+            )}
+            <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
+              <button
+                onClick={() => handleIncrement(value, onChange)}
+                className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
+              >
+                <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
+              </button>
+              <button
+                onClick={() => handleDecrement(value, onChange)}
+                className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
+              >
+                <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
+              </button>
             </div>
-          )}
-          <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
-            <button
-              onClick={() => handleIncrement(value, onChange)}
-              className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-            >
-              <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
-            </button>
-            <button
-              onClick={() => handleDecrement(value, onChange)}
-              className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-            >
-              <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
-            </button>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
 
   const setFinalScore = (value: number) => updateSessionData({ finalScore: value });
