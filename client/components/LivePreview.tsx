@@ -1,3 +1,6 @@
+import { useState, useEffect } from "react";
+import { useSession } from "../contexts/SessionContext";
+
 const DataCard = ({ value, label }: { value: string; label: string }) => (
   <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
     <div className="text-team-blue text-3xl font-medium leading-6">{value}</div>
@@ -5,7 +8,12 @@ const DataCard = ({ value, label }: { value: string; label: string }) => (
   </div>
 );
 
-const OverviewCard = () => (
+const OverviewCard = ({ driverName, matchType, sessionDuration, finalScore }: {
+  driverName: string;
+  matchType: string;
+  sessionDuration: string;
+  finalScore: number;
+}) => (
   <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
     <h3 className="text-white text-base font-medium leading-6">
       Session Overview
@@ -18,10 +26,10 @@ const OverviewCard = () => (
         <div className="text-team-white-60 text-xs leading-6">Score</div>
       </div>
       <div className="flex flex-col gap-2.5">
-        <div className="text-team-blue text-xs leading-6">Ethan Yang</div>
-        <div className="text-team-blue text-xs leading-6">Full Game</div>
-        <div className="text-team-blue text-xs leading-6">2:30</div>
-        <div className="text-team-blue text-xs leading-6">438</div>
+        <div className="text-team-blue text-xs leading-6">{driverName || "N/A"}</div>
+        <div className="text-team-blue text-xs leading-6">{matchType || "N/A"}</div>
+        <div className="text-team-blue text-xs leading-6">{sessionDuration || "N/A"}</div>
+        <div className="text-team-blue text-xs leading-6">{finalScore}</div>
       </div>
     </div>
   </div>
@@ -39,6 +47,23 @@ const InsightsCard = () => (
 );
 
 export const LivePreview = () => {
+  const { sessionData } = useSession();
+  const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimer((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  };
+
   return (
     <div className="flex flex-col items-center gap-12 lg:gap-16">
       {/* Header Section */}
@@ -51,7 +76,7 @@ export const LivePreview = () => {
         </div>
 
         <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
-          27:22
+          {formatTime(timer)}
         </div>
       </div>
 
@@ -59,12 +84,17 @@ export const LivePreview = () => {
       <div className="flex flex-col items-center gap-6 lg:gap-8 w-full">
         {/* Data Cards Row */}
         <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 w-full justify-center">
-          <DataCard value="438" label="Final Score" />
+          <DataCard value={sessionData.finalScore.toString()} label="Final Score" />
           <DataCard value="87%" label="Consistency" />
         </div>
 
         {/* Overview Card */}
-        <OverviewCard />
+        <OverviewCard
+          driverName={sessionData.driverName}
+          matchType={sessionData.matchType}
+          sessionDuration={sessionData.sessionDuration}
+          finalScore={sessionData.finalScore}
+        />
 
         {/* Insights Card */}
         <InsightsCard />
