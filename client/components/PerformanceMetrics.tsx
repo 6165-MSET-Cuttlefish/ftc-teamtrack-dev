@@ -225,10 +225,12 @@ const MetricModal = ({
 };
 
 export const PerformanceMetrics = () => {
-  const [finalScore, setFinalScore] = useState(438);
-  const [autonomousScore, setAutonomousScore] = useState(200);
-  const [teleOpScore, setTeleOpScore] = useState(208);
-  const [endGameScore, setEndGameScore] = useState(208);
+  const { sessionData, updateSessionData } = useSession();
+
+  const setFinalScore = (value: number) => updateSessionData({ finalScore: value });
+  const setAutonomousScore = (value: number) => updateSessionData({ autonomousScore: value });
+  const setTeleOpScore = (value: number) => updateSessionData({ teleOpScore: value });
+  const setEndGameScore = (value: number) => updateSessionData({ endGameScore: value });
 
   const [modalOpen, setModalOpen] = useState<string | null>(null);
 
