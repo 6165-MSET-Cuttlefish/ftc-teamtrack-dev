@@ -41,7 +41,19 @@ const OriginalContent = () => {
 
         {/* Right Column - Live Preview */}
         <div className="w-full lg:w-[413px] py-8 lg:py-14 px-4">
-          <LivePreview />
+          <div className="space-y-6">
+            {/* Navigation to Analysis */}
+            <div className="text-center">
+              <Link
+                to="/analysis"
+                className="inline-block w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue text-team-dark text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors"
+              >
+                View Analysis
+              </Link>
+            </div>
+
+            <LivePreview />
+          </div>
         </div>
       </div>
     </div>
