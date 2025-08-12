@@ -215,9 +215,6 @@ const AnalysisContent = () => {
 };
 
 export default function Analysis() {
-  const { ThemeProvider } = require("../contexts/ThemeContext");
-  const { SessionProvider } = require("../contexts/SessionContext");
-
   return (
     <ThemeProvider>
       <SessionProvider>
