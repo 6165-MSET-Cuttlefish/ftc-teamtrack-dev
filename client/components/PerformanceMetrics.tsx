@@ -272,11 +272,11 @@ export const PerformanceMetrics = () => {
 
       {/* Right Column - Breakdown Fields */}
       <div className="flex-1 space-y-8">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6 min-h-[32px]">
           {getSectionTitle()}
         </h2>
 
-        <div>
+        <div className="min-h-[200px]">
           {getBreakdownFields()}
         </div>
       </div>
