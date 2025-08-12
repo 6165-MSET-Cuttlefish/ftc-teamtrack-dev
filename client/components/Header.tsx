@@ -53,29 +53,41 @@ const TeamTrackLogo = () => (
   </div>
 );
 
-const SearchBox = () => (
-  <div className="flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border border-team-white-20">
-    <Search className="w-4 h-4 text-team-blue-40" />
-    <span className="text-team-blue-40 text-base font-medium">Search</span>
-  </div>
-);
-
-const NavigationMenu = () => (
-  <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-dark-20">
-    <span className="text-white text-base px-2">Learn</span>
-    <span className="text-white text-base px-2">Community</span>
-    <span className="text-white text-base px-2">About Us</span>
-    <div className="w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2">
-      <div className="w-2 h-2 bg-team-dark rounded-full"></div>
+const SearchBox = () => {
+  const { isDarkMode } = useTheme();
+  return (
+    <div className="flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border border-team-white-20">
+      <Search className="w-4 h-4 text-team-blue-40" />
+      <span className="text-team-blue-40 text-base font-medium">Search</span>
     </div>
-    <Sun className="w-4 h-4 text-white ml-1" />
-    <Settings className="w-4 h-4 text-white ml-1" />
-  </div>
-);
+  );
+};
+
+const NavigationMenu = () => {
+  const { isDarkMode, toggleTheme } = useTheme();
+  return (
+    <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-dark-20">
+      <span className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>Learn</span>
+      <span className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>Community</span>
+      <span className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>About Us</span>
+      <div className="w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2">
+        <div className="w-2 h-2 bg-team-dark rounded-full"></div>
+      </div>
+      <button
+        onClick={toggleTheme}
+        className={`ml-1 hover:opacity-80 transition-opacity ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+      >
+        <Sun className="w-4 h-4" />
+      </button>
+      <Settings className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`} />
+    </div>
+  );
+};
 
 export const Header = () => {
+  const { isDarkMode } = useTheme();
   return (
-    <header className="w-full px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 border-b border-team-white-20 bg-transparent">
+    <header className={`w-full px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 border-b border-team-white-20 ${isDarkMode ? 'bg-transparent' : 'bg-white'}`}>
       <div className="flex items-center w-full sm:w-80">
         <TeamTrackLogo />
       </div>
