@@ -207,9 +207,9 @@ const AnalysisContent = () => {
   const [insights, setInsights] = useState([
     { id: 1, metric: "Consistency", value: "87%", isPositive: true },
     { id: 2, metric: "", value: "", isPositive: true },
-    { id: 3, metric: "", value: "", isPositive: false },
+    { id: 3, metric: "", value: "", isPositive: false }, 
     { id: 4, metric: "", value: "", isPositive: true },
-    { id: 5, metric: "", value: "", isPositive: false },
+    { id: 5, metric: "", value: "", isPositive: false }, 
     { id: 6, metric: "", value: "", isPositive: true },
   ]);
 
