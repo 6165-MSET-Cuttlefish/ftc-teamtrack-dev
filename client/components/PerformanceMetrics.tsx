@@ -114,17 +114,18 @@ export const PerformanceMetrics = () => {
     onChange: (value: number) => void;
     hasHButton?: boolean;
   }) => {
+    const { isDarkMode } = useTheme();
     const [isHighNet, setIsHighNet] = useState(true); // true = H, false = L
 
     return (
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-        <label className="text-white text-base leading-6">{label}</label>
-        <div className="flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark">
+        <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>{label}</label>
+        <div className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
           <input
             type="text"
             value={value}
             onChange={(e) => handleIntegerChange(e.target.value, onChange)}
-            className="flex-1 bg-transparent text-white text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40"
+            className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
             placeholder="0"
           />
           <div className="flex items-center gap-1">
