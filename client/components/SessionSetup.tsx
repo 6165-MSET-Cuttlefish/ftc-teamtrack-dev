@@ -68,13 +68,13 @@ export const SessionSetup = () => {
           <FormField
             label="Session Name"
             placeholder="ex. practice"
-            value={sessionName}
+            value={sessionData.sessionName}
             onChange={setSessionName}
           />
           <FormField
             label="Driver Name"
             placeholder="Ethan Yang"
-            value={driverName}
+            value={sessionData.driverName}
             onChange={setDriverName}
           />
         </div>
@@ -84,14 +84,14 @@ export const SessionSetup = () => {
           <FormField
             label="Session Duration"
             placeholder="minutes"
-            value={sessionDuration}
+            value={sessionData.sessionDuration}
             onChange={setSessionDuration}
             type="decimal"
           />
           <FormField
             label="Match Type"
             placeholder="Autonomous"
-            value={matchType}
+            value={sessionData.matchType}
             onChange={setMatchType}
           />
         </div>
