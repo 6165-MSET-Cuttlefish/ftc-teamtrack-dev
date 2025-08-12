@@ -24,7 +24,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     driverName: "Ethan Yang",
     sessionDuration: "",
     matchType: "Autonomous",
-    finalScore: 438,
+    finalScore: 0,
     autonomousScore: 200,
     teleOpScore: 208,
     endGameScore: 208,
