@@ -2,53 +2,63 @@ import { useState, useEffect } from "react";
 import { useSession } from "../contexts/SessionContext";
 import { useTheme } from "../contexts/ThemeContext";
 
-const DataCard = ({ value, label }: { value: string; label: string }) => (
-  <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
-    <div className="text-team-blue text-3xl font-medium leading-6">{value}</div>
-    <div className="text-team-white-60 text-base leading-6">{label}</div>
-  </div>
-);
+const DataCard = ({ value, label }: { value: string; label: string }) => {
+  const { isDarkMode } = useTheme();
+  return (
+    <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
+      <div className="text-team-blue text-3xl font-medium leading-6">{value}</div>
+      <div className="text-team-white-60 text-base leading-6">{label}</div>
+    </div>
+  );
+};
 
 const OverviewCard = ({ driverName, matchType, sessionDuration, finalScore }: {
   driverName: string;
   matchType: string;
   sessionDuration: string;
   finalScore: number;
-}) => (
-  <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
-    <h3 className="text-white text-base font-medium leading-6">
-      Session Overview
-    </h3>
-    <div className="flex justify-between items-start">
-      <div className="flex flex-col gap-2.5">
-        <div className="text-team-white-60 text-xs leading-6">Driver</div>
-        <div className="text-team-white-60 text-xs leading-6">Match Type</div>
-        <div className="text-team-white-60 text-xs leading-6">Duration</div>
-        <div className="text-team-white-60 text-xs leading-6">Score</div>
-      </div>
-      <div className="flex flex-col gap-2.5">
-        <div className="text-team-blue text-xs leading-6">{driverName || "N/A"}</div>
-        <div className="text-team-blue text-xs leading-6">{matchType || "N/A"}</div>
-        <div className="text-team-blue text-xs leading-6">{sessionDuration || "N/A"}</div>
-        <div className="text-team-blue text-xs leading-6">{finalScore}</div>
+}) => {
+  const { isDarkMode } = useTheme();
+  return (
+    <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
+      <h3 className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>
+        Session Overview
+      </h3>
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col gap-2.5">
+          <div className="text-team-white-60 text-xs leading-6">Driver</div>
+          <div className="text-team-white-60 text-xs leading-6">Match Type</div>
+          <div className="text-team-white-60 text-xs leading-6">Duration</div>
+          <div className="text-team-white-60 text-xs leading-6">Score</div>
+        </div>
+        <div className="flex flex-col gap-2.5">
+          <div className="text-team-blue text-xs leading-6">{driverName || "N/A"}</div>
+          <div className="text-team-blue text-xs leading-6">{matchType || "N/A"}</div>
+          <div className="text-team-blue text-xs leading-6">{sessionDuration || "N/A"}</div>
+          <div className="text-team-blue text-xs leading-6">{finalScore}</div>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const InsightsCard = () => (
-  <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
-    <h3 className="text-white text-base font-medium leading-6">
-      Performance Insights
-    </h3>
-    <div className="text-team-white-60 text-xs leading-6">
-      Improvements in XXX
+const InsightsCard = () => {
+  const { isDarkMode } = useTheme();
+  return (
+    <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
+      <h3 className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>
+        Performance Insights
+      </h3>
+      <div className="text-team-white-60 text-xs leading-6">
+        Improvements in XXX
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const LivePreview = () => {
   const { sessionData } = useSession();
+  const { isDarkMode } = useTheme();
   const [timer, setTimer] = useState(0);
 
   useEffect(() => {
