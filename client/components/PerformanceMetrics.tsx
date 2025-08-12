@@ -16,6 +16,8 @@ const MetricField = ({
   hasDropdown?: boolean;
   onDropdownClick?: () => void;
 }) => {
+  const { isDarkMode } = useTheme();
+
   const handleIncrement = () => {
     onChange(value + 1);
   };
@@ -32,24 +34,24 @@ const MetricField = ({
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
       <div className="flex items-center justify-between">
-        <label className="text-white text-base leading-6">{label}</label>
+        <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>{label}</label>
         <div className="w-6 h-6 flex items-center justify-center">
           {hasDropdown && (
             <button
               onClick={onDropdownClick}
-              className="text-white hover:text-team-blue transition-colors"
+              className={`hover:text-team-blue transition-colors ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
-      <div className="flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark">
+      <div className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
         <input
           type="text"
           value={value}
           onChange={handleInputChange}
-          className="flex-1 bg-transparent text-white text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40"
+          className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
           placeholder="0"
         />
         <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
