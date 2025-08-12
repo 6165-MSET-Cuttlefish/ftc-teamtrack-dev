@@ -210,54 +210,137 @@ export const PerformanceMetrics = () => {
     setExpandedSection(expandedSection === metricType ? null : metricType);
   };
 
-  return (
-    <div className="space-y-8">
-      <h2 className="text-team-blue text-2xl font-semibold leading-6">
-        Performance Metrics
-      </h2>
+  const getSectionTitle = () => {
+    switch (expandedSection) {
+      case "Autonomous Score":
+        return "Autonomous Score";
+      case "TeleOp Score":
+        return "TeleOp Score";
+      case "End Game Score":
+        return "End Game Score";
+      default:
+        return "TeleOp Score"; // Default to TeleOp Score
+    }
+  };
 
-      <div className="space-y-6">
-        {/* Final Score */}
-        <div>
+  const getBreakdownFields = () => {
+    const activeSection = expandedSection || "TeleOp Score"; // Default to TeleOp Score
+    switch (activeSection) {
+      case "Autonomous Score":
+        return (
+          <div className="space-y-6">
+            <InlineBreakdownField
+              label="Basket"
+              value={basket}
+              onChange={setBasket}
+              hasHButton={true}
+            />
+            <InlineBreakdownField
+              label="Specimen"
+              value={autonomousSpecimen}
+              onChange={setAutonomousSpecimen}
+              hasHButton={true}
+            />
+            <InlineBreakdownField
+              label="Floor Mark"
+              value={autonomousFloorMark}
+              onChange={setAutonomousFloorMark}
+            />
+          </div>
+        );
+      case "TeleOp Score":
+        return (
+          <div className="space-y-6">
+            <InlineBreakdownField label="Samples" value={samples} onChange={setSamples} hasHButton={true} />
+            <InlineBreakdownField
+              label="Specimen"
+              value={specimen}
+              onChange={setSpecimen}
+              hasHButton={false}
+            />
+            <InlineBreakdownField
+              label="Floor mark"
+              value={floorMark}
+              onChange={setFloorMark}
+            />
+          </div>
+        );
+      case "End Game Score":
+        return (
+          <div className="space-y-6">
+            <InlineBreakdownField label="Climb" value={climb} onChange={setClimb} />
+            <InlineBreakdownField label="Park" value={park} onChange={setPark} />
+          </div>
+        );
+      default:
+        return (
+          <div className="space-y-6">
+            <InlineBreakdownField label="Samples" value={samples} onChange={setSamples} hasHButton={true} />
+            <InlineBreakdownField
+              label="Specimen"
+              value={specimen}
+              onChange={setSpecimen}
+              hasHButton={false}
+            />
+            <InlineBreakdownField
+              label="Floor mark"
+              value={floorMark}
+              onChange={setFloorMark}
+            />
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="flex gap-16">
+      {/* Left Column - Performance Metrics */}
+      <div className="flex-1 space-y-8">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6">
+          Performance Metrics
+        </h2>
+
+        <div className="space-y-6">
           <MetricField
             label="Final Score"
             value={sessionData.finalScore}
             onChange={setFinalScore}
-            hasDropdown={false}
+            hasDropdown={true}
+            onDropdownClick={() => toggleSection("Final Score")}
           />
-        </div>
 
-        {/* Autonomous Score */}
-        <div>
           <MetricField
             label="Autonomous Score"
             value={sessionData.autonomousScore}
             onChange={setAutonomousScore}
             onDropdownClick={() => toggleSection("Autonomous Score")}
           />
-          {expandedSection === "Autonomous Score" && renderBreakdownFields("Autonomous Score")}
-        </div>
 
-        {/* TeleOp Score */}
-        <div>
           <MetricField
             label="TeleOp Score"
             value={sessionData.teleOpScore}
             onChange={setTeleOpScore}
             onDropdownClick={() => toggleSection("TeleOp Score")}
+            hasDropdown={true}
           />
-          {expandedSection === "TeleOp Score" && renderBreakdownFields("TeleOp Score")}
-        </div>
 
-        {/* End Game Score */}
-        <div>
           <MetricField
             label="End Game Score"
             value={sessionData.endGameScore}
             onChange={setEndGameScore}
             onDropdownClick={() => toggleSection("End Game Score")}
           />
-          {expandedSection === "End Game Score" && renderBreakdownFields("End Game Score")}
+        </div>
+      </div>
+
+      {/* Right Column - Breakdown Fields */}
+      <div className="flex-1 space-y-8">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6">
+          {getSectionTitle()}
+        </h2>
+
+        <div>
+          {getBreakdownFields()}
         </div>
       </div>
     </div>
