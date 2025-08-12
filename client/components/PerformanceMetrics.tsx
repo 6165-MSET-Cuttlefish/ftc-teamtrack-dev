@@ -1,6 +1,7 @@
 import { ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "../contexts/SessionContext";
+import { useTheme } from "../contexts/ThemeContext";
 
 const MetricField = ({
   label,
