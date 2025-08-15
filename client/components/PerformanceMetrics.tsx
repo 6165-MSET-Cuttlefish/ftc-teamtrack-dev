@@ -105,7 +105,8 @@ export const PerformanceMetrics = () => {
   // Calculate scores automatically
   useEffect(() => {
     // Autonomous scoring: basket = 8, specimen = 10, floor mark = 1
-    const autonomousScore = (autonomousBasket * 8) + (autonomousSpecimen * 10) + (autonomousFloorMark * 1);
+    const autonomousScore =
+      autonomousBasket * 8 + autonomousSpecimen * 10 + autonomousFloorMark * 1;
 
     // TeleOp scoring: same as autonomous, but includes autonomous values + additional teleop values
     const totalBasket = autonomousBasket + 0; // No additional basket in teleop breakdown
@@ -113,7 +114,8 @@ export const PerformanceMetrics = () => {
     const totalSamples = teleOpSamples; // Samples only exist in teleop
     const totalFloorMark = autonomousFloorMark + teleOpFloorMark;
 
-    const teleOpScore = (totalSamples * 8) + (totalSpecimen * 10) + (totalFloorMark * 1);
+    const teleOpScore =
+      totalSamples * 8 + totalSpecimen * 10 + totalFloorMark * 1;
 
     // Final score = autonomous + teleop + endgame
     const finalScore = autonomousScore + teleOpScore + endGameValue;
@@ -122,9 +124,18 @@ export const PerformanceMetrics = () => {
       autonomousScore,
       teleOpScore,
       endGameScore: endGameValue,
-      finalScore
+      finalScore,
     });
-  }, [autonomousBasket, autonomousSpecimen, autonomousFloorMark, teleOpSamples, teleOpSpecimen, teleOpFloorMark, endGameValue, updateSessionData]);
+  }, [
+    autonomousBasket,
+    autonomousSpecimen,
+    autonomousFloorMark,
+    teleOpSamples,
+    teleOpSpecimen,
+    teleOpFloorMark,
+    endGameValue,
+    updateSessionData,
+  ]);
 
   const handleIntegerChange = (
     value: string,
@@ -169,14 +180,16 @@ export const PerformanceMetrics = () => {
 
     const handleToggle = () => {
       if (toggleKey) {
-        setToggleStates(prev => ({
+        setToggleStates((prev) => ({
           ...prev,
-          [toggleKey]: !prev[toggleKey as keyof typeof prev]
+          [toggleKey]: !prev[toggleKey as keyof typeof prev],
         }));
       }
     };
 
-    const isHighNet = toggleKey ? toggleStates[toggleKey as keyof typeof toggleStates] : true;
+    const isHighNet = toggleKey
+      ? toggleStates[toggleKey as keyof typeof toggleStates]
+      : true;
 
     return (
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
@@ -235,7 +248,7 @@ export const PerformanceMetrics = () => {
   const handleEndGameChange = (value: number) => {
     const allowedValues = [0, 5, 15, 30];
     const closest = allowedValues.reduce((prev, curr) =>
-      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev,
     );
     setEndGameValue(closest);
   };
