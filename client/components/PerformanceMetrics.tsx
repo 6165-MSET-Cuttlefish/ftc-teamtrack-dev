@@ -131,28 +131,45 @@ export const PerformanceMetrics = () => {
     value,
     onChange,
     hasHButton = false,
+    toggleKey,
   }: {
     label: string;
     value: number;
     onChange: (value: number) => void;
     hasHButton?: boolean;
+    toggleKey?: string;
   }) => {
     const { isDarkMode } = useTheme();
-    const [isHighNet, setIsHighNet] = useState(true); // true = H, false = L
+
+    const handleToggle = () => {
+      if (toggleKey) {
+        setToggleStates(prev => ({
+          ...prev,
+          [toggleKey]: !prev[toggleKey as keyof typeof prev]
+        }));
+      }
+    };
+
+    const isHighNet = toggleKey ? toggleStates[toggleKey as keyof typeof toggleStates] : true;
 
     return (
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-        <label
-          className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
-        >
-          {label}
-        </label>
+        <div className="flex items-center justify-between">
+          <label
+            className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+          >
+            {label}
+          </label>
+          <div className="w-6 h-6 flex items-center justify-center">
+            {/* Empty space for alignment */}
+          </div>
+        </div>
         <div
           className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? "bg-team-dark" : "bg-white"}`}
         >
           <input
             type="text"
-            value={value}
+            value={value === 0 ? "" : value.toString()}
             onChange={(e) => handleIntegerChange(e.target.value, onChange)}
             className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
             placeholder="0"
@@ -160,7 +177,7 @@ export const PerformanceMetrics = () => {
           <div className="flex items-center gap-1">
             {hasHButton && (
               <button
-                onClick={() => setIsHighNet(!isHighNet)}
+                onClick={handleToggle}
                 className="flex items-center justify-center px-1 py-1 rounded hover:bg-team-white-10 transition-colors"
               >
                 <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
