@@ -75,22 +75,35 @@ const InsightsCard = () => {
 };
 
 export const LivePreview = () => {
-  const { sessionData } = useSession();
+  const { sessionData, completeSession } = useSession();
   const { isDarkMode } = useTheme();
   const [timer, setTimer] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(true);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer((prev) => prev + 1);
-    }, 1000);
+    let interval: NodeJS.Timeout;
 
-    return () => clearInterval(interval);
-  }, []);
+    if (isTimerRunning && !sessionData.isSessionCompleted) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev + 1);
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerRunning, sessionData.isSessionCompleted]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  };
+
+  const handleCompleteSession = () => {
+    const currentTime = formatTime(timer);
+    setIsTimerRunning(false);
+    completeSession(currentTime);
   };
 
   return (
@@ -135,13 +148,24 @@ export const LivePreview = () => {
         {/* Insights Card */}
         <InsightsCard />
 
-        {/* CTA Button */}
-        <Link
-          to="/analysis"
-          className="inline-block w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors"
-        >
-          View Full Analysis Report
-        </Link>
+        {/* CTA Buttons */}
+        <div className="flex flex-col gap-4 w-full sm:w-60">
+          {!sessionData.isSessionCompleted && (
+            <button
+              onClick={handleCompleteSession}
+              className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-team-dark transition-colors"
+            >
+              Complete Session
+            </button>
+          )}
+
+          <Link
+            to="/analysis"
+            className="inline-block w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors"
+          >
+            View Full Analysis Report
+          </Link>
+        </div>
       </div>
     </div>
   );
