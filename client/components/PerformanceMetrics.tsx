@@ -1,5 +1,5 @@
 import { ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "../contexts/SessionContext";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -82,23 +82,49 @@ const MetricField = ({
 export const PerformanceMetrics = () => {
   const { sessionData, updateSessionData } = useSession();
 
-  // Breakdown field states
-  const [samples, setSamples] = useState(0);
-  const [specimen, setSpecimen] = useState(0);
-  const [floorMark, setFloorMark] = useState(0);
-  const [basket, setBasket] = useState(0);
+  // Autonomous breakdown field states
+  const [autonomousBasket, setAutonomousBasket] = useState(0);
   const [autonomousSpecimen, setAutonomousSpecimen] = useState(0);
   const [autonomousFloorMark, setAutonomousFloorMark] = useState(0);
-  const [climb, setClimb] = useState(0);
-  const [park, setPark] = useState(0);
+
+  // TeleOp breakdown field states (includes autonomous values + additional)
+  const [teleOpSamples, setTeleOpSamples] = useState(0);
+  const [teleOpSpecimen, setTeleOpSpecimen] = useState(0);
+  const [teleOpFloorMark, setTeleOpFloorMark] = useState(0);
+
+  // End game states
+  const [endGameValue, setEndGameValue] = useState(0); // 0, 5, 15, or 30
 
   // H/L toggle states for each field
   const [toggleStates, setToggleStates] = useState({
-    basket: true,
+    autonomousBasket: true,
     autonomousSpecimen: true,
-    samples: true,
-    specimen: true,
+    teleOpSamples: true,
   });
+
+  // Calculate scores automatically
+  useEffect(() => {
+    // Autonomous scoring: basket = 8, specimen = 10, floor mark = 1
+    const autonomousScore = (autonomousBasket * 8) + (autonomousSpecimen * 10) + (autonomousFloorMark * 1);
+
+    // TeleOp scoring: same as autonomous, but includes autonomous values + additional teleop values
+    const totalBasket = autonomousBasket + 0; // No additional basket in teleop breakdown
+    const totalSpecimen = autonomousSpecimen + teleOpSpecimen;
+    const totalSamples = teleOpSamples; // Samples only exist in teleop
+    const totalFloorMark = autonomousFloorMark + teleOpFloorMark;
+
+    const teleOpScore = (totalSamples * 8) + (totalSpecimen * 10) + (totalFloorMark * 1);
+
+    // Final score = autonomous + teleop + endgame
+    const finalScore = autonomousScore + teleOpScore + endGameValue;
+
+    updateSessionData({
+      autonomousScore,
+      teleOpScore,
+      endGameScore: endGameValue,
+      finalScore
+    });
+  }, [autonomousBasket, autonomousSpecimen, autonomousFloorMark, teleOpSamples, teleOpSpecimen, teleOpFloorMark, endGameValue, updateSessionData]);
 
   const handleIntegerChange = (
     value: string,
@@ -205,14 +231,14 @@ export const PerformanceMetrics = () => {
     );
   };
 
-  const setFinalScore = (value: number) =>
-    updateSessionData({ finalScore: value });
-  const setAutonomousScore = (value: number) =>
-    updateSessionData({ autonomousScore: value });
-  const setTeleOpScore = (value: number) =>
-    updateSessionData({ teleOpScore: value });
-  const setEndGameScore = (value: number) =>
-    updateSessionData({ endGameScore: value });
+  // End game score setter with validation for allowed values
+  const handleEndGameChange = (value: number) => {
+    const allowedValues = [0, 5, 15, 30];
+    const closest = allowedValues.reduce((prev, curr) =>
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
+    );
+    setEndGameValue(closest);
+  };
 
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
@@ -243,21 +269,21 @@ export const PerformanceMetrics = () => {
         return (
           <div className="space-y-6">
             <InlineBreakdownField
-              label="Basket"
-              value={basket}
-              onChange={setBasket}
+              label="Basket (8 pts each)"
+              value={autonomousBasket}
+              onChange={setAutonomousBasket}
               hasHButton={true}
-              toggleKey="basket"
+              toggleKey="autonomousBasket"
             />
             <InlineBreakdownField
-              label="Specimen"
+              label="Specimen (10 pts each)"
               value={autonomousSpecimen}
               onChange={setAutonomousSpecimen}
               hasHButton={true}
               toggleKey="autonomousSpecimen"
             />
             <InlineBreakdownField
-              label="Floor Mark"
+              label="Floor Mark (1 pt each)"
               value={autonomousFloorMark}
               onChange={setAutonomousFloorMark}
               hasHButton={false}
@@ -267,23 +293,26 @@ export const PerformanceMetrics = () => {
       case "TeleOp Score":
         return (
           <div className="space-y-6">
+            <div className="text-sm text-team-white-60 mb-4">
+              * Includes all autonomous values plus additional teleop items
+            </div>
             <InlineBreakdownField
-              label="Samples"
-              value={samples}
-              onChange={setSamples}
+              label="Additional Samples (8 pts each)"
+              value={teleOpSamples}
+              onChange={setTeleOpSamples}
               hasHButton={true}
-              toggleKey="samples"
+              toggleKey="teleOpSamples"
             />
             <InlineBreakdownField
-              label="Specimen"
-              value={specimen}
-              onChange={setSpecimen}
+              label="Additional Specimen (10 pts each)"
+              value={teleOpSpecimen}
+              onChange={setTeleOpSpecimen}
               hasHButton={false}
             />
             <InlineBreakdownField
-              label="Floor mark"
-              value={floorMark}
-              onChange={setFloorMark}
+              label="Additional Floor Mark (1 pt each)"
+              value={teleOpFloorMark}
+              onChange={setTeleOpFloorMark}
               hasHButton={false}
             />
           </div>
@@ -291,16 +320,13 @@ export const PerformanceMetrics = () => {
       case "End Game Score":
         return (
           <div className="space-y-6">
+            <div className="text-sm text-team-white-60 mb-4">
+              * Choose one: 0, 5, 15, or 30 points
+            </div>
             <InlineBreakdownField
-              label="Climb"
-              value={climb}
-              onChange={setClimb}
-              hasHButton={false}
-            />
-            <InlineBreakdownField
-              label="Park"
-              value={park}
-              onChange={setPark}
+              label="End Game Points"
+              value={endGameValue}
+              onChange={handleEndGameChange}
               hasHButton={false}
             />
           </div>
@@ -322,28 +348,28 @@ export const PerformanceMetrics = () => {
           <MetricField
             label="Final Score"
             value={sessionData.finalScore}
-            onChange={setFinalScore}
+            onChange={() => {}} // Read-only, calculated automatically
             hasDropdown={false}
           />
 
           <MetricField
             label="Autonomous Score"
             value={sessionData.autonomousScore}
-            onChange={setAutonomousScore}
+            onChange={() => {}} // Read-only, calculated automatically
             onDropdownClick={() => toggleSection("Autonomous Score")}
           />
 
           <MetricField
             label="TeleOp Score"
             value={sessionData.teleOpScore}
-            onChange={setTeleOpScore}
+            onChange={() => {}} // Read-only, calculated automatically
             onDropdownClick={() => toggleSection("TeleOp Score")}
           />
 
           <MetricField
             label="End Game Score"
             value={sessionData.endGameScore}
-            onChange={setEndGameScore}
+            onChange={() => {}} // Read-only, calculated automatically
             onDropdownClick={() => toggleSection("End Game Score")}
           />
         </div>
