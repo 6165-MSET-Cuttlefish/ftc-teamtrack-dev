@@ -9,11 +9,13 @@ interface SessionData {
   autonomousScore: number;
   teleOpScore: number;
   endGameScore: number;
+  isSessionCompleted: boolean;
 }
 
 interface SessionContextType {
   sessionData: SessionData;
   updateSessionData: (updates: Partial<SessionData>) => void;
+  completeSession: (timerValue: string) => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -25,17 +27,26 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     sessionDuration: "",
     matchType: "Autonomous",
     finalScore: 0,
-    autonomousScore: 200,
-    teleOpScore: 208,
-    endGameScore: 208,
+    autonomousScore: 0,
+    teleOpScore: 0,
+    endGameScore: 0,
+    isSessionCompleted: false,
   });
 
   const updateSessionData = (updates: Partial<SessionData>) => {
     setSessionData((prev) => ({ ...prev, ...updates }));
   };
 
+  const completeSession = (timerValue: string) => {
+    setSessionData((prev) => ({
+      ...prev,
+      sessionDuration: timerValue,
+      isSessionCompleted: true,
+    }));
+  };
+
   return (
-    <SessionContext.Provider value={{ sessionData, updateSessionData }}>
+    <SessionContext.Provider value={{ sessionData, updateSessionData, completeSession }}>
       {children}
     </SessionContext.Provider>
   );
