@@ -33,17 +33,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     isSessionCompleted: false,
   });
 
-  const updateSessionData = (updates: Partial<SessionData>) => {
+  const updateSessionData = useCallback((updates: Partial<SessionData>) => {
     setSessionData((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
-  const completeSession = (timerValue: string) => {
+  const completeSession = useCallback((timerValue: string) => {
     setSessionData((prev) => ({
       ...prev,
       sessionDuration: timerValue,
       isSessionCompleted: true,
     }));
-  };
+  }, []);
 
   return (
     <SessionContext.Provider value={{ sessionData, updateSessionData, completeSession }}>
