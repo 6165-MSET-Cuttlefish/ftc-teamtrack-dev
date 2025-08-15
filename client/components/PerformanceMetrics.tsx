@@ -195,7 +195,7 @@ export const PerformanceMetrics = () => {
         >
           <input
             type="text"
-            value={value === 0 ? "" : value.toString()}
+            value={value.toString()}
             onChange={(e) => handleIntegerChange(e.target.value, onChange)}
             className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
             placeholder="0"
@@ -293,9 +293,6 @@ export const PerformanceMetrics = () => {
       case "TeleOp Score":
         return (
           <div className="space-y-6">
-            <div className="text-sm text-team-white-60 mb-4">
-              * Includes all autonomous values plus additional teleop items
-            </div>
             <InlineBreakdownField
               label="Additional Samples (8 pts each)"
               value={teleOpSamples}
