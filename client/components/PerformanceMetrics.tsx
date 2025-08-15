@@ -106,7 +106,16 @@ export const PerformanceMetrics = () => {
   ) => {
     // Only allow integers (remove any non-digit characters)
     const integerValue = value.replace(/[^0-9]/g, "");
-    setter(integerValue ? parseInt(integerValue) : 0);
+    // Allow empty string to be converted to 0, but preserve multi-digit numbers
+    if (integerValue === "") {
+      setter(0);
+    } else {
+      const numValue = parseInt(integerValue);
+      // Allow numbers up to a reasonable limit (e.g., 9999)
+      if (numValue <= 9999) {
+        setter(numValue);
+      }
+    }
   };
 
   const handleIncrement = (value: number, setter: (value: number) => void) => {
