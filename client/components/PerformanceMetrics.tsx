@@ -92,6 +92,14 @@ export const PerformanceMetrics = () => {
   const [climb, setClimb] = useState(0);
   const [park, setPark] = useState(0);
 
+  // H/L toggle states for each field
+  const [toggleStates, setToggleStates] = useState({
+    basket: true,
+    autonomousSpecimen: true,
+    samples: true,
+    specimen: true,
+  });
+
   const handleIntegerChange = (
     value: string,
     setter: (value: number) => void,
