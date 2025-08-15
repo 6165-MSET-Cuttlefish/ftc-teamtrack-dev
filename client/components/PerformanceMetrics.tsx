@@ -247,17 +247,20 @@ export const PerformanceMetrics = () => {
               value={basket}
               onChange={setBasket}
               hasHButton={true}
+              toggleKey="basket"
             />
             <InlineBreakdownField
               label="Specimen"
               value={autonomousSpecimen}
               onChange={setAutonomousSpecimen}
               hasHButton={true}
+              toggleKey="autonomousSpecimen"
             />
             <InlineBreakdownField
               label="Floor Mark"
               value={autonomousFloorMark}
               onChange={setAutonomousFloorMark}
+              hasHButton={false}
             />
           </div>
         );
@@ -269,6 +272,7 @@ export const PerformanceMetrics = () => {
               value={samples}
               onChange={setSamples}
               hasHButton={true}
+              toggleKey="samples"
             />
             <InlineBreakdownField
               label="Specimen"
@@ -280,6 +284,7 @@ export const PerformanceMetrics = () => {
               label="Floor mark"
               value={floorMark}
               onChange={setFloorMark}
+              hasHButton={false}
             />
           </div>
         );
@@ -290,11 +295,13 @@ export const PerformanceMetrics = () => {
               label="Climb"
               value={climb}
               onChange={setClimb}
+              hasHButton={false}
             />
             <InlineBreakdownField
               label="Park"
               value={park}
               onChange={setPark}
+              hasHButton={false}
             />
           </div>
         );
