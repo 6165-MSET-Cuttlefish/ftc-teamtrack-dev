@@ -102,10 +102,22 @@ export const LivePreview = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
-  const handleCompleteSession = () => {
+  const handleCompleteSession = async () => {
     const currentTime = formatTime(timer);
     setIsTimerRunning(false);
     completeSession(currentTime);
+
+    // Save session to your backend
+    const sessionToSave = {
+      ...sessionData,
+      sessionDuration: currentTime,
+      completedAt: new Date().toISOString(),
+    };
+
+    const result = await createSession(sessionToSave);
+    if (result) {
+      console.log('Session saved successfully:', result);
+    }
   };
 
   return (
