@@ -20,5 +20,11 @@ export function createServer() {
 
   app.get("/api/demo", handleDemo);
 
+  // Session API routes
+  app.get("/api/sessions", getSessions);
+  app.get("/api/sessions/:id", getSession);
+  app.post("/api/sessions", createSession);
+  app.put("/api/sessions/:id", updateSession);
+
   return app;
 }
