@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [react(), expressPlugin()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./client"),
+      "@": path.resolve(__dirname, "./client/src"),
       "@shared": path.resolve(__dirname, "./shared"),
     },
   },
