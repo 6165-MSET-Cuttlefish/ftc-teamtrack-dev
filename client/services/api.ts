@@ -1,6 +1,6 @@
 import { DemoResponse } from '@shared/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Replace with your backend URL
 
 class ApiService {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
