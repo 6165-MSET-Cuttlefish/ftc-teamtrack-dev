@@ -78,6 +78,7 @@ const InsightsCard = () => {
 export const LivePreview = () => {
   const { sessionData, completeSession } = useSession();
   const { isDarkMode } = useTheme();
+  const { createSession, loading } = useApi();
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
 
