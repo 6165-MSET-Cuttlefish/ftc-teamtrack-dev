@@ -116,7 +116,7 @@ export const LivePreview = () => {
 
     const result = await createSession(sessionToSave);
     if (result) {
-      console.log('Session saved successfully:', result);
+      console.log("Session saved successfully:", result);
     }
   };
 
@@ -170,7 +170,7 @@ export const LivePreview = () => {
               disabled={loading}
               className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-team-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Saving...' : 'Complete Session'}
+              {loading ? "Saving..." : "Complete Session"}
             </button>
           )}
 
