@@ -99,8 +99,8 @@
 
 @layer base {
   * {
-    @apply border-border;
-  }
+  @apply border-[hsl(var(--border))];
+}
 
   body {
     @apply bg-team-dark text-team-white font-inter;
