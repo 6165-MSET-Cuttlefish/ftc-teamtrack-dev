@@ -24,13 +24,13 @@ export default defineConfig(({ mode }) => ({
   },
 }));
 
-function expressPlugin(): Plugin {
-  return {
-    name: "express-plugin",
-    apply: "serve",
-    configureServer(server) {
-      const app = createServer();
-      server.middlewares.use(app);
-    },
-  };
-}
+// function expressPlugin(): Plugin {
+//   return {
+//     name: "express-plugin",
+//     apply: "serve",
+//     configureServer(server) {
+//       const app = createServer();
+//       server.middlewares.use(app);
+//     },
+//   };
+// }
