@@ -25,3 +25,8 @@ dist-ssr
 
 .config/
 !.env
+
+# Backend specific
+backend/serviceAccountKey.json
+backend/.env
+backend/node_modules

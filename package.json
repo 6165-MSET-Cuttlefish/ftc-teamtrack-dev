@@ -1,7 +1,11 @@
 {
-  "name": "fusion-starter",
+  "name": "teamtrack-v2",
   "private": true,
   "type": "module",
+  "workspaces": [
+    ".",
+    "backend"
+  ],
   "pkg": {
     "assets": [
       "dist/spa/*"
@@ -12,13 +16,17 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\"",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "vite build --config vite.config.server.ts",
     "start": "node dist/server/node-build.mjs",
+    "start:backend": "cd backend && npm run start",
     "test": "vitest --run",
     "format.fix": "prettier --write .",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "install:all": "npm install && cd backend && npm install"
   },
   "dependencies": {
     "dotenv": "^17.2.0",
@@ -70,6 +78,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
+    "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
