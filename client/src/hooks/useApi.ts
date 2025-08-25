@@ -1,5 +1,27 @@
-import { useState, useCallback } from "react";
-import { apiService } from "../services/api";
+import { useState, useCallback } from 'react';
+import { apiService } from '../services/api';
+
+// Define session data structure based on backend schema
+interface SessionData extends Record<string, unknown> {
+  sessionName: string;
+  driverName: string;
+  matchType: string;
+  sessionDuration: string;
+  autonBasket: number;
+  autonSpeci: number;
+  autonFloor: number;
+  autonRung: number;
+  autonHighRung: number;
+  teleBasket: number;
+  teleSpeci: number;
+  teleNetZone: number;
+  teleLowRung: number;
+  teleHighRung: number;
+  endgameHang: number;
+  endgamePark: number;
+  finalScore: number;
+  completedAt: string;
+}
 
 export const useApi = () => {
   const [loading, setLoading] = useState(false);
@@ -14,13 +36,13 @@ export const useApi = () => {
         const result = await apiCall();
         return result;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        setError(err instanceof Error ? err.message : 'An error occurred');
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [],
+    []
   );
 
   return {
@@ -28,7 +50,7 @@ export const useApi = () => {
     error,
     execute,
     // Direct API methods
-    createSession: (sessionData: any) =>
+    createSession: (sessionData: SessionData) =>
       execute(() => apiService.createSession(sessionData)),
     getSessions: () => execute(() => apiService.getSessions()),
     getSession: (id: string) => execute(() => apiService.getSession(id)),

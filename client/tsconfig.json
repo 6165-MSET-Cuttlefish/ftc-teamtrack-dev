@@ -18,12 +18,12 @@
     "forceConsistentCasingInFileNames": true,
 
     /* Linting */
-    "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noImplicitAny": false,
-    "noFallthroughCasesInSwitch": false,
-    "strictNullChecks": false,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": true,
+    "noFallthroughCasesInSwitch": true,
+    "strictNullChecks": true,
 
     /* Path mapping */
     "baseUrl": ".",
@@ -31,6 +31,12 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "*.ts", "*.tsx", "../tailwind.config.ts", "../postcss.config.js"],
+  "include": [
+    "src/**/*",
+    "*.ts",
+    "*.tsx",
+    "../tailwind.config.ts",
+    "../postcss.config.js"
+  ],
   "exclude": ["node_modules", "dist"]
 }

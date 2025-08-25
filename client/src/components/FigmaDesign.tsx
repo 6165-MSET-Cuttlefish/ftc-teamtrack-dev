@@ -1,4 +1,11 @@
-import { ChevronUp, ChevronDown, ChevronRight, Search, Sun, Settings } from "lucide-react";
+import {
+  ChevronUp,
+  ChevronDown,
+  ChevronRight,
+  Search,
+  Sun,
+  Settings,
+} from 'lucide-react';
 
 const TeamTrackLogo = () => (
   <div className="flex items-center gap-6">
@@ -84,7 +91,9 @@ const StandardField = ({
 }) => (
   <div className="flex flex-col gap-2 w-[296px]">
     <div className="flex items-center gap-2">
-      <span className="text-white text-base font-normal leading-6">{label}</span>
+      <span className="text-white text-base font-normal leading-6">
+        {label}
+      </span>
       {hasChevronRight && <ChevronRight className="w-4 h-4 text-white" />}
     </div>
     <div className="flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 bg-team-dark">
@@ -94,7 +103,9 @@ const StandardField = ({
       <div className="flex items-center gap-1">
         {hasSpecialContent && (
           <div className="flex items-center justify-center px-1 py-1 rounded">
-            <span className="text-team-white-40 text-2xl font-medium leading-[18px]">H</span>
+            <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
+              H
+            </span>
           </div>
         )}
         <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
@@ -108,8 +119,12 @@ const StandardField = ({
 
 const AnalysisField = ({ value, label }: { value: string; label: string }) => (
   <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
-    <div className="text-team-blue text-[32px] font-medium leading-6">{value}</div>
-    <div className="text-team-white-60 text-base font-normal leading-6">{label}</div>
+    <div className="text-team-blue text-[32px] font-medium leading-6">
+      {value}
+    </div>
+    <div className="text-team-white-60 text-base font-normal leading-6">
+      {label}
+    </div>
   </div>
 );
 
@@ -166,10 +181,22 @@ export const FigmaDesign = () => {
                 Performance Metrics
               </h2>
               <div className="flex flex-col items-start gap-6">
-                <StandardField label="Final Score" placeholder="ex. 438" hasChevronRight />
-                <StandardField label="Autonomous Score" placeholder="ex. 200" hasChevronRight />
+                <StandardField
+                  label="Final Score"
+                  placeholder="ex. 438"
+                  hasChevronRight
+                />
+                <StandardField
+                  label="Autonomous Score"
+                  placeholder="ex. 200"
+                  hasChevronRight
+                />
                 <StandardField label="TeleOp Score" placeholder="ex. 208" />
-                <StandardField label="End Game Score" placeholder="ex. 208" hasChevronRight />
+                <StandardField
+                  label="End Game Score"
+                  placeholder="ex. 208"
+                  hasChevronRight
+                />
               </div>
             </div>
 
@@ -179,21 +206,31 @@ export const FigmaDesign = () => {
                 TeleOp Score
               </h2>
               <div className="flex flex-col items-start gap-6">
-                <StandardField 
-                  label="Samples" 
-                  placeholder="ex. 438" 
-                  hasChevronRight 
-                  hasSpecialContent 
+                <StandardField
+                  label="Samples"
+                  placeholder="ex. 438"
+                  hasChevronRight
+                  hasSpecialContent
                 />
-                <StandardField label="Specimen" placeholder="ex. 200" hasChevronRight />
-                <StandardField label="Floor mark" placeholder="ex. 208" hasChevronRight />
+                <StandardField
+                  label="Specimen"
+                  placeholder="ex. 200"
+                  hasChevronRight
+                />
+                <StandardField
+                  label="Floor mark"
+                  placeholder="ex. 208"
+                  hasChevronRight
+                />
               </div>
             </div>
           </div>
 
           {/* Notes */}
           <div className="flex flex-col items-start gap-6">
-            <h2 className="text-team-blue text-2xl font-semibold leading-6">Notes</h2>
+            <h2 className="text-team-blue text-2xl font-semibold leading-6">
+              Notes
+            </h2>
             <div className="flex items-start gap-6">
               <div className="flex w-[519px] flex-col items-start gap-2">
                 <span className="text-white text-base font-normal leading-6">
@@ -245,16 +282,32 @@ export const FigmaDesign = () => {
               </h3>
               <div className="flex justify-between items-start self-stretch">
                 <div className="flex flex-col justify-center items-start gap-2.5">
-                  <span className="text-team-white-60 text-xs font-normal leading-6">Driver</span>
-                  <span className="text-team-white-60 text-xs font-normal leading-6">Match Type</span>
-                  <span className="text-team-white-60 text-xs font-normal leading-6">Duration</span>
-                  <span className="text-team-white-60 text-xs font-normal leading-6">Score</span>
+                  <span className="text-team-white-60 text-xs font-normal leading-6">
+                    Driver
+                  </span>
+                  <span className="text-team-white-60 text-xs font-normal leading-6">
+                    Match Type
+                  </span>
+                  <span className="text-team-white-60 text-xs font-normal leading-6">
+                    Duration
+                  </span>
+                  <span className="text-team-white-60 text-xs font-normal leading-6">
+                    Score
+                  </span>
                 </div>
                 <div className="flex flex-col justify-center items-start gap-2.5">
-                  <span className="text-team-blue text-xs font-normal leading-6">Ethan Yang</span>
-                  <span className="text-team-blue text-xs font-normal leading-6">Full Game</span>
-                  <span className="text-team-blue text-xs font-normal leading-6">2:30</span>
-                  <span className="text-team-blue text-xs font-normal leading-6">438</span>
+                  <span className="text-team-blue text-xs font-normal leading-6">
+                    Ethan Yang
+                  </span>
+                  <span className="text-team-blue text-xs font-normal leading-6">
+                    Full Game
+                  </span>
+                  <span className="text-team-blue text-xs font-normal leading-6">
+                    2:30
+                  </span>
+                  <span className="text-team-blue text-xs font-normal leading-6">
+                    438
+                  </span>
                 </div>
               </div>
             </div>

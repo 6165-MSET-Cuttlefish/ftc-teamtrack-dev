@@ -1,15 +1,15 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 class ApiService {
   private async request<T>(
     endpoint: string,
-    options?: RequestInit,
+    options?: RequestInit
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
     const response = await fetch(url, {
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         ...options?.headers,
       },
       ...options,
@@ -23,15 +23,15 @@ class ApiService {
   }
 
   // Session API calls matching your backend endpoints
-  async createSession(sessionData: any) {
-    return this.request("/sessions", {
-      method: "POST",
+  async createSession(sessionData: Record<string, unknown>) {
+    return this.request('/sessions', {
+      method: 'POST',
       body: JSON.stringify(sessionData),
     });
   }
 
   async getSessions() {
-    return this.request("/sessions");
+    return this.request('/sessions');
   }
 
   async getSession(id: string) {
@@ -39,7 +39,7 @@ class ApiService {
   }
 
   async getAllSessions() {
-    return this.request("/sessions/view/all");
+    return this.request('/sessions/view/all');
   }
 }
 

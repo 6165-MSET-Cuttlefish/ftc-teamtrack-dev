@@ -1,5 +1,5 @@
-import { Search, Sun, Settings } from "lucide-react";
-import { useTheme } from "../contexts/ThemeContext";
+import { Search, Sun, Settings } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
@@ -48,7 +48,7 @@ const TeamTrackLogo = () => {
           />
         </svg>
         <span
-          className={`font-montserrat italic text-xs leading-6 relative -top-1.5 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+          className={`font-montserrat italic text-xs leading-6 relative -top-1.5 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
         >
           <span>Team</span>
           <span>Track</span>
@@ -59,7 +59,6 @@ const TeamTrackLogo = () => {
 };
 
 const SearchBox = () => {
-  const { isDarkMode } = useTheme();
   return (
     <div className="flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border border-team-white-20">
       <Search className="w-4 h-4 text-team-blue-40" />
@@ -73,17 +72,17 @@ const NavigationMenu = () => {
   return (
     <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-dark-20">
       <span
-        className={`text-base px-2 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       >
         Learn
       </span>
       <span
-        className={`text-base px-2 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       >
         Community
       </span>
       <span
-        className={`text-base px-2 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       >
         About Us
       </span>
@@ -92,12 +91,12 @@ const NavigationMenu = () => {
       </div>
       <button
         onClick={toggleTheme}
-        className={`ml-1 hover:opacity-80 transition-opacity ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        className={`ml-1 hover:opacity-80 transition-opacity ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       >
         <Sun className="w-4 h-4" />
       </button>
       <Settings
-        className={`w-4 h-4 ml-1 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       />
     </div>
   );
@@ -107,7 +106,7 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 border-b border-team-white-20 ${isDarkMode ? "bg-transparent" : "bg-white"}`}
+      className={`w-full px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 border-b border-team-white-20 ${isDarkMode ? 'bg-transparent' : 'bg-white'}`}
     >
       <div className="flex items-center w-full sm:w-80">
         <TeamTrackLogo />

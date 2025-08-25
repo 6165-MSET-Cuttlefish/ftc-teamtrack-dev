@@ -1,7 +1,7 @@
-import { ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useSession } from "../contexts/SessionContext";
-import { useTheme } from "../contexts/ThemeContext";
+import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useSession } from '../contexts/SessionContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const MetricField = ({
   label,
@@ -27,7 +27,7 @@ const MetricField = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const numericValue = e.target.value.replace(/[^0-9]/g, "");
+    const numericValue = e.target.value.replace(/[^0-9]/g, '');
     onChange(numericValue ? parseInt(numericValue) : 0);
   };
 
@@ -35,7 +35,7 @@ const MetricField = ({
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
       <div className="flex items-center justify-between">
         <label
-          className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+          className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
         >
           {label}
         </label>
@@ -43,7 +43,7 @@ const MetricField = ({
           {hasDropdown && (
             <button
               onClick={onDropdownClick}
-              className={`hover:text-team-blue transition-colors ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+              className={`hover:text-team-blue transition-colors ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -51,13 +51,13 @@ const MetricField = ({
         </div>
       </div>
       <div
-        className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? "bg-team-dark" : "bg-white"}`}
+        className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}
       >
         <input
           type="text"
           value={value}
           onChange={handleInputChange}
-          className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+          className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
           placeholder="0"
         />
         <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
@@ -109,7 +109,6 @@ export const PerformanceMetrics = () => {
       autonomousBasket * 8 + autonomousSpecimen * 10 + autonomousFloorMark * 1;
 
     // TeleOp scoring: same as autonomous, but includes autonomous values + additional teleop values
-    const totalBasket = autonomousBasket + 0; // No additional basket in teleop breakdown
     const totalSpecimen = autonomousSpecimen + teleOpSpecimen;
     const totalSamples = teleOpSamples; // Samples only exist in teleop
     const totalFloorMark = autonomousFloorMark + teleOpFloorMark;
@@ -146,12 +145,12 @@ export const PerformanceMetrics = () => {
 
   const handleIntegerChange = (
     value: string,
-    setter: (value: number) => void,
+    setter: (value: number) => void
   ) => {
     // Only allow integers (remove any non-digit characters)
-    const integerValue = value.replace(/[^0-9]/g, "");
+    const integerValue = value.replace(/[^0-9]/g, '');
     // Allow empty string to be converted to 0, but preserve multi-digit numbers
-    if (integerValue === "") {
+    if (integerValue === '') {
       setter(0);
     } else {
       const numValue = parseInt(integerValue);
@@ -187,7 +186,7 @@ export const PerformanceMetrics = () => {
 
     const handleToggle = () => {
       if (toggleKey) {
-        setToggleStates((prev) => ({
+        setToggleStates(prev => ({
           ...prev,
           [toggleKey]: !prev[toggleKey as keyof typeof prev],
         }));
@@ -202,7 +201,7 @@ export const PerformanceMetrics = () => {
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
         <div className="flex items-center justify-between">
           <label
-            className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
           >
             {label}
           </label>
@@ -211,13 +210,13 @@ export const PerformanceMetrics = () => {
           </div>
         </div>
         <div
-          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? "bg-team-dark" : "bg-white"}`}
+          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}
         >
           <input
             type="text"
             value={value.toString()}
-            onChange={(e) => handleIntegerChange(e.target.value, onChange)}
-            className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+            onChange={e => handleIntegerChange(e.target.value, onChange)}
+            className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
             placeholder="0"
           />
           <div className="flex items-center gap-1">
@@ -227,7 +226,7 @@ export const PerformanceMetrics = () => {
                 className="flex items-center justify-center px-1 py-1 rounded hover:bg-team-white-10 transition-colors"
               >
                 <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
-                  {isHighNet ? "H" : "L"}
+                  {isHighNet ? 'H' : 'L'}
                 </span>
               </button>
             )}
@@ -255,7 +254,7 @@ export const PerformanceMetrics = () => {
   const handleEndGameChange = (value: number) => {
     const allowedValues = [0, 5, 15, 30];
     const closest = allowedValues.reduce((prev, curr) =>
-      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev,
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
     );
     setEndGameValue(closest);
   };
@@ -268,14 +267,14 @@ export const PerformanceMetrics = () => {
 
   const getSectionTitle = () => {
     switch (expandedSection) {
-      case "Autonomous Score":
-        return "Autonomous Score";
-      case "TeleOp Score":
-        return "TeleOp Score";
-      case "End Game Score":
-        return "End Game Score";
+      case 'Autonomous Score':
+        return 'Autonomous Score';
+      case 'TeleOp Score':
+        return 'TeleOp Score';
+      case 'End Game Score':
+        return 'End Game Score';
       default:
-        return ""; // Default to blank
+        return ''; // Default to blank
     }
   };
 
@@ -285,7 +284,7 @@ export const PerformanceMetrics = () => {
     }
 
     switch (expandedSection) {
-      case "Autonomous Score":
+      case 'Autonomous Score':
         return (
           <div className="space-y-6">
             <InlineBreakdownField
@@ -310,7 +309,7 @@ export const PerformanceMetrics = () => {
             />
           </div>
         );
-      case "TeleOp Score":
+      case 'TeleOp Score':
         return (
           <div className="space-y-6">
             <InlineBreakdownField
@@ -334,7 +333,7 @@ export const PerformanceMetrics = () => {
             />
           </div>
         );
-      case "End Game Score":
+      case 'End Game Score':
         return (
           <div className="space-y-6">
             <div className="text-sm text-team-white-60 mb-4">
@@ -373,21 +372,21 @@ export const PerformanceMetrics = () => {
             label="Autonomous Score"
             value={sessionData.autonomousScore}
             onChange={() => {}} // Read-only, calculated automatically
-            onDropdownClick={() => toggleSection("Autonomous Score")}
+            onDropdownClick={() => toggleSection('Autonomous Score')}
           />
 
           <MetricField
             label="TeleOp Score"
             value={sessionData.teleOpScore}
             onChange={() => {}} // Read-only, calculated automatically
-            onDropdownClick={() => toggleSection("TeleOp Score")}
+            onDropdownClick={() => toggleSection('TeleOp Score')}
           />
 
           <MetricField
             label="End Game Score"
             value={sessionData.endGameScore}
             onChange={() => {}} // Read-only, calculated automatically
-            onDropdownClick={() => toggleSection("End Game Score")}
+            onDropdownClick={() => toggleSection('End Game Score')}
           />
         </div>
       </div>

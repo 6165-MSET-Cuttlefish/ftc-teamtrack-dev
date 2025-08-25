@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useSession } from "../contexts/SessionContext";
-import { useTheme } from "../contexts/ThemeContext";
-import { useApi } from "../hooks/useApi";
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useSession } from '../contexts/SessionContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useApi } from '../hooks/useApi';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
-  const { isDarkMode } = useTheme();
   return (
     <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
       <div className="text-team-blue text-3xl font-medium leading-6">
@@ -31,7 +30,7 @@ const OverviewCard = ({
   return (
     <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
       <h3
-        className={`text-base font-medium leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       >
         Session Overview
       </h3>
@@ -44,13 +43,13 @@ const OverviewCard = ({
         </div>
         <div className="flex flex-col gap-2.5">
           <div className="text-team-blue text-xs leading-6">
-            {driverName || "N/A"}
+            {driverName || 'N/A'}
           </div>
           <div className="text-team-blue text-xs leading-6">
-            {matchType || "N/A"}
+            {matchType || 'N/A'}
           </div>
           <div className="text-team-blue text-xs leading-6">
-            {sessionDuration || "N/A"}
+            {sessionDuration || 'N/A'}
           </div>
           <div className="text-team-blue text-xs leading-6">{finalScore}</div>
         </div>
@@ -64,7 +63,7 @@ const InsightsCard = () => {
   return (
     <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
       <h3
-        className={`text-base font-medium leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       >
         Performance Insights
       </h3>
@@ -87,7 +86,7 @@ export const LivePreview = () => {
 
     if (isTimerRunning && !sessionData.isSessionCompleted) {
       interval = setInterval(() => {
-        setTimer((prev) => prev + 1);
+        setTimer(prev => prev + 1);
       }, 1000);
     }
 
@@ -99,7 +98,7 @@ export const LivePreview = () => {
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const handleCompleteSession = async () => {
@@ -110,43 +109,43 @@ export const LivePreview = () => {
     // Map frontend data structure to backend expected format
     const sessionToSave = {
       // Basic session info - ensure no empty strings
-      sessionName: sessionData.sessionName.trim() || "Untitled Session",
-      driverName: sessionData.driverName.trim() || "Unknown Driver",
-      matchType: sessionData.matchType || "Practice",
+      sessionName: sessionData.sessionName.trim() || 'Untitled Session',
+      driverName: sessionData.driverName.trim() || 'Unknown Driver',
+      matchType: sessionData.matchType || 'Practice',
       sessionDuration: currentTime,
-      
+
       // Autonomous data (map frontend names to backend names)
       autonBasket: sessionData.autonomousBasket || 0,
-      autonSpeci: sessionData.autonomousSpecimen || 0, 
+      autonSpeci: sessionData.autonomousSpecimen || 0,
       autonFloor: sessionData.autonomousFloorMark || 0,
       autonRung: 0, // Not tracked in frontend currently
       autonHighRung: 0, // Not tracked in frontend currently
-      
+
       // TeleOp data (map frontend names to backend names)
       teleBasket: sessionData.teleOpSamples || 0,
       teleSpeci: sessionData.teleOpSpecimen || 0,
       teleNetZone: sessionData.teleOpFloorMark || 0,
       teleLowRung: 0, // Not tracked in frontend currently
       teleHighRung: 0, // Not tracked in frontend currently
-      
+
       // Endgame data
       endgameHang: sessionData.endGameValue || 0,
       endgamePark: 0, // Not tracked in frontend currently
-      
+
       // Additional metadata
       finalScore: sessionData.finalScore || 0,
       completedAt: new Date().toISOString(),
     };
 
     try {
-      console.log("Sending session data:", sessionToSave);
+      // console.log("Sending session data:", sessionToSave);
       const result = await createSession(sessionToSave);
       if (result) {
-        console.log("Session saved successfully to Firestore:", result);
+        // console.log("Session saved successfully to Firestore:", result);
         // You could add a toast notification here for user feedback
       }
-    } catch (error) {
-      console.error("Failed to save session:", error);
+    } catch {
+      // console.error("Failed to save session:", error);
       // You could add error notification here
     }
   };
@@ -160,7 +159,7 @@ export const LivePreview = () => {
             Live Preview
           </h1>
           <p
-            className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
           >
             Real time analysis
           </p>
@@ -201,7 +200,7 @@ export const LivePreview = () => {
               disabled={loading}
               className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-team-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Saving..." : "Complete Session"}
+              {loading ? 'Saving...' : 'Complete Session'}
             </button>
           )}
 

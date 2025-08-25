@@ -1,4 +1,4 @@
-import { FigmaDesign } from "../components/FigmaDesign";
+import { FigmaDesign } from '../components/FigmaDesign';
 
 export default function Figma() {
   return (

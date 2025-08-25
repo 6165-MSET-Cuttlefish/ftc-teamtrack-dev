@@ -1,12 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link } from 'react-router-dom';
 
 export default function Index() {
   return (
     <div className="min-h-screen bg-team-dark flex flex-col items-center justify-center">
       <div className="text-center space-y-12">
         <div className="space-y-6">
-          <h1 className="text-team-blue text-5xl font-semibold">TeamTrack Implementations</h1>
-          <p className="text-white text-xl">Choose which implementation to view</p>
+          <h1 className="text-team-blue text-5xl font-semibold">
+            TeamTrack Implementations
+          </h1>
+          <p className="text-white text-xl">
+            Choose which implementation to view
+          </p>
         </div>
 
         <div className="flex gap-12">
@@ -18,7 +22,9 @@ export default function Index() {
               <span className="text-team-dark text-2xl font-bold">O</span>
             </div>
             <div className="text-center space-y-2">
-              <h2 className="text-team-blue text-2xl font-semibold">Original Implementation</h2>
+              <h2 className="text-team-blue text-2xl font-semibold">
+                Original Implementation
+              </h2>
               <p className="text-team-white-60">Current responsive design</p>
             </div>
           </Link>
@@ -31,7 +37,9 @@ export default function Index() {
               <span className="text-team-dark text-2xl font-bold">F</span>
             </div>
             <div className="text-center space-y-2">
-              <h2 className="text-team-blue text-2xl font-semibold">Figma Implementation</h2>
+              <h2 className="text-team-blue text-2xl font-semibold">
+                Figma Implementation
+              </h2>
               <p className="text-team-white-60">Pixel-perfect recreation</p>
             </div>
           </Link>

@@ -1,17 +1,16 @@
-import { Link } from "react-router-dom";
-import { Header } from "../components/Header";
-import { SessionSetup } from "../components/SessionSetup";
-import { PerformanceMetrics } from "../components/PerformanceMetrics";
-import { Notes } from "../components/Notes";
-import { LivePreview } from "../components/LivePreview";
-import { SessionProvider } from "../contexts/SessionContext";
-import { ThemeProvider, useTheme } from "../contexts/ThemeContext";
+import { Header } from '../components/Header';
+import { SessionSetup } from '../components/SessionSetup';
+import { PerformanceMetrics } from '../components/PerformanceMetrics';
+import { Notes } from '../components/Notes';
+import { LivePreview } from '../components/LivePreview';
+import { SessionProvider } from '../contexts/SessionContext';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 
 const OriginalContent = () => {
   const { isDarkMode } = useTheme();
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? "bg-team-dark" : "bg-white"}`}>
+    <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
       <Header />
 
       <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-4 sm:px-8 py-5 lg:py-10 gap-6 lg:gap-10">
@@ -24,7 +23,7 @@ const OriginalContent = () => {
                 Active Practice Session
               </h1>
               <p
-                className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+                className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
               >
                 6165 Mset Cuttlefish
               </p>

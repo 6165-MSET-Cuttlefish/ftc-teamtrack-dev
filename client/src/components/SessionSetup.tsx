@@ -1,34 +1,34 @@
-import { useSession } from "../contexts/SessionContext";
-import { useTheme } from "../contexts/ThemeContext";
+import { useSession } from '../contexts/SessionContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const FormField = ({
   label,
   placeholder,
   value,
   onChange,
-  type = "text",
+  type = 'text',
 }: {
   label: string;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
-  type?: "text" | "number" | "decimal";
+  type?: 'text' | 'number' | 'decimal';
 }) => {
   const { isDarkMode } = useTheme();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (type === "number") {
+    if (type === 'number') {
       // Only allow numbers
-      const numericValue = e.target.value.replace(/[^0-9]/g, "");
+      const numericValue = e.target.value.replace(/[^0-9]/g, '');
       onChange(numericValue);
-    } else if (type === "decimal") {
+    } else if (type === 'decimal') {
       // Allow numbers and one decimal point
-      const decimalValue = e.target.value.replace(/[^0-9.]/g, "");
+      const decimalValue = e.target.value.replace(/[^0-9.]/g, '');
       // Ensure only one decimal point
-      const parts = decimalValue.split(".");
+      const parts = decimalValue.split('.');
       if (parts.length > 2) {
         // If more than one decimal point, keep only the first one
-        onChange(parts[0] + "." + parts.slice(1).join(""));
+        onChange(`${parts[0]}.${parts.slice(1).join('')}`);
       } else {
         onChange(decimalValue);
       }
@@ -40,7 +40,7 @@ const FormField = ({
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
       <label
-        className={`text-base leading-6 ${isDarkMode ? "text-white" : "text-[#191919]"}`}
+        className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       >
         {label}
       </label>
@@ -50,7 +50,7 @@ const FormField = ({
         onChange={handleChange}
         placeholder={placeholder}
         className={`px-2.5 py-2.5 rounded border border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40 ${
-          isDarkMode ? "bg-team-dark text-white" : "bg-white text-[#191919]"
+          isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-[#191919]'
         }`}
       />
     </div>

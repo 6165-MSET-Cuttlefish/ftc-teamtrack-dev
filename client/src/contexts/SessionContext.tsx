@@ -4,7 +4,7 @@ import {
   useState,
   ReactNode,
   useCallback,
-} from "react";
+} from 'react';
 
 interface SessionData {
   sessionName: string;
@@ -36,14 +36,14 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [sessionData, setSessionData] = useState<SessionData>({
-    sessionName: "",
-    driverName: "Ethan Yang",
-    sessionDuration: "",
-    matchType: "Autonomous",
+    sessionName: '',
+    driverName: 'Ethan Yang',
+    sessionDuration: '',
+    matchType: 'Autonomous',
     finalScore: 0,
     autonomousScore: 0,
     teleOpScore: 0,
-    endGameScore: 0, 
+    endGameScore: 0,
     isSessionCompleted: false,
     autonomousBasket: 0,
     autonomousSpecimen: 0,
@@ -56,11 +56,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const updateSessionData = useCallback((updates: Partial<SessionData>) => {
-    setSessionData((prev) => ({ ...prev, ...updates }));
+    setSessionData(prev => ({ ...prev, ...updates }));
   }, []);
 
   const completeSession = useCallback((timerValue: string) => {
-    setSessionData((prev) => ({
+    setSessionData(prev => ({
       ...prev,
       sessionDuration: timerValue,
       isSessionCompleted: true,
@@ -79,7 +79,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 export const useSession = () => {
   const context = useContext(SessionContext);
   if (context === undefined) {
-    throw new Error("useSession must be used within a SessionProvider");
+    throw new Error('useSession must be used within a SessionProvider');
   }
   return context;
 };
