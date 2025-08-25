@@ -3,11 +3,6 @@ import { Link } from "react-router-dom";
 export default function Index() {
   return (
     <div className="min-h-screen bg-team-dark flex flex-col items-center justify-center">
-      {/* TEST DIV - This should be red with white text */}
-      <div className="bg-red-500 text-white p-4 mb-8">
-        TEST - This should be red with white text
-      </div>
-      
       <div className="text-center space-y-12">
         <div className="space-y-6">
           <h1 className="text-team-blue text-5xl font-semibold">TeamTrack Implementations</h1>
