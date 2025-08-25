@@ -107,16 +107,47 @@ export const LivePreview = () => {
     setIsTimerRunning(false);
     completeSession(currentTime);
 
-    // Save session to your backend
+    // Map frontend data structure to backend expected format
     const sessionToSave = {
-      ...sessionData,
+      // Basic session info - ensure no empty strings
+      sessionName: sessionData.sessionName.trim() || "Untitled Session",
+      driverName: sessionData.driverName.trim() || "Unknown Driver",
+      matchType: sessionData.matchType || "Practice",
       sessionDuration: currentTime,
+      
+      // Autonomous data (map frontend names to backend names)
+      autonBasket: sessionData.autonomousBasket || 0,
+      autonSpeci: sessionData.autonomousSpecimen || 0, 
+      autonFloor: sessionData.autonomousFloorMark || 0,
+      autonRung: 0, // Not tracked in frontend currently
+      autonHighRung: 0, // Not tracked in frontend currently
+      
+      // TeleOp data (map frontend names to backend names)
+      teleBasket: sessionData.teleOpSamples || 0,
+      teleSpeci: sessionData.teleOpSpecimen || 0,
+      teleNetZone: sessionData.teleOpFloorMark || 0,
+      teleLowRung: 0, // Not tracked in frontend currently
+      teleHighRung: 0, // Not tracked in frontend currently
+      
+      // Endgame data
+      endgameHang: sessionData.endGameValue || 0,
+      endgamePark: 0, // Not tracked in frontend currently
+      
+      // Additional metadata
+      finalScore: sessionData.finalScore || 0,
       completedAt: new Date().toISOString(),
     };
 
-    const result = await createSession(sessionToSave);
-    if (result) {
-      console.log("Session saved successfully:", result);
+    try {
+      console.log("Sending session data:", sessionToSave);
+      const result = await createSession(sessionToSave);
+      if (result) {
+        console.log("Session saved successfully to Firestore:", result);
+        // You could add a toast notification here for user feedback
+      }
+    } catch (error) {
+      console.error("Failed to save session:", error);
+      // You could add error notification here
     }
   };
 

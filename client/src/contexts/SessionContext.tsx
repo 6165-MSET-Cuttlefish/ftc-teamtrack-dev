@@ -16,6 +16,14 @@ interface SessionData {
   teleOpScore: number;
   endGameScore: number;
   isSessionCompleted: boolean;
+  autonomousBasket: number;
+  autonomousSpecimen: number;
+  autonomousFloorMark: number;
+  teleOpSamples: number;
+  teleOpSpecimen: number;
+  teleOpFloorMark: number;
+  endGameValue: number;
+  updateSessionData: number;
 }
 
 interface SessionContextType {
@@ -35,8 +43,16 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     finalScore: 0,
     autonomousScore: 0,
     teleOpScore: 0,
-    endGameScore: 0,
+    endGameScore: 0, 
     isSessionCompleted: false,
+    autonomousBasket: 0,
+    autonomousSpecimen: 0,
+    autonomousFloorMark: 0,
+    teleOpSamples: 0,
+    teleOpSpecimen: 0,
+    teleOpFloorMark: 0,
+    endGameValue: 0,
+    updateSessionData: 0,
   });
 
   const updateSessionData = useCallback((updates: Partial<SessionData>) => {

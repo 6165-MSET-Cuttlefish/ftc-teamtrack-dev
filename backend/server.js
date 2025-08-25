@@ -15,6 +15,20 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const app = express();
+
+// Add CORS middleware for frontend communication
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 app.use(express.json());
 
 // Helper: normalize keys and handle nested objects
@@ -25,28 +39,43 @@ function toSession(body) {
   const auto = body.auto || {};
   const teleop = body.teleop || {};
   
+  // Helper function to ensure no undefined values
+  const safeString = (value, defaultValue = "") => {
+    return (value !== undefined && value !== null && value !== "") ? String(value) : defaultValue;
+  };
+  
+  const safeNumber = (value, defaultValue = 0) => {
+    const num = Number(value);
+    return isNaN(num) ? defaultValue : num;
+  };
+  
   return {
-    sessionName: info.sessionName || get("sessionName", "session name"),
-    driverName: info.driverName || get("driverName", "driver name"),
-    matchType: info.matchType || get("matchType", "match type"),
+    sessionName: safeString(info.sessionName || get("sessionName", "session name"), "Untitled Session"),
+    driverName: safeString(info.driverName || get("driverName", "driver name"), "Unknown Driver"),
+    matchType: safeString(info.matchType || get("matchType", "match type"), "Practice"),
+    sessionDuration: safeString(body.sessionDuration, "0:00"),
     
     // Map auto fields
-    autonBasket: Number(auto.lowBasket || body.autonBasket || 0),
-    autonSpeci: Number(auto.highBasket || body.autonSpeci || 0), 
-    autonFloor: Number(auto.netZone || body.autonFloor || 0),
-    autonRung: Number(auto.lowRung || body.autonRung || 0),
-    autonHighRung: Number(auto.highRung || body.autonHighRung || 0),
+    autonBasket: safeNumber(auto.lowBasket || body.autonBasket),
+    autonSpeci: safeNumber(auto.highBasket || body.autonSpeci), 
+    autonFloor: safeNumber(auto.netZone || body.autonFloor),
+    autonRung: safeNumber(auto.lowRung || body.autonRung),
+    autonHighRung: safeNumber(auto.highRung || body.autonHighRung),
     
     // Map teleop fields  
-    teleBasket: Number(teleop.lowBasket || body.teleBasket || 0),
-    teleSpeci: Number(teleop.highBasket || body.teleSpeci || 0),
-    teleNetZone: Number(teleop.netZone || body.teleNetZone || 0),
-    teleLowRung: Number(teleop.lowRung || body.teleLowRung || 0),
-    teleHighRung: Number(teleop.highRung || body.teleHighRung || 0),
+    teleBasket: safeNumber(teleop.lowBasket || body.teleBasket),
+    teleSpeci: safeNumber(teleop.highBasket || body.teleSpeci),
+    teleNetZone: safeNumber(teleop.netZone || body.teleNetZone),
+    teleLowRung: safeNumber(teleop.lowRung || body.teleLowRung),
+    teleHighRung: safeNumber(teleop.highRung || body.teleHighRung),
     
     // Endgame
-    endgameHang: Number(teleop.ascentLevel || body.endgameHang || 0),
-    endgamePark: Number(body.endgamePark || 0),
+    endgameHang: safeNumber(teleop.ascentLevel || body.endgameHang),
+    endgamePark: safeNumber(body.endgamePark),
+    
+    // Additional fields
+    finalScore: safeNumber(body.finalScore),
+    completedAt: safeString(body.completedAt),
     
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
@@ -60,14 +89,24 @@ router.post("/", async (req, res) => {
   try {
     const s = toSession(req.body);
     
-    // minimal validation - check for nested or flat structure
+    // Enhanced validation - check for required fields
     const sessionName = req.body.info?.sessionName || req.body.sessionName;
     const driverName = req.body.info?.driverName || req.body.driverName;
     
-    if (!sessionName || !driverName) {
+    // Log the incoming data for debugging
+    console.log('Incoming session data:', JSON.stringify(req.body, null, 2));
+    console.log('Processed session data:', JSON.stringify(s, null, 2));
+    
+    if (!sessionName || sessionName.trim() === "") {
       return res
         .status(400)
-        .json({ error: "sessionName and driverName are required (either flat or in info object)." });
+        .json({ error: "sessionName is required and cannot be empty." });
+    }
+    
+    if (!driverName || driverName.trim() === "") {
+      return res
+        .status(400)
+        .json({ error: "driverName is required and cannot be empty." });
     }
     
     // Add document to Firestore
@@ -85,7 +124,7 @@ router.post("/", async (req, res) => {
     res.status(201).json(responseData);
   } catch (error) {
     console.error('Error creating session:', error);
-    res.status(500).json({ error: 'Failed to create session' });
+    res.status(500).json({ error: 'Failed to create session', details: error.message });
   }
 });
 

@@ -125,6 +125,13 @@ export const PerformanceMetrics = () => {
       teleOpScore,
       endGameScore: endGameValue,
       finalScore,
+      autonomousBasket,
+      autonomousSpecimen,
+      autonomousFloorMark,
+      teleOpSamples,
+      teleOpSpecimen,
+      teleOpFloorMark,
+      endGameValue,
     });
   }, [
     autonomousBasket,
