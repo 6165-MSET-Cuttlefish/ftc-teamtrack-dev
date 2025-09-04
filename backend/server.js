@@ -1,19 +1,52 @@
+// Load environment variables
+require('dotenv').config();
+
 const express = require('express');
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin SDK
-// Option 1: Use service account key file (uncomment and update path)
-const serviceAccount = require('./serviceAccountKey.json');
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+let firebaseApp;
 
-// Option 2: Use environment variables (recommended for production)
-// admin.initializeApp({
-//   credential: admin.credential.applicationDefault()
-// });
+try {
+  // Option 1: Try to use service account key file (for production/when available)
+  const serviceAccount = require('./serviceAccountKey.json');
+  firebaseApp = admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+  console.log('Firebase initialized with service account key');
+} catch (error) {
+  console.log('Service account key not found, trying environment variables...');
+  
+  // Option 2: Use environment variables (recommended for development)
+  try {
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+      firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      });
+      console.log('Firebase initialized with environment variables');
+    } else {
+      console.log('Firebase environment variables not found, trying application default credentials...');
+      
+      // Option 3: Use application default credentials (Google Cloud, etc.)
+      firebaseApp = admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+      });
+      console.log('Firebase initialized with application default credentials');
+    }
+  } catch (envError) {
+    console.error('Failed to initialize Firebase Admin SDK:', envError.message);
+    console.log('Starting server without Firebase (sessions will not be saved)');
+    
+    // Initialize a mock admin for development
+    firebaseApp = null;
+  }
+}
 
-const db = admin.firestore();
+const db = firebaseApp ? admin.firestore() : null;
 const app = express();
 
 // Add CORS middleware for frontend communication
@@ -68,6 +101,10 @@ function toSession(body) {
       'Practice'
     ),
     sessionDuration: safeString(body.sessionDuration, '0:00'),
+    
+    // User information for authentication
+    userId: safeString(body.userId, ''),
+    userEmail: safeString(body.userEmail, ''),
 
     // Map auto fields
     autonBasket: safeNumber(auto.lowBasket || body.autonBasket),
@@ -91,7 +128,7 @@ function toSession(body) {
     finalScore: safeNumber(body.finalScore),
     completedAt: safeString(body.completedAt),
 
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: firebaseApp ? admin.firestore.FieldValue.serverTimestamp() : new Date().toISOString(),
   };
 }
 
@@ -101,6 +138,14 @@ const router = express.Router();
 // Create a session
 router.post('/', async (req, res) => {
   try {
+    // Check if Firebase is available
+    if (!db) {
+      return res.status(503).json({ 
+        error: 'Database not available. Please configure Firebase credentials.',
+        details: 'Firebase Admin SDK is not properly initialized.'
+      });
+    }
+
     const s = toSession(req.body);
 
     // Enhanced validation - check for required fields
@@ -147,10 +192,24 @@ router.post('/', async (req, res) => {
 // List all sessions (JSON)
 router.get('/', async (req, res) => {
   try {
-    const snapshot = await db
-      .collection('sessions')
-      .orderBy('createdAt', 'desc')
-      .get();
+    // Check if Firebase is available
+    if (!db) {
+      return res.status(503).json({ 
+        error: 'Database not available. Please configure Firebase credentials.',
+        details: 'Firebase Admin SDK is not properly initialized.',
+        sessions: []
+      });
+    }
+
+    const { userId } = req.query;
+    let query = db.collection('sessions').orderBy('createdAt', 'desc');
+    
+    // Filter by userId if provided
+    if (userId) {
+      query = query.where('userId', '==', userId);
+    }
+    
+    const snapshot = await query.get();
     const sessions = [];
 
     snapshot.forEach(doc => {
@@ -172,6 +231,14 @@ router.get('/', async (req, res) => {
 // Optional: get one by id
 router.get('/:id', async (req, res) => {
   try {
+    // Check if Firebase is available
+    if (!db) {
+      return res.status(503).json({ 
+        error: 'Database not available. Please configure Firebase credentials.',
+        details: 'Firebase Admin SDK is not properly initialized.'
+      });
+    }
+
     const doc = await db.collection('sessions').doc(req.params.id).get();
 
     if (!doc.exists) {
@@ -194,6 +261,23 @@ router.get('/:id', async (req, res) => {
 // Simple HTML view using res.send
 router.get('/view/all', async (req, res) => {
   try {
+    // Check if Firebase is available
+    if (!db) {
+      return res.send(`
+        <!doctype html>
+        <html><head><meta charset="utf-8"><title>Sessions</title>
+        <style>
+          body{font-family:system-ui,Arial,sans-serif;padding:20px}
+          .error{background:#f8d7da;color:#721c24;padding:15px;border-radius:5px;margin:20px 0}
+        </style></head><body>
+        <h1>Sessions Dashboard</h1>
+        <div class="error">
+          <strong>Database not available:</strong> Please configure Firebase credentials to view sessions.
+        </div>
+        </body></html>
+      `);
+    }
+
     const snapshot = await db
       .collection('sessions')
       .orderBy('createdAt', 'desc')

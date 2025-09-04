@@ -1,5 +1,17 @@
-import { Search, Sun, Settings } from 'lucide-react';
+import { Search, Sun, Settings, User, LogOut, UserCircle, BarChart3 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from './ui/dropdown-menu';
+import { Button } from './ui/button';
 
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
@@ -69,6 +81,24 @@ const SearchBox = () => {
 
 const NavigationMenu = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Failed to log out', error);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-dark-20">
       <span
@@ -98,6 +128,60 @@ const NavigationMenu = () => {
       <Settings
         className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       />
+      
+      {/* Authentication Section */}
+      {user ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
+                <AvatarFallback className="bg-team-blue text-white text-xs">
+                  {getInitials(user.displayName || user.email || 'User')}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {user.displayName || 'User'}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user.email}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/sessions" className="flex items-center">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                <span>My Sessions</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/profile" className="flex items-center">
+                <UserCircle className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <div className="flex items-center gap-2 ml-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/login">
+              <User className="mr-1 h-4 w-4" />
+              Sign In
+            </Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

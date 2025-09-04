@@ -5,6 +5,7 @@ import {
   ReactNode,
   useCallback,
 } from 'react';
+import { useAuth } from './AuthContext';
 
 interface SessionData {
   sessionName: string;
@@ -35,9 +36,11 @@ interface SessionContextType {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
+  
   const [sessionData, setSessionData] = useState<SessionData>({
     sessionName: '',
-    driverName: 'Ethan Yang',
+    driverName: user?.displayName || 'Ethan Yang',
     sessionDuration: '',
     matchType: 'Autonomous',
     finalScore: 0,

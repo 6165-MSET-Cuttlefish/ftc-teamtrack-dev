@@ -52,7 +52,7 @@ export const useApi = () => {
     // Direct API methods
     createSession: (sessionData: SessionData) =>
       execute(() => apiService.createSession(sessionData)),
-    getSessions: () => execute(() => apiService.getSessions()),
+    getSessions: (userId?: string) => execute(() => apiService.getSessions(userId)),
     getSession: (id: string) => execute(() => apiService.getSession(id)),
     getAllSessions: () => execute(() => apiService.getAllSessions()),
   };

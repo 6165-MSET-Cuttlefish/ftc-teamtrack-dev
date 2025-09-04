@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useApi } from '../hooks/useApi';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
@@ -77,6 +78,7 @@ const InsightsCard = () => {
 export const LivePreview = () => {
   const { sessionData, completeSession } = useSession();
   const { isDarkMode } = useTheme();
+  const { user } = useAuth();
   const { createSession, loading } = useApi();
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
@@ -113,6 +115,10 @@ export const LivePreview = () => {
       driverName: sessionData.driverName.trim() || 'Unknown Driver',
       matchType: sessionData.matchType || 'Practice',
       sessionDuration: currentTime,
+
+      // User information for authentication
+      userId: user?.uid || '',
+      userEmail: user?.email || '',
 
       // Autonomous data (map frontend names to backend names)
       autonBasket: sessionData.autonomousBasket || 0,
