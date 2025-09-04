@@ -30,7 +30,7 @@ class ApiService {
     });
   }
 
-  async getSessions() {
+  async getSessions(): Promise<any[]> {
     return this.request('/sessions');
   }
 
@@ -40,6 +40,15 @@ class ApiService {
 
   async getAllSessions() {
     return this.request('/sessions/view/all');
+  }
+
+  async fetchLatestSession() {
+    const sessions = await this.getSessions();
+    if (sessions.length > 0) {
+      return sessions[0]; // This is the latest session
+      console.log(sessions[0]);
+    }
+    return null; // No sessions found
   }
 }
 
