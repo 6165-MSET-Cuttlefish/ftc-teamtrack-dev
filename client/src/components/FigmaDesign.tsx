@@ -150,7 +150,7 @@ export const FigmaDesign = () => {
         <div className="flex w-[776px] h-[1172px] px-0 py-14 flex-col items-start gap-16 border-r border-team-blue-10">
           {/* Header */}
           <div className="flex px-[94px] flex-col items-center gap-6">
-            <h1 className="text-team-blue text-[48px] font-semibold leading-9">
+            <h1 className="text-team-blue text-[48px] font-semibold leading-10">
               Active Practice Session
             </h1>
             <p className="text-white text-base font-normal leading-6">
