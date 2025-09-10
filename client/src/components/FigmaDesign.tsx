@@ -11,7 +11,7 @@ const TeamTrackLogo = () => (
   <div className="flex items-center gap-6">
     <div className="flex items-center gap-2.5">
       <svg
-        width="12"
+        width="20"
         height="20"
         viewBox="0 0 8 20"
         fill="none"
