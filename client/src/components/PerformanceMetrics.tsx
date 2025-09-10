@@ -286,7 +286,7 @@ export const PerformanceMetrics = () => {
     switch (expandedSection) {
       case 'Autonomous Score':
         return (
-          <div className="space-y-6">
+          <div className="space-y-0">
             <InlineBreakdownField
               label="Basket (8 pts each)"
               value={autonomousBasket}
