@@ -11,7 +11,7 @@ const TeamTrackLogo = () => (
   <div className="flex items-center gap-6">
     <div className="flex items-center gap-2.5">
       <svg
-        width="8"
+        width="12"
         height="20"
         viewBox="0 0 8 20"
         fill="none"
@@ -201,11 +201,11 @@ export const FigmaDesign = () => {
             </div>
 
             {/* TeleOp Score */}
-            <div className="flex flex-col items-start gap-4">
+            <div className="flex flex-col items-start gap-8">
               <h2 className="text-team-blue text-2xl font-semibold leading-4">
                 TeleOp Score
               </h2>
-              <div className="flex flex-col items-start gap-4">
+              <div className="flex flex-col items-start gap-8">
                 <StandardField
                   label="Samples"
                   placeholder="ex. 438"
