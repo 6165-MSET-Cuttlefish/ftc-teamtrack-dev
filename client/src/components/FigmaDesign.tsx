@@ -180,7 +180,7 @@ export const FigmaDesign = () => {
               <h2 className="text-team-blue text-2xl font-semibold leading-6">
                 Performance Metrics
               </h2>
-              <div className="flex flex-col items-start gap-6">
+              <div className="flex flex-col items-start gap-8">
                 <StandardField
                   label="Final Score"
                   placeholder="ex. 438"
