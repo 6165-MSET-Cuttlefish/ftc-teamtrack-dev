@@ -180,10 +180,10 @@ export const FigmaDesign = () => {
               <h2 className="text-team-blue text-2xl font-semibold leading-6">
                 Performance Metrics
               </h2>
-              <div className="flex flex-col items-start gap-40">
+              <div className="flex flex-col items-start gap-8">
                 <StandardField
                   label="Final Score"
-                  placeholder="ex. 438"
+                  placeholder="ex. 438" 
                   hasChevronRight
                 />
                 <StandardField
@@ -201,11 +201,11 @@ export const FigmaDesign = () => {
             </div>
 
             {/* TeleOp Score */}
-            <div className="flex flex-col items-start gap-8">
-              <h2 className="text-team-blue text-2xl font-semibold leading-6">
+            <div className="flex flex-col items-start gap-4">
+              <h2 className="text-team-blue text-2xl font-semibold leading-4">
                 TeleOp Score
               </h2>
-              <div className="flex flex-col items-start gap-6">
+              <div className="flex flex-col items-start gap-4">
                 <StandardField
                   label="Samples"
                   placeholder="ex. 438"
