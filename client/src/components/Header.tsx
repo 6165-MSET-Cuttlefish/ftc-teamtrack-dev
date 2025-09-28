@@ -16,7 +16,7 @@ import { Button } from './ui/button';
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
   return (
-    <div className="flex items-center gap-6">
+    <div className="flex items-center gap-4">
       <div className="flex items-center gap-2.5">
         <svg
           width="8"
@@ -62,8 +62,7 @@ const TeamTrackLogo = () => {
         <span
           className={`font-montserrat italic text-xs leading-6 relative -top-1.5 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
         >
-          <span>Team</span>
-          <span>Track</span>
+          <span className="sr-only">TeamTrack</span>
         </span>
       </div>
     </div>
@@ -190,17 +189,23 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 border-b border-team-white-20 ${isDarkMode ? 'bg-transparent' : 'bg-white'}`}
+      className={`w-full px-4 sm:px-8 py-4 flex items-center border-b border-team-white-20 relative ${isDarkMode ? 'bg-transparent' : 'bg-white'}`}
     >
-      <div className="flex items-center w-full sm:w-80">
+      {/* Left: logo */}
+      <div className="flex items-center flex-none">
         <TeamTrackLogo />
       </div>
 
-      <div className="hidden lg:flex items-center w-80">
-        <SearchBox />
+      {/* Center: title */}
+      <div className="flex-1 flex justify-center">
+        <h1 className="text-team-blue text-lg sm:text-2xl font-semibold">TeamTrack</h1>
       </div>
 
-      <div className="flex items-center w-full sm:w-80 justify-center sm:justify-end">
+      {/* Right: search + nav */}
+      <div className="flex items-center flex-none">
+        <div className="hidden lg:block mr-4">
+          <SearchBox />
+        </div>
         <NavigationMenu />
       </div>
     </header>
