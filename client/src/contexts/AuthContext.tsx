@@ -1,16 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { 
-  User,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  updateProfile,
-  sendPasswordResetEmail,
-  GoogleAuthProvider,
-  signInWithPopup
-} from 'firebase/auth';
-import { auth } from '../lib/firebase';
+
+// Lazy-load Firebase functions at runtime. If Firebase isn't installed or configured,
+// the app will continue to work in a degraded mode (no auth) instead of crashing.
+import getFirebase from '../lib/firebase';
+
+// Types for functions we may dynamically import
+type FirebaseAuthModule = {
+  User?: any;
+  signInWithEmailAndPassword?: any;
+  createUserWithEmailAndPassword?: any;
+  signOut?: any;
+  onAuthStateChanged?: any;
+  updateProfile?: any;
+  sendPasswordResetEmail?: any;
+  GoogleAuthProvider?: any;
+  signInWithPopup?: any;
+};
+
+let firebaseAuthModule: FirebaseAuthModule | null = null; // populated when available
+let firebaseAuth: any = null; // the auth instance if available
 
 interface AuthContextType {
   user: User | null;
