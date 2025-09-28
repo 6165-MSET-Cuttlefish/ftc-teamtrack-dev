@@ -59,12 +59,12 @@ const TeamTrackLogo = () => {
             fill="#B0E5FE"
           />
         </svg>
-        <span
-          className={`font-montserrat italic text-xs leading-6 relative -top-1.5 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+        <div
+          className={`font-montserrat italic text-xs leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
         >
-          <span>Team</span>
-          <span>Track</span>
-        </span>
+          <span className="block">Team</span>
+          <span className="block">Track</span>
+        </div>
       </div>
     </div>
   );
