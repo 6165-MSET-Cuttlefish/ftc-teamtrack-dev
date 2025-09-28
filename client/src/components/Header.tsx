@@ -35,7 +35,7 @@ const TeamTrackLogo = () => {
         <path d="M17.8006 11.3299C17.7965 10.7885 17.0089 10.4475 16.3784 10.7103C16.1263 10.8244 15.9859 11.0769 15.9859 11.3436V19.51C15.9859 19.7886 16.1529 20.0438 16.4651 20.1764C17.1919 20.4709 18.0402 20.1516 18.0362 19.6496L17.8006 11.3299Z" fill="#B0E5FE" />
       </svg>
 
-      <div className={`font-montserrat text-white flex items-center gap-2`}>
+      <div className={`font-montserrat text-white flex items-center gap-2 relative top-1`}>
         <span className={`text-2xl leading-none font-normal ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>Team</span>
         <span className={`text-2xl leading-none italic font-normal ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}>Track</span>
       </div>
