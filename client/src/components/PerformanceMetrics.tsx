@@ -1,4 +1,4 @@
-  import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
   import { useState, useEffect } from 'react';
   import { useSession } from '../contexts/SessionContext';
   import { useTheme } from '../contexts/ThemeContext';
@@ -350,7 +350,7 @@
     };
 
     return (
-      <div className="flex gap-0">
+      <div className="flex gap-6">
         {/* Left Column - Performance Metrics */}
         <div className="flex-1 space-y-8">
           <h2 className="text-team-blue text-2xl font-semibold leading-6">
