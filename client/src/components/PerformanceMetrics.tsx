@@ -286,7 +286,7 @@
       switch (expandedSection) {
         case 'Autonomous Score':
           return (
-            <div className="space-y-10">
+            <div className="space-y-8">
               <InlineBreakdownField
                 label="Basket (8 pts each)"
                 value={autonomousBasket}
@@ -311,8 +311,7 @@
           );
         case 'TeleOp Score':
           return (
-            <div className="space-y-10
-            ">
+            <div className="space-y-8">
               <InlineBreakdownField
                 label="Additional Samples (8 pts each)"
                 value={teleOpSamples}
@@ -336,10 +335,7 @@
           );
         case 'End Game Score':
           return (
-            <div className="space-y-10">
-              <div className="text-sm text-team-white-60 mb-4">
-                * Choose one: 0, 5, 15, or 30 points
-              </div>
+            <div className="space-y-8">
               <InlineBreakdownField
                 label="End Game Points"
                 value={endGameValue}
@@ -354,14 +350,14 @@
     };
 
     return (
-      <div className="flex gap-16">
+      <div className="flex gap-0">
         {/* Left Column - Performance Metrics */}
         <div className="flex-1 space-y-8">
           <h2 className="text-team-blue text-2xl font-semibold leading-6">
             Performance Metrics
           </h2>
 
-          <div className="space-y-10">
+          <div className="space-y-8">
             <MetricField
               label="Final Score"
               value={sessionData.finalScore}
@@ -393,7 +389,7 @@
         </div>
 
         {/* Right Column - Breakdown Fields */}
-        <div className="flex-1 space-y-8">
+        <div className="flex-1 space-y-6">
           <h2 className="text-team-blue text-2xl font-semibold leading-6 min-h-[32px]">
             {getSectionTitle()}
           </h2>
