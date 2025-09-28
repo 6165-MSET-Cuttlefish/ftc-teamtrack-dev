@@ -16,7 +16,7 @@ import { Button } from './ui/button';
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-6">
       <div className="flex items-center gap-2.5">
         <svg
           width="8"
@@ -62,7 +62,8 @@ const TeamTrackLogo = () => {
         <span
           className={`font-montserrat italic text-xs leading-6 relative -top-1.5 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
         >
-          <span className="sr-only">TeamTrack</span>
+          <span>Team</span>
+          <span>Track</span>
         </span>
       </div>
     </div>
@@ -196,10 +197,8 @@ export const Header = () => {
         <TeamTrackLogo />
       </div>
 
-      {/* Center: title */}
-      <div className="flex-1 flex justify-center">
-        <h1 className="text-team-blue text-lg sm:text-2xl font-semibold">TeamTrack</h1>
-      </div>
+      {/* spacer to push nav to right */}
+      <div className="flex-1" />
 
       {/* Right: search + nav */}
       <div className="flex items-center flex-none">
