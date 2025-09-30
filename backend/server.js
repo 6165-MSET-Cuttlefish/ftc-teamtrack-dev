@@ -189,7 +189,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// List all sessions (JSON)
+// List all sessions with enhanced filtering and pagination (JSON)
 router.get('/', async (req, res) => {
   try {
     // Check if Firebase is available
@@ -201,12 +201,47 @@ router.get('/', async (req, res) => {
       });
     }
 
-    const { userId } = req.query;
-    let query = db.collection('sessions').orderBy('createdAt', 'desc');
+    const { 
+      userId, 
+      limit = 50, 
+      offset = 0, 
+      sortBy = 'createdAt', 
+      sortOrder = 'desc',
+      matchType,
+      dateFrom,
+      dateTo
+    } = req.query;
+
+    let query = db.collection('sessions');
     
     // Filter by userId if provided
     if (userId) {
       query = query.where('userId', '==', userId);
+    }
+
+    // Filter by match type if provided
+    if (matchType && matchType !== 'all') {
+      query = query.where('matchType', '==', matchType);
+    }
+
+    // Date range filtering
+    if (dateFrom) {
+      query = query.where('createdAt', '>=', new Date(dateFrom));
+    }
+    if (dateTo) {
+      query = query.where('createdAt', '<=', new Date(dateTo));
+    }
+
+    // Apply sorting
+    const sortDirection = sortOrder === 'asc' ? 'asc' : 'desc';
+    query = query.orderBy(sortBy, sortDirection);
+
+    // Apply pagination
+    if (offset > 0) {
+      query = query.offset(parseInt(offset));
+    }
+    if (limit > 0) {
+      query = query.limit(parseInt(limit));
     }
     
     const snapshot = await query.get();
@@ -221,10 +256,110 @@ router.get('/', async (req, res) => {
       sessions.push({ id: doc.id, ...data });
     });
 
-    res.json(sessions);
+    // Get total count for pagination info
+    let totalCount = 0;
+    if (userId) {
+      const countQuery = db.collection('sessions').where('userId', '==', userId);
+      const countSnapshot = await countQuery.count().get();
+      totalCount = countSnapshot.data().count;
+    }
+
+    res.json({
+      sessions,
+      pagination: {
+        total: totalCount,
+        offset: parseInt(offset),
+        limit: parseInt(limit),
+        hasMore: sessions.length === parseInt(limit)
+      }
+    });
   } catch (error) {
     console.error('Error fetching sessions:', error);
-    res.status(500).json({ error: 'Failed to fetch sessions' });
+    res.status(500).json({ error: 'Failed to fetch sessions', details: error.message });
+  }
+});
+
+// Get user session statistics
+router.get('/stats/:userId', async (req, res) => {
+  try {
+    // Check if Firebase is available
+    if (!db) {
+      return res.status(503).json({ 
+        error: 'Database not available. Please configure Firebase credentials.',
+        details: 'Firebase Admin SDK is not properly initialized.'
+      });
+    }
+
+    const { userId } = req.params;
+    const snapshot = await db.collection('sessions')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    if (snapshot.empty) {
+      return res.json({
+        totalSessions: 0,
+        averageScore: 0,
+        highestScore: 0,
+        totalPlayTime: 0,
+        matchTypeBreakdown: {},
+        recentSessions: [],
+        performanceTrend: []
+      });
+    }
+
+    const sessions = [];
+    let totalScore = 0;
+    let highestScore = 0;
+    let totalPlayTime = 0;
+    const matchTypeBreakdown = {};
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.createdAt && data.createdAt.toDate) {
+        data.createdAt = data.createdAt.toDate().toISOString();
+      }
+      
+      const session = { id: doc.id, ...data };
+      sessions.push(session);
+
+      // Calculate statistics
+      const score = session.finalScore || 0;
+      totalScore += score;
+      highestScore = Math.max(highestScore, score);
+
+      // Parse session duration (format: "MM:SS")
+      if (session.sessionDuration) {
+        const [minutes, seconds] = session.sessionDuration.split(':').map(Number);
+        totalPlayTime += (minutes * 60) + (seconds || 0);
+      }
+
+      // Match type breakdown
+      const matchType = session.matchType || 'Unknown';
+      matchTypeBreakdown[matchType] = (matchTypeBreakdown[matchType] || 0) + 1;
+    });
+
+    const totalSessions = sessions.length;
+    const averageScore = totalSessions > 0 ? Math.round(totalScore / totalSessions) : 0;
+
+    // Performance trend (last 10 sessions)
+    const performanceTrend = sessions.slice(0, 10).reverse().map(session => ({
+      date: session.createdAt,
+      score: session.finalScore || 0
+    }));
+
+    res.json({
+      totalSessions,
+      averageScore,
+      highestScore,
+      totalPlayTime: Math.round(totalPlayTime / 60), // Convert to minutes
+      matchTypeBreakdown,
+      recentSessions: sessions.slice(0, 5),
+      performanceTrend
+    });
+  } catch (error) {
+    console.error('Error fetching session stats:', error);
+    res.status(500).json({ error: 'Failed to fetch session stats', details: error.message });
   }
 });
 

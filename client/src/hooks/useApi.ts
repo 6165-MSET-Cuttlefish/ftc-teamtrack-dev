@@ -52,8 +52,17 @@ export const useApi = () => {
     // Direct API methods
     createSession: (sessionData: SessionData) =>
       execute(() => apiService.createSession(sessionData)),
-    getSessions: (userId?: string) => execute(() => apiService.getSessions(userId)),
+    getSessions: (userId?: string, options?: {
+      limit?: number;
+      offset?: number;
+      sortBy?: 'createdAt' | 'sessionName' | 'finalScore';
+      sortOrder?: 'asc' | 'desc';
+      matchType?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }) => execute(() => apiService.getSessions(userId, options)),
     getSession: (id: string) => execute(() => apiService.getSession(id)),
     getAllSessions: () => execute(() => apiService.getAllSessions()),
+    getUserSessionStats: (userId: string) => execute(() => apiService.getUserSessionStats(userId)),
   };
 };

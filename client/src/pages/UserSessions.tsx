@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { useApi } from '../hooks/useApi';
+import { useSessions } from '../hooks/useSessions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -12,6 +12,7 @@ import { Separator } from '../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Input } from '../components/ui/input';
 import { Calendar, Clock, User, Trophy, Target, Zap, Award, TrendingUp, BarChart3, Filter, Search } from 'lucide-react';
+import SessionExport from '../components/SessionExport';
 
 interface Session {
   id: string;
@@ -31,107 +32,27 @@ interface Session {
 const UserSessions: React.FC = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
-  const { getSessions, loading } = useApi();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
+  const { 
+    sessions: filteredSessions, 
+    sessionStats, 
+    loading, 
+    hasMore, 
+    filters, 
+    updateFilters, 
+    loadMore,
+    rawSessions: sessions 
+  } = useSessions();
+  
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [matchTypeFilter, setMatchTypeFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('newest');
 
   const handleSessionClick = (session: Session) => {
     setSelectedSession(session);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedSession(null);
-  };
-
-  // Calculate session statistics
-  const getSessionStats = () => {
-    if (sessions.length === 0) return null;
-
-    const totalSessions = sessions.length;
-    const averageScore = sessions.reduce((sum, s) => sum + s.finalScore, 0) / totalSessions;
-    const highestScore = Math.max(...sessions.map(s => s.finalScore));
-    const totalPlayTime = sessions.reduce((total, session) => {
-      const [minutes, seconds] = session.sessionDuration.split(':').map(Number);
-      return total + minutes * 60 + seconds;
-    }, 0);
-
-    const matchTypeBreakdown = sessions.reduce((acc, session) => {
-      acc[session.matchType] = (acc[session.matchType] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return {
-      totalSessions,
-      averageScore: Math.round(averageScore),
-      highestScore,
-      totalPlayTime: Math.round(totalPlayTime / 60), // Convert to minutes
-      matchTypeBreakdown
-    };
-  };
-
-  const stats = getSessionStats();
-
-  useEffect(() => {
-    const fetchUserSessions = async () => {
-      if (user?.uid) {
-        try {
-          const result = await getSessions(user.uid);
-          setSessions((result as Session[]) || []);
-        } catch (error) {
-          console.error('Failed to fetch sessions:', error);
-        }
-      }
-    };
-
-    fetchUserSessions();
-  }, [user?.uid, getSessions]);
-
-  // Filter and sort sessions whenever sessions, search term, filter, or sort changes
-  useEffect(() => {
-    let filtered = [...sessions];
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(session => 
-        session.sessionName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        session.driverName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply match type filter
-    if (matchTypeFilter !== 'all') {
-      filtered = filtered.filter(session => 
-        session.matchType.toLowerCase() === matchTypeFilter.toLowerCase()
-      );
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        case 'highest-score':
-          return b.finalScore - a.finalScore;
-        case 'lowest-score':
-          return a.finalScore - b.finalScore;
-        case 'duration':
-          return b.sessionDuration.localeCompare(a.sessionDuration);
-        default:
-          return 0;
-      }
-    });
-
-    setFilteredSessions(filtered);
-  }, [sessions, searchTerm, matchTypeFilter, sortBy]);
+  // Use server-side calculated statistics
+  const stats = sessionStats;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -176,13 +97,21 @@ const UserSessions: React.FC = () => {
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-12 px-4 sm:px-6 lg:px-8`}>
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            My Sessions
-          </h1>
-          <p className={`mt-2 text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            View and manage your training sessions
-          </p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              My Sessions
+            </h1>
+            <p className={`mt-2 text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              View and manage your training sessions
+            </p>
+          </div>
+          
+          {sessions.length > 0 && (
+            <div className="flex gap-2">
+              <SessionExport sessions={filteredSessions} userId={user?.uid} />
+            </div>
+          )}
         </div>
 
         {/* Session Statistics */}
@@ -237,13 +166,13 @@ const UserSessions: React.FC = () => {
                 Session Types
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {Object.entries(stats.matchTypeBreakdown).map(([type, count]) => (
+                {stats.matchTypeBreakdown && Object.entries(stats.matchTypeBreakdown).map(([type, count]) => (
                   <div key={type} className={`flex items-center justify-between p-2 rounded ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
                     <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       {type}
                     </span>
                     <Badge variant="secondary" className="text-xs">
-                      {count}
+                      {String(count)}
                     </Badge>
                   </div>
                 ))}
@@ -268,14 +197,14 @@ const UserSessions: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search sessions or drivers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={filters.searchTerm}
+                  onChange={(e) => updateFilters({ searchTerm: e.target.value })}
                   className={`pl-10 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
                 />
               </div>
 
               {/* Match Type Filter */}
-              <Select value={matchTypeFilter} onValueChange={setMatchTypeFilter}>
+              <Select value={filters.matchType} onValueChange={(value) => updateFilters({ matchType: value })}>
                 <SelectTrigger className={`w-40 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}>
                   <SelectValue placeholder="Match Type" />
                 </SelectTrigger>
@@ -289,7 +218,7 @@ const UserSessions: React.FC = () => {
               </Select>
 
               {/* Sort By */}
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={filters.sortBy} onValueChange={(value) => updateFilters({ sortBy: value })}>
                 <SelectTrigger className={`w-44 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}>
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -301,6 +230,40 @@ const UserSessions: React.FC = () => {
                   <SelectItem value="duration">Duration</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Date Range Filters */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Date Range:
+              </span>
+              <div className="flex gap-2 items-center flex-wrap">
+                <Input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+                  className={`w-40 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
+                  placeholder="From"
+                />
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>to</span>
+                <Input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => updateFilters({ dateTo: e.target.value })}
+                  className={`w-40 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
+                  placeholder="To"
+                />
+                {(filters.dateFrom || filters.dateTo) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => updateFilters({ dateFrom: '', dateTo: '' })}
+                    className={isDarkMode ? 'text-gray-400 hover:text-white' : ''}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -437,6 +400,20 @@ const UserSessions: React.FC = () => {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {hasMore && sessions.length > 0 && (
+          <div className="flex justify-center mt-8">
+            <Button
+              onClick={loadMore}
+              disabled={loading}
+              variant="outline"
+              className={`${isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}`}
+            >
+              {loading ? 'Loading...' : 'Load More Sessions'}
+            </Button>
           </div>
         )}
       </div>

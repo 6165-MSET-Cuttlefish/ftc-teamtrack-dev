@@ -30,9 +30,33 @@ class ApiService {
     });
   }
 
-  async getSessions(userId?: string) {
-    const params = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-    return this.request(`/sessions${params}`);
+  async getSessions(userId?: string, options?: {
+    limit?: number;
+    offset?: number;
+    sortBy?: 'createdAt' | 'sessionName' | 'finalScore';
+    sortOrder?: 'asc' | 'desc';
+    matchType?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) {
+    const params = new URLSearchParams();
+    
+    if (userId) {
+      params.append('userId', userId);
+    }
+    
+    if (options) {
+      if (options.limit) params.append('limit', options.limit.toString());
+      if (options.offset) params.append('offset', options.offset.toString());
+      if (options.sortBy) params.append('sortBy', options.sortBy);
+      if (options.sortOrder) params.append('sortOrder', options.sortOrder);
+      if (options.matchType) params.append('matchType', options.matchType);
+      if (options.dateFrom) params.append('dateFrom', options.dateFrom);
+      if (options.dateTo) params.append('dateTo', options.dateTo);
+    }
+    
+    const queryString = params.toString();
+    return this.request(`/sessions${queryString ? `?${queryString}` : ''}`);
   }
 
   async getSession(id: string) {
@@ -41,6 +65,10 @@ class ApiService {
 
   async getAllSessions() {
     return this.request('/sessions/view/all');
+  }
+
+  async getUserSessionStats(userId: string) {
+    return this.request(`/sessions/stats/${userId}`);
   }
 }
 
