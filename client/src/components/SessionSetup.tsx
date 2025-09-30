@@ -1,3 +1,4 @@
+import React from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -22,12 +23,10 @@ const FormField = ({
       const numericValue = e.target.value.replace(/[^0-9]/g, '');
       onChange(numericValue);
     } else if (type === 'decimal') {
-      
       const decimalValue = e.target.value.replace(/[^0-9.]/g, '');
-    
+
       const parts = decimalValue.split('.');
       if (parts.length > 2) {
-        
         onChange(`${parts[0]}.${parts.slice(1).join('')}`);
       } else {
         onChange(decimalValue);

@@ -43,26 +43,44 @@ function webSocketFixPlugin(): Plugin {
     apply: 'serve',
     configureServer(server) {
       // Wrap the server's WebSocket handling to catch RSV1 errors
-      const originalCreateWebSocketServer = (server as any).createWebSocketServer;
+      const originalCreateWebSocketServer = (
+        server as unknown as Record<string, unknown>
+      ).createWebSocketServer;
       if (originalCreateWebSocketServer) {
-        (server as any).createWebSocketServer = function(...args: any[]) {
-          const ws = originalCreateWebSocketServer.apply(this, args);
-          
-          // Override error handling
-          if (ws && ws.on) {
-            ws.on('error', (error: Error) => {
-              if (error.message.includes('RSV1') || 
+        (server as unknown as Record<string, unknown>).createWebSocketServer =
+          function (...args: unknown[]) {
+            const ws = (
+              originalCreateWebSocketServer as (...args: unknown[]) => unknown
+            ).apply(this, args);
+
+            // Override error handling
+            if (ws && typeof ws === 'object' && ws !== null && 'on' in ws) {
+              (
+                ws as {
+                  on: (event: string, handler: (error: Error) => void) => void;
+                }
+              ).on('error', (error: Error) => {
+                if (
+                  error.message.includes('RSV1') ||
                   error.message.includes('WebSocket frame') ||
-                  (error as any).code === 'WS_ERR_UNEXPECTED_RSV_1') {
-                console.warn('🔄 WebSocket compression error ignored - continuing...');
-                return; // Don't propagate the error
-              }
-              console.error('WebSocket error:', error);
-            });
-          }
-          
-          return ws;
-        };
+                  (error as { code?: string }).code ===
+                    'WS_ERR_UNEXPECTED_RSV_1'
+                ) {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.warn(
+                      '🔄 WebSocket compression error ignored - continuing...'
+                    );
+                  }
+                  return; // Don't propagate the error
+                }
+                if (process.env.NODE_ENV === 'development') {
+                  console.error('WebSocket error:', error);
+                }
+              });
+            }
+
+            return ws;
+          };
       }
     },
   };

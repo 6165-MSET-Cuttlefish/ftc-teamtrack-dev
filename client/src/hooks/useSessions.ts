@@ -36,11 +36,12 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
   const { initialLimit = 20, autoLoad = true } = options;
   const { user } = useAuth();
   const { getSessions, getUserSessionStats, loading } = useApi();
-  
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [isDatabaseAvailable, setIsDatabaseAvailable] = useState(true);
   const [filters, setFilters] = useState({
     searchTerm: '',
     matchType: 'all',
@@ -49,48 +50,59 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
     dateTo: '',
   });
 
-  const loadSessions = useCallback(async (page = 0, append = false, customFilters?: Partial<typeof filters>) => {
-    if (!user?.uid) return;
+  const loadSessions = useCallback(
+    async (page = 0, append = false) => {
+      if (!user?.uid) return;
 
-    const currentFilters = { ...filters, ...customFilters };
-    
-    try {
-      const options = {
-        limit: initialLimit,
-        offset: page * initialLimit,
-        sortBy: 'createdAt' as const,
-        sortOrder: 'desc' as const,
-        matchType: currentFilters.matchType !== 'all' ? currentFilters.matchType : undefined,
-        dateFrom: currentFilters.dateFrom || undefined,
-        dateTo: currentFilters.dateTo || undefined,
-      };
+      try {
+        const options = {
+          limit: initialLimit,
+          offset: page * initialLimit,
+          sortBy: 'createdAt' as const,
+          sortOrder: 'desc' as const,
+          matchType:
+            filters.matchType !== 'all' ? filters.matchType : undefined,
+          dateFrom: filters.dateFrom || undefined,
+          dateTo: filters.dateTo || undefined,
+        };
 
-      const result = await getSessions(user.uid, options);
-      
-      if (result && typeof result === 'object' && 'sessions' in result) {
-        const { sessions: newSessions, pagination } = result as any;
-        
-        if (append) {
-          setSessions(prev => [...prev, ...(newSessions || [])]);
+        const result = await getSessions(user.uid, options);
+
+        // Check if we got an empty response due to database being unavailable
+        if (result && typeof result === 'object' && 'sessions' in result) {
+          const { sessions: newSessions, pagination } = result as {
+            sessions: Session[];
+            pagination: { hasMore: boolean; total: number };
+          };
+
+          // If we get empty sessions and total is 0, it might be database unavailable
+          setIsDatabaseAvailable(newSessions.length > 0 || pagination.total > 0);
+
+          if (append) {
+            setSessions(prev => [...prev, ...(newSessions || [])]);
+          } else {
+            setSessions(newSessions || []);
+          }
+
+          setHasMore(pagination?.hasMore || false);
         } else {
-          setSessions(newSessions || []);
+          // Handle legacy response format
+          const sessionData = (result as Session[]) || [];
+          setIsDatabaseAvailable(sessionData.length > 0);
+          
+          if (append) {
+            setSessions(prev => [...prev, ...sessionData]);
+          } else {
+            setSessions(sessionData);
+          }
+          setHasMore(sessionData.length === initialLimit);
         }
-        
-        setHasMore(pagination?.hasMore || false);
-      } else {
-        // Handle legacy response format
-        const sessionData = result as Session[] || [];
-        if (append) {
-          setSessions(prev => [...prev, ...sessionData]);
-        } else {
-          setSessions(sessionData);
-        }
-        setHasMore(sessionData.length === initialLimit);
+      } catch {
+        // Handle error silently in production
       }
-    } catch (error) {
-      console.error('Failed to fetch sessions:', error);
-    }
-  }, [user?.uid, getSessions, initialLimit, filters]);
+    },
+    [user?.uid, getSessions, initialLimit, filters.dateFrom, filters.dateTo, filters.matchType]
+  );
 
   const loadStats = useCallback(async () => {
     if (!user?.uid) return;
@@ -98,8 +110,8 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
     try {
       const stats = await getUserSessionStats(user.uid);
       setSessionStats(stats as SessionStats);
-    } catch (error) {
-      console.error('Failed to fetch session stats:', error);
+    } catch {
+      // Handle error silently in production
     }
   }, [user?.uid, getUserSessionStats]);
 
@@ -138,9 +150,13 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
   const sortedSessions = [...filteredSessions].sort((a, b) => {
     switch (filters.sortBy) {
       case 'newest':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       case 'oldest':
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       case 'highest-score':
         return b.finalScore - a.finalScore;
       case 'lowest-score':
@@ -152,12 +168,22 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
     }
   });
 
-  // Auto-load sessions when user changes or filters change
+  // Auto-load sessions when user changes or key filters change
   useEffect(() => {
     if (user?.uid && autoLoad) {
-      refreshSessions();
+      setCurrentPage(0);
+      loadSessions(0, false);
+      loadStats();
     }
-  }, [user?.uid, filters.matchType, filters.dateFrom, filters.dateTo, autoLoad]);
+  }, [
+    user?.uid,
+    filters.matchType,
+    filters.dateFrom,
+    filters.dateTo,
+    autoLoad,
+    loadSessions,
+    loadStats,
+  ]);
 
   return {
     sessions: sortedSessions,
@@ -169,5 +195,6 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
     loadMore,
     refreshSessions,
     rawSessions: sessions, // For export functionality
+    isDatabaseAvailable,
   };
 };

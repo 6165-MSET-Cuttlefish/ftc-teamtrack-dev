@@ -8,10 +8,21 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [isDarkMode, setIsDarkMode] = useState(true); // Start with dark mode
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage if available, default to dark theme
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('teamtrack-theme');
+      return saved ? JSON.parse(saved) : true;
+    }
+    return true;
+  });
 
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('teamtrack-theme', JSON.stringify(newTheme));
+    }
   };
 
   return (

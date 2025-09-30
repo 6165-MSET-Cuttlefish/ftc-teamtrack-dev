@@ -24,7 +24,6 @@ interface SessionData {
   teleOpSpecimen: number;
   teleOpFloorMark: number;
   endGameValue: number;
-  updateSessionData: number;
 }
 
 interface SessionContextType {
@@ -37,7 +36,7 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  
+
   const [sessionData, setSessionData] = useState<SessionData>({
     sessionName: '',
     driverName: user?.displayName || 'Ethan Yang',
@@ -55,7 +54,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     teleOpSpecimen: 0,
     teleOpFloorMark: 0,
     endGameValue: 0,
-    updateSessionData: 0,
   });
 
   const updateSessionData = useCallback((updates: Partial<SessionData>) => {

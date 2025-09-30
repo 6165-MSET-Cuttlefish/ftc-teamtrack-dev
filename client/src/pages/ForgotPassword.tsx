@@ -4,7 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Mail, ArrowLeft } from 'lucide-react';
 
@@ -13,12 +20,12 @@ const ForgotPassword: React.FC = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email) {
       setError('Please enter your email address');
       return;
@@ -30,8 +37,8 @@ const ForgotPassword: React.FC = () => {
       setLoading(true);
       await resetPassword(email);
       setMessage('Check your inbox for further instructions');
-    } catch (err: any) {
-      setError(err.message || 'Failed to reset password');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to reset password');
     } finally {
       setLoading(false);
     }
@@ -45,10 +52,11 @@ const ForgotPassword: React.FC = () => {
             Reset Password
           </CardTitle>
           <CardDescription className="text-center text-team-white-60">
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we'll send you a link to reset your
+            password
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {error && (
             <Alert variant="destructive">
@@ -64,7 +72,9 @@ const ForgotPassword: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-team-white">Email</Label>
+              <Label htmlFor="email" className="text-team-white">
+                Email
+              </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
                 <Input
@@ -72,15 +82,15 @@ const ForgotPassword: React.FC = () => {
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                   className="pl-10 bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40"
                   required
                 />
               </div>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-team-blue hover:bg-team-blue/90"
               disabled={loading}
             >
@@ -90,8 +100,8 @@ const ForgotPassword: React.FC = () => {
         </CardContent>
 
         <CardFooter className="flex justify-center">
-          <Link 
-            to="/login" 
+          <Link
+            to="/login"
             className="flex items-center text-sm text-team-blue hover:underline"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />

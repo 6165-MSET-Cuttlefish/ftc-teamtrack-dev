@@ -16,10 +16,15 @@ try {
   console.log('Firebase initialized with service account key');
 } catch (error) {
   console.log('Service account key not found, trying environment variables...');
-  
+
   // Option 2: Use environment variables (recommended for development)
   try {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+    if (
+      process.env.FIREBASE_PROJECT_ID &&
+      process.env.FIREBASE_PRIVATE_KEY &&
+      process.env.FIREBASE_CLIENT_EMAIL
+    ) {
+      // Full service account credentials
       firebaseApp = admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
@@ -28,19 +33,28 @@ try {
         }),
       });
       console.log('Firebase initialized with environment variables');
-    } else {
-      console.log('Firebase environment variables not found, trying application default credentials...');
-      
-      // Option 3: Use application default credentials (Google Cloud, etc.)
+    } else if (process.env.FIREBASE_PROJECT_ID) {
+      // Development mode with just project ID - use application default credentials
+      console.log('Using Firebase project ID with application default credentials...');
       firebaseApp = admin.initializeApp({
         credential: admin.credential.applicationDefault(),
+        projectId: process.env.FIREBASE_PROJECT_ID,
       });
-      console.log('Firebase initialized with application default credentials');
+      console.log(`Firebase initialized for project: ${process.env.FIREBASE_PROJECT_ID}`);
+    } else {
+      console.log(
+        'Firebase project ID not found. Skipping Firebase initialization for development.'
+      );
+      
+      // Skip Firebase initialization in development mode
+      throw new Error('No Firebase configuration provided for development mode');
     }
   } catch (envError) {
     console.error('Failed to initialize Firebase Admin SDK:', envError.message);
-    console.log('Starting server without Firebase (sessions will not be saved)');
-    
+    console.log(
+      'Starting server without Firebase (sessions will not be saved)'
+    );
+
     // Initialize a mock admin for development
     firebaseApp = null;
   }
@@ -101,7 +115,7 @@ function toSession(body) {
       'Practice'
     ),
     sessionDuration: safeString(body.sessionDuration, '0:00'),
-    
+
     // User information for authentication
     userId: safeString(body.userId, ''),
     userEmail: safeString(body.userEmail, ''),
@@ -128,7 +142,9 @@ function toSession(body) {
     finalScore: safeNumber(body.finalScore),
     completedAt: safeString(body.completedAt),
 
-    createdAt: firebaseApp ? admin.firestore.FieldValue.serverTimestamp() : new Date().toISOString(),
+    createdAt: firebaseApp
+      ? admin.firestore.FieldValue.serverTimestamp()
+      : new Date().toISOString(),
   };
 }
 
@@ -140,9 +156,9 @@ router.post('/', async (req, res) => {
   try {
     // Check if Firebase is available
     if (!db) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'Database not available. Please configure Firebase credentials.',
-        details: 'Firebase Admin SDK is not properly initialized.'
+        details: 'Firebase Admin SDK is not properly initialized.',
       });
     }
 
@@ -194,26 +210,26 @@ router.get('/', async (req, res) => {
   try {
     // Check if Firebase is available
     if (!db) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'Database not available. Please configure Firebase credentials.',
         details: 'Firebase Admin SDK is not properly initialized.',
-        sessions: []
+        sessions: [],
       });
     }
 
-    const { 
-      userId, 
-      limit = 50, 
-      offset = 0, 
-      sortBy = 'createdAt', 
+    const {
+      userId,
+      limit = 50,
+      offset = 0,
+      sortBy = 'createdAt',
       sortOrder = 'desc',
       matchType,
       dateFrom,
-      dateTo
+      dateTo,
     } = req.query;
 
     let query = db.collection('sessions');
-    
+
     // Filter by userId if provided
     if (userId) {
       query = query.where('userId', '==', userId);
@@ -243,7 +259,7 @@ router.get('/', async (req, res) => {
     if (limit > 0) {
       query = query.limit(parseInt(limit));
     }
-    
+
     const snapshot = await query.get();
     const sessions = [];
 
@@ -259,7 +275,9 @@ router.get('/', async (req, res) => {
     // Get total count for pagination info
     let totalCount = 0;
     if (userId) {
-      const countQuery = db.collection('sessions').where('userId', '==', userId);
+      const countQuery = db
+        .collection('sessions')
+        .where('userId', '==', userId);
       const countSnapshot = await countQuery.count().get();
       totalCount = countSnapshot.data().count;
     }
@@ -270,12 +288,14 @@ router.get('/', async (req, res) => {
         total: totalCount,
         offset: parseInt(offset),
         limit: parseInt(limit),
-        hasMore: sessions.length === parseInt(limit)
-      }
+        hasMore: sessions.length === parseInt(limit),
+      },
     });
   } catch (error) {
     console.error('Error fetching sessions:', error);
-    res.status(500).json({ error: 'Failed to fetch sessions', details: error.message });
+    res
+      .status(500)
+      .json({ error: 'Failed to fetch sessions', details: error.message });
   }
 });
 
@@ -284,14 +304,15 @@ router.get('/stats/:userId', async (req, res) => {
   try {
     // Check if Firebase is available
     if (!db) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'Database not available. Please configure Firebase credentials.',
-        details: 'Firebase Admin SDK is not properly initialized.'
+        details: 'Firebase Admin SDK is not properly initialized.',
       });
     }
 
     const { userId } = req.params;
-    const snapshot = await db.collection('sessions')
+    const snapshot = await db
+      .collection('sessions')
       .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
       .get();
@@ -304,7 +325,7 @@ router.get('/stats/:userId', async (req, res) => {
         totalPlayTime: 0,
         matchTypeBreakdown: {},
         recentSessions: [],
-        performanceTrend: []
+        performanceTrend: [],
       });
     }
 
@@ -319,7 +340,7 @@ router.get('/stats/:userId', async (req, res) => {
       if (data.createdAt && data.createdAt.toDate) {
         data.createdAt = data.createdAt.toDate().toISOString();
       }
-      
+
       const session = { id: doc.id, ...data };
       sessions.push(session);
 
@@ -330,8 +351,10 @@ router.get('/stats/:userId', async (req, res) => {
 
       // Parse session duration (format: "MM:SS")
       if (session.sessionDuration) {
-        const [minutes, seconds] = session.sessionDuration.split(':').map(Number);
-        totalPlayTime += (minutes * 60) + (seconds || 0);
+        const [minutes, seconds] = session.sessionDuration
+          .split(':')
+          .map(Number);
+        totalPlayTime += minutes * 60 + (seconds || 0);
       }
 
       // Match type breakdown
@@ -340,13 +363,17 @@ router.get('/stats/:userId', async (req, res) => {
     });
 
     const totalSessions = sessions.length;
-    const averageScore = totalSessions > 0 ? Math.round(totalScore / totalSessions) : 0;
+    const averageScore =
+      totalSessions > 0 ? Math.round(totalScore / totalSessions) : 0;
 
     // Performance trend (last 10 sessions)
-    const performanceTrend = sessions.slice(0, 10).reverse().map(session => ({
-      date: session.createdAt,
-      score: session.finalScore || 0
-    }));
+    const performanceTrend = sessions
+      .slice(0, 10)
+      .reverse()
+      .map(session => ({
+        date: session.createdAt,
+        score: session.finalScore || 0,
+      }));
 
     res.json({
       totalSessions,
@@ -355,11 +382,13 @@ router.get('/stats/:userId', async (req, res) => {
       totalPlayTime: Math.round(totalPlayTime / 60), // Convert to minutes
       matchTypeBreakdown,
       recentSessions: sessions.slice(0, 5),
-      performanceTrend
+      performanceTrend,
     });
   } catch (error) {
     console.error('Error fetching session stats:', error);
-    res.status(500).json({ error: 'Failed to fetch session stats', details: error.message });
+    res
+      .status(500)
+      .json({ error: 'Failed to fetch session stats', details: error.message });
   }
 });
 
@@ -368,9 +397,9 @@ router.get('/:id', async (req, res) => {
   try {
     // Check if Firebase is available
     if (!db) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'Database not available. Please configure Firebase credentials.',
-        details: 'Firebase Admin SDK is not properly initialized.'
+        details: 'Firebase Admin SDK is not properly initialized.',
       });
     }
 

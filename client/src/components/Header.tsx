@@ -1,15 +1,24 @@
-import { Search, Sun, Settings, User, LogOut, UserCircle, BarChart3 } from 'lucide-react';
+import {
+  Search,
+  Sun,
+  Settings,
+  User,
+  LogOut,
+  UserCircle,
+  BarChart3,
+  CheckSquare,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
 
@@ -94,8 +103,8 @@ const NavigationMenu = () => {
   const handleLogout = async () => {
     try {
       await logout();
-    } catch (error) {
-      console.error('Failed to log out', error);
+    } catch {
+      // Handle logout error silently - could show user notification here instead
     }
   };
 
@@ -128,14 +137,20 @@ const NavigationMenu = () => {
       <Settings
         className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       />
-      
+
       {/* Authentication Section */}
       {user ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
+            <Button
+              variant="ghost"
+              className="relative h-8 w-8 rounded-full ml-2"
+            >
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
+                <AvatarImage
+                  src={user.photoURL || ''}
+                  alt={user.displayName || ''}
+                />
                 <AvatarFallback className="bg-team-blue text-white text-xs">
                   {getInitials(user.displayName || user.email || 'User')}
                 </AvatarFallback>
@@ -158,6 +173,12 @@ const NavigationMenu = () => {
               <Link to="/sessions" className="flex items-center">
                 <BarChart3 className="mr-2 h-4 w-4" />
                 <span>My Sessions</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/sessions/select" className="flex items-center">
+                <CheckSquare className="mr-2 h-4 w-4" />
+                <span>Select Sessions</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
