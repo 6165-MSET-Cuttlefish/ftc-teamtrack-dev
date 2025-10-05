@@ -1,6 +1,13 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = (() => {
+  // Avoid duplicate declaration errors during HMR / multiple module executions by storing on globalThis
+  const g = globalThis as any;
+  if (g.__API_BASE_URL) return g.__API_BASE_URL;
+  const val = import.meta.env.VITE_API_URL || '/api';
+  g.__API_BASE_URL = val;
+  return val;
+})();
 
 class ApiService {
   private async request<T>(
