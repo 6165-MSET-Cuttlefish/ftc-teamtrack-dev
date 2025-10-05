@@ -187,7 +187,7 @@ const UserSessions: React.FC = () => {
 
         {/* Session Statistics */}
         {stats && (
-          <div className={`p-6 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className={`p-6 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
             <h2 className={`text-xl font-semibold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <TrendingUp className="h-5 w-5 text-team-blue" />
               Performance Overview
@@ -253,7 +253,7 @@ const UserSessions: React.FC = () => {
         )}
 
         {/* Filters and Search */}
-        <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-gray-400" />
