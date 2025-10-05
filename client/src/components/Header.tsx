@@ -46,7 +46,7 @@ const TeamTrackLogo = () => {
 
 const SearchBox = () => {
   const { isDarkMode } = useTheme();
-  const iconClass = isDarkMode ? 'text-team-blue-40' : '';
+  const iconClass = isDarkMode ? 'text-team-blue-40' : 'text-[#06B6D4]';
   const textClass = isDarkMode ? 'text-team-blue-40' : 'text-[#06B6D4]';
 
   return (
