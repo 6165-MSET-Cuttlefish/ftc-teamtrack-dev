@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { SessionProvider } from './contexts/SessionContext';
 import Index from './pages/Index';
 import Original from './pages/Original';
 import Figma from './pages/Figma';
