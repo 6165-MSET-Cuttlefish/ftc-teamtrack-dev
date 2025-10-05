@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession, SessionProvider } from '../contexts/SessionContext';
 import { useTheme, ThemeProvider } from '../contexts/ThemeContext';
+import { Header } from '../components/Header';
 import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
@@ -215,6 +216,8 @@ const AnalysisContent = () => {
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
+      <Header />
+
       <div className="max-w-[800px] mx-auto px-4 sm:px-8 py-8 lg:py-16">
         <div className="space-y-12">
           {/* Header */}

@@ -7,7 +7,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { SessionProvider } from './contexts/SessionContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { MainLayout } from './components/MainLayout';
 import ErrorBoundary from './components/ErrorBoundary';
 import Index from './pages/Index';
 import Original from './pages/Original';
@@ -31,8 +30,7 @@ const App = () => (
         <ThemeProvider>
           <AuthProvider>
             <SessionProvider>
-              <Sonner position="top-right" />
-              <Toaster />
+              <Sonner />
               <BrowserRouter>
                 <Routes>
                   {/* Public Routes */}
@@ -45,9 +43,7 @@ const App = () => (
                     path="/"
                     element={
                       <ProtectedRoute>
-                        <MainLayout>
-                          <Index />
-                        </MainLayout>
+                        <Index />
                       </ProtectedRoute>
                     }
                   />
@@ -55,9 +51,7 @@ const App = () => (
                     path="/original"
                     element={
                       <ProtectedRoute>
-                        <MainLayout>
-                          <Original />
-                        </MainLayout>
+                        <Original />
                       </ProtectedRoute>
                     }
                   />
@@ -65,9 +59,7 @@ const App = () => (
                     path="/figma"
                     element={
                       <ProtectedRoute>
-                        <MainLayout>
-                          <Figma />
-                        </MainLayout>
+                        <Figma />
                       </ProtectedRoute>
                     }
                   />
@@ -75,9 +67,7 @@ const App = () => (
                     path="/analysis"
                     element={
                       <ProtectedRoute>
-                        <MainLayout>
-                          <Analysis />
-                        </MainLayout>
+                        <Analysis />
                       </ProtectedRoute>
                     }
                   />
@@ -85,9 +75,7 @@ const App = () => (
                     path="/profile"
                     element={
                       <ProtectedRoute>
-                        <MainLayout>
-                          <Profile />
-                        </MainLayout>
+                        <Profile />
                       </ProtectedRoute>
                     }
                   />
@@ -95,9 +83,7 @@ const App = () => (
                     path="/sessions"
                     element={
                       <ProtectedRoute>
-                        <MainLayout>
-                          <UserSessions />
-                        </MainLayout>
+                        <UserSessions />
                       </ProtectedRoute>
                     }
                   />
@@ -105,9 +91,7 @@ const App = () => (
                     path="/sessions/select"
                     element={
                       <ProtectedRoute>
-                        <MainLayout>
-                          <SessionSelector />
-                        </MainLayout>
+                        <SessionSelector />
                       </ProtectedRoute>
                     }
                   />
@@ -115,9 +99,7 @@ const App = () => (
                     path="/sessions/compare"
                     element={
                       <ProtectedRoute>
-                        <MainLayout>
-                          <SessionComparison />
-                        </MainLayout>
+                        <SessionComparison />
                       </ProtectedRoute>
                     }
                   />
