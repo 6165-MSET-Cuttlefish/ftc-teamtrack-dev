@@ -155,7 +155,7 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-4 sm:px-8 py-4 border-b border-team-white-20 relative ${isDarkMode ? 'bg-transparent' : 'bg-white'}`}
+      className={`w-full px-4 sm:px-8 py-4 border-b border-team-white-20 relative ${isDarkMode ? 'bg-transparent' : "bg-[#FEFEFE]"}`}
     >
       <div className="w-full grid grid-cols-3 items-center">
         <div className="flex items-center justify-start">
