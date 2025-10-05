@@ -502,7 +502,7 @@ const UserSessions: React.FC = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Autonomous Performance */}
-                  <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                  <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
                     <h4 className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       <Zap className="h-4 w-4 text-blue-500" />
                       Autonomous Phase
@@ -540,7 +540,7 @@ const UserSessions: React.FC = () => {
                   </div>
 
                   {/* Teleop Performance */}
-                  <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                  <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
                     <h4 className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       <Target className="h-4 w-4 text-green-500" />
                       Teleop Phase
@@ -579,7 +579,7 @@ const UserSessions: React.FC = () => {
                 </div>
 
                 {/* Endgame Performance */}
-                <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
                   <h4 className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     <Award className="h-4 w-4 text-purple-500" />
                     Endgame Performance
