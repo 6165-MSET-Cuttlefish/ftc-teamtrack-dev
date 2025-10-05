@@ -298,39 +298,18 @@ const UserSessions: React.FC = () => {
           </div>
         </div>
 
-        {filteredSessions.length === 0 && sessions.length > 0 ? (
-          <div className="text-center py-12">
-            <Trophy className={`mx-auto h-12 w-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
-            <h3 className={`mt-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
-              No sessions match your filters
-            </h3>
-            <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Try adjusting your search or filter criteria.
-            </p>
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="text-center py-12">
-            <Trophy className={`mx-auto h-12 w-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
-            <h3 className={`mt-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
-              No sessions yet
-            </h3>
-            <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Get started by creating your first training session.
-            </p>
-            <div className="mt-6">
-              <Button 
-                className="bg-team-blue hover:bg-team-blue/90"
-                onClick={() => window.location.href = '/'}
-              >
-                Start New Session
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredSessions.map((session) => (
-              <Card 
-                key={session.id} 
+        <div className={`grid gap-6 md:grid-cols-2 lg:grid-cols-3 min-h-[48rem]`}>
+          {loading ? (
+            // Keep skeletons rendered with fixed height to avoid layout shifts
+            [...Array(6)].map((_, i) => (
+              <div key={i} className="h-64">
+                <Skeleton className="h-64" />
+              </div>
+            ))
+          ) : filteredSessions.length > 0 ? (
+            filteredSessions.map((session) => (
+              <Card
+                key={session.id}
                 className={`hover:shadow-lg transition-shadow ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}
               >
                 <CardHeader className="pb-3">
@@ -349,7 +328,7 @@ const UserSessions: React.FC = () => {
                     </div>
                   </CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-2">
@@ -375,7 +354,7 @@ const UserSessions: React.FC = () => {
                         {session.finalScore}
                       </span>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="flex justify-between">
                         <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Auto Basket:</span>
@@ -397,9 +376,9 @@ const UserSessions: React.FC = () => {
                   </div>
 
                   <div className="pt-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className={`w-full ${isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}`}
                       onClick={() => handleSessionClick(session)}
                     >
@@ -408,9 +387,35 @@ const UserSessions: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+            ))
+          ) : sessions.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Trophy className={`mx-auto h-12 w-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+              <h3 className={`mt-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
+                No sessions yet
+              </h3>
+              <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Get started by creating your first training session.
+              </p>
+              <div className="mt-6">
+                <Button
+                  className="bg-team-blue hover:bg-team-blue/90"
+                  onClick={() => window.location.href = '/'}
+                >
+                  Start New Session
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <Trophy className={`mx-auto h-12 w-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+              <h3 className={`mt-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
+                No sessions match your filters
+              </h3>
+              <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Try adjusting your search or filter criteria.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
