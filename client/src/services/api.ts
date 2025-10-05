@@ -23,19 +23,50 @@ class ApiService {
     const url = `${getApiBase()}${endpoint}`;
 
     let response: Response;
-    try {
-      response = await fetch(url, {
-        headers: { 'Content-Type': 'application/json', ...options?.headers },
-        ...options,
-      });
-    } catch (err) {
-      const method = options?.method?.toString().toUpperCase() || 'GET';
+    const fetchOptions: RequestInit = {
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      ...options,
+    };
+
+    // Helper to try fetch and return undefined on failure
+    const tryFetch = async (candidateUrl: string) => {
+      try {
+        const res = await fetch(candidateUrl, fetchOptions);
+        return res;
+      } catch (err) {
+        // swallow here and return undefined so callers can attempt fallbacks
+        console.warn(`fetch failed for ${candidateUrl}:`, err instanceof Error ? err.message : err);
+        return undefined;
+      }
+    };
+
+    // Primary attempt
+    let response: Response | undefined = await tryFetch(url);
+
+    // Fallbacks (helpful in various hosting setups like Netlify functions)
+    if (!response) {
+      try {
+        if (typeof window !== 'undefined') {
+          const origin = window.location.origin;
+          // Try origin + endpoint (same origin)
+          response = await tryFetch(`${origin}${endpoint}`);
+          // Try Netlify functions convention
+          if (!response) response = await tryFetch(`${origin}/.netlify/functions/api${endpoint}`);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    const method = options?.method?.toString().toUpperCase() || 'GET';
+
+    if (!response) {
+      // All attempts failed
       if (method === 'GET' && endpoint.startsWith('/sessions')) return [] as unknown as T;
-      throw new Error(`Network request failed for ${url}: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(`Network request failed for ${url} (and fallbacks)`);
     }
 
     if (!response.ok) {
-      const method = options?.method?.toString().toUpperCase() || 'GET';
       if (method === 'GET' && endpoint.startsWith('/sessions')) return [] as unknown as T;
       throw new Error(`API call failed: ${response.status} ${response.statusText}`);
     }
