@@ -55,14 +55,6 @@ const App = () => (
                     }
                   />
                   <Route
-                    path="/figma"
-                    element={
-                      <ProtectedRoute>
-                        <Figma />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
                     path="/analysis"
                     element={
                       <ProtectedRoute>
