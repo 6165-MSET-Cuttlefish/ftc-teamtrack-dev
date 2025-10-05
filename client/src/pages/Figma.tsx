@@ -1,9 +1,6 @@
-import { FigmaDesign } from '../components/FigmaDesign';
+import { Navigate } from 'react-router-dom';
 
 export default function Figma() {
-  return (
-    <div className="min-h-screen bg-team-dark flex justify-center items-start py-8">
-      <FigmaDesign />
-    </div>
-  );
+  // Figma implementation removed — redirect to original implementation
+  return <Navigate to="/original" replace />;
 }
