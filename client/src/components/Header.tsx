@@ -114,7 +114,7 @@ const NavigationMenu = () => {
   };
 
   return (
-    <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-dark-20">
+    <div className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border ${isDarkMode ? 'border-team-white-20 bg-team-dark-20' : 'border-team-blue bg-[#FEFEFE]'}`}>
       <span
         className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}
       >
