@@ -23,7 +23,7 @@ const OriginalContent = () => {
                 Active Practice Session
               </h1>
               <p
-                className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+                className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
               >
                 6165 Mset Cuttlefish
               </p>
