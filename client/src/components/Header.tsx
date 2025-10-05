@@ -84,7 +84,7 @@ const NavigationMenu = () => {
       >
         About Us
       </span>
-      <div className={`w-4 h-4 ${isDarkMode ? 'bg-team-blue' : 'bg-[#0B61C6]'} rounded-full flex items-center justify-center ml-2`}>
+      <div className={`w-4 h-4 ${isDarkMode ? 'bg-team-blue' : 'bg-[#06B6D4]'} rounded-full flex items-center justify-center ml-2`}>
         <div className="w-2 h-2 bg-team-dark rounded-full"></div>
       </div>
       <div className="ml-2 mr-1">
