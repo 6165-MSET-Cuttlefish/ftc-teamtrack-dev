@@ -77,16 +77,6 @@ const NavigationMenu = () => {
       <span
         className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       >
-        Learn
-      </span>
-      <span
-        className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
-      >
-        Community
-      </span>
-      <span
-        className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
-      >
         About Us
       </span>
       <div className="w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2">
@@ -101,7 +91,7 @@ const NavigationMenu = () => {
       <Settings
         className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
       />
-      
+
       {/* Authentication Section */}
       {user ? (
         <DropdownMenu>
@@ -163,22 +153,22 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-4 sm:px-8 py-4 flex items-center border-b border-team-white-20 relative ${isDarkMode ? 'bg-transparent' : 'bg-white'}`}
+      className={`w-full px-4 sm:px-8 py-4 border-b border-team-white-20 relative ${isDarkMode ? 'bg-transparent' : 'bg-white'}`}
     >
-      {/* Left: logo */}
-      <div className="flex items-center flex-none">
-        <TeamTrackLogo />
-      </div>
-
-      {/* spacer to push nav to right */}
-      <div className="flex-1" />
-
-      {/* Right: search + nav */}
-      <div className="flex items-center flex-none">
-        <div className="hidden lg:block mr-4">
-          <SearchBox />
+      <div className="w-full grid grid-cols-3 items-center">
+        <div className="flex items-center justify-start">
+          <TeamTrackLogo />
         </div>
-        <NavigationMenu />
+
+        <div className="flex items-center justify-center">
+          <div className="hidden lg:block">
+            <SearchBox />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end">
+          <NavigationMenu />
+        </div>
       </div>
     </header>
   );
