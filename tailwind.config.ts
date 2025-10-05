@@ -4,7 +4,7 @@ import tailwindcssAnimate from 'tailwindcss-animate';
 export default {
   darkMode: ['class'],
   content: ['./client/src/**/*.{js,ts,jsx,tsx}', './client/index.html'],
-
+  
   prefix: '',
   theme: {
     container: {
@@ -16,11 +16,12 @@ export default {
     },
     extend: {
       fontFamily: {
+        sans: ['Geist Sans', 'Inter', 'system-ui', 'sans-serif'],
         inter: ['Inter', 'system-ui', 'sans-serif'],
-        montserrat: ['Montserrat', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Menlo', 'monospace'],
       },
       colors: {
-        // TeamTrack Design System
+        // Original TeamTrack Design System
         'team-dark': '#191919',
         'team-blue': 'rgb(var(--team-blue) / <alpha-value>)',
         'team-white': 'rgb(var(--team-white) / <alpha-value>)',
@@ -32,7 +33,16 @@ export default {
         'team-blue-10': 'rgb(var(--team-blue) / 0.1)',
         'team-dark-20': 'rgba(25, 25, 25, 0.2)',
 
-        // Keep existing shadcn colors for compatibility
+        // Enhanced colors using original scheme
+        'team-primary': 'rgb(var(--team-primary) / <alpha-value>)',
+        'team-primary-dark': 'rgb(var(--team-primary-dark) / <alpha-value>)',
+        'team-primary-light': 'rgb(var(--team-primary-light) / <alpha-value>)',
+        'team-secondary': 'rgb(var(--team-secondary) / <alpha-value>)',
+        'team-accent': 'rgb(var(--team-accent) / <alpha-value>)',
+        'team-neutral': 'hsl(var(--team-neutral))',
+        'team-surface': 'rgb(var(--team-surface) / <alpha-value>)',
+
+        // Core system colors
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -49,6 +59,18 @@ export default {
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))',
+        },
+        info: {
+          DEFAULT: 'hsl(var(--info))',
+          foreground: 'hsl(var(--info-foreground))',
         },
         muted: {
           DEFAULT: 'hsl(var(--muted))',
@@ -81,6 +103,18 @@ export default {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        xl: 'calc(var(--radius) + 4px)',
+        '2xl': 'calc(var(--radius) + 8px)',
+      },
+      backgroundImage: {
+        'gradient-primary': 'var(--gradient-primary)',
+        'gradient-surface': 'var(--gradient-surface)',
+      },
+      boxShadow: {
+        'sm': 'var(--shadow-sm)',
+        'md': 'var(--shadow-md)',
+        'lg': 'var(--shadow-lg)',
+        'xl': 'var(--shadow-xl)',
       },
       keyframes: {
         'accordion-down': {

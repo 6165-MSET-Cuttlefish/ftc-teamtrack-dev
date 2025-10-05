@@ -1,4 +1,3 @@
-import { Header } from '../components/Header';
 import { SessionSetup } from '../components/SessionSetup';
 import { PerformanceMetrics } from '../components/PerformanceMetrics';
 import { Notes } from '../components/Notes';
@@ -13,8 +12,6 @@ const OriginalContent = () => {
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <Header />
-
       <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-4 sm:px-8 py-5 lg:py-10 gap-6 lg:gap-10">
         {/* Left Column - Session Form */}
         <div className="flex-1 w-full lg:max-w-[776px] py-8 lg:py-14 lg:pr-12 lg:border-r border-team-blue-10">

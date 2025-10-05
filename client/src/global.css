@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:ital,wght@0,400;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Geist+Sans:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,122 +6,273 @@
 
 @layer base {
   /**
-   * Tailwind CSS theme
-   * tailwind.config.ts expects the following color variables to be expressed as HSL values.
-   * A different format will require also updating the theme in tailwind.config.ts.
-  */
+   * Original TeamTrack Design System
+   * Restored to authentic brand colors and identity
+   */
   :root {
+    /* Light theme - Original TeamTrack Colors */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 10%; /* #191919 equivalent */
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary uses brighter team-blue */
+    --primary: 198 45% 55%; /* Brighter blue in HSL */
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 198 45% 55%; /* Same as primary - brighter team-blue */
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    --info: 198 45% 55%; /* Use brighter team-blue for info */
+    --info-foreground: 0 0% 98%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 198 45% 55%; /* brighter team-blue for focus rings */
 
     --radius: 0.5rem;
 
+    /* Original TeamTrack Brand Colors - Brighter */
+    --team-primary: 111 173 207; /* Brighter team-blue */
+    --team-primary-dark: 89 138 166; /* Darker shade */
+    --team-primary-light: 133 208 248; /* Lighter shade */
+    --team-secondary: 111 173 207; 
+    --team-accent: 111 173 207;
+    --team-neutral: 0 0% 96%;
+    --team-surface: 254 254 254; /* #FEFEFE - Original team-white */
+    --team-dark: 25 25 25; /* #191919 - Original team-dark */
+
+    /* Sidebar using brighter colors */
     --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 198 45% 55%;
     --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 91%;
+    --sidebar-ring: 198 45% 55%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-
-    /* Design tokens (light mode defaults) */
-    --team-blue: 83 119 136; /* #537788 */
-    --team-white: 254 254 254; /* #FEFEFE (slightly off-white) */
+    /* Design tokens */
+    --team-blue: 111 173 207; /* Brighter blue */
+    --team-white: 254 254 254; /* #FEFEFE */
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark theme - Original TeamTrack Dark Colors */
+    --background: 0 0% 10%; /* #191919 equivalent */
+    --foreground: 0 0% 98%; /* #FEFEFE equivalent */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Primary uses brighter light blue for dark mode */
+    --primary: 199 100% 88%; /* Brighter light blue in HSL */
+    --primary-foreground: 0 0% 10%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 199 100% 88%; /* Same as primary - brighter light blue */
+    --accent-foreground: 0 0% 10%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 31%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
 
-    /* Design tokens for dark mode */
-    --team-blue: 176 229 254; /* #B0E5FE */
-    --team-white: 255 255 255; /* pure white for dark mode */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    --info: 199 100% 88%; /* Use brighter light blue for info */
+    --info-foreground: 0 0% 10%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 199 100% 88%; /* brighter light blue for focus rings */
+
+    /* Original TeamTrack Brand Colors - Dark Mode - Brighter */
+    --team-primary: 196 248 255; /* Brighter light blue for dark mode */
+    --team-primary-dark: 176 229 254; /* Darker shade */
+    --team-primary-light: 216 255 255; /* Lighter shade */
+    --team-secondary: 196 248 255;
+    --team-accent: 196 248 255;
+    --team-neutral: 25 25 25; /* #191919 */
+    --team-surface: 25 25 25; /* #191919 */
+    --team-dark: 25 25 25; /* #191919 */
+
+    /* Sidebar using brighter dark colors */
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 199 100% 88%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 0 0% 16%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 199 100% 88%;
   }
 }
 
 @layer base {
   * {
-    @apply border-[hsl(var(--border))];
+    @apply border-border;
   }
 
   body {
-    background: rgb(var(--team-white) / 1);
-    color: #000;
-    font-family: theme('fontFamily.inter');
-    margin: 0;
-    padding: 0;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  .dark body {
-    background: hsl(var(--background));
-    color: rgb(var(--team-white) / 1);
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground;
+  }
+
+  /* Selection styles */
+  ::selection {
+    @apply bg-primary/20;
+  }
+}
+
+@layer components {
+  /* Modern glass morphism effects */
+  .glass {
+    @apply backdrop-blur-lg bg-white/10 border border-white/20;
+  }
+
+  .glass-dark {
+    @apply backdrop-blur-lg bg-black/10 border border-white/10;
+  }
+
+  /* Original TeamTrack gradient backgrounds - Brighter */
+  .gradient-primary {
+    background: linear-gradient(135deg, #6FADCF 0%, #5A9BC4 100%);
+  }
+
+  .gradient-surface {
+    background: linear-gradient(135deg, #FEFEFE 0%, #f5f5f5 100%);
+  }
+
+  .dark .gradient-primary {
+    background: linear-gradient(135deg, #C4F8FF 0%, #B0E5FE 100%);
+  }
+
+  .dark .gradient-surface {
+    background: linear-gradient(135deg, #191919 0%, #2a2a2a 100%);
+  }
+
+  /* Modern card styles */
+  .card-modern {
+    @apply bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300;
+  }
+
+  .card-interactive {
+    @apply card-modern hover:scale-[1.02] hover:border-primary/50 cursor-pointer;
+  }
+
+  /* Original TeamTrack button styles - Brighter */
+  .btn-primary-modern {
+    background: #6FADCF;
+    color: #FEFEFE;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+  }
+
+  .btn-primary-modern:hover {
+    background: #5A9BC4;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transform: scale(1.02);
+  }
+
+  .dark .btn-primary-modern {
+    background: #C4F8FF;
+    color: #191919;
+  }
+
+  .dark .btn-primary-modern:hover {
+    background: #B0E5FE;
+  }
+
+  .btn-secondary-modern {
+    @apply bg-secondary/50 backdrop-blur-sm text-secondary-foreground font-medium px-6 py-3 rounded-xl border border-border/50 hover:bg-secondary/80 hover:shadow-md transform hover:scale-[1.02] transition-all duration-200;
+  }
+
+  /* Typography enhancements */
+  .heading-primary {
+    @apply text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent;
+  }
+
+  .heading-secondary {
+    @apply text-2xl md:text-3xl lg:text-4xl font-semibold text-foreground/90;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-team-blue to-team-blue bg-clip-text text-transparent font-semibold;
+  }
+
+  /* Layout utilities */
+  .container-modern {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-padding {
+    @apply py-16 md:py-24 lg:py-32;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    @apply animate-in fade-in duration-500;
+  }
+
+  .animate-slide-up {
+    @apply animate-in slide-in-from-bottom-4 duration-500;
+  }
+
+  .animate-scale-in {
+    @apply animate-in zoom-in-95 duration-300;
+  }
+}
 
   html {
     height: 100%;
@@ -144,4 +295,3 @@
   html:not(.dark) .text-gray-900 {
     color: #000 !important;
   }
-}
