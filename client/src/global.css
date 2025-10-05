@@ -119,4 +119,18 @@
   #root {
     min-height: 100vh;
   }
+
+  /* Force Tailwind gray text to black in light mode to match requested design */
+  html:not(.dark) .text-gray-50,
+  html:not(.dark) .text-gray-100,
+  html:not(.dark) .text-gray-200,
+  html:not(.dark) .text-gray-300,
+  html:not(.dark) .text-gray-400,
+  html:not(.dark) .text-gray-500,
+  html:not(.dark) .text-gray-600,
+  html:not(.dark) .text-gray-700,
+  html:not(.dark) .text-gray-800,
+  html:not(.dark) .text-gray-900 {
+    color: #000 !important;
+  }
 }
