@@ -1,7 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-// Lazy-load Firebase functions at runtime. If Firebase isn't installed or configured,
-// the app will continue to work in a degraded mode (no auth) instead of crashing.
 import getFirebase from '../lib/firebase';
 
 // Types for functions we may dynamically import
@@ -41,7 +38,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Helper to lazy-initialize Firebase auth and auth module
@@ -59,8 +56,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       firebaseAuth = firebase.auth;
       return { authInstance: firebaseAuth, authModule: firebaseAuthModule };
     } catch (err) {
-      // Could not load firebase/auth dynamic module
-      // eslint-disable-next-line no-console
       console.warn('Firebase auth module not available:', err);
       return { authInstance: null, authModule: null };
     }
@@ -87,9 +82,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     const { authInstance, authModule } = await ensureAuth();
-    if (!authInstance || !authModule || !authModule.signOut) {
-      return;
-    }
+    if (!authInstance || !authModule || !authModule.signOut) return;
     await authModule.signOut(authInstance);
   };
 
@@ -121,7 +114,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setLoading(false);
         });
       } else {
-        // No firebase available — proceed without auth
         setUser(null);
         setLoading(false);
       }
@@ -132,19 +124,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const value: AuthContextType = {
-    user,
-    loading,
-    signup,
-    login,
-    logout,
-    resetPassword,
-    loginWithGoogle,
-  };
+  const value: AuthContextType = { user, loading, signup, login, logout, resetPassword, loginWithGoogle };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -1,4 +1,4 @@
-import { Search, Sun, Settings, User, LogOut, UserCircle, BarChart3 } from 'lucide-react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,9 +9,19 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
+import {
+  Search,
+  Sun,
+  Settings,
+  User,
+  LogOut,
+  UserCircle,
+  BarChart3,
+  CheckSquare,
+} from 'lucide-react';
 
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
@@ -71,16 +81,14 @@ const NavigationMenu = () => {
   const handleLogout = async () => {
     try {
       await logout();
-    } catch (error) {
-      console.error('Failed to log out', error);
+    } catch {
+      // Handle logout error silently
     }
   };
 
   return (
     <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-dark-20">
-      <span
-        className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}
-      >
+      <span className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
         About Us
       </span>
       <button onClick={toggleTheme} aria-label="Toggle theme" className={`w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2 focus:outline-none`}>
@@ -90,9 +98,7 @@ const NavigationMenu = () => {
         <Sun className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-black'}`} />
       </div>
 
-      <Settings
-        className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-black'}`}
-      />
+      <Settings className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-black'}`} />
 
       {/* Authentication Section */}
       {user ? (
@@ -100,8 +106,11 @@ const NavigationMenu = () => {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
-                <AvatarFallback className={`bg-team-blue text-white text-xs`}>
+                <AvatarImage
+                  src={user.photoURL || ''}
+                  alt={user.displayName || ''}
+                />
+                <AvatarFallback className="bg-team-blue text-white text-xs">
                   {getInitials(user.displayName || user.email || 'User')}
                 </AvatarFallback>
               </Avatar>
@@ -110,12 +119,8 @@ const NavigationMenu = () => {
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {user.displayName || 'User'}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user.email}
-                </p>
+                <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -123,6 +128,12 @@ const NavigationMenu = () => {
               <Link to="/sessions" className="flex items-center">
                 <BarChart3 className="mr-2 h-4 w-4" />
                 <span>My Sessions</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/sessions/select" className="flex items-center">
+                <CheckSquare className="mr-2 h-4 w-4" />
+                <span>Select Sessions</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

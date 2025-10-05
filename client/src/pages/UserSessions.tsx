@@ -1,4 +1,3 @@
-import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useApi } from '../hooks/useApi';
@@ -50,7 +49,6 @@ const UserSessions: React.FC = () => {
     setSelectedSession(null);
   };
 
-  // Calculate session statistics
   const getSessionStats = () => {
     if (sessions.length === 0) return null;
 
@@ -71,7 +69,7 @@ const UserSessions: React.FC = () => {
       totalSessions,
       averageScore: Math.round(averageScore),
       highestScore,
-      totalPlayTime: Math.round(totalPlayTime / 60), // Convert to minutes
+      totalPlayTime: Math.round(totalPlayTime / 60),
       matchTypeBreakdown
     };
   };
@@ -93,11 +91,9 @@ const UserSessions: React.FC = () => {
     fetchUserSessions();
   }, [user?.uid, getSessions]);
 
-  // Filter and sort sessions whenever sessions, search term, filter, or sort changes
   useEffect(() => {
     let filtered = [...sessions];
 
-    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(session => 
         session.sessionName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -105,14 +101,12 @@ const UserSessions: React.FC = () => {
       );
     }
 
-    // Apply match type filter
     if (matchTypeFilter !== 'all') {
       filtered = filtered.filter(session => 
         session.matchType.toLowerCase() === matchTypeFilter.toLowerCase()
       );
     }
 
-    // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
@@ -185,7 +179,6 @@ const UserSessions: React.FC = () => {
           </p>
         </div>
 
-        {/* Session Statistics */}
         {stats && (
           <div className={`p-6 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
             <h2 className={`text-xl font-semibold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -231,7 +224,6 @@ const UserSessions: React.FC = () => {
               </div>
             </div>
 
-            {/* Match Type Breakdown */}
             <div>
               <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Session Types
@@ -252,7 +244,6 @@ const UserSessions: React.FC = () => {
           </div>
         )}
 
-        {/* Filters and Search */}
         <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex items-center gap-2">
@@ -261,9 +252,8 @@ const UserSessions: React.FC = () => {
                 Filters:
               </span>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-3 flex-1">
-              {/* Search */}
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -274,7 +264,6 @@ const UserSessions: React.FC = () => {
                 />
               </div>
 
-              {/* Match Type Filter */}
               <Select value={matchTypeFilter} onValueChange={setMatchTypeFilter}>
                 <SelectTrigger className={`w-40 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}>
                   <SelectValue placeholder="Match Type" />
@@ -288,7 +277,6 @@ const UserSessions: React.FC = () => {
                 </SelectContent>
               </Select>
 
-              {/* Sort By */}
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className={`w-44 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}>
                   <SelectValue placeholder="Sort by" />
@@ -304,7 +292,6 @@ const UserSessions: React.FC = () => {
             </div>
           </div>
 
-          {/* Results count */}
           <div className={`mt-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Showing {filteredSessions.length} of {sessions.length} sessions
           </div>
@@ -390,36 +377,20 @@ const UserSessions: React.FC = () => {
                     
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="flex justify-between">
-                        <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                          Auto Basket:
-                        </span>
-                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                          {session.autonBasket}
-                        </span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Auto Basket:</span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{session.autonBasket}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                          Auto Specimen:
-                        </span>
-                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                          {session.autonSpeci}
-                        </span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Auto Specimen:</span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{session.autonSpeci}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                          Tele Basket:
-                        </span>
-                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                          {session.teleBasket}
-                        </span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Tele Basket:</span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{session.teleBasket}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                          Endgame:
-                        </span>
-                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                          {session.endgameHang}
-                        </span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Endgame:</span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{session.endgameHang}</span>
                       </div>
                     </div>
                   </div>
@@ -441,7 +412,6 @@ const UserSessions: React.FC = () => {
         )}
       </div>
 
-      {/* Session Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className={`max-w-4xl max-h-[80vh] overflow-y-auto ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}>
           <DialogHeader>
@@ -455,53 +425,34 @@ const UserSessions: React.FC = () => {
 
           {selectedSession && (
             <div className="space-y-6">
-              {/* Session Overview */}
               <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#FEFEFE]'}`}>
                 <div className="text-center">
-                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {selectedSession.finalScore}
-                  </div>
-                  <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Final Score
-                  </div>
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedSession.finalScore}</div>
+                  <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Final Score</div>
                 </div>
                 <div className="text-center">
-                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {selectedSession.driverName}
-                  </div>
-                  <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Driver
-                  </div>
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedSession.driverName}</div>
+                  <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Driver</div>
                 </div>
                 <div className="text-center">
-                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {selectedSession.sessionDuration}
-                  </div>
-                  <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Duration
-                  </div>
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedSession.sessionDuration}</div>
+                  <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Duration</div>
                 </div>
                 <div className="text-center">
-                  <Badge className={getMatchTypeColor(selectedSession.matchType)}>
-                    {selectedSession.matchType}
-                  </Badge>
-                  <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Match Type
-                  </div>
+                  <Badge className={getMatchTypeColor(selectedSession.matchType)}>{selectedSession.matchType}</Badge>
+                  <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Match Type</div>
                 </div>
               </div>
 
               <Separator />
 
-              {/* Performance Breakdown */}
               <div className="space-y-4">
                 <h3 className={`text-lg font-semibold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   <BarChart3 className="h-5 w-5" />
                   Performance Breakdown
                 </h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Autonomous Performance */}
                   <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
                     <h4 className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       <Zap className="h-4 w-4 text-blue-500" />
@@ -509,37 +460,22 @@ const UserSessions: React.FC = () => {
                     </h4>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                          Basket Scores
-                        </span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Basket Scores</span>
                         <div className="flex items-center gap-2">
-                          <Progress 
-                            value={(selectedSession.autonBasket / 10) * 100} 
-                            className="w-20 h-2"
-                          />
-                          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {selectedSession.autonBasket}
-                          </span>
+                          <Progress value={(selectedSession.autonBasket / 10) * 100} className="w-20 h-2" />
+                          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedSession.autonBasket}</span>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                          Specimen Scores
-                        </span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Specimen Scores</span>
                         <div className="flex items-center gap-2">
-                          <Progress 
-                            value={(selectedSession.autonSpeci / 10) * 100} 
-                            className="w-20 h-2"
-                          />
-                          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {selectedSession.autonSpeci}
-                          </span>
+                          <Progress value={(selectedSession.autonSpeci / 10) * 100} className="w-20 h-2" />
+                          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedSession.autonSpeci}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Teleop Performance */}
                   <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
                     <h4 className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       <Target className="h-4 w-4 text-green-500" />
@@ -547,55 +483,33 @@ const UserSessions: React.FC = () => {
                     </h4>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                          Basket Scores
-                        </span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Basket Scores</span>
                         <div className="flex items-center gap-2">
-                          <Progress 
-                            value={(selectedSession.teleBasket / 20) * 100} 
-                            className="w-20 h-2"
-                          />
-                          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {selectedSession.teleBasket}
-                          </span>
+                          <Progress value={(selectedSession.teleBasket / 20) * 100} className="w-20 h-2" />
+                          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedSession.teleBasket}</span>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                          Specimen Scores
-                        </span>
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Specimen Scores</span>
                         <div className="flex items-center gap-2">
-                          <Progress 
-                            value={(selectedSession.teleSpeci / 20) * 100} 
-                            className="w-20 h-2"
-                          />
-                          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {selectedSession.teleSpeci}
-                          </span>
+                          <Progress value={(selectedSession.teleSpeci / 20) * 100} className="w-20 h-2" />
+                          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedSession.teleSpeci}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Endgame Performance */}
                 <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}>
                   <h4 className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     <Award className="h-4 w-4 text-purple-500" />
                     Endgame Performance
                   </h4>
                   <div className="flex justify-between items-center">
-                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                      Hanging Points
-                    </span>
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Hanging Points</span>
                     <div className="flex items-center gap-2">
-                      <Progress 
-                        value={(selectedSession.endgameHang / 30) * 100} 
-                        className="w-20 h-2"
-                      />
-                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {selectedSession.endgameHang}
-                      </span>
+                      <Progress value={(selectedSession.endgameHang / 30) * 100} className="w-20 h-2" />
+                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedSession.endgameHang}</span>
                     </div>
                   </div>
                 </div>
@@ -603,60 +517,16 @@ const UserSessions: React.FC = () => {
 
               <Separator />
 
-              {/* Performance Insights */}
-              <div className="space-y-4">
-                <h3 className={`text-lg font-semibold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  <TrendingUp className="h-5 w-5" />
-                  Performance Insights
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
-                    <div className={`text-sm font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                      Total Autonomous
-                    </div>
-                    <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-200' : 'text-blue-900'}`}>
-                      {selectedSession.autonBasket + selectedSession.autonSpeci}
-                    </div>
-                  </div>
-                  
-                  <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-green-900/20 border border-green-800' : 'bg-green-50 border border-green-200'}`}>
-                    <div className={`text-sm font-medium ${isDarkMode ? 'text-green-300' : 'text-green-800'}`}>
-                      Total Teleop
-                    </div>
-                    <div className={`text-2xl font-bold ${isDarkMode ? 'text-green-200' : 'text-green-900'}`}>
-                      {selectedSession.teleBasket + selectedSession.teleSpeci}
-                    </div>
-                  </div>
-                  
-                  <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-purple-900/20 border border-purple-800' : 'bg-purple-50 border border-purple-200'}`}>
-                    <div className={`text-sm font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-800'}`}>
-                      Efficiency Score
-                    </div>
-                    <div className={`text-2xl font-bold ${isDarkMode ? 'text-purple-200' : 'text-purple-900'}`}>
-                      {((selectedSession.finalScore / 150) * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Session Metadata */}
               <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#FEFEFE]'}`}>
-                <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Session Information
-                </h4>
+                <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Session Information</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                   <div className="flex justify-between">
                     <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Created:</span>
-                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-800'}>
-                      {formatDate(selectedSession.createdAt)}
-                    </span>
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-800'}>{formatDate(selectedSession.createdAt)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Session ID:</span>
-                    <span className={`font-mono text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                      {selectedSession.id}
-                    </span>
+                    <span className={`font-mono text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{selectedSession.id}</span>
                   </div>
                 </div>
               </div>

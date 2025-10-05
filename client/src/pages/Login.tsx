@@ -4,7 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
@@ -14,16 +21,16 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const from = location.state?.from?.pathname || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
@@ -34,8 +41,8 @@ const Login: React.FC = () => {
       setLoading(true);
       await login(email, password);
       navigate(from, { replace: true });
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to sign in');
     } finally {
       setLoading(false);
     }
@@ -47,8 +54,8 @@ const Login: React.FC = () => {
       setLoading(true);
       await loginWithGoogle();
       navigate(from, { replace: true });
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in with Google');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to sign in with Google');
     } finally {
       setLoading(false);
     }
@@ -65,7 +72,7 @@ const Login: React.FC = () => {
             Enter your credentials to access your account
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {error && (
             <Alert variant="destructive">
@@ -75,7 +82,9 @@ const Login: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-team-white">Email</Label>
+              <Label htmlFor="email" className="text-team-white">
+                Email
+              </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
                 <Input
@@ -83,7 +92,7 @@ const Login: React.FC = () => {
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                   className="pl-10 bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40"
                   required
                 />
@@ -91,15 +100,17 @@ const Login: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-team-white">Password</Label>
+              <Label htmlFor="password" className="text-team-white">
+                Password
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                   className="pl-10 pr-10 bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40"
                   required
                 />
@@ -113,8 +124,8 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-team-blue hover:bg-team-blue/90"
               disabled={loading}
             >
@@ -133,9 +144,9 @@ const Login: React.FC = () => {
             </div>
           </div>
 
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             className="w-full border-team-blue-40 bg-team-dark-20 text-team-white hover:bg-team-blue-10"
             onClick={handleGoogleSignIn}
             disabled={loading}
@@ -164,8 +175,8 @@ const Login: React.FC = () => {
 
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-sm text-center">
-            <Link 
-              to="/forgot-password" 
+            <Link
+              to="/forgot-password"
               className="text-team-blue hover:underline"
             >
               Forgot your password?
@@ -173,8 +184,8 @@ const Login: React.FC = () => {
           </div>
           <div className="text-sm text-center text-team-white-60">
             Don't have an account?{' '}
-            <Link 
-              to="/signup" 
+            <Link
+              to="/signup"
               className="text-team-blue hover:underline font-medium"
             >
               Sign up

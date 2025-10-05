@@ -6,7 +6,7 @@
 // API types
 export * from './api';
 
-// Authentication types  
+// Authentication types
 export * from './auth';
 
 // Session types

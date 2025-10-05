@@ -4,7 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 
@@ -13,27 +20,32 @@ const Signup: React.FC = () => {
     displayName: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.displayName || !formData.email || !formData.password || !formData.confirmPassword) {
+
+    if (
+      !formData.displayName ||
+      !formData.email ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
       setError('Please fill in all fields');
       return;
     }
@@ -53,8 +65,8 @@ const Signup: React.FC = () => {
       setLoading(true);
       await signup(formData.email, formData.password, formData.displayName);
       navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create account');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to create account');
     } finally {
       setLoading(false);
     }
@@ -66,8 +78,8 @@ const Signup: React.FC = () => {
       setLoading(true);
       await loginWithGoogle();
       navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign up with Google');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to sign up with Google');
     } finally {
       setLoading(false);
     }
@@ -84,7 +96,7 @@ const Signup: React.FC = () => {
             Sign up to get started with TeamTrack
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {error && (
             <Alert variant="destructive">
@@ -94,7 +106,9 @@ const Signup: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-team-white">Full Name</Label>
+              <Label htmlFor="displayName" className="text-team-white">
+                Full Name
+              </Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
                 <Input
@@ -111,7 +125,9 @@ const Signup: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-team-white">Email</Label>
+              <Label htmlFor="email" className="text-team-white">
+                Email
+              </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
                 <Input
@@ -128,13 +144,15 @@ const Signup: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-team-white">Password</Label>
+              <Label htmlFor="password" className="text-team-white">
+                Password
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
                 <Input
                   id="password"
                   name="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Create a password"
                   value={formData.password}
                   onChange={handleChange}
@@ -152,13 +170,15 @@ const Signup: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-team-white">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-team-white">
+                Confirm Password
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
+                  type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
@@ -175,8 +195,8 @@ const Signup: React.FC = () => {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-team-blue hover:bg-team-blue/90"
               disabled={loading}
             >
@@ -195,9 +215,9 @@ const Signup: React.FC = () => {
             </div>
           </div>
 
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             className="w-full border-team-blue-40 bg-team-dark-20 text-team-white hover:bg-team-blue-10"
             onClick={handleGoogleSignUp}
             disabled={loading}
@@ -227,8 +247,8 @@ const Signup: React.FC = () => {
         <CardFooter className="flex justify-center">
           <div className="text-sm text-center text-team-white-60">
             Already have an account?{' '}
-            <Link 
-              to="/login" 
+            <Link
+              to="/login"
               className="text-team-blue hover:underline font-medium"
             >
               Sign in
