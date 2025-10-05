@@ -12,7 +12,7 @@ const DataCard = ({ value, label }: { value: string; label: string }) => {
       <div className="text-team-blue text-3xl font-medium leading-6">
         {value}
       </div>
-      <div className={`text-${isDarkMode ? 'team-white-60' : 'team-blue-40'} text-base leading-6`}>{label}</div>
+      <div className={isDarkMode ? 'text-team-white-60 text-base leading-6' : 'text-team-blue-40 text-base leading-6'}>{label}</div>
     </div>
   );
 };
