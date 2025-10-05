@@ -90,13 +90,6 @@ const NavigationMenu = () => {
         <Sun className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-black'}`} />
       </div>
 
-      <Switch
-        checked={isDarkMode}
-        onCheckedChange={(checked) => {
-          if (checked !== isDarkMode) toggleTheme();
-        }}
-      />
-
       <Settings
         className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-black'}`}
       />
