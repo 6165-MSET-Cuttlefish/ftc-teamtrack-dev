@@ -31,7 +31,7 @@ const OverviewCard = ({
   return (
     <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
       <h3
-        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
       >
         Session Overview
       </h3>
@@ -64,7 +64,7 @@ const InsightsCard = () => {
   return (
     <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
       <h3
-        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
       >
         Performance Insights
       </h3>
@@ -165,7 +165,7 @@ export const LivePreview = () => {
             Live Preview
           </h1>
           <p
-            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
           >
             Real time analysis
           </p>
