@@ -20,16 +20,30 @@ class ApiService {
       });
     } catch (err) {
       // Network or CORS error — provide a clearer message
+      // If this was a sessions GET, fallback to empty list to avoid crashing the UI in preview environments
+      const method = options?.method?.toString().toUpperCase() || 'GET';
+      if (method === 'GET' && endpoint.startsWith('/sessions')) {
+        return [] as unknown as T;
+      }
       throw new Error(`Network request failed for ${url}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     if (!response.ok) {
+      // For sessions GET, return empty list on server errors as well
+      const method = options?.method?.toString().toUpperCase() || 'GET';
+      if (method === 'GET' && endpoint.startsWith('/sessions')) {
+        return [] as unknown as T;
+      }
       throw new Error(`API call failed: ${response.status} ${response.statusText}`);
     }
 
     try {
       return await response.json();
     } catch (err) {
+      // If parsing sessions list fails, return empty list
+      if (endpoint.startsWith('/sessions')) {
+        return [] as unknown as T;
+      }
       throw new Error(`Failed to parse JSON from ${url}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
