@@ -1,3 +1,5 @@
+import { dbMonitor } from '../lib/dbMonitor';
+
 function getApiBase() {
   const g = globalThis as any;
   if (g.__API_BASE) return g.__API_BASE;
@@ -22,10 +24,90 @@ function getApiBase() {
 }
 
 class ApiService {
+  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+  private requestQueue = new Map<string, Promise<any>>();
+  private rateLimiter = {
+    requests: new Map<string, number[]>(),
+    maxRequests: 10, // Max requests per window
+    windowMs: 60000, // 1 minute window
+  };
+
+  private getCacheKey(endpoint: string, options?: any): string {
+    return `${endpoint}_${JSON.stringify(options || {})}`;
+  }
+
+  private isRateLimited(endpoint: string): boolean {
+    const now = Date.now();
+    const requests = this.rateLimiter.requests.get(endpoint) || [];
+    
+    // Remove old requests outside the window
+    const validRequests = requests.filter(time => now - time < this.rateLimiter.windowMs);
+    this.rateLimiter.requests.set(endpoint, validRequests);
+    
+    return validRequests.length >= this.rateLimiter.maxRequests;
+  }
+
+  private recordRequest(endpoint: string): void {
+    const now = Date.now();
+    const requests = this.rateLimiter.requests.get(endpoint) || [];
+    requests.push(now);
+    this.rateLimiter.requests.set(endpoint, requests);
+  }
+
+  private getCachedData<T>(key: string): T | null {
+    const cached = this.cache.get(key);
+    if (cached && Date.now() - cached.timestamp < cached.ttl) {
+      return cached.data;
+    }
+    if (cached) {
+      this.cache.delete(key);
+    }
+    return null;
+  }
+
+  private setCachedData<T>(key: string, data: T, ttl: number = 30000): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
+  }
+
   private async request<T>(
     endpoint: string,
-    options?: RequestInit
+    options?: RequestInit,
+    cacheTtl?: number
   ): Promise<T> {
+    const cacheKey = this.getCacheKey(endpoint, options?.body);
+    
+    // Check cache first for GET requests
+    if (!options?.method || options.method === 'GET') {
+      const cachedData = this.getCachedData<T>(cacheKey);
+      if (cachedData) {
+        console.log(`Cache hit for ${endpoint}`);
+        dbMonitor.logApiCall(endpoint, undefined, true);
+        return cachedData;
+      }
+    }
+
+    // Check if already making this request (deduplication)
+    if (this.requestQueue.has(cacheKey)) {
+      console.log(`Deduplicating request for ${endpoint}`);
+      return this.requestQueue.get(cacheKey);
+    }
+
+    // Rate limiting check
+    if (this.isRateLimited(endpoint)) {
+      console.warn(`Rate limited for ${endpoint}. Please wait before making more requests.`);
+      throw new Error(`Too many requests to ${endpoint}. Please wait a moment.`);
+    }
+
+    // Database quota protection
+    if (dbMonitor.shouldThrottleRequests()) {
+      console.warn(`Database quota protection: throttling request to ${endpoint}`);
+      throw new Error('Database usage limit reached. Please wait a few minutes before making more requests.');
+    }
+
     const url = `${getApiBase()}${endpoint}`;
 
     const fetchOptions: RequestInit = {
@@ -48,52 +130,79 @@ class ApiService {
       }
     };
 
-    // Primary attempt
-    let response: Response | undefined = await tryFetch(url);
-
-    // Fallbacks (helpful in various hosting setups like Netlify functions)
-    if (!response) {
+    const requestPromise = (async (): Promise<T> => {
       try {
-        if (typeof window !== 'undefined') {
-          const origin = window.location.origin;
-          // Try origin + endpoint (same origin)
-          response = await tryFetch(`${origin}${endpoint}`);
-          // Try Netlify functions convention
-          if (!response)
-            response = await tryFetch(
-              `${origin}/.netlify/functions/api${endpoint}`
-            );
+        // Record the request for rate limiting
+        this.recordRequest(endpoint);
+
+        // Primary attempt
+        let response: Response | undefined = await tryFetch(url);
+
+        // Fallbacks (helpful in various hosting setups like Netlify functions)
+        if (!response) {
+          try {
+            if (typeof window !== 'undefined') {
+              const origin = window.location.origin;
+              // Try origin + endpoint (same origin)
+              response = await tryFetch(`${origin}${endpoint}`);
+              // Try Netlify functions convention
+              if (!response)
+                response = await tryFetch(
+                  `${origin}/.netlify/functions/api${endpoint}`
+                );
+            }
+          } catch (e) {
+            // ignore
+          }
         }
-      } catch (e) {
-        // ignore
+
+        const method = options?.method?.toString().toUpperCase() || 'GET';
+
+        if (!response) {
+          // All attempts failed
+          if (method === 'GET' && endpoint.startsWith('/sessions'))
+            return [] as unknown as T;
+          throw new Error(`Network request failed for ${url} (and fallbacks)`);
+        }
+
+        if (!response.ok) {
+          if (method === 'GET' && endpoint.startsWith('/sessions'))
+            return [] as unknown as T;
+          throw new Error(
+            `API call failed: ${response.status} ${response.statusText}`
+          );
+        }
+
+        let result: T;
+        try {
+          result = await response.json();
+        } catch (err) {
+          if (endpoint.startsWith('/sessions')) return [] as unknown as T;
+          throw new Error(
+            `Failed to parse JSON from ${url}: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+
+        // Cache successful GET requests
+        if (method === 'GET' && result) {
+          const ttl = cacheTtl || (endpoint.startsWith('/sessions') ? 30000 : 60000); // 30s for sessions, 1m for others
+          this.setCachedData(cacheKey, result, ttl);
+        }
+
+        // Log the API call for monitoring
+        dbMonitor.logApiCall(endpoint, undefined, false);
+
+        return result;
+      } finally {
+        // Remove from request queue
+        this.requestQueue.delete(cacheKey);
       }
-    }
+    })();
 
-    const method = options?.method?.toString().toUpperCase() || 'GET';
+    // Store request in queue for deduplication
+    this.requestQueue.set(cacheKey, requestPromise);
 
-    if (!response) {
-      // All attempts failed
-      if (method === 'GET' && endpoint.startsWith('/sessions'))
-        return [] as unknown as T;
-      throw new Error(`Network request failed for ${url} (and fallbacks)`);
-    }
-
-    if (!response.ok) {
-      if (method === 'GET' && endpoint.startsWith('/sessions'))
-        return [] as unknown as T;
-      throw new Error(
-        `API call failed: ${response.status} ${response.statusText}`
-      );
-    }
-
-    try {
-      return await response.json();
-    } catch (err) {
-      if (endpoint.startsWith('/sessions')) return [] as unknown as T;
-      throw new Error(
-        `Failed to parse JSON from ${url}: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
+    return requestPromise;
   }
 
   async createSession(sessionData: Record<string, unknown>) {
@@ -108,10 +217,40 @@ class ApiService {
     }
   }
 
-  async getSessions(userId?: string) {
+  async getSessions(
+    userId?: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      sortBy?: 'createdAt' | 'sessionName' | 'finalScore';
+      sortOrder?: 'asc' | 'desc';
+      matchType?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ) {
     try {
-      const params = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-      return await this.request(`/sessions${params}`);
+      const searchParams = new URLSearchParams();
+      
+      if (userId) {
+        searchParams.append('userId', userId);
+      }
+      
+      if (options) {
+        if (options.limit) searchParams.append('limit', options.limit.toString());
+        if (options.offset) searchParams.append('offset', options.offset.toString());
+        if (options.sortBy) searchParams.append('sortBy', options.sortBy);
+        if (options.sortOrder) searchParams.append('sortOrder', options.sortOrder);
+        if (options.matchType) searchParams.append('matchType', options.matchType);
+        if (options.dateFrom) searchParams.append('dateFrom', options.dateFrom);
+        if (options.dateTo) searchParams.append('dateTo', options.dateTo);
+      }
+
+      const params = searchParams.toString();
+      const endpoint = `/sessions${params ? `?${params}` : ''}`;
+      
+      // Use longer cache for sessions data since it doesn't change frequently
+      return await this.request(endpoint, undefined, 45000); // 45 second cache
     } catch (err) {
       console.error('getSessions failed', err);
       return [];
@@ -133,6 +272,16 @@ class ApiService {
     } catch (err) {
       console.error('getAllSessions failed', err);
       return [];
+    }
+  }
+
+  async getUserSessionStats(userId: string) {
+    try {
+      // Use longer cache for stats since they change less frequently
+      return await this.request(`/sessions/stats/${userId}`, undefined, 60000); // 1 minute cache
+    } catch (err) {
+      console.error('getUserSessionStats failed', err);
+      return null;
     }
   }
 }

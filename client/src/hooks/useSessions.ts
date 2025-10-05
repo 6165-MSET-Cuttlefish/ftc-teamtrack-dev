@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from './useApi';
 import { useAuth } from '../contexts/AuthContext';
+import { dbMonitor } from '../lib/dbMonitor';
 
 interface Session {
   id: string;
@@ -50,56 +51,98 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
     dateTo: '',
   });
 
+  // Add throttling and request deduplication
+  const lastFetchTime = useRef<number>(0);
+  const minFetchInterval = 5000; // Minimum 5 seconds between fetches
+  const pendingRequest = useRef<Promise<any> | null>(null);
+
   const loadSessions = useCallback(
     async (page = 0, append = false) => {
       if (!user?.uid) return;
 
-      try {
-        const options = {
-          limit: initialLimit,
-          offset: page * initialLimit,
-          sortBy: 'createdAt' as const,
-          sortOrder: 'desc' as const,
-          matchType:
-            filters.matchType !== 'all' ? filters.matchType : undefined,
-          dateFrom: filters.dateFrom || undefined,
-          dateTo: filters.dateTo || undefined,
-        };
+      // Throttling: prevent too frequent requests
+      const now = Date.now();
+      if (now - lastFetchTime.current < minFetchInterval && !append) {
+        console.log('Request throttled - too frequent');
+        return;
+      }
 
-        const result = await getSessions(user.uid, options);
+      // Check database quota before making requests
+      if (dbMonitor.shouldThrottleRequests()) {
+        console.warn('Database quota protection: skipping session load');
+        return;
+      }
 
-        // Check if we got an empty response due to database being unavailable
-        if (result && typeof result === 'object' && 'sessions' in result) {
-          const { sessions: newSessions, pagination } = result as {
-            sessions: Session[];
-            pagination: { hasMore: boolean; total: number };
+      // Deduplication: if there's already a pending request, wait for it
+      if (pendingRequest.current && !append) {
+        console.log('Request deduplicated - waiting for pending request');
+        try {
+          await pendingRequest.current;
+        } catch (error) {
+          // Ignore errors from pending requests
+        }
+        return;
+      }
+
+      const requestPromise = (async () => {
+        try {
+          const options = {
+            limit: initialLimit,
+            offset: page * initialLimit,
+            sortBy: 'createdAt' as const,
+            sortOrder: 'desc' as const,
+            matchType:
+              filters.matchType !== 'all' ? filters.matchType : undefined,
+            dateFrom: filters.dateFrom || undefined,
+            dateTo: filters.dateTo || undefined,
           };
 
-          // If we get empty sessions and total is 0, it might be database unavailable
-          setIsDatabaseAvailable(newSessions.length > 0 || pagination.total > 0);
+          const result = await getSessions(user.uid, options);
 
-          if (append) {
-            setSessions(prev => [...prev, ...(newSessions || [])]);
+          // Check if we got an empty response due to database being unavailable
+          if (result && typeof result === 'object' && 'sessions' in result) {
+            const { sessions: newSessions, pagination } = result as {
+              sessions: Session[];
+              pagination: { hasMore: boolean; total: number };
+            };
+
+            // If we get empty sessions and total is 0, it might be database unavailable
+            setIsDatabaseAvailable(newSessions.length > 0 || pagination.total > 0);
+
+            if (append) {
+              setSessions(prev => [...prev, ...(newSessions || [])]);
+            } else {
+              setSessions(newSessions || []);
+            }
+
+            setHasMore(pagination?.hasMore || false);
           } else {
-            setSessions(newSessions || []);
+            // Handle legacy response format
+            const sessionData = (result as Session[]) || [];
+            setIsDatabaseAvailable(sessionData.length > 0);
+            
+            if (append) {
+              setSessions(prev => [...prev, ...sessionData]);
+            } else {
+              setSessions(sessionData);
+            }
+            setHasMore(sessionData.length === initialLimit);
           }
 
-          setHasMore(pagination?.hasMore || false);
-        } else {
-          // Handle legacy response format
-          const sessionData = (result as Session[]) || [];
-          setIsDatabaseAvailable(sessionData.length > 0);
-          
-          if (append) {
-            setSessions(prev => [...prev, ...sessionData]);
-          } else {
-            setSessions(sessionData);
-          }
-          setHasMore(sessionData.length === initialLimit);
+          // Update last fetch time
+          lastFetchTime.current = Date.now();
+        } catch (error) {
+          // Handle error silently in production
+          console.warn('Failed to load sessions:', error);
+        } finally {
+          // Clear pending request
+          pendingRequest.current = null;
         }
-      } catch {
-        // Handle error silently in production
-      }
+      })();
+
+      // Store the pending request
+      pendingRequest.current = requestPromise;
+      await requestPromise;
     },
     [user?.uid, getSessions, initialLimit, filters.dateFrom, filters.dateTo, filters.matchType]
   );
@@ -110,8 +153,9 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
     try {
       const stats = await getUserSessionStats(user.uid);
       setSessionStats(stats as SessionStats);
-    } catch {
+    } catch (error) {
       // Handle error silently in production
+      console.warn('Failed to load session stats:', error);
     }
   }, [user?.uid, getUserSessionStats]);
 

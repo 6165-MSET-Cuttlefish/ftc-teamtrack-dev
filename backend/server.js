@@ -4,6 +4,11 @@ require('dotenv').config();
 const express = require('express');
 const admin = require('firebase-admin');
 
+// Rate limiting to protect against excessive database reads
+const rateLimitStore = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 20; // Max 20 requests per minute per user/IP
+
 // Initialize Firebase Admin SDK
 let firebaseApp;
 
@@ -63,6 +68,37 @@ try {
 const db = firebaseApp ? admin.firestore() : null;
 const app = express();
 
+// Rate limiting middleware
+function rateLimitMiddleware(req, res, next) {
+  const key = req.query.userId || req.ip;
+  const now = Date.now();
+  
+  if (!rateLimitStore.has(key)) {
+    rateLimitStore.set(key, []);
+  }
+  
+  const requests = rateLimitStore.get(key);
+  
+  // Remove old requests outside the window
+  const validRequests = requests.filter(time => now - time < RATE_LIMIT_WINDOW);
+  rateLimitStore.set(key, validRequests);
+  
+  if (validRequests.length >= MAX_REQUESTS_PER_WINDOW) {
+    console.warn(`Rate limit exceeded for ${key}. Requests in window: ${validRequests.length}`);
+    return res.status(429).json({
+      error: 'Too many requests',
+      message: 'Rate limit exceeded. Please wait before making more requests.',
+      retryAfter: Math.ceil(RATE_LIMIT_WINDOW / 1000)
+    });
+  }
+  
+  // Record this request
+  validRequests.push(now);
+  rateLimitStore.set(key, validRequests);
+  
+  next();
+}
+
 // Add CORS middleware for frontend communication
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -80,6 +116,32 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+
+// Simple in-memory cache to reduce database reads
+const cache = new Map();
+const CACHE_TTL = 30 * 1000; // 30 seconds
+
+function getCacheKey(userId, options = {}) {
+  return `sessions_${userId || 'all'}_${JSON.stringify(options)}`;
+}
+
+function getCachedData(key) {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  if (cached) {
+    cache.delete(key);
+  }
+  return null;
+}
+
+function setCachedData(key, data) {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+}
 
 // Helper: normalize keys and handle nested objects
 function toSession(body) {
@@ -187,6 +249,17 @@ router.post('/', async (req, res) => {
     // Add document to Firestore
     const docRef = await db.collection('sessions').add(s);
 
+    // Invalidate relevant cache entries when new session is created
+    const userId = s.userId;
+    if (userId) {
+      // Clear user-specific caches
+      const keysToDelete = Array.from(cache.keys()).filter(key => 
+        key.includes(`sessions_${userId}`) || key.includes(`stats_${userId}`)
+      );
+      keysToDelete.forEach(key => cache.delete(key));
+      console.log(`Cache invalidated for user ${userId} - ${keysToDelete.length} entries cleared`);
+    }
+
     // Get the created document to return it with the ID
     const doc = await docRef.get();
     const responseData = { id: doc.id, ...doc.data() };
@@ -206,7 +279,7 @@ router.post('/', async (req, res) => {
 });
 
 // List all sessions with enhanced filtering and pagination (JSON)
-router.get('/', async (req, res) => {
+router.get('/', rateLimitMiddleware, async (req, res) => {
   try {
     // Check if Firebase is available
     if (!db) {
@@ -215,6 +288,14 @@ router.get('/', async (req, res) => {
         details: 'Firebase Admin SDK is not properly initialized.',
         sessions: [],
       });
+    }
+
+    // Check cache first
+    const cacheKey = getCacheKey(req.query.userId, req.query);
+    const cachedData = getCachedData(cacheKey);
+    if (cachedData) {
+      console.log(`Cache hit for sessions query: ${cacheKey}`);
+      return res.json(cachedData);
     }
 
     const {
@@ -282,7 +363,7 @@ router.get('/', async (req, res) => {
       totalCount = countSnapshot.data().count;
     }
 
-    res.json({
+    const responseData = {
       sessions,
       pagination: {
         total: totalCount,
@@ -290,7 +371,13 @@ router.get('/', async (req, res) => {
         limit: parseInt(limit),
         hasMore: sessions.length === parseInt(limit),
       },
-    });
+    };
+
+    // Cache the response
+    setCachedData(cacheKey, responseData);
+    console.log(`Database read - ${sessions.length} sessions for user ${userId || 'all'}`);
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Error fetching sessions:', error);
     res
@@ -300,7 +387,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get user session statistics
-router.get('/stats/:userId', async (req, res) => {
+router.get('/stats/:userId', rateLimitMiddleware, async (req, res) => {
   try {
     // Check if Firebase is available
     if (!db) {
@@ -308,6 +395,14 @@ router.get('/stats/:userId', async (req, res) => {
         error: 'Database not available. Please configure Firebase credentials.',
         details: 'Firebase Admin SDK is not properly initialized.',
       });
+    }
+
+    // Check cache first for stats
+    const statsKey = `stats_${req.params.userId}`;
+    const cachedStats = getCachedData(statsKey);
+    if (cachedStats) {
+      console.log(`Cache hit for user stats: ${req.params.userId}`);
+      return res.json(cachedStats);
     }
 
     const { userId } = req.params;
@@ -375,7 +470,7 @@ router.get('/stats/:userId', async (req, res) => {
         score: session.finalScore || 0,
       }));
 
-    res.json({
+    const statsResponse = {
       totalSessions,
       averageScore,
       highestScore,
@@ -383,7 +478,13 @@ router.get('/stats/:userId', async (req, res) => {
       matchTypeBreakdown,
       recentSessions: sessions.slice(0, 5),
       performanceTrend,
-    });
+    };
+
+    // Cache the stats response
+    setCachedData(statsKey, statsResponse);
+    console.log(`Database read - stats calculated for user ${req.params.userId} with ${totalSessions} sessions`);
+    
+    res.json(statsResponse);
   } catch (error) {
     console.error('Error fetching session stats:', error);
     res
@@ -393,7 +494,7 @@ router.get('/stats/:userId', async (req, res) => {
 });
 
 // Optional: get one by id
-router.get('/:id', async (req, res) => {
+router.get('/:id', rateLimitMiddleware, async (req, res) => {
   try {
     // Check if Firebase is available
     if (!db) {

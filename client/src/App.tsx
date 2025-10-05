@@ -8,6 +8,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { SessionProvider } from './contexts/SessionContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
+import DatabaseUsageMonitor from './components/DatabaseUsageMonitor';
 import Index from './pages/Index';
 import Original from './pages/Original';
 import Figma from './pages/Figma';
@@ -107,6 +108,9 @@ const App = () => (
                   {/* Catch-all route */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                
+                {/* Database Usage Monitor - Always visible when needed */}
+                <DatabaseUsageMonitor />
               </BrowserRouter>
             </SessionProvider>
           </AuthProvider>
