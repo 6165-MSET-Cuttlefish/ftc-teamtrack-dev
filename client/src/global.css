@@ -103,9 +103,13 @@
   }
 
   body {
-    @apply bg-team-dark text-team-white font-inter;
+    @apply bg-white text-black font-inter;
     margin: 0;
     padding: 0;
+  }
+
+  .dark body {
+    @apply bg-team-dark text-team-white;
   }
 
   html {
