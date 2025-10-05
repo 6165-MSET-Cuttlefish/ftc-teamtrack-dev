@@ -22,14 +22,14 @@ export default {
       colors: {
         // TeamTrack Design System
         'team-dark': '#191919',
-        'team-blue': '#06B6D4',
-        'team-white': '#FFFFFF',
-        'team-white-40': 'rgba(255, 255, 255, 0.4)',
-        'team-white-60': 'rgba(255, 255, 255, 0.6)',
-        'team-white-10': 'rgba(255, 255, 255, 0.1)',
-        'team-white-20': 'rgba(255, 255, 255, 0.2)',
-        'team-blue-40': 'rgba(6, 182, 212, 0.4)',
-        'team-blue-10': 'rgba(6, 182, 212, 0.1)',
+        'team-blue': 'rgb(var(--team-blue) / <alpha-value>)',
+        'team-white': 'rgb(var(--team-white) / <alpha-value>)',
+        'team-white-40': 'rgb(var(--team-white) / 0.4)',
+        'team-white-60': 'rgb(var(--team-white) / 0.6)',
+        'team-white-10': 'rgb(var(--team-white) / 0.1)',
+        'team-white-20': 'rgb(var(--team-white) / 0.2)',
+        'team-blue-40': 'rgb(var(--team-blue) / 0.4)',
+        'team-blue-10': 'rgb(var(--team-blue) / 0.1)',
         'team-dark-20': 'rgba(25, 25, 25, 0.2)',
 
         // Keep existing shadcn colors for compatibility
