@@ -1,5 +1,3 @@
-import { dbMonitor } from '../lib/dbMonitor';
-
 function getApiBase() {
   const g = globalThis as any;
   if (g.__API_BASE) return g.__API_BASE;
@@ -85,7 +83,6 @@ class ApiService {
       const cachedData = this.getCachedData<T>(cacheKey);
       if (cachedData) {
         console.log(`Cache hit for ${endpoint}`);
-        dbMonitor.logApiCall(endpoint, undefined, true);
         return cachedData;
       }
     }
@@ -100,12 +97,6 @@ class ApiService {
     if (this.isRateLimited(endpoint)) {
       console.warn(`Rate limited for ${endpoint}. Please wait before making more requests.`);
       throw new Error(`Too many requests to ${endpoint}. Please wait a moment.`);
-    }
-
-    // Database quota protection
-    if (dbMonitor.shouldThrottleRequests()) {
-      console.warn(`Database quota protection: throttling request to ${endpoint}`);
-      throw new Error('Database usage limit reached. Please wait a few minutes before making more requests.');
     }
 
     const url = `${getApiBase()}${endpoint}`;
@@ -188,9 +179,6 @@ class ApiService {
           const ttl = cacheTtl || (endpoint.startsWith('/sessions') ? 30000 : 60000); // 30s for sessions, 1m for others
           this.setCachedData(cacheKey, result, ttl);
         }
-
-        // Log the API call for monitoring
-        dbMonitor.logApiCall(endpoint, undefined, false);
 
         return result;
       } finally {

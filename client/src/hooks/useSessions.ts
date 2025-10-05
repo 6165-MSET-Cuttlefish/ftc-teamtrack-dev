@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from './useApi';
 import { useAuth } from '../contexts/AuthContext';
-import { dbMonitor } from '../lib/dbMonitor';
 
 interface Session {
   id: string;
@@ -64,12 +63,6 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
       const now = Date.now();
       if (now - lastFetchTime.current < minFetchInterval && !append) {
         console.log('Request throttled - too frequent');
-        return;
-      }
-
-      // Check database quota before making requests
-      if (dbMonitor.shouldThrottleRequests()) {
-        console.warn('Database quota protection: skipping session load');
         return;
       }
 
