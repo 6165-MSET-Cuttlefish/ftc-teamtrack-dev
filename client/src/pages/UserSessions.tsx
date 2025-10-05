@@ -81,20 +81,23 @@ const UserSessions: React.FC = () => {
   };
 
   const getSessionStats = () => {
-    if (sessions.length === 0) return null;
+    // Ensure sessions is an array and has data
+    if (!Array.isArray(sessions) || sessions.length === 0) return null;
 
     const totalSessions = sessions.length;
     const averageScore =
-      sessions.reduce((sum, s) => sum + s.finalScore, 0) / totalSessions;
-    const highestScore = Math.max(...sessions.map(s => s.finalScore));
+      sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) / totalSessions;
+    const highestScore = Math.max(...sessions.map(s => s.finalScore || 0));
     const totalPlayTime = sessions.reduce((total, session) => {
-      const [minutes, seconds] = session.sessionDuration.split(':').map(Number);
-      return total + minutes * 60 + seconds;
+      const duration = session.sessionDuration || '0:0';
+      const [minutes, seconds] = duration.split(':').map(Number);
+      return total + (minutes || 0) * 60 + (seconds || 0);
     }, 0);
 
     const matchTypeBreakdown = sessions.reduce(
       (acc, session) => {
-        acc[session.matchType] = (acc[session.matchType] || 0) + 1;
+        const matchType = session.matchType || 'Unknown';
+        acc[matchType] = (acc[matchType] || 0) + 1;
         return acc;
       },
       {} as Record<string, number>
@@ -116,9 +119,18 @@ const UserSessions: React.FC = () => {
       if (user?.uid) {
         try {
           const result = await getSessions(user.uid);
-          setSessions((result as Session[]) || []);
+          
+          // Handle both array format (legacy) and object format (with pagination)
+          if (Array.isArray(result)) {
+            setSessions(result);
+          } else if (result && typeof result === 'object' && 'sessions' in result) {
+            setSessions(result.sessions as Session[]);
+          } else {
+            setSessions([]);
+          }
         } catch (error) {
           console.error('Failed to fetch sessions:', error);
+          setSessions([]);
         }
       }
     };
