@@ -30,7 +30,6 @@ const App = () => (
         <ThemeProvider>
           <AuthProvider>
             <SessionProvider>
-              <Toaster />
               <Sonner />
               <BrowserRouter>
                 <Routes>
