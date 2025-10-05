@@ -56,6 +56,10 @@
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Design tokens (light mode defaults) */
+    --team-blue: 83 119 136; /* #537788 */
+    --team-white: 254 254 254; /* #FEFEFE (slightly off-white) */
   }
 
   .dark {
