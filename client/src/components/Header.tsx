@@ -86,7 +86,9 @@ const SearchBox = () => {
   const borderClass = isDarkMode ? 'border-team-white-20' : 'border-team-blue';
 
   return (
-    <div className={`flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border ${borderClass}`}>
+    <div
+      className={`flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border ${borderClass}`}
+    >
       <Search className={`w-4 h-4 ${iconClass}`} />
       <span className={`${textClass} text-base font-medium`}>Search</span>
     </div>
@@ -114,7 +116,9 @@ const NavigationMenu = () => {
   };
 
   return (
-    <div className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border ${isDarkMode ? 'border-team-white-20 bg-team-dark-20' : 'border-team-blue bg-[#FEFEFE]'}`}>
+    <div
+      className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border ${isDarkMode ? 'border-team-white-20 bg-team-dark-20' : 'border-team-blue bg-[#FEFEFE]'}`}
+    >
       <span
         className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}
       >

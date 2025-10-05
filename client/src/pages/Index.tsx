@@ -28,7 +28,6 @@ export default function Index() {
               <p className="text-team-white-60">Current responsive design</p>
             </div>
           </Link>
-
         </div>
       </div>
     </div>
