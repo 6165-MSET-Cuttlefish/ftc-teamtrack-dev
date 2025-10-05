@@ -158,7 +158,7 @@ const UserSessions: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-12 px-4 sm:px-6 lg:px-8`}>
+      <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}>
         <div className="max-w-6xl mx-auto">
           <div className="space-y-6">
             <Skeleton className="h-8 w-64" />
@@ -174,7 +174,7 @@ const UserSessions: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-12 px-4 sm:px-6 lg:px-8`}>
+    <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}>
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -194,7 +194,7 @@ const UserSessions: React.FC = () => {
             </h2>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+              <div className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#FEFEFE]'}`}>
                 <div className={`text-2xl font-bold text-team-blue`}>
                   {stats.totalSessions}
                 </div>
@@ -203,7 +203,7 @@ const UserSessions: React.FC = () => {
                 </div>
               </div>
               
-              <div className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+              <div className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#FEFEFE]'}`}>
                 <div className={`text-2xl font-bold text-green-600`}>
                   {stats.averageScore}
                 </div>
@@ -212,7 +212,7 @@ const UserSessions: React.FC = () => {
                 </div>
               </div>
               
-              <div className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+              <div className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#FEFEFE]'}`}>
                 <div className={`text-2xl font-bold text-purple-600`}>
                   {stats.highestScore}
                 </div>
@@ -221,7 +221,7 @@ const UserSessions: React.FC = () => {
                 </div>
               </div>
               
-              <div className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+              <div className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#FEFEFE]'}`}>
                 <div className={`text-2xl font-bold text-orange-600`}>
                   {stats.totalPlayTime}m
                 </div>
@@ -456,7 +456,7 @@ const UserSessions: React.FC = () => {
           {selectedSession && (
             <div className="space-y-6">
               {/* Session Overview */}
-              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#FEFEFE]'}`}>
                 <div className="text-center">
                   <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     {selectedSession.finalScore}
@@ -641,7 +641,7 @@ const UserSessions: React.FC = () => {
               </div>
 
               {/* Session Metadata */}
-              <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+              <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#FEFEFE]'}`}>
                 <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Session Information
                 </h4>
