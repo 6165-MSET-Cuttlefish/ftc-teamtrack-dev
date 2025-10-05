@@ -83,9 +83,9 @@ const NavigationMenu = () => {
       >
         About Us
       </span>
-      <div className={`w-4 h-4 ${isDarkMode ? 'bg-team-blue' : 'bg-[#06B6D4]'} rounded-full flex items-center justify-center ml-2`}>
-        <div className="w-2 h-2 bg-team-dark rounded-full"></div>
-      </div>
+      <button onClick={toggleTheme} aria-label="Toggle theme" className={`w-4 h-4 ${isDarkMode ? 'bg-team-blue' : 'bg-[#06B6D4]'} rounded-full flex items-center justify-center ml-2 focus:outline-none`}>
+        <div className="w-2 h-2 bg-team-dark rounded-full" />
+      </button>
       <div className="ml-2 mr-1">
         <Sun className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-black'}`} />
       </div>
