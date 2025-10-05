@@ -10,7 +10,6 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Index from './pages/Index';
 import Original from './pages/Original';
-import Figma from './pages/Figma';
 import Analysis from './pages/Analysis';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
