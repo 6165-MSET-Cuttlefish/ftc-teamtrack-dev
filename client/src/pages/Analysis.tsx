@@ -35,7 +35,7 @@ const SensorOverviewCard = ({
   return (
     <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-4">
       <h3
-        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
       >
         Sensor Overview
       </h3>
@@ -122,7 +122,7 @@ const PerformanceInsightCard = ({
     <div className="flex items-center justify-between px-6 py-4 rounded-lg border border-team-blue-40">
       <div className="flex items-center gap-4">
         <span
-          className={`text-base font-medium ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+          className={`text-base font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
         >
           {metric || 'Metric Name'}
         </span>
@@ -133,7 +133,7 @@ const PerformanceInsightCard = ({
       <div className="flex items-center gap-2">
         <button
           onClick={onShowGraph}
-          className={`p-2 rounded transition-colors hover:bg-team-blue-10 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+          className={`p-2 rounded transition-colors hover:bg-team-blue-10 ${isDarkMode ? 'text-white' : 'text-black'}`}
           title="Show Graph"
         >
           <BarChart3 className="w-5 h-5" />
@@ -224,7 +224,7 @@ const AnalysisContent = () => {
               {sessionData.sessionName || 'Session'} Analysis
             </h1>
             <p
-              className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+              className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
             >
               Detailed performance analysis
             </p>
