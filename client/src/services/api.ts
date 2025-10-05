@@ -1,13 +1,12 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-const API_BASE = (() => {
-  // Avoid duplicate declaration errors during HMR / multiple module executions by storing on globalThis
+function getApiBase() {
   const g = globalThis as any;
   if (g.__API_BASE) return g.__API_BASE;
   const val = import.meta.env.VITE_API_URL || '/api';
   g.__API_BASE = val;
   return val;
-})();
+}
 
 class ApiService {
   private async request<T>(
