@@ -45,8 +45,8 @@ const TeamTrackLogo = () => {
 
 const SearchBox = () => {
   const { isDarkMode } = useTheme();
-  const iconClass = isDarkMode ? 'text-team-blue-40' : 'text-[#537788]';
-  const textClass = isDarkMode ? 'text-team-blue-40' : 'text-[#537788]';
+  const iconClass = 'text-team-blue-40';
+  const textClass = 'text-team-blue-40';
 
   return (
     <div className="flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border border-team-white-20">
