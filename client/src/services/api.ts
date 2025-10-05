@@ -1,5 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
 class ApiService {
   private async request<T>(
     endpoint: string,
