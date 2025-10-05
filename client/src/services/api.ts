@@ -57,23 +57,43 @@ class ApiService {
 
   // Session API calls matching your backend endpoints
   async createSession(sessionData: Record<string, unknown>) {
-    return this.request('/sessions', {
-      method: 'POST',
-      body: JSON.stringify(sessionData),
-    });
+    try {
+      return await this.request('/sessions', {
+        method: 'POST',
+        body: JSON.stringify(sessionData),
+      });
+    } catch (err) {
+      console.error('createSession failed', err);
+      return null;
+    }
   }
 
   async getSessions(userId?: string) {
-    const params = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-    return this.request(`/sessions${params}`);
+    try {
+      const params = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+      return await this.request(`/sessions${params}`);
+    } catch (err) {
+      console.error('getSessions failed', err);
+      return [];
+    }
   }
 
   async getSession(id: string) {
-    return this.request(`/sessions/${id}`);
+    try {
+      return await this.request(`/sessions/${id}`);
+    } catch (err) {
+      console.error('getSession failed', err);
+      return null;
+    }
   }
 
   async getAllSessions() {
-    return this.request('/sessions/view/all');
+    try {
+      return await this.request('/sessions/view/all');
+    } catch (err) {
+      console.error('getAllSessions failed', err);
+      return [];
+    }
   }
 }
 
