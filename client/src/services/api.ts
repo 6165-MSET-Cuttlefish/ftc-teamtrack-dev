@@ -1,11 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-const API_BASE_URL = (() => {
+const API_BASE = (() => {
   // Avoid duplicate declaration errors during HMR / multiple module executions by storing on globalThis
   const g = globalThis as any;
-  if (g.__API_BASE_URL) return g.__API_BASE_URL;
+  if (g.__API_BASE) return g.__API_BASE;
   const val = import.meta.env.VITE_API_URL || '/api';
-  g.__API_BASE_URL = val;
+  g.__API_BASE = val;
   return val;
 })();
 
@@ -14,7 +14,7 @@ class ApiService {
     endpoint: string,
     options?: RequestInit
   ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${API_BASE}${endpoint}`;
 
     let response: Response;
     try {
