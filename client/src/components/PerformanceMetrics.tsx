@@ -35,7 +35,7 @@ import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
         <div className="flex items-center justify-between">
           <label
-            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
           >
             {label}
           </label>
@@ -43,7 +43,7 @@ import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
             {hasDropdown && (
               <button
                 onClick={onDropdownClick}
-                className={`hover:text-team-blue transition-colors ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+                className={`hover:text-team-blue transition-colors ${isDarkMode ? 'text-white' : 'text-black'}`}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -57,7 +57,7 @@ import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
             type="text"
             value={value}
             onChange={handleInputChange}
-            className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+            className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-black'}`}
             placeholder="0"
           />
           <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
@@ -201,7 +201,7 @@ import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
         <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
           <div className="flex items-center justify-between">
             <label
-              className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+              className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
             >
               {label}
             </label>
@@ -216,7 +216,7 @@ import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
               type="text"
               value={value.toString()}
               onChange={e => handleIntegerChange(e.target.value, onChange)}
-              className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+              className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-black'}`}
               placeholder="0"
             />
             <div className="flex items-center gap-1">
