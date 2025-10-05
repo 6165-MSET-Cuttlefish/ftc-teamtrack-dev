@@ -98,6 +98,10 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Design tokens for dark mode */
+    --team-blue: 176 229 254; /* #B0E5FE */
+    --team-white: 255 255 255; /* pure white for dark mode */
   }
 }
 
