@@ -3,7 +3,23 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 function getApiBase() {
   const g = globalThis as any;
   if (g.__API_BASE) return g.__API_BASE;
-  const val = import.meta.env.VITE_API_URL || '/api';
+
+  const envUrl = import.meta.env.VITE_API_URL || '';
+  // If env URL points to localhost but the app is running in a preview (non-localhost) host,
+  // prefer the relative '/api' so fetch goes to same origin instead of trying to reach user's localhost.
+  let val = envUrl || '/api';
+  try {
+    if (typeof window !== 'undefined' && envUrl) {
+      const envIsLocalhost = envUrl.includes('localhost') || envUrl.includes('127.0.0.1');
+      const runningOnLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (envIsLocalhost && !runningOnLocalhost) {
+        val = '/api';
+      }
+    }
+  } catch (e) {
+    // ignore and use envUrl or /api
+  }
+
   g.__API_BASE = val;
   return val;
 }
