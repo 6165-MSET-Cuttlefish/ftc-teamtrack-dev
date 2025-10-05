@@ -111,13 +111,16 @@
   }
 
   body {
-    @apply bg-white text-black font-inter;
+    background: rgb(var(--team-white) / 1);
+    color: #000;
+    font-family: theme('fontFamily.inter');
     margin: 0;
     padding: 0;
   }
 
   .dark body {
-    @apply bg-team-dark text-team-white;
+    background: hsl(var(--background));
+    color: rgb(var(--team-white) / 1);
   }
 
   html {
