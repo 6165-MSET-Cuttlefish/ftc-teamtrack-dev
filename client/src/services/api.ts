@@ -22,7 +22,6 @@ class ApiService {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${getApiBase()}${endpoint}`;
 
-    let response: Response;
     const fetchOptions: RequestInit = {
       headers: { 'Content-Type': 'application/json', ...options?.headers },
       ...options,
