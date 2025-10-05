@@ -83,9 +83,10 @@ const SearchBox = () => {
   const { isDarkMode } = useTheme();
   const iconClass = 'text-team-blue-40';
   const textClass = 'text-team-blue-40';
+  const borderClass = isDarkMode ? 'border-team-white-20' : 'border-team-blue';
 
   return (
-    <div className="flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border border-team-white-20">
+    <div className={`flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border ${borderClass}`}>
       <Search className={`w-4 h-4 ${iconClass}`} />
       <span className={`${textClass} text-base font-medium`}>Search</span>
     </div>
