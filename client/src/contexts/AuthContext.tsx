@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
 import getFirebase from '../lib/firebase';
 
 // Types for functions we may dynamically import
@@ -20,7 +26,11 @@ let firebaseAuth: any = null; // the auth instance if available
 interface AuthContextType {
   user: any | null;
   loading: boolean;
-  signup: (email: string, password: string, displayName: string) => Promise<void>;
+  signup: (
+    email: string,
+    password: string,
+    displayName: string
+  ) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -37,7 +47,9 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,12 +73,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const signup = async (email: string, password: string, displayName: string) => {
+  const signup = async (
+    email: string,
+    password: string,
+    displayName: string
+  ) => {
     const { authInstance, authModule } = await ensureAuth();
-    if (!authInstance || !authModule || !authModule.createUserWithEmailAndPassword) {
+    if (
+      !authInstance ||
+      !authModule ||
+      !authModule.createUserWithEmailAndPassword
+    ) {
       throw new Error('Auth not configured');
     }
-    const userCredential = await authModule.createUserWithEmailAndPassword(authInstance, email, password);
+    const userCredential = await authModule.createUserWithEmailAndPassword(
+      authInstance,
+      email,
+      password
+    );
     if (userCredential.user && authModule.updateProfile) {
       await authModule.updateProfile(userCredential.user, { displayName });
     }
@@ -74,7 +98,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string) => {
     const { authInstance, authModule } = await ensureAuth();
-    if (!authInstance || !authModule || !authModule.signInWithEmailAndPassword) {
+    if (
+      !authInstance ||
+      !authModule ||
+      !authModule.signInWithEmailAndPassword
+    ) {
       throw new Error('Auth not configured');
     }
     await authModule.signInWithEmailAndPassword(authInstance, email, password);
@@ -96,7 +124,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const loginWithGoogle = async () => {
     const { authInstance, authModule } = await ensureAuth();
-    if (!authInstance || !authModule || !authModule.signInWithPopup || !authModule.GoogleAuthProvider) {
+    if (
+      !authInstance ||
+      !authModule ||
+      !authModule.signInWithPopup ||
+      !authModule.GoogleAuthProvider
+    ) {
       throw new Error('Auth not configured');
     }
     const provider = new authModule.GoogleAuthProvider();
@@ -124,7 +157,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const value: AuthContextType = { user, loading, signup, login, logout, resetPassword, loginWithGoogle };
+  const value: AuthContextType = {
+    user,
+    loading,
+    signup,
+    login,
+    logout,
+    resetPassword,
+    loginWithGoogle,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

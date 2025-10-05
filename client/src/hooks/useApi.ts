@@ -71,7 +71,8 @@ export const useApi = () => {
   );
 
   const createSession = useCallback(
-    (sessionData: SessionData) => execute(() => apiService.createSession(sessionData)),
+    (sessionData: SessionData) =>
+      execute(() => apiService.createSession(sessionData)),
     [execute]
   );
 
@@ -91,20 +92,42 @@ export const useApi = () => {
     [execute]
   );
 
-  const getSession = useCallback((id: string) => execute(() => apiService.getSession(id)), [execute]);
+  const getSession = useCallback(
+    (id: string) => execute(() => apiService.getSession(id)),
+    [execute]
+  );
 
-  const getAllSessions = useCallback(() => execute(() => apiService.getAllSessions()), [execute]);
+  const getAllSessions = useCallback(
+    () => execute(() => apiService.getAllSessions()),
+    [execute]
+  );
 
-  const getUserSessionStats = useCallback((userId: string) => execute(() => (apiService as any).getUserSessionStats?.(userId)), [execute]);
+  const getUserSessionStats = useCallback(
+    (userId: string) =>
+      execute(() => (apiService as any).getUserSessionStats?.(userId)),
+    [execute]
+  );
 
-  return useMemo(() => ({
-    loading,
-    error,
-    execute,
-    createSession,
-    getSessions,
-    getSession,
-    getAllSessions,
-    getUserSessionStats,
-  }), [loading, error, execute, createSession, getSessions, getSession, getAllSessions, getUserSessionStats]);
+  return useMemo(
+    () => ({
+      loading,
+      error,
+      execute,
+      createSession,
+      getSessions,
+      getSession,
+      getAllSessions,
+      getUserSessionStats,
+    }),
+    [
+      loading,
+      error,
+      execute,
+      createSession,
+      getSessions,
+      getSession,
+      getAllSessions,
+      getUserSessionStats,
+    ]
+  );
 };

@@ -213,7 +213,9 @@ const AnalysisContent = () => {
   // };
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
+    <div
+      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+    >
       <Header />
 
       <div className="max-w-[800px] mx-auto px-4 sm:px-8 py-8 lg:py-16">
