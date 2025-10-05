@@ -1,28 +1,3 @@
-import { useState, useCallback } from 'react';
-import { apiService } from '../services/api';
-
-// Define session data structure based on backend schema
-interface SessionData extends Record<string, unknown> {
-  sessionName: string;
-  driverName: string;
-  matchType: string;
-  sessionDuration: string;
-  autonBasket: number;
-  autonSpeci: number;
-  autonFloor: number;
-  autonRung: number;
-  autonHighRung: number;
-  teleBasket: number;
-  teleSpeci: number;
-  teleNetZone: number;
-  teleLowRung: number;
-  teleHighRung: number;
-  endgameHang: number;
-  endgamePark: number;
-  finalScore: number;
-  completedAt: string;
-}
-
 import { useState, useCallback, useMemo } from 'react';
 import { apiService } from '../services/api';
 
