@@ -71,7 +71,7 @@ const NavigationMenu = () => (
     <span className="text-white text-base leading-6">Community</span>
     <span className="text-white text-base leading-6">About Us</span>
     <div className="w-4 h-4 flex items-center justify-center">
-      <div className="w-4 h-4 bg-white rounded-full"></div>
+      <div className="w-4 h-4 bg-[#FEFEFE] rounded-full"></div>
     </div>
     <Sun className="w-4 h-4 text-white" />
     <Settings className="w-4 h-4 text-white" />
