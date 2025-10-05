@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import { Switch } from './ui/switch';
 
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
