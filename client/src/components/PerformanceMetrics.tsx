@@ -51,7 +51,7 @@ import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
           </div>
         </div>
         <div
-          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}
+          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
         >
           <input
             type="text"
@@ -210,7 +210,7 @@ import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
             </div>
           </div>
           <div
-            className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}
+            className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
           >
             <input
               type="text"
