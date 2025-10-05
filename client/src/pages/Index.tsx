@@ -29,20 +29,6 @@ export default function Index() {
             </div>
           </Link>
 
-          <Link
-            to="/figma"
-            className="flex flex-col items-center gap-6 p-8 rounded-2xl border border-team-blue-40 bg-team-dark-20 hover:bg-team-blue-10 transition-colors"
-          >
-            <div className="w-16 h-16 rounded-full bg-team-blue flex items-center justify-center">
-              <span className="text-team-dark text-2xl font-bold">F</span>
-            </div>
-            <div className="text-center space-y-2">
-              <h2 className="text-team-blue text-2xl font-semibold">
-                Figma Implementation
-              </h2>
-              <p className="text-team-white-60">Pixel-perfect recreation</p>
-            </div>
-          </Link>
         </div>
       </div>
     </div>
