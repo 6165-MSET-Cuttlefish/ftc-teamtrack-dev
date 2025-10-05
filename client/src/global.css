@@ -74,11 +74,6 @@
     /* Design tokens */
     --team-blue: 176 229 254; /* #b0e5fe */
     --team-white: 254 254 254; /* #FEFEFE */
-
-    /* Glow effects */
-    --glow-primary: 0 0 20px rgba(176, 229, 254, 0.5);
-    --glow-primary-strong: 0 0 30px rgba(176, 229, 254, 0.7);
-    --glow-primary-subtle: 0 0 10px rgba(176, 229, 254, 0.3);
   }
 
   .dark {
@@ -140,11 +135,6 @@
     --sidebar-accent-foreground: 0 0% 96%;
     --sidebar-border: 0 0% 16%;
     --sidebar-ring: 199 100% 82%;
-
-    /* Glow effects for dark mode */
-    --glow-primary: 0 0 25px rgba(176, 229, 254, 0.6);
-    --glow-primary-strong: 0 0 40px rgba(176, 229, 254, 0.8);
-    --glow-primary-subtle: 0 0 15px rgba(176, 229, 254, 0.4);
   }
 }
 
@@ -209,46 +199,39 @@
     background: linear-gradient(135deg, #191919 0%, #2a2a2a 100%);
   }
 
-  /* Modern card styles with glow */
+  /* Modern card styles */
   .card-modern {
     @apply bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), var(--glow-primary-subtle);
   }
 
   .card-interactive {
     @apply card-modern hover:scale-[1.02] hover:border-primary/50 cursor-pointer;
   }
 
-  .card-interactive:hover {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), var(--glow-primary);
-  }
-
-  /* Original TeamTrack button styles - #b0e5fe with glow */
+  /* Original TeamTrack button styles - #b0e5fe */
   .btn-primary-modern {
     background: #B0E5FE;
     color: #191919;
     font-weight: 500;
     padding: 0.75rem 1.5rem;
     border-radius: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), var(--glow-primary-subtle);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transition: all 0.2s;
   }
 
   .btn-primary-modern:hover {
     background: #9CDCF8;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), var(--glow-primary);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     transform: scale(1.02);
   }
 
   .dark .btn-primary-modern {
     background: #B0E5FE;
     color: #191919;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), var(--glow-primary-subtle);
   }
 
   .dark .btn-primary-modern:hover {
     background: #9CDCF8;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), var(--glow-primary-strong);
   }
 
   .btn-secondary-modern {
@@ -266,7 +249,6 @@
 
   .text-gradient {
     @apply bg-gradient-to-r from-team-blue to-team-blue bg-clip-text text-transparent font-semibold;
-    filter: drop-shadow(0 0 8px rgba(176, 229, 254, 0.6));
   }
 
   /* Layout utilities */
@@ -289,38 +271,6 @@
 
   .animate-scale-in {
     @apply animate-in zoom-in-95 duration-300;
-  }
-
-  /* Glow utilities */
-  .glow {
-    box-shadow: var(--glow-primary);
-  }
-
-  .glow-strong {
-    box-shadow: var(--glow-primary-strong);
-  }
-
-  .glow-subtle {
-    box-shadow: var(--glow-primary-subtle);
-  }
-
-  .glow-hover:hover {
-    box-shadow: var(--glow-primary);
-    transition: box-shadow 0.3s ease;
-  }
-
-  .glow-focus:focus {
-    box-shadow: var(--glow-primary);
-    outline: none;
-  }
-
-  /* Text glow effects */
-  .text-glow {
-    text-shadow: var(--glow-primary-subtle);
-  }
-
-  .text-glow-strong {
-    text-shadow: var(--glow-primary);
   }
 }
 
