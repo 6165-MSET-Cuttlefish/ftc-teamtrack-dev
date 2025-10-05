@@ -9,19 +9,29 @@ class ApiService {
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      throw new Error(`API call failed: ${response.statusText}`);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        ...options,
+      });
+    } catch (err) {
+      // Network or CORS error — provide a clearer message
+      throw new Error(`Network request failed for ${url}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    return response.json();
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    try {
+      return await response.json();
+    } catch (err) {
+      throw new Error(`Failed to parse JSON from ${url}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   // Session API calls matching your backend endpoints
