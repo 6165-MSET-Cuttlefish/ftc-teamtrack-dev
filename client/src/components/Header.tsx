@@ -101,7 +101,7 @@ const NavigationMenu = () => {
             <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
-                <AvatarFallback className={`${isDarkMode ? 'bg-team-blue' : 'bg-[#537788]'} text-white text-xs`}>
+                <AvatarFallback className={`bg-team-blue text-white text-xs`}>
                   {getInitials(user.displayName || user.email || 'User')}
                 </AvatarFallback>
               </Avatar>
