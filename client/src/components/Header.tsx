@@ -83,7 +83,7 @@ const NavigationMenu = () => {
       >
         About Us
       </span>
-      <button onClick={toggleTheme} aria-label="Toggle theme" className={`w-4 h-4 ${isDarkMode ? 'bg-team-blue' : 'bg-[#537788]'} rounded-full flex items-center justify-center ml-2 focus:outline-none`}>
+      <button onClick={toggleTheme} aria-label="Toggle theme" className={`w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2 focus:outline-none`}>
         <div className="w-2 h-2 bg-team-dark rounded-full" />
       </button>
       <div className="ml-2 mr-1">
