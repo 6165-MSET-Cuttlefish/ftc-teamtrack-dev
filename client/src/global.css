@@ -20,9 +20,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    /* Primary uses #b0e5fe */
-    --primary: 199 100% 82%; /* #b0e5fe in HSL */
-    --primary-foreground: 0 0% 10%;
+    /* Primary uses brighter team-blue */
+    --primary: 198 45% 55%; /* Brighter blue in HSL */
+    --primary-foreground: 0 0% 98%;
 
     --secondary: 0 0% 96%;
     --secondary-foreground: 0 0% 10%;
@@ -30,8 +30,8 @@
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 199 100% 82%; /* Same as primary - #b0e5fe */
-    --accent-foreground: 0 0% 10%;
+    --accent: 198 45% 55%; /* Same as primary - brighter team-blue */
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
@@ -42,37 +42,37 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 98%;
 
-    --info: 199 100% 82%; /* Use #b0e5fe for info */
-    --info-foreground: 0 0% 10%;
+    --info: 198 45% 55%; /* Use brighter team-blue for info */
+    --info-foreground: 0 0% 98%;
 
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 199 100% 82%; /* #b0e5fe for focus rings */
+    --ring: 198 45% 55%; /* brighter team-blue for focus rings */
 
     --radius: 0.5rem;
 
-    /* Original TeamTrack Brand Colors - #b0e5fe */
-    --team-primary: 176 229 254; /* #b0e5fe RGB */
-    --team-primary-dark: 156 210 234; /* Darker shade */
-    --team-primary-light: 196 248 255; /* Lighter shade */
-    --team-secondary: 176 229 254; 
-    --team-accent: 176 229 254;
+    /* Original TeamTrack Brand Colors - Brighter */
+    --team-primary: 111 173 207; /* Brighter team-blue */
+    --team-primary-dark: 89 138 166; /* Darker shade */
+    --team-primary-light: 133 208 248; /* Lighter shade */
+    --team-secondary: 111 173 207; 
+    --team-accent: 111 173 207;
     --team-neutral: 0 0% 96%;
     --team-surface: 254 254 254; /* #FEFEFE - Original team-white */
     --team-dark: 25 25 25; /* #191919 - Original team-dark */
 
-    /* Sidebar using #b0e5fe */
+    /* Sidebar using brighter colors */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 10%;
-    --sidebar-primary: 199 100% 82%;
-    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-primary: 198 45% 55%;
+    --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 0 0% 96%;
     --sidebar-accent-foreground: 0 0% 10%;
     --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 199 100% 82%;
+    --sidebar-ring: 198 45% 55%;
 
     /* Design tokens */
-    --team-blue: 176 229 254; /* #b0e5fe */
+    --team-blue: 111 173 207; /* Brighter blue */
     --team-white: 254 254 254; /* #FEFEFE */
   }
 
@@ -87,8 +87,8 @@
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary uses #b0e5fe for dark mode */
-    --primary: 199 100% 82%; /* #b0e5fe in HSL */
+    /* Primary uses brighter light blue for dark mode */
+    --primary: 199 100% 88%; /* Brighter light blue in HSL */
     --primary-foreground: 0 0% 10%;
 
     --secondary: 0 0% 15%;
@@ -97,7 +97,7 @@
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 65%;
 
-    --accent: 199 100% 82%; /* Same as primary - #b0e5fe */
+    --accent: 199 100% 88%; /* Same as primary - brighter light blue */
     --accent-foreground: 0 0% 10%;
 
     --destructive: 0 62% 31%;
@@ -109,32 +109,32 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 10%;
 
-    --info: 199 100% 82%; /* Use #b0e5fe for info */
+    --info: 199 100% 88%; /* Use brighter light blue for info */
     --info-foreground: 0 0% 10%;
 
     --border: 0 0% 16%;
     --input: 0 0% 16%;
-    --ring: 199 100% 82%; /* #b0e5fe for focus rings */
+    --ring: 199 100% 88%; /* brighter light blue for focus rings */
 
-    /* Original TeamTrack Brand Colors - Dark Mode - #b0e5fe */
-    --team-primary: 176 229 254; /* #b0e5fe RGB for dark mode */
-    --team-primary-dark: 156 210 234; /* Darker shade */
-    --team-primary-light: 196 248 255; /* Lighter shade */
-    --team-secondary: 176 229 254;
-    --team-accent: 176 229 254;
+    /* Original TeamTrack Brand Colors - Dark Mode - Brighter */
+    --team-primary: 196 248 255; /* Brighter light blue for dark mode */
+    --team-primary-dark: 176 229 254; /* Darker shade */
+    --team-primary-light: 216 255 255; /* Lighter shade */
+    --team-secondary: 196 248 255;
+    --team-accent: 196 248 255;
     --team-neutral: 25 25 25; /* #191919 */
     --team-surface: 25 25 25; /* #191919 */
     --team-dark: 25 25 25; /* #191919 */
 
-    /* Sidebar using #b0e5fe dark colors */
+    /* Sidebar using brighter dark colors */
     --sidebar-background: 0 0% 10%;
     --sidebar-foreground: 0 0% 96%;
-    --sidebar-primary: 199 100% 82%;
+    --sidebar-primary: 199 100% 88%;
     --sidebar-primary-foreground: 0 0% 10%;
     --sidebar-accent: 0 0% 16%;
     --sidebar-accent-foreground: 0 0% 96%;
     --sidebar-border: 0 0% 16%;
-    --sidebar-ring: 199 100% 82%;
+    --sidebar-ring: 199 100% 88%;
   }
 }
 
@@ -182,9 +182,9 @@
     @apply backdrop-blur-lg bg-black/10 border border-white/10;
   }
 
-  /* Original TeamTrack gradient backgrounds - #b0e5fe */
+  /* Original TeamTrack gradient backgrounds - Brighter */
   .gradient-primary {
-    background: linear-gradient(135deg, #B0E5FE 0%, #9CDCF8 100%);
+    background: linear-gradient(135deg, #6FADCF 0%, #5A9BC4 100%);
   }
 
   .gradient-surface {
@@ -192,7 +192,7 @@
   }
 
   .dark .gradient-primary {
-    background: linear-gradient(135deg, #B0E5FE 0%, #9CDCF8 100%);
+    background: linear-gradient(135deg, #C4F8FF 0%, #B0E5FE 100%);
   }
 
   .dark .gradient-surface {
@@ -208,10 +208,10 @@
     @apply card-modern hover:scale-[1.02] hover:border-primary/50 cursor-pointer;
   }
 
-  /* Original TeamTrack button styles - #b0e5fe */
+  /* Original TeamTrack button styles - Brighter */
   .btn-primary-modern {
-    background: #B0E5FE;
-    color: #191919;
+    background: #6FADCF;
+    color: #FEFEFE;
     font-weight: 500;
     padding: 0.75rem 1.5rem;
     border-radius: 0.5rem;
@@ -220,18 +220,18 @@
   }
 
   .btn-primary-modern:hover {
-    background: #9CDCF8;
+    background: #5A9BC4;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     transform: scale(1.02);
   }
 
   .dark .btn-primary-modern {
-    background: #B0E5FE;
+    background: #C4F8FF;
     color: #191919;
   }
 
   .dark .btn-primary-modern:hover {
-    background: #9CDCF8;
+    background: #B0E5FE;
   }
 
   .btn-secondary-modern {
