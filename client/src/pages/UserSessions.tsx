@@ -229,14 +229,14 @@ const UserSessions: React.FC = () => {
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1
             className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
             My Sessions
           </h1>
           <p
-            className={`mt-2 text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+            className={`mt-1 text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
           >
             View and manage your training sessions
           </p>
