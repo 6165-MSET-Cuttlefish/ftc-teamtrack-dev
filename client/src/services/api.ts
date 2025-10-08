@@ -129,22 +129,32 @@ class ApiService {
         // Primary attempt
         let response: Response | undefined = await tryFetch(url);
 
-        // Fallbacks (helpful in various hosting setups like Netlify functions)
-        if (!response) {
-          try {
-            if (typeof window !== 'undefined') {
-              const origin = window.location.origin;
-              // Try origin + endpoint (same origin)
-              response = await tryFetch(`${origin}${endpoint}`);
-              // Try Netlify functions convention
-              if (!response)
-                response = await tryFetch(
-                  `${origin}/.netlify/functions/api${endpoint}`
-                );
-            }
-          } catch (e) {
-            // ignore
+        // Prepare fallback candidates
+        const fallbackCandidates: string[] = [];
+        try {
+          if (typeof window !== 'undefined') {
+            const origin = window.location.origin;
+            fallbackCandidates.push(`${origin}${endpoint}`);
+            fallbackCandidates.push(`${origin}/.netlify/functions/api${endpoint}`);
           }
+
+          const explicitEnv = import.meta.env.VITE_API_URL || '';
+          // If an explicit env URL is provided, try it as a fallback as well
+          if (explicitEnv) {
+            // Ensure proper slash handling
+            const trimmed = explicitEnv.replace(/\/$/, '');
+            fallbackCandidates.push(`${trimmed}${endpoint}`);
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        // Attempt fallbacks if initial response missing or not ok
+        for (const candidate of fallbackCandidates) {
+          if (!response || (response && !response.ok)) {
+            const tryResp = await tryFetch(candidate);
+            if (tryResp) response = tryResp;
+          } else break;
         }
 
         const method = options?.method?.toString().toUpperCase() || 'GET';
@@ -153,15 +163,15 @@ class ApiService {
           // All attempts failed
           if (method === 'GET' && endpoint.startsWith('/sessions'))
             return [] as unknown as T;
-          throw new Error(`Network request failed for ${url} (and fallbacks)`);
+          throw new Error(`Network request failed for initial ${url} and fallbacks: ${fallbackCandidates.join(', ')}`);
         }
 
         if (!response.ok) {
           if (method === 'GET' && endpoint.startsWith('/sessions'))
             return [] as unknown as T;
-          throw new Error(
-            `API call failed: ${response.status} ${response.statusText}`
-          );
+          // Include which URL returned the error for easier debugging
+          const attemptedUrl = response.url || url;
+          throw new Error(`API call failed: ${response.status} ${response.statusText} at ${attemptedUrl}`);
         }
 
         let result: T;
