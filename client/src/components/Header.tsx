@@ -115,14 +115,16 @@ const SearchBox = () => {
 const BackButton = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const fromActive = (location && (location.state as any)?.fromActiveSession) || false;
+  const { sessionData } = useSession();
 
-  if (!fromActive) return null;
+  // Show back button only if there's an active (not completed) session and user is not already on the /original page
+  if (!sessionData || sessionData.isSessionCompleted) return null;
+  if (location.pathname === '/original') return null;
 
   return (
     <button
-      onClick={() => navigate(-1)}
-      aria-label="Go back"
+      onClick={() => navigate('/original')}
+      aria-label="Go back to active session"
       className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-transparent hover:bg-team-white-10 transition-colors"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
