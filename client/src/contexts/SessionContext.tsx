@@ -51,6 +51,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     autonomousBasket: 0,
     autonomousSpecimen: 0,
     autonomousFloorMark: 0,
+    autonomousLeave: 0,
     teleOpSamples: 0,
     teleOpSpecimen: 0,
     teleOpFloorMark: 0,
