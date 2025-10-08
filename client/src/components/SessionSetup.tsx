@@ -95,28 +95,32 @@ export const SessionSetup = () => {
 
         {/* Second Row */}
         <div className="flex flex-col sm:flex-row gap-6">
-          <FormField
-            label="Session Duration"
-            placeholder="minutes"
-            value={sessionData.sessionDuration}
-            onChange={setSessionDuration}
-            type="decimal"
-          />
-          <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-            <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-              Match Type
-            </label>
-            <Select value={sessionData.matchType} onValueChange={setMatchType}>
-              <SelectTrigger className={`w-full h-10 px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'}`}>
-                <SelectValue placeholder="Select match type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Autonomous">Autonomous</SelectItem>
-                <SelectItem value="Teleop">Teleop</SelectItem>
-                <SelectItem value="Full Game">Full Game</SelectItem>
-                <SelectItem value="Practice">Practice</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex-1">
+            <FormField
+              label="Session Duration"
+              placeholder="minutes"
+              value={sessionData.sessionDuration}
+              onChange={setSessionDuration}
+              type="decimal"
+            />
+          </div>
+          <div className="flex-1">
+            <div className="flex flex-col gap-2">
+              <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                Match Type
+              </label>
+              <Select value={sessionData.matchType} onValueChange={setMatchType}>
+                <SelectTrigger className={`w-full h-10 px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'}`}>
+                  <SelectValue placeholder="Select match type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Autonomous">Autonomous</SelectItem>
+                  <SelectItem value="Teleop">Teleop</SelectItem>
+                  <SelectItem value="Full Game">Full Game</SelectItem>
+                  <SelectItem value="Practice">Practice</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
