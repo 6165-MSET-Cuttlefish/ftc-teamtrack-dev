@@ -323,9 +323,10 @@ export const PerformanceMetrics = () => {
               onChange={setAutonomousFloorMark}
             />
             <InlineBreakdownField
-              label="Leave (3 pts each)"
+              label="Leave (enter 1 for +3 pts)"
               value={autonomousLeave}
-              onChange={setAutonomousLeave}
+              onChange={v => setAutonomousLeave(v > 0 ? 1 : 0)}
+              isBinary
             />
           </div>
         );
