@@ -1,6 +1,5 @@
 import React from 'react';
 import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
 import {
   Select,
   SelectTrigger,
@@ -9,21 +8,26 @@ import {
   SelectValue,
 } from './ui/select';
 
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+
+interface FormFieldProps {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: 'text' | 'number' | 'decimal';
+  id?: string;
+}
+
 const FormField = ({
   label,
   placeholder,
   value,
   onChange,
   type = 'text',
-}: {
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: 'text' | 'number' | 'decimal';
-}) => {
-  const { isDarkMode } = useTheme();
-
+  id,
+}: FormFieldProps) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (type === 'number') {
       // Only allow numbers
@@ -31,7 +35,6 @@ const FormField = ({
       onChange(numericValue);
     } else if (type === 'decimal') {
       const decimalValue = e.target.value.replace(/[^0-9.]/g, '');
-
       const parts = decimalValue.split('.');
       if (parts.length > 2) {
         onChange(`${parts[0]}.${parts.slice(1).join('')}`);
@@ -43,21 +46,20 @@ const FormField = ({
     }
   };
 
+  const fieldId = id || label.toLowerCase().replace(/\s+/g, '-');
+
   return (
-    <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-      <label
-        className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-      >
+    <div className="flex flex-col gap-2 w-full">
+      <Label htmlFor={fieldId} className="text-sm font-medium">
         {label}
-      </label>
-      <input
+      </Label>
+      <Input
+        id={fieldId}
         type="text"
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
-        className={`px-2.5 py-2.5 rounded border border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40 ${
-          isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'
-        }`}
+        className="transition-colors focus:ring-2 focus:ring-team-blue focus:border-team-blue"
       />
     </div>
   );
@@ -65,7 +67,6 @@ const FormField = ({
 
 export const SessionSetup = () => {
   const { sessionData, updateSessionData } = useSession();
-  const { isDarkMode } = useTheme();
 
   const setSessionName = (value: string) =>
     updateSessionData({ sessionName: value });
@@ -77,66 +78,57 @@ export const SessionSetup = () => {
     updateSessionData({ matchType: value });
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-team-blue text-2xl font-semibold leading-6">
+    <section className="space-y-6">
+      <h2 className="text-team-blue text-2xl font-semibold">
         Session Setup
       </h2>
 
-      <div className="space-y-6">
-        {/* First Row */}
-        <div className="flex flex-col sm:flex-row gap-6">
-          <FormField
-            label="Session Name"
-            placeholder="ex. practice"
-            value={sessionData.sessionName}
-            onChange={setSessionName}
-          />
-          <FormField
-            label="Driver Name"
-            placeholder="Ethan Yang"
-            value={sessionData.driverName}
-            onChange={setDriverName}
-          />
-        </div>
-
-        {/* Second Row */}
-        <div className="flex flex-col sm:flex-row gap-6">
-          <div className="flex-1">
-            <FormField
-              label="Session Duration"
-              placeholder="minutes"
-              value={sessionData.sessionDuration}
-              onChange={setSessionDuration}
-              type="decimal"
-            />
-          </div>
-          <div className="flex-1">
-            <div className="flex flex-col gap-2">
-              <label
-                className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-              >
-                Match Type
-              </label>
-              <Select
-                value={sessionData.matchType}
-                onValueChange={setMatchType}
-              >
-                <SelectTrigger
-                  className={`w-full px-2.5 py-2.5 rounded border border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'}`}
-                >
-                  <SelectValue placeholder="Select match type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Autonomous">Autonomous</SelectItem>
-                  <SelectItem value="Teleop">Teleop</SelectItem>
-                  <SelectItem value="Full Game">Full Game</SelectItem>
-                  <SelectItem value="Practice">Practice</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FormField
+          id="session-name"
+          label="Session Name"
+          placeholder="e.g., Morning Practice"
+          value={sessionData.sessionName}
+          onChange={setSessionName}
+        />
+        <FormField
+          id="driver-name"
+          label="Driver Name"
+          placeholder="e.g., Ethan Yang"
+          value={sessionData.driverName}
+          onChange={setDriverName}
+        />
+        <FormField
+          id="session-duration"
+          label="Session Duration (minutes)"
+          placeholder="e.g., 15"
+          value={sessionData.sessionDuration}
+          onChange={setSessionDuration}
+          type="decimal"
+        />
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="match-type" className="text-sm font-medium">
+            Match Type
+          </Label>
+          <Select
+            value={sessionData.matchType}
+            onValueChange={setMatchType}
+          >
+            <SelectTrigger
+              id="match-type"
+              className="transition-colors focus:ring-2 focus:ring-team-blue focus:border-team-blue"
+            >
+              <SelectValue placeholder="Select match type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Autonomous">Autonomous</SelectItem>
+              <SelectItem value="Teleop">Teleop</SelectItem>
+              <SelectItem value="Full Game">Full Game</SelectItem>
+              <SelectItem value="Practice">Practice</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
-    </div>
+    </section>
   );
 };

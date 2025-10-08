@@ -16,12 +16,14 @@ import { Button } from './ui/button';
 import {
   Search,
   Sun,
+  Moon,
   Settings,
   User,
   LogOut,
   UserCircle,
   BarChart3,
   CheckSquare,
+  ArrowLeft,
 } from 'lucide-react';
 
 const TeamTrackLogo = () => {
@@ -96,18 +98,17 @@ const TeamTrackLogo = () => {
 
 const SearchBox = () => {
   const { isDarkMode } = useTheme();
-  const iconClass = 'text-team-blue-40';
-  const textClass = 'text-team-blue-40';
-  const borderClass = isDarkMode
-    ? 'border-team-white-20'
-    : 'border-team-blue/60';
 
   return (
     <div
-      className={`flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border ${borderClass}`}
+      className={`flex items-center gap-3 px-6 py-3 rounded-xl border transition-colors ${
+        isDarkMode
+          ? 'border-team-white-20 hover:border-team-white-40'
+          : 'border-team-blue/40 hover:border-team-blue/60'
+      }`}
     >
-      <Search className={`w-4 h-4 ${iconClass}`} />
-      <span className={`${textClass} text-base font-medium`}>Search</span>
+      <Search className="w-4 h-4 text-team-blue-40" />
+      <span className="text-team-blue-40 text-sm font-medium">Search sessions...</span>
     </div>
   );
 };
@@ -116,6 +117,7 @@ const BackButton = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { sessionData } = useSession();
+  const { isDarkMode } = useTheme();
 
   const fromActiveState =
     (location && (location.state as any)?.fromActiveSession) || false;
@@ -125,27 +127,17 @@ const BackButton = () => {
     return null;
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="icon"
       onClick={() => navigate('/original')}
       aria-label="Go back to active session"
-      className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-transparent hover:bg-team-white-10 transition-colors"
+      className={`h-8 w-8 rounded-md ${
+        isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-team-blue-10'
+      }`}
     >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M15 18l-6-6 6-6"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </button>
+      <ArrowLeft className="h-4 w-4" />
+    </Button>
   );
 };
 
@@ -171,29 +163,45 @@ const NavigationMenu = () => {
 
   return (
     <div
-      className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border ${isDarkMode ? 'border-team-white-20 bg-team-dark-20' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+        isDarkMode
+          ? 'border-team-white-20 bg-team-dark-20'
+          : 'border-team-blue/40 bg-white'
+      }`}
     >
-      <span
-        className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}
+      <Link
+        to="/about"
+        className={`text-sm font-medium px-2 py-1 rounded-md hover:bg-opacity-10 hover:bg-team-blue transition-colors ${
+          isDarkMode ? 'text-white' : 'text-black'
+        }`}
       >
         About Us
-      </span>
-      <button
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className={`w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2 focus:outline-none`}
-      >
-        <div className="w-2 h-2 bg-team-dark rounded-full" />
-      </button>
-      <div className="ml-2 mr-1">
-        <Sun
-          className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-black'}`}
-        />
-      </div>
+      </Link>
+      
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+          className="h-8 w-8"
+        >
+          {isDarkMode ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </Button>
 
-      <Settings
-        className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-black'}`}
-      />
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Settings"
+          className="h-8 w-8"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      </div>
 
       {/* Authentication Section */}
       {user ? (
@@ -268,22 +276,23 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-4 sm:px-8 py-4 border-b relative ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      className={`w-full px-4 sm:px-8 py-4 border-b backdrop-blur-sm sticky top-0 z-50 transition-colors ${
+        isDarkMode
+          ? 'border-team-white-20 bg-team-dark/95'
+          : 'border-team-blue/30 bg-white/95'
+      }`}
     >
-      <div className="w-full grid grid-cols-3 items-center">
-        <div className="flex items-center justify-start gap-4">
-          {/* Conditional back button when navigated from active session */}
-          <BackButton />
-          <TeamTrackLogo />
-        </div>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <BackButton />
+            <TeamTrackLogo />
+          </div>
 
-        <div className="flex items-center justify-center">
           <div className="hidden lg:block">
             <SearchBox />
           </div>
-        </div>
 
-        <div className="flex items-center justify-end">
           <NavigationMenu />
         </div>
       </div>

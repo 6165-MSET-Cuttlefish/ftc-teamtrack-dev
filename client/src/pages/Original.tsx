@@ -2,47 +2,39 @@ import { SessionSetup } from '../components/SessionSetup';
 import { PerformanceMetrics } from '../components/PerformanceMetrics';
 import { Notes } from '../components/Notes';
 import { LivePreview } from '../components/LivePreview';
-import { useTheme } from '../contexts/ThemeContext';
 
 const OriginalContent = () => {
-  const { isDarkMode } = useTheme();
 
   return (
-    <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-    >
-      <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-8 pt-12 pb-10 gap-6 lg:gap-10">
-        {/* Left Column - Session Form */}
-        <div
-          className={`flex-1 w-full lg:max-w-[776px] py-8 lg:py-14 lg:pr-12 lg:border-r ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`}
-        >
-          <div className="space-y-12 lg:space-y-16">
+    <div className="min-h-screen">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content - Session Form */}
+          <div className="lg:col-span-2 space-y-8">
             {/* Header */}
-            <div className="text-center px-4 lg:px-24 space-y-6">
-              <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-[48px]">
+            <header className="text-center space-y-4">
+              <h1 className="text-team-blue text-3xl lg:text-4xl font-bold">
                 Active Practice Session
               </h1>
-              <p
-                className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-              >
-                6165 Mset Cuttlefish
+              <p className="text-lg text-muted-foreground">
+                6165 MSET Cuttlefish
               </p>
+            </header>
+
+            {/* Session Components */}
+            <div className="space-y-8">
+              <SessionSetup />
+              <PerformanceMetrics />
+              <Notes />
             </div>
-
-            {/* Session Setup */}
-            <SessionSetup />
-
-            {/* Performance Metrics */}
-            <PerformanceMetrics />
-
-            {/* Notes */}
-            <Notes />
           </div>
-        </div>
 
-        {/* Right Column - Live Preview */}
-        <div className="w-full lg:w-[413px] py-8 lg:py-14 px-4">
-          <LivePreview />
+          {/* Sidebar - Live Preview */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <LivePreview />
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -75,10 +75,7 @@ const UserSessions: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedSession(null);
-  };
+
 
   const getSessionStats = () => {
     // Ensure sessions is an array and has data
@@ -212,16 +209,19 @@ const UserSessions: React.FC = () => {
   if (loading) {
     return (
       <div
-        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}
+        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-8 px-4 sm:px-6 lg:px-8`}
       >
-        <div className="max-w-6xl mx-auto">
-          <div className="space-y-6">
+        <div className="max-w-6xl mx-auto space-y-8">
+          <div className="space-y-2">
             <Skeleton className="h-8 w-64" />
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Skeleton key={i} className="h-64" />
-              ))}
-            </div>
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Skeleton className="h-32 w-full rounded-lg" />
+          <Skeleton className="h-20 w-full rounded-lg" />
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-64 rounded-lg" />
+            ))}
           </div>
         </div>
       </div>
@@ -230,17 +230,17 @@ const UserSessions: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}
+      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-8 px-4 sm:px-6 lg:px-8`}
     >
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div>
           <h1
             className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
             My Sessions
           </h1>
           <p
-            className={`mt-1 text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+            className={`mt-2 text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
           >
             View and manage your training sessions
           </p>
@@ -311,9 +311,9 @@ const UserSessions: React.FC = () => {
               </div>
             </div>
 
-            <div>
+            <div className="mt-8">
               <h3
-                className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                className={`text-sm font-medium mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 Session Types
               </h3>
@@ -341,10 +341,10 @@ const UserSessions: React.FC = () => {
         )}
 
         <div
-          className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}
+          className={`p-6 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}
         >
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Filter className="h-4 w-4 text-gray-400" />
               <span
                 className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
@@ -353,7 +353,7 @@ const UserSessions: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full sm:w-auto">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -369,7 +369,7 @@ const UserSessions: React.FC = () => {
                 onValueChange={setMatchTypeFilter}
               >
                 <SelectTrigger
-                  className={`w-40 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
+                  className={`w-full sm:w-40 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
                 >
                   <SelectValue placeholder="Match Type" />
                 </SelectTrigger>
@@ -384,7 +384,7 @@ const UserSessions: React.FC = () => {
 
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger
-                  className={`w-44 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
+                  className={`w-full sm:w-44 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
                 >
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -400,7 +400,7 @@ const UserSessions: React.FC = () => {
           </div>
 
           <div
-            className={`mt-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+            className={`mt-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
           >
             Showing {filteredSessions.length} of {sessions.length} sessions
           </div>
@@ -604,7 +604,15 @@ const UserSessions: React.FC = () => {
         </div>
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog 
+        open={isModalOpen} 
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            setSelectedSession(null);
+          }
+        }}
+      >
         <DialogContent
           className={`max-w-4xl max-h-[80vh] overflow-y-auto ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}
         >
