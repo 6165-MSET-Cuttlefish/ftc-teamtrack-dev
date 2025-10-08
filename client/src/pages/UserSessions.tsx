@@ -403,7 +403,7 @@ const UserSessions: React.FC = () => {
         </div>
 
         <div
-          className={`grid gap-6 md:grid-cols-2 lg:grid-cols-3 min-h-[48rem]`}
+          className={`grid gap-6 md:grid-cols-2 lg:grid-cols-3`}
         >
           {loading ? (
             // Keep skeletons rendered with fixed height to avoid layout shifts
