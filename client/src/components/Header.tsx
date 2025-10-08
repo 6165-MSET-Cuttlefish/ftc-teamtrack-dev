@@ -83,7 +83,7 @@ const SearchBox = () => {
   const { isDarkMode } = useTheme();
   const iconClass = 'text-team-blue-40';
   const textClass = 'text-team-blue-40';
-  const borderClass = isDarkMode ? 'border-team-white-20' : 'border-team-blue';
+  const borderClass = isDarkMode ? 'border-team-white-20' : 'border-team-blue/60';
 
   return (
     <div
