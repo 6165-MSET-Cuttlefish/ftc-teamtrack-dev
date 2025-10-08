@@ -145,14 +145,6 @@ const SessionSelector: React.FC = () => {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/sessions')}
-              className={isDarkMode ? 'text-gray-300 hover:text-white' : ''}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Sessions
-            </Button>
             <div>
               <h1
                 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
