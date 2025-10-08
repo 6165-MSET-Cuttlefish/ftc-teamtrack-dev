@@ -27,15 +27,10 @@ import {
 
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
-  const { sessionData } = useSession();
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (sessionData && !sessionData.isSessionCompleted) {
-      navigate('/original');
-    } else {
-      navigate('/sessions');
-    }
+    navigate('/original');
   };
 
   return (

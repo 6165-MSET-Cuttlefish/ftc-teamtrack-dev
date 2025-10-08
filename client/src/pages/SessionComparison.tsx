@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { useApi } from '../hooks/useApi';
+import { useFirebase } from '../hooks/useFirebase';
 import {
   Card,
   CardContent,
@@ -43,7 +43,7 @@ const SessionComparison: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
-  const { getSession, loading } = useApi();
+  const { getSession, loading } = useFirebase();
   const [sessions, setSessions] = useState<Session[]>([]);
 
   const loadSessions = useCallback(

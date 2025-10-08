@@ -6,7 +6,13 @@ import React, {
   ReactNode,
 } from 'react';
 import getFirebase from '../lib/firebase';
-import type { User } from '../../../shared/types/auth';
+// Simple user type for our Firebase auth
+interface User {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
 import type { 
   Auth, 
   User as FirebaseUser, 
@@ -155,11 +161,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               email: u.email,
               displayName: u.displayName,
               photoURL: u.photoURL,
-              emailVerified: u.emailVerified,
-              metadata: {
-                creationTime: u.metadata.creationTime,
-                lastSignInTime: u.metadata.lastSignInTime,
-              },
             };
             setUser(user);
           } else {

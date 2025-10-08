@@ -1,131 +1,521 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useApi } from './useApi';
-import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect } from 'react';import { useState, useEffect, useCallback } from 'react';import { useState, useEffect, useCallback } from 'react';import { useState, useEffect, useCallback } from 'react';import { useState, useEffect, useCallback, useRef } from 'react';
 
-interface Session {
-  id: string;
-  sessionName: string;
-  driverName: string;
-  matchType: string;
-  sessionDuration: string;
-  finalScore: number;
-  createdAt: string;
-  autonBasket: number;
-  autonSpeci: number;
-  teleBasket: number;
-  teleSpeci: number;
-  endgameHang: number;
+import { useFirebase } from './useFirebase';
+
+import { useAuth } from '../contexts/AuthContext';import { useFirebase } from './useFirebase';
+
+import { Session } from '../types/session';
+
+import { useAuth } from '../contexts/AuthContext';import { useFirebase } from './useFirebase';
+
+interface SessionFilters {
+
+  matchType: string;import { SessionData } from '../services/firebaseService';
+
+  dateFrom?: string;
+
+  dateTo?: string;import { useAuth } from '../contexts/AuthContext';import { useFirebase } from './useFirebase';import { useFirebase } from './useFirebase';
+
 }
 
-interface SessionStats {
-  totalSessions: number;
-  averageScore: number;
-  highestScore: number;
-  totalPlayTime: number;
-  matchTypeBreakdown: Record<string, number>;
-  recentSessions: Session[];
-  performanceTrend: Array<{ date: string; score: number }>;
-}
+interface SessionFilters {
 
-interface UseSessionsOptions {
-  initialLimit?: number;
-  autoLoad?: boolean;
-}
+export const useSessions = () => {
 
-export const useSessions = (options: UseSessionsOptions = {}) => {
-  const { initialLimit = 20, autoLoad = true } = options;
-  const { user } = useAuth();
-  const { getSessions, getUserSessionStats, loading } = useApi();
+  const { user } = useAuth();  matchType: string;import { SessionData } from '../services/firebaseService';
+
+  const { getUserSessions, loading } = useFirebase();
+
+    dateFrom?: string;
 
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isDatabaseAvailable, setIsDatabaseAvailable] = useState(true);
-  const [filters, setFilters] = useState({
-    searchTerm: '',
-    matchType: 'all',
-    sortBy: 'newest',
-    dateFrom: '',
-    dateTo: '',
+
+  const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);  dateTo?: string;import { useAuth } from '../contexts/AuthContext';import { useAuth } from '../contexts/AuthContext';
+
+  const [filters, setFilters] = useState<SessionFilters>({
+
+    matchType: 'all',}
+
   });
 
-  // Add throttling and request deduplication
-  const lastFetchTime = useRef<number>(0);
-  const minFetchInterval = 5000; // Minimum 5 seconds between fetches
-  const pendingRequest = useRef<Promise<void> | null>(null);
+interface SessionFilters {
 
-  const loadSessions = useCallback(
-    async (page = 0, append = false) => {
+  useEffect(() => {
+
+    const fetchSessions = async () => {interface SessionStats {
+
       if (!user?.uid) return;
 
-      // Throttling: prevent too frequent requests
-      const now = Date.now();
-      if (now - lastFetchTime.current < minFetchInterval && !append) {
-        return;
+  totalSessions: number;  matchType: string;import { SessionData } from '../services/firebaseService';
+
+      const result = await getUserSessions(user.uid);
+
+      if (result) {  averageScore: number;
+
+        setSessions(result);
+
+      }  highestScore: number;  dateFrom?: string;
+
+    };
+
+  recentSessions: SessionData[];
+
+    fetchSessions();
+
+  }, [user?.uid, getUserSessions]);}  dateTo?: string;interface Session {
+
+
+
+  useEffect(() => {
+
+    let filtered = sessions;
+
+export const useSessions = () => {}
+
+    if (filters.matchType !== 'all') {
+
+      filtered = filtered.filter(s => s.matchType === filters.matchType);  const { user } = useAuth();
+
+    }
+
+  const { getUserSessions, loading } = useFirebase();interface SessionFilters {  id: string;
+
+    if (filters.dateFrom) {
+
+      const fromDate = new Date(filters.dateFrom);  
+
+      filtered = filtered.filter(s => {
+
+        const sessionDate = typeof s.createdAt === 'string'   const [sessions, setSessions] = useState<SessionData[]>([]);interface SessionStats {
+
+          ? new Date(s.createdAt) 
+
+          : s.createdAt.toDate();  const [stats, setStats] = useState<SessionStats | null>(null);
+
+        return sessionDate >= fromDate;
+
+      });  totalSessions: number;  matchType: string;  sessionName: string;
+
+    }
+
+  const fetchSessions = useCallback(async () => {
+
+    if (filters.dateTo) {
+
+      const toDate = new Date(filters.dateTo);    if (!user?.uid) return;  averageScore: number;
+
+      filtered = filtered.filter(s => {
+
+        const sessionDate = typeof s.createdAt === 'string' 
+
+          ? new Date(s.createdAt) 
+
+          : s.createdAt.toDate();    try {  highestScore: number;  dateFrom?: string;  driverName: string;
+
+        return sessionDate <= toDate;
+
+      });      const result = await getUserSessions(user.uid);
+
+    }
+
+      if (result) {  recentSessions: SessionData[];
+
+    setFilteredSessions(filtered);
+
+  }, [sessions, filters]);        setSessions(result);
+
+
+
+  const updateFilters = (newFilters: Partial<SessionFilters>) => {        }  dateTo?: string;  matchType: string;
+
+    setFilters(prev => ({ ...prev, ...newFilters }));
+
+  };        const scores = result
+
+
+
+  return {          .map(s => s.finalScore)
+
+    sessions: filteredSessions,
+
+    loading,          .filter((score): score is number => typeof score === 'number');
+
+    filters,
+
+    updateFilters,        export const useSessions = (initialLimit = 10) => {}  sessionDuration: string;
+
+  };
+
+};        const sessionStats: SessionStats = {
+
+          totalSessions: result.length,  const { user } = useAuth();
+
+          averageScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+
+          highestScore: scores.length > 0 ? Math.max(...scores) : 0,  const { getUserSessions, loading } = useFirebase();  finalScore: number;
+
+          recentSessions: result.slice(0, 5),
+
+        };  
+
+        
+
+        setStats(sessionStats);  const [sessions, setSessions] = useState<SessionData[]>([]);interface SessionStats {  createdAt: string;
+
       }
 
-      // Deduplication: if there's already a pending request, wait for it
-      if (pendingRequest.current && !append) {
-        try {
-          await pendingRequest.current;
-        } catch {
-          // Ignore errors from pending requests
+    } catch (error) {  const [stats, setStats] = useState<SessionStats | null>(null);
+
+      console.error('Failed to fetch sessions:', error);
+
+    }  const [filters, setFilters] = useState<SessionFilters>({  totalSessions: number;  autonBasket: number;
+
+  }, [user?.uid, getUserSessions]);
+
+    matchType: 'all',
+
+  useEffect(() => {
+
+    fetchSessions();    dateFrom: '',  averageScore: number;  autonSpeci: number;
+
+  }, [fetchSessions]);
+
+    dateTo: '',
+
+  const refresh = useCallback(() => {
+
+    fetchSessions();  });  highestScore: number;  teleBasket: number;
+
+  }, [fetchSessions]);
+
+  const [page, setPage] = useState(0);
+
+  return {
+
+    sessions,  const [hasMore, setHasMore] = useState(false);  recentSessions: SessionData[];  teleSpeci: number;
+
+    stats,
+
+    loading,
+
+    refresh,
+
+  };  const fetchSessions = useCallback(async () => {}  endgameHang: number;
+
+};
+    if (!user?.uid) return;
+
+}
+
+    try {
+
+      const result = await getUserSessions(user.uid);export const useSessions = (initialLimit = 10) => {
+
+      if (result) {
+
+        let filteredSessions = result;  const { user } = useAuth();interface SessionStats {
+
+        
+
+        if (filters.matchType !== 'all') {  const { getUserSessions, loading } = useFirebase();  totalSessions: number;
+
+          filteredSessions = filteredSessions.filter(s => s.matchType === filters.matchType);
+
+        }    averageScore: number;
+
+        
+
+        if (filters.dateFrom) {  const [sessions, setSessions] = useState<SessionData[]>([]);  highestScore: number;
+
+          const fromDate = new Date(filters.dateFrom);
+
+          filteredSessions = filteredSessions.filter(s => {  const [stats, setStats] = useState<SessionStats | null>(null);  totalPlayTime: number;
+
+            const sessionDate = typeof s.createdAt === 'string' ? new Date(s.createdAt) : s.createdAt.toDate();
+
+            return sessionDate >= fromDate;  const [filters, setFilters] = useState<SessionFilters>({  matchTypeBreakdown: Record<string, number>;
+
+          });
+
+        }    matchType: 'all',  recentSessions: Session[];
+
+        
+
+        if (filters.dateTo) {    dateFrom: '',  performanceTrend: Array<{ date: string; score: number }>;
+
+          const toDate = new Date(filters.dateTo);
+
+          filteredSessions = filteredSessions.filter(s => {    dateTo: '',}
+
+            const sessionDate = typeof s.createdAt === 'string' ? new Date(s.createdAt) : s.createdAt.toDate();
+
+            return sessionDate <= toDate;  });
+
+          });
+
+        }  const [page, setPage] = useState(0);interface UseSessionsOptions {
+
+        
+
+        const start = page * initialLimit;  const [hasMore, setHasMore] = useState(false);  initialLimit?: number;
+
+        const end = start + initialLimit;
+
+        const paginatedSessions = filteredSessions.slice(start, end);  autoLoad?: boolean;
+
+        
+
+        if (page === 0) {  const fetchSessions = useCallback(async () => {}
+
+          setSessions(paginatedSessions);
+
+        } else {    if (!user?.uid) return;
+
+          setSessions(prev => [...prev, ...paginatedSessions]);
+
+        }export const useSessions = (options: UseSessionsOptions = {}) => {
+
+        
+
+        setHasMore(end < filteredSessions.length);    try {  const { initialLimit = 20, autoLoad = true } = options;
+
+        
+
+        if (filteredSessions.length > 0) {      const result = await getUserSessions(user.uid);  const { user } = useAuth();
+
+          const scores = filteredSessions
+
+            .map(s => s.finalScore)      if (result) {  const { getUserSessions, loading } = useFirebase();
+
+            .filter((score): score is number => typeof score === 'number');
+
+                  // Apply filters
+
+          const sessionStats: SessionStats = {
+
+            totalSessions: filteredSessions.length,        let filteredSessions = result;  const [sessions, setSessions] = useState<Session[]>([]);
+
+            averageScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+
+            highestScore: scores.length > 0 ? Math.max(...scores) : 0,          const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
+
+            recentSessions: filteredSessions.slice(0, 5),
+
+          };        if (filters.matchType !== 'all') {  const [currentPage, setCurrentPage] = useState(0);
+
+          
+
+          setStats(sessionStats);          filteredSessions = filteredSessions.filter(s => s.matchType === filters.matchType);  const [hasMore, setHasMore] = useState(true);
+
         }
-        return;
+
+      }        }  const [isDatabaseAvailable, setIsDatabaseAvailable] = useState(true);
+
+    } catch (error) {
+
+      console.error('Failed to fetch sessions:', error);          const [filters, setFilters] = useState({
+
+    }
+
+  }, [user?.uid, getUserSessions, filters, page, initialLimit]);        if (filters.dateFrom) {    searchTerm: '',
+
+
+
+  useEffect(() => {          const fromDate = new Date(filters.dateFrom);    matchType: 'all',
+
+    fetchSessions();
+
+  }, [fetchSessions]);          filteredSessions = filteredSessions.filter(s => {    sortBy: 'newest',
+
+
+
+  const updateFilters = useCallback((newFilters: Partial<SessionFilters>) => {            const sessionDate = typeof s.createdAt === 'string' ? new Date(s.createdAt) : s.createdAt.toDate();    dateFrom: '',
+
+    setFilters(prev => ({ ...prev, ...newFilters }));
+
+    setPage(0);            return sessionDate >= fromDate;    dateTo: '',
+
+    setSessions([]);
+
+  }, []);          });  });
+
+
+
+  const loadMore = useCallback(() => {        }
+
+    if (!loading && hasMore) {
+
+      setPage(prev => prev + 1);          // Add throttling and request deduplication
+
+    }
+
+  }, [loading, hasMore]);        if (filters.dateTo) {  const lastFetchTime = useRef<number>(0);
+
+
+
+  const refresh = useCallback(() => {          const toDate = new Date(filters.dateTo);  const minFetchInterval = 5000; // Minimum 5 seconds between fetches
+
+    setPage(0);
+
+    setSessions([]);          filteredSessions = filteredSessions.filter(s => {  const pendingRequest = useRef<Promise<void> | null>(null);
+
+    fetchSessions();
+
+  }, [fetchSessions]);            const sessionDate = typeof s.createdAt === 'string' ? new Date(s.createdAt) : s.createdAt.toDate();
+
+
+
+  return {            return sessionDate <= toDate;  const loadSessions = useCallback(
+
+    sessions,
+
+    stats,          });    async (page = 0, append = false) => {
+
+    loading,
+
+    hasMore,        }      if (!user?.uid) return;
+
+    filters,
+
+    updateFilters,        
+
+    loadMore,
+
+    refresh,        // Pagination      // Throttling: prevent too frequent requests
+
+  };
+
+};        const start = page * initialLimit;      const now = Date.now();
+
+        const end = start + initialLimit;      if (now - lastFetchTime.current < minFetchInterval && !append) {
+
+        const paginatedSessions = filteredSessions.slice(start, end);        return;
+
+              }
+
+        if (page === 0) {
+
+          setSessions(paginatedSessions);      // Deduplication: if there's already a pending request, wait for it
+
+        } else {      if (pendingRequest.current && !append) {
+
+          setSessions(prev => [...prev, ...paginatedSessions]);        try {
+
+        }          await pendingRequest.current;
+
+                } catch {
+
+        setHasMore(end < filteredSessions.length);          // Ignore errors from pending requests
+
+                }
+
+        // Calculate stats        return;
+
+        if (filteredSessions.length > 0) {      }
+
+          const scores = filteredSessions
+
+            .map(s => s.finalScore)      const requestPromise = (async () => {
+
+            .filter((score): score is number => typeof score === 'number');        try {
+
+                    const options = {
+
+          const sessionStats: SessionStats = {            limit: initialLimit,
+
+            totalSessions: filteredSessions.length,            offset: page * initialLimit,
+
+            averageScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,            sortBy: 'createdAt' as const,
+
+            highestScore: scores.length > 0 ? Math.max(...scores) : 0,            sortOrder: 'desc' as const,
+
+            recentSessions: filteredSessions.slice(0, 5),            matchType:
+
+          };              filters.matchType !== 'all' ? filters.matchType : undefined,
+
+                      dateFrom: filters.dateFrom || undefined,
+
+          setStats(sessionStats);            dateTo: filters.dateTo || undefined,
+
+        }          };
+
       }
 
-      const requestPromise = (async () => {
-        try {
-          const options = {
-            limit: initialLimit,
-            offset: page * initialLimit,
-            sortBy: 'createdAt' as const,
-            sortOrder: 'desc' as const,
-            matchType:
-              filters.matchType !== 'all' ? filters.matchType : undefined,
-            dateFrom: filters.dateFrom || undefined,
-            dateTo: filters.dateTo || undefined,
-          };
+    } catch (error) {          const result = await getSessions(user.uid, options);
 
-          const result = await getSessions(user.uid, options);
+      console.error('Failed to fetch sessions:', error);
 
-          // Check if we got an empty response due to database being unavailable
-          if (result && typeof result === 'object' && 'sessions' in result) {
+    }          // Check if we got an empty response due to database being unavailable
+
+  }, [user?.uid, getUserSessions, filters, page, initialLimit]);          if (result && typeof result === 'object' && 'sessions' in result) {
+
             const { sessions: newSessions, pagination } = result as {
-              sessions: Session[];
-              pagination: { hasMore: boolean; total: number };
-            };
 
-            // If we get empty sessions and total is 0, it might be database unavailable
-            setIsDatabaseAvailable(newSessions.length > 0 || pagination.total > 0);
+  useEffect(() => {              sessions: Session[];
 
-            if (append) {
-              setSessions(prev => [...prev, ...(newSessions || [])]);
+    fetchSessions();              pagination: { hasMore: boolean; total: number };
+
+  }, [fetchSessions]);            };
+
+
+
+  const updateFilters = useCallback((newFilters: Partial<SessionFilters>) => {            // If we get empty sessions and total is 0, it might be database unavailable
+
+    setFilters(prev => ({ ...prev, ...newFilters }));            setIsDatabaseAvailable(newSessions.length > 0 || pagination.total > 0);
+
+    setPage(0); // Reset pagination
+
+    setSessions([]); // Clear existing sessions            if (append) {
+
+  }, []);              setSessions(prev => [...prev, ...(newSessions || [])]);
+
             } else {
-              setSessions(newSessions || []);
-            }
 
-            setHasMore(pagination?.hasMore || false);
-          } else {
+  const loadMore = useCallback(() => {              setSessions(newSessions || []);
+
+    if (!loading && hasMore) {            }
+
+      setPage(prev => prev + 1);
+
+    }            setHasMore(pagination?.hasMore || false);
+
+  }, [loading, hasMore]);          } else {
+
             // Handle legacy response format
-            const sessionData = (result as Session[]) || [];
-            setIsDatabaseAvailable(sessionData.length > 0);
-            
-            if (append) {
-              setSessions(prev => [...prev, ...sessionData]);
-            } else {
-              setSessions(sessionData);
-            }
-            setHasMore(sessionData.length === initialLimit);
-          }
 
-          // Update last fetch time
-          lastFetchTime.current = Date.now();
-        } catch (error) {
-          // Handle error silently in production
-          console.warn('Failed to load sessions:', error);
-        } finally {
+  const refresh = useCallback(() => {            const sessionData = (result as Session[]) || [];
+
+    setPage(0);            setIsDatabaseAvailable(sessionData.length > 0);
+
+    setSessions([]);            
+
+    fetchSessions();            if (append) {
+
+  }, [fetchSessions]);              setSessions(prev => [...prev, ...sessionData]);
+
+            } else {
+
+  return {              setSessions(sessionData);
+
+    sessions,            }
+
+    stats,            setHasMore(sessionData.length === initialLimit);
+
+    loading,          }
+
+    hasMore,
+
+    filters,          // Update last fetch time
+
+    updateFilters,          lastFetchTime.current = Date.now();
+
+    loadMore,        } catch (error) {
+
+    refresh,          // Handle error silently in production
+
+  };          console.warn('Failed to load sessions:', error);
+
+};        } finally {
           // Clear pending request
           pendingRequest.current = null;
         }

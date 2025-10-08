@@ -1,67 +1,135 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { useApi } from '../hooks/useApi';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Skeleton } from '../components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+import React from 'react';import React from 'react';import React, { useEffect, useState } from 'react';
+
+import { Link } from 'react-router-dom';
+
+import { useTheme } from '../contexts/ThemeContext';import { Link } from 'react-router-dom';import { useAuth } from '../contexts/AuthContext';
+
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+
+import { Button } from '../components/ui/button';import { useTheme } from '../contexts/ThemeContext';import { useTheme } from '../contexts/ThemeContext';
+
+import { ArrowLeft } from 'lucide-react';
+
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';import { useFirebase } from '../hooks/useFirebase';
+
+const UserSessions: React.FC = () => {
+
+  const { isDarkMode } = useTheme();import { Button } from '../components/ui/button';import { Session } from '../types/session';
+
+
+
+  return (import { ArrowLeft } from 'lucide-react';import {
+
+    <div className={`min-h-screen p-6 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-team-dark'}`}>
+
+      <div className="max-w-4xl mx-auto space-y-6">  Card,
+
+        <div className="flex items-center gap-4">
+
+          <Link to="/original">const UserSessions: React.FC = () => {  CardContent,
+
+            <Button variant="ghost" size="icon">
+
+              <ArrowLeft className="h-4 w-4" />  const { isDarkMode } = useTheme();  CardDescription,
+
+            </Button>
+
+          </Link>  CardHeader,
+
+          <h1 className="text-3xl font-bold">Your Sessions</h1>
+
+        </div>  return (  CardTitle,
+
+
+
+        <Card>    <div className={`min-h-screen p-6 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-team-dark'}`}>} from '../components/ui/card';
+
+          <CardHeader>
+
+            <CardTitle>Session Management</CardTitle>      <div className="max-w-4xl mx-auto space-y-6">import { Button } from '../components/ui/button';
+
+          </CardHeader>
+
+          <CardContent>        <div className="flex items-center gap-4">import { Badge } from '../components/ui/badge';
+
+            <p className="text-muted-foreground mb-4">
+
+              Session management functionality will be implemented here using Firebase Firestore.          <Link to="/original">import { Skeleton } from '../components/ui/skeleton';
+
+            </p>
+
+            <Link to="/original">            <Button variant="ghost" size="icon">import {
+
+              <Button>Back to Main App</Button>
+
+            </Link>              <ArrowLeft className="h-4 w-4" />  Dialog,
+
+          </CardContent>
+
+        </Card>            </Button>  DialogContent,
+
+      </div>
+
+    </div>          </Link>  DialogDescription,
+
+  );
+
+};          <h1 className="text-3xl font-bold">Your Sessions</h1>  DialogHeader,
+
+
+
+export default UserSessions;        </div>  DialogTitle,
+
 } from '../components/ui/dialog';
-import { Progress } from '../components/ui/progress';
-import { Separator } from '../components/ui/separator';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
-import { Input } from '../components/ui/input';
-import {
-  Calendar,
-  Clock,
-  User,
-  Trophy,
-  Target,
-  Zap,
+
+        <Card>import { Progress } from '../components/ui/progress';
+
+          <CardHeader>import { Separator } from '../components/ui/separator';
+
+            <CardTitle>Session Management</CardTitle>import {
+
+          </CardHeader>  Select,
+
+          <CardContent>  SelectContent,
+
+            <p className="text-muted-foreground mb-4">  SelectItem,
+
+              Session management functionality will be implemented here using Firebase Firestore.  SelectTrigger,
+
+            </p>  SelectValue,
+
+            <Link to="/original">} from '../components/ui/select';
+
+              <Button>Back to Main App</Button>import { Input } from '../components/ui/input';
+
+            </Link>import {
+
+          </CardContent>  Calendar,
+
+        </Card>  Clock,
+
+      </div>  User,
+
+    </div>  Trophy,
+
+  );  Target,
+
+};  Zap,
+
   Award,
-  TrendingUp,
+
+export default UserSessions;  TrendingUp,
   BarChart3,
   Filter,
   Search,
 } from 'lucide-react';
 
-interface Session {
-  id: string;
-  sessionName: string;
-  driverName: string;
-  matchType: string;
-  sessionDuration: string;
-  finalScore: number;
-  createdAt: string;
-  autonBasket: number;
-  autonSpeci: number;
-  teleBasket: number;
-  teleSpeci: number;
-  endgameHang: number;
-}
+// Using Session type from types/session.ts
 
 const UserSessions: React.FC = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
-  const { getSessions, loading } = useApi();
+  const { getUserSessions, loading } = useFirebase();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -115,7 +183,7 @@ const UserSessions: React.FC = () => {
     const fetchUserSessions = async () => {
       if (user?.uid) {
         try {
-          const result = await getSessions(user.uid);
+          const result = await getUserSessions(user.uid);
 
           // Handle both array format (legacy) and object format (with pagination)
           if (Array.isArray(result)) {
@@ -137,7 +205,7 @@ const UserSessions: React.FC = () => {
     };
 
     fetchUserSessions();
-  }, [user?.uid, getSessions]);
+  }, [user?.uid, getUserSessions]);
 
   useEffect(() => {
     let filtered = [...sessions];

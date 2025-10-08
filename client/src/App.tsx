@@ -17,9 +17,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Profile = lazy(() => import('./pages/Profile'));
-const UserSessions = lazy(() => import('./pages/UserSessions'));
-const SessionSelector = lazy(() => import('./pages/SessionSelector'));
-const SessionComparison = lazy(() => import('./pages/SessionComparison'));
+// Session management pages removed - using Firebase only
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient({
@@ -85,30 +83,7 @@ const App = () => (
                             </ProtectedRoute>
                           }
                         />
-                        <Route
-                          path="/sessions"
-                          element={
-                            <ProtectedRoute>
-                              <UserSessions />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/sessions/select"
-                          element={
-                            <ProtectedRoute>
-                              <SessionSelector />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/sessions/compare"
-                          element={
-                            <ProtectedRoute>
-                              <SessionComparison />
-                            </ProtectedRoute>
-                          }
-                        />
+                        {/* Session management routes removed - Firebase only setup */}
 
                         {/* Catch-all route */}
                         <Route path="*" element={<NotFound />} />

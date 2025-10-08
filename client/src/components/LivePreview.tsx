@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useApi } from '../hooks/useApi';
+import { useFirebase } from '../hooks/useFirebase';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
@@ -90,7 +90,7 @@ export const LivePreview = () => {
   const { sessionData, completeSession } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
-  const { createSession, loading } = useApi();
+  const { createSession, loading } = useFirebase();
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
 

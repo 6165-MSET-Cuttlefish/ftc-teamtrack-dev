@@ -133,11 +133,7 @@ const Profile: React.FC = () => {
                   <p
                     className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
-                    {user.metadata?.creationTime
-                      ? new Date(
-                          user.metadata.creationTime
-                        ).toLocaleDateString()
-                      : 'Unknown'}
+                    Unknown
                   </p>
                 </div>
               </div>
@@ -157,11 +153,7 @@ const Profile: React.FC = () => {
                   <p
                     className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
-                    {user.emailVerified ? (
-                      <span className="text-green-600">✓ Verified</span>
-                    ) : (
-                      <span className="text-red-600">✗ Not verified</span>
-                    )}
+                    <span className="text-gray-600">Unknown</span>
                   </p>
                 </div>
               </div>
