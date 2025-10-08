@@ -3,7 +3,6 @@ import { PerformanceMetrics } from '../components/PerformanceMetrics';
 import { Notes } from '../components/Notes';
 import { LivePreview } from '../components/LivePreview';
 import { useTheme } from '../contexts/ThemeContext';
-import { useSession } from '../contexts/SessionContext';
 
 const OriginalContent = () => {
   const { isDarkMode } = useTheme();
