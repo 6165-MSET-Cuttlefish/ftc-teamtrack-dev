@@ -303,23 +303,28 @@ export const PerformanceMetrics = () => {
         return (
           <div className="space-y-8">
             <InlineBreakdownField
-              label="Basket (8 pts each)"
+              label="Classified Artifact (3 pts each)"
               value={autonomousBasket}
               onChange={setAutonomousBasket}
               hasHButton
               toggleKey="autonomousBasket"
             />
             <InlineBreakdownField
-              label="Specimen (10 pts each)"
+              label="Overflow Artifact (1 pt each)"
               value={autonomousSpecimen}
               onChange={setAutonomousSpecimen}
               hasHButton
               toggleKey="autonomousSpecimen"
             />
             <InlineBreakdownField
-              label="Floor Mark (1 pt each)"
+              label="Motif (2 pts each)"
               value={autonomousFloorMark}
               onChange={setAutonomousFloorMark}
+            />
+            <InlineBreakdownField
+              label="Leave (3 pts each)"
+              value={autonomousLeave}
+              onChange={setAutonomousLeave}
             />
           </div>
         );
@@ -327,19 +332,19 @@ export const PerformanceMetrics = () => {
         return (
           <div className="space-y-8">
             <InlineBreakdownField
-              label="Additional Samples (8 pts each)"
+              label="Classified Artifact (3 pts each)"
               value={teleOpSamples}
               onChange={setTeleOpSamples}
               hasHButton
               toggleKey="teleOpSamples"
             />
             <InlineBreakdownField
-              label="Additional Specimen (10 pts each)"
+              label="Overflow Artifact (1 pt each)"
               value={teleOpSpecimen}
               onChange={setTeleOpSpecimen}
             />
             <InlineBreakdownField
-              label="Additional Floor Mark (1 pt each)"
+              label="Motif (2 pts each)"
               value={teleOpFloorMark}
               onChange={setTeleOpFloorMark}
             />
@@ -349,9 +354,9 @@ export const PerformanceMetrics = () => {
         return (
           <div className="space-y-8">
             <InlineBreakdownField
-              label="End Game Points"
+              label="Base Score"
               value={endGameValue}
-              onChange={handleEndGameChange}
+              onChange={setEndGameValue}
             />
           </div>
         );
