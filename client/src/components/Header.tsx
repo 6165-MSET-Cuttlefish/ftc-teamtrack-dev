@@ -117,9 +117,10 @@ const BackButton = () => {
   const navigate = useNavigate();
   const { sessionData } = useSession();
 
-  // Show back button only if there's an active (not completed) session and user is not already on the /original page
-  if (!sessionData || sessionData.isSessionCompleted) return null;
+  const fromActiveState = (location && (location.state as any)?.fromActiveSession) || false;
+  // Show back button if navigated from active session OR there is an active (not completed) session, and user not on /original
   if (location.pathname === '/original') return null;
+  if (!fromActiveState && (!sessionData || sessionData.isSessionCompleted)) return null;
 
   return (
     <button
