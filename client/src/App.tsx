@@ -19,6 +19,7 @@ import UserSessions from './pages/UserSessions';
 import SessionSelector from './pages/SessionSelector';
 import SessionComparison from './pages/SessionComparison';
 import NotFound from './pages/NotFound';
+import { Header } from './components/Header';
 
 const queryClient = new QueryClient();
 
