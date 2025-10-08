@@ -101,12 +101,22 @@ export const SessionSetup = () => {
             onChange={setSessionDuration}
             type="decimal"
           />
-          <FormField
-            label="Match Type"
-            placeholder="Autonomous"
-            value={sessionData.matchType}
-            onChange={setMatchType}
-          />
+          <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+            <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              Match Type
+            </label>
+            <Select value={sessionData.matchType} onValueChange={setMatchType}>
+              <SelectTrigger className={`w-full ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : ''}`}>
+                <SelectValue placeholder="Select match type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Autonomous">Autonomous</SelectItem>
+                <SelectItem value="Teleop">Teleop</SelectItem>
+                <SelectItem value="Full Game">Full Game</SelectItem>
+                <SelectItem value="Practice">Practice</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
     </div>
