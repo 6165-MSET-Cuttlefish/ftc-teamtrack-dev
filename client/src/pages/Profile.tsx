@@ -133,7 +133,7 @@ const Profile: React.FC = () => {
                   <p
                     className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
-                    {user.metadata.creationTime
+                    {user.metadata?.creationTime
                       ? new Date(
                           user.metadata.creationTime
                         ).toLocaleDateString()

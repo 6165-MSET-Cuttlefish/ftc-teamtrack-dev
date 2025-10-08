@@ -6,25 +6,31 @@ import React, {
   ReactNode,
 } from 'react';
 import getFirebase from '../lib/firebase';
+import type { User } from '../../../shared/types/auth';
+import type { 
+  Auth, 
+  User as FirebaseUser, 
+  UserCredential,
+  GoogleAuthProvider as FirebaseGoogleAuthProvider
+} from 'firebase/auth';
 
 // Types for functions we may dynamically import
 type FirebaseAuthModule = {
-  User?: any;
-  signInWithEmailAndPassword?: any;
-  createUserWithEmailAndPassword?: any;
-  signOut?: any;
-  onAuthStateChanged?: any;
-  updateProfile?: any;
-  sendPasswordResetEmail?: any;
-  GoogleAuthProvider?: any;
-  signInWithPopup?: any;
+  signInWithEmailAndPassword?: (auth: Auth, email: string, password: string) => Promise<UserCredential>;
+  createUserWithEmailAndPassword?: (auth: Auth, email: string, password: string) => Promise<UserCredential>;
+  signOut?: (auth: Auth) => Promise<void>;
+  onAuthStateChanged?: (auth: Auth, callback: (user: FirebaseUser | null) => void) => () => void;
+  updateProfile?: (user: FirebaseUser, profile: { displayName?: string; photoURL?: string }) => Promise<void>;
+  sendPasswordResetEmail?: (auth: Auth, email: string) => Promise<void>;
+  GoogleAuthProvider?: new () => FirebaseGoogleAuthProvider;
+  signInWithPopup?: (auth: Auth, provider: FirebaseGoogleAuthProvider) => Promise<UserCredential>;
 };
 
 let firebaseAuthModule: FirebaseAuthModule | null = null; // populated when available
-let firebaseAuth: any = null; // the auth instance if available
+let firebaseAuth: Auth | null = null; // the auth instance if available
 
 interface AuthContextType {
-  user: any | null;
+  user: User | null;
   loading: boolean;
   signup: (
     email: string,
@@ -50,7 +56,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Helper to lazy-initialize Firebase auth and auth module
@@ -137,13 +143,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
-    let unsubscribe: any = () => {};
+    let unsubscribe: (() => void) = () => {};
 
     (async () => {
       const { authInstance, authModule } = await ensureAuth();
       if (authInstance && authModule && authModule.onAuthStateChanged) {
-        unsubscribe = authModule.onAuthStateChanged(authInstance, (u: any) => {
-          setUser(u);
+        unsubscribe = authModule.onAuthStateChanged(authInstance, (u: FirebaseUser | null) => {
+          if (u) {
+            const user: User = {
+              uid: u.uid,
+              email: u.email,
+              displayName: u.displayName,
+              photoURL: u.photoURL,
+              emailVerified: u.emailVerified,
+              metadata: {
+                creationTime: u.metadata.creationTime,
+                lastSignInTime: u.metadata.lastSignInTime,
+              },
+            };
+            setUser(user);
+          } else {
+            setUser(null);
+          }
           setLoading(false);
         });
       } else {

@@ -22,7 +22,6 @@ export async function getFirebase() {
     return { app, auth, db };
   } catch (err) {
     // Firebase not available — return null so callers can fallback
-    // eslint-disable-next-line no-console
     console.warn('Firebase not initialized:', err);
     return null;
   }

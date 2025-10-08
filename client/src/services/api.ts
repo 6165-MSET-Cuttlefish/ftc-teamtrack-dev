@@ -1,5 +1,5 @@
 function getApiBase() {
-  const g = globalThis as any;
+  const g = globalThis as typeof globalThis & { __API_BASE?: string };
   if (g.__API_BASE) return g.__API_BASE;
   const envUrl = import.meta.env.VITE_API_URL || '';
   let val = envUrl || '/api';
@@ -14,7 +14,7 @@ function getApiBase() {
         val = '/api';
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   g.__API_BASE = val;
@@ -24,16 +24,16 @@ function getApiBase() {
 class ApiService {
   private cache = new Map<
     string,
-    { data: any; timestamp: number; ttl: number }
+    { data: unknown; timestamp: number; ttl: number }
   >();
-  private requestQueue = new Map<string, Promise<any>>();
+  private requestQueue = new Map<string, Promise<unknown>>();
   private rateLimiter = {
     requests: new Map<string, number[]>(),
     maxRequests: 10, // Max requests per window
     windowMs: 60000, // 1 minute window
   };
 
-  private getCacheKey(endpoint: string, options?: any): string {
+  private getCacheKey(endpoint: string, options?: Record<string, unknown>): string {
     return `${endpoint}_${JSON.stringify(options || {})}`;
   }
 
@@ -60,7 +60,7 @@ class ApiService {
   private getCachedData<T>(key: string): T | null {
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      return cached.data;
+      return cached.data as T;
     }
     if (cached) {
       this.cache.delete(key);
@@ -81,21 +81,19 @@ class ApiService {
     options?: RequestInit,
     cacheTtl?: number
   ): Promise<T> {
-    const cacheKey = this.getCacheKey(endpoint, options?.body);
+    const cacheKey = this.getCacheKey(endpoint, options?.body ? { body: options.body } : undefined);
 
     // Check cache first for GET requests
     if (!options?.method || options.method === 'GET') {
       const cachedData = this.getCachedData<T>(cacheKey);
       if (cachedData) {
-        console.log(`Cache hit for ${endpoint}`);
         return cachedData;
       }
     }
 
     // Check if already making this request (deduplication)
     if (this.requestQueue.has(cacheKey)) {
-      console.log(`Deduplicating request for ${endpoint}`);
-      return this.requestQueue.get(cacheKey);
+      return this.requestQueue.get(cacheKey) as Promise<T>;
     }
 
     // Rate limiting check
@@ -160,7 +158,7 @@ class ApiService {
             // Also try explicit env + /api prefix
             fallbackCandidates.push(`${trimmed}/api${endpoint}`);
           }
-        } catch (e) {
+        } catch {
           // ignore
         }
 

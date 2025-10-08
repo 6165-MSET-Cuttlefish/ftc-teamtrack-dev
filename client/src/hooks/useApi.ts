@@ -79,7 +79,7 @@ export const useApi = () => {
 
   const getUserSessionStats = useCallback(
     (userId: string) =>
-      execute(() => (apiService as any).getUserSessionStats?.(userId)),
+      execute(() => apiService.getUserSessionStats(userId)),
     [execute]
   );
 

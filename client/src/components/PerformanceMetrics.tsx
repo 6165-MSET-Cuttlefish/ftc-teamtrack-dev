@@ -276,11 +276,6 @@ export const PerformanceMetrics = () => {
     );
   };
 
-  const handleEndGameChange = (value: number) => {
-    // Base score should be entered by the user directly (no automatic snapping)
-    setEndGameValue(value);
-  };
-
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const toggleSection = (metricType: string) =>
     setExpandedSection(expandedSection === metricType ? null : metricType);

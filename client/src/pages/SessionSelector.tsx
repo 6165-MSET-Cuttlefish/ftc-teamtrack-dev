@@ -30,7 +30,6 @@ import {
   Filter,
   Search,
   CheckSquare,
-  ArrowLeft,
   BarChart3,
   Eye,
   GitCompare,

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -120,7 +119,7 @@ const BackButton = () => {
   const { isDarkMode } = useTheme();
 
   const fromActiveState =
-    (location && (location.state as any)?.fromActiveSession) || false;
+    (location && (location.state as { fromActiveSession?: boolean })?.fromActiveSession) || false;
   // Show back button if navigated from active session OR there is an active (not completed) session, and user not on /original
   if (location.pathname === '/original') return null;
   if (!fromActiveState && (!sessionData || sessionData.isSessionCompleted))

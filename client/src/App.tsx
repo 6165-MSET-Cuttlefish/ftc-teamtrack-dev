@@ -1,4 +1,3 @@
-import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -12,8 +11,6 @@ import { Header } from './components/Header';
 
 // Lazy load pages for better performance
 import { lazy, Suspense } from 'react';
-
-const Index = lazy(() => import('./pages/Index'));
 const Original = lazy(() => import('./pages/Original'));
 const Analysis = lazy(() => import('./pages/Analysis'));
 const Login = lazy(() => import('./pages/Login'));

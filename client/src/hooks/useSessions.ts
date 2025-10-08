@@ -53,7 +53,7 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
   // Add throttling and request deduplication
   const lastFetchTime = useRef<number>(0);
   const minFetchInterval = 5000; // Minimum 5 seconds between fetches
-  const pendingRequest = useRef<Promise<any> | null>(null);
+  const pendingRequest = useRef<Promise<void> | null>(null);
 
   const loadSessions = useCallback(
     async (page = 0, append = false) => {
@@ -62,16 +62,14 @@ export const useSessions = (options: UseSessionsOptions = {}) => {
       // Throttling: prevent too frequent requests
       const now = Date.now();
       if (now - lastFetchTime.current < minFetchInterval && !append) {
-        console.log('Request throttled - too frequent');
         return;
       }
 
       // Deduplication: if there's already a pending request, wait for it
       if (pendingRequest.current && !append) {
-        console.log('Request deduplicated - waiting for pending request');
         try {
           await pendingRequest.current;
-        } catch (error) {
+        } catch {
           // Ignore errors from pending requests
         }
         return;
