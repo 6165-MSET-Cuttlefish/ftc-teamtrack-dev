@@ -1,6 +1,5 @@
 import { SessionSetup } from '../components/SessionSetup';
 import { PerformanceMetrics } from '../components/PerformanceMetrics';
-import { PerformanceMetrics } from '../components/PerformanceMetrics';
 import { Notes } from '../components/Notes';
 import { LivePreview } from '../components/LivePreview';
 import { SessionProvider } from '../contexts/SessionContext';
