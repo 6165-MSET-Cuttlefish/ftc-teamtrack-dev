@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/select';
 
 const FormField = ({
   label,
