@@ -59,6 +59,7 @@ const FormField = ({
 
 export const SessionSetup = () => {
   const { sessionData, updateSessionData } = useSession();
+  const { isDarkMode } = useTheme();
 
   const setSessionName = (value: string) =>
     updateSessionData({ sessionName: value });
