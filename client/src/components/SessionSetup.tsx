@@ -1,7 +1,13 @@
 import React from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/select';
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from './ui/select';
 
 const FormField = ({
   label,
@@ -106,11 +112,18 @@ export const SessionSetup = () => {
           </div>
           <div className="flex-1">
             <div className="flex flex-col gap-2">
-              <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <label
+                className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+              >
                 Match Type
               </label>
-              <Select value={sessionData.matchType} onValueChange={setMatchType}>
-                <SelectTrigger className={`w-full px-2.5 py-2.5 rounded border border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'}`}>
+              <Select
+                value={sessionData.matchType}
+                onValueChange={setMatchType}
+              >
+                <SelectTrigger
+                  className={`w-full px-2.5 py-2.5 rounded border border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'}`}
+                >
                   <SelectValue placeholder="Select match type" />
                 </SelectTrigger>
                 <SelectContent>

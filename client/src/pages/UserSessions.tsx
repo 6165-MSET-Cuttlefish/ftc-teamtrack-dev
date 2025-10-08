@@ -119,11 +119,15 @@ const UserSessions: React.FC = () => {
       if (user?.uid) {
         try {
           const result = await getSessions(user.uid);
-          
+
           // Handle both array format (legacy) and object format (with pagination)
           if (Array.isArray(result)) {
             setSessions(result);
-          } else if (result && typeof result === 'object' && 'sessions' in result) {
+          } else if (
+            result &&
+            typeof result === 'object' &&
+            'sessions' in result
+          ) {
             setSessions(result.sessions as Session[]);
           } else {
             setSessions([]);
@@ -402,9 +406,7 @@ const UserSessions: React.FC = () => {
           </div>
         </div>
 
-        <div
-          className={`grid gap-6 md:grid-cols-2 lg:grid-cols-3`}
-        >
+        <div className={`grid gap-6 md:grid-cols-2 lg:grid-cols-3`}>
           {loading ? (
             // Keep skeletons rendered with fixed height to avoid layout shifts
             [...Array(6)].map((_, i) => (

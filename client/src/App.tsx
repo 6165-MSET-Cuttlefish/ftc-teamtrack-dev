@@ -41,7 +41,10 @@ const App = () => (
                   <Route path="/forgot-password" element={<ForgotPassword />} />
 
                   {/* Protected Routes */}
-                  <Route path="/" element={<Navigate to="/original" replace />} />
+                  <Route
+                    path="/"
+                    element={<Navigate to="/original" replace />}
+                  />
                   <Route
                     path="/original"
                     element={
