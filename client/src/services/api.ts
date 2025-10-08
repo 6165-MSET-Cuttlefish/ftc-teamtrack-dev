@@ -135,6 +135,8 @@ class ApiService {
           if (typeof window !== 'undefined') {
             const origin = window.location.origin;
             fallbackCandidates.push(`${origin}${endpoint}`);
+            // Try common API mount point
+            fallbackCandidates.push(`${origin}/api${endpoint}`);
             fallbackCandidates.push(`${origin}/.netlify/functions/api${endpoint}`);
           }
 
@@ -144,6 +146,8 @@ class ApiService {
             // Ensure proper slash handling
             const trimmed = explicitEnv.replace(/\/$/, '');
             fallbackCandidates.push(`${trimmed}${endpoint}`);
+            // Also try explicit env + /api prefix
+            fallbackCandidates.push(`${trimmed}/api${endpoint}`);
           }
         } catch (e) {
           // ignore
