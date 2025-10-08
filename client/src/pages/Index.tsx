@@ -13,7 +13,7 @@ export default function Index() {
           </p>
         </div>
 
-        <div className="flex gap-12">
+        <div className="flex gap-12 justify-center">
           <Link
             to="/original"
             className="flex flex-col items-center gap-6 p-8 rounded-2xl border border-team-blue-40 bg-team-dark-20 hover:bg-team-blue-10 transition-colors"
