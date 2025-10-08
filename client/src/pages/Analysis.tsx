@@ -297,11 +297,5 @@ const AnalysisContent = () => {
 };
 
 export default function Analysis() {
-  return (
-    <ThemeProvider>
-      <SessionProvider>
-        <AnalysisContent />
-      </SessionProvider>
-    </ThemeProvider>
-  );
+  return <AnalysisContent />;
 }
