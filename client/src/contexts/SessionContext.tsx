@@ -20,6 +20,7 @@ interface SessionData {
   autonomousBasket: number;
   autonomousSpecimen: number;
   autonomousFloorMark: number;
+  autonomousLeave: number;
   teleOpSamples: number;
   teleOpSpecimen: number;
   teleOpFloorMark: number;
