@@ -25,8 +25,28 @@ import {
 
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
+  const { sessionData } = require('../contexts/SessionContext').useSession ? require('../contexts/SessionContext') : { sessionData: null };
+  // use dynamic import to avoid circular dependency at module load
+  // We'll use react-router's useNavigate
+  const navigate = require('react-router-dom').useNavigate();
+
+  const handleClick = () => {
+    try {
+      const ctx = require('../contexts/SessionContext');
+      const session = ctx.useSession ? ctx.useSession().sessionData : sessionData;
+      if (session && !session.isSessionCompleted) {
+        navigate('/original');
+      } else {
+        navigate('/sessions');
+      }
+    } catch (e) {
+      // Fallback navigation
+      navigate('/sessions');
+    }
+  };
+
   return (
-    <div className="flex items-center gap-6">
+    <button onClick={handleClick} className="flex items-center gap-6 focus:outline-none">
       <div className="flex items-center gap-2.5">
         <svg
           width="8"
@@ -75,7 +95,7 @@ const TeamTrackLogo = () => {
           TeamTrack
         </span>
       </div>
-    </div>
+    </button>
   );
 };
 
