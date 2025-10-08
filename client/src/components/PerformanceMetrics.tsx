@@ -273,11 +273,8 @@ export const PerformanceMetrics = () => {
   };
 
   const handleEndGameChange = (value: number) => {
-    const allowedValues = [0, 5, 15, 30];
-    const closest = allowedValues.reduce((prev, curr) =>
-      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
-    );
-    setEndGameValue(closest);
+    // Base score should be entered by the user directly (no automatic snapping)
+    setEndGameValue(value);
   };
 
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
