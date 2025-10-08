@@ -107,7 +107,7 @@ export const SessionSetup = () => {
               Match Type
             </label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
-              <SelectTrigger className={`w-full ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : ''}`}>
+              <SelectTrigger className={`w-full h-10 px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'}`}>
                 <SelectValue placeholder="Select match type" />
               </SelectTrigger>
               <SelectContent>
