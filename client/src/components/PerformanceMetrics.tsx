@@ -130,6 +130,7 @@ export const PerformanceMetrics = () => {
   const [autonomousBasket, setAutonomousBasket] = useState(0);
   const [autonomousSpecimen, setAutonomousSpecimen] = useState(0);
   const [autonomousFloorMark, setAutonomousFloorMark] = useState(0);
+  const [autonomousLeave, setAutonomousLeave] = useState(0);
 
   const [teleOpSamples, setTeleOpSamples] = useState(0);
   const [teleOpSpecimen, setTeleOpSpecimen] = useState(0);
@@ -144,13 +145,20 @@ export const PerformanceMetrics = () => {
   });
 
   useEffect(() => {
+    // New scoring multipliers:
+    // Classified Artifact = 3 pts
+    // Overflow Artifact = 1 pt
+    // Motif = 2 pts
+    // Leave = 3 pts (autonomous only)
     const autonomousScore =
-      autonomousBasket * 8 + autonomousSpecimen * 10 + autonomousFloorMark * 1;
-    const totalSpecimen = autonomousSpecimen + teleOpSpecimen;
-    const totalSamples = teleOpSamples;
-    const totalFloorMark = autonomousFloorMark + teleOpFloorMark;
+      autonomousBasket * 3 +
+      autonomousSpecimen * 1 +
+      autonomousFloorMark * 2 +
+      autonomousLeave * 3;
+
     const teleOpScore =
-      totalSamples * 8 + totalSpecimen * 10 + totalFloorMark * 1;
+      teleOpSamples * 3 + teleOpSpecimen * 1 + teleOpFloorMark * 2;
+
     const finalScore = autonomousScore + teleOpScore + endGameValue;
 
     updateSessionData({
@@ -161,6 +169,7 @@ export const PerformanceMetrics = () => {
       autonomousBasket,
       autonomousSpecimen,
       autonomousFloorMark,
+      autonomousLeave,
       teleOpSamples,
       teleOpSpecimen,
       teleOpFloorMark,
@@ -170,6 +179,7 @@ export const PerformanceMetrics = () => {
     autonomousBasket,
     autonomousSpecimen,
     autonomousFloorMark,
+    autonomousLeave,
     teleOpSamples,
     teleOpSpecimen,
     teleOpFloorMark,
