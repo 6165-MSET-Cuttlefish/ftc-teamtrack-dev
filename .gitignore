@@ -30,7 +30,3 @@ dist-ssr
 backend/serviceAccountKey.json
 backend/.env
 backend/node_modules
-
-# Firebase
-.firebase/
-client/404.html
