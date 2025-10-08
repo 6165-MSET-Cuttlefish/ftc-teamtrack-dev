@@ -9,7 +9,7 @@ const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
   return (
     <div
-      className={`flex flex-col items-center gap-4 px-9 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue bg-[#FEFEFE]'}`}
+      className={`flex flex-col items-center gap-4 px-9 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
       <div className="text-team-blue text-3xl font-medium leading-6">
         {value}
