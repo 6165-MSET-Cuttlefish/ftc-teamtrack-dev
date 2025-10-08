@@ -201,12 +201,14 @@ export const PerformanceMetrics = () => {
     onChange,
     hasHButton = false,
     toggleKey,
+    isBinary = false,
   }: {
     label: string;
     value: number;
     onChange: (value: number) => void;
     hasHButton?: boolean;
     toggleKey?: string;
+    isBinary?: boolean;
   }) => {
     const { isDarkMode } = useTheme();
 
@@ -241,32 +243,34 @@ export const PerformanceMetrics = () => {
             placeholder="0"
             className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-black'}`}
           />
-          <div className="flex items-center gap-1">
-            {hasHButton && (
-              <button
-                onClick={handleToggle}
-                className="flex items-center justify-center px-1 py-1 rounded hover:bg-team-white-10 transition-colors"
-              >
-                <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
-                  {isHighNet ? 'H' : 'L'}
-                </span>
-              </button>
-            )}
-            <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
-              <button
-                onClick={() => handleIncrement(value, onChange)}
-                className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-              >
-                <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
-              </button>
-              <button
-                onClick={() => handleDecrement(value, onChange)}
-                className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-              >
-                <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
-              </button>
+          {!isBinary && (
+            <div className="flex items-center gap-1">
+              {hasHButton && (
+                <button
+                  onClick={handleToggle}
+                  className="flex items-center justify-center px-1 py-1 rounded hover:bg-team-white-10 transition-colors"
+                >
+                  <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
+                    {isHighNet ? 'H' : 'L'}
+                  </span>
+                </button>
+              )}
+              <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
+                <button
+                  onClick={() => handleIncrement(value, onChange)}
+                  className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
+                >
+                  <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
+                </button>
+                <button
+                  onClick={() => handleDecrement(value, onChange)}
+                  className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
+                >
+                  <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     );
