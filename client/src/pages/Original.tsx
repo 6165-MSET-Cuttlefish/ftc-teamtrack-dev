@@ -2,8 +2,8 @@ import { SessionSetup } from '../components/SessionSetup';
 import { PerformanceMetrics } from '../components/PerformanceMetrics';
 import { Notes } from '../components/Notes';
 import { LivePreview } from '../components/LivePreview';
-import { SessionProvider } from '../contexts/SessionContext';
-import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useSession } from '../contexts/SessionContext';
 
 const OriginalContent = () => {
   const { isDarkMode } = useTheme();
