@@ -49,11 +49,5 @@ const OriginalContent = () => {
 };
 
 export default function Original() {
-  return (
-    <ThemeProvider>
-      <SessionProvider>
-        <OriginalContent />
-      </SessionProvider>
-    </ThemeProvider>
-  );
+  return <OriginalContent />;
 }
