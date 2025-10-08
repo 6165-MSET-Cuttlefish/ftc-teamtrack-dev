@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession, SessionProvider } from '../contexts/SessionContext';
 import { useTheme, ThemeProvider } from '../contexts/ThemeContext';
-import { Header } from '../components/Header';
 import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
