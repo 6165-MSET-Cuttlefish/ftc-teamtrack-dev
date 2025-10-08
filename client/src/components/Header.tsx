@@ -38,7 +38,10 @@ const TeamTrackLogo = () => {
   };
 
   return (
-    <button onClick={handleClick} className="flex items-center gap-6 focus:outline-none">
+    <button
+      onClick={handleClick}
+      className="flex items-center gap-6 focus:outline-none"
+    >
       <div className="flex items-center gap-2.5">
         <svg
           width="8"
@@ -95,7 +98,9 @@ const SearchBox = () => {
   const { isDarkMode } = useTheme();
   const iconClass = 'text-team-blue-40';
   const textClass = 'text-team-blue-40';
-  const borderClass = isDarkMode ? 'border-team-white-20' : 'border-team-blue/60';
+  const borderClass = isDarkMode
+    ? 'border-team-white-20'
+    : 'border-team-blue/60';
 
   return (
     <div

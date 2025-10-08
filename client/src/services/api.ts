@@ -22,7 +22,10 @@ function getApiBase() {
 }
 
 class ApiService {
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+  private cache = new Map<
+    string,
+    { data: any; timestamp: number; ttl: number }
+  >();
   private requestQueue = new Map<string, Promise<any>>();
   private rateLimiter = {
     requests: new Map<string, number[]>(),
@@ -37,11 +40,13 @@ class ApiService {
   private isRateLimited(endpoint: string): boolean {
     const now = Date.now();
     const requests = this.rateLimiter.requests.get(endpoint) || [];
-    
+
     // Remove old requests outside the window
-    const validRequests = requests.filter(time => now - time < this.rateLimiter.windowMs);
+    const validRequests = requests.filter(
+      time => now - time < this.rateLimiter.windowMs
+    );
     this.rateLimiter.requests.set(endpoint, validRequests);
-    
+
     return validRequests.length >= this.rateLimiter.maxRequests;
   }
 
@@ -77,7 +82,7 @@ class ApiService {
     cacheTtl?: number
   ): Promise<T> {
     const cacheKey = this.getCacheKey(endpoint, options?.body);
-    
+
     // Check cache first for GET requests
     if (!options?.method || options.method === 'GET') {
       const cachedData = this.getCachedData<T>(cacheKey);
@@ -95,8 +100,12 @@ class ApiService {
 
     // Rate limiting check
     if (this.isRateLimited(endpoint)) {
-      console.warn(`Rate limited for ${endpoint}. Please wait before making more requests.`);
-      throw new Error(`Too many requests to ${endpoint}. Please wait a moment.`);
+      console.warn(
+        `Rate limited for ${endpoint}. Please wait before making more requests.`
+      );
+      throw new Error(
+        `Too many requests to ${endpoint}. Please wait a moment.`
+      );
     }
 
     const url = `${getApiBase()}${endpoint}`;
@@ -137,7 +146,9 @@ class ApiService {
             fallbackCandidates.push(`${origin}${endpoint}`);
             // Try common API mount point
             fallbackCandidates.push(`${origin}/api${endpoint}`);
-            fallbackCandidates.push(`${origin}/.netlify/functions/api${endpoint}`);
+            fallbackCandidates.push(
+              `${origin}/.netlify/functions/api${endpoint}`
+            );
           }
 
           const explicitEnv = import.meta.env.VITE_API_URL || '';
@@ -167,7 +178,9 @@ class ApiService {
           // All attempts failed
           if (method === 'GET' && endpoint.startsWith('/sessions'))
             return [] as unknown as T;
-          throw new Error(`Network request failed for initial ${url} and fallbacks: ${fallbackCandidates.join(', ')}`);
+          throw new Error(
+            `Network request failed for initial ${url} and fallbacks: ${fallbackCandidates.join(', ')}`
+          );
         }
 
         if (!response.ok) {
@@ -175,7 +188,9 @@ class ApiService {
             return [] as unknown as T;
           // Include which URL returned the error for easier debugging
           const attemptedUrl = response.url || url;
-          throw new Error(`API call failed: ${response.status} ${response.statusText} at ${attemptedUrl}`);
+          throw new Error(
+            `API call failed: ${response.status} ${response.statusText} at ${attemptedUrl}`
+          );
         }
 
         let result: T;
@@ -190,7 +205,8 @@ class ApiService {
 
         // Cache successful GET requests
         if (method === 'GET' && result) {
-          const ttl = cacheTtl || (endpoint.startsWith('/sessions') ? 30000 : 60000); // 30s for sessions, 1m for others
+          const ttl =
+            cacheTtl || (endpoint.startsWith('/sessions') ? 30000 : 60000); // 30s for sessions, 1m for others
           this.setCachedData(cacheKey, result, ttl);
         }
 
@@ -233,24 +249,28 @@ class ApiService {
   ) {
     try {
       const searchParams = new URLSearchParams();
-      
+
       if (userId) {
         searchParams.append('userId', userId);
       }
-      
+
       if (options) {
-        if (options.limit) searchParams.append('limit', options.limit.toString());
-        if (options.offset) searchParams.append('offset', options.offset.toString());
+        if (options.limit)
+          searchParams.append('limit', options.limit.toString());
+        if (options.offset)
+          searchParams.append('offset', options.offset.toString());
         if (options.sortBy) searchParams.append('sortBy', options.sortBy);
-        if (options.sortOrder) searchParams.append('sortOrder', options.sortOrder);
-        if (options.matchType) searchParams.append('matchType', options.matchType);
+        if (options.sortOrder)
+          searchParams.append('sortOrder', options.sortOrder);
+        if (options.matchType)
+          searchParams.append('matchType', options.matchType);
         if (options.dateFrom) searchParams.append('dateFrom', options.dateFrom);
         if (options.dateTo) searchParams.append('dateTo', options.dateTo);
       }
 
       const params = searchParams.toString();
       const endpoint = `/sessions${params ? `?${params}` : ''}`;
-      
+
       // Use longer cache for sessions data since it doesn't change frequently
       return await this.request(endpoint, undefined, 45000); // 45 second cache
     } catch (err) {
