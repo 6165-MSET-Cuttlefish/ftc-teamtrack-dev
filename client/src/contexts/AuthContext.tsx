@@ -145,10 +145,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       throw new Error('Auth not configured');
     }
     const provider = new authModule.GoogleAuthProvider();
-    // Add additional scopes if needed
-    provider.addScope('profile');
-    provider.addScope('email');
-    
     await authModule.signInWithPopup(authInstance, provider);
   };
 
