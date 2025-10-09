@@ -7,15 +7,29 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependency directories
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -23,10 +37,17 @@ dist-ssr
 *.sln
 *.sw?
 
-.config/
-!.env
+# Cache and temporary files
+.cache/
+.temp/
+.tmp/
+*.tsbuildinfo
 
-# Backend specific
-backend/serviceAccountKey.json
-backend/.env
-backend/node_modules
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# OS generated files
+Thumbs.db
+ehthumbs.db

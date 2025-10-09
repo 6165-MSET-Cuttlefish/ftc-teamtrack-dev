@@ -16,7 +16,8 @@ const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Profile = lazy(() => import('./pages/Profile'));
-// Session management pages removed - using Firebase only
+const Sessions = lazy(() => import('./pages/Sessions'));
+const SessionsSelect = lazy(() => import('./pages/SessionsSelect'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
@@ -72,7 +73,22 @@ const App = () => (
                             </ProtectedRoute>
                           }
                         />
-                        {/* Session management routes removed - Firebase only setup */}
+                        <Route
+                          path="/sessions"
+                          element={
+                            <ProtectedRoute>
+                              <Sessions />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/sessions/select"
+                          element={
+                            <ProtectedRoute>
+                              <SessionsSelect />
+                            </ProtectedRoute>
+                          }
+                        />
 
                         {/* Catch-all route */}
                         <Route path="*" element={<NotFound />} />
