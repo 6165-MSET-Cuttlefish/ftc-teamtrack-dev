@@ -1,6 +1,5 @@
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -20,15 +19,6 @@ const Profile = lazy(() => import('./pages/Profile'));
 // Session management pages removed - using Firebase only
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
-
 // Loading component
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -37,17 +27,16 @@ const LoadingFallback = () => (
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <ErrorBoundary>
-        <ThemeProvider>
-          <AuthProvider>
-            <SessionProvider>
-              <BrowserRouter>
-                <div className="min-h-screen flex flex-col">
-                  <Header />
-                  <main className="flex-1">
-                    <Suspense fallback={<LoadingFallback />}>
+  <TooltipProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <SessionProvider>
+            <BrowserRouter>
+              <div className="min-h-screen flex flex-col">
+                <Header />
+                <main className="flex-1">
+                  <Suspense fallback={<LoadingFallback />}>
                       <Routes>
                         {/* Public Routes */}
                         <Route path="/login" element={<Login />} />
@@ -98,7 +87,6 @@ const App = () => (
         </ThemeProvider>
       </ErrorBoundary>
     </TooltipProvider>
-  </QueryClientProvider>
 );
 
 export default App;

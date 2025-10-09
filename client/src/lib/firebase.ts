@@ -7,13 +7,13 @@ export async function getFirebase() {
     const { getFirestore } = await import('firebase/firestore');
 
     const firebaseConfig = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyA6WhYwzW8quaC9NykmCOAA9tEHc_-KAy8',
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'teamtrack-572e5.firebaseapp.com',
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'teamtrack-572e5',
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'teamtrack-572e5.firebasestorage.app',
       messagingSenderId:
-        import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-      appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+        import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '590917117893',
+      appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:590917117893:web:f14b58885344da4fcf8dac',
     };
 
     const app = initializeApp(firebaseConfig);
