@@ -17,7 +17,6 @@ const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Sessions = lazy(() => import('./pages/Sessions'));
-const SessionsSelect = lazy(() => import('./pages/SessionsSelect'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
@@ -78,14 +77,6 @@ const App = () => (
                           element={
                             <ProtectedRoute>
                               <Sessions />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/sessions/select"
-                          element={
-                            <ProtectedRoute>
-                              <SessionsSelect />
                             </ProtectedRoute>
                           }
                         />

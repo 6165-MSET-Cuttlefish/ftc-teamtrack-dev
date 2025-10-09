@@ -1,13 +1,5 @@
 import React from 'react';
 import { useSession } from '../contexts/SessionContext';
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from './ui/select';
-
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 
@@ -110,23 +102,18 @@ export const SessionSetup = () => {
           <Label htmlFor="match-type" className="text-sm font-medium">
             Match Type
           </Label>
-          <Select
+          <select
+            id="match-type"
             value={sessionData.matchType}
-            onValueChange={setMatchType}
+            onChange={(e) => setMatchType(e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-team-blue focus-visible:ring-offset-2 transition-colors"
           >
-            <SelectTrigger
-              id="match-type"
-              className="transition-colors focus:ring-2 focus:ring-team-blue focus:border-team-blue"
-            >
-              <SelectValue placeholder="Select match type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Autonomous">Autonomous</SelectItem>
-              <SelectItem value="Teleop">Teleop</SelectItem>
-              <SelectItem value="Full Game">Full Game</SelectItem>
-              <SelectItem value="Practice">Practice</SelectItem>
-            </SelectContent>
-          </Select>
+            <option value="">Select match type</option>
+            <option value="Autonomous">Autonomous</option>
+            <option value="Teleop">Teleop</option>
+            <option value="Full Game">Full Game</option>
+            <option value="Practice">Practice</option>
+          </select>
         </div>
       </div>
     </section>
