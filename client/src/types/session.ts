@@ -8,11 +8,18 @@ export interface Session {
   matchType?: string;
   sessionDuration?: string;
   finalScore?: number;
+  autonomousScore?: number;
+  teleOpScore?: number;
+  endGameScore?: number;
   createdAt: Timestamp | string;
-  autonBasket?: number;
-  autonSpeci?: number;
-  teleBasket?: number;
-  teleSpeci?: number;
+  // New scoring system - removed separate basket/specimen scores
+  autonClassifiedArtifact?: number;   // Classified Artifact (3 pts each)
+  autonOverflowArtifact?: number;     // Overflow Artifact (1 pt each)  
+  autonMotif?: number;                // Motif (2 pts each)
+  autonLeave?: number;                // Leave (3 pts)
+  teleClassifiedArtifact?: number;    // Classified Artifact (3 pts each)
+  teleOverflowArtifact?: number;      // Overflow Artifact (1 pt each)
+  teleMotif?: number;                 // Motif (2 pts each)
   endgameHang?: number;
   [key: string]: unknown;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -91,8 +91,10 @@ export const LivePreview = () => {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
+  const navigate = useNavigate();
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -114,6 +116,71 @@ export const LivePreview = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const handleViewAnalysis = async () => {
+    // If we already have a saved session ID, navigate directly
+    if (savedSessionId) {
+      navigate(`/analysis?sessionId=${savedSessionId}`);
+      return;
+    }
+
+    // If session is not completed yet, complete it first then navigate
+    if (!sessionData.isSessionCompleted) {
+      const currentTime = formatTime(timer);
+      setIsTimerRunning(false);
+      completeSession(currentTime);
+
+      // Create and save the session
+      const sessionToSave = {
+        sessionName: sessionData.sessionName.trim() || 'Untitled Session',
+        driverName: sessionData.driverName.trim() || 'Unknown Driver',
+        matchType: sessionData.matchType || 'Practice',
+        sessionDuration: currentTime,
+        userId: user?.uid || '',
+        userEmail: user?.email || '',
+        autonClassifiedArtifact: sessionData.autonomousBasket || 0,
+        autonOverflowArtifact: sessionData.autonomousSpecimen || 0,
+        autonMotif: sessionData.autonomousFloorMark || 0,
+        autonLeave: sessionData.autonomousLeave || 0,
+        teleClassifiedArtifact: sessionData.teleOpSamples || 0,
+        teleOverflowArtifact: sessionData.teleOpSpecimen || 0,
+        teleMotif: sessionData.teleOpFloorMark || 0,
+        endgameHang: sessionData.endGameValue || 0,
+        endgamePark: 0,
+        finalScore: sessionData.finalScore || 0,
+        autonomousScore: sessionData.autonomousScore || 0,
+        teleOpScore: sessionData.teleOpScore || 0,
+        endGameScore: sessionData.endGameScore || 0,
+        completedAt: new Date().toISOString(),
+      };
+
+      try {
+        const result = await createSession(sessionToSave);
+        if (result && result.id) {
+          setSavedSessionId(result.id);
+          navigate(`/analysis?sessionId=${result.id}`);
+        }
+      } catch (error) {
+        console.error("Failed to save session:", error);
+        // Still navigate but show an error - could pass session data through state as fallback
+        navigate('/analysis', { 
+          state: { 
+            sessionData: sessionToSave,
+            isTemporary: true 
+          }
+        });
+      }
+    } else {
+      // Session is completed but we don't have the ID - this shouldn't happen in normal flow
+      // Pass session data through state as fallback
+      navigate('/analysis', { 
+        state: { 
+          sessionData: sessionData,
+          isTemporary: true 
+        }
+      });
+    }
+  };
+
   const handleCompleteSession = async () => {
     const currentTime = formatTime(timer);
     setIsTimerRunning(false);
@@ -131,33 +198,36 @@ export const LivePreview = () => {
       userId: user?.uid || '',
       userEmail: user?.email || '',
 
-      // Autonomous data (map frontend names to backend names)
-      autonBasket: sessionData.autonomousBasket || 0,
-      autonSpeci: sessionData.autonomousSpecimen || 0,
-      autonFloor: sessionData.autonomousFloorMark || 0,
-      autonRung: 0, // Not tracked in frontend currently
-      autonHighRung: 0, // Not tracked in frontend currently
+      // Autonomous data with new scoring system (no more separate basket/specimen)
+      autonClassifiedArtifact: sessionData.autonomousBasket || 0, // Classified Artifact (3 pts each)
+      autonOverflowArtifact: sessionData.autonomousSpecimen || 0,  // Overflow Artifact (1 pt each)
+      autonMotif: sessionData.autonomousFloorMark || 0,            // Motif (2 pts each)
+      autonLeave: sessionData.autonomousLeave || 0,                // Leave (3 pts)
 
-      // TeleOp data (map frontend names to backend names)
-      teleBasket: sessionData.teleOpSamples || 0,
-      teleSpeci: sessionData.teleOpSpecimen || 0,
-      teleNetZone: sessionData.teleOpFloorMark || 0,
-      teleLowRung: 0, // Not tracked in frontend currently
-      teleHighRung: 0, // Not tracked in frontend currently
+      // TeleOp data with new scoring system (no more separate basket/specimen)
+      teleClassifiedArtifact: sessionData.teleOpSamples || 0,      // Classified Artifact (3 pts each)
+      teleOverflowArtifact: sessionData.teleOpSpecimen || 0,       // Overflow Artifact (1 pt each)
+      teleMotif: sessionData.teleOpFloorMark || 0,                 // Motif (2 pts each)
 
       // Endgame data
       endgameHang: sessionData.endGameValue || 0,
       endgamePark: 0, // Not tracked in frontend currently
 
-      // Additional metadata
+      // Score data - both calculated and manually entered scores
       finalScore: sessionData.finalScore || 0,
+      autonomousScore: sessionData.autonomousScore || 0,
+      teleOpScore: sessionData.teleOpScore || 0,
+      endGameScore: sessionData.endGameScore || 0,
+      
+      // Additional metadata
       completedAt: new Date().toISOString(),
     };
 
     try {
       // console.log("Sending session data:", sessionToSave);
       const result = await createSession(sessionToSave);
-      if (result) {
+      if (result && result.id) {
+        setSavedSessionId(result.id);
         // console.log("Session saved successfully to Firestore:", result);
         // You could add a toast notification here for user feedback
       }
@@ -221,13 +291,13 @@ export const LivePreview = () => {
             </button>
           )}
 
-          <Link
-            to="/analysis"
-            state={{ fromActiveSession: !sessionData.isSessionCompleted }}
-            className="inline-block w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors"
+          <button
+            onClick={handleViewAnalysis}
+            disabled={loading}
+            className="w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            View Full Analysis Report
-          </Link>
+            {loading ? 'Loading...' : 'View Full Analysis Report'}
+          </button>
         </div>
       </div>
     </div>

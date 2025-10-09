@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { firebaseService, SessionData } from '../services/firebaseService';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -118,13 +118,26 @@ const BreakdownCard = ({
 const Analysis = () => {
   const { isDarkMode } = useTheme();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const sessionId = searchParams.get('sessionId');
+  const stateData = location.state as { sessionData?: any; isTemporary?: boolean } | null;
 
   useEffect(() => {
     const loadSession = async () => {
+      // Check if session data was passed through state first (for temporary sessions)
+      if (stateData?.sessionData) {
+        setSession(stateData.sessionData);
+        setLoading(false);
+        if (stateData.isTemporary) {
+          toast.info('Showing analysis for current session (not yet saved)');
+        }
+        return;
+      }
+
+      // Otherwise, try to load by sessionId
       if (!sessionId) {
         toast.error('No session selected');
         setLoading(false);
@@ -148,7 +161,7 @@ const Analysis = () => {
     };
 
     loadSession();
-  }, [sessionId]);
+  }, [sessionId, stateData]);
 
   if (loading) {
     return (
@@ -260,15 +273,18 @@ const Analysis = () => {
           <BreakdownCard
             title="Autonomous Period"
             items={[
-              { label: 'Basket Scores', value: session.autonBasket || 0 },
-              { label: 'Specimen Scores', value: session.autonSpeci || 0 }
+              { label: 'Classified Artifact', value: session.autonClassifiedArtifact || 0, color: 'blue-600' },
+              { label: 'Overflow Artifact', value: session.autonOverflowArtifact || 0, color: 'green-600' },
+              { label: 'Motif', value: session.autonMotif || 0, color: 'purple-600' },
+              { label: 'Leave', value: session.autonLeave || 0, color: 'orange-600' }
             ]}
           />
           <BreakdownCard
             title="Teleop Period"
             items={[
-              { label: 'Basket Scores', value: session.teleBasket || 0 },
-              { label: 'Specimen Scores', value: session.teleSpeci || 0 }
+              { label: 'Classified Artifact', value: session.teleClassifiedArtifact || 0, color: 'blue-600' },
+              { label: 'Overflow Artifact', value: session.teleOverflowArtifact || 0, color: 'green-600' },
+              { label: 'Motif', value: session.teleMotif || 0, color: 'purple-600' }
             ]}
           />
         </div>
@@ -300,7 +316,10 @@ const Analysis = () => {
             <CardContent>
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-500 mb-2">
-                  {(session.autonBasket || 0) + (session.autonSpeci || 0)}
+                  {((session.autonClassifiedArtifact || 0) * 3) + 
+                   ((session.autonOverflowArtifact || 0) * 1) + 
+                   ((session.autonMotif || 0) * 2) + 
+                   ((session.autonLeave || 0) * 3)}
                 </div>
                 <p className="text-muted-foreground">Points</p>
               </div>
@@ -316,7 +335,9 @@ const Analysis = () => {
             <CardContent>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-500 mb-2">
-                  {(session.teleBasket || 0) + (session.teleSpeci || 0)}
+                  {((session.teleClassifiedArtifact || 0) * 3) + 
+                   ((session.teleOverflowArtifact || 0) * 1) + 
+                   ((session.teleMotif || 0) * 2)}
                 </div>
                 <p className="text-muted-foreground">Points</p>
               </div>
@@ -338,7 +359,8 @@ const Analysis = () => {
                   Strengths
                 </h4>
                 <ul className="space-y-1 text-muted-foreground">
-                  {(session.autonBasket || 0) > (session.teleBasket || 0) && (
+                  {((session.autonClassifiedArtifact || 0) + (session.autonOverflowArtifact || 0) + (session.autonMotif || 0)) > 
+                   ((session.teleClassifiedArtifact || 0) + (session.teleOverflowArtifact || 0) + (session.teleMotif || 0)) && (
                     <li>• Strong autonomous performance</li>
                   )}
                   {(session.endgameHang || 0) > 0 && (
@@ -347,6 +369,9 @@ const Analysis = () => {
                   {(session.finalScore || 0) > 50 && (
                     <li>• Above-average scoring</li>
                   )}
+                  {(session.autonClassifiedArtifact || 0) > 5 && (
+                    <li>• Excellent classified artifact scoring</li>
+                  )}
                 </ul>
               </div>
               <div>
@@ -354,14 +379,17 @@ const Analysis = () => {
                   Areas for Improvement
                 </h4>
                 <ul className="space-y-1 text-muted-foreground">
-                  {(session.autonBasket || 0) === 0 && (
+                  {((session.autonClassifiedArtifact || 0) + (session.autonOverflowArtifact || 0) + (session.autonMotif || 0)) === 0 && (
                     <li>• Focus on autonomous scoring</li>
                   )}
                   {(session.endgameHang || 0) === 0 && (
                     <li>• Practice endgame hanging</li>
                   )}
-                  {(session.teleSpeci || 0) < (session.teleBasket || 0) && (
-                    <li>• Improve specimen placement</li>
+                  {(session.autonLeave || 0) === 0 && (
+                    <li>• Practice leaving the starting area</li>
+                  )}
+                  {(session.teleMotif || 0) < 2 && (
+                    <li>• Improve motif completion in teleop</li>
                   )}
                 </ul>
               </div>
