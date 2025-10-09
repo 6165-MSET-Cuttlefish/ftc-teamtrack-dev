@@ -8,6 +8,11 @@ export default defineConfig(({ mode: _mode }) => ({
   server: {
     host: 'localhost', // Use localhost instead of IPv6
     port: 8080,
+    headers: {
+      // Fix COOP issues with Firebase Auth popups
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      'Cross-Origin-Embedder-Policy': 'unsafe-none'
+    },
     hmr: {
       // Use polling instead of WebSocket to avoid compression issues
       port: 24678,
