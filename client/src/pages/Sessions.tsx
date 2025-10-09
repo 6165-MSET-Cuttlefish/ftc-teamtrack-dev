@@ -19,19 +19,28 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Type for Firebase timestamp
+interface FirebaseTimestamp {
+  toDate(): Date;
+}
+
 // Helper function to convert timestamp to Date
-const toDate = (timestamp: any): Date => {
+const toDate = (timestamp: unknown): Date => {
   if (!timestamp) return new Date();
   
   if (typeof timestamp === 'string') {
     return new Date(timestamp);
   }
   
-  if (timestamp.toDate && typeof timestamp.toDate === 'function') {
-    return timestamp.toDate();
+  if (typeof timestamp === 'object' && timestamp !== null && 'toDate' in timestamp) {
+    return (timestamp as FirebaseTimestamp).toDate();
   }
   
-  return new Date(timestamp);
+  if (typeof timestamp === 'number' || typeof timestamp === 'string') {
+    return new Date(timestamp);
+  }
+  
+  return new Date();
 };
 
 interface SessionCardProps {
@@ -42,7 +51,7 @@ interface SessionCardProps {
 const SessionCard = ({ session, onClick }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
   
-  const formatDate = (timestamp: any) => {
+  const formatDate = (timestamp: unknown) => {
     if (!timestamp) return 'Unknown date';
     
     const date = toDate(timestamp);
@@ -196,7 +205,7 @@ const Sessions = () => {
   }, [user?.uid]);
 
   useEffect(() => {
-    let filtered = sessions.filter(session => 
+    const filtered = sessions.filter(session => 
       session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       session.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
