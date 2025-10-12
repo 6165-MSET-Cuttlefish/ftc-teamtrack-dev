@@ -208,7 +208,7 @@ const UserSessions: React.FC = () => {
   if (loading) {
     return (
       <div
-        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#dff3f5]'} py-12 px-4 sm:px-6 lg:px-8`}
+        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#e9f4f5]'} py-12 px-4 sm:px-6 lg:px-8`}
       >
         <div className="max-w-6xl mx-auto">
           <div className="space-y-6">
@@ -226,7 +226,7 @@ const UserSessions: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#dff3f5]'} py-12 px-4 sm:px-6 lg:px-8`}
+      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#e9f4f5]'} py-12 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
@@ -244,7 +244,7 @@ const UserSessions: React.FC = () => {
 
         {stats && (
           <div
-            className={`p-6 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#dff3f5] border-gray-200'}`}
+            className={`p-6 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#e9f4f5] border-gray-200'}`}
           >
             <h2
               className={`text-xl font-semibold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -255,7 +255,7 @@ const UserSessions: React.FC = () => {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div
-                className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#dff3f5]'}`}
+                className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#e9f4f5]'}`}
               >
                 <div className={`text-2xl font-bold text-team-blue`}>
                   {stats.totalSessions}
@@ -268,7 +268,7 @@ const UserSessions: React.FC = () => {
               </div>
 
               <div
-                className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#dff3f5]'}`}
+                className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#e9f4f5]'}`}
               >
                 <div className={`text-2xl font-bold text-green-600`}>
                   {stats.averageScore}
@@ -281,7 +281,7 @@ const UserSessions: React.FC = () => {
               </div>
 
               <div
-                className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#dff3f5]'}`}
+                className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#e9f4f5]'}`}
               >
                 <div className={`text-2xl font-bold text-purple-600`}>
                   {stats.highestScore}
@@ -294,7 +294,7 @@ const UserSessions: React.FC = () => {
               </div>
 
               <div
-                className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#dff3f5]'}`}
+                className={`text-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#e9f4f5]'}`}
               >
                 <div className={`text-2xl font-bold text-orange-600`}>
                   {stats.totalPlayTime}m
@@ -337,7 +337,7 @@ const UserSessions: React.FC = () => {
         )}
 
         <div
-          className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#dff3f5] border-gray-200'}`}
+          className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-[#e9f4f5] border-gray-200'}`}
         >
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex items-center gap-2">
@@ -620,7 +620,7 @@ const UserSessions: React.FC = () => {
           {selectedSession && (
             <div className="space-y-6">
               <div
-                className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#dff3f5]'}`}
+                className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#e9f4f5]'}`}
               >
                 <div className="text-center">
                   <div
@@ -684,7 +684,7 @@ const UserSessions: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div
-                    className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#dff3f5] border-gray-200'}`}
+                    className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#e9f4f5] border-gray-200'}`}
                   >
                     <h4
                       className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -737,7 +737,7 @@ const UserSessions: React.FC = () => {
                   </div>
 
                   <div
-                    className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#dff3f5] border-gray-200'}`}
+                    className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#e9f4f5] border-gray-200'}`}
                   >
                     <h4
                       className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -791,7 +791,7 @@ const UserSessions: React.FC = () => {
                 </div>
 
                 <div
-                  className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#dff3f5] border-gray-200'}`}
+                  className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#e9f4f5] border-gray-200'}`}
                 >
                   <h4
                     className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -823,7 +823,7 @@ const UserSessions: React.FC = () => {
               <Separator />
 
               <div
-                className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#dff3f5]'}`}
+                className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-900' : 'bg-[#e9f4f5]'}`}
               >
                 <h4
                   className={`font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
