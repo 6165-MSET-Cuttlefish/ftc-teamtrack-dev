@@ -71,7 +71,7 @@ export const SessionSetup = () => {
     updateSessionData({ matchType: value });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 mt-16">
       <h2 className="text-team-blue text-2xl font-semibold leading-6">
         Session Setup
       </h2>
