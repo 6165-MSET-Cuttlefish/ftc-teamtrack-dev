@@ -59,7 +59,7 @@
 
     /* Design tokens (light mode defaults) */
     --team-blue: 83 119 136; /* #537788 */
-    --team-white: 254 254 254; /* #FEFEFE (slightly off-white) */
+    --team-white: 223 243 245; /* #dff3f5 (light cyan) */
   }
 
   .dark {
