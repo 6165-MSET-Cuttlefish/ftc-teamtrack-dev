@@ -104,7 +104,7 @@ const SearchBox = () => {
 
   return (
     <div
-      className={`flex items-center gap-3 px-12 py-3.5 rounded-2xl bg-transparent border ${borderClass}`}
+      className={`flex items-center gap-3 px-10 py-3.5 rounded-2xl bg-transparent border ${borderClass} min-w-[320px] lg:min-w-[380px]`}
     >
       <Search className={`w-4 h-4 ${iconClass}`} />
       <span className={`${textClass} text-base font-medium`}>Search</span>
