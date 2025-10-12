@@ -5,12 +5,13 @@ import { useTheme } from '../contexts/ThemeContext';
 import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
+  const { isDarkMode } = useTheme();
   return (
-    <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
-      <div className="text-team-blue text-3xl font-medium leading-6">
-        {value}
-      </div>
-      <div className="text-team-white-60 text-base leading-6">{label}</div>
+    <div
+      className={`flex flex-col items-center gap-4 px-9 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+    >
+      <div className="text-team-blue text-3xl font-medium leading-6">{value}</div>
+      <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-base leading-6`}>{label}</div>
     </div>
   );
 };
