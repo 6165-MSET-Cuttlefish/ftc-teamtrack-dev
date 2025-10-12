@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
