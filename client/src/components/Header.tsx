@@ -267,7 +267,7 @@ export const Header = () => {
     <header
       className={`w-full px-4 sm:px-8 py-4 border-b relative ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
-      <div className="w-full grid grid-cols-3 items-center">
+      <div className="w-full grid grid-cols-[auto_1fr_auto] items-center">
         <div className="flex items-center justify-start gap-6 px-6">
           {/* Conditional back button when navigated from active session */}
           <BackButton />
