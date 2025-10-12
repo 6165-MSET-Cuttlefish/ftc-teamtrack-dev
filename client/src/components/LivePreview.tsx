@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
