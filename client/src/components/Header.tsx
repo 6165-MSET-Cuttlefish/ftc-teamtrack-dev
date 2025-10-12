@@ -96,7 +96,7 @@ const TeamTrackLogo = () => {
 
 const SearchBox = () => {
   const { isDarkMode } = useTheme();
-  const iconClass = 'text-team-blue-40';
+  const iconClass = "text-[rgba(176,229,254,0.4)]";
   const textClass = 'text-team-blue-40';
   const borderClass = isDarkMode
     ? 'border-team-white-20'
@@ -104,7 +104,7 @@ const SearchBox = () => {
 
   return (
     <div
-      className={`flex items-center gap-3 px-10 py-3.5 rounded-2xl bg-transparent border ${borderClass} min-w-[320px] lg:min-w-[380px]`}
+      className={`flex items-center gap-3 min-w-[200px] px-12 py-3.5 rounded-2xl bg-transparent border ${borderClass}`}
     >
       <Search className={`w-4 h-4 ${iconClass}`} />
       <span className={`${textClass} text-base font-medium`}>Search</span>
