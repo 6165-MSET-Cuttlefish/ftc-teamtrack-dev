@@ -575,7 +575,7 @@ const UserSessions: React.FC = () => {
               </p>
               <div className="mt-6">
                 <Button
-                  className="bg-team-blue hover:bg-team-blue/90"
+                  className="bg-team-blue hover:bg-team-blue/90 text-[#FEFEFE]"
                   onClick={() => (window.location.href = '/')}
                 >
                   Start New Session
