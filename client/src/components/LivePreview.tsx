@@ -215,7 +215,7 @@ export const LivePreview = () => {
             <button
               onClick={handleCompleteSession}
               disabled={loading}
-              className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-team-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Saving...' : 'Complete Session'}
             </button>
