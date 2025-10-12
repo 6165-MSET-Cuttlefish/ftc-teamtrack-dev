@@ -282,7 +282,7 @@ const AnalysisContent = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/original"
-              className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-blue text-team-blue text-base leading-6 font-normal text-center hover:bg-team-blue hover:text-team-dark transition-colors"
+              className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-blue text-team-blue text-base leading-6 font-normal text-center hover:bg-team-blue hover:text-[#FEFEFE] transition-colors"
             >
               Back to Session
             </Link>
