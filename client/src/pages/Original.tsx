@@ -19,7 +19,7 @@ const OriginalContent = () => {
           <div className="space-y-12 lg:space-y-16">
             {/* Header */}
             <div className="text-center px-4 lg:px-24 space-y-6">
-              <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-[48px]">
+              <h1 className="text-team-blue text-3xl lg:text-[46px] font-semibold leading-[48px] mr-1">
                 Active Practice Session
               </h1>
               <p
