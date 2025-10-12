@@ -76,7 +76,7 @@ export const SessionSetup: React.FC = () => {
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
             <Label className="text-base leading-6">Match Type</Label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
-              <SelectTrigger className={`w-full h-[40px] text-base font-normal leading-6 px-2.5 py-2.5 rounded border border-team-blue-40 bg-[#FEFEFE] text-black`}>
+              <SelectTrigger className={`w-full h-12 text-base font-normal leading-6 px-2.5 py-2.5 rounded border border-team-blue-40 bg-[#FEFEFE] text-black`}>
                 <SelectValue placeholder="Select match type" />
               </SelectTrigger>
               <SelectContent>
