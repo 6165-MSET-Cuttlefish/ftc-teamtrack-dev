@@ -50,7 +50,7 @@ const FormField = ({
         onChange={handleChange}
         placeholder={placeholder}
         className={`px-2.5 py-2.5 rounded border border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40 ${
-          isDarkMode ? 'bg-team-dark text-white' : 'bg-[#dff3f5] text-black'
+          isDarkMode ? 'bg-team-dark text-white' : 'bg-[#e9f4f5] text-black'
         }`}
       />
     </div>
@@ -107,7 +107,7 @@ export const SessionSetup = () => {
               Match Type
             </label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
-              <SelectTrigger className={`w-full h-10 text-base font-normal leading-6 px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#dff3f5] text-black'}`}>
+              <SelectTrigger className={`w-full h-10 text-base font-normal leading-6 px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#e9f4f5] text-black'}`}>
                 <SelectValue placeholder="Select match type" />
               </SelectTrigger>
               <SelectContent>
