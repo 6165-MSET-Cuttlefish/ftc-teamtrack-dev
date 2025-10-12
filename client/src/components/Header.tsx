@@ -280,7 +280,7 @@ export const Header = () => {
           </div>
         </div>
 
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-6 px-6">
           <NavigationMenu />
         </div>
       </div>
