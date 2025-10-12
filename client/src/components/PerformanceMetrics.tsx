@@ -97,7 +97,7 @@ const MetricField = ({
         </div>
       </div>
       <div
-        className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#e9f4f5]'}`}
+        className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <NumberInput
           value={value}
@@ -235,7 +235,7 @@ export const PerformanceMetrics = () => {
           <div className="w-6 h-6 flex items-center justify-center" />
         </div>
         <div
-          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#e9f4f5]'}`}
+          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
         >
           <NumberInput
             value={value}
