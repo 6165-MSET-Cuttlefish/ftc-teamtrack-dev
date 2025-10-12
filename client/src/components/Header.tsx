@@ -117,13 +117,25 @@ const BackButton = () => {
   const navigate = useNavigate();
   const { sessionData } = useSession();
 
-  // Show back button only if there's an active (not completed) session and user is not already on the /original page
-  if (!sessionData || sessionData.isSessionCompleted) return null;
+  const fromActive = (location.state && (location.state as any).fromActiveSession) || false;
+
+  // Don't show on the active session page itself
   if (location.pathname === '/original') return null;
+
+  // Show only if navigated from active session pages OR there is an active (not completed) session
+  if (!fromActive && (!sessionData || sessionData.isSessionCompleted)) return null;
+
+  const handleClick = () => {
+    if (fromActive) {
+      navigate(-1);
+    } else {
+      navigate('/original');
+    }
+  };
 
   return (
     <button
-      onClick={() => navigate('/original')}
+      onClick={handleClick}
       aria-label="Go back to active session"
       className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-transparent hover:bg-team-white-10 transition-colors"
     >
