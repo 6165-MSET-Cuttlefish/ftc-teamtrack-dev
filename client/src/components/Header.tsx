@@ -168,7 +168,7 @@ const NavigationMenu = () => {
 
   return (
     <div
-      className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border ${isDarkMode ? 'border-team-white-20 bg-team-dark-20' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border ${isDarkMode ? 'border-team-white-20 bg-team-dark-20' : 'border-team-blue/60 bg-[#dff3f5]'}`}
     >
       <span
         className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}
@@ -265,7 +265,7 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-4 sm:px-8 py-4 border-b relative ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      className={`w-full px-4 sm:px-8 py-4 border-b relative ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#dff3f5]'}`}
     >
       <div className="w-full grid grid-cols-3 items-center">
         <div className="flex items-center justify-start gap-4">
