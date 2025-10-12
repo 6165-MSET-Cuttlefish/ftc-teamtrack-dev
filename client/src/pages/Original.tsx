@@ -38,7 +38,7 @@ const OriginalContent: React.FC = () => {
         </div>
 
         {/* Right Column - Live Preview */}
-        <div className="w-full lg:w-[413px] py-8 lg:py-14 px-4">
+        <div className="w-full lg:w-[413px] py-14 px-0">
           <LivePreview />
         </div>
       </div>
