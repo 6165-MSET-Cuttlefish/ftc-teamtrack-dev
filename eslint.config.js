@@ -31,7 +31,7 @@ export default tseslint.config(
         },
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
-      'no-console': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
       'prefer-template': 'error',
       'object-shorthand': 'error',
       'no-var': 'error',

@@ -1,7 +1,6 @@
-import { defineConfig, Plugin } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
-import { createServer } from './server';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode: _mode }) => ({
@@ -29,72 +28,10 @@ export default defineConfig(({ mode: _mode }) => ({
   build: {
     outDir: '../dist/spa',
   },
-  plugins: [react(), webSocketFixPlugin()],
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './client/src'),
     },
   },
 }));
-
-function webSocketFixPlugin(): Plugin {
-  return {
-    name: 'websocket-fix-plugin',
-    apply: 'serve',
-    configureServer(server) {
-      // Wrap the server's WebSocket handling to catch RSV1 errors
-      const originalCreateWebSocketServer = (
-        server as unknown as Record<string, unknown>
-      ).createWebSocketServer;
-      if (originalCreateWebSocketServer) {
-        (server as unknown as Record<string, unknown>).createWebSocketServer =
-          function (...args: unknown[]) {
-            const ws = (
-              originalCreateWebSocketServer as (...args: unknown[]) => unknown
-            ).apply(this, args);
-
-            // Override error handling
-            if (ws && typeof ws === 'object' && ws !== null && 'on' in ws) {
-              (
-                ws as {
-                  on: (event: string, handler: (error: Error) => void) => void;
-                }
-              ).on('error', (error: Error) => {
-                if (
-                  error.message.includes('RSV1') ||
-                  error.message.includes('WebSocket frame') ||
-                  (error as { code?: string }).code ===
-                    'WS_ERR_UNEXPECTED_RSV_1'
-                ) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.warn(
-                      '🔄 WebSocket compression error ignored - continuing...'
-                    );
-                  }
-                  return; // Don't propagate the error
-                }
-                if (process.env.NODE_ENV === 'development') {
-                  console.error('WebSocket error:', error);
-                }
-              });
-            }
-
-            return ws;
-          };
-      }
-    },
-  };
-}
-
-function _expressPlugin(): Plugin {
-  return {
-    name: 'express-plugin',
-    apply: 'serve', // Only apply during development (serve mode)
-    configureServer(server) {
-      const app = createServer();
-
-      // Add Express app as middleware to Vite dev server
-      server.middlewares.use(app);
-    },
-  };
-}

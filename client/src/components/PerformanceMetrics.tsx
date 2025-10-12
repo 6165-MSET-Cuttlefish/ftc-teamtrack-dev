@@ -137,35 +137,44 @@ export const PerformanceMetrics = () => {
   const [teleOpFloorMark, setTeleOpFloorMark] = useState(0);
 
   const [endGameValue, setEndGameValue] = useState(0);
+  
+  // Track if breakdown fields have any values (indicating they're being used)
+  const hasBreakdownValues = autonomousBasket > 0 || autonomousSpecimen > 0 || autonomousFloorMark > 0 || 
+                             autonomousLeave > 0 || teleOpSamples > 0 || teleOpSpecimen > 0 || 
+                             teleOpFloorMark > 0 || endGameValue > 0;
 
-  const [toggleStates, setToggleStates] = useState({
-    autonomousBasket: true,
-    autonomousSpecimen: true,
-    teleOpSamples: true,
-  });
+  // Removed toggle states for High/Low functionality
 
   useEffect(() => {
-    // New scoring multipliers:
-    // Classified Artifact = 3 pts
-    // Overflow Artifact = 1 pt
-    // Motif = 2 pts
-    // Leave = 3 pts (autonomous only)
-    const autonomousScore =
-      autonomousBasket * 3 +
-      autonomousSpecimen * 1 +
-      autonomousFloorMark * 2 +
-      autonomousLeave * 3;
+    // Only auto-calculate scores when breakdown fields are being used
+    // This allows manual score entry to be preserved when breakdown fields are empty
+    if (hasBreakdownValues) {
+      // New scoring multipliers:
+      // Classified Artifact = 3 pts
+      // Overflow Artifact = 1 pt
+      // Motif = 2 pts
+      // Leave = 3 pts (autonomous only)
+      const autonomousScore =
+        autonomousBasket * 3 +
+        autonomousSpecimen * 1 +
+        autonomousFloorMark * 2 +
+        autonomousLeave * 3;
 
-    const teleOpScore =
-      teleOpSamples * 3 + teleOpSpecimen * 1 + teleOpFloorMark * 2;
+      const teleOpScore =
+        teleOpSamples * 3 + teleOpSpecimen * 1 + teleOpFloorMark * 2;
 
-    const finalScore = autonomousScore + teleOpScore + endGameValue;
+      const finalScore = autonomousScore + teleOpScore + endGameValue;
 
+      updateSessionData({
+        autonomousScore,
+        teleOpScore,
+        endGameScore: endGameValue,
+        finalScore,
+      });
+    }
+    
+    // Always save the breakdown values
     updateSessionData({
-      autonomousScore,
-      teleOpScore,
-      endGameScore: endGameValue,
-      finalScore,
       autonomousBasket,
       autonomousSpecimen,
       autonomousFloorMark,
@@ -184,6 +193,7 @@ export const PerformanceMetrics = () => {
     teleOpSpecimen,
     teleOpFloorMark,
     endGameValue,
+    hasBreakdownValues,
     updateSessionData,
   ]);
 
@@ -199,30 +209,14 @@ export const PerformanceMetrics = () => {
     label,
     value,
     onChange,
-    hasHButton = false,
-    toggleKey,
     isBinary = false,
   }: {
     label: string;
     value: number;
     onChange: (value: number) => void;
-    hasHButton?: boolean;
-    toggleKey?: string;
     isBinary?: boolean;
   }) => {
     const { isDarkMode } = useTheme();
-
-    const handleToggle = () => {
-      if (toggleKey)
-        setToggleStates(prev => ({
-          ...prev,
-          [toggleKey]: !prev[toggleKey as keyof typeof prev],
-        }));
-    };
-
-    const isHighNet = toggleKey
-      ? toggleStates[toggleKey as keyof typeof toggleStates]
-      : true;
 
     return (
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
@@ -245,16 +239,6 @@ export const PerformanceMetrics = () => {
           />
           {!isBinary && (
             <div className="flex items-center gap-1">
-              {hasHButton && (
-                <button
-                  onClick={handleToggle}
-                  className="flex items-center justify-center px-1 py-1 rounded hover:bg-team-white-10 transition-colors"
-                >
-                  <span className="text-team-white-40 text-2xl font-medium leading-[18px]">
-                    {isHighNet ? 'H' : 'L'}
-                  </span>
-                </button>
-              )}
               <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
                 <button
                   onClick={() => handleIncrement(value, onChange)}
@@ -274,11 +258,6 @@ export const PerformanceMetrics = () => {
         </div>
       </div>
     );
-  };
-
-  const handleEndGameChange = (value: number) => {
-    // Base score should be entered by the user directly (no automatic snapping)
-    setEndGameValue(value);
   };
 
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -307,15 +286,11 @@ export const PerformanceMetrics = () => {
               label="Classified Artifact (3 pts each)"
               value={autonomousBasket}
               onChange={setAutonomousBasket}
-              hasHButton
-              toggleKey="autonomousBasket"
             />
             <InlineBreakdownField
               label="Overflow Artifact (1 pt each)"
               value={autonomousSpecimen}
               onChange={setAutonomousSpecimen}
-              hasHButton
-              toggleKey="autonomousSpecimen"
             />
             <InlineBreakdownField
               label="Motif (2 pts each)"
@@ -337,8 +312,6 @@ export const PerformanceMetrics = () => {
               label="Classified Artifact (3 pts each)"
               value={teleOpSamples}
               onChange={setTeleOpSamples}
-              hasHButton
-              toggleKey="teleOpSamples"
             />
             <InlineBreakdownField
               label="Overflow Artifact (1 pt each)"
@@ -377,25 +350,25 @@ export const PerformanceMetrics = () => {
           <MetricField
             label="Final Score"
             value={sessionData.finalScore}
-            onChange={() => {}}
+            onChange={(value) => updateSessionData({ finalScore: value })}
             hasDropdown={false}
           />
           <MetricField
             label="Autonomous Score"
             value={sessionData.autonomousScore}
-            onChange={() => {}}
+            onChange={(value) => updateSessionData({ autonomousScore: value })}
             onDropdownClick={() => toggleSection('Autonomous Score')}
           />
           <MetricField
             label="TeleOp Score"
             value={sessionData.teleOpScore}
-            onChange={() => {}}
+            onChange={(value) => updateSessionData({ teleOpScore: value })}
             onDropdownClick={() => toggleSection('TeleOp Score')}
           />
           <MetricField
             label="End Game Score"
             value={sessionData.endGameScore}
-            onChange={() => {}}
+            onChange={(value) => updateSessionData({ endGameScore: value })}
             onDropdownClick={() => toggleSection('End Game Score')}
           />
         </div>

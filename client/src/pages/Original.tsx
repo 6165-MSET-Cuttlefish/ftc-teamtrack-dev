@@ -1,16 +1,15 @@
+import React from 'react';
 import { SessionSetup } from '../components/SessionSetup';
 import { PerformanceMetrics } from '../components/PerformanceMetrics';
 import { Notes } from '../components/Notes';
 import { LivePreview } from '../components/LivePreview';
 import { useTheme } from '../contexts/ThemeContext';
 
-const OriginalContent = () => {
+const OriginalContent: React.FC = () => {
   const { isDarkMode } = useTheme();
 
   return (
-    <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-    >
+    <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
       <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-8 pt-12 pb-10 gap-6 lg:gap-10">
         {/* Left Column - Session Form */}
         <div
@@ -22,9 +21,7 @@ const OriginalContent = () => {
               <h1 className="text-team-blue text-3xl lg:text-[46px] font-semibold leading-[48px] mr-1">
                 Active Practice Session
               </h1>
-              <p
-                className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-              >
+              <p className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                 6165 Mset Cuttlefish
               </p>
             </div>
@@ -49,6 +46,4 @@ const OriginalContent = () => {
   );
 };
 
-export default function Original() {
-  return <OriginalContent />;
-}
+export default OriginalContent;

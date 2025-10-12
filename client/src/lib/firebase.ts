@@ -7,13 +7,13 @@ export async function getFirebase() {
     const { getFirestore } = await import('firebase/firestore');
 
     const firebaseConfig = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-      messagingSenderId:
-        import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-      appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+      apiKey: "AIzaSyA6WhYwzW8quaC9NykmCOAA9tEHc_-KAy8",
+      authDomain: "teamtrack-572e5.firebaseapp.com",
+      projectId: "teamtrack-572e5",
+      storageBucket: "teamtrack-572e5.firebasestorage.app",
+      messagingSenderId: "590917117893",
+      appId: "1:590917117893:web:f14b58885344da4fcf8dac",
+      measurementId: "G-WTN320D7S5"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -22,7 +22,6 @@ export async function getFirebase() {
     return { app, auth, db };
   } catch (err) {
     // Firebase not available — return null so callers can fallback
-    // eslint-disable-next-line no-console
     console.warn('Firebase not initialized:', err);
     return null;
   }

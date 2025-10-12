@@ -62,18 +62,18 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-team-dark py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md bg-team-dark border-team-blue-40">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center text-team-blue">
-            Sign In
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">
+            Welcome Back
           </CardTitle>
-          <CardDescription className="text-center text-team-white-60">
-            Enter your credentials to access your account
+          <CardDescription className="text-center">
+            Sign in to your TeamTrack account
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -82,18 +82,18 @@ const Login: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-team-white">
-                Email
+              <Label htmlFor="email">
+                Email Address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="Enter your email address"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="pl-10 bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40"
+                  className="pl-10 focus:ring-2 focus:ring-team-blue focus:border-team-blue"
                   required
                 />
               </div>
