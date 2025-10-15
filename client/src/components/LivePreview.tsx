@@ -187,6 +187,64 @@ export const LivePreview = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
 
+  // Real-time consistency calculation
+  const [consistency, setConsistency] = useState<number>(0);
+  const [isCalculatingConsistency, setIsCalculatingConsistency] = useState(true);
+
+  // Calculate consistency in real-time whenever final score changes
+  useEffect(() => {
+    const calculateConsistency = async () => {
+      try {
+        setIsCalculatingConsistency(true);
+        const { firebaseService } = await import('../services/firebaseService');
+        
+        // Get user's recent sessions
+        const recentSessions = await firebaseService.getUserSessions(user?.uid || '');
+        
+        // Include current score in calculation
+        const allScores = [
+          sessionData.finalScore,
+          ...recentSessions.map(session => session.finalScore || 0)
+        ].slice(0, 10); // Use last 10 sessions including current
+        
+        // Edge case: first session
+        if (allScores.length <= 1) {
+          setConsistency(100);
+          setIsCalculatingConsistency(false);
+          return;
+        }
+        
+        // Calculate average score
+        const avgScore = allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
+        
+        // Calculate standard deviation
+        const variance = allScores.reduce((sum, score) => {
+          return sum + Math.pow(score - avgScore, 2);
+        }, 0) / allScores.length;
+        
+        const stdDev = Math.sqrt(variance);
+        
+        // Calculate coefficient of variation (CV)
+        const cv = avgScore > 0 ? (stdDev / avgScore) * 100 : 0;
+        
+        // Convert to consistency percentage (inverse of CV)
+        const consistencyScore = Math.max(0, Math.min(100, 100 - cv));
+        
+        setConsistency(Math.round(consistencyScore));
+        setIsCalculatingConsistency(false);
+        
+      } catch (error) {
+        console.error('Error calculating consistency:', error);
+        setConsistency(0);
+        setIsCalculatingConsistency(false);
+      }
+    };
+    
+    if (user?.uid) {
+      calculateConsistency();
+    }
+  }, [sessionData.finalScore, user?.uid]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
@@ -356,7 +414,10 @@ export const LivePreview = () => {
             value={sessionData.finalScore.toString()}
             label="Final Score"
           />
-          <DataCard value="87%" label="Consistency" />
+          <DataCard 
+            value={isCalculatingConsistency ? "..." : `${consistency}%`} 
+            label="Consistency" 
+          />
         </div>
 
         {/* Overview Card */}
