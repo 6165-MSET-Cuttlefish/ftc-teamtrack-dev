@@ -70,8 +70,88 @@ const OverviewCard = ({
   );
 };
 
-const InsightsCard = () => {
+const InsightsCard = ({ 
+  currentTeleOpScore, 
+  currentAutonomousScore,
+  userId 
+}: { 
+  currentTeleOpScore: number; 
+  currentAutonomousScore: number;
+  userId: string;
+}) => {
   const { isDarkMode } = useTheme();
+  const [teleOpImprovement, setTeleOpImprovement] = useState<string>('Calculating...');
+  const [autonomousImprovement, setAutonomousImprovement] = useState<string>('Calculating...');
+  const [teleOpTrend, setTeleOpTrend] = useState<'up' | 'down' | 'neutral'>('neutral');
+  const [autonomousTrend, setAutonomousTrend] = useState<'up' | 'down' | 'neutral'>('neutral');
+
+  useEffect(() => {
+    const calculateImprovements = async () => {
+      try {
+        // Import firebaseService
+        const { firebaseService } = await import('../services/firebaseService');
+        
+        // Get user's recent sessions
+        const recentSessions = await firebaseService.getUserSessions(userId);
+        
+        // Get last 3 sessions (excluding current)
+        const lastThreeSessions = recentSessions.slice(0, 3);
+        
+        // Edge case: less than 1 previous session
+        if (lastThreeSessions.length === 0) {
+          setTeleOpImprovement('First session');
+          setAutonomousImprovement('First session');
+          setTeleOpTrend('neutral');
+          setAutonomousTrend('neutral');
+          return;
+        }
+        
+        // Calculate averages
+        const avgTeleOp = lastThreeSessions.reduce((sum, session) => 
+          sum + (session.teleOpScore || 0), 0) / lastThreeSessions.length;
+        const avgAutonomous = lastThreeSessions.reduce((sum, session) => 
+          sum + (session.autonomousScore || 0), 0) / lastThreeSessions.length;
+        
+        // Calculate percentage changes
+        const calcPercentChange = (current: number, average: number) => {
+          if (average === 0) return current > 0 ? 100 : 0;
+          return ((current - average) / average) * 100;
+        };
+        
+        const teleOpChange = calcPercentChange(currentTeleOpScore, avgTeleOp);
+        const autonomousChange = calcPercentChange(currentAutonomousScore, avgAutonomous);
+        
+        // Format and set results
+        setTeleOpImprovement(`${teleOpChange >= 0 ? '+' : ''}${teleOpChange.toFixed(1)}%`);
+        setAutonomousImprovement(`${autonomousChange >= 0 ? '+' : ''}${autonomousChange.toFixed(1)}%`);
+        
+        setTeleOpTrend(teleOpChange > 0 ? 'up' : teleOpChange < 0 ? 'down' : 'neutral');
+        setAutonomousTrend(autonomousChange > 0 ? 'up' : autonomousChange < 0 ? 'down' : 'neutral');
+        
+      } catch (error) {
+        console.error('Error calculating improvements:', error);
+        setTeleOpImprovement('Error');
+        setAutonomousImprovement('Error');
+      }
+    };
+    
+    if (userId) {
+      calculateImprovements();
+    }
+  }, [currentTeleOpScore, currentAutonomousScore, userId]);
+
+  const getTrendIcon = (trend: 'up' | 'down' | 'neutral') => {
+    if (trend === 'up') return '↑';
+    if (trend === 'down') return '↓';
+    return '—';
+  };
+
+  const getTrendColor = (trend: 'up' | 'down' | 'neutral') => {
+    if (trend === 'up') return 'text-green-500';
+    if (trend === 'down') return 'text-red-500';
+    return 'text-gray-500';
+  };
+
   return (
     <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
       <h3
@@ -79,8 +159,19 @@ const InsightsCard = () => {
       >
         Performance Insights
       </h3>
-      <div className="text-team-white-60 text-xs leading-6">
-        Improvements in XXX
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-team-white-60 text-xs leading-6">TeleOp vs Avg (last 3):</span>
+          <span className={`text-xs font-semibold ${getTrendColor(teleOpTrend)}`}>
+            {getTrendIcon(teleOpTrend)} {teleOpImprovement}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-team-white-60 text-xs leading-6">Autonomous vs Avg (last 3):</span>
+          <span className={`text-xs font-semibold ${getTrendColor(autonomousTrend)}`}>
+            {getTrendIcon(autonomousTrend)} {autonomousImprovement}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -95,6 +186,76 @@ export const LivePreview = () => {
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+
+  // Real-time consistency calculation
+  const [consistency, setConsistency] = useState<number>(0);
+  const [isCalculatingConsistency, setIsCalculatingConsistency] = useState(true);
+
+  // Calculate consistency in real-time whenever final score changes
+  useEffect(() => {
+    const calculateConsistency = async () => {
+      try {
+        setIsCalculatingConsistency(true);
+        const { firebaseService } = await import('../services/firebaseService');
+        
+        // Get user's recent sessions
+        const recentSessions = await firebaseService.getUserSessions(user?.uid || '');
+        
+        // Get only the last 3 completed sessions (excluding current)
+        const lastThreeSessions = recentSessions.slice(0, 3);
+        
+        // Edge case: truly first session (no previous sessions)
+        if (lastThreeSessions.length === 0) {
+          setConsistency(100);
+          setIsCalculatingConsistency(false);
+          return;
+        }
+        
+        // Include current score with the last 3 sessions
+        const allScores = [
+          sessionData.finalScore,
+          ...lastThreeSessions.map(session => session.finalScore || 0)
+        ];
+        
+        // Calculate average score (including zeros)
+        const avgScore = allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
+        
+        // If all scores are zero, consistency is 100% (perfectly consistent at zero)
+        if (avgScore === 0) {
+          setConsistency(100);
+          setIsCalculatingConsistency(false);
+          return;
+        }
+        
+        // Calculate standard deviation
+        const variance = allScores.reduce((sum, score) => {
+          return sum + Math.pow(score - avgScore, 2);
+        }, 0) / allScores.length;
+        
+        const stdDev = Math.sqrt(variance);
+        
+        // Calculate coefficient of variation (CV) - measures relative variability
+        const cv = stdDev / avgScore;
+        
+        // Convert to consistency percentage
+        // Using a scaled formula: consistency = 100 / (1 + cv)
+        // This gives: CV=0 -> 100%, CV=1 -> 50%, CV=2 -> 33%, etc.
+        const consistencyScore = 100 / (1 + cv);
+        
+        setConsistency(Math.round(consistencyScore));
+        setIsCalculatingConsistency(false);
+        
+      } catch (error) {
+        console.error('Error calculating consistency:', error);
+        setConsistency(0);
+        setIsCalculatingConsistency(false);
+      }
+    };
+    
+    if (user?.uid) {
+      calculateConsistency();
+    }
+  }, [sessionData.finalScore, user?.uid]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -265,7 +426,10 @@ export const LivePreview = () => {
             value={sessionData.finalScore.toString()}
             label="Final Score"
           />
-          <DataCard value="87%" label="Consistency" />
+          <DataCard 
+            value={isCalculatingConsistency ? "..." : `${consistency}%`} 
+            label="Consistency" 
+          />
         </div>
 
         {/* Overview Card */}
@@ -277,7 +441,11 @@ export const LivePreview = () => {
         />
 
         {/* Insights Card */}
-        <InsightsCard />
+        <InsightsCard 
+          currentTeleOpScore={sessionData.teleOpScore}
+          currentAutonomousScore={sessionData.autonomousScore}
+          userId={user?.uid || ''}
+        />
 
         {/* CTA Buttons */}
         <div className="flex flex-col gap-4 w-full sm:w-60">
