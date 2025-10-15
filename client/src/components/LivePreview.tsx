@@ -201,21 +201,31 @@ export const LivePreview = () => {
         // Get user's recent sessions
         const recentSessions = await firebaseService.getUserSessions(user?.uid || '');
         
-        // Include current score in calculation
-        const allScores = [
-          sessionData.finalScore,
-          ...recentSessions.map(session => session.finalScore || 0)
-        ].slice(0, 10); // Use last 10 sessions including current
+        // Get only the last 3 completed sessions (excluding current)
+        const lastThreeSessions = recentSessions.slice(0, 3);
         
-        // Edge case: first session
-        if (allScores.length <= 1) {
+        // Edge case: truly first session (no previous sessions)
+        if (lastThreeSessions.length === 0) {
           setConsistency(100);
           setIsCalculatingConsistency(false);
           return;
         }
         
-        // Calculate average score
+        // Include current score with the last 3 sessions
+        const allScores = [
+          sessionData.finalScore,
+          ...lastThreeSessions.map(session => session.finalScore || 0)
+        ];
+        
+        // Calculate average score (including zeros)
         const avgScore = allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
+        
+        // If all scores are zero, consistency is 100% (perfectly consistent at zero)
+        if (avgScore === 0) {
+          setConsistency(100);
+          setIsCalculatingConsistency(false);
+          return;
+        }
         
         // Calculate standard deviation
         const variance = allScores.reduce((sum, score) => {
@@ -224,11 +234,13 @@ export const LivePreview = () => {
         
         const stdDev = Math.sqrt(variance);
         
-        // Calculate coefficient of variation (CV)
-        const cv = avgScore > 0 ? (stdDev / avgScore) * 100 : 0;
+        // Calculate coefficient of variation (CV) - measures relative variability
+        const cv = stdDev / avgScore;
         
-        // Convert to consistency percentage (inverse of CV)
-        const consistencyScore = Math.max(0, Math.min(100, 100 - cv));
+        // Convert to consistency percentage
+        // Using a scaled formula: consistency = 100 / (1 + cv)
+        // This gives: CV=0 -> 100%, CV=1 -> 50%, CV=2 -> 33%, etc.
+        const consistencyScore = 100 / (1 + cv);
         
         setConsistency(Math.round(consistencyScore));
         setIsCalculatingConsistency(false);
