@@ -160,23 +160,23 @@ export const LivePreview = () => {
           navigate(`/analysis?sessionId=${result.id}`);
         }
       } catch (error) {
-        console.error("Failed to save session:", error);
+        console.error('Failed to save session:', error);
         // Still navigate but show an error - could pass session data through state as fallback
-        navigate('/analysis', { 
-          state: { 
+        navigate('/analysis', {
+          state: {
             sessionData: sessionToSave,
-            isTemporary: true 
-          }
+            isTemporary: true,
+          },
         });
       }
     } else {
       // Session is completed but we don't have the ID - this shouldn't happen in normal flow
       // Pass session data through state as fallback
-      navigate('/analysis', { 
-        state: { 
+      navigate('/analysis', {
+        state: {
           sessionData: sessionData,
-          isTemporary: true 
-        }
+          isTemporary: true,
+        },
       });
     }
   };
@@ -200,14 +200,14 @@ export const LivePreview = () => {
 
       // Autonomous data with new scoring system (no more separate basket/specimen)
       autonClassifiedArtifact: sessionData.autonomousBasket || 0, // Classified Artifact (3 pts each)
-      autonOverflowArtifact: sessionData.autonomousSpecimen || 0,  // Overflow Artifact (1 pt each)
-      autonMotif: sessionData.autonomousFloorMark || 0,            // Motif (2 pts each)
-      autonLeave: sessionData.autonomousLeave || 0,                // Leave (3 pts)
+      autonOverflowArtifact: sessionData.autonomousSpecimen || 0, // Overflow Artifact (1 pt each)
+      autonMotif: sessionData.autonomousFloorMark || 0, // Motif (2 pts each)
+      autonLeave: sessionData.autonomousLeave || 0, // Leave (3 pts)
 
       // TeleOp data with new scoring system (no more separate basket/specimen)
-      teleClassifiedArtifact: sessionData.teleOpSamples || 0,      // Classified Artifact (3 pts each)
-      teleOverflowArtifact: sessionData.teleOpSpecimen || 0,       // Overflow Artifact (1 pt each)
-      teleMotif: sessionData.teleOpFloorMark || 0,                 // Motif (2 pts each)
+      teleClassifiedArtifact: sessionData.teleOpSamples || 0, // Classified Artifact (3 pts each)
+      teleOverflowArtifact: sessionData.teleOpSpecimen || 0, // Overflow Artifact (1 pt each)
+      teleMotif: sessionData.teleOpFloorMark || 0, // Motif (2 pts each)
 
       // Endgame data
       endgameHang: sessionData.endGameValue || 0,
@@ -218,7 +218,7 @@ export const LivePreview = () => {
       autonomousScore: sessionData.autonomousScore || 0,
       teleOpScore: sessionData.teleOpScore || 0,
       endGameScore: sessionData.endGameScore || 0,
-      
+
       // Additional metadata
       completedAt: new Date().toISOString(),
     };
