@@ -280,7 +280,7 @@ export const LivePreview = () => {
         <InsightsCard />
 
         {/* CTA Buttons */}
-        <div className="flex flex-col gap-4 w-full sm:w-60">
+        <div className="flex flex-col gap-4 w-full sm:w-60 [&>*:not(:last-child)]:mb-4">
           {!sessionData.isSessionCompleted && (
             <>
               {!isTimerRunning ? (
