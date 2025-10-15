@@ -44,7 +44,7 @@ const FormField = ({ label, placeholder, value, onChange, type = 'text', id }: F
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
-        className="px-2.5 py-2.5 rounded text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40"
+        className="px-2.5 py-2.5 rounded text-base font-normal leading-6 border border-team-blue-40 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40"
       />
     </div>
   );
@@ -76,7 +76,7 @@ export const SessionSetup: React.FC = () => {
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
             <Label className="text-base leading-6">Match Type</Label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
-              <SelectTrigger className={`w-full h-12 text-base font-normal leading-6 px-2.5 py-2.5 rounded`}>
+              <SelectTrigger className={`w-full h-12 text-base font-normal leading-6 px-2.5 py-2.5 rounded border border-team-blue-40`}>
                 <SelectValue placeholder="Select match type" />
               </SelectTrigger>
               <SelectContent>

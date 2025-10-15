@@ -93,7 +93,7 @@ export const LivePreview = () => {
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
   const [timer, setTimer] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(true);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -282,13 +282,31 @@ export const LivePreview = () => {
         {/* CTA Buttons */}
         <div className="flex flex-col gap-4 w-full sm:w-60">
           {!sessionData.isSessionCompleted && (
-            <button
-              onClick={handleCompleteSession}
-              disabled={loading}
-              className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Saving...' : 'Complete Session'}
-            </button>
+            <>
+              {!isTimerRunning ? (
+                <button
+                  onClick={() => setIsTimerRunning(true)}
+                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors"
+                >
+                  Start
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsTimerRunning(false)}
+                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-transparent text-white text-base leading-6 font-normal hover:bg-team-white/10 transition-colors"
+                >
+                  Pause
+                </button>
+              )}
+
+              <button
+                onClick={handleCompleteSession}
+                disabled={loading}
+                className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              >
+                {loading ? 'Saving...' : 'Complete Session'}
+              </button>
+            </>
           )}
 
           <button
