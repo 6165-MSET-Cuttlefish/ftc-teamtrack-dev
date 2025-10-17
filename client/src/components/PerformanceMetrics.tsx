@@ -357,24 +357,28 @@ export const PerformanceMetrics = () => {
             value={sessionData.finalScore}
             onChange={(value) => updateSessionData({ finalScore: value })}
             hasDropdown={false}
+            editable={false}
           />
           <MetricField
             label="Autonomous Score"
             value={sessionData.autonomousScore}
             onChange={(value) => updateSessionData({ autonomousScore: value })}
             onDropdownClick={() => toggleSection('Autonomous Score')}
+            editable={false}
           />
           <MetricField
             label="TeleOp Score"
             value={sessionData.teleOpScore}
             onChange={(value) => updateSessionData({ teleOpScore: value })}
             onDropdownClick={() => toggleSection('TeleOp Score')}
+            editable={false}
           />
           <MetricField
             label="End Game Score"
             value={sessionData.endGameScore}
             onChange={(value) => updateSessionData({ endGameScore: value })}
             onDropdownClick={() => toggleSection('End Game Score')}
+            editable={false}
           />
         </div>
       </div>
