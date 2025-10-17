@@ -159,6 +159,8 @@ const PerformanceInsightCard = ({
 const AnalysisContent = () => {
   const { sessionData } = useSession();
   const { isDarkMode } = useTheme();
+  const { user } = useAuth();
+  const { getUserSessions } = useFirebase();
   const [timer, setTimer] = useState(0);
   const [_graphModal, _setGraphModal] = useState<{
     isOpen: boolean;
@@ -169,14 +171,70 @@ const AnalysisContent = () => {
   });
 
   // Performance insights state
-  const [insights, setInsights] = useState([
-    { id: 1, metric: 'Consistency', value: '87%', isPositive: true },
-    { id: 2, metric: '', value: '', isPositive: true },
-    { id: 3, metric: '', value: '', isPositive: false },
-    { id: 4, metric: '', value: '', isPositive: true },
-    { id: 5, metric: '', value: '', isPositive: false },
-    { id: 6, metric: '', value: '', isPositive: true },
-  ]);
+  const [insights, setInsights] = useState<{
+    id: number;
+    metric: string;
+    value: string;
+    isPositive: boolean;
+  }[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchComparisons = async () => {
+      if (!user?.uid) {
+        // no user - can't compare
+        setInsights([
+          { id: 1, metric: 'Consistency', value: 'null', isPositive: false },
+          { id: 2, metric: 'Autonomous', value: 'null', isPositive: false },
+          { id: 3, metric: 'TeleOp', value: 'null', isPositive: false },
+        ]);
+        return;
+      }
+
+      const result = await getUserSessions(user.uid);
+      if (!mounted) return;
+
+      if (!result || result.length === 0) {
+        setInsights([
+          { id: 1, metric: 'Consistency', value: 'null', isPositive: false },
+          { id: 2, metric: 'Autonomous', value: 'null', isPositive: false },
+          { id: 3, metric: 'TeleOp', value: 'null', isPositive: false },
+        ]);
+        return;
+      }
+
+      // Use last 5 previous sessions (excluding current if it matches by finalScore and duration)
+      const prevSessions = result.slice(0, 5);
+
+      const avgFinal = prevSessions.reduce((s, p) => s + (p.finalScore || 0), 0) / prevSessions.length;
+      const avgAuton = prevSessions.reduce((s, p) => s + (p.autonomousScore || 0), 0) / prevSessions.length;
+      const avgTele = prevSessions.reduce((s, p) => s + (p.teleOpScore || 0), 0) / prevSessions.length;
+
+      const formatChange = (current: number, average: number) => {
+        if (average === 0) return 'N/A';
+        const perc = ((current - average) / average) * 100;
+        const sign = perc >= 0 ? '+' : '';
+        return `${sign}${Math.round(perc)}%`;
+      };
+
+      const consistencyVal = sessionData.finalScore ? `${sessionData.finalScore}%` : 'N/A';
+      const autonChange = formatChange(sessionData.autonomousScore, avgAuton);
+      const teleChange = formatChange(sessionData.teleOpScore, avgTele);
+
+      setInsights([
+        { id: 1, metric: 'Consistency', value: consistencyVal, isPositive: sessionData.finalScore >= avgFinal },
+        { id: 2, metric: 'Autonomous', value: autonChange, isPositive: sessionData.autonomousScore >= avgAuton },
+        { id: 3, metric: 'TeleOp', value: teleChange, isPositive: sessionData.teleOpScore >= avgTele },
+      ]);
+    };
+
+    fetchComparisons();
+
+    return () => {
+      mounted = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, sessionData.finalScore, sessionData.autonomousScore, sessionData.teleOpScore]);
 
   useEffect(() => {
     const interval = setInterval(() => {
