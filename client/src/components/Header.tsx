@@ -125,7 +125,7 @@ const NavigationMenu: React.FC = () => {
 
   return (
     <div className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-2xl border ${isDarkMode ? 'border-team-white-20 bg-team-dark-20' : 'border-team-blue/60 bg-[#FEFEFE]'}`}>
-      <span className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>About Us</span>
+      <Link to="/about" className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>About Us</Link>
       <button onClick={toggleTheme} aria-label="Toggle theme" className={`w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2 focus:outline-none`}>
         <div className="w-2 h-2 bg-team-dark rounded-full" />
       </button>
