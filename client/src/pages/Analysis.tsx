@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useSession, SessionProvider } from '../contexts/SessionContext';
 import { useTheme, ThemeProvider } from '../contexts/ThemeContext';
 import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useFirebase } from '../hooks/useFirebase';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   return (
