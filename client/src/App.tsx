@@ -12,6 +12,7 @@ import { Header } from './components/Header';
 import { lazy, Suspense } from 'react';
 const Original = lazy(() => import('./pages/Original'));
 const Analysis = lazy(() => import('./pages/Analysis'));
+const About = lazy(() => import('./pages/About'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
