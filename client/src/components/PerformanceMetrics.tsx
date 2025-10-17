@@ -62,12 +62,14 @@ const MetricField = ({
   onChange,
   hasDropdown = true,
   onDropdownClick,
+  editable = true,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   hasDropdown?: boolean;
   onDropdownClick?: () => void;
+  editable?: boolean;
 }) => {
   const { isDarkMode } = useTheme();
 
