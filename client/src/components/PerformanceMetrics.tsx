@@ -107,6 +107,7 @@ const MetricField = ({
           value={value}
           onChange={onChange}
           placeholder="0"
+          readOnly={!editable}
           className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-black'}`}
         />
         <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
