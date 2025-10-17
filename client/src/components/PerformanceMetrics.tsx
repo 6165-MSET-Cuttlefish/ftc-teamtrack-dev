@@ -51,6 +51,7 @@ const NumberInput: React.FC<{
       onKeyDown={handleKeyDown}
       placeholder={placeholder}
       className={className}
+      readOnly={readOnly}
     />
   );
 };
