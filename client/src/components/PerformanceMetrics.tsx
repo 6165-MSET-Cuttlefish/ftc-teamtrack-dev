@@ -9,7 +9,8 @@ const NumberInput: React.FC<{
   onChange: (v: number) => void;
   placeholder?: string;
   className?: string;
-}> = ({ value, onChange, placeholder, className }) => {
+  readOnly?: boolean;
+}> = ({ value, onChange, placeholder, className, readOnly = false }) => {
   const [local, setLocal] = useState<string>(
     value !== undefined && value !== null ? String(value) : ''
   );
