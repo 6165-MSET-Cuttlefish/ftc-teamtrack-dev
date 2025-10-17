@@ -203,7 +203,7 @@ export const Header: React.FC = () => {
 
         <div className="flex items-center justify-center">
           <div className="hidden lg:block">
-            <SearchBox />
+            {/* Search removed per request */}
           </div>
         </div>
 
