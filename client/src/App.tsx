@@ -73,6 +73,7 @@ const App = () => (
                             </ProtectedRoute>
                           }
                         />
+                        <Route path="/about" element={<About />} />
                         <Route
                           path="/sessions"
                           element={
