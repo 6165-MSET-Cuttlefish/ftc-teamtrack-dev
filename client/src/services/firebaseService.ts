@@ -37,7 +37,10 @@ class FirebaseService {
         id: docRef.id,
         ...newSession
       } as SessionData;
-    } catch (error) {
+    } catch (error: any) {
+      if (error && error.name === 'AbortError') {
+        return null;
+      }
       console.error('Error creating session:', error);
       return null;
     }
