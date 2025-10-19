@@ -85,7 +85,10 @@ class FirebaseService {
       }
       
       return null;
-    } catch (error) {
+    } catch (error: any) {
+      if (error && error.name === 'AbortError') {
+        return null;
+      }
       console.error('Error fetching session:', error);
       return null;
     }
