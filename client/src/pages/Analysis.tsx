@@ -44,11 +44,11 @@ const SensorOverviewCard = ({
       <div className="grid grid-cols-2 gap-6">
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-2.5">
-            <div className="text-team-white-60 text-xs leading-6">
+            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
               Session Name
             </div>
-            <div className="text-team-white-60 text-xs leading-6">Driver</div>
-            <div className="text-team-white-60 text-xs leading-6">
+            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>Driver</div>
+            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
               Match Type
             </div>
           </div>
