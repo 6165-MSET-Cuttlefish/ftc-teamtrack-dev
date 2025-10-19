@@ -278,68 +278,9 @@ export const LivePreview = () => {
   };
 
   const handleViewAnalysis = async () => {
-    // If we already have a saved session ID, navigate directly
-    if (savedSessionId) {
-      navigate(`/analysis?sessionId=${savedSessionId}`);
-      return;
-    }
-
-    // If session is not completed yet, complete it first then navigate
-    if (!sessionData.isSessionCompleted) {
-      const currentTime = formatTime(timer);
-      setIsTimerRunning(false);
-      completeSession(currentTime);
-
-      // Create and save the session
-      const sessionToSave = {
-        sessionName: sessionData.sessionName.trim() || 'Untitled Session',
-        driverName: sessionData.driverName.trim() || 'Unknown Driver',
-        matchType: sessionData.matchType || 'Practice',
-        sessionDuration: currentTime,
-        userId: user?.uid || '',
-        userEmail: user?.email || '',
-        autonClassifiedArtifact: sessionData.autonomousBasket || 0,
-        autonOverflowArtifact: sessionData.autonomousSpecimen || 0,
-        autonMotif: sessionData.autonomousFloorMark || 0,
-        autonLeave: sessionData.autonomousLeave || 0,
-        teleClassifiedArtifact: sessionData.teleOpSamples || 0,
-        teleOverflowArtifact: sessionData.teleOpSpecimen || 0,
-        teleMotif: sessionData.teleOpFloorMark || 0,
-        endgameHang: sessionData.endGameValue || 0,
-        endgamePark: 0,
-        finalScore: sessionData.finalScore || 0,
-        autonomousScore: sessionData.autonomousScore || 0,
-        teleOpScore: sessionData.teleOpScore || 0,
-        endGameScore: sessionData.endGameScore || 0,
-        completedAt: new Date().toISOString(),
-      };
-
-      try {
-        const result = await createSession(sessionToSave);
-        if (result && result.id) {
-          setSavedSessionId(result.id);
-          navigate(`/analysis?sessionId=${result.id}`);
-        }
-      } catch (error) {
-        console.error('Failed to save session:', error);
-        // Still navigate but show an error - could pass session data through state as fallback
-        navigate('/analysis', {
-          state: {
-            sessionData: sessionToSave,
-            isTemporary: true,
-          },
-        });
-      }
-    } else {
-      // Session is completed but we don't have the ID - this shouldn't happen in normal flow
-      // Pass session data through state as fallback
-      navigate('/analysis', {
-        state: {
-          sessionData: sessionData,
-          isTemporary: true,
-        },
-      });
-    }
+    // Navigate to analysis without auto-completing or saving the session.
+    // Analysis will read session data from SessionContext.
+    navigate('/analysis');
   };
 
   const handleCompleteSession = async () => {
