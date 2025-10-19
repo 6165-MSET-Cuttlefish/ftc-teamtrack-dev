@@ -160,7 +160,7 @@ const NavigationMenu: React.FC = () => {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to="/sessions/select" className="flex items-center">
+              <Link to="/sessions" className="flex items-center">
                 <CheckSquare className="mr-2 h-4 w-4" />
                 <span>Select Sessions</span>
               </Link>
