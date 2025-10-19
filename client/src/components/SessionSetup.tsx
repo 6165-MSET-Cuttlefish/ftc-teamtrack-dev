@@ -92,7 +92,7 @@ export const SessionSetup: React.FC = () => {
           />
           <FormField
             label="Driver Name"
-            placeholder="Ethan Yang"
+            placeholder="Enter driver name"
             value={sessionData.driverName}
             onChange={setDriverName}
           />

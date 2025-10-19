@@ -40,7 +40,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   const [sessionData, setSessionData] = useState<SessionData>({
     sessionName: '',
-    driverName: user?.displayName || 'Ethan Yang',
+    driverName: user?.displayName || '',
     sessionDuration: '',
     matchType: 'Autonomous',
     finalScore: 0,
