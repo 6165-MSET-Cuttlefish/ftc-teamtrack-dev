@@ -202,6 +202,14 @@ export const PerformanceMetrics = () => {
     updateSessionData,
   ]);
 
+  // Always update Final Score when Autonomous or TeleOp scores change
+  useEffect(() => {
+    const finalScore = sessionData.autonomousScore + sessionData.teleOpScore + sessionData.endGameScore;
+    if (finalScore !== sessionData.finalScore) {
+      updateSessionData({ finalScore });
+    }
+  }, [sessionData.autonomousScore, sessionData.teleOpScore, sessionData.endGameScore, sessionData.finalScore, updateSessionData]);
+
   const handleIncrement = (value: number, setter: (value: number) => void) => {
     setter(value + 1);
   };

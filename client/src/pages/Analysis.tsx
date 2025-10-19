@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useSession, SessionProvider } from '../contexts/SessionContext';
 import { useTheme, ThemeProvider } from '../contexts/ThemeContext';
 import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFirebase } from '../hooks/useFirebase';
+import { firebaseService } from '../services/firebaseService';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   return (
@@ -159,11 +160,14 @@ const PerformanceInsightCard = ({
 };
 
 const AnalysisContent = () => {
-  const { sessionData } = useSession();
+  const { sessionData, updateSessionData } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { getUserSessions } = useFirebase();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [timer, setTimer] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [_graphModal, _setGraphModal] = useState<{
     isOpen: boolean;
     metric: string;
@@ -179,6 +183,57 @@ const AnalysisContent = () => {
     value: string;
     isPositive: boolean;
   }[]>([]);
+
+  // Load session data from Firebase or location state
+  useEffect(() => {
+    const loadSessionData = async () => {
+      setLoading(true);
+      
+      // First check if session data was passed through state (for temporary sessions)
+      const stateData = location.state as { sessionData?: any; isTemporary?: boolean } | null;
+      if (stateData?.sessionData) {
+        updateSessionData(stateData.sessionData);
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise, try to load by sessionId from query params
+      const sessionId = searchParams.get('sessionId');
+      if (sessionId) {
+        try {
+          const session = await firebaseService.getSession(sessionId);
+          if (session) {
+            // Update the session context with loaded data
+            updateSessionData({
+              sessionName: session.sessionName || '',
+              driverName: session.driverName || '',
+              sessionDuration: session.sessionDuration || '',
+              matchType: session.matchType || '',
+              finalScore: session.finalScore || 0,
+              autonomousScore: session.autonomousScore || 0,
+              teleOpScore: session.teleOpScore || 0,
+              endGameScore: session.endGameScore || 0,
+              isSessionCompleted: true,
+              autonomousBasket: session.autonClassifiedArtifact || 0,
+              autonomousSpecimen: session.autonOverflowArtifact || 0,
+              autonomousFloorMark: session.autonMotif || 0,
+              autonomousLeave: session.autonLeave || 0,
+              teleOpSamples: session.teleClassifiedArtifact || 0,
+              teleOpSpecimen: session.teleOverflowArtifact || 0,
+              teleOpFloorMark: session.teleMotif || 0,
+              endGameValue: session.endgameHang || 0,
+            });
+          }
+        } catch (error) {
+          console.error('Error loading session:', error);
+        }
+      }
+      
+      setLoading(false);
+    };
+
+    loadSessionData();
+  }, [searchParams, location.state, updateSessionData]);
 
   useEffect(() => {
     let mounted = true;
@@ -270,6 +325,15 @@ const AnalysisContent = () => {
   // const _closeGraph = () => {
   //   _setGraphModal({ isOpen: false, metric: "" });
   // };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} flex items-center justify-center`}>
+        <div className="text-team-blue text-2xl">Loading session...</div>
+      </div>
+    );
+  }
 
   return (
     <div
