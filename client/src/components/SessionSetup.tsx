@@ -57,7 +57,7 @@ const FormField = ({
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
-        className="px-2.5 py-2.5 rounded text-base font-normal leading-6 border border-team-blue-40 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-team-white-40"
+        className="px-2.5 py-2.5 rounded text-base font-normal leading-6 border border-team-blue-40 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-muted-foreground"
       />
     </div>
   );
