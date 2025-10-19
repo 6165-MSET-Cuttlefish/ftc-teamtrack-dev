@@ -58,7 +58,11 @@ class FirebaseService {
         id: doc.id,
         ...doc.data()
       })) as SessionData[];
-    } catch (error) {
+    } catch (error: any) {
+      if (error && error.name === 'AbortError') {
+        // Suppress noisy AbortError from Firestore/internal fetch during HMR or navigation
+        return [];
+      }
       console.error('Error fetching user sessions:', error);
       return [];
     }
