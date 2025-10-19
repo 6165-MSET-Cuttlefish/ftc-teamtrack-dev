@@ -8,7 +8,10 @@ if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
     const reason: any = e.reason;
     if (!reason) return;
-    if (reason.name === 'AbortError' || (typeof reason === 'string' && reason.includes('signal is aborted'))) {
+    if (
+      reason.name === 'AbortError' ||
+      (typeof reason === 'string' && reason.includes('signal is aborted'))
+    ) {
       e.preventDefault();
       return;
     }
@@ -20,7 +23,10 @@ if (typeof window !== 'undefined') {
       e.preventDefault();
       return;
     }
-    if (typeof e.message === 'string' && e.message.includes('signal is aborted')) {
+    if (
+      typeof e.message === 'string' &&
+      e.message.includes('signal is aborted')
+    ) {
       e.preventDefault();
       return;
     }

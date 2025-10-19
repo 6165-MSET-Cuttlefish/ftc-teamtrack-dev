@@ -19,7 +19,8 @@ export const useFirebase = () => {
           setError(null);
           return null;
         }
-        const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+        const errorMessage =
+          err instanceof Error ? err.message : 'An error occurred';
         setError(errorMessage);
         console.error('Firebase operation failed:', err);
         return null;
@@ -37,14 +38,12 @@ export const useFirebase = () => {
   );
 
   const getUserSessions = useCallback(
-    (userId: string) =>
-      execute(() => firebaseService.getUserSessions(userId)),
+    (userId: string) => execute(() => firebaseService.getUserSessions(userId)),
     [execute]
   );
 
   const getSession = useCallback(
-    (sessionId: string) =>
-      execute(() => firebaseService.getSession(sessionId)),
+    (sessionId: string) => execute(() => firebaseService.getSession(sessionId)),
     [execute]
   );
 

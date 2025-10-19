@@ -1,14 +1,14 @@
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  Timestamp 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  getDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  Timestamp,
 } from 'firebase/firestore';
 import getFirebase from '../lib/firebase';
 import { Session } from '../types/session';
@@ -24,18 +24,20 @@ class FirebaseService {
     return firebase.db;
   }
 
-  async createSession(sessionData: Omit<SessionData, 'id' | 'createdAt'>): Promise<SessionData | null> {
+  async createSession(
+    sessionData: Omit<SessionData, 'id' | 'createdAt'>
+  ): Promise<SessionData | null> {
     try {
       const db = await this.getDB();
       const newSession = {
         ...sessionData,
-        createdAt: Timestamp.now()
+        createdAt: Timestamp.now(),
       };
       const docRef = await addDoc(collection(db, 'sessions'), newSession);
-      
+
       return {
         id: docRef.id,
-        ...newSession
+        ...newSession,
       } as SessionData;
     } catch (error: any) {
       if (error && error.name === 'AbortError') {
@@ -55,11 +57,11 @@ class FirebaseService {
         orderBy('createdAt', 'desc'),
         limit(50)
       );
-      
+
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as SessionData[];
     } catch (error: any) {
       if (error && error.name === 'AbortError') {
@@ -76,14 +78,14 @@ class FirebaseService {
       const db = await this.getDB();
       const docRef = doc(db, 'sessions', sessionId);
       const docSnap = await getDoc(docRef);
-      
+
       if (docSnap.exists()) {
         return {
           id: docSnap.id,
-          ...docSnap.data()
+          ...docSnap.data(),
         } as SessionData;
       }
-      
+
       return null;
     } catch (error: any) {
       if (error && error.name === 'AbortError') {
@@ -102,11 +104,11 @@ class FirebaseService {
         orderBy('createdAt', 'desc'),
         limit(100)
       );
-      
+
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as SessionData[];
     } catch (error: any) {
       if (error && error.name === 'AbortError') {
