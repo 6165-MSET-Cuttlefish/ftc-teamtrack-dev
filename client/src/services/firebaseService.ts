@@ -102,7 +102,10 @@ class FirebaseService {
         id: doc.id,
         ...doc.data()
       })) as SessionData[];
-    } catch (error) {
+    } catch (error: any) {
+      if (error && error.name === 'AbortError') {
+        return [];
+      }
       console.error('Error fetching all sessions:', error);
       return [];
     }
