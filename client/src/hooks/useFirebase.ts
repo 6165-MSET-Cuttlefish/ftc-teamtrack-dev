@@ -13,7 +13,12 @@ export const useFirebase = () => {
       try {
         const result = await operation();
         return result;
-      } catch (err) {
+      } catch (err: any) {
+        // Suppress AbortError which can occur due to HMR or navigation cancelling in dev
+        if (err && err.name === 'AbortError') {
+          setError(null);
+          return null;
+        }
         const errorMessage = err instanceof Error ? err.message : 'An error occurred';
         setError(errorMessage);
         console.error('Firebase operation failed:', err);
