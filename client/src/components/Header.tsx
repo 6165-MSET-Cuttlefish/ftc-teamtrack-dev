@@ -133,7 +133,7 @@ const NavigationMenu: React.FC = () => {
         <Sun className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-black'}`} />
       </div>
 
-      <Settings className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+      <Link to="/profile"><Settings className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-black'}`} /></Link>
 
       {user ? (
         <DropdownMenu>
