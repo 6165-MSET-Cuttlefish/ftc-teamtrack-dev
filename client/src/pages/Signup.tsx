@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -28,6 +29,7 @@ const Signup: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const { signup, loginWithGoogle } = useAuth();
+  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,13 +88,13 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-team-dark py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md bg-team-dark border-team-blue-40">
+    <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}>
+      <Card className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue/60'}`}>
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center text-team-blue">
             Create Account
           </CardTitle>
-          <CardDescription className="text-center text-team-white-60">
+          <CardDescription className={`text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
             Sign up to get started with TeamTrack
           </CardDescription>
         </CardHeader>
@@ -106,11 +108,11 @@ const Signup: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-team-white">
+              <Label htmlFor="displayName" className={isDarkMode ? 'text-team-white' : 'text-black'}>
                 Full Name
               </Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
+              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
+                <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
                 <Input
                   id="displayName"
                   name="displayName"
@@ -118,18 +120,18 @@ const Signup: React.FC = () => {
                   placeholder="Enter your full name"
                   value={formData.displayName}
                   onChange={handleChange}
-                  className="pl-10 bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40"
+                  className={`pl-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-team-white">
+              <Label htmlFor="email" className={isDarkMode ? 'text-team-white' : 'text-black'}>
                 Email
               </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
+              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
+                <Mail className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
                 <Input
                   id="email"
                   name="email"
@@ -137,18 +139,18 @@ const Signup: React.FC = () => {
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="pl-10 bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40"
+                  className={`pl-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-team-white">
+              <Label htmlFor="password" className={isDarkMode ? 'text-team-white' : 'text-black'}>
                 Password
               </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
+              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
+                <Lock className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
                 <Input
                   id="password"
                   name="password"
@@ -156,13 +158,13 @@ const Signup: React.FC = () => {
                   placeholder="Create a password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-10 pr-10 bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40"
+                  className={`pl-10 pr-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 h-4 w-4 text-team-white-40 hover:text-team-blue"
+                  className={`absolute right-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-team-blue-40 hover:text-team-blue'}`}
                 >
                   {showPassword ? <EyeOff /> : <Eye />}
                 </button>
@@ -170,11 +172,11 @@ const Signup: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-team-white">
+              <Label htmlFor="confirmPassword" className={isDarkMode ? 'text-team-white' : 'text-black'}>
                 Confirm Password
               </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-team-white-40" />
+              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
+                <Lock className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -182,13 +184,13 @@ const Signup: React.FC = () => {
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="pl-10 pr-10 bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40"
+                  className={`pl-10 pr-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 h-4 w-4 text-team-white-40 hover:text-team-blue"
+                  className={`absolute right-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-team-blue-40 hover:text-team-blue'}`}
                 >
                   {showConfirmPassword ? <EyeOff /> : <Eye />}
                 </button>
@@ -197,7 +199,7 @@ const Signup: React.FC = () => {
 
             <Button
               type="submit"
-              className="w-full bg-team-blue hover:bg-team-blue/90"
+              className="w-full bg-team-blue hover:bg-team-blue/90 text-white"
               disabled={loading}
             >
               {loading ? 'Creating Account...' : 'Create Account'}
@@ -206,10 +208,10 @@ const Signup: React.FC = () => {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-team-blue-40" />
+              <span className={`w-full border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`} />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-team-dark px-2 text-team-white-40">
+              <span className={`${isDarkMode ? 'bg-team-dark text-team-white-40' : 'bg-white text-team-blue-40'} px-2`}>
                 Or continue with
               </span>
             </div>
@@ -218,7 +220,7 @@ const Signup: React.FC = () => {
           <Button
             type="button"
             variant="outline"
-            className="w-full border-team-blue-40 bg-team-dark-20 text-team-white hover:bg-team-blue-10"
+            className={`w-full ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 text-team-white hover:bg-team-blue-10' : 'border-team-blue/60 bg-[#FEFEFE] text-black hover:bg-team-blue/10'}`}
             onClick={handleGoogleSignUp}
             disabled={loading}
           >
@@ -245,7 +247,7 @@ const Signup: React.FC = () => {
         </CardContent>
 
         <CardFooter className="flex justify-center">
-          <div className="text-sm text-center text-team-white-60">
+          <div className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
             Already have an account?{' '}
             <Link
               to="/login"
