@@ -27,49 +27,6 @@ const DataCard = ({ value, label }: { value: string; label: string }) => {
   );
 };
 
-const OverviewCard = ({
-  driverName,
-  matchType,
-  sessionDuration,
-  finalScore,
-}: {
-  driverName: string;
-  matchType: string;
-  sessionDuration: string;
-  finalScore: number;
-}) => {
-  const { isDarkMode } = useTheme();
-  return (
-    <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
-      <h3
-        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-      >
-        Session Overview
-      </h3>
-      <div className="flex justify-between items-start">
-        <div className="flex flex-col gap-2.5">
-          <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>Driver</div>
-          <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>Match Type</div>
-          <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>Duration</div>
-          <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>Score</div>
-        </div>
-        <div className="flex flex-col gap-2.5">
-          <div className="text-team-blue text-xs leading-6">
-            {driverName || 'N/A'}
-          </div>
-          <div className="text-team-blue text-xs leading-6">
-            {matchType || 'N/A'}
-          </div>
-          <div className="text-team-blue text-xs leading-6">
-            {sessionDuration || 'N/A'}
-          </div>
-          <div className="text-team-blue text-xs leading-6">{finalScore}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const InsightsCard = ({ 
   currentTeleOpScore, 
   currentAutonomousScore,
@@ -88,16 +45,12 @@ const InsightsCard = ({
   useEffect(() => {
     const calculateImprovements = async () => {
       try {
-        // Import firebaseService
         const { firebaseService } = await import('../services/firebaseService');
         
-        // Get user's recent sessions
         const recentSessions = await firebaseService.getUserSessions(userId);
         
-        // Get last 3 sessions (excluding current)
         const lastThreeSessions = recentSessions.slice(0, 3);
         
-        // Edge case: less than 1 previous session
         if (lastThreeSessions.length === 0) {
           setTeleOpImprovement('First session');
           setAutonomousImprovement('First session');
@@ -106,13 +59,11 @@ const InsightsCard = ({
           return;
         }
         
-        // Calculate averages
         const avgTeleOp = lastThreeSessions.reduce((sum, session) => 
           sum + (session.teleOpScore || 0), 0) / lastThreeSessions.length;
         const avgAutonomous = lastThreeSessions.reduce((sum, session) => 
           sum + (session.autonomousScore || 0), 0) / lastThreeSessions.length;
         
-        // Calculate percentage changes
         const calcPercentChange = (current: number, average: number) => {
           if (average === 0) return current > 0 ? 100 : 0;
           return ((current - average) / average) * 100;
@@ -121,7 +72,6 @@ const InsightsCard = ({
         const teleOpChange = calcPercentChange(currentTeleOpScore, avgTeleOp);
         const autonomousChange = calcPercentChange(currentAutonomousScore, avgAutonomous);
         
-        // Format and set results
         setTeleOpImprovement(`${teleOpChange >= 0 ? '+' : ''}${teleOpChange.toFixed(1)}%`);
         setAutonomousImprovement(`${autonomousChange >= 0 ? '+' : ''}${autonomousChange.toFixed(1)}%`);
         
@@ -155,19 +105,23 @@ const InsightsCard = ({
   return (
     <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
       <h3
-        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
       >
         Performance Insights
       </h3>
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <span className="text-team-white-60 text-xs leading-6">TeleOp vs Avg (last 3):</span>
+          <span className={`text-xs leading-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue'}`}>
+            TeleOp vs Avg (last 3):
+          </span>
           <span className={`text-xs font-semibold ${getTrendColor(teleOpTrend)}`}>
             {getTrendIcon(teleOpTrend)} {teleOpImprovement}
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-team-white-60 text-xs leading-6">Autonomous vs Avg (last 3):</span>
+          <span className={`text-xs leading-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue'}`}>
+            Autonomous vs Avg (last 3):
+          </span>
           <span className={`text-xs font-semibold ${getTrendColor(autonomousTrend)}`}>
             {getTrendIcon(autonomousTrend)} {autonomousImprovement}
           </span>
@@ -191,55 +145,43 @@ export const LivePreview = () => {
   const [consistency, setConsistency] = useState<number>(0);
   const [isCalculatingConsistency, setIsCalculatingConsistency] = useState(true);
 
-  // Calculate consistency in real-time whenever final score changes
   useEffect(() => {
     const calculateConsistency = async () => {
       try {
         setIsCalculatingConsistency(true);
         const { firebaseService } = await import('../services/firebaseService');
         
-        // Get user's recent sessions
         const recentSessions = await firebaseService.getUserSessions(user?.uid || '');
         
-        // Get only the last 3 completed sessions (excluding current)
         const lastThreeSessions = recentSessions.slice(0, 3);
         
-        // Edge case: truly first session (no previous sessions)
         if (lastThreeSessions.length === 0) {
           setConsistency(100);
           setIsCalculatingConsistency(false);
           return;
         }
         
-        // Include current score with the last 3 sessions
         const allScores = [
           sessionData.finalScore,
           ...lastThreeSessions.map(session => session.finalScore || 0)
         ];
         
-        // Calculate average score (including zeros)
         const avgScore = allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
         
-        // If all scores are zero, consistency is 100% (perfectly consistent at zero)
         if (avgScore === 0) {
           setConsistency(100);
           setIsCalculatingConsistency(false);
           return;
         }
         
-        // Calculate standard deviation
         const variance = allScores.reduce((sum, score) => {
           return sum + Math.pow(score - avgScore, 2);
         }, 0) / allScores.length;
         
         const stdDev = Math.sqrt(variance);
         
-        // Calculate coefficient of variation (CV) - measures relative variability
         const cv = stdDev / avgScore;
         
-        // Convert to consistency percentage
-        // Using a scaled formula: consistency = 100 / (1 + cv)
-        // This gives: CV=0 -> 100%, CV=1 -> 50%, CV=2 -> 33%, etc.
         const consistencyScore = 100 / (1 + cv);
         
         setConsistency(Math.round(consistencyScore));
@@ -278,8 +220,6 @@ export const LivePreview = () => {
   };
 
   const handleViewAnalysis = async () => {
-    // Navigate to analysis without auto-completing or saving the session.
-    // Analysis will read session data from SessionContext.
     navigate('/analysis');
   };
 
@@ -288,67 +228,53 @@ export const LivePreview = () => {
     setIsTimerRunning(false);
     completeSession(currentTime);
 
-    // Map frontend data structure to backend expected format
     const sessionToSave = {
-      // Basic session info - ensure no empty strings
       sessionName: sessionData.sessionName.trim() || 'Untitled Session',
       driverName: sessionData.driverName.trim() || 'Unknown Driver',
       matchType: sessionData.matchType || 'Practice',
       sessionDuration: currentTime,
 
-      // User information for authentication
       userId: user?.uid || '',
       userEmail: user?.email || '',
 
-      // Autonomous data with new scoring system (no more separate basket/specimen)
-      autonClassifiedArtifact: sessionData.autonomousBasket || 0, // Classified Artifact (3 pts each)
-      autonOverflowArtifact: sessionData.autonomousSpecimen || 0, // Overflow Artifact (1 pt each)
-      autonMotif: sessionData.autonomousFloorMark || 0, // Motif (2 pts each)
-      autonLeave: sessionData.autonomousLeave || 0, // Leave (3 pts)
+      autonClassifiedArtifact: sessionData.autonomousBasket || 0,
+      autonOverflowArtifact: sessionData.autonomousSpecimen || 0,
+      autonMotif: sessionData.autonomousFloorMark || 0,
+      autonLeave: sessionData.autonomousLeave || 0,
 
-      // TeleOp data with new scoring system (no more separate basket/specimen)
-      teleClassifiedArtifact: sessionData.teleOpSamples || 0, // Classified Artifact (3 pts each)
-      teleOverflowArtifact: sessionData.teleOpSpecimen || 0, // Overflow Artifact (1 pt each)
-      teleMotif: sessionData.teleOpFloorMark || 0, // Motif (2 pts each)
+      teleClassifiedArtifact: sessionData.teleOpSamples || 0,
+      teleOverflowArtifact: sessionData.teleOpSpecimen || 0,
+      teleMotif: sessionData.teleOpFloorMark || 0,
 
-      // Endgame data
       endgameHang: sessionData.endGameValue || 0,
-      endgamePark: 0, // Not tracked in frontend currently
+      endgamePark: 0,
 
-      // Score data - both calculated and manually entered scores
       finalScore: sessionData.finalScore || 0,
       autonomousScore: sessionData.autonomousScore || 0,
       teleOpScore: sessionData.teleOpScore || 0,
       endGameScore: sessionData.endGameScore || 0,
 
-      // Additional metadata
       completedAt: new Date().toISOString(),
     };
 
     try {
-      // console.log("Sending session data:", sessionToSave);
       const result = await createSession(sessionToSave);
       if (result && result.id) {
         setSavedSessionId(result.id);
-        // console.log("Session saved successfully to Firestore:", result);
-        // You could add a toast notification here for user feedback
       }
     } catch {
-      // console.error("Failed to save session:", error);
-      // You could add error notification here
     }
   };
 
   return (
     <div className="flex flex-col items-center gap-12 lg:gap-16">
-      {/* Header Section */}
       <div className="flex flex-col items-center gap-8 lg:gap-12">
         <div className="text-center space-y-6">
           <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-tight lg:leading-9">
             Live Preview
           </h1>
           <p
-            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
           >
             Real time analysis
           </p>
@@ -359,9 +285,7 @@ export const LivePreview = () => {
         </div>
       </div>
 
-      {/* Data Section */}
       <div className="flex flex-col items-center gap-6 lg:gap-8 w-full">
-        {/* Data Cards Row */}
         <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 w-full justify-center">
           <DataCard
             value={sessionData.finalScore.toString()}
@@ -373,22 +297,12 @@ export const LivePreview = () => {
           />
         </div>
 
-        {/* Overview Card */}
-        <OverviewCard
-          driverName={sessionData.driverName}
-          matchType={sessionData.matchType}
-          sessionDuration={sessionData.sessionDuration}
-          finalScore={sessionData.finalScore}
-        />
-
-        {/* Insights Card */}
         <InsightsCard 
           currentTeleOpScore={sessionData.teleOpScore}
           currentAutonomousScore={sessionData.autonomousScore}
           userId={user?.uid || ''}
         />
 
-        {/* CTA Buttons */}
         <div className="flex flex-col gap-4 w-full sm:w-60">
           {!sessionData.isSessionCompleted && (
             <>
@@ -402,7 +316,7 @@ export const LivePreview = () => {
               ) : (
                 <button
                   onClick={() => setIsTimerRunning(false)}
-                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-transparent text-white text-base leading-6 font-normal hover:bg-team-white/10 transition-colors"
+                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue text-[#FEFEFE] text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors"
                 >
                   Pause
                 </button>

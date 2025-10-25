@@ -10,7 +10,7 @@ import { firebaseService } from '../services/firebaseService';
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div className="flex flex-col items-center gap-4 px-9 py-6 rounded-lg border border-team-blue-40 bg-team-dark-20">
+    <div className={`flex flex-col items-center gap-4 px-9 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
       <div className="text-team-blue text-3xl font-medium leading-6">
         {value}
       </div>
@@ -36,7 +36,7 @@ const SensorOverviewCard = ({
 }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-4">
+    <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'} space-y-4`}>
       <h3
         className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
       >
@@ -67,11 +67,11 @@ const SensorOverviewCard = ({
         </div>
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-2.5">
-            <div className="text-team-white-60 text-xs leading-6">Duration</div>
-            <div className="text-team-white-60 text-xs leading-6">
+            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>Duration</div>
+            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
               Final Score
             </div>
-            <div className="text-team-white-60 text-xs leading-6">
+            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
               Total Finished Time
             </div>
           </div>
@@ -88,25 +88,6 @@ const SensorOverviewCard = ({
   );
 };
 
-// Placeholder component for future graph functionality
-// const _GraphModal = ({
-//   isOpen,
-//   onClose,
-//   metric,
-// }: {
-//   isOpen: boolean;
-//   onClose: () => void;
-//   metric: string;
-// }) => {
-//   const { isDarkMode } = useTheme();
-//   if (!isOpen) return null;
-//   return (
-//     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//       {/* Modal content would go here */}
-//     </div>
-//   );
-// };
-
 const PerformanceInsightCard = ({
   metric,
   value,
@@ -122,7 +103,7 @@ const PerformanceInsightCard = ({
 }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div className="flex items-center justify-between px-6 py-4 rounded-lg border border-team-blue-40">
+    <div className={`flex items-center justify-between px-6 py-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
       <div className="flex items-center gap-4">
         <span
           className={`text-base font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
@@ -317,15 +298,6 @@ const AnalysisContent = () => {
       )
     );
   };
-
-  // Placeholder functions for future graph functionality
-  // const _showGraph = (_metric: string) => {
-  //   _setGraphModal({ isOpen: true, metric: _metric });
-  // };
-
-  // const _closeGraph = () => {
-  //   _setGraphModal({ isOpen: false, metric: "" });
-  // };
 
   // Show loading state
   if (loading) {
