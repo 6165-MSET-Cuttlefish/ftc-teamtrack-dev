@@ -63,6 +63,7 @@ const MetricField = ({
   hasDropdown = true,
   onDropdownClick,
   editable = true,
+  showArrows = true,
 }: {
   label: string;
   value: number;
@@ -70,6 +71,7 @@ const MetricField = ({
   hasDropdown?: boolean;
   onDropdownClick?: () => void;
   editable?: boolean;
+  showArrows?: boolean;
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -110,20 +112,22 @@ const MetricField = ({
           readOnly={!editable}
           className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-black'}`}
         />
-        <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
-          <button
-            onClick={handleIncrement}
-            className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-          >
-            <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
-          </button>
-          <button
-            onClick={handleDecrement}
-            className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-          >
-            <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
-          </button>
-        </div>
+        {showArrows && (
+          <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
+            <button
+              onClick={handleIncrement}
+              className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
+            >
+              <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
+            </button>
+            <button
+              onClick={handleDecrement}
+              className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
+            >
+              <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -147,8 +151,6 @@ export const PerformanceMetrics = () => {
   const hasBreakdownValues = autonomousBasket > 0 || autonomousSpecimen > 0 || autonomousFloorMark > 0 || 
                              autonomousLeave > 0 || teleOpSamples > 0 || teleOpSpecimen > 0 || 
                              teleOpFloorMark > 0 || endGameValue > 0;
-
-  // Removed toggle states for High/Low functionality
 
   useEffect(() => {
     // Only auto-calculate scores when breakdown fields are being used
@@ -366,6 +368,7 @@ export const PerformanceMetrics = () => {
             onChange={(value) => updateSessionData({ finalScore: value })}
             hasDropdown={false}
             editable={false}
+            showArrows={false}
           />
           <MetricField
             label="Autonomous Score"
@@ -373,6 +376,7 @@ export const PerformanceMetrics = () => {
             onChange={(value) => updateSessionData({ autonomousScore: value })}
             onDropdownClick={() => toggleSection('Autonomous Score')}
             editable={false}
+            showArrows={false}
           />
           <MetricField
             label="TeleOp Score"
@@ -380,6 +384,7 @@ export const PerformanceMetrics = () => {
             onChange={(value) => updateSessionData({ teleOpScore: value })}
             onDropdownClick={() => toggleSection('TeleOp Score')}
             editable={false}
+            showArrows={false}
           />
           <MetricField
             label="End Game Score"
@@ -387,6 +392,7 @@ export const PerformanceMetrics = () => {
             onChange={(value) => updateSessionData({ endGameScore: value })}
             onDropdownClick={() => toggleSection('End Game Score')}
             editable={false}
+            showArrows={false}
           />
         </div>
       </div>

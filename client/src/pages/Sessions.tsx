@@ -210,6 +210,40 @@ const Sessions = () => {
           </div>
         </div>
 
+        {!loading && sessions.length > 0 && (
+          <div className={`mb-8 p-6 rounded-lg ${
+            isDarkMode ? 'bg-team-dark-20 border border-team-white-20' : 'bg-white border border-muted'
+          }`}>
+            <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Quick Stats
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-team-blue">{sessions.length}</div>
+                <div className="text-sm text-muted-foreground">Total Sessions</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-team-blue">
+                  {Math.round(sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) / sessions.length) || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">Avg Score</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-team-blue">
+                  {Math.max(...sessions.map(s => s.finalScore || 0)) || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">Best Score</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-team-blue">
+                  {sessions.filter(s => s.matchType?.toLowerCase() === 'match').length}
+                </div>
+                <div className="text-sm text-muted-foreground">Matches</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -265,40 +299,6 @@ const Sessions = () => {
                 onView={() => handleViewSession(session.id)}
               />
             ))}
-          </div>
-        )}
-
-        {!loading && sessions.length > 0 && (
-          <div className={`mt-12 p-6 rounded-lg ${
-            isDarkMode ? 'bg-team-dark-20 border border-team-white-20' : 'bg-white border border-muted'
-          }`}>
-            <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Quick Stats
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-team-blue">{sessions.length}</div>
-                <div className="text-sm text-muted-foreground">Total Sessions</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-team-blue">
-                  {Math.round(sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) / sessions.length) || 0}
-                </div>
-                <div className="text-sm text-muted-foreground">Avg Score</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-team-blue">
-                  {Math.max(...sessions.map(s => s.finalScore || 0)) || 0}
-                </div>
-                <div className="text-sm text-muted-foreground">Best Score</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-team-blue">
-                  {sessions.filter(s => s.matchType?.toLowerCase() === 'match').length}
-                </div>
-                <div className="text-sm text-muted-foreground">Matches</div>
-              </div>
-            </div>
           </div>
         )}
       </div>

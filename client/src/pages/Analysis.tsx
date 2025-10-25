@@ -115,19 +115,14 @@ const PerformanceInsightCard = ({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <button
-          onClick={onShowGraph}
-          className={`p-2 rounded transition-colors hover:bg-team-blue-10 ${isDarkMode ? 'text-white' : 'text-black'}`}
-          title="Show Graph"
-        >
+        <div className={`p-2 rounded ${isDarkMode ? 'text-white' : 'text-black'}`}>
           <BarChart3 className="w-5 h-5" />
-        </button>
-        <button
-          onClick={onToggle}
-          className={`p-2 rounded transition-colors ${
+        </div>
+        <div
+          className={`p-2 rounded ${
             isPositive
-              ? 'text-green-500 hover:bg-green-500/10'
-              : 'text-red-500 hover:bg-red-500/10'
+              ? 'text-green-500'
+              : 'text-red-500'
           }`}
         >
           {isPositive ? (
@@ -135,7 +130,7 @@ const PerformanceInsightCard = ({
           ) : (
             <TrendingDown className="w-5 h-5" />
           )}
-        </button>
+        </div>
       </div>
     </div>
   );
