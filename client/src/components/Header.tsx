@@ -133,8 +133,6 @@ const NavigationMenu: React.FC = () => {
         <Sun className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-black'}`} />
       </div>
 
-      <Link to="/profile"><Settings className={`w-4 h-4 ml-1 ${isDarkMode ? 'text-white' : 'text-black'}`} /></Link>
-
       {user ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -157,12 +155,6 @@ const NavigationMenu: React.FC = () => {
               <Link to="/sessions" className="flex items-center">
                 <BarChart3 className="mr-2 h-4 w-4" />
                 <span>My Sessions</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/sessions" className="flex items-center">
-                <CheckSquare className="mr-2 h-4 w-4" />
-                <span>Select Sessions</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
