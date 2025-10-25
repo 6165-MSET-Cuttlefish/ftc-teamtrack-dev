@@ -326,13 +326,6 @@ const AnalysisContent = () => {
             </p>
           </div>
 
-          {/* Timer */}
-          <div className="text-center">
-            <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
-              {formatTime(timer)}
-            </div>
-          </div>
-
           {/* Data Cards */}
           <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 justify-center">
             <DataCard

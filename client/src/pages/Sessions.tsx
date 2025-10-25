@@ -202,7 +202,7 @@ const Sessions = () => {
             </div>
             <Button 
               onClick={() => navigate('/original')}
-              className="bg-team-blue hover:bg-team-blue/90 text-white"
+              className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
             >
               <Plus className="h-4 w-4 mr-2" />
               New Session
@@ -249,7 +249,7 @@ const Sessions = () => {
             {!searchTerm && (
               <Button 
                 onClick={() => navigate('/original')}
-                className="bg-team-blue hover:bg-team-blue/90 text-white"
+                className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Session
