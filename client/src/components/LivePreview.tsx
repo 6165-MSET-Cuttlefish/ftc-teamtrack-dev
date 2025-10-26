@@ -132,13 +132,12 @@ const InsightsCard = ({
 };
 
 export const LivePreview = () => {
-  const { sessionData, completeSession } = useSession();
+  const { sessionData, completeSession, timer, isTimerRunning, setIsTimerRunning, formatTime, resetSession } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
-  const [timer, setTimer] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [, setSavedSessionId] = useState<string | null>(null);
 
   // Real-time consistency calculation
   const [consistency, setConsistency] = useState<number>(0);
@@ -198,28 +197,15 @@ export const LivePreview = () => {
     }
   }, [sessionData.finalScore, user?.uid]);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (isTimerRunning && !sessionData.isSessionCompleted) {
-      interval = setInterval(() => {
-        setTimer(prev => prev + 1);
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isTimerRunning, sessionData.isSessionCompleted]);
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
   const handleViewAnalysis = async () => {
     navigate('/analysis');
+  };
+
+  const handleNewSession = () => {
+    // Reset the session to default state
+    resetSession();
+    setSavedSessionId(null);
+    // Stay on the current page to start a new session
   };
 
   const handleCompleteSession = async () => {
@@ -331,13 +317,24 @@ export const LivePreview = () => {
             </>
           )}
 
-          <button
-            onClick={handleViewAnalysis}
-            disabled={loading}
-            className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {loading ? 'Loading...' : 'View Full Analysis Report'}
-          </button>
+          {sessionData.isSessionCompleted && (
+            <>
+              <button
+                onClick={handleViewAnalysis}
+                disabled={loading}
+                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {loading ? 'Loading...' : 'View Full Analysis Report'}
+              </button>
+
+              <button
+                onClick={handleNewSession}
+                className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors"
+              >
+                New Session
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

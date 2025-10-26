@@ -87,8 +87,12 @@ const BackButton: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { sessionData } = useSession();
+  const { user } = useAuth();
 
   const fromActive = (location.state && (location.state as any).fromActiveSession) || false;
+
+  // Don't show back button if user is not authenticated
+  if (!user) return null;
 
   // Hide on the main live view
   if (location.pathname === '/original') return null;
@@ -114,6 +118,8 @@ const BackButton: React.FC = () => {
 const NavigationMenu: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { sessionData } = useSession();
+  const navigate = useNavigate();
 
   const getInitials = (name: string) => {
     return name
@@ -134,54 +140,91 @@ const NavigationMenu: React.FC = () => {
     }
   };
 
+  const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
+
   return (
-    <div className={`flex items-center gap-2.5 px-2.5 py-2.5 overflow-hidden ${isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''}`}>
-      <Link to="/about" className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>About Us</Link>
+    <div
+      className={`flex items-center gap-4 px-3 py-2 ${
+        isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''
+      }`}
+    >
+      {/* About Us link */}
+      <Link
+        to="/about"
+        className={`text-base font-medium ${
+          isDarkMode ? 'text-white' : 'text-black'
+        }`}
+      >
+        About Us
+      </Link>
+
+      {/* Theme toggle button */}
       <button
         onClick={toggleTheme}
-        aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-        aria-pressed={isDarkMode}
-        className="ml-2 inline-flex items-center justify-center h-8 w-8 rounded-md border hover:bg-team-white-10 transition-colors"
+        aria-label="Toggle theme"
+        className="p-2 rounded-full hover:bg-team-white-10 transition-colors flex items-center justify-center"
       >
-        {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        {isDarkMode ? (
+          <Sun className="w-5 h-5 text-yellow-400" />
+        ) : (
+          <Moon className="w-5 h-5 text-gray-600" />
+        )}
       </button>
 
+      {/* User section */}
       {user ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
-                <AvatarFallback className="bg-team-blue text-white text-xs">{getInitials(user.displayName || user.email || 'User')}</AvatarFallback>
-              </Avatar>
+        <>
+          {hasActiveSession && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/original')}
+              className={`ml-2 gap-2 ${isDarkMode ? 'border-team-blue text-team-blue hover:bg-team-blue/10' : 'border-team-blue text-team-blue hover:bg-team-blue/10'}`}
+            >
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              Active Session
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
-                <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/sessions" className="flex items-center">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                <span>My Sessions</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/profile" className="flex items-center">
-                <UserCircle className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sign out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
+                  <AvatarFallback className="bg-team-blue text-white text-xs">{getInitials(user.displayName || user.email || 'User')}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {user.displayName || 'User'}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/sessions" className="flex items-center">
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  <span>My Sessions</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="flex items-center">
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
       ) : (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
@@ -195,6 +238,9 @@ const NavigationMenu: React.FC = () => {
     </div>
   );
 };
+
+
+
 
 export const Header: React.FC = () => {
   const { isDarkMode } = useTheme();

@@ -66,7 +66,7 @@ const Signup: React.FC = () => {
       setError('');
       setLoading(true);
       await signup(formData.email, formData.password, formData.displayName);
-      navigate('/');
+      navigate('/sessions');
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to create account');
     } finally {
@@ -79,7 +79,7 @@ const Signup: React.FC = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      navigate('/');
+      navigate('/sessions');
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to sign up with Google');
     } finally {

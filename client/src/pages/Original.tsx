@@ -22,7 +22,7 @@ const OriginalContent: React.FC = () => {
                 Active Practice Session
               </h1>
               <p className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                6165 Mset Cuttlefish
+                Track your score
               </p>
             </div>
 
