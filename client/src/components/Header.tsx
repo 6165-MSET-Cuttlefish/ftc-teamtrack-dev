@@ -124,30 +124,59 @@ const NavigationMenu: React.FC = () => {
   };
 
   return (
-    <div className={`flex items-center gap-2.5 px-2.5 py-2.5 overflow-hidden ${isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''}`}>
-      <Link to="/about" className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>About Us</Link>
-      <button onClick={toggleTheme} aria-label="Toggle theme" className={`w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2 focus:outline-none`}>
-        <div className="w-2 h-2 bg-team-dark rounded-full" />
-      </button>
-      <div className="ml-2 mr-1">
-        <Sun className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-black'}`} />
-      </div>
+    <div
+      className={`flex items-center gap-4 px-3 py-2 ${
+        isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''
+      }`}
+    >
+      {/* About Us link */}
+      <Link
+        to="/about"
+        className={`text-base font-medium ${
+          isDarkMode ? 'text-white' : 'text-black'
+        }`}
+      >
+        About Us
+      </Link>
 
+      {/* Theme toggle button */}
+      <button
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        className="p-2 rounded-full hover:bg-team-white-10 transition-colors flex items-center justify-center"
+      >
+        {isDarkMode ? (
+          <Sun className="w-5 h-5 text-yellow-400" />
+        ) : (
+          <Moon className="w-5 h-5 text-gray-600" />
+        )}
+      </button>
+
+      {/* User section */}
       {user ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-8 w-8">
+            <Button
+              variant="ghost"
+              className="relative h-9 w-9 rounded-full p-0 focus:outline-none"
+            >
+              <Avatar className="h-9 w-9">
                 <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
-                <AvatarFallback className="bg-team-blue text-white text-xs">{getInitials(user.displayName || user.email || 'User')}</AvatarFallback>
+                <AvatarFallback className="bg-team-blue text-white text-sm">
+                  {getInitials(user.displayName || user.email || 'U')}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
-                <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                <p className="text-sm font-medium leading-none">
+                  {user.displayName || 'User'}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user.email}
+                </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -182,6 +211,9 @@ const NavigationMenu: React.FC = () => {
     </div>
   );
 };
+
+
+
 
 export const Header: React.FC = () => {
   const { isDarkMode } = useTheme();

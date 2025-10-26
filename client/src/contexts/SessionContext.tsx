@@ -31,6 +31,7 @@ interface SessionContextType {
   sessionData: SessionData;
   updateSessionData: (updates: Partial<SessionData>) => void;
   completeSession: (timerValue: string) => void;
+  resetSession: () => void; // Add this line
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -70,9 +71,31 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }));
   }, []);
 
+  const resetSession = useCallback(() => {
+    setSessionData({
+      sessionName: '',
+      driverName: user?.displayName || '',
+      sessionDuration: '',
+      matchType: 'Practice',
+      finalScore: 0,
+      autonomousScore: 0,
+      teleOpScore: 0,
+      endGameScore: 0,
+      isSessionCompleted: false,
+      autonomousBasket: 0,
+      autonomousSpecimen: 0,
+      autonomousFloorMark: 0,
+      autonomousLeave: 0,
+      teleOpSamples: 0,
+      teleOpSpecimen: 0,
+      teleOpFloorMark: 0,
+      endGameValue: 0,
+    });
+  }, [user?.displayName]); // Add dependency on user.displayName
+
   return (
     <SessionContext.Provider
-      value={{ sessionData, updateSessionData, completeSession }}
+      value={{ sessionData, updateSessionData, completeSession, resetSession }} // Add resetSession here
     >
       {children}
     </SessionContext.Provider>

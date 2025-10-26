@@ -64,6 +64,7 @@ const MetricField = ({
   onDropdownClick,
   editable = true,
   showArrows = true,
+  isSelected = false,
 }: {
   label: string;
   value: number;
@@ -72,6 +73,7 @@ const MetricField = ({
   onDropdownClick?: () => void;
   editable?: boolean;
   showArrows?: boolean;
+  isSelected?: boolean;
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -95,7 +97,11 @@ const MetricField = ({
           {hasDropdown && (
             <button
               onClick={onDropdownClick}
-              className={`hover:text-team-blue transition-colors ${isDarkMode ? 'text-white' : 'text-black'}`}
+              className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
+                isSelected 
+                  ? 'text-team-blue border border-gray-400' 
+                  : isDarkMode ? 'text-white hover:text-team-blue' : 'text-black hover:text-team-blue'
+              }`}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -103,7 +109,7 @@ const MetricField = ({
         </div>
       </div>
       <div
-        className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+        className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 h-[48px] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <NumberInput
           value={value}
@@ -235,16 +241,15 @@ export const PerformanceMetrics = () => {
 
     return (
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between min-h-[24px]">
           <label
             className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
           >
             {label}
           </label>
-          <div className="w-6 h-6 flex items-center justify-center" />
         </div>
         <div
-          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 h-[48px] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
         >
           <NumberInput
             value={value}
@@ -275,7 +280,7 @@ export const PerformanceMetrics = () => {
     );
   };
 
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = useState<string | null>('Autonomous Score');
   const toggleSection = (metricType: string) =>
     setExpandedSection(expandedSection === metricType ? null : metricType);
   const getSectionTitle = () => {
@@ -357,8 +362,8 @@ export const PerformanceMetrics = () => {
 
   return (
     <div className="flex gap-6">
-      <div className="flex-1 space-y-8">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6">
+      <div className="flex-1">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-8">
           Performance Metrics
         </h2>
         <div className="space-y-8">
@@ -377,6 +382,7 @@ export const PerformanceMetrics = () => {
             onDropdownClick={() => toggleSection('Autonomous Score')}
             editable={false}
             showArrows={false}
+            isSelected={expandedSection === 'Autonomous Score'}
           />
           <MetricField
             label="TeleOp Score"
@@ -385,6 +391,7 @@ export const PerformanceMetrics = () => {
             onDropdownClick={() => toggleSection('TeleOp Score')}
             editable={false}
             showArrows={false}
+            isSelected={expandedSection === 'TeleOp Score'}
           />
           <MetricField
             label="End Game Score"
@@ -393,11 +400,12 @@ export const PerformanceMetrics = () => {
             onDropdownClick={() => toggleSection('End Game Score')}
             editable={false}
             showArrows={false}
+            isSelected={expandedSection === 'End Game Score'}
           />
         </div>
       </div>
-      <div className="flex-1 space-y-6">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6 min-h-[32px]">
+      <div className="flex-1">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-6 min-h-[32px]">
           {getSectionTitle()}
         </h2>
         <div className="min-h-[200px]">{getBreakdownFields()}</div>

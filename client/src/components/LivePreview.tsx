@@ -132,7 +132,7 @@ const InsightsCard = ({
 };
 
 export const LivePreview = () => {
-  const { sessionData, completeSession } = useSession();
+  const { sessionData, completeSession, resetSession } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
@@ -221,6 +221,17 @@ export const LivePreview = () => {
 
   const handleViewAnalysis = async () => {
     navigate('/analysis');
+  };
+
+  const handleNewSession = () => {
+    // Reset the session to default state
+    resetSession();
+    // Reset the timer
+    setTimer(0);
+    setIsTimerRunning(false);
+    setSavedSessionId(null);
+    // Navigate to the original page to start a new session
+    navigate('/original');
   };
 
   const handleCompleteSession = async () => {
@@ -332,13 +343,24 @@ export const LivePreview = () => {
             </>
           )}
 
-          <button
-            onClick={handleViewAnalysis}
-            disabled={loading}
-            className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {loading ? 'Loading...' : 'View Full Analysis Report'}
-          </button>
+          {sessionData.isSessionCompleted && (
+            <>
+              <button
+                onClick={handleViewAnalysis}
+                disabled={loading}
+                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {loading ? 'Loading...' : 'View Full Analysis Report'}
+              </button>
+
+              <button
+                onClick={handleNewSession}
+                className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors"
+              >
+                New Session
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -40,7 +40,7 @@ const SensorOverviewCard = ({
       <h3
         className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
       >
-        Sensor Overview
+        Session Overview
       </h3>
       <div className="grid grid-cols-2 gap-6">
         <div className="flex justify-between items-start">
