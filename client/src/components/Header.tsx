@@ -48,41 +48,6 @@ const TeamTrackLogo: React.FC = () => {
   );
 };
 
-const SearchBox: React.FC = () => {
-  const [q, setQ] = useState('');
-  const navigate = useNavigate();
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = q.trim();
-    navigate(`/sessions${trimmed ? `?q=${encodeURIComponent(trimmed)}` : ''}`);
-  };
-
-  return (
-    <form role="search" onSubmit={handleSubmit} className="hidden lg:block w-full max-w-md">
-      <label htmlFor="site-search" className="sr-only">Search sessions</label>
-      <div className="relative">
-        <button type="submit" aria-label="Search" className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z" />
-          </svg>
-        </button>
-        <input
-          id="site-search"
-          name="q"
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          className="w-full pl-10 pr-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent"
-          placeholder="Search sessions or drivers..."
-          aria-label="Search sessions"
-        />
-      </div>
-    </form>
-  );
-};
-
-
-
 const BackButton: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -144,7 +109,7 @@ const NavigationMenu: React.FC = () => {
 
   return (
     <div
-      className={`flex items-center gap-4 px-3 py-2 ${
+      className={`flex items-center gap-3 px-3 py-2 ${
         isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''
       }`}
     >
@@ -181,7 +146,7 @@ const NavigationMenu: React.FC = () => {
               onClick={() => navigate('/original')}
               className={`ml-2 gap-2 ${isDarkMode ? 'border-team-blue text-team-blue hover:bg-team-blue/10' : 'border-team-blue text-team-blue hover:bg-team-blue/10'}`}
             >
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               Active Session
             </Button>
           )}
@@ -239,9 +204,6 @@ const NavigationMenu: React.FC = () => {
   );
 };
 
-
-
-
 export const Header: React.FC = () => {
   const { isDarkMode } = useTheme();
   return (
@@ -253,9 +215,6 @@ export const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-center">
-          <div className="flex items-center justify-center">
-            <SearchBox />
-          </div>
         </div>
 
         <div className="flex items-center justify-end gap-6">
