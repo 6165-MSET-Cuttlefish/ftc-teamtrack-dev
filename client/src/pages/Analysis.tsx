@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
-import { useSession, SessionProvider } from '../contexts/SessionContext';
-import { useTheme, ThemeProvider } from '../contexts/ThemeContext';
+import { useSession } from '../contexts/SessionContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFirebase } from '../hooks/useFirebase';
@@ -92,14 +92,10 @@ const PerformanceInsightCard = ({
   metric,
   value,
   isPositive,
-  onToggle,
-  onShowGraph,
 }: {
   metric: string;
   value: string;
   isPositive: boolean;
-  onToggle: () => void;
-  onShowGraph: () => void;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -143,7 +139,6 @@ const AnalysisContent = () => {
   const { getUserSessions } = useFirebase();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(true);
   const [_graphModal, _setGraphModal] = useState<{
     isOpen: boolean;
@@ -152,6 +147,10 @@ const AnalysisContent = () => {
     isOpen: false,
     metric: '',
   });
+
+  // Calculated metrics
+  const [consistency, setConsistency] = useState<number>(0);
+  const [accuracy, setAccuracy] = useState<number>(0);
 
   // Performance insights state
   const [insights, setInsights] = useState<{
@@ -212,16 +211,19 @@ const AnalysisContent = () => {
     loadSessionData();
   }, [searchParams, location.state, updateSessionData]);
 
+  // Calculate metrics based on historical data
   useEffect(() => {
     let mounted = true;
     const fetchComparisons = async () => {
       if (!user?.uid) {
         // no user - can't compare
         setInsights([
-          { id: 1, metric: 'Consistency', value: 'null', isPositive: false },
-          { id: 2, metric: 'Autonomous', value: 'null', isPositive: false },
-          { id: 3, metric: 'TeleOp', value: 'null', isPositive: false },
+          { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
+          { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
+          { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
         ]);
+        setConsistency(0);
+        setAccuracy(0);
         return;
       }
 
@@ -230,10 +232,12 @@ const AnalysisContent = () => {
 
       if (!result || result.length === 0) {
         setInsights([
-          { id: 1, metric: 'Consistency', value: 'null', isPositive: false },
-          { id: 2, metric: 'Autonomous', value: 'null', isPositive: false },
-          { id: 3, metric: 'TeleOp', value: 'null', isPositive: false },
+          { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
+          { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
+          { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
         ]);
+        setConsistency(0);
+        setAccuracy(0);
         return;
       }
 
@@ -244,6 +248,22 @@ const AnalysisContent = () => {
       const avgAuton = prevSessions.reduce((s, p) => s + (p.autonomousScore || 0), 0) / prevSessions.length;
       const avgTele = prevSessions.reduce((s, p) => s + (p.teleOpScore || 0), 0) / prevSessions.length;
 
+      // Calculate consistency: standard deviation of scores
+      const scoreVariance = prevSessions.reduce((sum, session) => {
+        const diff = (session.finalScore || 0) - avgFinal;
+        return sum + diff * diff;
+      }, 0) / prevSessions.length;
+      const stdDev = Math.sqrt(scoreVariance);
+      // Convert to percentage: lower std dev = higher consistency
+      const consistencyPercent = avgFinal > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / avgFinal) * 100)) : 0;
+      setConsistency(Math.round(consistencyPercent));
+
+      // Calculate accuracy: percentage of theoretical max score achieved
+      // Assuming max score is around 150 for FTC (adjust if needed)
+      const maxPossibleScore = 150;
+      const accuracyPercent = (sessionData.finalScore / maxPossibleScore) * 100;
+      setAccuracy(Math.round(Math.min(100, accuracyPercent)));
+
       const formatChange = (current: number, average: number) => {
         if (average === 0) return 'N/A';
         const perc = ((current - average) / average) * 100;
@@ -251,12 +271,12 @@ const AnalysisContent = () => {
         return `${sign}${Math.round(perc)}%`;
       };
 
-      const consistencyVal = sessionData.finalScore ? `${sessionData.finalScore}%` : 'N/A';
+      const consistencyChange = formatChange(sessionData.finalScore, avgFinal);
       const autonChange = formatChange(sessionData.autonomousScore, avgAuton);
       const teleChange = formatChange(sessionData.teleOpScore, avgTele);
 
       setInsights([
-        { id: 1, metric: 'Consistency', value: consistencyVal, isPositive: sessionData.finalScore >= avgFinal },
+        { id: 1, metric: 'Consistency', value: consistencyChange, isPositive: sessionData.finalScore >= avgFinal },
         { id: 2, metric: 'Autonomous', value: autonChange, isPositive: sessionData.autonomousScore >= avgAuton },
         { id: 3, metric: 'TeleOp', value: teleChange, isPositive: sessionData.teleOpScore >= avgTele },
       ]);
@@ -269,30 +289,6 @@ const AnalysisContent = () => {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, sessionData.finalScore, sessionData.autonomousScore, sessionData.teleOpScore]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer(prev => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const toggleInsight = (id: number) => {
-    setInsights(prev =>
-      prev.map(insight =>
-        insight.id === id
-          ? { ...insight, isPositive: !insight.isPositive }
-          : insight
-      )
-    );
-  };
 
   // Show loading state
   if (loading) {
@@ -327,8 +323,8 @@ const AnalysisContent = () => {
               value={sessionData.finalScore.toString()}
               label="Final Score"
             />
-            <DataCard value="87%" label="Consistency" />
-            <DataCard value="92%" label="Accuracy" />
+            <DataCard value={`${consistency}%`} label="Consistency" />
+            <DataCard value={`${accuracy}%`} label="Accuracy" />
           </div>
 
           {/* Sensor Overview */}
@@ -338,7 +334,7 @@ const AnalysisContent = () => {
             matchType={sessionData.matchType}
             sessionDuration={sessionData.sessionDuration}
             finalScore={sessionData.finalScore}
-            totalTime={formatTime(timer)}
+            totalTime={sessionData.sessionDuration}
           />
 
           {/* Performance Insights */}
@@ -353,11 +349,6 @@ const AnalysisContent = () => {
                   metric={insight.metric}
                   value={insight.value}
                   isPositive={insight.isPositive}
-                  onToggle={() => toggleInsight(insight.id)}
-                  onShowGraph={() => {
-                    // Placeholder for graph functionality
-                    // _showGraph(insight.metric || `Metric ${insight.id}`)
-                  }}
                 />
               ))}
             </div>
