@@ -241,8 +241,21 @@ const AnalysisContent = () => {
         return;
       }
 
-      // Use last 5 previous sessions (excluding current if it matches by finalScore and duration)
-      const prevSessions = result.slice(0, 5);
+      // Use last 3 previous sessions (excluding current if it matches by finalScore and duration)
+      // Filter out the current session when possible (match by finalScore and sessionDuration)
+      const filtered = result.filter(s => !(s.finalScore === sessionData.finalScore && s.sessionDuration === sessionData.sessionDuration));
+      const prevSessions = filtered.slice(0, 3);
+
+      if (prevSessions.length === 0) {
+        setInsights([
+          { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
+          { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
+          { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
+        ]);
+        setConsistency(0);
+        setAccuracy(0);
+        return;
+      }
 
       const avgFinal = prevSessions.reduce((s, p) => s + (p.finalScore || 0), 0) / prevSessions.length;
       const avgAuton = prevSessions.reduce((s, p) => s + (p.autonomousScore || 0), 0) / prevSessions.length;
