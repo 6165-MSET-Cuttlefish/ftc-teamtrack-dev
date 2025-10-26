@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { firebaseService, SessionData } from '../services/firebaseService';
 import { Button } from '../components/ui/button';
@@ -217,11 +218,15 @@ const LoadingCard = () => {
 const Sessions = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
+  const { resetSession, sessionData } = useSession();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Check if there's an active session
+  const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -295,11 +300,20 @@ const Sessions = () => {
               </p>
             </div>
             <Button 
-              onClick={() => navigate('/original')}
-              className="bg-team-blue hover:bg-team-blue/90 text-white"
+              onClick={() => {
+                if (hasActiveSession) {
+                  // If there's an active session, go to it
+                  navigate('/original');
+                } else {
+                  // If no active session, reset and create new
+                  resetSession();
+                  navigate('/original');
+                }
+              }}
+              className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              New Session
+              {!hasActiveSession && <Plus className="h-4 w-4 mr-2" />}
+              {hasActiveSession ? 'Current Session' : 'New Session'}
             </Button>
           </div>
         </div>

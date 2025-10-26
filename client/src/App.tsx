@@ -47,7 +47,7 @@ const App = () => (
                         {/* Protected Routes */}
                         <Route
                           path="/"
-                          element={<Navigate to="/original" replace />}
+                          element={<Navigate to="/sessions" replace />}
                         />
                         <Route
                           path="/original"

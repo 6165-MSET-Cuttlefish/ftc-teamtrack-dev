@@ -132,13 +132,11 @@ const InsightsCard = ({
 };
 
 export const LivePreview = () => {
-  const { sessionData, completeSession, resetSession } = useSession();
+  const { sessionData, completeSession, timer, isTimerRunning, setIsTimerRunning, formatTime, resetSession } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
-  const [timer, setTimer] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
 
   // Real-time consistency calculation
@@ -199,26 +197,6 @@ export const LivePreview = () => {
     }
   }, [sessionData.finalScore, user?.uid]);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (isTimerRunning && !sessionData.isSessionCompleted) {
-      interval = setInterval(() => {
-        setTimer(prev => prev + 1);
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isTimerRunning, sessionData.isSessionCompleted]);
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
   const handleViewAnalysis = async () => {
     navigate('/analysis');
   };
@@ -226,12 +204,8 @@ export const LivePreview = () => {
   const handleNewSession = () => {
     // Reset the session to default state
     resetSession();
-    // Reset the timer
-    setTimer(0);
-    setIsTimerRunning(false);
     setSavedSessionId(null);
-    // Navigate to the original page to start a new session
-    navigate('/original');
+    // Stay on the current page to start a new session
   };
 
   const handleCompleteSession = async () => {

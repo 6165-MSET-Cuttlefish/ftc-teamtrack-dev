@@ -28,15 +28,10 @@ import { cn } from '@/lib/utils';
 
 const TeamTrackLogo: React.FC = () => {
   const { isDarkMode } = useTheme();
-  const { sessionData } = useSession();
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (sessionData && !sessionData.isSessionCompleted) {
-      navigate('/original');
-    } else {
-      navigate('/sessions');
-    }
+    navigate('/sessions');
   };
 
   return (
@@ -83,9 +78,12 @@ const BackButton: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { sessionData } = useSession();
+  const { user } = useAuth();
 
   const fromActive = (location.state && (location.state as any).fromActiveSession) || false;
 
+  // Don't show back button if user is not authenticated
+  if (!user) return null;
   if (location.pathname === '/original') return null;
   if (!fromActive && (!sessionData || sessionData.isSessionCompleted)) return null;
 
@@ -106,6 +104,8 @@ const BackButton: React.FC = () => {
 const NavigationMenu: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { sessionData } = useSession();
+  const navigate = useNavigate();
 
   const getInitials = (name: string) => {
     return name
@@ -122,6 +122,8 @@ const NavigationMenu: React.FC = () => {
       // ignore
     }
   };
+
+  const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
 
   return (
     <div
@@ -154,17 +156,24 @@ const NavigationMenu: React.FC = () => {
 
       {/* User section */}
       {user ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <>
+          {hasActiveSession && (
             <Button
-              variant="ghost"
-              className="relative h-9 w-9 rounded-full p-0 focus:outline-none"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/original')}
+              className={`ml-2 gap-2 ${isDarkMode ? 'border-team-blue text-team-blue hover:bg-team-blue/10' : 'border-team-blue text-team-blue hover:bg-team-blue/10'}`}
             >
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
-                <AvatarFallback className="bg-team-blue text-white text-sm">
-                  {getInitials(user.displayName || user.email || 'U')}
-                </AvatarFallback>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              Active Session
+            </Button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
+                  <AvatarFallback className="bg-team-blue text-white text-xs">{getInitials(user.displayName || user.email || 'User')}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -198,6 +207,7 @@ const NavigationMenu: React.FC = () => {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </>
       ) : (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
