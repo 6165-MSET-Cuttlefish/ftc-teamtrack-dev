@@ -66,7 +66,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   // Timer state - persists across navigation
   const [timer, setTimer] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(true);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   // Timer effect - runs continuously while timer is running
   useEffect(() => {

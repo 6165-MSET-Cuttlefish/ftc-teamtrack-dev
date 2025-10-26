@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSession } from '../contexts/SessionContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
@@ -17,6 +18,7 @@ interface FormFieldProps {
   onChange: (value: string) => void;
   type?: 'text' | 'number' | 'decimal';
   id?: string;
+  disabled?: boolean;
 }
 
 const FormField = ({
@@ -26,6 +28,7 @@ const FormField = ({
   onChange,
   type = 'text',
   id,
+  disabled = false,
 }: FormFieldProps) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (type === 'number') {
@@ -57,7 +60,8 @@ const FormField = ({
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
-        className="px-2.5 py-2.5 rounded text-base font-normal leading-6 border border-team-blue-40 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-muted-foreground"
+        disabled={disabled}
+        className="px-2.5 py-2.5 rounded text-base font-normal leading-6 border border-team-blue-40 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -65,6 +69,7 @@ const FormField = ({
 
 export const SessionSetup: React.FC = () => {
   const { sessionData, updateSessionData } = useSession();
+  const { isDarkMode } = useTheme();
 
   const setSessionName = (value: string) =>
     updateSessionData({ sessionName: value });
@@ -83,7 +88,7 @@ export const SessionSetup: React.FC = () => {
 
       <div className="space-y-6">
         {/* First Row */}
-        <div className="flex flex-col sm:flex-row gap-6">
+        <div className="flex flex-col sm:flex-row gap-10">
           <FormField
             label="Session Name"
             placeholder="ex. practice"
@@ -99,24 +104,25 @@ export const SessionSetup: React.FC = () => {
         </div>
 
         {/* Second Row */}
-        <div className="flex flex-col sm:flex-row gap-6">
+        <div className="flex flex-col sm:flex-row gap-10">
           <FormField
             label="Session Duration"
-            placeholder="minutes"
+            placeholder="Coming soon"
             value={sessionData.sessionDuration}
             onChange={setSessionDuration}
             type="decimal"
+            disabled={true}
           />
 
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
             <Label className="text-base leading-6">Match Type</Label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
               <SelectTrigger
-                className={`w-full h-12 text-base font-normal leading-6 px-2.5 py-2.5 rounded border border-team-blue-40`}
+                className={`w-full h-12 text-base font-normal leading-6 px-2.5 py-2.5 rounded border ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
               >
                 <SelectValue placeholder="Select match type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-[#191919] border-team-blue-40">
                 <SelectItem value="Autonomous">Autonomous</SelectItem>
                 <SelectItem value="Teleop">Teleop</SelectItem>
                 <SelectItem value="Full Game">Full Game</SelectItem>

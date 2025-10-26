@@ -138,6 +138,7 @@ export const LivePreview = () => {
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
   const [, setSavedSessionId] = useState<string | null>(null);
+  const [hasStarted, setHasStarted] = useState<boolean>(false);
 
   // Real-time consistency calculation
   const [consistency, setConsistency] = useState<number>(0);
@@ -205,6 +206,7 @@ export const LivePreview = () => {
     // Reset the session to default state
     resetSession();
     setSavedSessionId(null);
+    setHasStarted(false);
     // Stay on the current page to start a new session
   };
 
@@ -293,15 +295,18 @@ export const LivePreview = () => {
             <>
               {!isTimerRunning ? (
                 <button
-                  onClick={() => setIsTimerRunning(true)}
-                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors"
+                  onClick={() => {
+                    setIsTimerRunning(true);
+                    setHasStarted(true);
+                  }}
+                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors"
                 >
-                  Start
+                  {hasStarted ? 'Resume' : 'Start'}
                 </button>
               ) : (
                 <button
                   onClick={() => setIsTimerRunning(false)}
-                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue text-[#FEFEFE] text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors"
+                  className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
                 >
                   Pause
                 </button>
@@ -310,7 +315,7 @@ export const LivePreview = () => {
               <button
                 onClick={handleCompleteSession}
                 disabled={loading}
-                className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
               >
                 {loading ? 'Saving...' : 'Complete Session'}
               </button>
@@ -329,7 +334,7 @@ export const LivePreview = () => {
 
               <button
                 onClick={handleNewSession}
-                className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal hover:bg-team-blue hover:text-[#FEFEFE] transition-colors"
+                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
               >
                 New Session
               </button>

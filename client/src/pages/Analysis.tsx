@@ -375,8 +375,11 @@ const AnalysisContent = () => {
             >
               Back to Session
             </Link>
-            <button className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal">
-              Export Analysis Report
+            <button 
+              disabled
+              className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal opacity-50 cursor-not-allowed"
+            >
+              Coming Soon
             </button>
           </div>
         </div>

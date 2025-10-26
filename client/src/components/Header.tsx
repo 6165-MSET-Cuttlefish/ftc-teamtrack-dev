@@ -20,7 +20,7 @@ const TeamTrackLogo: React.FC = () => {
   const { isDarkMode } = useTheme();
   const { sessionData } = useSession();
 
-  const to = sessionData && !sessionData.isSessionCompleted ? '/original' : '/sessions';
+  const to = '/sessions';
 
   return (
     <Link to={to} aria-label="TeamTrack home" className="flex items-center gap-6 focus:outline-none">
@@ -42,7 +42,7 @@ const TeamTrackLogo: React.FC = () => {
           <path d="M7.53577 9.26287C7.53577 8.75993 6.9962 8.4414 6.55585 8.68437C6.34516 8.80063 6.21434 9.02223 6.21434 9.26287V18.4077C6.21434 18.6534 6.35068 18.8788 6.5683 18.9929C7.00823 19.2235 7.53577 18.9044 7.53577 18.4077V9.26287Z" fill={isDarkMode ? '#B0E5FE' : '#537788'} />
           <path d="M5.6319 10.2849C5.62888 9.76044 5.05368 9.44078 4.60668 9.71519C4.40726 9.83762 4.28573 10.0548 4.28573 10.2888V17.1858C4.28573 17.4334 4.41784 17.6622 4.63229 17.786C5.0958 18.0535 5.67471 17.717 5.67163 17.1818L5.6319 10.2849Z" fill={isDarkMode ? '#B0E5FE' : '#537788'} />
         </svg>
-        <span className={`font-montserrat italic text-xs leading-6 relative -top-1.5 ${isDarkMode ? 'text-white' : 'text-black'}`}>TeamTrack</span>
+        <span className={`font-montserrat italic text-xs leading-6 relative -top-.5 ${isDarkMode ? 'text-white' : 'text-black'}`}>TeamTrack</span>
       </div>
     </Link>
   );
@@ -67,8 +67,7 @@ const BackButton: React.FC = () => {
   if (!fromActive && !hasHistory && (!sessionData || sessionData.isSessionCompleted)) return null;
 
   const handleClick = () => {
-    if (fromActive) navigate(-1);
-    else navigate('/original');
+  navigate(-1);
   };
 
   return (
@@ -159,7 +158,7 @@ const NavigationMenu: React.FC = () => {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
+            <DropdownMenuContent className={`w-56 ${isDarkMode ? 'bg-[#191919] border-team-black-40' : 'bg-white border-team-blue'}`} align="end">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">

@@ -49,7 +49,7 @@ const Profile: React.FC = () => {
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-12 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-2xl mx-auto">
-        <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+        <Card className={isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}>
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <Avatar className="h-24 w-24">
@@ -67,7 +67,7 @@ const Profile: React.FC = () => {
             >
               {user.displayName || 'User Profile'}
             </CardTitle>
-            <CardDescription className={isDarkMode ? 'text-gray-300' : ''}>
+            <CardDescription className={isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}>
               Manage your account settings and preferences
             </CardDescription>
           </CardHeader>
@@ -82,89 +82,89 @@ const Profile: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <User
-                  className={`h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  className={`h-5 w-5 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 />
                 <div>
                   <Label
-                    className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                    className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                   >
                     Display Name
                   </Label>
                   <p
-                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
                   >
                     {user.displayName || 'Not set'}
                   </p>
                 </div>
               </div>
 
-              <Separator className={isDarkMode ? 'bg-gray-700' : ''} />
+              <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
 
               <div className="flex items-center space-x-3">
                 <Mail
-                  className={`h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  className={`h-5 w-5 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 />
                 <div>
                   <Label
-                    className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                    className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                   >
                     Email Address
                   </Label>
                   <p
-                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
                   >
                     {user.email}
                   </p>
                 </div>
               </div>
 
-              <Separator className={isDarkMode ? 'bg-gray-700' : ''} />
+              <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
 
               <div className="flex items-center space-x-3">
                 <Calendar
-                  className={`h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  className={`h-5 w-5 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 />
                 <div>
                   <Label
-                    className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                    className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                   >
                     Member Since
                   </Label>
                   <p
-                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
                   >
                     Unknown
                   </p>
                 </div>
               </div>
 
-              <Separator className={isDarkMode ? 'bg-gray-700' : ''} />
+              <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
 
               <div className="flex items-center space-x-3">
                 <Shield
-                  className={`h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  className={`h-5 w-5 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 />
                 <div>
                   <Label
-                    className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                    className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                   >
                     Email Verified
                   </Label>
                   <p
-                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
                   >
-                    <span className="text-gray-600">Unknown</span>
+                    <span className={isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}>Unknown</span>
                   </p>
                 </div>
               </div>
             </div>
 
-            <Separator className={isDarkMode ? 'bg-gray-700' : ''} />
+            <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 variant="outline"
-                className={`flex-1 ${isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}`}
+                className={`flex-1 ${isDarkMode ? 'border-team-blue-40 text-team-blue hover:bg-team-blue/10' : 'border-team-blue text-team-blue hover:bg-team-blue/10'}`}
                 onClick={() => setMessage('Profile editing coming soon!')}
               >
                 Edit Profile

@@ -99,7 +99,7 @@ const SessionCard = ({ session, onView, onNameChange }: SessionCardProps) => {
                   className={`h-10 text-xl font-semibold ${
                     isDarkMode 
                       ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40' 
-                      : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'
+                      : 'bg-gray-50 border-team-blue/60 text-team-blue placeholder-team-blue-40'
                   }`}
                   autoFocus
                   onBlur={handleSaveName}
@@ -114,7 +114,7 @@ const SessionCard = ({ session, onView, onNameChange }: SessionCardProps) => {
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <CardTitle className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <CardTitle className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
                   {session.sessionName || 'Untitled Session'}
                 </CardTitle>
                 <button
@@ -148,7 +148,7 @@ const SessionCard = ({ session, onView, onNameChange }: SessionCardProps) => {
             <User className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
             <div className="flex flex-col">
               <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>Driver</span>
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
                 {session.driverName || 'Unknown'}
               </span>
             </div>
@@ -158,7 +158,7 @@ const SessionCard = ({ session, onView, onNameChange }: SessionCardProps) => {
             <Clock className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
             <div className="flex flex-col">
               <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>Duration</span>
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
                 {session.sessionDuration || 'N/A'}
               </span>
             </div>
@@ -168,7 +168,7 @@ const SessionCard = ({ session, onView, onNameChange }: SessionCardProps) => {
             <BarChart3 className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
             <div className="flex flex-col">
               <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>Type</span>
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
                 {session.matchType || 'Practice'}
               </span>
             </div>
@@ -178,7 +178,7 @@ const SessionCard = ({ session, onView, onNameChange }: SessionCardProps) => {
             <Trophy className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
             <div className="flex flex-col">
               <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>Score</span>
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
                 {session.finalScore || 0} pts
               </span>
             </div>
@@ -289,15 +289,13 @@ const Sessions = () => {
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
                 My Sessions
               </h1>
-              <p className={`mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
-                Track and analyze your practice sessions
-              </p>
+             
             </div>
             <Button 
               onClick={() => {
@@ -319,10 +317,10 @@ const Sessions = () => {
         </div>
 
         {!loading && sessions.length > 0 && (
-          <div className={`mb-8 p-6 rounded-lg border ${
+          <div className={`mb-6 p-6 rounded-lg border ${
             isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-team-blue/40'
           }`}>
-            <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
               Quick Stats
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
@@ -362,7 +360,7 @@ const Sessions = () => {
               className={`pl-10 ${
                 isDarkMode 
                   ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40' 
-                  : 'bg-white border-team-blue/60 text-black placeholder-team-blue-40'
+                  : 'bg-white border-team-blue/60 text-team-blue placeholder-team-blue-40'
               }`}
             />
           </div>
@@ -381,7 +379,7 @@ const Sessions = () => {
             }`}>
               <BarChart3 className={`h-12 w-12 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
             </div>
-            <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+            <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
               {searchTerm ? 'No sessions found' : 'No sessions yet'}
             </h3>
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
