@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,34 +13,17 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import {
-  Search,
-  Sun,
-  Moon,
-  Settings,
-  User,
-  LogOut,
-  UserCircle,
-  BarChart3,
-  CheckSquare,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Sun, Moon, LogOut, UserCircle, BarChart3 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const TeamTrackLogo: React.FC = () => {
   const { isDarkMode } = useTheme();
   const { sessionData } = useSession();
-  const navigate = useNavigate();
 
-  const handleClick = () => {
-    if (sessionData && !sessionData.isSessionCompleted) {
-      navigate('/original');
-    } else {
-      navigate('/sessions');
-    }
-  };
+  const to = sessionData && !sessionData.isSessionCompleted ? '/original' : '/sessions';
 
   return (
-    <button onClick={handleClick} className="flex items-center gap-6 focus:outline-none">
+    <Link to={to} aria-label="TeamTrack home" className="flex items-center gap-6 focus:outline-none">
       <div className="flex items-center gap-2.5">
         <svg
           width="8"
@@ -61,23 +44,44 @@ const TeamTrackLogo: React.FC = () => {
         </svg>
         <span className={`font-montserrat italic text-xs leading-6 relative -top-1.5 ${isDarkMode ? 'text-white' : 'text-black'}`}>TeamTrack</span>
       </div>
-    </button>
+    </Link>
   );
 };
 
 const SearchBox: React.FC = () => {
-  const { isDarkMode } = useTheme();
-  const iconClass = 'text-[rgba(176,229,254,0.4)]';
-  const textClass = 'text-team-blue-40';
-  const borderClass = isDarkMode ? 'border-team-white-20' : 'border-team-blue/60';
+  const [q, setQ] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = q.trim();
+    navigate(`/sessions${trimmed ? `?q=${encodeURIComponent(trimmed)}` : ''}`);
+  };
 
   return (
-    <div className={`flex items-center gap-3 min-w-[200px] pl-12 pr-8 py-3.5 rounded-2xl bg-transparent border ${borderClass}`}>
-      <Search className={`w-4 h-4 ${iconClass}`} />
-      <span className={`${textClass} text-base font-medium`}>Search</span>
-    </div>
+    <form role="search" onSubmit={handleSubmit} className="hidden lg:block w-full max-w-md">
+      <label htmlFor="site-search" className="sr-only">Search sessions</label>
+      <div className="relative">
+        <button type="submit" aria-label="Search" className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z" />
+          </svg>
+        </button>
+        <input
+          id="site-search"
+          name="q"
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          className="w-full pl-10 pr-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent"
+          placeholder="Search sessions or drivers..."
+          aria-label="Search sessions"
+        />
+      </div>
+    </form>
   );
 };
+
+
 
 const BackButton: React.FC = () => {
   const location = useLocation();
@@ -86,8 +90,12 @@ const BackButton: React.FC = () => {
 
   const fromActive = (location.state && (location.state as any).fromActiveSession) || false;
 
+  // Hide on the main live view
   if (location.pathname === '/original') return null;
-  if (!fromActive && (!sessionData || sessionData.isSessionCompleted)) return null;
+
+  const hasHistory = typeof window !== 'undefined' && window.history && window.history.length > 1;
+  // Show if user has navigated here or there is an active session
+  if (!fromActive && !hasHistory && (!sessionData || sessionData.isSessionCompleted)) return null;
 
   const handleClick = () => {
     if (fromActive) navigate(-1);
@@ -95,7 +103,7 @@ const BackButton: React.FC = () => {
   };
 
   return (
-    <button onClick={handleClick} aria-label="Go back to active session" className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-transparent hover:bg-team-white-10 transition-colors">
+    <button onClick={handleClick} aria-label="Go back" className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-transparent hover:bg-team-white-10 transition-colors">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -119,19 +127,24 @@ const NavigationMenu: React.FC = () => {
     try {
       await logout();
     } catch (err) {
-      // ignore
+      // Show a brief toast so user knows sign out failed
+      try {
+        toast.error('Sign out failed. Please try again.');
+      } catch {}
     }
   };
 
   return (
     <div className={`flex items-center gap-2.5 px-2.5 py-2.5 overflow-hidden ${isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''}`}>
       <Link to="/about" className={`text-base px-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>About Us</Link>
-      <button onClick={toggleTheme} aria-label="Toggle theme" className={`w-4 h-4 bg-team-blue rounded-full flex items-center justify-center ml-2 focus:outline-none`}>
-        <div className="w-2 h-2 bg-team-dark rounded-full" />
+      <button
+        onClick={toggleTheme}
+        aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-pressed={isDarkMode}
+        className="ml-2 inline-flex items-center justify-center h-8 w-8 rounded-md border hover:bg-team-white-10 transition-colors"
+      >
+        {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
-      <div className="ml-2 mr-1">
-        <Sun className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-black'}`} />
-      </div>
 
       {user ? (
         <DropdownMenu>
@@ -194,8 +207,8 @@ export const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-center">
-          <div className="hidden lg:block">
-            {/* Search removed per request */}
+          <div className="flex items-center justify-center">
+            <SearchBox />
           </div>
         </div>
 

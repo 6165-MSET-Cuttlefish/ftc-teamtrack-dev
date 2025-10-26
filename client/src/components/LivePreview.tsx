@@ -139,7 +139,6 @@ export const LivePreview = () => {
   const navigate = useNavigate();
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
 
   // Real-time consistency calculation
   const [consistency, setConsistency] = useState<number>(0);
@@ -260,7 +259,7 @@ export const LivePreview = () => {
     try {
       const result = await createSession(sessionToSave);
       if (result && result.id) {
-        setSavedSessionId(result.id);
+        // session saved successfully; navigation or toast can be added here
       }
     } catch {
     }

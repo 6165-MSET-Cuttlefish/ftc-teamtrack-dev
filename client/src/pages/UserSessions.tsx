@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useApi } from '../hooks/useApi';
@@ -62,6 +63,7 @@ const UserSessions: React.FC = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
   const { getSessions, loading } = useApi();
+  const location = useLocation();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -75,10 +77,7 @@ const UserSessions: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedSession(null);
-  };
+  // Close modal helper is handled by Dialog's onOpenChange directly
 
   const getSessionStats = () => {
     // Ensure sessions is an array and has data
@@ -122,9 +121,9 @@ const UserSessions: React.FC = () => {
           
           // Handle both array format (legacy) and object format (with pagination)
           if (Array.isArray(result)) {
-            setSessions(result);
-          } else if (result && typeof result === 'object' && 'sessions' in result) {
-            setSessions(result.sessions as Session[]);
+            setSessions(result as Session[]);
+          } else if (result && typeof result === 'object' && 'sessions' in (result as any)) {
+            setSessions((result as any).sessions as Session[]);
           } else {
             setSessions([]);
           }
@@ -137,6 +136,13 @@ const UserSessions: React.FC = () => {
 
     fetchUserSessions();
   }, [user?.uid, getSessions]);
+
+  // Initialize searchTerm from query string when the page loads or the query changes
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q') || '';
+    setSearchTerm(q);
+  }, [location.search]);
 
   useEffect(() => {
     let filtered = [...sessions];
