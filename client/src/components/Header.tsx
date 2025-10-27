@@ -154,7 +154,9 @@ const NavigationMenu: React.FC = () => {
               <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
-                  <AvatarFallback className="bg-team-blue text-white text-xs">{getInitials(user.displayName || user.email || 'User')}</AvatarFallback>
+                 <AvatarFallback className={`text-white text-xs ${isDarkMode ? 'bg-team-blue text-black' : 'bg-team-blue text-white'}`}>
+        {getInitials(user.displayName || user.email || 'User')}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>

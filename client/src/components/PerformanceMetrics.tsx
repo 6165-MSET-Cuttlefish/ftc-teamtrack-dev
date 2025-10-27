@@ -155,7 +155,7 @@ const MetricField = ({
 };
 
 export const PerformanceMetrics = () => {
-  const { sessionData, updateSessionData } = useSession();
+  const { sessionData, updateSessionData, isTimerRunning } = useSession();
 
   const [autonomousBasket, setAutonomousBasket] = useState(0);
   const [autonomousSpecimen, setAutonomousSpecimen] = useState(0);
@@ -392,7 +392,7 @@ export const PerformanceMetrics = () => {
             value={sessionData.finalScore}
             onChange={(value) => updateSessionData({ finalScore: value })}
             hasDropdown={false}
-            editable={false}
+            editable={true}
             showArrows={false}
           />
           <MetricField
@@ -400,7 +400,7 @@ export const PerformanceMetrics = () => {
             value={sessionData.autonomousScore}
             onChange={(value) => updateSessionData({ autonomousScore: value })}
             onDropdownClick={() => toggleSection('Autonomous Score')}
-            editable={false}
+            editable={true}
             showArrows={false}
             isSelected={expandedSection === 'Autonomous Score'}
           />
@@ -409,7 +409,7 @@ export const PerformanceMetrics = () => {
             value={sessionData.teleOpScore}
             onChange={(value) => updateSessionData({ teleOpScore: value })}
             onDropdownClick={() => toggleSection('TeleOp Score')}
-            editable={false}
+            editable={true}
             showArrows={false}
             isSelected={expandedSection === 'TeleOp Score'}
           />
@@ -418,7 +418,7 @@ export const PerformanceMetrics = () => {
             value={sessionData.endGameScore}
             onChange={(value) => updateSessionData({ endGameScore: value })}
             onDropdownClick={() => toggleSection('End Game Score')}
-            editable={false}
+            editable={true}
             showArrows={false}
             isSelected={expandedSection === 'End Game Score'}
           />
