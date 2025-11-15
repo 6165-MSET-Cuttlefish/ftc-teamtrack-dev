@@ -156,6 +156,7 @@ const MetricField = ({
 
 export const PerformanceMetrics = () => {
   const { sessionData, updateSessionData, expandedSection, setExpandedSection } = useSession();
+  const { isDarkMode } = useTheme();
 
   const [autonomousBasket, setAutonomousBasket] = useState(0);
   const [autonomousSpecimen, setAutonomousSpecimen] = useState(0);
