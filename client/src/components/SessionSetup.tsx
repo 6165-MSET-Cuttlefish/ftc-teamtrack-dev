@@ -75,10 +75,17 @@ export const SessionSetup: React.FC = () => {
     updateSessionData({ sessionName: value });
   const setDriverName = (value: string) =>
     updateSessionData({ driverName: value });
-  const setSessionDuration = (value: string) =>
-    updateSessionData({ sessionDuration: value });
   const setMatchType = (value: string) =>
     updateSessionData({ matchType: value });
+
+  const toggleFeature = (feature: string) => {
+    const updatedFeatures = sessionData.enabledFeatures.includes(feature)
+      ? sessionData.enabledFeatures.filter((f) => f !== feature)
+      : [...sessionData.enabledFeatures, feature];
+    updateSessionData({ enabledFeatures: updatedFeatures });
+  };
+
+  const AVAILABLE_FEATURES = ['Cycle Times'];
 
   return (
     <div className="space-y-8 mt-16">
@@ -105,15 +112,6 @@ export const SessionSetup: React.FC = () => {
 
         {/* Second Row */}
         <div className="flex flex-col sm:flex-row gap-10">
-          <FormField
-            label="Session Duration"
-            placeholder="Coming soon"
-            value={sessionData.sessionDuration}
-            onChange={setSessionDuration}
-            type="decimal"
-            disabled={true}
-          />
-
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
             <Label className="text-base leading-6">Match Type</Label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
@@ -129,6 +127,29 @@ export const SessionSetup: React.FC = () => {
                 <SelectItem value="Practice">Practice</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+            <Label className="text-base leading-6">Features</Label>
+            <div className={`p-2.5 rounded border border-team-blue-40 space-y-2 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
+              {AVAILABLE_FEATURES.map((feature) => (
+                <div key={feature} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id={`feature-${feature}`}
+                    checked={sessionData.enabledFeatures.includes(feature)}
+                    onChange={() => toggleFeature(feature)}
+                    className="w-4 h-4 rounded border border-team-blue cursor-pointer accent-team-blue"
+                  />
+                  <label
+                    htmlFor={`feature-${feature}`}
+                    className={`text-sm cursor-pointer ${isDarkMode ? 'text-white' : 'text-black'}`}
+                  >
+                    {feature}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
