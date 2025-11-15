@@ -155,7 +155,7 @@ const MetricField = ({
 };
 
 export const PerformanceMetrics = () => {
-  const { sessionData, updateSessionData, isTimerRunning } = useSession();
+  const { sessionData, updateSessionData, expandedSection, setExpandedSection } = useSession();
 
   const [autonomousBasket, setAutonomousBasket] = useState(0);
   const [autonomousSpecimen, setAutonomousSpecimen] = useState(0);
@@ -167,42 +167,92 @@ export const PerformanceMetrics = () => {
   const [teleOpFloorMark, setTeleOpFloorMark] = useState(0);
 
   const [endGameValue, setEndGameValue] = useState(0);
-  
-  // Track if breakdown fields have any values (indicating they're being used)
-  const hasBreakdownValues = autonomousBasket > 0 || autonomousSpecimen > 0 || autonomousFloorMark > 0 || 
-                             autonomousLeave > 0 || teleOpSamples > 0 || teleOpSpecimen > 0 || 
-                             teleOpFloorMark > 0 || endGameValue > 0;
+
+  // Popup state for keyboard shortcuts
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupNumber, setPopupNumber] = useState<string>('');
+  const [madeCount, setMadeCount] = useState<number | null>(null);
+
+  const toggleSection = (metricType: string) =>
+    setExpandedSection(expandedSection === metricType ? null : metricType);
+
+  // Keyboard event listener for 1, 2, 3 keys
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Only trigger if not typing in an input field
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (['1', '2', '3'].includes(event.key)) {
+        if (!showPopup) {
+          // First press - open popup with shot type
+          setPopupNumber(event.key);
+          setMadeCount(null);
+          setShowPopup(true);
+        } else {
+          // Second press - set the made count with validation
+          const pressedNumber = parseInt(event.key);
+          const shotType = parseInt(popupNumber);
+          
+          // For shot 1: only accept 1
+          // For shot 2: only accept 1 or 2
+          // For shot 3: accept 1, 2, or 3
+          if (pressedNumber <= shotType) {
+            setMadeCount(pressedNumber);
+          }
+        }
+      }
+
+      // Handle Enter key to confirm and add to appropriate score
+      if (event.key === 'Enter' && showPopup && madeCount !== null) {
+        if (expandedSection === 'Autonomous Score') {
+          setAutonomousBasket(prev => prev + madeCount);
+        } else if (expandedSection === 'TeleOp Score') {
+          setTeleOpSamples(prev => prev + madeCount);
+        }
+        
+        // Close popup after confirming
+        setShowPopup(false);
+        setMadeCount(null);
+      }
+
+      // Close popup on Escape key
+      if (event.key === 'Escape' && showPopup) {
+        setShowPopup(false);
+        setMadeCount(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [showPopup, popupNumber, madeCount, expandedSection]);
 
   useEffect(() => {
-    // Only auto-calculate scores when breakdown fields are being used
-    // This allows manual score entry to be preserved when breakdown fields are empty
-    if (hasBreakdownValues) {
-      // New scoring multipliers:
-      // Classified Artifact = 3 pts
-      // Overflow Artifact = 1 pt
-      // Motif = 2 pts
-      // Leave = 3 pts (autonomous only)
-      const autonomousScore =
-        autonomousBasket * 3 +
-        autonomousSpecimen * 1 +
-        autonomousFloorMark * 2 +
-        autonomousLeave * 3;
+    // Always auto-calculate scores based on breakdown fields
+    // New scoring multipliers:
+    // Classified Artifact = 3 pts
+    // Overflow Artifact = 1 pt
+    // Motif = 2 pts
+    // Leave = 3 pts (autonomous only)
+    const autonomousScore =
+      autonomousBasket * 3 +
+      autonomousSpecimen * 1 +
+      autonomousFloorMark * 2 +
+      autonomousLeave * 3;
 
-      const teleOpScore =
-        teleOpSamples * 3 + teleOpSpecimen * 1 + teleOpFloorMark * 2;
+    const teleOpScore =
+      teleOpSamples * 3 + teleOpSpecimen * 1 + teleOpFloorMark * 2;
 
-      const finalScore = autonomousScore + teleOpScore + endGameValue;
+    const finalScore = autonomousScore + teleOpScore + endGameValue;
 
-      updateSessionData({
-        autonomousScore,
-        teleOpScore,
-        endGameScore: endGameValue,
-        finalScore,
-      });
-    }
-    
-    // Always save the breakdown values
     updateSessionData({
+      autonomousScore,
+      teleOpScore,
+      endGameScore: endGameValue,
+      finalScore,
       autonomousBasket,
       autonomousSpecimen,
       autonomousFloorMark,
@@ -221,42 +271,26 @@ export const PerformanceMetrics = () => {
     teleOpSpecimen,
     teleOpFloorMark,
     endGameValue,
-    hasBreakdownValues,
     updateSessionData,
   ]);
-
-  // Always update Final Score when Autonomous or TeleOp scores change
-  useEffect(() => {
-    const finalScore = sessionData.autonomousScore + sessionData.teleOpScore + sessionData.endGameScore;
-    if (finalScore !== sessionData.finalScore) {
-      updateSessionData({ finalScore });
-    }
-  }, [sessionData.autonomousScore, sessionData.teleOpScore, sessionData.endGameScore, sessionData.finalScore, updateSessionData]);
-
-  const handleIncrement = (value: number, setter: (value: number) => void) => {
-    setter(value + 1);
-  };
-
-  const handleDecrement = (value: number, setter: (value: number) => void) => {
-    setter(Math.max(0, value - 1));
-  };
 
   const InlineBreakdownField = ({
     label,
     value,
     onChange,
-    isBinary = false,
   }: {
     label: string;
     value: number;
     onChange: (value: number) => void;
-    isBinary?: boolean;
   }) => {
     const { isDarkMode } = useTheme();
 
-    const handleArrowClick = (e: React.MouseEvent, action: () => void) => {
-      e.preventDefault();
-      action();
+    const handleIncrement = () => {
+      onChange(value + 1);
+    };
+
+    const handleDecrement = () => {
+      onChange(Math.max(0, value - 1));
     };
 
     return (
@@ -268,41 +302,72 @@ export const PerformanceMetrics = () => {
             {label}
           </label>
         </div>
-        <div
-          className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 h-[48px] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-        >
-          <NumberInput
-            value={value}
-            onChange={onChange}
-            placeholder="0"
-            className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-black'}`}
-          />
-          {!isBinary && (
-            <div className="flex items-center gap-1">
-              <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
-                <button
-                  onMouseDown={(e) => handleArrowClick(e, () => handleIncrement(value, onChange))}
-                  className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-                >
-                  <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
-                </button>
-                <button
-                  onMouseDown={(e) => handleArrowClick(e, () => handleDecrement(value, onChange))}
-                  className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-                >
-                  <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
-                </button>
-              </div>
-            </div>
-          )}
+        <div className={`flex justify-between items-center gap-2 h-[48px]`}>
+          <button
+            onClick={handleDecrement}
+            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
+              isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
+            }`}
+          >
+            <ChevronDown className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+          </button>
+          <div
+            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center ${
+              isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'
+            }`}
+          >
+            <NumberInput
+              value={value}
+              onChange={onChange}
+              placeholder="0"
+              className={`w-full h-full bg-transparent text-2xl font-semibold text-center focus:outline-none ${isDarkMode ? 'text-white' : 'text-black'}`}
+            />
+          </div>
+          <button
+            onClick={handleIncrement}
+            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
+              isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
+            }`}
+          >
+            <ChevronUp className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+          </button>
         </div>
       </div>
     );
   };
 
-  const [expandedSection, setExpandedSection] = useState<string | null>('Autonomous Score');
-  const toggleSection = (metricType: string) =>
-    setExpandedSection(expandedSection === metricType ? null : metricType);
+  const CheckboxField = ({
+    label,
+    checked,
+    onChange,
+  }: {
+    label: string;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+  }) => {
+    const { isDarkMode } = useTheme();
+
+    return (
+      <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+        <div className="flex items-center justify-between min-h-[24px]">
+          <label
+            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+          >
+            {label}
+          </label>
+        </div>
+        <div className="flex items-center justify-center h-[48px]">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onChange(e.target.checked)}
+            className="w-12 h-12 rounded border-2 border-team-blue cursor-pointer accent-team-blue"
+          />
+        </div>
+      </div>
+    );
+  };
+
   const getSectionTitle = () => {
     switch (expandedSection) {
       case 'Autonomous Score':
@@ -337,11 +402,10 @@ export const PerformanceMetrics = () => {
               value={autonomousFloorMark}
               onChange={setAutonomousFloorMark}
             />
-            <InlineBreakdownField
-              label="Leave (enter 1 for +3 pts)"
-              value={autonomousLeave}
-              onChange={v => setAutonomousLeave(v > 0 ? 1 : 0)}
-              isBinary
+            <CheckboxField
+              label="Leave (Check if left)"
+              checked={autonomousLeave === 1}
+              onChange={(checked) => setAutonomousLeave(checked ? 1 : 0)}
             />
           </div>
         );
@@ -381,55 +445,73 @@ export const PerformanceMetrics = () => {
   };
 
   return (
-    <div className="flex gap-6">
-      <div className="flex-1">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-8">
-          Performance Metrics
-        </h2>
-        <div className="space-y-8">
-          <MetricField
-            label="Final Score"
-            value={sessionData.finalScore}
-            onChange={(value) => updateSessionData({ finalScore: value })}
-            hasDropdown={false}
-            editable={true}
-            showArrows={false}
-          />
-          <MetricField
-            label="Autonomous Score"
-            value={sessionData.autonomousScore}
-            onChange={(value) => updateSessionData({ autonomousScore: value })}
-            onDropdownClick={() => toggleSection('Autonomous Score')}
-            editable={true}
-            showArrows={false}
-            isSelected={expandedSection === 'Autonomous Score'}
-          />
-          <MetricField
-            label="TeleOp Score"
-            value={sessionData.teleOpScore}
-            onChange={(value) => updateSessionData({ teleOpScore: value })}
-            onDropdownClick={() => toggleSection('TeleOp Score')}
-            editable={true}
-            showArrows={false}
-            isSelected={expandedSection === 'TeleOp Score'}
-          />
-          <MetricField
-            label="End Game Score"
-            value={sessionData.endGameScore}
-            onChange={(value) => updateSessionData({ endGameScore: value })}
-            onDropdownClick={() => toggleSection('End Game Score')}
-            editable={true}
-            showArrows={false}
-            isSelected={expandedSection === 'End Game Score'}
-          />
+    <>
+      {/* Keyboard shortcut popup */}
+      {showPopup && (
+        <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
+          <div className="bg-team-blue text-white rounded-lg shadow-2xl p-12 text-center">
+            <div className="text-6xl font-bold mb-4">shot {popupNumber}</div>
+            <div className="text-4xl mb-4">{madeCount !== null ? `${madeCount} made` : '__ made'}</div>
+            <div className="text-sm opacity-75 mb-2">press enter to confirm</div>
+            <div className="text-sm opacity-75">press esc to exit</div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-6">
+        <div className="flex-1">
+          <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-8">
+            Performance Metrics
+          </h2>
+          <div className="space-y-8">
+            <MetricField
+              label="Final Score"
+              value={sessionData.finalScore}
+              onChange={(value) => updateSessionData({ finalScore: value })}
+              hasDropdown={false}
+              editable={true}
+              showArrows={false}
+            />
+            {sessionData.matchType !== 'TeleOp' && (
+              <MetricField
+                label="Autonomous Score"
+                value={sessionData.autonomousScore}
+                onChange={(value) => updateSessionData({ autonomousScore: value })}
+                onDropdownClick={() => toggleSection('Autonomous Score')}
+                editable={true}
+                showArrows={false}
+                isSelected={expandedSection === 'Autonomous Score'}
+              />
+            )}
+            {sessionData.matchType !== 'Autonomous' && (
+              <MetricField
+                label="TeleOp Score"
+                value={sessionData.teleOpScore}
+                onChange={(value) => updateSessionData({ teleOpScore: value })}
+                onDropdownClick={() => toggleSection('TeleOp Score')}
+                editable={true}
+                showArrows={false}
+                isSelected={expandedSection === 'TeleOp Score'}
+              />
+            )}
+            <MetricField
+              label="End Game Score"
+              value={sessionData.endGameScore}
+              onChange={(value) => updateSessionData({ endGameScore: value })}
+              onDropdownClick={() => toggleSection('End Game Score')}
+              editable={true}
+              showArrows={false}
+              isSelected={expandedSection === 'End Game Score'}
+            />
+          </div>
+        </div>
+        <div className="flex-1">
+          <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-6 min-h-[32px]">
+            {getSectionTitle()}
+          </h2>
+          <div className="min-h-[200px]">{getBreakdownFields()}</div>
         </div>
       </div>
-      <div className="flex-1">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-6 min-h-[32px]">
-          {getSectionTitle()}
-        </h2>
-        <div className="min-h-[200px]">{getBreakdownFields()}</div>
-      </div>
-    </div>
+    </>
   );
 };

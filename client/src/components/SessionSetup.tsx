@@ -124,7 +124,7 @@ export const SessionSetup: React.FC = () => {
               </SelectTrigger>
               <SelectContent className="bg-[#191919] border-team-blue-40">
                 <SelectItem value="Autonomous">Autonomous</SelectItem>
-                <SelectItem value="Teleop">Teleop</SelectItem>
+                <SelectItem value="TeleOp">TeleOp</SelectItem>
                 <SelectItem value="Full Game">Full Game</SelectItem>
                 <SelectItem value="Practice">Practice</SelectItem>
               </SelectContent>

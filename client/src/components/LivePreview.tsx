@@ -132,17 +132,34 @@ const InsightsCard = ({
 };
 
 export const LivePreview = () => {
-  const { sessionData, completeSession, timer, isTimerRunning, setIsTimerRunning, formatTime, resetSession } = useSession();
+  const { sessionData, completeSession, timer, isTimerRunning, setIsTimerRunning, formatTime, resetSession, setExpandedSection } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
   const [, setSavedSessionId] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
+  const [showTeleOpTransition, setShowTeleOpTransition] = useState<boolean>(false);
+  const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] = useState<boolean>(false);
 
   // Real-time consistency calculation
   const [consistency, setConsistency] = useState<number>(0);
   const [isCalculatingConsistency, setIsCalculatingConsistency] = useState(true);
+
+  // Check if timer reaches 30 seconds in Full Game mode
+  useEffect(() => {
+    if (sessionData.matchType === 'Full Game' && timer === 30 && isTimerRunning && !hasTransitionedToTeleOp) {
+      setIsTimerRunning(false);
+      setShowTeleOpTransition(true);
+    }
+  }, [timer, isTimerRunning, sessionData.matchType, hasTransitionedToTeleOp, setIsTimerRunning]);
+
+  const handleContinueToTeleOp = () => {
+    setShowTeleOpTransition(false);
+    setHasTransitionedToTeleOp(true);
+    setExpandedSection('TeleOp Score');
+    setIsTimerRunning(true);
+  };
 
   useEffect(() => {
     const calculateConsistency = async () => {
@@ -293,23 +310,34 @@ export const LivePreview = () => {
         <div className="flex flex-col gap-4 w-full sm:w-60">
           {!sessionData.isSessionCompleted && (
             <>
-              {!isTimerRunning ? (
+              {showTeleOpTransition ? (
                 <button
-                  onClick={() => {
-                    setIsTimerRunning(true);
-                    setHasStarted(true);
-                  }}
-                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors"
-                >
-                  {hasStarted ? 'Resume' : 'Start'}
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsTimerRunning(false)}
+                  onClick={handleContinueToTeleOp}
                   className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
                 >
-                  Pause
+                  Continue into TeleOp
                 </button>
+              ) : (
+                <>
+                  {!isTimerRunning ? (
+                    <button
+                      onClick={() => {
+                        setIsTimerRunning(true);
+                        setHasStarted(true);
+                      }}
+                      className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors"
+                    >
+                      {hasStarted ? 'Resume' : 'Start'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setIsTimerRunning(false)}
+                      className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                    >
+                      Pause
+                    </button>
+                  )}
+                </>
               )}
 
               <button

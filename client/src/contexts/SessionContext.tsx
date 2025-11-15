@@ -37,6 +37,8 @@ interface SessionContextType {
   isTimerRunning: boolean;
   setIsTimerRunning: (running: boolean) => void;
   formatTime: (seconds: number) => string;
+  expandedSection: string | null;
+  setExpandedSection: (section: string | null) => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -48,7 +50,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     sessionName: '',
     driverName: user?.displayName || '',
     sessionDuration: '',
-    matchType: 'Autonomous',
+    matchType: 'Full Game',
     finalScore: 0,
     autonomousScore: 0,
     teleOpScore: 0,
@@ -67,6 +69,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   // Timer state - persists across navigation
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+  // Expanded section state - for PerformanceMetrics
+  const [expandedSection, setExpandedSection] = useState<string | null>('Autonomous Score');
 
   // Timer effect - runs continuously while timer is running
   useEffect(() => {
@@ -107,7 +112,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       sessionName: '',
       driverName: user?.displayName || '',
       sessionDuration: '',
-      matchType: 'Autonomous',
+      matchType: 'Full Game',
       finalScore: 0,
       autonomousScore: 0,
       teleOpScore: 0,
@@ -136,7 +141,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         timer,
         isTimerRunning,
         setIsTimerRunning,
-        formatTime
+        formatTime,
+        expandedSection,
+        setExpandedSection
       }}
     >
       {children}
