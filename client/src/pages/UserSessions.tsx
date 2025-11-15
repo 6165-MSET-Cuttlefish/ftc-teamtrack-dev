@@ -826,6 +826,48 @@ const UserSessions: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {selectedSession.enabledFeatures?.includes('Cycle Times') && selectedSession.cycleTimes && selectedSession.cycleTimes.length > 0 && (
+                  <div
+                    className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}
+                  >
+                    <h4
+                      className={`font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    >
+                      <Clock className="h-4 w-4 text-orange-500" />
+                      Cycle Times
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+                          Average Cycle Time
+                        </span>
+                        <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {(() => {
+                            const avg = selectedSession.cycleTimes.reduce((a, b) => a + b, 0) / selectedSession.cycleTimes.length;
+                            const mins = Math.floor(avg / 60);
+                            const secs = Math.round(avg % 60);
+                            return `${mins}:${secs.toString().padStart(2, '0')}`;
+                          })()}
+                        </span>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-700">
+                        <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          All Cycle Times
+                        </span>
+                        <div className={`mt-2 p-2 rounded text-sm ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                          {selectedSession.cycleTimes
+                            .map((time) => {
+                              const mins = Math.floor(time / 60);
+                              const secs = time % 60;
+                              return `${mins}:${secs.toString().padStart(2, '0')}`;
+                            })
+                            .join(', ')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />
