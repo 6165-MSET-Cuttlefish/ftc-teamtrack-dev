@@ -304,12 +304,12 @@ export const PerformanceMetrics = () => {
         </div>
         <div className={`flex justify-between items-center gap-2 h-[48px]`}>
           <button
-            onClick={handleDecrement}
+            onClick={handleIncrement}
             className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
               isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
             }`}
           >
-            <ChevronDown className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+            <ChevronUp className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
           </button>
           <div
             className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center ${
@@ -324,12 +324,12 @@ export const PerformanceMetrics = () => {
             />
           </div>
           <button
-            onClick={handleIncrement}
+            onClick={handleDecrement}
             className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
               isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
             }`}
           >
-            <ChevronUp className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+            <ChevronDown className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
           </button>
         </div>
       </div>
@@ -361,7 +361,7 @@ export const PerformanceMetrics = () => {
             type="checkbox"
             checked={checked}
             onChange={(e) => onChange(e.target.checked)}
-            className="w-12 h-12 rounded border-2 border-team-blue cursor-pointer accent-team-blue"
+            className="w-8 h-8 rounded-full border-2 border-team-blue cursor-pointer accent-team-blue"
           />
         </div>
       </div>
