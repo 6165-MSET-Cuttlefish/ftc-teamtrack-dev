@@ -26,6 +26,8 @@ interface SessionData {
   teleOpSpecimen: number;
   teleOpFloorMark: number;
   endGameValue: number;
+  enabledFeatures: string[];
+  cycleTimes: number[];
 }
 
 interface SessionContextType {
@@ -64,6 +66,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     teleOpSpecimen: 0,
     teleOpFloorMark: 0,
     endGameValue: 0,
+    enabledFeatures: [],
+    cycleTimes: [],
   });
 
   // Timer state - persists across navigation
@@ -126,6 +130,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       teleOpSpecimen: 0,
       teleOpFloorMark: 0,
       endGameValue: 0,
+      enabledFeatures: [],
+      cycleTimes: [],
     });
     setTimer(0); // Reset timer to 0
     setIsTimerRunning(true); // Restart timer for new session
