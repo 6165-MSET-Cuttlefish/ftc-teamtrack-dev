@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronRight, Clock } from 'lucide-react';
 
 // Reusable number input that allows easy typing (allows empty during edit, commits on blur/Enter)
 const NumberInput: React.FC<{
@@ -168,6 +168,10 @@ export const PerformanceMetrics = () => {
 
   const [endGameValue, setEndGameValue] = useState(0);
 
+  // Cycle time tracking
+  const [cycleTimerStartTime, setCycleTimerStartTime] = useState<number | null>(null);
+  const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
+
   // Popup state for keyboard shortcuts
   const [showPopup, setShowPopup] = useState(false);
   const [popupNumber, setPopupNumber] = useState<string>('');
@@ -175,6 +179,37 @@ export const PerformanceMetrics = () => {
 
   const toggleSection = (metricType: string) =>
     setExpandedSection(expandedSection === metricType ? null : metricType);
+
+  // Cycle time effect - updates elapsed time every second
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (cycleTimerStartTime !== null) {
+      interval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = Math.floor((now - cycleTimerStartTime) / 1000);
+        setCycleTimerElapsed(elapsed);
+      }, 100);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [cycleTimerStartTime]);
+
+  const recordCycleTime = () => {
+    if (cycleTimerStartTime === null) {
+      // Start the cycle timer
+      setCycleTimerStartTime(Date.now());
+    } else {
+      // Record the time and reset
+      updateSessionData({
+        cycleTimes: [...sessionData.cycleTimes, cycleTimerElapsed],
+      });
+      setCycleTimerStartTime(Date.now()); // Restart for next cycle
+      setCycleTimerElapsed(0);
+    }
+  };
 
   // Keyboard event listener for 1, 2, 3 keys
   useEffect(() => {
