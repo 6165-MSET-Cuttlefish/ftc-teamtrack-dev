@@ -77,15 +77,8 @@ export const SessionSetup: React.FC = () => {
     updateSessionData({ driverName: value });
   const setMatchType = (value: string) =>
     updateSessionData({ matchType: value });
-
-  const toggleFeature = (feature: string) => {
-    const updatedFeatures = sessionData.enabledFeatures.includes(feature)
-      ? sessionData.enabledFeatures.filter((f) => f !== feature)
-      : [...sessionData.enabledFeatures, feature];
-    updateSessionData({ enabledFeatures: updatedFeatures });
-  };
-
-  const AVAILABLE_FEATURES = ['Cycle Times'];
+  const setSelectedFeature = (value: string) =>
+    updateSessionData({ selectedFeature: value });
 
   return (
     <div className="space-y-8 mt-16">
@@ -131,62 +124,16 @@ export const SessionSetup: React.FC = () => {
 
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
             <Label className="text-base leading-6">Features</Label>
-            <div
-              className={`relative border border-team-blue-40 rounded ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  const dropdown = document.getElementById('features-dropdown');
-                  if (dropdown) {
-                    dropdown.classList.toggle('hidden');
-                  }
-                }}
-                className={`w-full h-12 px-2.5 py-2.5 text-base font-normal leading-6 text-left flex items-center justify-between ${isDarkMode ? 'text-white hover:bg-team-dark-20' : 'text-black hover:bg-gray-50'}`}
+            <Select value={sessionData.selectedFeature} onValueChange={setSelectedFeature}>
+              <SelectTrigger
+                className={`w-full h-12 text-base font-normal leading-6 px-2.5 py-2.5 rounded border ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
               >
-                <span>
-                  {sessionData.enabledFeatures.length === 0
-                    ? 'Select features'
-                    : `${sessionData.enabledFeatures.length} selected`}
-                </span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </button>
-
-              <div
-                id="features-dropdown"
-                className={`hidden absolute top-full left-0 right-0 border-t border-team-blue-40 z-50 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-              >
-                {AVAILABLE_FEATURES.map((feature) => (
-                  <button
-                    key={feature}
-                    type="button"
-                    onClick={() => {
-                      toggleFeature(feature);
-                    }}
-                    className={`w-full px-2.5 py-2.5 text-left text-sm flex items-center gap-2 border-b border-team-blue-40 last:border-b-0 ${
-                      sessionData.enabledFeatures.includes(feature)
-                        ? isDarkMode
-                          ? 'bg-team-blue-40 text-white'
-                          : 'bg-team-blue-40 text-white'
-                        : isDarkMode
-                        ? 'hover:bg-team-dark-20 text-white'
-                        : 'hover:bg-gray-50 text-black'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={sessionData.enabledFeatures.includes(feature)}
-                      onChange={() => {}}
-                      className="w-4 h-4 rounded border border-team-blue cursor-pointer accent-team-blue"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    {feature}
-                  </button>
-                ))}
-              </div>
-            </div>
+                <SelectValue placeholder="Select feature" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#191919] border-team-blue-40">
+                <SelectItem value="Cycle Times">Cycle Times</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
