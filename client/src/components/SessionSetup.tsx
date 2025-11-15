@@ -132,7 +132,7 @@ export const SessionSetup: React.FC = () => {
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
             <Label className="text-base leading-6">Features</Label>
             <div
-              className={`relative border border-team-blue-40 rounded overflow-hidden ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+              className={`relative border border-team-blue-40 rounded ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
             >
               <button
                 type="button"
