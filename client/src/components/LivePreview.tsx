@@ -258,7 +258,7 @@ export const LivePreview = () => {
       teleOpScore: sessionData.teleOpScore || 0,
       endGameScore: sessionData.endGameScore || 0,
 
-      enabledFeatures: sessionData.enabledFeatures || [],
+      selectedFeature: sessionData.selectedFeature || '',
       cycleTimes: sessionData.cycleTimes || [],
 
       completedAt: new Date().toISOString(),
