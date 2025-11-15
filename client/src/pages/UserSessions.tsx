@@ -57,6 +57,8 @@ interface Session {
   teleBasket: number;
   teleSpeci: number;
   endgameHang: number;
+  enabledFeatures?: string[];
+  cycleTimes?: number[];
 }
 
 const UserSessions: React.FC = () => {
