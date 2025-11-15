@@ -57,7 +57,7 @@ interface Session {
   teleBasket: number;
   teleSpeci: number;
   endgameHang: number;
-  enabledFeatures?: string[];
+  selectedFeature?: string;
   cycleTimes?: number[];
 }
 
@@ -827,7 +827,7 @@ const UserSessions: React.FC = () => {
                   </div>
                 </div>
 
-                {selectedSession.enabledFeatures?.includes('Cycle Times') && selectedSession.cycleTimes && selectedSession.cycleTimes.length > 0 && (
+                {selectedSession.selectedFeature === 'Cycle Times' && selectedSession.cycleTimes && selectedSession.cycleTimes.length > 0 && (
                   <div
                     className={`p-4 rounded-lg border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-[#FEFEFE] border-gray-200'}`}
                   >
