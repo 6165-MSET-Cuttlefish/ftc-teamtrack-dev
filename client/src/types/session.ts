@@ -22,7 +22,7 @@ export interface Session {
   teleMotif?: number;                 // Motif (2 pts each)
   endgameHang?: number;
   // Features and cycle times
-  enabledFeatures?: string[];
+  selectedFeature?: string;
   cycleTimes?: number[];
   [key: string]: unknown;
 }
