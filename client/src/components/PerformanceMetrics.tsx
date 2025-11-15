@@ -462,6 +462,50 @@ export const PerformanceMetrics = () => {
               value={teleOpFloorMark}
               onChange={setTeleOpFloorMark}
             />
+            {sessionData.enabledFeatures.includes('Cycle Times') && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+                  <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                    Cycle Time
+                  </label>
+                  <button
+                    onClick={recordCycleTime}
+                    className={`w-full px-2.5 py-2.5 rounded-lg border border-team-blue-40 flex items-center justify-center gap-2 transition-colors ${
+                      cycleTimerStartTime === null
+                        ? 'bg-transparent text-team-blue hover:bg-team-blue hover:text-white'
+                        : 'bg-team-blue text-white hover:bg-team-blue/90'
+                    }`}
+                  >
+                    <Clock className="w-5 h-5" />
+                    {cycleTimerStartTime === null ? 'Start' : 'Record'}
+                  </button>
+                  {cycleTimerStartTime !== null && (
+                    <div className={`text-center text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                      {Math.floor(cycleTimerElapsed / 60)}:{(cycleTimerElapsed % 60).toString().padStart(2, '0')}
+                    </div>
+                  )}
+                </div>
+
+                {sessionData.cycleTimes.length > 0 && (
+                  <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+                    <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                      Cycle Times Log
+                    </label>
+                    <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
+                      <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+                        {sessionData.cycleTimes
+                          .map((time) => {
+                            const minutes = Math.floor(time / 60);
+                            const seconds = time % 60;
+                            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                          })
+                          .join(', ')}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       case 'End Game Score':
