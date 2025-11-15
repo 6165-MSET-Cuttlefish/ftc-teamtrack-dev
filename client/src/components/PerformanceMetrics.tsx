@@ -462,7 +462,7 @@ export const PerformanceMetrics = () => {
               value={teleOpFloorMark}
               onChange={setTeleOpFloorMark}
             />
-            {sessionData.enabledFeatures.includes('Cycle Times') && (
+            {sessionData.selectedFeature === 'Cycle Times' && (
               <div className="space-y-4">
                 <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
                   <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
