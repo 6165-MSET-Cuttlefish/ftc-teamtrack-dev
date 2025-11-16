@@ -172,6 +172,7 @@ export const PerformanceMetrics = () => {
   // Cycle time tracking
   const [cycleTimerStartTime, setCycleTimerStartTime] = useState<number | null>(null);
   const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
+  const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
   // Popup state for keyboard shortcuts
   const [showPopup, setShowPopup] = useState(false);
@@ -465,44 +466,52 @@ export const PerformanceMetrics = () => {
             />
             {sessionData.selectedFeature === 'Cycle Times' && (
               <div className="space-y-4">
-                <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+                <div className="flex flex-col gap-2 w-full">
                   <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                     Cycle Time
                   </label>
-                  <button
-                    onClick={recordCycleTime}
-                    className={`w-full px-2.5 py-2.5 rounded-lg border border-team-blue-40 flex items-center justify-center gap-2 transition-colors ${
-                      cycleTimerStartTime === null
-                        ? 'bg-transparent text-team-blue hover:bg-team-blue hover:text-white'
-                        : 'bg-team-blue text-white hover:bg-team-blue/90'
-                    }`}
-                  >
-                    <Clock className="w-5 h-5" />
-                    {cycleTimerStartTime === null ? 'Start' : 'Record'}
-                  </button>
-                  {cycleTimerStartTime !== null && (
-                    <div className={`text-center text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                      {Math.floor(cycleTimerElapsed / 60)}:{(cycleTimerElapsed % 60).toString().padStart(2, '0')}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={recordCycleTime}
+                      className={`w-10 h-10 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors flex-shrink-0 ${
+                        isDarkMode ? 'bg-team-dark text-white hover:bg-team-dark-20' : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                      }`}
+                    >
+                      <Clock className="w-5 h-5" />
+                    </button>
+                    {cycleTimerStartTime !== null && (
+                      <div className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        {Math.floor(cycleTimerElapsed / 60)}:{(cycleTimerElapsed % 60).toString().padStart(2, '0')}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {sessionData.cycleTimes.length > 0 && (
                   <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-                    <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                      Cycle Times Log
-                    </label>
-                    <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
-                      <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
-                        {sessionData.cycleTimes
-                          .map((time) => {
-                            const minutes = Math.floor(time / 60);
-                            const seconds = time % 60;
-                            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                          })
-                          .join(', ')}
+                    <button
+                      onClick={() => setIsCycleTimesLogExpanded(!isCycleTimesLogExpanded)}
+                      className={`text-base leading-6 font-medium flex items-center gap-2 ${isDarkMode ? 'text-white hover:text-team-blue' : 'text-black hover:text-team-blue'} transition-colors`}
+                    >
+                      <ChevronRight className={`w-4 h-4 transition-transform ${isCycleTimesLogExpanded ? 'rotate-90' : ''}`} />
+                      Cycle Times Log ({sessionData.cycleTimes.length})
+                    </button>
+                    {isCycleTimesLogExpanded && (
+                      <div className="space-y-2">
+                        {sessionData.cycleTimes.map((time, index) => {
+                          const minutes = Math.floor(time / 60);
+                          const seconds = time % 60;
+                          return (
+                            <div
+                              key={index}
+                              className={`px-2.5 py-1.5 rounded text-sm ${isDarkMode ? 'bg-team-dark text-team-white-60 border border-team-blue-40' : 'bg-[#FEFEFE] text-team-blue-40 border border-team-blue-40'}`}
+                            >
+                              {index + 1}. {minutes}:{seconds.toString().padStart(2, '0')}
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
