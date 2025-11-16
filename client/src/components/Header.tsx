@@ -18,7 +18,6 @@ import { toast } from 'sonner';
 
 const TeamTrackLogo: React.FC = () => {
   const { isDarkMode } = useTheme();
-  const { sessionData } = useSession();
 
   const to = '/sessions';
 
