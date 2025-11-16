@@ -505,18 +505,18 @@ export const PerformanceMetrics = () => {
                       Cycle Times Log ({sessionData.cycleTimes.length})
                     </button>
                     {isCycleTimesLogExpanded && (
-                      <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
-                        <div className="flex flex-wrap gap-2">
+                      <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`} style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        <div className="flex flex-col gap-2">
                           {sessionData.cycleTimes.map((time, index) => {
                             const minutes = Math.floor(time / 60);
                             const seconds = time % 60;
                             return (
-                              <span
+                              <div
                                 key={index}
                                 className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue-40 text-white'}`}
                               >
-                                {minutes}:{seconds.toString().padStart(2, '0')}
-                              </span>
+                                {index + 1}. {minutes}:{seconds.toString().padStart(2, '0')}
+                              </div>
                             );
                           })}
                         </div>
