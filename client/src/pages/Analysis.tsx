@@ -231,6 +231,8 @@ const AnalysisContent = () => {
               teleOpSpecimen: session.teleOverflowArtifact || 0,
               teleOpFloorMark: session.teleMotif || 0,
               endGameValue: session.endgameHang || 0,
+              selectedFeature: session.selectedFeature || '',
+              cycleTimes: session.cycleTimes || [],
             });
           }
         } catch (error) {
