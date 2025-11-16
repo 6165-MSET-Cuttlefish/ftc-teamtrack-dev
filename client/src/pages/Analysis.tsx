@@ -89,6 +89,81 @@ const SensorOverviewCard = ({
   );
 };
 
+const CycleTimesCard = ({
+  cycleTimes,
+}: {
+  cycleTimes?: number[];
+}) => {
+  const { isDarkMode } = useTheme();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!cycleTimes || cycleTimes.length === 0) return null;
+
+  const calculateAverageCycleTime = (): string => {
+    const avg = cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length;
+    const mins = Math.floor(avg / 60);
+    const secs = Math.round(avg % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div
+      className={`w-full px-6 py-6 rounded-lg border cursor-pointer transition-all ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 hover:bg-team-dark-40' : 'border-team-blue-40 bg-white hover:bg-gray-50'}`}
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-2">
+            <h4 className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              Cycle Times
+            </h4>
+            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+              {cycleTimes.length} cycles • Avg: {calculateAverageCycleTime()}
+            </p>
+          </div>
+        </div>
+        <ChevronRight
+          className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''} ${isDarkMode ? 'text-white' : 'text-black'}`}
+        />
+      </div>
+
+      {isExpanded && (
+        <div className="mt-6 pt-6 border-t border-team-blue-40 space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            {cycleTimes.map((time, index) => {
+              const mins = Math.floor(time / 60);
+              const secs = time % 60;
+              return (
+                <div
+                  key={index}
+                  className={`px-3 py-2 rounded text-sm ${isDarkMode ? 'bg-team-dark text-white border border-team-blue-40' : 'bg-[#FEFEFE] text-black border border-team-blue-40'}`}
+                >
+                  <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs`}>
+                    Cycle {index + 1}
+                  </div>
+                  <div className="text-base font-medium">
+                    {mins}:{secs.toString().padStart(2, '0')}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div
+            className={`mt-4 px-4 py-3 rounded text-center ${isDarkMode ? 'bg-team-blue-40/20 text-white border border-team-blue-40' : 'bg-team-blue-40/10 text-black border border-team-blue-40'}`}
+          >
+            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs`}>
+              Average Cycle Time
+            </div>
+            <div className="text-xl font-semibold mt-1">
+              {calculateAverageCycleTime()}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const PerformanceInsightCard = ({
   metric,
   value,
