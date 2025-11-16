@@ -470,18 +470,26 @@ export const PerformanceMetrics = () => {
                   <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                     Cycle Time
                   </label>
-                  <div className="flex flex-col items-center gap-3">
+                  <div className="flex flex-row gap-4.5 items-center">
                     <button
                       onClick={recordCycleTime}
-                      className={`w-10 h-10 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors ${
+                      className={`w-12 h-12 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors flex-shrink-0 ${
                         isDarkMode ? 'bg-team-dark text-white hover:bg-team-dark-20' : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
                       }`}
                     >
-                      <Clock className="w-5 h-5" />
+                      <Clock className="w-6 h-6" />
                     </button>
                     {cycleTimerStartTime !== null && (
-                      <div className={`text-2xl ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                        {Math.floor(cycleTimerElapsed / 60)}:{(cycleTimerElapsed % 60).toString().padStart(2, '0')}
+                      <div className={`text-2xl flex flex-row ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        <div style={{ paddingTop: '6px' }}>
+                          {Math.floor(cycleTimerElapsed / 60)}
+                        </div>
+                        <div style={{ paddingTop: '6px' }}>
+                          :
+                        </div>
+                        <div style={{ paddingTop: '6px' }}>
+                          {(cycleTimerElapsed % 60).toString().padStart(2, '0')}
+                        </div>
                       </div>
                     )}
                   </div>
