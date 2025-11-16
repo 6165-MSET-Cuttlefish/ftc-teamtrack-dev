@@ -5,30 +5,24 @@ import './global.css';
 
 // Global handlers to suppress noisy AbortError from Firebase/Fetch during HMR/navigation
 if (typeof window !== 'undefined') {
+  const isAbortError = (err: any): boolean => {
+    if (!err) return false;
+    if (err.name === 'AbortError') return true;
+    if (typeof err.message === 'string' && err.message.includes('signal is aborted')) return true;
+    if (typeof err === 'string' && err.includes('signal is aborted')) return true;
+    return false;
+  };
+
   window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
-    const reason: any = e.reason;
-    if (!reason) return;
-    if (
-      reason.name === 'AbortError' ||
-      (typeof reason === 'string' && reason.includes('signal is aborted'))
-    ) {
+    if (isAbortError(e.reason)) {
       e.preventDefault();
-      return;
     }
   });
 
   window.addEventListener('error', (e: ErrorEvent) => {
-    const err: any = (e && (e as any).error) || null;
-    if (err && err.name === 'AbortError') {
+    const err = e.error || e;
+    if (isAbortError(err) || isAbortError(e.message)) {
       e.preventDefault();
-      return;
-    }
-    if (
-      typeof e.message === 'string' &&
-      e.message.includes('signal is aborted')
-    ) {
-      e.preventDefault();
-      return;
     }
   });
 }
