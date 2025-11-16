@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFirebase } from '../hooks/useFirebase';
 import { firebaseService } from '../services/firebaseService';
+import { useState } from 'react';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
@@ -26,8 +27,6 @@ const SensorOverviewCard = ({
   sessionDuration,
   finalScore,
   totalTime,
-  cycleTimes,
-  selectedFeature,
 }: {
   sessionName: string;
   driverName: string;
@@ -35,19 +34,8 @@ const SensorOverviewCard = ({
   sessionDuration: string;
   finalScore: number;
   totalTime: string;
-  cycleTimes?: number[];
-  selectedFeature?: string;
 }) => {
   const { isDarkMode } = useTheme();
-
-  const calculateAverageCycleTime = (): string => {
-    if (!cycleTimes || cycleTimes.length === 0) return 'N/A';
-    const avg = cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length;
-    const mins = Math.floor(avg / 60);
-    const secs = Math.round(avg % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
     <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'} space-y-4`}>
       <h3
@@ -65,11 +53,6 @@ const SensorOverviewCard = ({
             <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
               Match Type
             </div>
-            {selectedFeature === 'Cycle Times' && (
-              <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
-                # of Cycles
-              </div>
-            )}
           </div>
           <div className="flex flex-col gap-2.5">
             <div className="text-team-blue text-xs leading-6">
@@ -81,11 +64,6 @@ const SensorOverviewCard = ({
             <div className="text-team-blue text-xs leading-6">
               {matchType || 'N/A'}
             </div>
-            {selectedFeature === 'Cycle Times' && (
-              <div className="text-team-blue text-xs leading-6">
-                {cycleTimes?.length || 0}
-              </div>
-            )}
           </div>
         </div>
         <div className="flex justify-between items-start">
@@ -97,11 +75,6 @@ const SensorOverviewCard = ({
             <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
               Total Finished Time
             </div>
-            {selectedFeature === 'Cycle Times' && (
-              <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
-                Avg Cycle Time
-              </div>
-            )}
           </div>
           <div className="flex flex-col gap-2.5">
             <div className="text-team-blue text-xs leading-6">
@@ -109,11 +82,6 @@ const SensorOverviewCard = ({
             </div>
             <div className="text-team-blue text-xs leading-6">{finalScore}</div>
             <div className="text-team-blue text-xs leading-6">{totalTime}</div>
-            {selectedFeature === 'Cycle Times' && (
-              <div className="text-team-blue text-xs leading-6">
-                {calculateAverageCycleTime()}
-              </div>
-            )}
           </div>
         </div>
       </div>
