@@ -426,8 +426,6 @@ const AnalysisContent = () => {
             sessionDuration={sessionData.sessionDuration}
             finalScore={sessionData.finalScore}
             totalTime={sessionData.sessionDuration}
-            cycleTimes={sessionData.cycleTimes}
-            selectedFeature={sessionData.selectedFeature}
           />
 
           {/* Performance Insights */}
@@ -444,6 +442,9 @@ const AnalysisContent = () => {
                   isPositive={insight.isPositive}
                 />
               ))}
+              {sessionData.selectedFeature === 'Cycle Times' && (
+                <CycleTimesCard cycleTimes={sessionData.cycleTimes} />
+              )}
             </div>
           </div>
 
