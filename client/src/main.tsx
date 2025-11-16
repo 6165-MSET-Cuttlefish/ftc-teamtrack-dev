@@ -15,7 +15,11 @@ if (typeof window !== 'undefined') {
     // Check message property
     if (err.message) {
       const msg = String(err.message).toLowerCase();
-      if (msg.includes('aborted') || msg.includes('abort') || msg.includes('signal is aborted')) {
+      if (
+        msg.includes('aborted') ||
+        msg.includes('abort') ||
+        msg.includes('signal is aborted')
+      ) {
         return true;
       }
     }
@@ -50,14 +54,14 @@ if (typeof window !== 'undefined') {
   const originalWarn = console.warn;
   const originalError = console.error;
 
-  console.warn = function(...args: any[]) {
+  console.warn = function (...args: any[]) {
     if (args.some(arg => isAbortError(arg))) {
       return;
     }
     originalWarn.apply(console, args);
   };
 
-  console.error = function(...args: any[]) {
+  console.error = function (...args: any[]) {
     if (args.some(arg => isAbortError(arg))) {
       return;
     }
