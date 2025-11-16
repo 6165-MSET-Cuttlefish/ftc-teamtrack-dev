@@ -470,17 +470,17 @@ export const PerformanceMetrics = () => {
                   <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                     Cycle Time
                   </label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center gap-3">
                     <button
                       onClick={recordCycleTime}
-                      className={`w-10 h-10 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors flex-shrink-0 ${
+                      className={`w-10 h-10 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors ${
                         isDarkMode ? 'bg-team-dark text-white hover:bg-team-dark-20' : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
                       }`}
                     >
                       <Clock className="w-5 h-5" />
                     </button>
                     {cycleTimerStartTime !== null && (
-                      <div className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                      <div className={`text-2xl ${isDarkMode ? 'text-white' : 'text-black'}`}>
                         {Math.floor(cycleTimerElapsed / 60)}:{(cycleTimerElapsed % 60).toString().padStart(2, '0')}
                       </div>
                     )}
@@ -497,19 +497,21 @@ export const PerformanceMetrics = () => {
                       Cycle Times Log ({sessionData.cycleTimes.length})
                     </button>
                     {isCycleTimesLogExpanded && (
-                      <div className="space-y-2">
-                        {sessionData.cycleTimes.map((time, index) => {
-                          const minutes = Math.floor(time / 60);
-                          const seconds = time % 60;
-                          return (
-                            <div
-                              key={index}
-                              className={`px-2.5 py-1.5 rounded text-sm ${isDarkMode ? 'bg-team-dark text-team-white-60 border border-team-blue-40' : 'bg-[#FEFEFE] text-team-blue-40 border border-team-blue-40'}`}
-                            >
-                              {index + 1}. {minutes}:{seconds.toString().padStart(2, '0')}
-                            </div>
-                          );
-                        })}
+                      <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
+                        <div className="flex flex-wrap gap-2">
+                          {sessionData.cycleTimes.map((time, index) => {
+                            const minutes = Math.floor(time / 60);
+                            const seconds = time % 60;
+                            return (
+                              <span
+                                key={index}
+                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue-40 text-white'}`}
+                              >
+                                {minutes}:{seconds.toString().padStart(2, '0')}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
