@@ -383,6 +383,8 @@ const AnalysisContent = () => {
             sessionDuration={sessionData.sessionDuration}
             finalScore={sessionData.finalScore}
             totalTime={sessionData.sessionDuration}
+            cycleTimes={sessionData.cycleTimes}
+            selectedFeature={sessionData.selectedFeature}
           />
 
           {/* Performance Insights */}
