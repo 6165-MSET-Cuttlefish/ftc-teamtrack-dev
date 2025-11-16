@@ -504,22 +504,24 @@ export const PerformanceMetrics = () => {
                       <ChevronRight className={`w-4 h-4 transition-transform ${isCycleTimesLogExpanded ? 'rotate-90' : ''}`} />
                       Cycle Times Log ({sessionData.cycleTimes.length})
                     </button>
-                    <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`} style={{ height: '150px', overflowY: isCycleTimesLogExpanded ? 'auto' : 'hidden' }}>
-                      <div className="flex flex-col gap-2">
-                        {sessionData.cycleTimes.map((time, index) => {
-                          const minutes = Math.floor(time / 60);
-                          const seconds = time % 60;
-                          return (
-                            <div
-                              key={index}
-                              className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue-40 text-white'}`}
-                            >
-                              {index + 1}. {minutes}:{seconds.toString().padStart(2, '0')}
-                            </div>
-                          );
-                        })}
+                    {isCycleTimesLogExpanded && (
+                      <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`} style={{ height: '150px', overflowY: 'auto' }}>
+                        <div className="flex flex-col gap-2">
+                          {sessionData.cycleTimes.map((time, index) => {
+                            const minutes = Math.floor(time / 60);
+                            const seconds = time % 60;
+                            return (
+                              <div
+                                key={index}
+                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue-40 text-white'}`}
+                              >
+                                {index + 1}. {minutes}:{seconds.toString().padStart(2, '0')}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
