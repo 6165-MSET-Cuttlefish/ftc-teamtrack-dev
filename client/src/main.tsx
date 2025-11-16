@@ -7,38 +7,58 @@ import './global.css';
 if (typeof window !== 'undefined') {
   const isAbortError = (err: any): boolean => {
     if (!err) return false;
+
+    // Check error name
     if (err.name === 'AbortError') return true;
     if (err.code === 'ERR_ABORTED') return true;
-    if (typeof err.message === 'string') {
-      const msg = err.message.toLowerCase();
-      return msg.includes('aborted') || msg.includes('abort');
+
+    // Check message property
+    if (err.message) {
+      const msg = String(err.message).toLowerCase();
+      if (msg.includes('aborted') || msg.includes('abort') || msg.includes('signal is aborted')) {
+        return true;
+      }
     }
-    if (typeof err === 'string') {
-      const msg = err.toLowerCase();
-      return msg.includes('aborted') || msg.includes('abort');
+
+    // Check toString representation
+    const str = String(err).toLowerCase();
+    if (str.includes('aborterror') || str.includes('signal is aborted')) {
+      return true;
     }
+
     return false;
   };
 
-  // Capture unhandled promise rejections
-  window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
+  // Suppress unhandled promise rejections
+  const handleUnhandledRejection = (e: PromiseRejectionEvent) => {
     if (isAbortError(e.reason)) {
       e.preventDefault();
     }
-  }, true);
+  };
+  window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
-  // Capture errors in the capture phase to catch them early
-  window.addEventListener('error', (e: ErrorEvent) => {
+  // Suppress errors
+  const handleError = (e: ErrorEvent) => {
     const err = e.error || e;
     if (isAbortError(err) || isAbortError(e.message)) {
       e.preventDefault();
     }
-  }, true);
+  };
+  window.addEventListener('error', handleError);
 
-  // Also suppress AbortError when logged via console
+  // Suppress AbortError from being thrown to console
+  const originalWarn = console.warn;
   const originalError = console.error;
+
+  console.warn = function(...args: any[]) {
+    if (args.some(arg => isAbortError(arg))) {
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+
   console.error = function(...args: any[]) {
-    if (args.length > 0 && isAbortError(args[0])) {
+    if (args.some(arg => isAbortError(arg))) {
       return;
     }
     originalError.apply(console, args);
