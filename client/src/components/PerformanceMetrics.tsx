@@ -470,7 +470,7 @@ export const PerformanceMetrics = () => {
                   <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                     Cycle Time
                   </label>
-                  <div className="flex flex-row gap-4.5 items-center">
+                  <div className="flex flex-row items-center" style={{ gap: '18px' }}>
                     <button
                       onClick={recordCycleTime}
                       className={`w-12 h-12 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors flex-shrink-0 ${
