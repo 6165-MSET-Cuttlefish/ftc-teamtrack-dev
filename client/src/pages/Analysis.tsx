@@ -585,6 +585,14 @@ const AnalysisContent = () => {
                 autonomousScore={sessionData.autonomousScore}
                 teleOpScore={sessionData.teleOpScore}
                 endGameScore={sessionData.endGameScore}
+                autonClassifiedArtifact={sessionData.autonClassifiedArtifact}
+                autonOverflowArtifact={sessionData.autonOverflowArtifact}
+                autonMotif={sessionData.autonMotif}
+                autonLeave={sessionData.autonLeave}
+                teleClassifiedArtifact={sessionData.teleClassifiedArtifact}
+                teleOverflowArtifact={sessionData.teleOverflowArtifact}
+                teleMotif={sessionData.teleMotif}
+                endgameHang={sessionData.endgameHang}
               />
               {sessionData.selectedFeature === 'Cycle Times' && (
                 <CycleTimesCard cycleTimes={sessionData.cycleTimes} />
