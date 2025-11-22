@@ -525,6 +525,12 @@ const AnalysisContent = () => {
                   isPositive={insight.isPositive}
                 />
               ))}
+              <ScoreBreakdownCard
+                matchType={sessionData.matchType}
+                autonomousScore={sessionData.autonomousScore}
+                teleOpScore={sessionData.teleOpScore}
+                endGameScore={sessionData.endGameScore}
+              />
               {sessionData.selectedFeature === 'Cycle Times' && (
                 <CycleTimesCard cycleTimes={sessionData.cycleTimes} />
               )}
