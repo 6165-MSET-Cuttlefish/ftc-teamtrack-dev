@@ -207,6 +207,90 @@ const PerformanceInsightCard = ({
   );
 };
 
+const ScoreBreakdownCard = ({
+  matchType,
+  autonomousScore,
+  teleOpScore,
+  endGameScore,
+}: {
+  matchType?: string;
+  autonomousScore?: number;
+  teleOpScore?: number;
+  endGameScore?: number;
+}) => {
+  const { isDarkMode } = useTheme();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const isFullMatch = matchType?.toLowerCase().includes('full') || !matchType?.toLowerCase().includes('tele');
+  const isTeleOnlyMatch = matchType?.toLowerCase().includes('tele');
+
+  const scoreBreakdown = isTeleOnlyMatch
+    ? [
+        { label: 'TeleOp', score: teleOpScore || 0 },
+        { label: 'Endgame', score: endGameScore || 0 },
+      ]
+    : [
+        { label: 'Autonomous', score: autonomousScore || 0 },
+        { label: 'TeleOp', score: teleOpScore || 0 },
+        { label: 'Endgame', score: endGameScore || 0 },
+      ];
+
+  const totalBreakdownScore = scoreBreakdown.reduce((sum, item) => sum + item.score, 0);
+
+  return (
+    <div
+      className={`w-full px-6 py-6 rounded-lg border cursor-pointer transition-all ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 hover:bg-team-dark-40' : 'border-team-blue-40 bg-white hover:bg-gray-50'}`}
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-2">
+            <h4 className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              Score Breakdown
+            </h4>
+            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+              {scoreBreakdown.length} phases • Total: {totalBreakdownScore}
+            </p>
+          </div>
+        </div>
+        <ChevronRight
+          className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''} ${isDarkMode ? 'text-white' : 'text-black'}`}
+        />
+      </div>
+
+      {isExpanded && (
+        <div className="mt-6 pt-6 border-t border-team-blue-40 space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            {scoreBreakdown.map((item, index) => (
+              <div
+                key={index}
+                className={`px-4 py-3 rounded ${isDarkMode ? 'bg-team-dark text-white border border-team-blue-40' : 'bg-[#FEFEFE] text-black border border-team-blue-40'}`}
+              >
+                <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs mb-1`}>
+                  {item.label}
+                </div>
+                <div className="text-2xl font-semibold text-team-blue">
+                  {item.score}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div
+            className={`mt-4 px-4 py-3 rounded text-center ${isDarkMode ? 'bg-team-blue-40/20 text-white border border-team-blue-40' : 'bg-team-blue-40/10 text-black border border-team-blue-40'}`}
+          >
+            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs mb-1`}>
+              Score Breakdown Total
+            </div>
+            <div className="text-2xl font-semibold text-team-blue">
+              {totalBreakdownScore}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AnalysisContent = () => {
   const { sessionData, updateSessionData } = useSession();
   const { isDarkMode } = useTheme();
