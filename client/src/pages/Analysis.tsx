@@ -212,16 +212,31 @@ const ScoreBreakdownCard = ({
   autonomousScore,
   teleOpScore,
   endGameScore,
+  autonClassifiedArtifact,
+  autonOverflowArtifact,
+  autonMotif,
+  autonLeave,
+  teleClassifiedArtifact,
+  teleOverflowArtifact,
+  teleMotif,
+  endgameHang,
 }: {
   matchType?: string;
   autonomousScore?: number;
   teleOpScore?: number;
   endGameScore?: number;
+  autonClassifiedArtifact?: number;
+  autonOverflowArtifact?: number;
+  autonMotif?: number;
+  autonLeave?: number;
+  teleClassifiedArtifact?: number;
+  teleOverflowArtifact?: number;
+  teleMotif?: number;
+  endgameHang?: number;
 }) => {
   const { isDarkMode } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const isFullMatch = matchType?.toLowerCase().includes('full') || !matchType?.toLowerCase().includes('tele');
   const isTeleOnlyMatch = matchType?.toLowerCase().includes('tele');
 
   const scoreBreakdown = isTeleOnlyMatch
@@ -236,6 +251,17 @@ const ScoreBreakdownCard = ({
       ];
 
   const totalBreakdownScore = scoreBreakdown.reduce((sum, item) => sum + item.score, 0);
+
+  const DetailRow = ({ label, value }: { label: string; value: number | undefined }) => (
+    <div className="flex items-center justify-between py-2 px-3 rounded">
+      <span className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+        {label}
+      </span>
+      <span className="text-base font-semibold text-team-blue">
+        {value || 0}
+      </span>
+    </div>
+  );
 
   return (
     <div
@@ -259,8 +285,8 @@ const ScoreBreakdownCard = ({
       </div>
 
       {isExpanded && (
-        <div className="mt-6 pt-6 border-t border-team-blue-40 space-y-3">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="mt-6 pt-6 border-t border-team-blue-40 space-y-4">
+          <div className="grid grid-cols-2 gap-4 mb-4">
             {scoreBreakdown.map((item, index) => (
               <div
                 key={index}
@@ -275,6 +301,35 @@ const ScoreBreakdownCard = ({
               </div>
             ))}
           </div>
+
+          {!isTeleOnlyMatch && (
+            <div className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}>
+              <h5 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                Autonomous
+              </h5>
+              <DetailRow label="Classified Artifacts" value={autonClassifiedArtifact} />
+              <DetailRow label="Overflow Artifacts" value={autonOverflowArtifact} />
+              <DetailRow label="Motifs" value={autonMotif} />
+              <DetailRow label="Leave Bonus" value={autonLeave} />
+            </div>
+          )}
+
+          <div className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}>
+            <h5 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              Tele-Op
+            </h5>
+            <DetailRow label="Classified Artifacts" value={teleClassifiedArtifact} />
+            <DetailRow label="Overflow Artifacts" value={teleOverflowArtifact} />
+            <DetailRow label="Motifs" value={teleMotif} />
+          </div>
+
+          <div className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}>
+            <h5 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              Endgame
+            </h5>
+            <DetailRow label="Hang" value={endgameHang} />
+          </div>
+
           <div
             className={`mt-4 px-4 py-3 rounded text-center ${isDarkMode ? 'bg-team-blue-40/20 text-white border border-team-blue-40' : 'bg-team-blue-40/10 text-black border border-team-blue-40'}`}
           >
