@@ -59,7 +59,8 @@ if (typeof window !== 'undefined') {
     return args.some(arg => {
       if (isAbortError(arg)) return true;
       // Also check stringified versions for Firebase errors that might not have proper name
-      if (typeof arg === 'string' && arg.includes('signal is aborted')) return true;
+      if (typeof arg === 'string' && arg.includes('signal is aborted'))
+        return true;
       return false;
     });
   };

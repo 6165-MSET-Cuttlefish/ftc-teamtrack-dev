@@ -19,7 +19,8 @@ const NumberInput: React.FC<{
   useEffect(() => {
     // Only update local state if the input is not focused
     if (!isFocused) {
-      const asString = value !== undefined && value !== null ? String(value) : '';
+      const asString =
+        value !== undefined && value !== null ? String(value) : '';
       if (asString !== local) {
         setLocal(asString);
       }
@@ -113,9 +114,11 @@ const MetricField = ({
             <button
               onClick={onDropdownClick}
               className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
-                isSelected 
-                  ? 'text-team-blue border border-gray-400' 
-                  : isDarkMode ? 'text-white hover:text-team-blue' : 'text-black hover:text-team-blue'
+                isSelected
+                  ? 'text-team-blue border border-gray-400'
+                  : isDarkMode
+                    ? 'text-white hover:text-team-blue'
+                    : 'text-black hover:text-team-blue'
               }`}
             >
               <ChevronRight className="w-4 h-4" />
@@ -136,13 +139,13 @@ const MetricField = ({
         {showArrows && (
           <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
             <button
-              onMouseDown={(e) => handleArrowClick(e, handleIncrement)}
+              onMouseDown={e => handleArrowClick(e, handleIncrement)}
               className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
             >
               <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
             </button>
             <button
-              onMouseDown={(e) => handleArrowClick(e, handleDecrement)}
+              onMouseDown={e => handleArrowClick(e, handleDecrement)}
               className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
             >
               <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
@@ -155,7 +158,12 @@ const MetricField = ({
 };
 
 export const PerformanceMetrics = () => {
-  const { sessionData, updateSessionData, expandedSection, setExpandedSection } = useSession();
+  const {
+    sessionData,
+    updateSessionData,
+    expandedSection,
+    setExpandedSection,
+  } = useSession();
   const { isDarkMode } = useTheme();
 
   const [autonomousBasket, setAutonomousBasket] = useState(0);
@@ -170,7 +178,9 @@ export const PerformanceMetrics = () => {
   const [endGameValue, setEndGameValue] = useState(0);
 
   // Cycle time tracking
-  const [cycleTimerStartTime, setCycleTimerStartTime] = useState<number | null>(null);
+  const [cycleTimerStartTime, setCycleTimerStartTime] = useState<number | null>(
+    null
+  );
   const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
   const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
@@ -217,12 +227,18 @@ export const PerformanceMetrics = () => {
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       // Only trigger if not typing in an input field
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
       // Handle Enter key for recording cycle time when Cycle Times is selected
-      if (event.key === 'Enter' && sessionData.selectedFeature === 'Cycle Times') {
+      if (
+        event.key === 'Enter' &&
+        sessionData.selectedFeature === 'Cycle Times'
+      ) {
         event.preventDefault();
         recordCycleTime();
         return;
@@ -238,7 +254,7 @@ export const PerformanceMetrics = () => {
           // Second press - set the made count with validation
           const pressedNumber = parseInt(event.key);
           const shotType = parseInt(popupNumber);
-          
+
           // For shot 1: only accept 1
           // For shot 2: only accept 1 or 2
           // For shot 3: accept 1, 2, or 3
@@ -255,7 +271,7 @@ export const PerformanceMetrics = () => {
         } else if (expandedSection === 'TeleOp Score') {
           setTeleOpSamples(prev => prev + madeCount);
         }
-        
+
         // Close popup after confirming
         setShowPopup(false);
         setMadeCount(null);
@@ -272,7 +288,14 @@ export const PerformanceMetrics = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [showPopup, popupNumber, madeCount, expandedSection, sessionData.selectedFeature, recordCycleTime]);
+  }, [
+    showPopup,
+    popupNumber,
+    madeCount,
+    expandedSection,
+    sessionData.selectedFeature,
+    recordCycleTime,
+  ]);
 
   useEffect(() => {
     // Always auto-calculate scores based on breakdown fields
@@ -353,7 +376,9 @@ export const PerformanceMetrics = () => {
               isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
             }`}
           >
-            <ChevronUp className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+            <ChevronUp
+              className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            />
           </button>
           <div
             className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center ${
@@ -373,7 +398,9 @@ export const PerformanceMetrics = () => {
               isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
             }`}
           >
-            <ChevronDown className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+            <ChevronDown
+              className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            />
           </button>
         </div>
       </div>
@@ -404,7 +431,7 @@ export const PerformanceMetrics = () => {
           <input
             type="checkbox"
             checked={checked}
-            onChange={(e) => onChange(e.target.checked)}
+            onChange={e => onChange(e.target.checked)}
             className="w-8 h-8 rounded-full border-2 border-team-blue cursor-pointer accent-team-blue"
           />
         </div>
@@ -449,7 +476,7 @@ export const PerformanceMetrics = () => {
             <CheckboxField
               label="Leave (Check if left)"
               checked={autonomousLeave === 1}
-              onChange={(checked) => setAutonomousLeave(checked ? 1 : 0)}
+              onChange={checked => setAutonomousLeave(checked ? 1 : 0)}
             />
           </div>
         );
@@ -474,26 +501,33 @@ export const PerformanceMetrics = () => {
             {sessionData.selectedFeature === 'Cycle Times' && (
               <div className="space-y-4">
                 <div className="flex flex-col gap-2 w-full">
-                  <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  <label
+                    className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+                  >
                     Cycle Time
                   </label>
-                  <div className="flex flex-row items-center" style={{ gap: '18px' }}>
+                  <div
+                    className="flex flex-row items-center"
+                    style={{ gap: '18px' }}
+                  >
                     <button
                       onClick={recordCycleTime}
                       className={`w-12 h-12 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors flex-shrink-0 ${
-                        isDarkMode ? 'bg-team-dark text-white hover:bg-team-dark-20' : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                        isDarkMode
+                          ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                          : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
                       }`}
                     >
                       <Clock className="w-6 h-6" />
                     </button>
                     {cycleTimerStartTime !== null && (
-                      <div className={`text-2xl flex flex-row ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                      <div
+                        className={`text-2xl flex flex-row ${isDarkMode ? 'text-white' : 'text-black'}`}
+                      >
                         <div style={{ paddingTop: '6px' }}>
                           {Math.floor(cycleTimerElapsed / 60)}
                         </div>
-                        <div style={{ paddingTop: '6px' }}>
-                          :
-                        </div>
+                        <div style={{ paddingTop: '6px' }}>:</div>
                         <div style={{ paddingTop: '6px' }}>
                           {(cycleTimerElapsed % 60).toString().padStart(2, '0')}
                         </div>
@@ -505,14 +539,21 @@ export const PerformanceMetrics = () => {
                 {sessionData.cycleTimes.length > 0 && (
                   <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
                     <button
-                      onClick={() => setIsCycleTimesLogExpanded(!isCycleTimesLogExpanded)}
+                      onClick={() =>
+                        setIsCycleTimesLogExpanded(!isCycleTimesLogExpanded)
+                      }
                       className={`text-base leading-6 font-medium flex items-center gap-2 ${isDarkMode ? 'text-white hover:text-team-blue' : 'text-black hover:text-team-blue'} transition-colors`}
                     >
-                      <ChevronRight className={`w-4 h-4 transition-transform ${isCycleTimesLogExpanded ? 'rotate-90' : ''}`} />
+                      <ChevronRight
+                        className={`w-4 h-4 transition-transform ${isCycleTimesLogExpanded ? 'rotate-90' : ''}`}
+                      />
                       Cycle Times Log ({sessionData.cycleTimes.length})
                     </button>
                     {isCycleTimesLogExpanded && (
-                      <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`} style={{ height: '150px', overflowY: 'auto' }}>
+                      <div
+                        className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+                        style={{ height: '150px', overflowY: 'auto' }}
+                      >
                         <div className="flex flex-col gap-2">
                           {sessionData.cycleTimes.map((time, index) => {
                             const minutes = Math.floor(time / 60);
@@ -522,7 +563,8 @@ export const PerformanceMetrics = () => {
                                 key={index}
                                 className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue-40 text-white'}`}
                               >
-                                {index + 1}. {minutes}:{seconds.toString().padStart(2, '0')}
+                                {index + 1}. {minutes}:
+                                {seconds.toString().padStart(2, '0')}
                               </div>
                             );
                           })}
@@ -557,8 +599,12 @@ export const PerformanceMetrics = () => {
         <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
           <div className="bg-team-blue text-white rounded-lg shadow-2xl p-12 text-center">
             <div className="text-6xl font-bold mb-4">shot {popupNumber}</div>
-            <div className="text-4xl mb-4">{madeCount !== null ? `${madeCount} made` : '__ made'}</div>
-            <div className="text-sm opacity-75 mb-2">press enter to confirm</div>
+            <div className="text-4xl mb-4">
+              {madeCount !== null ? `${madeCount} made` : '__ made'}
+            </div>
+            <div className="text-sm opacity-75 mb-2">
+              press enter to confirm
+            </div>
             <div className="text-sm opacity-75">press esc to exit</div>
           </div>
         </div>
@@ -573,7 +619,7 @@ export const PerformanceMetrics = () => {
             <MetricField
               label="Final Score"
               value={sessionData.finalScore}
-              onChange={(value) => updateSessionData({ finalScore: value })}
+              onChange={value => updateSessionData({ finalScore: value })}
               hasDropdown={false}
               editable={true}
               showArrows={false}
@@ -582,7 +628,9 @@ export const PerformanceMetrics = () => {
               <MetricField
                 label="Autonomous Score"
                 value={sessionData.autonomousScore}
-                onChange={(value) => updateSessionData({ autonomousScore: value })}
+                onChange={value =>
+                  updateSessionData({ autonomousScore: value })
+                }
                 onDropdownClick={() => toggleSection('Autonomous Score')}
                 editable={true}
                 showArrows={false}
@@ -593,7 +641,7 @@ export const PerformanceMetrics = () => {
               <MetricField
                 label="TeleOp Score"
                 value={sessionData.teleOpScore}
-                onChange={(value) => updateSessionData({ teleOpScore: value })}
+                onChange={value => updateSessionData({ teleOpScore: value })}
                 onDropdownClick={() => toggleSection('TeleOp Score')}
                 editable={true}
                 showArrows={false}
@@ -603,7 +651,7 @@ export const PerformanceMetrics = () => {
             <MetricField
               label="End Game Score"
               value={sessionData.endGameScore}
-              onChange={(value) => updateSessionData({ endGameScore: value })}
+              onChange={value => updateSessionData({ endGameScore: value })}
               onDropdownClick={() => toggleSection('End Game Score')}
               editable={true}
               showArrows={false}

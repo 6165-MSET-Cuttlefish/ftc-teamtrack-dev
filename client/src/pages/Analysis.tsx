@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { TrendingUp, TrendingDown, BarChart3, ChevronRight } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  ChevronRight,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFirebase } from '../hooks/useFirebase';
 import { firebaseService } from '../services/firebaseService';
@@ -10,11 +15,17 @@ import { firebaseService } from '../services/firebaseService';
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div className={`flex flex-col items-center gap-4 px-9 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+    <div
+      className={`flex flex-col items-center gap-4 px-9 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
+    >
       <div className="text-team-blue text-3xl font-medium leading-6">
         {value}
       </div>
-      <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-base leading-6`}>{label}</div>
+      <div
+        className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-base leading-6`}
+      >
+        {label}
+      </div>
     </div>
   );
 };
@@ -36,7 +47,9 @@ const SensorOverviewCard = ({
 }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'} space-y-4`}>
+    <div
+      className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'} space-y-4`}
+    >
       <h3
         className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
       >
@@ -45,11 +58,19 @@ const SensorOverviewCard = ({
       <div className="grid grid-cols-2 gap-6">
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-2.5">
-            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+            >
               Session Name
             </div>
-            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>Driver</div>
-            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+            >
+              Driver
+            </div>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+            >
               Match Type
             </div>
           </div>
@@ -67,11 +88,19 @@ const SensorOverviewCard = ({
         </div>
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-2.5">
-            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>Duration</div>
-            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+            >
+              Duration
+            </div>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+            >
               Final Score
             </div>
-            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+            >
               Total Finished Time
             </div>
           </div>
@@ -88,11 +117,7 @@ const SensorOverviewCard = ({
   );
 };
 
-const CycleTimesCard = ({
-  cycleTimes,
-}: {
-  cycleTimes?: number[];
-}) => {
+const CycleTimesCard = ({ cycleTimes }: { cycleTimes?: number[] }) => {
   const { isDarkMode } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -113,10 +138,14 @@ const CycleTimesCard = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex flex-col gap-2">
-            <h4 className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+            <h4
+              className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            >
               Cycle Times
             </h4>
-            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+            <p
+              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            >
               {cycleTimes.length} cycles • Avg: {calculateAverageCycleTime()}
             </p>
           </div>
@@ -137,7 +166,9 @@ const CycleTimesCard = ({
                   key={index}
                   className={`px-3 py-2 rounded text-sm ${isDarkMode ? 'bg-team-dark text-white border border-team-blue-40' : 'bg-[#FEFEFE] text-black border border-team-blue-40'}`}
                 >
-                  <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs`}>
+                  <div
+                    className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs`}
+                  >
                     Cycle {index + 1}
                   </div>
                   <div className="text-base font-medium">
@@ -150,7 +181,9 @@ const CycleTimesCard = ({
           <div
             className={`mt-4 px-4 py-3 rounded text-center ${isDarkMode ? 'bg-team-blue-40/20 text-white border border-team-blue-40' : 'bg-team-blue-40/10 text-black border border-team-blue-40'}`}
           >
-            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs`}>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs`}
+            >
               Average Cycle Time
             </div>
             <div className="text-xl font-semibold mt-1">
@@ -174,7 +207,9 @@ const PerformanceInsightCard = ({
 }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div className={`flex items-center justify-between px-6 py-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+    <div
+      className={`flex items-center justify-between px-6 py-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
+    >
       <div className="flex items-center gap-4">
         <span
           className={`text-base font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
@@ -186,14 +221,14 @@ const PerformanceInsightCard = ({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <div className={`p-2 rounded ${isDarkMode ? 'text-white' : 'text-black'}`}>
+        <div
+          className={`p-2 rounded ${isDarkMode ? 'text-white' : 'text-black'}`}
+        >
           <BarChart3 className="w-5 h-5" />
         </div>
         <div
           className={`p-2 rounded ${
-            isPositive
-              ? 'text-green-500'
-              : 'text-red-500'
+            isPositive ? 'text-green-500' : 'text-red-500'
           }`}
         >
           {isPositive ? (
@@ -250,11 +285,22 @@ const ScoreBreakdownCard = ({
         { label: 'Endgame', score: endGameScore || 0 },
       ];
 
-  const totalBreakdownScore = scoreBreakdown.reduce((sum, item) => sum + item.score, 0);
+  const totalBreakdownScore = scoreBreakdown.reduce(
+    (sum, item) => sum + item.score,
+    0
+  );
 
-  const DetailRow = ({ label, value }: { label: string; value: number | undefined }) => (
+  const DetailRow = ({
+    label,
+    value,
+  }: {
+    label: string;
+    value: number | undefined;
+  }) => (
     <div className="flex items-center justify-between py-2 px-3 rounded">
-      <span className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+      <span
+        className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+      >
         {label}
       </span>
       <span className="text-base font-semibold text-team-blue">
@@ -271,10 +317,14 @@ const ScoreBreakdownCard = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex flex-col gap-2">
-            <h4 className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+            <h4
+              className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            >
               Score Breakdown
             </h4>
-            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+            <p
+              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            >
               {scoreBreakdown.length} phases • Total: {totalBreakdownScore}
             </p>
           </div>
@@ -292,7 +342,9 @@ const ScoreBreakdownCard = ({
                 key={index}
                 className={`px-4 py-3 rounded ${isDarkMode ? 'bg-team-dark text-white border border-team-blue-40' : 'bg-[#FEFEFE] text-black border border-team-blue-40'}`}
               >
-                <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs mb-1`}>
+                <div
+                  className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs mb-1`}
+                >
                   {item.label}
                 </div>
                 <div className="text-2xl font-semibold text-team-blue">
@@ -303,28 +355,52 @@ const ScoreBreakdownCard = ({
           </div>
 
           {!isTeleOnlyMatch && (
-            <div className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}>
-              <h5 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+            <div
+              className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}
+            >
+              <h5
+                className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}
+              >
                 Autonomous
               </h5>
-              <DetailRow label="Classified Artifacts" value={autonClassifiedArtifact} />
-              <DetailRow label="Overflow Artifacts" value={autonOverflowArtifact} />
+              <DetailRow
+                label="Classified Artifacts"
+                value={autonClassifiedArtifact}
+              />
+              <DetailRow
+                label="Overflow Artifacts"
+                value={autonOverflowArtifact}
+              />
               <DetailRow label="Motifs" value={autonMotif} />
               <DetailRow label="Leave Bonus" value={autonLeave} />
             </div>
           )}
 
-          <div className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}>
-            <h5 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          <div
+            className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}
+          >
+            <h5
+              className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            >
               Tele-Op
             </h5>
-            <DetailRow label="Classified Artifacts" value={teleClassifiedArtifact} />
-            <DetailRow label="Overflow Artifacts" value={teleOverflowArtifact} />
+            <DetailRow
+              label="Classified Artifacts"
+              value={teleClassifiedArtifact}
+            />
+            <DetailRow
+              label="Overflow Artifacts"
+              value={teleOverflowArtifact}
+            />
             <DetailRow label="Motifs" value={teleMotif} />
           </div>
 
-          <div className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}>
-            <h5 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          <div
+            className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}
+          >
+            <h5
+              className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            >
               Endgame
             </h5>
             <DetailRow label="Hang" value={endgameHang} />
@@ -333,7 +409,9 @@ const ScoreBreakdownCard = ({
           <div
             className={`mt-4 px-4 py-3 rounded text-center ${isDarkMode ? 'bg-team-blue-40/20 text-white border border-team-blue-40' : 'bg-team-blue-40/10 text-black border border-team-blue-40'}`}
           >
-            <div className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs mb-1`}>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs mb-1`}
+            >
               Score Breakdown Total
             </div>
             <div className="text-2xl font-semibold text-team-blue">
@@ -367,20 +445,25 @@ const AnalysisContent = () => {
   const [accuracy, setAccuracy] = useState<number>(0);
 
   // Performance insights state
-  const [insights, setInsights] = useState<{
-    id: number;
-    metric: string;
-    value: string;
-    isPositive: boolean;
-  }[]>([]);
+  const [insights, setInsights] = useState<
+    {
+      id: number;
+      metric: string;
+      value: string;
+      isPositive: boolean;
+    }[]
+  >([]);
 
   // Load session data from Firebase or location state
   useEffect(() => {
     const loadSessionData = async () => {
       setLoading(true);
-      
+
       // First check if session data was passed through state (for temporary sessions)
-      const stateData = location.state as { sessionData?: any; isTemporary?: boolean } | null;
+      const stateData = location.state as {
+        sessionData?: any;
+        isTemporary?: boolean;
+      } | null;
       if (stateData?.sessionData) {
         updateSessionData(stateData.sessionData);
         setLoading(false);
@@ -420,7 +503,7 @@ const AnalysisContent = () => {
           console.error('Error loading session:', error);
         }
       }
-      
+
       setLoading(false);
     };
 
@@ -459,7 +542,13 @@ const AnalysisContent = () => {
 
       // Use last 3 previous sessions (excluding current if it matches by finalScore and duration)
       // Filter out the current session when possible (match by finalScore and sessionDuration)
-      const filtered = result.filter(s => !(s.finalScore === sessionData.finalScore && s.sessionDuration === sessionData.sessionDuration));
+      const filtered = result.filter(
+        s =>
+          !(
+            s.finalScore === sessionData.finalScore &&
+            s.sessionDuration === sessionData.sessionDuration
+          )
+      );
       const prevSessions = filtered.slice(0, 3);
 
       if (prevSessions.length === 0) {
@@ -473,18 +562,28 @@ const AnalysisContent = () => {
         return;
       }
 
-      const avgFinal = prevSessions.reduce((s, p) => s + (p.finalScore || 0), 0) / prevSessions.length;
-      const avgAuton = prevSessions.reduce((s, p) => s + (p.autonomousScore || 0), 0) / prevSessions.length;
-      const avgTele = prevSessions.reduce((s, p) => s + (p.teleOpScore || 0), 0) / prevSessions.length;
+      const avgFinal =
+        prevSessions.reduce((s, p) => s + (p.finalScore || 0), 0) /
+        prevSessions.length;
+      const avgAuton =
+        prevSessions.reduce((s, p) => s + (p.autonomousScore || 0), 0) /
+        prevSessions.length;
+      const avgTele =
+        prevSessions.reduce((s, p) => s + (p.teleOpScore || 0), 0) /
+        prevSessions.length;
 
       // Calculate consistency: standard deviation of scores
-      const scoreVariance = prevSessions.reduce((sum, session) => {
-        const diff = (session.finalScore || 0) - avgFinal;
-        return sum + diff * diff;
-      }, 0) / prevSessions.length;
+      const scoreVariance =
+        prevSessions.reduce((sum, session) => {
+          const diff = (session.finalScore || 0) - avgFinal;
+          return sum + diff * diff;
+        }, 0) / prevSessions.length;
       const stdDev = Math.sqrt(scoreVariance);
       // Convert to percentage: lower std dev = higher consistency
-      const consistencyPercent = avgFinal > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / avgFinal) * 100)) : 0;
+      const consistencyPercent =
+        avgFinal > 0
+          ? Math.max(0, Math.min(100, 100 - (stdDev / avgFinal) * 100))
+          : 0;
       setConsistency(Math.round(consistencyPercent));
 
       // Calculate accuracy: percentage of theoretical max score achieved
@@ -505,9 +604,24 @@ const AnalysisContent = () => {
       const teleChange = formatChange(sessionData.teleOpScore, avgTele);
 
       setInsights([
-        { id: 1, metric: 'Consistency', value: consistencyChange, isPositive: sessionData.finalScore >= avgFinal },
-        { id: 2, metric: 'Autonomous', value: autonChange, isPositive: sessionData.autonomousScore >= avgAuton },
-        { id: 3, metric: 'TeleOp', value: teleChange, isPositive: sessionData.teleOpScore >= avgTele },
+        {
+          id: 1,
+          metric: 'Consistency',
+          value: consistencyChange,
+          isPositive: sessionData.finalScore >= avgFinal,
+        },
+        {
+          id: 2,
+          metric: 'Autonomous',
+          value: autonChange,
+          isPositive: sessionData.autonomousScore >= avgAuton,
+        },
+        {
+          id: 3,
+          metric: 'TeleOp',
+          value: teleChange,
+          isPositive: sessionData.teleOpScore >= avgTele,
+        },
       ]);
     };
 
@@ -516,13 +630,20 @@ const AnalysisContent = () => {
     return () => {
       mounted = false;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid, sessionData.finalScore, sessionData.autonomousScore, sessionData.teleOpScore]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    user?.uid,
+    sessionData.finalScore,
+    sessionData.autonomousScore,
+    sessionData.teleOpScore,
+  ]);
 
   // Show loading state
   if (loading) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} flex items-center justify-center`}>
+      <div
+        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} flex items-center justify-center`}
+      >
         <div className="text-team-blue text-2xl">Loading session...</div>
       </div>
     );
@@ -532,7 +653,7 @@ const AnalysisContent = () => {
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-   <div className="max-w-[800px] mx-auto px-4 sm:px-8 py-8 lg:py-16">
+      <div className="max-w-[800px] mx-auto px-4 sm:px-8 py-8 lg:py-16">
         <div className="space-y-12">
           {/* Header */}
           <div className="text-center space-y-6">
@@ -608,7 +729,7 @@ const AnalysisContent = () => {
             >
               Back to Session
             </Link>
-            <button 
+            <button
               disabled
               className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal opacity-50 cursor-not-allowed"
             >
