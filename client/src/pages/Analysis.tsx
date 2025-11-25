@@ -128,7 +128,7 @@ const CycleTimesCard = ({
 
       {isExpanded && (
         <div className="mt-6 pt-6 border-t border-team-blue-40 space-y-3">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mb-4">
             {cycleTimes.map((time, index) => {
               const mins = Math.floor(time / 60);
               const secs = time % 60;
