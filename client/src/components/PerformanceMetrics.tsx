@@ -272,7 +272,7 @@ export const PerformanceMetrics = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [showPopup, popupNumber, madeCount, expandedSection, recordCycleTime, sessionData.selectedFeature]);
+  }, [showPopup, popupNumber, madeCount, expandedSection, sessionData.selectedFeature, recordCycleTime]);
 
   useEffect(() => {
     // Always auto-calculate scores based on breakdown fields
