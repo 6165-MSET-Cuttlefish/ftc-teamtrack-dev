@@ -213,11 +213,18 @@ export const PerformanceMetrics = () => {
     }
   };
 
-  // Keyboard event listener for 1, 2, 3 keys
+  // Keyboard event listener for 1, 2, 3 keys and 't' for cycle time
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       // Only trigger if not typing in an input field
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Handle 't' key for recording cycle time
+      if ((event.key === 't' || event.key === 'T') && sessionData.selectedFeature === 'Cycle Times') {
+        event.preventDefault();
+        recordCycleTime();
         return;
       }
 
