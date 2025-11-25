@@ -53,19 +53,36 @@ if (typeof window !== 'undefined') {
   // Suppress AbortError from being thrown to console
   const originalWarn = console.warn;
   const originalError = console.error;
+  const originalLog = console.log;
+
+  const shouldSuppressError = (...args: any[]): boolean => {
+    return args.some(arg => {
+      if (isAbortError(arg)) return true;
+      // Also check stringified versions for Firebase errors that might not have proper name
+      if (typeof arg === 'string' && arg.includes('signal is aborted')) return true;
+      return false;
+    });
+  };
 
   console.warn = function (...args: any[]) {
-    if (args.some(arg => isAbortError(arg))) {
+    if (shouldSuppressError(...args)) {
       return;
     }
     originalWarn.apply(console, args);
   };
 
   console.error = function (...args: any[]) {
-    if (args.some(arg => isAbortError(arg))) {
+    if (shouldSuppressError(...args)) {
       return;
     }
     originalError.apply(console, args);
+  };
+
+  console.log = function (...args: any[]) {
+    if (shouldSuppressError(...args)) {
+      return;
+    }
+    originalLog.apply(console, args);
   };
 }
 
