@@ -504,22 +504,38 @@ const Sessions = () => {
                 My Sessions
               </h1>
             </div>
-            <Button
-              onClick={() => {
-                if (hasActiveSession) {
-                  // If there's an active session, go to it
-                  navigate('/original');
-                } else {
-                  // If no active session, reset and create new
-                  resetSession();
-                  navigate('/original');
-                }
-              }}
-              className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
-            >
-              {!hasActiveSession && <Plus className="h-4 w-4 mr-2" />}
-              {hasActiveSession ? 'Current Session' : 'New Session'}
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  if (hasActiveSession) {
+                    // If there's an active session, go to it
+                    navigate('/original');
+                  } else {
+                    // If no active session, reset and create new
+                    resetSession();
+                    navigate('/original');
+                  }
+                }}
+                className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+              >
+                {!hasActiveSession && <Plus className="h-4 w-4 mr-2" />}
+                {hasActiveSession ? 'Current Session' : 'New Session'}
+              </Button>
+              {sessions.length > 0 && (
+                <Button
+                  onClick={handleExportCSV}
+                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors ${
+                    isDarkMode
+                      ? 'text-team-blue border-team-blue-40'
+                      : 'text-team-blue border-team-blue-40'
+                  }`}
+                  variant="outline"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
