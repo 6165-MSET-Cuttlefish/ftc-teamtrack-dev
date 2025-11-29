@@ -81,6 +81,21 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
     setIsEditing(true);
   };
 
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (deleteConfirm) {
+      onDelete();
+      setDeleteConfirm(false);
+    } else {
+      setDeleteConfirm(true);
+    }
+  };
+
+  const handleDeleteCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteConfirm(false);
+  };
+
   return (
     <Card 
       className={`transition-all duration-200 cursor-pointer ${
