@@ -5,9 +5,24 @@ import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { firebaseService, SessionData } from '../services/firebaseService';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
 import { Input } from '../components/ui/input';
-import { Search, Plus, Calendar, User, Trophy, Clock, BarChart3, Pencil, Trash2 } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  Calendar,
+  User,
+  Trophy,
+  Clock,
+  BarChart3,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FirebaseTimestamp {
@@ -17,18 +32,18 @@ interface FirebaseTimestamp {
 
 const toDate = (timestamp: unknown): Date => {
   if (!timestamp) return new Date();
-  
+
   if (typeof timestamp === 'string') {
     return new Date(timestamp);
   }
-  
+
   if (typeof timestamp === 'object' && timestamp !== null) {
     const ts = timestamp as FirebaseTimestamp;
     if ('seconds' in ts && 'nanoseconds' in ts) {
       return new Date(ts.seconds * 1000 + ts.nanoseconds / 1000000);
     }
   }
-  
+
   return new Date();
 };
 
@@ -39,23 +54,28 @@ interface SessionCardProps {
   onDelete: () => void;
 }
 
-const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardProps) => {
+const SessionCard = ({
+  session,
+  onView,
+  onNameChange,
+  onDelete,
+}: SessionCardProps) => {
   const { isDarkMode } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(session.sessionName || '');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  
+
   const formatDate = (timestamp: unknown) => {
     if (!timestamp) return 'Unknown date';
-    
+
     const date = toDate(timestamp);
-    
+
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -97,10 +117,10 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
   };
 
   return (
-    <Card 
+    <Card
       className={`transition-all duration-200 cursor-pointer ${
-        isDarkMode 
-          ? 'border-team-blue-40 bg-team-dark hover:border-team-blue hover:shadow-lg' 
+        isDarkMode
+          ? 'border-team-blue-40 bg-team-dark hover:border-team-blue hover:shadow-lg'
           : 'border-team-blue/40 bg-white hover:border-team-blue hover:shadow-lg'
       }`}
       onClick={onView}
@@ -109,18 +129,21 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1">
             {isEditing ? (
-              <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="flex items-center gap-3"
+                onClick={e => e.stopPropagation()}
+              >
                 <Input
                   value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
+                  onChange={e => setEditedName(e.target.value)}
                   className={`h-10 text-xl font-semibold ${
-                    isDarkMode 
-                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40' 
+                    isDarkMode
+                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
                       : 'bg-gray-50 border-team-blue/60 text-team-blue placeholder-team-blue-40'
                   }`}
                   autoFocus
                   onBlur={handleSaveName}
-                  onKeyDown={(e) => {
+                  onKeyDown={e => {
                     if (e.key === 'Enter') {
                       handleSaveName();
                     } else if (e.key === 'Escape') {
@@ -131,7 +154,9 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <CardTitle className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+                <CardTitle
+                  className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                >
                   {session.sessionName || 'Untitled Session'}
                 </CardTitle>
                 <button
@@ -150,7 +175,11 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
                         ? 'bg-red-500 hover:bg-red-600 text-white'
                         : `${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} hover:bg-team-blue/20 hover:text-team-blue`
                     }`}
-                    title={deleteConfirm ? "Click again to confirm delete" : "Delete session"}
+                    title={
+                      deleteConfirm
+                        ? 'Click again to confirm delete'
+                        : 'Delete session'
+                    }
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -176,50 +205,84 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
             </span>
           </div>
         </div>
-        
-        <div className={`flex items-center gap-2 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+
+        <div
+          className={`flex items-center gap-2 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+        >
           <Calendar className="h-4 w-4" />
           <span>{formatDate(session.createdAt)}</span>
         </div>
       </CardHeader>
-      
+
       <CardContent className="pt-0 pb-6 px-6">
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
           <div className="flex items-center gap-3">
-            <User className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
+            <User
+              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            />
             <div className="flex flex-col">
-              <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>Driver</span>
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+              <span
+                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+              >
+                Driver
+              </span>
+              <span
+                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
                 {session.driverName || 'Unknown'}
               </span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <Clock className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
+            <Clock
+              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            />
             <div className="flex flex-col">
-              <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>Duration</span>
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+              <span
+                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+              >
+                Duration
+              </span>
+              <span
+                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
                 {session.sessionDuration || 'N/A'}
               </span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <BarChart3 className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
+            <BarChart3
+              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            />
             <div className="flex flex-col">
-              <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>Type</span>
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+              <span
+                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+              >
+                Type
+              </span>
+              <span
+                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
                 {session.matchType || 'Practice'}
               </span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <Trophy className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
+            <Trophy
+              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            />
             <div className="flex flex-col">
-              <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>Score</span>
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+              <span
+                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+              >
+                Score
+              </span>
+              <span
+                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
                 {session.finalScore || 0} pts
               </span>
             </div>
@@ -232,9 +295,11 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
 
 const LoadingCard = () => {
   const { isDarkMode } = useTheme();
-  
+
   return (
-    <Card className={`${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue/40 bg-white'}`}>
+    <Card
+      className={`${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue/40 bg-white'}`}
+    >
       <CardHeader className="pb-4 pt-6 px-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="space-y-3 flex-1">
@@ -244,7 +309,7 @@ const LoadingCard = () => {
         </div>
         <div className="h-4 bg-muted rounded animate-pulse w-32"></div>
       </CardHeader>
-      
+
       <CardContent className="pt-0 pb-6 px-6">
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
           {[...Array(4)].map((_, i) => (
@@ -272,7 +337,7 @@ const Sessions = () => {
   useEffect(() => {
     const loadSessions = async () => {
       if (!user?.uid) return;
-      
+
       setLoading(true);
       try {
         const userSessions = await firebaseService.getUserSessions(user.uid);
@@ -295,10 +360,11 @@ const Sessions = () => {
       return;
     }
 
-    const filtered = sessions.filter(session =>
-      session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      session.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = sessions.filter(
+      session =>
+        session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        session.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     setFilteredSessions(filtered);
@@ -331,7 +397,9 @@ const Sessions = () => {
     try {
       await firebaseService.deleteSession(sessionId);
       setSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
-      setFilteredSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
+      setFilteredSessions(prevSessions =>
+        prevSessions.filter(s => s.id !== sessionId)
+      );
       toast.success('Session deleted');
     } catch (error) {
       console.error('Error deleting session:', error);
@@ -340,17 +408,20 @@ const Sessions = () => {
   };
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
+    <div
+      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+    >
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+              <h1
+                className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
                 My Sessions
               </h1>
-             
             </div>
-            <Button 
+            <Button
               onClick={() => {
                 if (hasActiveSession) {
                   // If there's an active session, go to it
@@ -370,34 +441,64 @@ const Sessions = () => {
         </div>
 
         {!loading && sessions.length > 0 && (
-          <div className={`mb-6 p-6 rounded-lg border ${
-            isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-team-blue/40'
-          }`}>
-            <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+          <div
+            className={`mb-6 p-6 rounded-lg border ${
+              isDarkMode
+                ? 'bg-team-dark-20 border-team-blue-40'
+                : 'bg-white border-team-blue/40'
+            }`}
+          >
+            <h3
+              className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
               Quick Stats
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-team-blue">{sessions.length}</div>
-                <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Total Sessions</div>
+                <div className="text-2xl font-bold text-team-blue">
+                  {sessions.length}
+                </div>
+                <div
+                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                >
+                  Total Sessions
+                </div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-team-blue">
-                  {Math.round(sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) / sessions.length) || 0}
+                  {Math.round(
+                    sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
+                      sessions.length
+                  ) || 0}
                 </div>
-                <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Avg Score</div>
+                <div
+                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                >
+                  Avg Score
+                </div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-team-blue">
                   {Math.max(...sessions.map(s => s.finalScore || 0)) || 0}
                 </div>
-                <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Best Score</div>
+                <div
+                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                >
+                  Best Score
+                </div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-team-blue">
-                  {sessions.filter(s => s.matchType?.toLowerCase() === 'match').length}
+                  {
+                    sessions.filter(s => s.matchType?.toLowerCase() === 'match')
+                      .length
+                  }
                 </div>
-                <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Matches</div>
+                <div
+                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                >
+                  Matches
+                </div>
               </div>
             </div>
           </div>
@@ -405,14 +506,16 @@ const Sessions = () => {
 
         <div className="mb-6">
           <div className="relative">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
+            <Search
+              className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+            />
             <Input
               placeholder="Search sessions by name, driver, or type..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className={`pl-10 ${
-                isDarkMode 
-                  ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40' 
+                isDarkMode
+                  ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
                   : 'bg-white border-team-blue/60 text-team-blue placeholder-team-blue-40'
               }`}
             />
@@ -427,22 +530,29 @@ const Sessions = () => {
           </div>
         ) : filteredSessions.length === 0 ? (
           <div className="text-center py-12">
-            <div className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-4 ${
-              isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'
-            }`}>
-              <BarChart3 className={`h-12 w-12 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
+            <div
+              className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-4 ${
+                isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'
+              }`}
+            >
+              <BarChart3
+                className={`h-12 w-12 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              />
             </div>
-            <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+            <h3
+              className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
               {searchTerm ? 'No sessions found' : 'No sessions yet'}
             </h3>
-            <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
-              {searchTerm 
-                ? 'Try adjusting your search terms' 
-                : 'Start tracking your practice sessions to see them here'
-              }
+            <p
+              className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            >
+              {searchTerm
+                ? 'Try adjusting your search terms'
+                : 'Start tracking your practice sessions to see them here'}
             </p>
             {!searchTerm && (
-              <Button 
+              <Button
                 onClick={() => navigate('/original')}
                 className="bg-team-blue hover:bg-team-blue/90 text-white"
               >
@@ -453,12 +563,14 @@ const Sessions = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSessions.map((session) => (
+            {filteredSessions.map(session => (
               <SessionCard
                 key={session.id}
                 session={session}
                 onView={() => handleViewSession(session.id)}
-                onNameChange={(newName) => handleUpdateSessionName(session.id, newName)}
+                onNameChange={newName =>
+                  handleUpdateSessionName(session.id, newName)
+                }
                 onDelete={() => handleDeleteSession(session.id)}
               />
             ))}
