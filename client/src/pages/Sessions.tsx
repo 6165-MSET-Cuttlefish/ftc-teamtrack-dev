@@ -7,7 +7,7 @@ import { firebaseService, SessionData } from '../services/firebaseService';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
-import { Search, Plus, Calendar, User, Trophy, Clock, BarChart3, Pencil } from 'lucide-react';
+import { Search, Plus, Calendar, User, Trophy, Clock, BarChart3, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FirebaseTimestamp {
