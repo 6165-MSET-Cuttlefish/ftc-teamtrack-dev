@@ -36,6 +36,7 @@ interface SessionCardProps {
   session: SessionData;
   onView: () => void;
   onNameChange: (newName: string) => void;
+  onDelete: () => void;
 }
 
 const SessionCard = ({ session, onView, onNameChange }: SessionCardProps) => {
