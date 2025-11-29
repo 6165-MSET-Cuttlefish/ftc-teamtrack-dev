@@ -61,6 +61,11 @@ if (typeof window !== 'undefined') {
       // Also check stringified versions for Firebase errors that might not have proper name
       if (typeof arg === 'string' && arg.includes('signal is aborted'))
         return true;
+      // Check error stack traces
+      if (arg && typeof arg === 'object' && arg.stack) {
+        const stack = String(arg.stack).toLowerCase();
+        if (stack.includes('aborterror') || stack.includes('signal is aborted')) return true;
+      }
       return false;
     });
   };
