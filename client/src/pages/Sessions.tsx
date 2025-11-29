@@ -130,7 +130,7 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
                 />
               </div>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <CardTitle className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
                   {session.sessionName || 'Untitled Session'}
                 </CardTitle>
@@ -142,6 +142,35 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
+                {deleteConfirm ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handleDeleteClick}
+                      className="p-1.5 rounded bg-red-500 hover:bg-red-600 transition-colors text-white"
+                      title="Click again to confirm delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={handleDeleteCancel}
+                      className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
+                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                      }`}
+                      title="Cancel delete"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleDeleteClick}
+                    className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
+                      isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                    } hover:text-team-blue`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             )}
           </div>
