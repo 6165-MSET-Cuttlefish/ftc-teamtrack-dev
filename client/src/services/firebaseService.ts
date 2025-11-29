@@ -119,6 +119,21 @@ class FirebaseService {
       return [];
     }
   }
+
+  async deleteSession(sessionId: string): Promise<boolean> {
+    try {
+      const db = await this.getDB();
+      const docRef = doc(db, 'sessions', sessionId);
+      await deleteDoc(docRef);
+      return true;
+    } catch (error: any) {
+      if (error && error.name === 'AbortError') {
+        return false;
+      }
+      console.error('Error deleting session:', error);
+      throw error;
+    }
+  }
 }
 
 export const firebaseService = new FirebaseService();
