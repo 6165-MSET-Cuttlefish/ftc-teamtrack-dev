@@ -322,7 +322,7 @@ const Sessions = () => {
           : session
       )
     );
-    
+
     setFilteredSessions(prevSessions =>
       prevSessions.map(session =>
         session.id === sessionId
@@ -330,6 +330,18 @@ const Sessions = () => {
           : session
       )
     );
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await firebaseService.deleteSession(sessionId);
+      setSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
+      setFilteredSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
+      toast.success('Session deleted');
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast.error('Failed to delete session');
+    }
   };
 
   return (
