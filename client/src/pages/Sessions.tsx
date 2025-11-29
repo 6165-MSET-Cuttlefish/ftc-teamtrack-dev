@@ -142,35 +142,30 @@ const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardPro
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
-                {deleteConfirm ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={handleDeleteClick}
-                      className="p-1.5 rounded bg-red-500 hover:bg-red-600 transition-colors text-white"
-                      title="Click again to confirm delete"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                <div className="flex items-center gap-1 w-16">
+                  <button
+                    onClick={handleDeleteClick}
+                    className={`p-1.5 rounded flex-1 transition-colors ${
+                      deleteConfirm
+                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                        : `${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} hover:bg-team-blue/20 hover:text-team-blue`
+                    }`}
+                    title={deleteConfirm ? "Click again to confirm delete" : "Delete session"}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  {deleteConfirm && (
                     <button
                       onClick={handleDeleteCancel}
-                      className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
+                      className={`p-1.5 rounded flex-1 hover:bg-team-blue/20 transition-colors ${
                         isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                       }`}
                       title="Cancel delete"
                     >
                       ✕
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleDeleteClick}
-                    className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
-                      isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                    } hover:text-team-blue`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>
