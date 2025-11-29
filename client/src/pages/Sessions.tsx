@@ -39,10 +39,11 @@ interface SessionCardProps {
   onDelete: () => void;
 }
 
-const SessionCard = ({ session, onView, onNameChange }: SessionCardProps) => {
+const SessionCard = ({ session, onView, onNameChange, onDelete }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(session.sessionName || '');
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   
   const formatDate = (timestamp: unknown) => {
     if (!timestamp) return 'Unknown date';
