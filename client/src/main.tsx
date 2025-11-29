@@ -18,7 +18,8 @@ if (typeof window !== 'undefined') {
       if (
         msg.includes('aborted') ||
         msg.includes('abort') ||
-        msg.includes('signal is aborted')
+        msg.includes('signal is aborted') ||
+        msg.includes('signal abort')
       ) {
         return true;
       }
@@ -26,8 +27,16 @@ if (typeof window !== 'undefined') {
 
     // Check toString representation
     const str = String(err).toLowerCase();
-    if (str.includes('aborterror') || str.includes('signal is aborted')) {
+    if (str.includes('aborterror') || str.includes('signal is aborted') || str.includes('signal abort')) {
       return true;
+    }
+
+    // Check stack traces
+    if (err.stack) {
+      const stack = String(err.stack).toLowerCase();
+      if (stack.includes('aborterror') || stack.includes('signal is aborted') || stack.includes('signal abort')) {
+        return true;
+      }
     }
 
     return false;
