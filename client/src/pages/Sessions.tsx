@@ -464,6 +464,7 @@ const Sessions = () => {
                 session={session}
                 onView={() => handleViewSession(session.id)}
                 onNameChange={(newName) => handleUpdateSessionName(session.id, newName)}
+                onDelete={() => handleDeleteSession(session.id)}
               />
             ))}
           </div>
