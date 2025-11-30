@@ -118,10 +118,10 @@ const SessionCard = ({
 
   return (
     <Card
-      className={`transition-all duration-200 cursor-pointer ${
+      className={`transition-all duration-300 cursor-pointer group ${
         isDarkMode
-          ? 'border-team-blue-40 bg-team-dark hover:border-team-blue hover:shadow-lg'
-          : 'border-team-blue/40 bg-white hover:border-team-blue hover:shadow-lg'
+          ? 'border-team-blue-40 bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 hover:border-team-blue hover:shadow-2xl hover:shadow-team-blue/20'
+          : 'border-gray-200 bg-white hover:border-team-blue hover:shadow-2xl hover:shadow-team-blue/10'
       }`}
       onClick={onView}
     >
@@ -198,9 +198,9 @@ const SessionCard = ({
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 bg-team-blue/10 px-3 py-1.5 rounded-lg">
-            <Trophy className="h-5 w-5 text-team-blue" />
-            <span className="text-lg font-semibold text-team-blue">
+          <div className="flex items-center gap-2 bg-gradient-to-br from-team-blue/20 to-team-blue/10 px-4 py-2 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
+            <Trophy className="h-5 w-5 text-team-blue group-hover:scale-110 transition-transform duration-300" />
+            <span className="text-xl font-bold text-team-blue">
               {session.finalScore || 0}
             </span>
           </div>
@@ -495,7 +495,7 @@ const Sessions = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
@@ -572,60 +572,61 @@ const Sessions = () => {
 
         {!loading && sessions.length > 0 && (
           <div
-            className={`mb-6 p-6 rounded-lg border ${
+            className={`mb-6 p-8 rounded-2xl border shadow-lg ${
               isDarkMode
-                ? 'bg-team-dark-20 border-team-blue-40'
-                : 'bg-white border-team-blue/40'
+                ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40'
+                : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
             }`}
           >
             <h3
-              className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              className={`text-xl font-semibold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
             >
+              <TrendingUp className="h-5 w-5" />
               Quick Stats
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-team-blue">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}>
+                <div className="text-3xl font-bold text-team-blue mb-1">
                   {sessions.length}
                 </div>
                 <div
-                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
                   Total Sessions
                 </div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-team-blue">
+              <div className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}>
+                <div className="text-3xl font-bold text-team-blue mb-1">
                   {Math.round(
                     sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
                       sessions.length
                   ) || 0}
                 </div>
                 <div
-                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
                   Avg Score
                 </div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-team-blue">
+              <div className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}>
+                <div className="text-3xl font-bold text-team-blue mb-1">
                   {Math.max(...sessions.map(s => s.finalScore || 0)) || 0}
                 </div>
                 <div
-                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
                   Best Score
                 </div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-team-blue">
+              <div className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}>
+                <div className="text-3xl font-bold text-team-blue mb-1">
                   {
                     sessions.filter(s => s.matchType?.toLowerCase() === 'match')
                       .length
                   }
                 </div>
                 <div
-                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
                   Matches
                 </div>
@@ -637,16 +638,16 @@ const Sessions = () => {
         <div className="mb-6">
           <div className="relative">
             <Search
-              className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+              className={`absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
             />
             <Input
               placeholder="Search sessions by name, driver, or type..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className={`pl-10 ${
+              className={`pl-12 h-12 text-base rounded-xl shadow-md transition-all duration-300 focus:shadow-lg ${
                 isDarkMode
-                  ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                  : 'bg-white border-team-blue/60 text-team-blue placeholder-team-blue-40'
+                  ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue'
+                  : 'bg-white border-gray-200 text-team-blue placeholder-gray-400 focus:border-team-blue'
               }`}
             />
           </div>

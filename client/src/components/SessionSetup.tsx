@@ -49,7 +49,7 @@ const FormField = ({
 
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-      <Label htmlFor={fieldId} className="text-base leading-6">
+      <Label htmlFor={fieldId} className="text-base leading-6 font-medium">
         {label}
       </Label>
       <Input
@@ -59,7 +59,7 @@ const FormField = ({
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className="px-2.5 py-2.5 rounded text-base font-normal leading-6 border border-team-blue-40 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-12 px-4 py-2.5 rounded-lg text-base font-normal leading-6 border border-team-blue-40 shadow-sm transition-all duration-200 focus:outline-none focus:border-team-blue focus:ring-2 focus:ring-team-blue/20 hover:border-team-blue/60 placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -80,9 +80,12 @@ export const SessionSetup = () => {
 
   return (
     <div className="space-y-8 mt-16">
-      <h2 className="text-team-blue text-2xl font-semibold leading-6">
-        Session Setup
-      </h2>
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-1 bg-team-blue rounded-full"></div>
+        <h2 className="text-team-blue text-3xl font-bold leading-6">
+          Session Setup
+        </h2>
+      </div>
 
       <div className="space-y-6">
         {/* First Row */}
@@ -104,10 +107,10 @@ export const SessionSetup = () => {
         {/* Second Row */}
         <div className="flex flex-col sm:flex-row gap-10">
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-            <Label className="text-base leading-6">Match Type</Label>
+            <Label className="text-base leading-6 font-medium">Match Type</Label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
               <SelectTrigger
-                className={`w-full h-12 text-base font-normal leading-6 px-2.5 py-2.5 rounded border ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
+                className={`w-full h-12 text-base font-normal leading-6 px-4 py-2.5 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
               >
                 <SelectValue placeholder="Select match type" />
               </SelectTrigger>
@@ -121,13 +124,13 @@ export const SessionSetup = () => {
           </div>
 
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-            <Label className="text-base leading-6">Features</Label>
+            <Label className="text-base leading-6 font-medium">Features</Label>
             <Select
               value={sessionData.selectedFeature}
               onValueChange={setSelectedFeature}
             >
               <SelectTrigger
-                className={`w-full h-12 text-base font-normal leading-6 px-2.5 py-2.5 rounded border ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
+                className={`w-full h-12 text-base font-normal leading-6 px-4 py-2.5 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
               >
                 <SelectValue placeholder="Select feature" />
               </SelectTrigger>

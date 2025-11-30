@@ -11,7 +11,7 @@ const OriginalContent = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-8 pt-12 pb-10 gap-6 lg:gap-10">
         {/* Left Column - Session Form */}

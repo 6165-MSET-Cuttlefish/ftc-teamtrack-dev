@@ -20,7 +20,7 @@ const TeamTrackLogo = () => {
     <Link
       to="/sessions"
       aria-label="TeamTrack home"
-      className="flex items-center gap-6 focus:outline-none"
+      className="flex items-center gap-6 focus:outline-none transition-all duration-200 hover:scale-105"
     >
       <div className="flex items-center gap-2.5">
         <svg

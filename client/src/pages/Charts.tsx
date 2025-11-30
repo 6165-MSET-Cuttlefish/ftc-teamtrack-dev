@@ -344,7 +344,7 @@ const Charts = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
         {/* Header */}
@@ -359,11 +359,14 @@ const Charts = () => {
           </Button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold mb-2">
-                Performance Charts
-              </h1>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-10 w-1.5 bg-team-blue rounded-full"></div>
+                <h1 className="text-team-blue text-3xl lg:text-5xl font-bold">
+                  Performance Charts
+                </h1>
+              </div>
               <p
-                className={`text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                className={`text-base ml-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
                 Visualize your session data and track progress
               </p>
@@ -395,26 +398,26 @@ const Charts = () => {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+            className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardContent className="pt-6">
-              <div className="text-team-blue text-3xl font-bold mb-1">
+              <div className="text-team-blue text-4xl font-bold mb-2">
                 {getFilteredSessions().length}
               </div>
               <div
-                className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
                 Total Sessions
               </div>
             </CardContent>
           </Card>
           <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+            className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardContent className="pt-6">
-              <div className="text-team-blue text-3xl font-bold mb-1">
+              <div className="text-team-blue text-4xl font-bold mb-2">
                 {getFilteredSessions().length > 0
                   ? Math.round(
                       getFilteredSessions().reduce(
@@ -425,17 +428,17 @@ const Charts = () => {
                   : 0}
               </div>
               <div
-                className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
                 Average Score
               </div>
             </CardContent>
           </Card>
           <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+            className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardContent className="pt-6">
-              <div className="text-team-blue text-3xl font-bold mb-1">
+              <div className="text-team-blue text-4xl font-bold mb-2">
                 {getFilteredSessions().length > 0
                   ? Math.max(
                       ...getFilteredSessions().map(s => s.finalScore || 0)
@@ -443,19 +446,19 @@ const Charts = () => {
                   : 0}
               </div>
               <div
-                className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
                 Best Score
               </div>
             </CardContent>
           </Card>
           <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+            className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="text-green-500 w-6 h-6" />
-                <div className="text-team-blue text-3xl font-bold">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="text-green-500 w-7 h-7" />
+                <div className="text-team-blue text-4xl font-bold">
                   {getFilteredSessions().length >= 2
                     ? (() => {
                         const sorted = [...getFilteredSessions()].sort(
@@ -503,7 +506,7 @@ const Charts = () => {
                 </div>
               </div>
               <div
-                className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
                 Improvement
               </div>
@@ -512,15 +515,16 @@ const Charts = () => {
         </div>
 
         {/* Charts Grid */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Score Trend Line Chart */}
           <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+            className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardHeader>
               <CardTitle
-                className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
               >
+                <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                 Score Trends Over Time
               </CardTitle>
             </CardHeader>
@@ -602,15 +606,16 @@ const Charts = () => {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Match Type Distribution */}
             <Card
-              className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
             >
               <CardHeader>
                 <CardTitle
-                  className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
+                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                   Match Type Distribution
                 </CardTitle>
               </CardHeader>
@@ -644,12 +649,13 @@ const Charts = () => {
 
             {/* Score Component Breakdown */}
             <Card
-              className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
             >
               <CardHeader>
                 <CardTitle
-                  className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
+                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                   Average Score Breakdown
                 </CardTitle>
               </CardHeader>
@@ -673,15 +679,16 @@ const Charts = () => {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Performance Radar */}
             <Card
-              className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
             >
               <CardHeader>
                 <CardTitle
-                  className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
+                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                   Performance Overview
                 </CardTitle>
               </CardHeader>

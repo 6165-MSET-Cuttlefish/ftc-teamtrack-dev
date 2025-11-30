@@ -88,17 +88,21 @@ const Signup = () => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}
+      className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-12 px-4 sm:px-6 lg:px-8`}
     >
       <Card
-        className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue/60'}`}
+        className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center text-team-blue">
-            Create Account
-          </CardTitle>
+        <CardHeader className="space-y-3 pb-6">
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-8 w-1 bg-team-blue rounded-full"></div>
+            <CardTitle className="text-3xl font-bold text-center text-team-blue">
+              Create Account
+            </CardTitle>
+            <div className="h-8 w-1 bg-team-blue rounded-full"></div>
+          </div>
           <CardDescription
-            className={`text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            className={`text-center text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
             Sign up to get started with TeamTrack
           </CardDescription>
@@ -120,10 +124,10 @@ const Signup = () => {
                 Full Name
               </Label>
               <div
-                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+                className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <User
-                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                  className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
                   id="displayName"
@@ -132,7 +136,7 @@ const Signup = () => {
                   placeholder="Enter your full name"
                   value={formData.displayName}
                   onChange={handleChange}
-                  className={`pl-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
+                  className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
               </div>
@@ -146,10 +150,10 @@ const Signup = () => {
                 Email
               </Label>
               <div
-                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+                className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Mail
-                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                  className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
                   id="email"
@@ -158,7 +162,7 @@ const Signup = () => {
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
-                  className={`pl-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
+                  className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
               </div>
@@ -172,10 +176,10 @@ const Signup = () => {
                 Password
               </Label>
               <div
-                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+                className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
-                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                  className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
                   id="password"
@@ -184,13 +188,13 @@ const Signup = () => {
                   placeholder="Create a password"
                   value={formData.password}
                   onChange={handleChange}
-                  className={`pl-10 pr-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
+                  className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className={`absolute right-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-team-blue-40 hover:text-team-blue'}`}
+                  className={`absolute right-4 top-3.5 h-5 w-5 transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
                 >
                   {showPassword ? <EyeOff /> : <Eye />}
                 </button>
@@ -205,10 +209,10 @@ const Signup = () => {
                 Confirm Password
               </Label>
               <div
-                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+                className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
-                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                  className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
                   id="confirmPassword"
@@ -217,13 +221,13 @@ const Signup = () => {
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className={`pl-10 pr-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
+                  className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className={`absolute right-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-team-blue-40 hover:text-team-blue'}`}
+                  className={`absolute right-4 top-3.5 h-5 w-5 transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
                 >
                   {showConfirmPassword ? <EyeOff /> : <Eye />}
                 </button>
@@ -232,7 +236,7 @@ const Signup = () => {
 
             <Button
               type="submit"
-              className="w-full bg-team-blue hover:bg-team-blue/90 text-white"
+              className="w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 text-white"
               disabled={loading}
             >
               {loading ? 'Creating Account...' : 'Create Account'}

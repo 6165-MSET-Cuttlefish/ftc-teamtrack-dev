@@ -67,16 +67,20 @@ const Login = () => {
       className={`min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
     >
       <Card
-        className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
+        className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
-        <CardHeader className="space-y-1">
-          <CardTitle
-            className={`text-2xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
-          >
-            Welcome Back
-          </CardTitle>
+        <CardHeader className="space-y-3 pb-6">
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-8 w-1 bg-team-blue rounded-full"></div>
+            <CardTitle
+              className={`text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
+            >
+              Welcome Back
+            </CardTitle>
+            <div className="h-8 w-1 bg-team-blue rounded-full"></div>
+          </div>
           <CardDescription
-            className={`text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+            className={`text-center text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
             Sign in to your TeamTrack account
           </CardDescription>
@@ -98,10 +102,10 @@ const Login = () => {
                 Email Address
               </Label>
               <div
-                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+                className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Mail
-                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+                  className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
                   id="email"
@@ -109,7 +113,7 @@ const Login = () => {
                   placeholder="Enter your email address"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className={`pl-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                  className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
               </div>
@@ -123,10 +127,10 @@ const Login = () => {
                 Password
               </Label>
               <div
-                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+                className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
-                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+                  className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
                   id="password"
@@ -134,13 +138,13 @@ const Login = () => {
                   placeholder="Enter your password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className={`pl-10 pr-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                  className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className={`absolute right-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`absolute right-4 top-3.5 h-5 w-5 transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
                 >
                   {showPassword ? <EyeOff /> : <Eye />}
                 </button>
@@ -149,7 +153,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              className={`w-full bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+              className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-white' : 'text-white'}`}
               disabled={loading}
             >
               {loading ? 'Signing In...' : 'Sign In'}
