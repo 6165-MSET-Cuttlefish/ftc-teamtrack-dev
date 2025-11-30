@@ -18,6 +18,7 @@ const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Sessions = lazy(() => import('./pages/Sessions'));
+const Compare = lazy(() => import('./pages/Compare'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
@@ -82,6 +83,14 @@ const App = () => (
                         element={
                           <ProtectedRoute>
                             <Sessions />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/compare"
+                        element={
+                          <ProtectedRoute>
+                            <Compare />
                           </ProtectedRoute>
                         }
                       />

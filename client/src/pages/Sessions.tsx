@@ -525,6 +525,20 @@ const Sessions = () => {
                 {!hasActiveSession && <Plus className="h-4 w-4 mr-2" />}
                 {hasActiveSession ? 'Current Session' : 'New Session'}
               </Button>
+              {sessions.length > 1 && (
+                <Button
+                  onClick={() => navigate('/compare')}
+                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors ${
+                    isDarkMode
+                      ? 'text-team-blue border-team-blue-40'
+                      : 'text-team-blue border-team-blue-40'
+                  }`}
+                  variant="outline"
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Compare
+                </Button>
+              )}
               {sessions.length > 0 && (
                 <Button
                   onClick={handleExportCSV}
