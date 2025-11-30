@@ -25,6 +25,8 @@ import {
   Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportSessionsToCSV } from '../lib/csvExport';
+import type { Session } from '../types/session';
 
 interface FirebaseTimestamp {
   seconds: number;
@@ -414,80 +416,38 @@ const Sessions = () => {
       return;
     }
 
-    // Define CSV headers
-    const headers = [
-      'Session Name',
-      'Driver Name',
-      'Match Type',
-      'Final Score',
-      'Autonomous Score',
-      'TeleOp Score',
-      'End Game Score',
-      'Date',
-    ];
+    try {
+      // Convert SessionData to Session type for export
+      const sessionsToExport: Session[] = sessions.map(session => ({
+        id: session.id || '',
+        userId: user?.uid || '',
+        sessionName: session.sessionName,
+        driverName: session.driverName,
+        matchType: session.matchType,
+        sessionDuration: session.sessionDuration,
+        finalScore: session.finalScore,
+        autonomousScore: session.autonomousScore,
+        teleOpScore: session.teleOpScore,
+        endGameScore: session.endGameScore,
+        createdAt: session.createdAt,
+        autonClassifiedArtifact: session.autonClassifiedArtifact,
+        autonOverflowArtifact: session.autonOverflowArtifact,
+        autonMotif: session.autonMotif,
+        autonLeave: session.autonLeave,
+        teleClassifiedArtifact: session.teleClassifiedArtifact,
+        teleOverflowArtifact: session.teleOverflowArtifact,
+        teleMotif: session.teleMotif,
+        endgameHang: session.endgameHang,
+        selectedFeature: session.selectedFeature,
+        cycleTimes: session.cycleTimes,
+      }));
 
-    // Format date helper
-    const formatDate = (timestamp: unknown) => {
-      if (!timestamp) return 'Unknown date';
-
-      if (typeof timestamp === 'string') {
-        return new Date(timestamp).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      }
-
-      if (typeof timestamp === 'object' && timestamp !== null) {
-        const ts = timestamp as FirebaseTimestamp;
-        if ('seconds' in ts && 'nanoseconds' in ts) {
-          return new Date(ts.seconds * 1000 + ts.nanoseconds / 1000000).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-        }
-      }
-
-      return 'Unknown date';
-    };
-
-    // Convert sessions to CSV rows
-    const rows = sessions.map(session => [
-      `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""')}"`,
-      `"${(session.driverName || 'Unknown').replace(/"/g, '""')}"`,
-      `"${(session.matchType || 'Practice').replace(/"/g, '""')}"`,
-      session.finalScore || 0,
-      session.autonomousScore || 0,
-      session.teleOpScore || 0,
-      session.endGameScore || 0,
-      `"${formatDate(session.createdAt)}"`,
-    ]);
-
-    // Combine headers and rows
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.join(',')),
-    ].join('\n');
-
-    // Create blob and download
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `sessions-export-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast.success('Sessions exported to CSV');
+      exportSessionsToCSV(sessionsToExport);
+      toast.success('Sessions exported to CSV');
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      toast.error('Failed to export sessions');
+    }
   };
 
   return (
