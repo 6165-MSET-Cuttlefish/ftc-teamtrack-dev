@@ -9,6 +9,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from '../components/ui/card';
 import {
   Select,
@@ -17,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { ArrowLeft, TrendingUp, Calendar } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Calendar, Award, Target, Zap, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   BarChart,
@@ -38,6 +39,9 @@ import {
   Radar,
   Area,
   AreaChart,
+  LineChart,
+  Line,
+  ComposedChart,
 } from 'recharts';
 
 interface ChartDataPoint {
@@ -230,6 +234,89 @@ const Charts = () => {
     ];
   };
 
+  // Cycle Time Analysis
+  const getCycleTimeData = (): ChartDataPoint[] => {
+    const filteredSessions = getFilteredSessions();
+    const cycleData: { [key: string]: number[] } = {};
+
+    filteredSessions.forEach(session => {
+      if (session.cycleTimes && session.cycleTimes.length > 0) {
+        const date = formatDate(session.createdAt);
+        if (!cycleData[date]) {
+          cycleData[date] = [];
+        }
+        cycleData[date].push(...session.cycleTimes);
+      }
+    });
+
+    return Object.entries(cycleData).map(([name, times]) => {
+      const avg = times.reduce((sum, t) => sum + t, 0) / times.length;
+      const min = Math.min(...times);
+      const max = Math.max(...times);
+      return {
+        name,
+        'Avg Cycle': parseFloat(avg.toFixed(1)),
+        'Fastest': parseFloat(min.toFixed(1)),
+        'Slowest': parseFloat(max.toFixed(1)),
+      };
+    });
+  };
+
+  // Score Comparison by Match Type
+  const getScoreByMatchType = (): ChartDataPoint[] => {
+    const filteredSessions = getFilteredSessions();
+    const matchTypes: { [key: string]: { scores: number[]; auto: number[]; tele: number[]; endgame: number[] } } = {};
+
+    filteredSessions.forEach(session => {
+      const type = session.matchType || 'Practice';
+      if (!matchTypes[type]) {
+        matchTypes[type] = { scores: [], auto: [], tele: [], endgame: [] };
+      }
+      matchTypes[type].scores.push(session.finalScore || 0);
+      matchTypes[type].auto.push(session.autonomousScore || 0);
+      matchTypes[type].tele.push(session.teleOpScore || 0);
+      matchTypes[type].endgame.push(session.endGameScore || 0);
+    });
+
+    return Object.entries(matchTypes).map(([name, data]) => ({
+      name,
+      'Avg Total': Math.round(data.scores.reduce((sum, s) => sum + s, 0) / data.scores.length),
+      'Avg Auto': Math.round(data.auto.reduce((sum, s) => sum + s, 0) / data.auto.length),
+      'Avg Tele': Math.round(data.tele.reduce((sum, s) => sum + s, 0) / data.tele.length),
+      'Avg Endgame': Math.round(data.endgame.reduce((sum, s) => sum + s, 0) / data.endgame.length),
+    }));
+  };
+
+  // Recent Performance Trend (Last 10 sessions)
+  const getRecentTrendData = (): ChartDataPoint[] => {
+    const allSessions = getFilteredSessions();
+    const sorted = [...allSessions].sort((a, b) => {
+      const dateA =
+        typeof a.createdAt === 'string'
+          ? new Date(a.createdAt)
+          : new Date((a.createdAt as { seconds: number }).seconds * 1000);
+      const dateB =
+        typeof b.createdAt === 'string'
+          ? new Date(b.createdAt)
+          : new Date((b.createdAt as { seconds: number }).seconds * 1000);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    const recent = sorted.slice(0, 10).reverse();
+    
+    return recent.map((session, index) => {
+      const movingAvg = recent
+        .slice(Math.max(0, index - 2), index + 1)
+        .reduce((sum, s) => sum + (s.finalScore || 0), 0) / Math.min(3, index + 1);
+
+      return {
+        name: `#${recent.length - index}`,
+        Score: session.finalScore || 0,
+        'Moving Avg': Math.round(movingAvg),
+      };
+    });
+  };
+
   const COLORS = {
     primary: '#537788',
     secondary: '#B0E5FE',
@@ -255,28 +342,49 @@ const Charts = () => {
     label,
   }: {
     active?: boolean;
-    payload?: Array<{ name: string; value: number; color: string }>;
+    payload?: Array<{ name: string; value: number; color: string; dataKey?: string }>;
     label?: string;
   }) => {
     if (active && payload && payload.length) {
       return (
         <div
-          className={`p-3 rounded-lg border ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'} shadow-lg`}
+          className={`p-4 rounded-lg border ${isDarkMode ? 'bg-team-dark/95 border-team-blue-40 backdrop-blur-sm' : 'bg-white/95 border-gray-200 backdrop-blur-sm'} shadow-xl`}
         >
-          <p
-            className={`font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-          >
-            {label}
-          </p>
-          {payload.map((entry, index: number) => (
+          {label && (
             <p
-              key={index}
-              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-              style={{ color: entry.color }}
+              className={`font-bold mb-3 pb-2 border-b ${isDarkMode ? 'text-white border-team-blue-40' : 'text-gray-900 border-gray-200'}`}
             >
-              {entry.name}: {entry.value}
+              {label}
             </p>
-          ))}
+          )}
+          <div className="space-y-2">
+            {payload.map((entry, index: number) => (
+              <div
+                key={index}
+                className="flex items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span
+                    className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  >
+                    {entry.name}:
+                  </span>
+                </div>
+                <span
+                  className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  style={{ color: entry.color }}
+                >
+                  {typeof entry.value === 'number'
+                    ? entry.value.toFixed(1)
+                    : entry.value}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
@@ -341,6 +449,9 @@ const Charts = () => {
   const matchTypeData = getMatchTypeData();
   const scoreBreakdownData = getScoreBreakdownData();
   const performanceRadarData = getPerformanceRadarData();
+  const cycleTimeData = getCycleTimeData();
+  const scoreByMatchType = getScoreByMatchType();
+  const recentTrendData = getRecentTrendData();
 
   return (
     <div
@@ -397,14 +508,115 @@ const Charts = () => {
           </div>
         </div>
 
+        {/* Key Insights */}
+        {getFilteredSessions().length >= 3 && (
+          <Card
+            className={`mb-8 shadow-lg ${isDarkMode ? 'bg-gradient-to-r from-team-blue/20 to-team-dark border-team-blue-40' : 'bg-gradient-to-r from-blue-50 to-white border-blue-200'}`}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <Zap className="w-8 h-8 text-team-blue flex-shrink-0 mt-1" />
+                <div>
+                  <h3
+                    className={`text-lg font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    Key Insights
+                  </h3>
+                  <div
+                    className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-700'}`}
+                  >
+                    {(() => {
+                      const sessions = getFilteredSessions();
+                      const avgScore =
+                        sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
+                        sessions.length;
+                      const autoAvg =
+                        sessions.reduce(
+                          (sum, s) => sum + (s.autonomousScore || 0),
+                          0
+                        ) / sessions.length;
+                      const teleAvg =
+                        sessions.reduce((sum, s) => sum + (s.teleOpScore || 0), 0) /
+                        sessions.length;
+                      const endgameAvg =
+                        sessions.reduce((sum, s) => sum + (s.endGameScore || 0), 0) /
+                        sessions.length;
+
+                      const bestPhase =
+                        autoAvg > teleAvg && autoAvg > endgameAvg
+                          ? 'Autonomous'
+                          : teleAvg > endgameAvg
+                            ? 'TeleOp'
+                            : 'End Game';
+
+                      const autoPercent = ((autoAvg / avgScore) * 100).toFixed(0);
+                      const telePercent = ((teleAvg / avgScore) * 100).toFixed(0);
+
+                      return (
+                        <>
+                          <div>
+                            <span className="font-semibold text-team-blue">
+                              Strongest Phase:
+                            </span>{' '}
+                            {bestPhase} averaging{' '}
+                            {Math.round(
+                              bestPhase === 'Autonomous'
+                                ? autoAvg
+                                : bestPhase === 'TeleOp'
+                                  ? teleAvg
+                                  : endgameAvg
+                            )}{' '}
+                            points
+                          </div>
+                          <div>
+                            <span className="font-semibold text-team-blue">
+                              Score Distribution:
+                            </span>{' '}
+                            {autoPercent}% Auto, {telePercent}% TeleOp
+                          </div>
+                          <div>
+                            <span className="font-semibold text-team-blue">
+                              Consistency:
+                            </span>{' '}
+                            {(() => {
+                              const scores = sessions.map(s => s.finalScore || 0);
+                              const mean = avgScore;
+                              const variance =
+                                scores.reduce(
+                                  (acc, score) => acc + Math.pow(score - mean, 2),
+                                  0
+                                ) / scores.length;
+                              const stdDev = Math.sqrt(variance);
+                              const cv = (stdDev / mean) * 100;
+                              return cv < 15
+                                ? 'Excellent'
+                                : cv < 25
+                                  ? 'Good'
+                                  : 'Improving';
+                            })()}{' '}
+                            (±{Math.round(Math.sqrt(sessions.map(s => s.finalScore || 0).reduce((acc, score) => acc + Math.pow(score - avgScore, 2), 0) / sessions.length))} pts)
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
           <Card
             className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardContent className="pt-6">
-              <div className="text-team-blue text-4xl font-bold mb-2">
-                {getFilteredSessions().length}
+              <div className="flex items-start justify-between mb-2">
+                <div className="text-team-blue text-4xl font-bold">
+                  {getFilteredSessions().length}
+                </div>
+                <Activity className="w-8 h-8 text-team-blue opacity-60" />
               </div>
               <div
                 className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -417,15 +629,18 @@ const Charts = () => {
             className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardContent className="pt-6">
-              <div className="text-team-blue text-4xl font-bold mb-2">
-                {getFilteredSessions().length > 0
-                  ? Math.round(
-                      getFilteredSessions().reduce(
-                        (sum, s) => sum + (s.finalScore || 0),
-                        0
-                      ) / getFilteredSessions().length
-                    )
-                  : 0}
+              <div className="flex items-start justify-between mb-2">
+                <div className="text-team-blue text-4xl font-bold">
+                  {getFilteredSessions().length > 0
+                    ? Math.round(
+                        getFilteredSessions().reduce(
+                          (sum, s) => sum + (s.finalScore || 0),
+                          0
+                        ) / getFilteredSessions().length
+                      )
+                    : 0}
+                </div>
+                <Target className="w-8 h-8 text-team-blue opacity-60" />
               </div>
               <div
                 className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -438,12 +653,15 @@ const Charts = () => {
             className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardContent className="pt-6">
-              <div className="text-team-blue text-4xl font-bold mb-2">
-                {getFilteredSessions().length > 0
-                  ? Math.max(
-                      ...getFilteredSessions().map(s => s.finalScore || 0)
-                    )
-                  : 0}
+              <div className="flex items-start justify-between mb-2">
+                <div className="text-team-blue text-4xl font-bold">
+                  {getFilteredSessions().length > 0
+                    ? Math.max(
+                        ...getFilteredSessions().map(s => s.finalScore || 0)
+                      )
+                    : 0}
+                </div>
+                <Award className="w-8 h-8 text-team-blue opacity-60" />
               </div>
               <div
                 className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -456,53 +674,60 @@ const Charts = () => {
             className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="text-green-500 w-7 h-7" />
-                <div className="text-team-blue text-4xl font-bold">
-                  {getFilteredSessions().length >= 2
-                    ? (() => {
-                        const sorted = [...getFilteredSessions()].sort(
-                          (a, b) => {
-                            const dateA =
-                              typeof a.createdAt === 'string'
-                                ? new Date(a.createdAt)
-                                : new Date(
-                                    (a.createdAt as { seconds: number })
-                                      .seconds * 1000
-                                  );
-                            const dateB =
-                              typeof b.createdAt === 'string'
-                                ? new Date(b.createdAt)
-                                : new Date(
-                                    (b.createdAt as { seconds: number })
-                                      .seconds * 1000
-                                  );
-                            return dateA.getTime() - dateB.getTime();
-                          }
-                        );
-                        const firstHalf = sorted.slice(
-                          0,
-                          Math.floor(sorted.length / 2)
-                        );
-                        const secondHalf = sorted.slice(
-                          Math.floor(sorted.length / 2)
-                        );
-                        const firstAvg =
-                          firstHalf.reduce(
-                            (sum, s) => sum + (s.finalScore || 0),
-                            0
-                          ) / firstHalf.length;
-                        const secondAvg =
-                          secondHalf.reduce(
-                            (sum, s) => sum + (s.finalScore || 0),
-                            0
-                          ) / secondHalf.length;
-                        const improvement = secondAvg - firstAvg;
-                        return improvement > 0
-                          ? `+${Math.round(improvement)}`
-                          : Math.round(improvement);
-                      })()
-                    : '—'}
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    if (getFilteredSessions().length < 2) {
+                      return (
+                        <>
+                          <Zap className="text-team-blue w-7 h-7" />
+                          <div className="text-team-blue text-4xl font-bold">—</div>
+                        </>
+                      );
+                    }
+                    const sorted = [...getFilteredSessions()].sort((a, b) => {
+                      const dateA =
+                        typeof a.createdAt === 'string'
+                          ? new Date(a.createdAt)
+                          : new Date(
+                              (a.createdAt as { seconds: number }).seconds * 1000
+                            );
+                      const dateB =
+                        typeof b.createdAt === 'string'
+                          ? new Date(b.createdAt)
+                          : new Date(
+                              (b.createdAt as { seconds: number }).seconds * 1000
+                            );
+                      return dateA.getTime() - dateB.getTime();
+                    });
+                    const firstHalf = sorted.slice(0, Math.floor(sorted.length / 2));
+                    const secondHalf = sorted.slice(Math.floor(sorted.length / 2));
+                    const firstAvg =
+                      firstHalf.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
+                      firstHalf.length;
+                    const secondAvg =
+                      secondHalf.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
+                      secondHalf.length;
+                    const improvement = secondAvg - firstAvg;
+                    const isPositive = improvement > 0;
+
+                    return (
+                      <>
+                        {isPositive ? (
+                          <TrendingUp className="text-green-500 w-7 h-7" />
+                        ) : (
+                          <TrendingDown className="text-red-500 w-7 h-7" />
+                        )}
+                        <div
+                          className={`text-4xl font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}
+                        >
+                          {improvement > 0
+                            ? `+${Math.round(improvement)}`
+                            : Math.round(improvement)}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               <div
@@ -527,6 +752,11 @@ const Charts = () => {
                 <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                 Score Trends Over Time
               </CardTitle>
+              <CardDescription
+                className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+              >
+                Track your progress across all scoring phases
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
@@ -576,30 +806,43 @@ const Charts = () => {
                   <XAxis
                     dataKey="name"
                     stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                    tick={{ fontSize: 12 }}
                   />
-                  <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
+                  <YAxis
+                    stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    cursor={{ stroke: COLORS.primary, strokeWidth: 2 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '14px' }} />
                   <Area
                     type="monotone"
                     dataKey="Final Score"
                     stroke={COLORS.primary}
+                    strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorFinal)"
+                    animationDuration={1500}
                   />
                   <Area
                     type="monotone"
                     dataKey="Autonomous"
                     stroke={COLORS.success}
+                    strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorAuto)"
+                    animationDuration={1500}
                   />
                   <Area
                     type="monotone"
                     dataKey="TeleOp"
                     stroke={COLORS.warning}
+                    strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorTele)"
+                    animationDuration={1500}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -618,6 +861,11 @@ const Charts = () => {
                   <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                   Match Type Distribution
                 </CardTitle>
+                <CardDescription
+                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Breakdown of practice vs competition sessions
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -633,6 +881,8 @@ const Charts = () => {
                       outerRadius={100}
                       fill="#8884d8"
                       dataKey="value"
+                      animationDuration={1000}
+                      animationBegin={200}
                     >
                       {matchTypeData.map((_entry, index) => (
                         <Cell
@@ -642,6 +892,7 @@ const Charts = () => {
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: '14px' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -658,6 +909,11 @@ const Charts = () => {
                   <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                   Average Score Breakdown
                 </CardTitle>
+                <CardDescription
+                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Average points per game phase
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -669,10 +925,20 @@ const Charts = () => {
                     <XAxis
                       dataKey="name"
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
                     />
-                    <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} />
+                    <YAxis
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="value" fill={COLORS.primary} />
+                    <Bar
+                      dataKey="value"
+                      fill={COLORS.primary}
+                      radius={[8, 8, 0, 0]}
+                      animationDuration={1000}
+                      animationBegin={300}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -691,6 +957,11 @@ const Charts = () => {
                   <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                   Performance Overview
                 </CardTitle>
+                <CardDescription
+                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Multi-dimensional performance analysis
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -699,23 +970,221 @@ const Charts = () => {
                     <PolarAngleAxis
                       dataKey="category"
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
                     />
                     <PolarRadiusAxis
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 11 }}
                     />
                     <Radar
                       name="Performance"
                       dataKey="value"
                       stroke={COLORS.primary}
+                      strokeWidth={2}
                       fill={COLORS.secondary}
                       fillOpacity={0.6}
+                      animationDuration={1200}
+                      animationBegin={400}
                     />
                     <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: '14px' }} />
                   </RadarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+
+            {/* Recent Performance Trend */}
+            <Card
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            >
+              <CardHeader>
+                <CardTitle
+                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                >
+                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
+                  Recent Performance (Last 10)
+                </CardTitle>
+                <CardDescription
+                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Session scores with 3-session moving average
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={recentTrendData}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: '14px' }} />
+                    <Bar
+                      dataKey="Score"
+                      fill={COLORS.primary}
+                      opacity={0.6}
+                      radius={[6, 6, 0, 0]}
+                      animationDuration={1000}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="Moving Avg"
+                      stroke={COLORS.success}
+                      strokeWidth={3}
+                      dot={{ fill: COLORS.success, r: 5, strokeWidth: 2, stroke: '#fff' }}
+                      animationDuration={1200}
+                      animationBegin={300}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </div>
+
+          {/* Score Comparison by Match Type */}
+          {scoreByMatchType.length > 0 && (
+            <Card
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            >
+              <CardHeader>
+                <CardTitle
+                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                >
+                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
+                  Performance by Match Type
+                </CardTitle>
+                <CardDescription
+                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Compare average scores across different match types
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={scoreByMatchType}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: '14px' }} />
+                    <Bar
+                      dataKey="Avg Auto"
+                      fill={COLORS.success}
+                      stackId="a"
+                      radius={[0, 0, 0, 0]}
+                      animationDuration={1000}
+                    />
+                    <Bar
+                      dataKey="Avg Tele"
+                      fill={COLORS.warning}
+                      stackId="a"
+                      radius={[0, 0, 0, 0]}
+                      animationDuration={1000}
+                      animationBegin={200}
+                    />
+                    <Bar
+                      dataKey="Avg Endgame"
+                      fill={COLORS.purple}
+                      stackId="a"
+                      radius={[8, 8, 0, 0]}
+                      animationDuration={1000}
+                      animationBegin={400}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Cycle Time Analysis */}
+          {cycleTimeData.length > 0 && (
+            <Card
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            >
+              <CardHeader>
+                <CardTitle
+                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                >
+                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
+                  Cycle Time Analysis
+                </CardTitle>
+                <CardDescription
+                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Average, fastest, and slowest cycle times (seconds)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={350}>
+                  <LineChart data={cycleTimeData}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      label={{ value: 'Seconds', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: '14px' }} />
+                    <Line
+                      type="monotone"
+                      dataKey="Avg Cycle"
+                      stroke={COLORS.primary}
+                      strokeWidth={3}
+                      dot={{ fill: COLORS.primary, r: 6, strokeWidth: 2, stroke: '#fff' }}
+                      animationDuration={1200}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="Fastest"
+                      stroke={COLORS.success}
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={{ fill: COLORS.success, r: 5, strokeWidth: 2, stroke: '#fff' }}
+                      animationDuration={1200}
+                      animationBegin={200}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="Slowest"
+                      stroke={COLORS.danger}
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={{ fill: COLORS.danger, r: 5, strokeWidth: 2, stroke: '#fff' }}
+                      animationDuration={1200}
+                      animationBegin={400}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
