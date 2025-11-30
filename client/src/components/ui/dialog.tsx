@@ -1,34 +1,36 @@
-import React from 'react';
+import { ReactNode, HTMLAttributes } from 'react';
 
-export const Dialog: React.FC<{
+interface DialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  children?: React.ReactNode;
-}> = ({ children }) => {
+  children?: ReactNode;
+}
+
+export const Dialog = ({ children }: DialogProps) => {
   return <>{children}</>;
 };
 
-export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+export const DialogContent = ({
   children,
   className,
   ...props
-}) => (
+}: HTMLAttributes<HTMLDivElement>) => (
   <div {...props} className={className}>
     {children}
   </div>
 );
 
-export const DialogHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+export const DialogHeader = ({
   children,
   ...props
-}) => <div {...props}>{children}</div>;
+}: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>;
 
-export const DialogTitle: React.FC<
-  React.HTMLAttributes<HTMLHeadingElement>
-> = ({ children, ...props }) => <h2 {...props}>{children}</h2>;
+export const DialogTitle = ({
+  children,
+  ...props
+}: HTMLAttributes<HTMLHeadingElement>) => <h2 {...props}>{children}</h2>;
 
-export const DialogDescription: React.FC<
-  React.HTMLAttributes<HTMLDivElement>
-> = ({ children, ...props }) => <p {...props}>{children}</p>;
-
-export default Dialog;
+export const DialogDescription = ({
+  children,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) => <p {...props}>{children}</p>;

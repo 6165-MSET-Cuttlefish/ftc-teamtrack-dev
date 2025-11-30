@@ -1,8 +1,8 @@
-import React from 'react';
+import { ComponentProps } from 'react';
 import { Toaster as Sonner } from 'sonner';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '@/contexts';
 
-type ToasterProps = React.ComponentProps<typeof Sonner>;
+type ToasterProps = ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { isDarkMode } = useTheme();

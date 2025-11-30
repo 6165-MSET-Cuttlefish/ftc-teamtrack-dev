@@ -1,15 +1,12 @@
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { SessionProvider } from './contexts/SessionContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import ErrorBoundary from './components/ErrorBoundary';
-import { Header } from './components/Header';
+import { AuthProvider, ThemeProvider, SessionProvider } from '@/contexts';
+import { ErrorBoundary, Header, ProtectedRoute } from '@/components';
+import { ROUTES } from '@/constants';
 
 // Lazy load pages for better performance
-import { lazy, Suspense } from 'react';
 const Original = lazy(() => import('./pages/Original'));
 const Analysis = lazy(() => import('./pages/Analysis'));
 const About = lazy(() => import('./pages/About'));
@@ -19,6 +16,7 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Sessions = lazy(() => import('./pages/Sessions'));
 const Compare = lazy(() => import('./pages/Compare'));
+const Charts = lazy(() => import('./pages/Charts'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
@@ -41,20 +39,21 @@ const App = () => (
                   <Suspense fallback={<LoadingFallback />}>
                     <Routes>
                       {/* Public Routes */}
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/signup" element={<Signup />} />
+                      <Route path={ROUTES.LOGIN} element={<Login />} />
+                      <Route path={ROUTES.SIGNUP} element={<Signup />} />
                       <Route
-                        path="/forgot-password"
+                        path={ROUTES.FORGOT_PASSWORD}
                         element={<ForgotPassword />}
                       />
+                      <Route path={ROUTES.ABOUT} element={<About />} />
 
                       {/* Protected Routes */}
                       <Route
-                        path="/"
-                        element={<Navigate to="/sessions" replace />}
+                        path={ROUTES.HOME}
+                        element={<Navigate to={ROUTES.SESSIONS} replace />}
                       />
                       <Route
-                        path="/original"
+                        path={ROUTES.ORIGINAL}
                         element={
                           <ProtectedRoute>
                             <Original />
@@ -62,7 +61,7 @@ const App = () => (
                         }
                       />
                       <Route
-                        path="/analysis"
+                        path={ROUTES.ANALYSIS}
                         element={
                           <ProtectedRoute>
                             <Analysis />
@@ -70,16 +69,15 @@ const App = () => (
                         }
                       />
                       <Route
-                        path="/profile"
+                        path={ROUTES.PROFILE}
                         element={
                           <ProtectedRoute>
                             <Profile />
                           </ProtectedRoute>
                         }
                       />
-                      <Route path="/about" element={<About />} />
                       <Route
-                        path="/sessions"
+                        path={ROUTES.SESSIONS}
                         element={
                           <ProtectedRoute>
                             <Sessions />
@@ -87,10 +85,18 @@ const App = () => (
                         }
                       />
                       <Route
-                        path="/compare"
+                        path={ROUTES.COMPARE}
                         element={
                           <ProtectedRoute>
                             <Compare />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path={ROUTES.CHARTS}
+                        element={
+                          <ProtectedRoute>
+                            <Charts />
                           </ProtectedRoute>
                         }
                       />

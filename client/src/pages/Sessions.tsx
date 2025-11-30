@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { firebaseService, SessionData } from '../services/firebaseService';
-import { Button } from '../components/ui/button';
+import { useAuth, useSession, useTheme } from '@/contexts';
+import { firebaseService, SessionData } from '@/services';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -23,6 +21,7 @@ import {
   Pencil,
   Trash2,
   Download,
+  TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -525,6 +524,20 @@ const Sessions = () => {
                 {!hasActiveSession && <Plus className="h-4 w-4 mr-2" />}
                 {hasActiveSession ? 'Current Session' : 'New Session'}
               </Button>
+              {sessions.length > 0 && (
+                <Button
+                  onClick={() => navigate('/charts')}
+                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors ${
+                    isDarkMode
+                      ? 'text-team-blue border-team-blue-40'
+                      : 'text-team-blue border-team-blue-40'
+                  }`}
+                  variant="outline"
+                >
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Charts
+                </Button>
+              )}
               {sessions.length > 1 && (
                 <Button
                   onClick={() => navigate('/compare')}

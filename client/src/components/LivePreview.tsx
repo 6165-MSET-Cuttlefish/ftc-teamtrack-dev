@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { useAuth } from '../contexts/AuthContext';
-import { useFirebase } from '../hooks/useFirebase';
+import { useSession, useTheme, useAuth } from '@/contexts';
+import { useFirebase } from '@/hooks';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();

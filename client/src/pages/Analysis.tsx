@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
-import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useSession, useTheme, useAuth } from '@/contexts';
+import { useFirebase } from '@/hooks';
+import { firebaseService } from '@/services';
 import {
   TrendingUp,
   TrendingDown,
   BarChart3,
   ChevronRight,
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useFirebase } from '../hooks/useFirebase';
-import { firebaseService } from '../services/firebaseService';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
@@ -729,12 +727,12 @@ const AnalysisContent = () => {
             >
               Back to Session
             </Link>
-            <button
-              disabled
-              className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue text-team-dark text-base leading-6 font-normal opacity-50 cursor-not-allowed"
+            <Link
+              to="/charts"
+              className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue text-team-dark text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors"
             >
-              Coming Soon
-            </button>
+              View Charts
+            </Link>
           </div>
         </div>
       </div>

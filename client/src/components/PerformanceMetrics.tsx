@@ -1,16 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useState, useEffect, useCallback } from 'react';
+import { useSession, useTheme } from '@/contexts';
 import { ChevronUp, ChevronDown, ChevronRight, Clock } from 'lucide-react';
 
-// Reusable number input that allows easy typing (allows empty during edit, commits on blur/Enter)
-const NumberInput: React.FC<{
+interface NumberInputProps {
   value: number;
   onChange: (v: number) => void;
   placeholder?: string;
   className?: string;
   readOnly?: boolean;
-}> = ({ value, onChange, placeholder, className, readOnly = false }) => {
+}
+
+// Reusable number input that allows easy typing (allows empty during edit, commits on blur/Enter)
+const NumberInput = ({
+  value,
+  onChange,
+  placeholder,
+  className,
+  readOnly = false,
+}: NumberInputProps) => {
   const [local, setLocal] = useState<string>(
     value !== undefined && value !== null ? String(value) : ''
   );

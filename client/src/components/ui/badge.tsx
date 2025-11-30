@@ -1,9 +1,17 @@
-import React from 'react';
+import { HTMLAttributes, ReactNode } from 'react';
 import clsx from 'clsx';
 
-export const Badge: React.FC<
-  React.HTMLAttributes<HTMLSpanElement> & { variant?: 'default' | 'secondary' }
-> = ({ children, className, variant = 'default', ...props }) => {
+interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  children?: ReactNode;
+  variant?: 'default' | 'secondary';
+}
+
+export const Badge = ({
+  children,
+  className,
+  variant = 'default',
+  ...props
+}: BadgeProps) => {
   const base =
     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
   const variantClass =
@@ -16,5 +24,3 @@ export const Badge: React.FC<
     </span>
   );
 };
-
-export default Badge;

@@ -1,6 +1,4 @@
-import React from 'react';
-import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useSession, useTheme } from '@/contexts';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
@@ -67,7 +65,7 @@ const FormField = ({
   );
 };
 
-export const SessionSetup: React.FC = () => {
+export const SessionSetup = () => {
   const { sessionData, updateSessionData } = useSession();
   const { isDarkMode } = useTheme();
 

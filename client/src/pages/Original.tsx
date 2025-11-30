@@ -1,11 +1,12 @@
-import React from 'react';
-import { SessionSetup } from '../components/SessionSetup';
-import { PerformanceMetrics } from '../components/PerformanceMetrics';
-import { Notes } from '../components/Notes';
-import { LivePreview } from '../components/LivePreview';
-import { useTheme } from '../contexts/ThemeContext';
+import {
+  SessionSetup,
+  PerformanceMetrics,
+  Notes,
+  LivePreview,
+} from '@/components';
+import { useTheme } from '@/contexts';
 
-const OriginalContent: React.FC = () => {
+const OriginalContent = () => {
   const { isDarkMode } = useTheme();
 
   return (

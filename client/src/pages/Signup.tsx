@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
+import { useAuth, useTheme } from '@/contexts';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -12,11 +11,11 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '../components/ui/card';
-import { Alert, AlertDescription } from '../components/ui/alert';
+} from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 
-const Signup: React.FC = () => {
+const Signup = () => {
   const [formData, setFormData] = useState({
     displayName: '',
     email: '',

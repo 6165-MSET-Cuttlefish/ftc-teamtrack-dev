@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '@/contexts';
 
-export const Notes: React.FC = () => {
+export const Notes = () => {
   const { isDarkMode } = useTheme();
   const [notes, setNotes] = useState('');
 

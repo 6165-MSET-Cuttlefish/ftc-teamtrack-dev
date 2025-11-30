@@ -1,21 +1,20 @@
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui/button';
-import { Label } from '../components/ui/label';
+import { useState } from 'react';
+import { useAuth, useTheme } from '@/contexts';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card';
-import { Alert, AlertDescription } from '../components/ui/alert';
-import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
-import { Separator } from '../components/ui/separator';
+} from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import { User, Mail, Calendar, Shield } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
 
-const Profile: React.FC = () => {
+const Profile = () => {
   const { user, logout } = useAuth();
   const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);

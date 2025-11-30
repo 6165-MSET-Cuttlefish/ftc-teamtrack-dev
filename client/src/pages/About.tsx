@@ -1,8 +1,7 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '@/contexts';
 
-const About: React.FC = () => {
+const About = () => {
   const { isDarkMode } = useTheme();
   return (
     <div

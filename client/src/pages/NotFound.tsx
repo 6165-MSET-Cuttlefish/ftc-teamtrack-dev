@@ -1,14 +1,7 @@
-import { useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '@/contexts';
 
 const NotFound = () => {
-  const location = useLocation();
   const { isDarkMode } = useTheme();
-
-  useEffect(() => {
-    // Log 404 error for debugging
-  }, [location.pathname]);
 
   return (
     <div

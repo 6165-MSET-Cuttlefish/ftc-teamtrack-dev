@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { firebaseService, SessionData } from '../services/firebaseService';
-import { Button } from '../components/ui/button';
+import { useAuth, useTheme } from '@/contexts';
+import { firebaseService, SessionData } from '@/services';
+import { ROUTES } from '@/constants';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -257,7 +257,7 @@ const Compare = () => {
         <div className="mb-8">
           <Button
             variant="ghost"
-            onClick={() => navigate('/sessions')}
+            onClick={() => navigate(ROUTES.SESSIONS)}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />

@@ -1,10 +1,11 @@
-import React from 'react';
 import clsx from 'clsx';
 
-export const Progress: React.FC<{ value?: number; className?: string }> = ({
-  value = 0,
-  className,
-}) => {
+interface ProgressProps {
+  value?: number;
+  className?: string;
+}
+
+export const Progress = ({ value = 0, className }: ProgressProps) => {
   const percent = Math.max(0, Math.min(100, value));
   return (
     <div
@@ -18,5 +19,3 @@ export const Progress: React.FC<{ value?: number; className?: string }> = ({
     </div>
   );
 };
-
-export default Progress;

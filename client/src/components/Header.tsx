@@ -1,8 +1,5 @@
-import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useTheme } from '../contexts/ThemeContext';
-import { useAuth } from '../contexts/AuthContext';
-import { useSession } from '../contexts/SessionContext';
+import { useTheme, useAuth, useSession } from '@/contexts';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -16,7 +13,7 @@ import { Button } from './ui/button';
 import { Sun, Moon, LogOut, UserCircle, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const TeamTrackLogo: React.FC = () => {
+const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
 
   return (
@@ -77,7 +74,7 @@ const TeamTrackLogo: React.FC = () => {
   );
 };
 
-const BackButton: React.FC = () => {
+const BackButton = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { sessionData } = useSession();
@@ -136,7 +133,7 @@ const BackButton: React.FC = () => {
   );
 };
 
-const NavigationMenu: React.FC = () => {
+const NavigationMenu = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const { sessionData } = useSession();
@@ -275,7 +272,7 @@ const NavigationMenu: React.FC = () => {
   );
 };
 
-export const Header: React.FC = () => {
+export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
