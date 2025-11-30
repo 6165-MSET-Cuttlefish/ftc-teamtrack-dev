@@ -1,49 +1,53 @@
-  import React from 'react';
-  import { SessionSetup } from '../components/SessionSetup';
-  import { PerformanceMetrics } from '../components/PerformanceMetrics';
-  import { Notes } from '../components/Notes';
-  import { LivePreview } from '../components/LivePreview';
-  import { useTheme } from '../contexts/ThemeContext';
+import React from 'react';
+import { SessionSetup } from '../components/SessionSetup';
+import { PerformanceMetrics } from '../components/PerformanceMetrics';
+import { Notes } from '../components/Notes';
+import { LivePreview } from '../components/LivePreview';
+import { useTheme } from '../contexts/ThemeContext';
 
-  const OriginalContent: React.FC = () => {
-    const { isDarkMode } = useTheme();
+const OriginalContent: React.FC = () => {
+  const { isDarkMode } = useTheme();
 
-    return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
-        <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-8 pt-12 pb-10 gap-6 lg:gap-10">
-          {/* Left Column - Session Form */}
-          <div
-            className={`flex-1 w-full lg:max-w-[776px] py-8 lg:py-14 lg:pr-12 lg:border-r ${isDarkMode ? 'border-team-white-20' : 'border-team-blue/60'}`}
-          >
-            <div className="space-y-12 lg:space-y-16">
-              {/* Header */}
-              <div className="text-center px-4 lg:px-24 space-y-6">
-                <h1 className="text-team-blue text-3xl lg:text-[46px] font-semibold leading-[48px] mr-1">
-                  Active Practice Session
-                </h1>
-                <p className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                  Track your score
-                </p>
-              </div>
-
-              {/* Session Setup */}
-              <SessionSetup />
-
-              {/* Performance Metrics */}
-              <PerformanceMetrics />
-
-              {/* Notes */}
-              <Notes />
+  return (
+    <div
+      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+    >
+      <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-8 pt-12 pb-10 gap-6 lg:gap-10">
+        {/* Left Column - Session Form */}
+        <div
+          className={`flex-1 w-full lg:max-w-[776px] py-8 lg:py-14 lg:pr-12 lg:border-r ${isDarkMode ? 'border-team-white-20' : 'border-team-blue/60'}`}
+        >
+          <div className="space-y-12 lg:space-y-16">
+            {/* Header */}
+            <div className="text-center px-4 lg:px-24 space-y-6">
+              <h1 className="text-team-blue text-3xl lg:text-[46px] font-semibold leading-[48px] mr-1">
+                Active Practice Session
+              </h1>
+              <p
+                className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+              >
+                Track your score
+              </p>
             </div>
-          </div>
 
-          {/* Right Column - Live Preview */}
-          <div className="w-full lg:w-[413px] py-14 px-0">
-            <LivePreview />
+            {/* Session Setup */}
+            <SessionSetup />
+
+            {/* Performance Metrics */}
+            <PerformanceMetrics />
+
+            {/* Notes */}
+            <Notes />
           </div>
         </div>
-      </div>
-    );
-  };
 
-  export default OriginalContent;
+        {/* Right Column - Live Preview */}
+        <div className="w-full lg:w-[413px] py-14 px-0">
+          <LivePreview />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default OriginalContent;

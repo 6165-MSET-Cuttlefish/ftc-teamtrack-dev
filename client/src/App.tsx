@@ -38,64 +38,67 @@ const App = () => (
                 <Header />
                 <main className="flex-1">
                   <Suspense fallback={<LoadingFallback />}>
-                      <Routes>
-                        {/* Public Routes */}
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/signup" element={<Signup />} />
-                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Routes>
+                      {/* Public Routes */}
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/signup" element={<Signup />} />
+                      <Route
+                        path="/forgot-password"
+                        element={<ForgotPassword />}
+                      />
 
-                        {/* Protected Routes */}
-                        <Route
-                          path="/"
-                          element={<Navigate to="/sessions" replace />}
-                        />
-                        <Route
-                          path="/original"
-                          element={
-                            <ProtectedRoute>
-                              <Original />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/analysis"
-                          element={
-                            <ProtectedRoute>
-                              <Analysis />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/profile"
-                          element={
-                            <ProtectedRoute>
-                              <Profile />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route path="/about" element={<About />} />
-                        <Route
-                          path="/sessions"
-                          element={
-                            <ProtectedRoute>
-                              <Sessions />
-                            </ProtectedRoute>
-                          }
-                        />
+                      {/* Protected Routes */}
+                      <Route
+                        path="/"
+                        element={<Navigate to="/sessions" replace />}
+                      />
+                      <Route
+                        path="/original"
+                        element={
+                          <ProtectedRoute>
+                            <Original />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/analysis"
+                        element={
+                          <ProtectedRoute>
+                            <Analysis />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/profile"
+                        element={
+                          <ProtectedRoute>
+                            <Profile />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route path="/about" element={<About />} />
+                      <Route
+                        path="/sessions"
+                        element={
+                          <ProtectedRoute>
+                            <Sessions />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                        {/* Catch-all route */}
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </Suspense>
-                  </main>
-                </div>
-                <Sonner />
-              </BrowserRouter>
-            </SessionProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </ErrorBoundary>
-    </TooltipProvider>
+                      {/* Catch-all route */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </main>
+              </div>
+              <Sonner />
+            </BrowserRouter>
+          </SessionProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
+  </TooltipProvider>
 );
 
 export default App;

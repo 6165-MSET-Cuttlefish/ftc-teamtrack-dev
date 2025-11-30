@@ -50,7 +50,8 @@ class ErrorBoundary extends Component<Props, State> {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Something went wrong</AlertTitle>
               <AlertDescription className="mt-2">
-                An unexpected error occurred. Please try refreshing the page or contact support if the problem persists.
+                An unexpected error occurred. Please try refreshing the page or
+                contact support if the problem persists.
               </AlertDescription>
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <details className="mt-4 p-2 bg-gray-100 rounded text-xs">
@@ -62,11 +63,7 @@ class ErrorBoundary extends Component<Props, State> {
                 </details>
               )}
               <div className="mt-4 flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={this.handleReset}
-                >
+                <Button variant="outline" size="sm" onClick={this.handleReset}>
                   Try Again
                 </Button>
                 <Button

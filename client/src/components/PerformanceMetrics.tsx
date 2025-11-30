@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { ChevronUp, ChevronDown, ChevronRight, Clock } from 'lucide-react';
@@ -209,7 +209,7 @@ export const PerformanceMetrics = () => {
     };
   }, [cycleTimerStartTime]);
 
-  const recordCycleTime = () => {
+  const recordCycleTime = useCallback(() => {
     if (cycleTimerStartTime === null) {
       // Start the cycle timer
       setCycleTimerStartTime(Date.now());
@@ -221,7 +221,12 @@ export const PerformanceMetrics = () => {
       setCycleTimerStartTime(Date.now()); // Restart for next cycle
       setCycleTimerElapsed(0);
     }
-  };
+  }, [
+    cycleTimerStartTime,
+    cycleTimerElapsed,
+    sessionData.cycleTimes,
+    updateSessionData,
+  ]);
 
   // Keyboard event listener for 1, 2, 3 keys and Enter for cycle time
   useEffect(() => {

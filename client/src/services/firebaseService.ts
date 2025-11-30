@@ -40,8 +40,13 @@ class FirebaseService {
         id: docRef.id,
         ...newSession,
       } as SessionData;
-    } catch (error: any) {
-      if (error && error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'AbortError'
+      ) {
         return null;
       }
       console.error('Error creating session:', error);
@@ -64,8 +69,13 @@ class FirebaseService {
         id: doc.id,
         ...doc.data(),
       })) as SessionData[];
-    } catch (error: any) {
-      if (error && error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'AbortError'
+      ) {
         // Suppress noisy AbortError from Firestore/internal fetch during HMR or navigation
         return [];
       }
@@ -88,8 +98,13 @@ class FirebaseService {
       }
 
       return null;
-    } catch (error: any) {
-      if (error && error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'AbortError'
+      ) {
         return null;
       }
       console.error('Error fetching session:', error);
@@ -111,8 +126,13 @@ class FirebaseService {
         id: doc.id,
         ...doc.data(),
       })) as SessionData[];
-    } catch (error: any) {
-      if (error && error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'AbortError'
+      ) {
         return [];
       }
       console.error('Error fetching all sessions:', error);
@@ -126,8 +146,13 @@ class FirebaseService {
       const docRef = doc(db, 'sessions', sessionId);
       await deleteDoc(docRef);
       return true;
-    } catch (error: any) {
-      if (error && error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'AbortError'
+      ) {
         return false;
       }
       console.error('Error deleting session:', error);

@@ -88,13 +88,19 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}>
-      <Card className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue/60'}`}>
+    <div
+      className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}
+    >
+      <Card
+        className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue/60'}`}
+      >
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center text-team-blue">
             Create Account
           </CardTitle>
-          <CardDescription className={`text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+          <CardDescription
+            className={`text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+          >
             Sign up to get started with TeamTrack
           </CardDescription>
         </CardHeader>
@@ -108,11 +114,18 @@ const Signup: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="displayName" className={isDarkMode ? 'text-team-white' : 'text-black'}>
+              <Label
+                htmlFor="displayName"
+                className={isDarkMode ? 'text-team-white' : 'text-black'}
+              >
                 Full Name
               </Label>
-              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
-                <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
+              <div
+                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+              >
+                <User
+                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                />
                 <Input
                   id="displayName"
                   name="displayName"
@@ -127,11 +140,18 @@ const Signup: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className={isDarkMode ? 'text-team-white' : 'text-black'}>
+              <Label
+                htmlFor="email"
+                className={isDarkMode ? 'text-team-white' : 'text-black'}
+              >
                 Email
               </Label>
-              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
-                <Mail className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
+              <div
+                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+              >
+                <Mail
+                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                />
                 <Input
                   id="email"
                   name="email"
@@ -146,11 +166,18 @@ const Signup: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className={isDarkMode ? 'text-team-white' : 'text-black'}>
+              <Label
+                htmlFor="password"
+                className={isDarkMode ? 'text-team-white' : 'text-black'}
+              >
                 Password
               </Label>
-              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
-                <Lock className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
+              <div
+                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+              >
+                <Lock
+                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                />
                 <Input
                   id="password"
                   name="password"
@@ -172,11 +199,18 @@ const Signup: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className={isDarkMode ? 'text-team-white' : 'text-black'}>
+              <Label
+                htmlFor="confirmPassword"
+                className={isDarkMode ? 'text-team-white' : 'text-black'}
+              >
                 Confirm Password
               </Label>
-              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
-                <Lock className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
+              <div
+                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+              >
+                <Lock
+                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                />
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -208,10 +242,14 @@ const Signup: React.FC = () => {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className={`w-full border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`} />
+              <span
+                className={`w-full border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`}
+              />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className={`${isDarkMode ? 'bg-team-dark text-team-white-40' : 'bg-white text-team-blue-40'} px-2`}>
+              <span
+                className={`${isDarkMode ? 'bg-team-dark text-team-white-40' : 'bg-white text-team-blue-40'} px-2`}
+              >
                 Or continue with
               </span>
             </div>
@@ -247,7 +285,9 @@ const Signup: React.FC = () => {
         </CardContent>
 
         <CardFooter className="flex justify-center">
-          <div className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+          <div
+            className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+          >
             Already have an account?{' '}
             <Link
               to="/login"

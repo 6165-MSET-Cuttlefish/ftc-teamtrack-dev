@@ -11,7 +11,9 @@ export const Notes: React.FC = () => {
 
       <div className="flex gap-6">
         <div className="flex flex-col gap-2 w-full sm:max-w-[519px]">
-          <label className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          <label
+            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+          >
             Performance Notes & Observations
           </label>
           <textarea

@@ -28,6 +28,15 @@ interface SessionData {
   endGameValue: number;
   selectedFeature: string;
   cycleTimes: number[];
+  // New scoring system properties
+  autonClassifiedArtifact?: number;
+  autonOverflowArtifact?: number;
+  autonMotif?: number;
+  autonLeave?: number;
+  teleClassifiedArtifact?: number;
+  teleOverflowArtifact?: number;
+  teleMotif?: number;
+  endgameHang?: number;
 }
 
 interface SessionContextType {
@@ -75,7 +84,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   // Expanded section state - for PerformanceMetrics
-  const [expandedSection, setExpandedSection] = useState<string | null>('Autonomous Score');
+  const [expandedSection, setExpandedSection] = useState<string | null>(
+    'Autonomous Score'
+  );
 
   // Timer effect - runs continuously while timer is running
   useEffect(() => {
@@ -139,17 +150,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <SessionContext.Provider
-      value={{ 
-        sessionData, 
-        updateSessionData, 
-        completeSession, 
+      value={{
+        sessionData,
+        updateSessionData,
+        completeSession,
         resetSession,
         timer,
         isTimerRunning,
         setIsTimerRunning,
         formatTime,
         expandedSection,
-        setExpandedSection
+        setExpandedSection,
       }}
     >
       {children}

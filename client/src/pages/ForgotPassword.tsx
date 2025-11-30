@@ -47,13 +47,19 @@ const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}>
-      <Card className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue/60'}`}>
+    <div
+      className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}
+    >
+      <Card
+        className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue/60'}`}
+      >
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center text-team-blue">
             Reset Password
           </CardTitle>
-          <CardDescription className={`text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+          <CardDescription
+            className={`text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+          >
             Enter your email address and we'll send you a link to reset your
             password
           </CardDescription>
@@ -67,18 +73,31 @@ const ForgotPassword: React.FC = () => {
           )}
 
           {message && (
-            <Alert className={isDarkMode ? 'bg-green-900/20 border-green-500/50 text-green-400' : 'bg-green-50 border-green-200 text-green-800'}>
+            <Alert
+              className={
+                isDarkMode
+                  ? 'bg-green-900/20 border-green-500/50 text-green-400'
+                  : 'bg-green-50 border-green-200 text-green-800'
+              }
+            >
               <AlertDescription>{message}</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className={isDarkMode ? 'text-team-white' : 'text-black'}>
+              <Label
+                htmlFor="email"
+                className={isDarkMode ? 'text-team-white' : 'text-black'}
+              >
                 Email
               </Label>
-              <div className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}>
-                <Mail className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`} />
+              <div
+                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+              >
+                <Mail
+                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                />
                 <Input
                   id="email"
                   type="email"

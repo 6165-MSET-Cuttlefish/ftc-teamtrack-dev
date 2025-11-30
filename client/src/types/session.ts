@@ -13,13 +13,13 @@ export interface Session {
   endGameScore?: number;
   createdAt: Timestamp | string;
   // New scoring system - removed separate basket/specimen scores
-  autonClassifiedArtifact?: number;   // Classified Artifact (3 pts each)
-  autonOverflowArtifact?: number;     // Overflow Artifact (1 pt each)
-  autonMotif?: number;                // Motif (2 pts each)
-  autonLeave?: number;                // Leave (3 pts)
-  teleClassifiedArtifact?: number;    // Classified Artifact (3 pts each)
-  teleOverflowArtifact?: number;      // Overflow Artifact (1 pt each)
-  teleMotif?: number;                 // Motif (2 pts each)
+  autonClassifiedArtifact?: number; // Classified Artifact (3 pts each)
+  autonOverflowArtifact?: number; // Overflow Artifact (1 pt each)
+  autonMotif?: number; // Motif (2 pts each)
+  autonLeave?: number; // Leave (3 pts)
+  teleClassifiedArtifact?: number; // Classified Artifact (3 pts each)
+  teleOverflowArtifact?: number; // Overflow Artifact (1 pt each)
+  teleMotif?: number; // Motif (2 pts each)
   endgameHang?: number;
   // Features and cycle times
   selectedFeature?: string;

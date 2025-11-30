@@ -461,7 +461,7 @@ const AnalysisContent = () => {
 
       // First check if session data was passed through state (for temporary sessions)
       const stateData = location.state as {
-        sessionData?: any;
+        sessionData?: Record<string, unknown>;
         isTemporary?: boolean;
       } | null;
       if (stateData?.sessionData) {

@@ -8,7 +8,7 @@ export const useApi = () => {
     try {
       // Placeholder: real implementation should call firebaseService or backend
       void userId; // mark used until real implementation is added
-      return [] as any[];
+      return [] as unknown[];
     } finally {
       setLoading(false);
     }

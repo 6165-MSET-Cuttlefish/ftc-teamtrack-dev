@@ -436,19 +436,21 @@ const Sessions = () => {
           month: 'short',
           day: 'numeric',
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
         });
       }
 
       if (typeof timestamp === 'object' && timestamp !== null) {
         const ts = timestamp as FirebaseTimestamp;
         if ('seconds' in ts && 'nanoseconds' in ts) {
-          return new Date(ts.seconds * 1000 + ts.nanoseconds / 1000000).toLocaleDateString('en-US', {
+          return new Date(
+            ts.seconds * 1000 + ts.nanoseconds / 1000000
+          ).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
           });
         }
       }
@@ -469,10 +471,9 @@ const Sessions = () => {
     ]);
 
     // Combine headers and rows
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.join(',')),
-    ].join('\n');
+    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join(
+      '\n'
+    );
 
     // Create blob and download
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -480,7 +481,10 @@ const Sessions = () => {
     const url = URL.createObjectURL(blob);
 
     link.setAttribute('href', url);
-    link.setAttribute('download', `sessions-export-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute(
+      'download',
+      `sessions-export-${new Date().toISOString().split('T')[0]}.csv`
+    );
     link.style.visibility = 'hidden';
 
     document.body.appendChild(link);

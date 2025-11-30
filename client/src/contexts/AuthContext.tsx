@@ -13,23 +13,40 @@ interface User {
   displayName: string | null;
   photoURL: string | null;
 }
-import type { 
-  Auth, 
-  User as FirebaseUser, 
+import type {
+  Auth,
+  User as FirebaseUser,
   UserCredential,
-  GoogleAuthProvider as FirebaseGoogleAuthProvider
+  GoogleAuthProvider as FirebaseGoogleAuthProvider,
 } from 'firebase/auth';
 
 // Types for functions we may dynamically import
 type FirebaseAuthModule = {
-  signInWithEmailAndPassword?: (auth: Auth, email: string, password: string) => Promise<UserCredential>;
-  createUserWithEmailAndPassword?: (auth: Auth, email: string, password: string) => Promise<UserCredential>;
+  signInWithEmailAndPassword?: (
+    auth: Auth,
+    email: string,
+    password: string
+  ) => Promise<UserCredential>;
+  createUserWithEmailAndPassword?: (
+    auth: Auth,
+    email: string,
+    password: string
+  ) => Promise<UserCredential>;
   signOut?: (auth: Auth) => Promise<void>;
-  onAuthStateChanged?: (auth: Auth, callback: (user: FirebaseUser | null) => void) => () => void;
-  updateProfile?: (user: FirebaseUser, profile: { displayName?: string; photoURL?: string }) => Promise<void>;
+  onAuthStateChanged?: (
+    auth: Auth,
+    callback: (user: FirebaseUser | null) => void
+  ) => () => void;
+  updateProfile?: (
+    user: FirebaseUser,
+    profile: { displayName?: string; photoURL?: string }
+  ) => Promise<void>;
   sendPasswordResetEmail?: (auth: Auth, email: string) => Promise<void>;
   GoogleAuthProvider?: new () => FirebaseGoogleAuthProvider;
-  signInWithPopup?: (auth: Auth, provider: FirebaseGoogleAuthProvider) => Promise<UserCredential>;
+  signInWithPopup?: (
+    auth: Auth,
+    provider: FirebaseGoogleAuthProvider
+  ) => Promise<UserCredential>;
 };
 
 let firebaseAuthModule: FirebaseAuthModule | null = null; // populated when available
@@ -149,25 +166,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
-    let unsubscribe: (() => void) = () => {};
+    let unsubscribe: () => void = () => {};
 
     (async () => {
       const { authInstance, authModule } = await ensureAuth();
       if (authInstance && authModule && authModule.onAuthStateChanged) {
-        unsubscribe = authModule.onAuthStateChanged(authInstance, (u: FirebaseUser | null) => {
-          if (u) {
-            const user: User = {
-              uid: u.uid,
-              email: u.email,
-              displayName: u.displayName,
-              photoURL: u.photoURL,
-            };
-            setUser(user);
-          } else {
-            setUser(null);
+        unsubscribe = authModule.onAuthStateChanged(
+          authInstance,
+          (u: FirebaseUser | null) => {
+            if (u) {
+              const user: User = {
+                uid: u.uid,
+                email: u.email,
+                displayName: u.displayName,
+                photoURL: u.photoURL,
+              };
+              setUser(user);
+            } else {
+              setUser(null);
+            }
+            setLoading(false);
           }
-          setLoading(false);
-        });
+        );
       } else {
         setUser(null);
         setLoading(false);

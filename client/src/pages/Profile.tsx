@@ -49,7 +49,13 @@ const Profile: React.FC = () => {
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-12 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-2xl mx-auto">
-        <Card className={isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}>
+        <Card
+          className={
+            isDarkMode
+              ? 'bg-team-dark-20 border-team-blue-40'
+              : 'bg-white border-gray-200'
+          }
+        >
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <Avatar className="h-24 w-24">
@@ -67,7 +73,11 @@ const Profile: React.FC = () => {
             >
               {user.displayName || 'User Profile'}
             </CardTitle>
-            <CardDescription className={isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}>
+            <CardDescription
+              className={
+                isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+              }
+            >
               Manage your account settings and preferences
             </CardDescription>
           </CardHeader>
@@ -98,7 +108,9 @@ const Profile: React.FC = () => {
                 </div>
               </div>
 
-              <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
+              <Separator
+                className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'}
+              />
 
               <div className="flex items-center space-x-3">
                 <Mail
@@ -118,7 +130,9 @@ const Profile: React.FC = () => {
                 </div>
               </div>
 
-              <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
+              <Separator
+                className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'}
+              />
 
               <div className="flex items-center space-x-3">
                 <Calendar
@@ -138,7 +152,9 @@ const Profile: React.FC = () => {
                 </div>
               </div>
 
-              <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
+              <Separator
+                className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'}
+              />
 
               <div className="flex items-center space-x-3">
                 <Shield
@@ -153,13 +169,21 @@ const Profile: React.FC = () => {
                   <p
                     className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
                   >
-                    <span className={isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}>Unknown</span>
+                    <span
+                      className={
+                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                      }
+                    >
+                      Unknown
+                    </span>
                   </p>
                 </div>
               </div>
             </div>
 
-            <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
+            <Separator
+              className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'}
+            />
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Button

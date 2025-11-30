@@ -27,30 +27,36 @@ const DataCard = ({ value, label }: { value: string; label: string }) => {
   );
 };
 
-const InsightsCard = ({ 
-  currentTeleOpScore, 
+const InsightsCard = ({
+  currentTeleOpScore,
   currentAutonomousScore,
-  userId 
-}: { 
-  currentTeleOpScore: number; 
+  userId,
+}: {
+  currentTeleOpScore: number;
   currentAutonomousScore: number;
   userId: string;
 }) => {
   const { isDarkMode } = useTheme();
-  const [teleOpImprovement, setTeleOpImprovement] = useState<string>('Calculating...');
-  const [autonomousImprovement, setAutonomousImprovement] = useState<string>('Calculating...');
-  const [teleOpTrend, setTeleOpTrend] = useState<'up' | 'down' | 'neutral'>('neutral');
-  const [autonomousTrend, setAutonomousTrend] = useState<'up' | 'down' | 'neutral'>('neutral');
+  const [teleOpImprovement, setTeleOpImprovement] =
+    useState<string>('Calculating...');
+  const [autonomousImprovement, setAutonomousImprovement] =
+    useState<string>('Calculating...');
+  const [teleOpTrend, setTeleOpTrend] = useState<'up' | 'down' | 'neutral'>(
+    'neutral'
+  );
+  const [autonomousTrend, setAutonomousTrend] = useState<
+    'up' | 'down' | 'neutral'
+  >('neutral');
 
   useEffect(() => {
     const calculateImprovements = async () => {
       try {
         const { firebaseService } = await import('../services/firebaseService');
-        
+
         const recentSessions = await firebaseService.getUserSessions(userId);
-        
+
         const lastThreeSessions = recentSessions.slice(0, 3);
-        
+
         if (lastThreeSessions.length === 0) {
           setTeleOpImprovement('First session');
           setAutonomousImprovement('First session');
@@ -58,33 +64,53 @@ const InsightsCard = ({
           setAutonomousTrend('neutral');
           return;
         }
-        
-        const avgTeleOp = lastThreeSessions.reduce((sum, session) => 
-          sum + (session.teleOpScore || 0), 0) / lastThreeSessions.length;
-        const avgAutonomous = lastThreeSessions.reduce((sum, session) => 
-          sum + (session.autonomousScore || 0), 0) / lastThreeSessions.length;
-        
+
+        const avgTeleOp =
+          lastThreeSessions.reduce(
+            (sum, session) => sum + (session.teleOpScore || 0),
+            0
+          ) / lastThreeSessions.length;
+        const avgAutonomous =
+          lastThreeSessions.reduce(
+            (sum, session) => sum + (session.autonomousScore || 0),
+            0
+          ) / lastThreeSessions.length;
+
         const calcPercentChange = (current: number, average: number) => {
           if (average === 0) return current > 0 ? 100 : 0;
           return ((current - average) / average) * 100;
         };
-        
+
         const teleOpChange = calcPercentChange(currentTeleOpScore, avgTeleOp);
-        const autonomousChange = calcPercentChange(currentAutonomousScore, avgAutonomous);
-        
-        setTeleOpImprovement(`${teleOpChange >= 0 ? '+' : ''}${teleOpChange.toFixed(1)}%`);
-        setAutonomousImprovement(`${autonomousChange >= 0 ? '+' : ''}${autonomousChange.toFixed(1)}%`);
-        
-        setTeleOpTrend(teleOpChange > 0 ? 'up' : teleOpChange < 0 ? 'down' : 'neutral');
-        setAutonomousTrend(autonomousChange > 0 ? 'up' : autonomousChange < 0 ? 'down' : 'neutral');
-        
+        const autonomousChange = calcPercentChange(
+          currentAutonomousScore,
+          avgAutonomous
+        );
+
+        setTeleOpImprovement(
+          `${teleOpChange >= 0 ? '+' : ''}${teleOpChange.toFixed(1)}%`
+        );
+        setAutonomousImprovement(
+          `${autonomousChange >= 0 ? '+' : ''}${autonomousChange.toFixed(1)}%`
+        );
+
+        setTeleOpTrend(
+          teleOpChange > 0 ? 'up' : teleOpChange < 0 ? 'down' : 'neutral'
+        );
+        setAutonomousTrend(
+          autonomousChange > 0
+            ? 'up'
+            : autonomousChange < 0
+              ? 'down'
+              : 'neutral'
+        );
       } catch (error) {
         console.error('Error calculating improvements:', error);
         setTeleOpImprovement('Error');
         setAutonomousImprovement('Error');
       }
     };
-    
+
     if (userId) {
       calculateImprovements();
     }
@@ -111,18 +137,26 @@ const InsightsCard = ({
       </h3>
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <span className={`text-xs leading-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue'}`}>
+          <span
+            className={`text-xs leading-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue'}`}
+          >
             TeleOp vs Avg (last 3):
           </span>
-          <span className={`text-xs font-semibold ${getTrendColor(teleOpTrend)}`}>
+          <span
+            className={`text-xs font-semibold ${getTrendColor(teleOpTrend)}`}
+          >
             {getTrendIcon(teleOpTrend)} {teleOpImprovement}
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className={`text-xs leading-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue'}`}>
+          <span
+            className={`text-xs leading-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue'}`}
+          >
             Autonomous vs Avg (last 3):
           </span>
-          <span className={`text-xs font-semibold ${getTrendColor(autonomousTrend)}`}>
+          <span
+            className={`text-xs font-semibold ${getTrendColor(autonomousTrend)}`}
+          >
             {getTrendIcon(autonomousTrend)} {autonomousImprovement}
           </span>
         </div>
@@ -132,27 +166,50 @@ const InsightsCard = ({
 };
 
 export const LivePreview = () => {
-  const { sessionData, completeSession, timer, isTimerRunning, setIsTimerRunning, formatTime, resetSession, setExpandedSection } = useSession();
+  const {
+    sessionData,
+    completeSession,
+    timer,
+    isTimerRunning,
+    setIsTimerRunning,
+    formatTime,
+    resetSession,
+    setExpandedSection,
+  } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
   const [, setSavedSessionId] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
-  const [showTeleOpTransition, setShowTeleOpTransition] = useState<boolean>(false);
-  const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] = useState<boolean>(false);
+  const [showTeleOpTransition, setShowTeleOpTransition] =
+    useState<boolean>(false);
+  const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] =
+    useState<boolean>(false);
 
   // Real-time consistency calculation
   const [consistency, setConsistency] = useState<number>(0);
-  const [isCalculatingConsistency, setIsCalculatingConsistency] = useState(true);
+  const [isCalculatingConsistency, setIsCalculatingConsistency] =
+    useState(true);
 
   // Check if timer reaches 30 seconds in Full Game mode
   useEffect(() => {
-    if (sessionData.matchType === 'Full Game' && timer === 30 && isTimerRunning && !hasTransitionedToTeleOp) {
+    if (
+      sessionData.matchType === 'Full Game' &&
+      timer === 30 &&
+      isTimerRunning &&
+      !hasTransitionedToTeleOp
+    ) {
       setIsTimerRunning(false);
       setShowTeleOpTransition(true);
     }
-  }, [timer, isTimerRunning, sessionData.matchType, hasTransitionedToTeleOp, setIsTimerRunning]);
+  }, [
+    timer,
+    isTimerRunning,
+    sessionData.matchType,
+    hasTransitionedToTeleOp,
+    setIsTimerRunning,
+  ]);
 
   const handleContinueToTeleOp = () => {
     setShowTeleOpTransition(false);
@@ -166,50 +223,53 @@ export const LivePreview = () => {
       try {
         setIsCalculatingConsistency(true);
         const { firebaseService } = await import('../services/firebaseService');
-        
-        const recentSessions = await firebaseService.getUserSessions(user?.uid || '');
-        
+
+        const recentSessions = await firebaseService.getUserSessions(
+          user?.uid || ''
+        );
+
         const lastThreeSessions = recentSessions.slice(0, 3);
-        
+
         if (lastThreeSessions.length === 0) {
           setConsistency(100);
           setIsCalculatingConsistency(false);
           return;
         }
-        
+
         const allScores = [
           sessionData.finalScore,
-          ...lastThreeSessions.map(session => session.finalScore || 0)
+          ...lastThreeSessions.map(session => session.finalScore || 0),
         ];
-        
-        const avgScore = allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
-        
+
+        const avgScore =
+          allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
+
         if (avgScore === 0) {
           setConsistency(100);
           setIsCalculatingConsistency(false);
           return;
         }
-        
-        const variance = allScores.reduce((sum, score) => {
-          return sum + Math.pow(score - avgScore, 2);
-        }, 0) / allScores.length;
-        
+
+        const variance =
+          allScores.reduce((sum, score) => {
+            return sum + Math.pow(score - avgScore, 2);
+          }, 0) / allScores.length;
+
         const stdDev = Math.sqrt(variance);
-        
+
         const cv = stdDev / avgScore;
-        
+
         const consistencyScore = 100 / (1 + cv);
-        
+
         setConsistency(Math.round(consistencyScore));
         setIsCalculatingConsistency(false);
-        
       } catch (error) {
         console.error('Error calculating consistency:', error);
         setConsistency(0);
         setIsCalculatingConsistency(false);
       }
     };
-    
+
     if (user?.uid) {
       calculateConsistency();
     }
@@ -270,6 +330,7 @@ export const LivePreview = () => {
         // session saved successfully; navigation or toast can be added here
       }
     } catch {
+      // Ignore session save errors
     }
   };
 
@@ -298,13 +359,13 @@ export const LivePreview = () => {
             value={sessionData.finalScore.toString()}
             label="Final Score"
           />
-          <DataCard 
-            value={isCalculatingConsistency ? "..." : `${consistency}%`} 
-            label="Consistency" 
+          <DataCard
+            value={isCalculatingConsistency ? '...' : `${consistency}%`}
+            label="Consistency"
           />
         </div>
 
-        <InsightsCard 
+        <InsightsCard
           currentTeleOpScore={sessionData.teleOpScore}
           currentAutonomousScore={sessionData.autonomousScore}
           userId={user?.uid || ''}
