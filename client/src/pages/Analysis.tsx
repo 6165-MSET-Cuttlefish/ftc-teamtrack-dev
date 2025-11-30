@@ -7,12 +7,7 @@ import {
   TrendingDown,
   BarChart3,
   ChevronRight,
-  Download,
 } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { exportSessionAnalysisToCSV } from '../lib/csvExport';
-import { toast } from 'sonner';
-import type { Session } from '../types/session';
 import { useAuth } from '../contexts/AuthContext';
 import { useFirebase } from '../hooks/useFirebase';
 import { firebaseService } from '../services/firebaseService';
@@ -643,48 +638,6 @@ const AnalysisContent = () => {
     sessionData.teleOpScore,
   ]);
 
-  const handleExportCSV = () => {
-    try {
-      // Convert sessionData to Session type for export
-      const sessionForExport: Session = {
-        id: searchParams.get('sessionId') || 'temp-session',
-        userId: user?.uid || '',
-        sessionName: sessionData.sessionName,
-        driverName: sessionData.driverName,
-        matchType: sessionData.matchType,
-        sessionDuration: sessionData.sessionDuration,
-        finalScore: sessionData.finalScore,
-        autonomousScore: sessionData.autonomousScore,
-        teleOpScore: sessionData.teleOpScore,
-        endGameScore: sessionData.endGameScore,
-        createdAt: new Date().toISOString(),
-        autonClassifiedArtifact: sessionData.autonomousBasket,
-        autonOverflowArtifact: sessionData.autonomousSpecimen,
-        autonMotif: sessionData.autonomousFloorMark,
-        autonLeave: sessionData.autonomousLeave,
-        teleClassifiedArtifact: sessionData.teleOpSamples,
-        teleOverflowArtifact: sessionData.teleOpSpecimen,
-        teleMotif: sessionData.teleOpFloorMark,
-        endgameHang: sessionData.endGameValue,
-        selectedFeature: sessionData.selectedFeature,
-        cycleTimes: sessionData.cycleTimes,
-      };
-
-      exportSessionAnalysisToCSV(
-        sessionForExport,
-        {
-          consistency,
-          accuracy,
-          insights,
-        }
-      );
-      toast.success('Analysis exported to CSV successfully');
-    } catch (error) {
-      console.error('Error exporting CSV:', error);
-      toast.error('Failed to export analysis');
-    }
-  };
-
   // Show loading state
   if (loading) {
     return (
@@ -712,13 +665,6 @@ const AnalysisContent = () => {
             >
               Detailed performance analysis
             </p>
-            <Button
-              onClick={handleExportCSV}
-              className="bg-team-blue hover:bg-team-blue/90 text-white"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Analysis as CSV
-            </Button>
           </div>
 
           {/* Data Cards */}

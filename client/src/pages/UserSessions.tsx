@@ -42,11 +42,7 @@ import {
   BarChart3,
   Filter,
   Search,
-  Download,
 } from 'lucide-react';
-import { exportSessionsDetailedToCSV } from '../lib/csvExport';
-import { toast } from 'sonner';
-import type { Session as SessionType } from '../types/session';
 
 interface Session {
   id: string;
@@ -214,43 +210,6 @@ const UserSessions: React.FC = () => {
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const handleExportCSV = () => {
-    if (filteredSessions.length === 0) {
-      toast.error('No sessions to export');
-      return;
-    }
-
-    try {
-      // Convert the sessions to match the Session type from types/session.ts
-      const sessionsToExport: SessionType[] = filteredSessions.map(session => ({
-        id: session.id,
-        userId: user?.uid || '',
-        sessionName: session.sessionName,
-        driverName: session.driverName,
-        matchType: session.matchType,
-        sessionDuration: session.sessionDuration,
-        finalScore: session.finalScore,
-        autonomousScore: 0, // These values aren't in the Session interface used here
-        teleOpScore: 0,
-        endGameScore: 0,
-        createdAt: session.createdAt,
-        autonClassifiedArtifact: session.autonBasket,
-        autonOverflowArtifact: session.autonSpeci,
-        teleClassifiedArtifact: session.teleBasket,
-        teleOverflowArtifact: session.teleSpeci,
-        endgameHang: session.endgameHang,
-        selectedFeature: session.selectedFeature,
-        cycleTimes: session.cycleTimes,
-      }));
-
-      exportSessionsDetailedToCSV(sessionsToExport);
-      toast.success('Sessions exported to CSV successfully');
-    } catch (error) {
-      console.error('Error exporting CSV:', error);
-      toast.error('Failed to export sessions');
     }
   };
 
@@ -441,17 +400,6 @@ const UserSessions: React.FC = () => {
                   <SelectItem value="duration">Duration</SelectItem>
                 </SelectContent>
               </Select>
-
-              <Button
-                onClick={handleExportCSV}
-                disabled={filteredSessions.length === 0}
-                className={`bg-team-blue hover:bg-team-blue/90 text-white ${
-                  filteredSessions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
             </div>
           </div>
 
