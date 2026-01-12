@@ -384,7 +384,7 @@ export const PerformanceMetrics = () => {
         <div className={`flex justify-between items-center gap-2 h-[48px]`}>
           <button
             onClick={handleIncrement}
-            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
+            className={`flex-1 h-full rounded-lg overflow-hidden border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
               isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
             }`}
           >
@@ -393,7 +393,7 @@ export const PerformanceMetrics = () => {
             />
           </button>
           <div
-            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center ${
+            className={`flex-1 h-full rounded-lg overflow-hidden border border-team-blue-40 flex items-center justify-center ${
               isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-black'
             }`}
           >
@@ -406,7 +406,7 @@ export const PerformanceMetrics = () => {
           </div>
           <button
             onClick={handleDecrement}
-            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
+            className={`flex-1 h-full rounded-lg overflow-hidden border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
               isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
             }`}
           >
@@ -671,8 +671,8 @@ export const PerformanceMetrics = () => {
             />
           </div>
         </div>
-        <div className="flex-1">
-          <div className="mb-8 min-h-[48px]">
+        <div className="flex-1 flex flex-col justify-start items-center">
+          <div className="mb-2 min-h-[48px]">
             {getSectionTitle() && (
               <h2 className="text-team-blue text-3xl font-bold leading-6">
                 {getSectionTitle()}
