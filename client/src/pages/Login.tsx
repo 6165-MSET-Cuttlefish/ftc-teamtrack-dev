@@ -70,15 +70,11 @@ const Login = () => {
         className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
         <CardHeader className="space-y-3 pb-6">
-          <div className="flex items-center justify-center gap-3">
-            <div className="h-8 w-1 bg-team-blue rounded-full"></div>
-            <CardTitle
-              className={`text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
-            >
-              Welcome Back
-            </CardTitle>
-            <div className="h-8 w-1 bg-team-blue rounded-full"></div>
-          </div>
+          <CardTitle
+            className={`text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
+          >
+            Welcome Back
+          </CardTitle>
           <CardDescription
             className={`text-center text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
