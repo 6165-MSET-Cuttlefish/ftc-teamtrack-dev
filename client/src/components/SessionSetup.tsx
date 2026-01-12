@@ -80,12 +80,9 @@ export const SessionSetup = () => {
 
   return (
     <div className="space-y-8 mt-16">
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-1 bg-team-blue rounded-full"></div>
-        <h2 className="text-team-blue text-3xl font-bold leading-6">
-          Session Setup
-        </h2>
-      </div>
+      <h2 className="text-team-blue text-3xl font-bold leading-6">
+        Session Setup
+      </h2>
 
       <div className="space-y-6">
         {/* First Row */}

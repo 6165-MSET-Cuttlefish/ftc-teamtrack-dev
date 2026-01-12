@@ -624,12 +624,9 @@ export const PerformanceMetrics = () => {
 
       <div className="flex gap-6">
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="h-8 w-1 bg-team-blue rounded-full"></div>
-            <h2 className="text-team-blue text-3xl font-bold leading-6">
-              Performance Metrics
-            </h2>
-          </div>
+          <h2 className="text-team-blue text-3xl font-bold leading-6 mb-8">
+            Performance Metrics
+          </h2>
           <div className="space-y-8">
             <MetricField
               label="Final Score"
@@ -675,14 +672,11 @@ export const PerformanceMetrics = () => {
           </div>
         </div>
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-6 min-h-[48px]">
+          <div className="mb-8 min-h-[48px]">
             {getSectionTitle() && (
-              <>
-                <div className="h-8 w-1 bg-team-blue rounded-full"></div>
-                <h2 className="text-team-blue text-3xl font-bold leading-6">
-                  {getSectionTitle()}
-                </h2>
-              </>
+              <h2 className="text-team-blue text-3xl font-bold leading-6">
+                {getSectionTitle()}
+              </h2>
             )}
           </div>
           <div className="min-h-[200px]">{getBreakdownFields()}</div>
