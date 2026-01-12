@@ -86,7 +86,7 @@ export const SessionSetup = () => {
 
       <div className="space-y-6">
         {/* First Row */}
-        <div className="flex flex-col sm:flex-row gap-10">
+        <div className="flex flex-col sm:flex-row gap-12">
           <FormField
             label="Session Name"
             placeholder="ex. practice"
@@ -102,7 +102,7 @@ export const SessionSetup = () => {
         </div>
 
         {/* Second Row */}
-        <div className="flex flex-col sm:flex-row gap-10">
+        <div className="flex flex-col sm:flex-row gap-12">
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
             <Label className="text-base leading-6 font-medium">Match Type</Label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
