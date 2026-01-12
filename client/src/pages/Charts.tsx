@@ -470,12 +470,9 @@ const Charts = () => {
           </Button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-1.5 bg-team-blue rounded-full"></div>
-                <h1 className="text-team-blue text-3xl lg:text-5xl font-bold">
-                  Performance Charts
-                </h1>
-              </div>
+              <h1 className="text-team-blue text-3xl lg:text-5xl font-bold mb-2">
+                Performance Charts
+              </h1>
               <p
                 className={`text-base ml-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
@@ -749,7 +746,6 @@ const Charts = () => {
               <CardTitle
                 className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
               >
-                <div className="h-6 w-1 bg-team-blue rounded-full"></div>
                 Score Trends Over Time
               </CardTitle>
               <CardDescription
@@ -858,8 +854,7 @@ const Charts = () => {
                 <CardTitle
                   className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
-                  Match Type Distribution
+                    Match Type Distribution
                 </CardTitle>
                 <CardDescription
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -906,8 +901,7 @@ const Charts = () => {
                 <CardTitle
                   className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
-                  Average Score Breakdown
+                    Average Score Breakdown
                 </CardTitle>
                 <CardDescription
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -954,8 +948,7 @@ const Charts = () => {
                 <CardTitle
                   className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
-                  Performance Overview
+                    Performance Overview
                 </CardTitle>
                 <CardDescription
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -1001,8 +994,7 @@ const Charts = () => {
                 <CardTitle
                   className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
-                  Recent Performance (Last 10)
+                    Recent Performance (Last 10)
                 </CardTitle>
                 <CardDescription
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -1059,8 +1051,7 @@ const Charts = () => {
                 <CardTitle
                   className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
-                  Performance by Match Type
+                    Performance by Match Type
                 </CardTitle>
                 <CardDescription
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -1124,8 +1115,7 @@ const Charts = () => {
                 <CardTitle
                   className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  <div className="h-6 w-1 bg-team-blue rounded-full"></div>
-                  Cycle Time Analysis
+                    Cycle Time Analysis
                 </CardTitle>
                 <CardDescription
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
