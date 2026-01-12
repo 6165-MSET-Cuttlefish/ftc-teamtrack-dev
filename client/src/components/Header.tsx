@@ -1,5 +1,5 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useTheme, useAuth, useSession } from '@/contexts';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTheme, useAuth } from '@/contexts';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import { Sun, Moon, LogOut, UserCircle, BarChart3 } from 'lucide-react';
+import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TeamTrackLogo = () => {
@@ -74,69 +74,9 @@ const TeamTrackLogo = () => {
   );
 };
 
-const BackButton = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { sessionData } = useSession();
-  const { user } = useAuth();
-
-  const fromActive =
-    (location.state &&
-      'fromActiveSession' in location.state &&
-      location.state.fromActiveSession) ||
-    false;
-
-  // Don't show back button if user is not authenticated
-  if (!user) return null;
-
-  // Hide on the main live view
-  if (location.pathname === '/original') return null;
-
-  const hasHistory =
-    typeof window !== 'undefined' &&
-    window.history &&
-    window.history.length > 1;
-  // Show if user has navigated here or there is an active session
-  if (
-    !fromActive &&
-    !hasHistory &&
-    (!sessionData || sessionData.isSessionCompleted)
-  )
-    return null;
-
-  const handleClick = () => {
-    navigate(-1);
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      aria-label="Go back"
-      className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-transparent hover:bg-team-white-10 transition-colors"
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M15 18l-6-6 6-6"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </button>
-  );
-};
-
 const NavigationMenu = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const { sessionData } = useSession();
   const navigate = useNavigate();
 
   const getInitials = (name: string) => {
@@ -160,8 +100,6 @@ const NavigationMenu = () => {
     }
   };
 
-  const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
-
   return (
     <div
       className={`flex items-center gap-3 px-3 py-2 ${
@@ -182,7 +120,7 @@ const NavigationMenu = () => {
       <button
         onClick={toggleTheme}
         aria-label="Toggle theme"
-        className="p-2 rounded-full hover:bg-team-white-10 transition-colors flex items-center justify-center"
+        className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
       >
         {isDarkMode ? (
           <Sun className="w-5 h-5 text-yellow-400" />
@@ -191,73 +129,71 @@ const NavigationMenu = () => {
         )}
       </button>
 
+      {/* New Session button */}
+      {user && (
+        <button
+          onClick={() => navigate('/original')}
+          aria-label="New session"
+          className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+      )}
+
       {/* User section */}
       {user ? (
-        <>
-          {hasActiveSession && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/original')}
-              className={`ml-2 gap-2 ${isDarkMode ? 'border-team-blue text-team-blue hover:bg-team-blue/10' : 'border-team-blue text-team-blue hover:bg-team-blue/10'}`}
+              variant="ghost"
+              className="relative h-8 w-8 rounded-full ml-2"
             >
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              Active Session
+              <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src={user.photoURL || ''}
+                  alt={user.displayName || ''}
+                />
+                <AvatarFallback
+                  className={`text-xs ${isDarkMode ? 'bg-team-blue text-black' : 'bg-team-blue text-white'}`}
+                >
+                  {getInitials(user.displayName || user.email || 'User')}
+                </AvatarFallback>
+              </Avatar>
             </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="relative h-8 w-8 rounded-full ml-2"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={user.photoURL || ''}
-                    alt={user.displayName || ''}
-                  />
-                  <AvatarFallback
-                    className={`text-white text-xs ${isDarkMode ? 'bg-team-blue text-black' : 'bg-team-blue text-white'}`}
-                  >
-                    {getInitials(user.displayName || user.email || 'User')}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className={`w-56 ${isDarkMode ? 'bg-[#191919] border-team-black-40' : 'bg-white border-team-blue'}`}
-              align="end"
-            >
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {user.displayName || 'User'}
-                  </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/sessions" className="flex items-center">
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  <span>My Sessions</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/profile" className="flex items-center">
-                  <UserCircle className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className={`w-56 ${isDarkMode ? 'bg-[#191919] border-team-black-40' : 'bg-white border-team-blue'}`}
+            align="end"
+          >
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {user.displayName || 'User'}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user.email}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/sessions" className="flex items-center">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                <span>My Sessions</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/profile" className="flex items-center">
+                <UserCircle className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
@@ -280,7 +216,6 @@ export const Header = () => {
     >
       <div className="max-w-[1216px] mx-auto px-6 grid grid-cols-[auto_1fr_auto] items-center">
         <div className="flex items-center justify-start gap-3">
-          <BackButton />
           <TeamTrackLogo />
         </div>
 
