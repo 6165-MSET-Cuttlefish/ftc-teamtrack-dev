@@ -65,7 +65,10 @@ const CustomTooltip = ({
         )}
         <div className="space-y-1">
           {payload.map((entry, index) => (
-            <div key={index} className="flex items-center justify-between gap-3">
+            <div
+              key={index}
+              className="flex items-center justify-between gap-3"
+            >
               <div className="flex items-center gap-2">
                 <div
                   className="w-2 h-2 rounded-full"
@@ -81,7 +84,9 @@ const CustomTooltip = ({
                 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 style={{ color: entry.color }}
               >
-                {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value}
+                {typeof entry.value === 'number'
+                  ? entry.value.toFixed(1)
+                  : entry.value}
               </span>
             </div>
           ))}
@@ -656,11 +661,7 @@ const PerformanceGraphs = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip
-                content={
-                  <CustomTooltip isDarkMode={isDarkMode} />
-                }
-              />
+              <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
               <Legend wrapperStyle={{ fontSize: '14px' }} />
               <Bar
                 dataKey="This Session"
@@ -746,9 +747,7 @@ const PerformanceGraphs = ({
                   stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                   tick={{ fontSize: 12 }}
                 />
-                <Tooltip
-                  content={<CustomTooltip isDarkMode={isDarkMode} />}
-                />
+                <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
                 <Line
                   type="monotone"
                   dataKey="Score"
@@ -812,7 +811,9 @@ const AnalysisContent = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
-  const [historicalSessions, setHistoricalSessions] = useState<SessionData[]>([]);
+  const [historicalSessions, setHistoricalSessions] = useState<SessionData[]>(
+    []
+  );
   const [_graphModal, _setGraphModal] = useState<{
     isOpen: boolean;
     metric: string;

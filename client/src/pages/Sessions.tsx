@@ -585,7 +585,9 @@ const Sessions = () => {
               Quick Stats
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}>
+              <div
+                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
+              >
                 <div className="text-3xl font-bold text-team-blue mb-1">
                   {sessions.length}
                 </div>
@@ -595,7 +597,9 @@ const Sessions = () => {
                   Total Sessions
                 </div>
               </div>
-              <div className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}>
+              <div
+                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
+              >
                 <div className="text-3xl font-bold text-team-blue mb-1">
                   {Math.round(
                     sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
@@ -608,7 +612,9 @@ const Sessions = () => {
                   Avg Score
                 </div>
               </div>
-              <div className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}>
+              <div
+                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
+              >
                 <div className="text-3xl font-bold text-team-blue mb-1">
                   {Math.max(...sessions.map(s => s.finalScore || 0)) || 0}
                 </div>
@@ -618,7 +624,9 @@ const Sessions = () => {
                   Best Score
                 </div>
               </div>
-              <div className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}>
+              <div
+                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
+              >
                 <div className="text-3xl font-bold text-team-blue mb-1">
                   {
                     sessions.filter(s => s.matchType?.toLowerCase() === 'match')
