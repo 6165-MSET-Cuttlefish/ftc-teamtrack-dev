@@ -1068,14 +1068,6 @@ const AnalysisContent = () => {
             <DataCard value={`${accuracy}%`} label="Accuracy" />
           </div>
 
-          {/* Performance Graphs */}
-          {historicalSessions.length > 0 && (
-            <PerformanceGraphs
-              currentSession={sessionData}
-              historicalSessions={historicalSessions}
-            />
-          )}
-
           {/* Sensor Overview */}
           <SensorOverviewCard
             sessionName={sessionData.sessionName}
@@ -1086,11 +1078,13 @@ const AnalysisContent = () => {
             totalTime={sessionData.sessionDuration}
           />
 
-          {/* Performance Insights */}
+          {/* Performance Analysis & Insights - Unified Section */}
           <div className="space-y-6">
             <h2 className="text-team-blue text-2xl font-semibold leading-6">
-              Performance Insights
+              Performance Analysis & Insights
             </h2>
+
+            {/* Insight Cards Row */}
             <div className="space-y-4">
               {insights.map(insight => (
                 <PerformanceInsightCard
@@ -1100,24 +1094,36 @@ const AnalysisContent = () => {
                   isPositive={insight.isPositive}
                 />
               ))}
-              <ScoreBreakdownCard
-                matchType={sessionData.matchType}
-                autonomousScore={sessionData.autonomousScore}
-                teleOpScore={sessionData.teleOpScore}
-                endGameScore={sessionData.endGameScore}
-                autonClassifiedArtifact={sessionData.autonClassifiedArtifact}
-                autonOverflowArtifact={sessionData.autonOverflowArtifact}
-                autonMotif={sessionData.autonMotif}
-                autonLeave={sessionData.autonLeave}
-                teleClassifiedArtifact={sessionData.teleClassifiedArtifact}
-                teleOverflowArtifact={sessionData.teleOverflowArtifact}
-                teleMotif={sessionData.teleMotif}
-                endgameHang={sessionData.endgameHang}
-              />
-              {sessionData.selectedFeature === 'Cycle Times' && (
-                <CycleTimesCard cycleTimes={sessionData.cycleTimes} />
-              )}
             </div>
+
+            {/* Performance Graphs */}
+            {historicalSessions.length > 0 && (
+              <PerformanceGraphs
+                currentSession={sessionData}
+                historicalSessions={historicalSessions}
+              />
+            )}
+
+            {/* Score Breakdown Card */}
+            <ScoreBreakdownCard
+              matchType={sessionData.matchType}
+              autonomousScore={sessionData.autonomousScore}
+              teleOpScore={sessionData.teleOpScore}
+              endGameScore={sessionData.endGameScore}
+              autonClassifiedArtifact={sessionData.autonClassifiedArtifact}
+              autonOverflowArtifact={sessionData.autonOverflowArtifact}
+              autonMotif={sessionData.autonMotif}
+              autonLeave={sessionData.autonLeave}
+              teleClassifiedArtifact={sessionData.teleClassifiedArtifact}
+              teleOverflowArtifact={sessionData.teleOverflowArtifact}
+              teleMotif={sessionData.teleMotif}
+              endgameHang={sessionData.endgameHang}
+            />
+
+            {/* Cycle Times Card */}
+            {sessionData.selectedFeature === 'Cycle Times' && (
+              <CycleTimesCard cycleTimes={sessionData.cycleTimes} />
+            )}
           </div>
 
           {/* Action Buttons */}
