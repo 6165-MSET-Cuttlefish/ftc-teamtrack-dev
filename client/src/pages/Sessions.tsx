@@ -120,8 +120,8 @@ const SessionCard = ({
     <Card
       className={`transition-all duration-300 cursor-pointer group ${
         isDarkMode
-          ? 'border-team-blue-40 bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 hover:border-team-blue hover:shadow-2xl hover:shadow-team-blue/20'
-          : 'border-gray-200 bg-white hover:border-team-blue hover:shadow-2xl hover:shadow-team-blue/10'
+          ? 'border-team-blue-40 bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 hover:border-team-blue'
+          : 'border-gray-200 bg-white hover:border-team-blue'
       }`}
       onClick={onView}
     >
