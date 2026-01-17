@@ -504,6 +504,306 @@ const ScoreBreakdownCard = ({
   );
 };
 
+const PerformanceGraphs = ({
+  currentSession,
+  historicalSessions,
+}: {
+  currentSession: Record<string, unknown>;
+  historicalSessions: SessionData[];
+}) => {
+  const { isDarkMode } = useTheme();
+
+  const COLORS = {
+    primary: '#537788',
+    secondary: '#B0E5FE',
+    success: '#10b981',
+    warning: '#f59e0b',
+    danger: '#ef4444',
+    purple: '#8b5cf6',
+  };
+
+  // Score comparison data (current vs average)
+  const getScoreComparisonData = (): ChartDataPoint[] => {
+    if (historicalSessions.length === 0) return [];
+
+    const avgFinal =
+      historicalSessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
+      historicalSessions.length;
+    const avgAuto =
+      historicalSessions.reduce((sum, s) => sum + (s.autonomousScore || 0), 0) /
+      historicalSessions.length;
+    const avgTele =
+      historicalSessions.reduce((sum, s) => sum + (s.teleOpScore || 0), 0) /
+      historicalSessions.length;
+    const avgEndgame =
+      historicalSessions.reduce((sum, s) => sum + (s.endGameScore || 0), 0) /
+      historicalSessions.length;
+
+    return [
+      {
+        name: 'Autonomous',
+        'This Session': (currentSession.autonomousScore as number) || 0,
+        'Your Average': Math.round(avgAuto),
+      },
+      {
+        name: 'TeleOp',
+        'This Session': (currentSession.teleOpScore as number) || 0,
+        'Your Average': Math.round(avgTele),
+      },
+      {
+        name: 'End Game',
+        'This Session': (currentSession.endGameScore as number) || 0,
+        'Your Average': Math.round(avgEndgame),
+      },
+      {
+        name: 'Final',
+        'This Session': (currentSession.finalScore as number) || 0,
+        'Your Average': Math.round(avgFinal),
+      },
+    ];
+  };
+
+  // Phase breakdown pie chart
+  const getPhaseBreakdownData = (): ChartDataPoint[] => {
+    const auto = (currentSession.autonomousScore as number) || 0;
+    const tele = (currentSession.teleOpScore as number) || 0;
+    const endgame = (currentSession.endGameScore as number) || 0;
+
+    return [
+      { name: 'Autonomous', value: auto },
+      { name: 'TeleOp', value: tele },
+      { name: 'End Game', value: endgame },
+    ];
+  };
+
+  // Performance trend (current vs last 5 sessions)
+  const getPerformanceTrendData = (): ChartDataPoint[] => {
+    const recent = historicalSessions.slice(0, 5).reverse();
+    return [
+      ...recent.map((session, idx) => ({
+        name: `Session ${5 - idx}`,
+        Score: session.finalScore || 0,
+      })),
+      {
+        name: 'Current',
+        Score: (currentSession.finalScore as number) || 0,
+      },
+    ];
+  };
+
+  // Radar chart data for consistency analysis
+  const getConsistencyRadarData = (): ChartDataPoint[] => {
+    if (historicalSessions.length === 0) return [];
+
+    const avgAuto =
+      historicalSessions.reduce((sum, s) => sum + (s.autonomousScore || 0), 0) /
+      historicalSessions.length;
+    const avgTele =
+      historicalSessions.reduce((sum, s) => sum + (s.teleOpScore || 0), 0) /
+      historicalSessions.length;
+    const avgEndgame =
+      historicalSessions.reduce((sum, s) => sum + (s.endGameScore || 0), 0) /
+      historicalSessions.length;
+
+    // Calculate standard deviation for consistency
+    const scores = historicalSessions.map(s => s.finalScore || 0);
+    const avgScore =
+      historicalSessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
+      historicalSessions.length;
+    const variance =
+      scores.reduce((acc, score) => acc + Math.pow(score - avgScore, 2), 0) /
+      scores.length;
+    const stdDev = Math.sqrt(variance);
+    const consistency = Math.max(0, 100 - stdDev * 2);
+
+    return [
+      { category: 'Autonomous', value: avgAuto, fullMark: 50 },
+      { category: 'TeleOp', value: avgTele, fullMark: 80 },
+      { category: 'End Game', value: avgEndgame, fullMark: 30 },
+      { category: 'Consistency', value: consistency, fullMark: 100 },
+    ];
+  };
+
+  const scoreComparisonData = getScoreComparisonData();
+  const phaseBreakdownData = getPhaseBreakdownData();
+  const performanceTrendData = getPerformanceTrendData();
+  const consistencyRadarData = getConsistencyRadarData();
+
+  return (
+    <div className="space-y-8">
+      {/* Score Comparison */}
+      {scoreComparisonData.length > 0 && (
+        <div
+          className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
+        >
+          <h3
+            className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+          >
+            Score Comparison
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={scoreComparisonData}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+              />
+              <XAxis
+                dataKey="name"
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip
+                content={
+                  <CustomTooltip isDarkMode={isDarkMode} />
+                }
+              />
+              <Legend wrapperStyle={{ fontSize: '14px' }} />
+              <Bar
+                dataKey="This Session"
+                fill={COLORS.primary}
+                radius={[8, 8, 0, 0]}
+                animationDuration={800}
+              />
+              <Bar
+                dataKey="Your Average"
+                fill={COLORS.secondary}
+                radius={[8, 8, 0, 0]}
+                animationDuration={1000}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Phase Breakdown & Performance Trend */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Phase Breakdown Pie */}
+        {phaseBreakdownData.length > 0 && (
+          <div
+            className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
+          >
+            <h3
+              className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            >
+              Phase Breakdown
+            </h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={phaseBreakdownData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) =>
+                    `${name}: ${((percent || 0) * 100).toFixed(0)}%`
+                  }
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  animationDuration={800}
+                >
+                  {phaseBreakdownData.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={
+                        [COLORS.primary, COLORS.success, COLORS.warning][index]
+                      }
+                    />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Performance Trend */}
+        {performanceTrendData.length > 0 && (
+          <div
+            className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
+          >
+            <h3
+              className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+            >
+              Recent Performance
+            </h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={performanceTrendData}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                />
+                <XAxis
+                  dataKey="name"
+                  stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip
+                  content={<CustomTooltip isDarkMode={isDarkMode} />}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="Score"
+                  stroke={COLORS.primary}
+                  strokeWidth={3}
+                  dot={{ fill: COLORS.primary, r: 5 }}
+                  animationDuration={800}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Consistency Radar */}
+      {consistencyRadarData.length > 0 && (
+        <div
+          className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
+        >
+          <h3
+            className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+          >
+            Performance Analysis
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <RadarChart data={consistencyRadarData}>
+              <PolarGrid stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
+              <PolarAngleAxis
+                dataKey="category"
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                tick={{ fontSize: 12 }}
+              />
+              <PolarRadiusAxis
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                tick={{ fontSize: 11 }}
+              />
+              <Radar
+                name="Average Performance"
+                dataKey="value"
+                stroke={COLORS.primary}
+                strokeWidth={2}
+                fill={COLORS.secondary}
+                fillOpacity={0.6}
+                animationDuration={1000}
+              />
+              <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+              <Legend wrapperStyle={{ fontSize: '14px' }} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AnalysisContent = () => {
   const { sessionData, updateSessionData } = useSession();
   const { isDarkMode } = useTheme();
@@ -512,6 +812,7 @@ const AnalysisContent = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
+  const [historicalSessions, setHistoricalSessions] = useState<SessionData[]>([]);
   const [_graphModal, _setGraphModal] = useState<{
     isOpen: boolean;
     metric: string;
