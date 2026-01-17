@@ -885,11 +885,21 @@ const AnalysisContent = () => {
         }
       }
 
+      // Load historical sessions for comparison
+      if (user?.uid) {
+        try {
+          const sessions = await firebaseService.getUserSessions(user.uid);
+          setHistoricalSessions(sessions);
+        } catch (error) {
+          console.error('Error loading historical sessions:', error);
+        }
+      }
+
       setLoading(false);
     };
 
     loadSessionData();
-  }, [searchParams, location.state, updateSessionData]);
+  }, [searchParams, location.state, updateSessionData, user?.uid]);
 
   // Calculate metrics based on historical data
   useEffect(() => {
