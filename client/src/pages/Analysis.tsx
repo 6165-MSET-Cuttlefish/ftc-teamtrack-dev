@@ -32,6 +32,66 @@ import {
   PolarRadiusAxis,
 } from 'recharts';
 
+interface ChartDataPoint {
+  name?: string;
+  value?: number;
+  category?: string;
+  fullMark?: number;
+  [key: string]: string | number | undefined;
+}
+
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+  isDarkMode,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color: string }>;
+  label?: string;
+  isDarkMode?: boolean;
+}) => {
+  if (active && payload && payload.length) {
+    return (
+      <div
+        className={`p-3 rounded-lg border ${isDarkMode ? 'bg-team-dark/95 border-team-blue-40 backdrop-blur-sm' : 'bg-white/95 border-gray-200 backdrop-blur-sm'} shadow-xl`}
+      >
+        {label && (
+          <p
+            className={`font-bold mb-2 pb-2 border-b text-sm ${isDarkMode ? 'text-white border-team-blue-40' : 'text-gray-900 border-gray-200'}`}
+          >
+            {label}
+          </p>
+        )}
+        <div className="space-y-1">
+          {payload.map((entry, index) => (
+            <div key={index} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span
+                  className={`text-xs font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  {entry.name}:
+                </span>
+              </div>
+              <span
+                className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                style={{ color: entry.color }}
+              >
+                {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
   return (
