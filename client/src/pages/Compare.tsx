@@ -26,15 +26,14 @@ import {
   Clock,
   Target,
   Zap,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ComparisonMetric {
   label: string;
-  session1Value: number | string;
-  session2Value: number | string;
-  difference: number | string;
-  trend: 'up' | 'down' | 'neutral';
+  values: (number | string)[];
+  sessionIds: string[];
   icon: React.ReactNode;
 }
 
@@ -45,11 +44,14 @@ const Compare = () => {
   const [searchParams] = useSearchParams();
 
   const [sessions, setSessions] = useState<SessionData[]>([]);
-  const [selectedSession1, setSelectedSession1] = useState<string>('');
-  const [selectedSession2, setSelectedSession2] = useState<string>('');
-  const [session1Data, setSession1Data] = useState<SessionData | null>(null);
-  const [session2Data, setSession2Data] = useState<SessionData | null>(null);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+  const [selectedSessionsData, setSelectedSessionsData] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Match comparison state
+  const [comparisonMode, setComparisonMode] = useState<'sessions' | 'matches'>('sessions');
+  const [allMatches, setAllMatches] = useState<any[]>([]);
+  const [selectedMatches, setSelectedMatches] = useState<any[]>([]);
 
   // Load user sessions
   useEffect(() => {
@@ -64,8 +66,12 @@ const Compare = () => {
         const session1Id = searchParams.get('session1');
         const session2Id = searchParams.get('session2');
 
-        if (session1Id) setSelectedSession1(session1Id);
-        if (session2Id) setSelectedSession2(session2Id);
+        if (session1Id) {
+          setSelectedSessionIds([session1Id]);
+          if (session2Id) {
+            setSelectedSessionIds([session1Id, session2Id]);
+          }
+        }
       } catch (error) {
         console.error('Error loading sessions:', error);
         toast.error('Failed to load sessions');
@@ -77,46 +83,44 @@ const Compare = () => {
     loadSessions();
   }, [user?.uid, searchParams]);
 
-  // Load session 1 data
+  // Load selected sessions data
   useEffect(() => {
-    const loadSession1 = async () => {
-      if (!selectedSession1) {
-        setSession1Data(null);
-        return;
+    const loadSessionsData = async () => {
+      const sessionsData: SessionData[] = [];
+      for (const sessionId of selectedSessionIds) {
+        try {
+          const session = await firebaseService.getSession(sessionId);
+          sessionsData.push(session);
+        } catch (error) {
+          console.error(`Error loading session ${sessionId}:`, error);
+        }
       }
-
-      try {
-        const session = await firebaseService.getSession(selectedSession1);
-        setSession1Data(session);
-      } catch (error) {
-        console.error('Error loading session 1:', error);
-        toast.error('Failed to load first session');
-      }
+      setSelectedSessionsData(sessionsData);
+      
+      // Load all matches from selected sessions
+      const matches: any[] = [];
+      sessionsData.forEach((session, sessionIndex) => {
+        if (session.matches && session.matches.length > 0) {
+          session.matches.forEach((match: any) => {
+            matches.push({
+              ...match,
+              sessionId: session.id,
+              sessionName: session.sessionName,
+              sessionIndex,
+            });
+          });
+        }
+      });
+      setAllMatches(matches);
     };
 
-    loadSession1();
-  }, [selectedSession1]);
-
-  // Load session 2 data
-  useEffect(() => {
-    const loadSession2 = async () => {
-      if (!selectedSession2) {
-        setSession2Data(null);
-        return;
-      }
-
-      try {
-        const session = await firebaseService.getSession(selectedSession2);
-        setSession2Data(session);
-      } catch (error) {
-        console.error('Error loading session 2:', error);
-        toast.error('Failed to load second session');
-      }
-    };
-
-    loadSession2();
-  }, [selectedSession2]);
-
+    if (selectedSessionIds.length > 0) {
+      loadSessionsData();
+    } else {
+      setSelectedSessionsData([]);
+      setAllMatches([]);
+    }
+  }, [selectedSessionIds]);
   const formatDate = (timestamp: unknown): string => {
     if (!timestamp) return 'Unknown';
 
@@ -141,102 +145,46 @@ const Compare = () => {
     });
   };
 
-  const calculateDifference = (
-    val1: number | undefined,
-    val2: number | undefined
-  ): { diff: number; trend: 'up' | 'down' | 'neutral' } => {
-    const v1 = val1 || 0;
-    const v2 = val2 || 0;
-    const diff = v2 - v1;
-
-    if (diff > 0) return { diff, trend: 'up' };
-    if (diff < 0) return { diff, trend: 'down' };
-    return { diff: 0, trend: 'neutral' };
-  };
-
-  const calculatePercentageChange = (
-    val1: number | undefined,
-    val2: number | undefined
-  ): string => {
-    const v1 = val1 || 0;
-    const v2 = val2 || 0;
-
-    if (v1 === 0) {
-      if (v2 === 0) return '0%';
-      return '+100%';
+  const addSession = (sessionId: string) => {
+    if (!selectedSessionIds.includes(sessionId)) {
+      setSelectedSessionIds([...selectedSessionIds, sessionId]);
+    } else {
+      toast.error('Session already selected');
     }
-
-    const change = ((v2 - v1) / v1) * 100;
-    return `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
   };
 
-  const getAverageCycleTime = (cycleTimes?: number[]): string => {
-    if (!cycleTimes || cycleTimes.length === 0) return 'N/A';
-
-    const avg = cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length;
-    const mins = Math.floor(avg / 60);
-    const secs = Math.round(avg % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const removeSession = (sessionId: string) => {
+    setSelectedSessionIds(selectedSessionIds.filter(id => id !== sessionId));
   };
 
-  const metrics: ComparisonMetric[] = [
-    {
-      label: 'Final Score',
-      session1Value: session1Data?.finalScore || 0,
-      session2Value: session2Data?.finalScore || 0,
-      difference: calculateDifference(
-        session1Data?.finalScore,
-        session2Data?.finalScore
-      ).diff,
-      trend: calculateDifference(
-        session1Data?.finalScore,
-        session2Data?.finalScore
-      ).trend,
-      icon: <Trophy className="w-5 h-5" />,
-    },
-    {
-      label: 'Autonomous Score',
-      session1Value: session1Data?.autonomousScore || 0,
-      session2Value: session2Data?.autonomousScore || 0,
-      difference: calculateDifference(
-        session1Data?.autonomousScore,
-        session2Data?.autonomousScore
-      ).diff,
-      trend: calculateDifference(
-        session1Data?.autonomousScore,
-        session2Data?.autonomousScore
-      ).trend,
-      icon: <Target className="w-5 h-5" />,
-    },
-    {
-      label: 'TeleOp Score',
-      session1Value: session1Data?.teleOpScore || 0,
-      session2Value: session2Data?.teleOpScore || 0,
-      difference: calculateDifference(
-        session1Data?.teleOpScore,
-        session2Data?.teleOpScore
-      ).diff,
-      trend: calculateDifference(
-        session1Data?.teleOpScore,
-        session2Data?.teleOpScore
-      ).trend,
-      icon: <Zap className="w-5 h-5" />,
-    },
-    {
-      label: 'End Game Score',
-      session1Value: session1Data?.endGameScore || 0,
-      session2Value: session2Data?.endGameScore || 0,
-      difference: calculateDifference(
-        session1Data?.endGameScore,
-        session2Data?.endGameScore
-      ).diff,
-      trend: calculateDifference(
-        session1Data?.endGameScore,
-        session2Data?.endGameScore
-      ).trend,
-      icon: <Clock className="w-5 h-5" />,
-    },
-  ];
+  const getMetrics = (): ComparisonMetric[] => {
+    return [
+      {
+        label: 'Final Score',
+        values: selectedSessionsData.map(s => s.finalScore || 0),
+        sessionIds: selectedSessionIds,
+        icon: <Trophy className="w-5 h-5" />,
+      },
+      {
+        label: 'Autonomous Score',
+        values: selectedSessionsData.map(s => s.autonomousScore || 0),
+        sessionIds: selectedSessionIds,
+        icon: <Target className="w-5 h-5" />,
+      },
+      {
+        label: 'TeleOp Score',
+        values: selectedSessionsData.map(s => s.teleOpScore || 0),
+        sessionIds: selectedSessionIds,
+        icon: <Zap className="w-5 h-5" />,
+      },
+      {
+        label: 'End Game Score',
+        values: selectedSessionsData.map(s => s.endGameScore || 0),
+        sessionIds: selectedSessionIds,
+        icon: <Clock className="w-5 h-5" />,
+      },
+    ];
+  };
 
   if (loading) {
     return (
@@ -264,500 +212,524 @@ const Compare = () => {
             Back to Sessions
           </Button>
           <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold mb-2">
-            Session Comparison
+            Comparison
           </h1>
           <p
-            className={`text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+            className={`text-base mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
-            Compare two sessions side-by-side
+            Compare sessions and matches side-by-side
           </p>
+          
+          {/* Comparison Mode Tabs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setComparisonMode('sessions')}
+              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                comparisonMode === 'sessions'
+                  ? `${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue text-white'}`
+                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900'}`
+              }`}
+            >
+              Compare Sessions
+            </button>
+            <button
+              onClick={() => setComparisonMode('matches')}
+              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                comparisonMode === 'matches'
+                  ? `${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue text-white'}`
+                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900'}`
+              }`}
+              disabled={selectedSessionIds.length === 0}
+            >
+              Compare Matches ({allMatches.length})
+            </button>
+          </div>
         </div>
 
-        {/* Session Selectors */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Session 1 Selector */}
-          <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-          >
-            <CardHeader>
-              <CardTitle
-                className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-              >
-                Session 1
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={selectedSession1}
-                onValueChange={setSelectedSession1}
-              >
+        {/* Session Selector */}
+        <Card
+          className={`mb-8 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+        >
+          <CardHeader>
+            <CardTitle
+              className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+            >
+              Select Sessions to Compare
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Select onValueChange={addSession}>
                 <SelectTrigger
                   className={`w-full ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
                 >
-                  <SelectValue placeholder="Select first session" />
+                  <SelectValue placeholder="Add session..." />
                 </SelectTrigger>
                 <SelectContent
                   className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white'}`}
                 >
-                  {sessions.map(session => (
-                    <SelectItem
-                      key={session.id}
-                      value={session.id}
-                      className={`${isDarkMode ? 'text-white focus:bg-team-blue-40' : ''}`}
-                    >
-                      {session.sessionName || 'Unnamed Session'} -{' '}
-                      {formatDate(session.createdAt)}
-                    </SelectItem>
-                  ))}
+                  {sessions
+                    .filter(s => !selectedSessionIds.includes(s.id))
+                    .map(session => (
+                      <SelectItem
+                        key={session.id}
+                        value={session.id}
+                        className={`${isDarkMode ? 'text-white focus:bg-team-blue-40' : ''}`}
+                      >
+                        {session.sessionName || 'Unnamed Session'} -{' '}
+                        {formatDate(session.createdAt)} -{' '}
+                        {session.driverName || 'Unknown'} - Score:{' '}
+                        {session.finalScore || 0}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
 
-              {session1Data && (
-                <div className="mt-4 space-y-2 text-sm">
-                  <div
-                    className={`flex justify-between ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+              {selectedSessionIds.length > 0 && (
+                <div className="space-y-2">
+                  <p
+                    className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    <span>Driver:</span>
-                    <span className="text-team-blue font-medium">
-                      {session1Data.driverName || 'N/A'}
-                    </span>
-                  </div>
-                  <div
-                    className={`flex justify-between ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    <span>Match Type:</span>
-                    <span className="text-team-blue font-medium">
-                      {session1Data.matchType || 'N/A'}
-                    </span>
-                  </div>
-                  <div
-                    className={`flex justify-between ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    <span>Duration:</span>
-                    <span className="text-team-blue font-medium">
-                      {session1Data.sessionDuration || 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Session 2 Selector */}
-          <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-          >
-            <CardHeader>
-              <CardTitle
-                className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-              >
-                Session 2
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={selectedSession2}
-                onValueChange={setSelectedSession2}
-              >
-                <SelectTrigger
-                  className={`w-full ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
-                >
-                  <SelectValue placeholder="Select second session" />
-                </SelectTrigger>
-                <SelectContent
-                  className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white'}`}
-                >
-                  {sessions.map(session => (
-                    <SelectItem
-                      key={session.id}
-                      value={session.id}
-                      className={`${isDarkMode ? 'text-white focus:bg-team-blue-40' : ''}`}
-                    >
-                      {session.sessionName || 'Unnamed Session'} -{' '}
-                      {formatDate(session.createdAt)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {session2Data && (
-                <div className="mt-4 space-y-2 text-sm">
-                  <div
-                    className={`flex justify-between ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    <span>Driver:</span>
-                    <span className="text-team-blue font-medium">
-                      {session2Data.driverName || 'N/A'}
-                    </span>
-                  </div>
-                  <div
-                    className={`flex justify-between ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    <span>Match Type:</span>
-                    <span className="text-team-blue font-medium">
-                      {session2Data.matchType || 'N/A'}
-                    </span>
-                  </div>
-                  <div
-                    className={`flex justify-between ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    <span>Duration:</span>
-                    <span className="text-team-blue font-medium">
-                      {session2Data.sessionDuration || 'N/A'}
-                    </span>
+                    Selected Sessions ({selectedSessionIds.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedSessionsData.map(session => (
+                      <div
+                        key={session.id}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full ${isDarkMode ? 'bg-team-blue/20 border border-team-blue-40' : 'bg-blue-100 border border-team-blue'}`}
+                      >
+                        <span
+                          className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                        >
+                          {session.sessionName || 'Unnamed'} - {formatDate(session.createdAt)}
+                        </span>
+                        <button
+                          onClick={() => removeSession(session.id)}
+                          className={`p-1 rounded-full hover:bg-red-500/20 transition-colors ${isDarkMode ? 'text-team-white-60 hover:text-red-500' : 'text-gray-600 hover:text-red-500'}`}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Comparison Results */}
-        {session1Data && session2Data ? (
-          <div className="space-y-6">
-            {/* Score Comparison Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {metrics.map((metric, index) => (
+        {comparisonMode === 'sessions' ? (
+          selectedSessionsData.length > 0 ? (
+            <div className="space-y-6">
+              {/* Metrics Comparison */}
+              {getMetrics().map((metric, index) => (
                 <Card
                   key={index}
                   className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
                 >
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-team-blue">{metric.icon}</div>
-                      <div
-                        className={`flex items-center gap-1 ${
-                          metric.trend === 'up'
-                            ? 'text-green-500'
-                            : metric.trend === 'down'
-                              ? 'text-red-500'
-                              : 'text-gray-500'
-                        }`}
-                      >
-                        {metric.trend === 'up' && (
-                          <TrendingUp className="w-4 h-4" />
-                        )}
-                        {metric.trend === 'down' && (
-                          <TrendingDown className="w-4 h-4" />
-                        )}
-                        {metric.trend === 'neutral' && (
-                          <Minus className="w-4 h-4" />
-                        )}
-                        <span className="text-sm font-medium">
-                          {Number(metric.difference) > 0 ? '+' : ''}
-                          {metric.difference}
-                        </span>
-                      </div>
-                    </div>
-                    <h3
-                      className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  <CardHeader>
+                    <CardTitle
+                      className={`text-lg flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                     >
+                      <div className="text-team-blue">{metric.icon}</div>
                       {metric.label}
-                    </h3>
-                    <div className="flex justify-between items-baseline">
-                      <div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {selectedSessionsData.map((session, idx) => (
                         <div
-                          className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          key={session.id}
+                          className={`p-4 rounded-lg ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
                         >
-                          {metric.session1Value}
+                          <div
+                            className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            {session.sessionName || 'Unnamed'} - {formatDate(session.createdAt)}
+                          </div>
+                          <div className="text-3xl font-bold text-team-blue mt-2">
+                            {metric.values[idx] || 0}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500">Session 1</div>
-                      </div>
-                      <div className="text-right">
-                        <div
-                          className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          {metric.session2Value}
-                        </div>
-                        <div className="text-xs text-gray-500">Session 2</div>
-                      </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
               ))}
+
+              {/* Detailed Table */}
+              <Card
+                className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+              >
+                <CardHeader>
+                  <CardTitle
+                    className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    Detailed Breakdown
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
+                        >
+                          <th
+                            className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            Metric
+                          </th>
+                          {selectedSessionsData.map(session => (
+                            <th
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                            >
+                              {session.sessionName || 'Unnamed'}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            Final Score
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 font-medium text-team-blue`}
+                            >
+                              {session.finalScore || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            Autonomous Score
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.autonomousScore || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            TeleOp Score
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.teleOpScore || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            End Game Score
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.endGameScore || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            Driver
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.driverName || 'N/A'}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td
+                            className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            Match Type
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.matchType || 'N/A'}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-
-            {/* Detailed Breakdown */}
+          ) : (
             <Card
               className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
             >
-              <CardHeader>
-                <CardTitle
-                  className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  Detailed Breakdown
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr
-                        className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
-                      >
-                        <th
-                          className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                        >
-                          Metric
-                        </th>
-                        <th
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                        >
-                          Session 1
-                        </th>
-                        <th
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                        >
-                          Session 2
-                        </th>
-                        <th
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                        >
-                          Change
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                      >
-                        <td
-                          className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          Autonomous - Classified Artifact
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          {session1Data.autonClassifiedArtifact || 0}
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          {session2Data.autonClassifiedArtifact || 0}
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 font-medium ${
-                            calculateDifference(
-                              session1Data.autonClassifiedArtifact,
-                              session2Data.autonClassifiedArtifact
-                            ).trend === 'up'
-                              ? 'text-green-500'
-                              : calculateDifference(
-                                    session1Data.autonClassifiedArtifact,
-                                    session2Data.autonClassifiedArtifact
-                                  ).trend === 'down'
-                                ? 'text-red-500'
-                                : 'text-gray-500'
-                          }`}
-                        >
-                          {calculatePercentageChange(
-                            session1Data.autonClassifiedArtifact,
-                            session2Data.autonClassifiedArtifact
-                          )}
-                        </td>
-                      </tr>
-                      <tr
-                        className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                      >
-                        <td
-                          className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          TeleOp - Classified Artifact
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          {session1Data.teleClassifiedArtifact || 0}
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          {session2Data.teleClassifiedArtifact || 0}
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 font-medium ${
-                            calculateDifference(
-                              session1Data.teleClassifiedArtifact,
-                              session2Data.teleClassifiedArtifact
-                            ).trend === 'up'
-                              ? 'text-green-500'
-                              : calculateDifference(
-                                    session1Data.teleClassifiedArtifact,
-                                    session2Data.teleClassifiedArtifact
-                                  ).trend === 'down'
-                                ? 'text-red-500'
-                                : 'text-gray-500'
-                          }`}
-                        >
-                          {calculatePercentageChange(
-                            session1Data.teleClassifiedArtifact,
-                            session2Data.teleClassifiedArtifact
-                          )}
-                        </td>
-                      </tr>
-                      <tr
-                        className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                      >
-                        <td
-                          className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          Endgame Hang
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          {session1Data.endgameHang || 0}
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        >
-                          {session2Data.endgameHang || 0}
-                        </td>
-                        <td
-                          className={`text-right py-3 px-4 font-medium ${
-                            calculateDifference(
-                              session1Data.endgameHang,
-                              session2Data.endgameHang
-                            ).trend === 'up'
-                              ? 'text-green-500'
-                              : calculateDifference(
-                                    session1Data.endgameHang,
-                                    session2Data.endgameHang
-                                  ).trend === 'down'
-                                ? 'text-red-500'
-                                : 'text-gray-500'
-                          }`}
-                        >
-                          {calculatePercentageChange(
-                            session1Data.endgameHang,
-                            session2Data.endgameHang
-                          )}
-                        </td>
-                      </tr>
-                      {session1Data.cycleTimes &&
-                        session1Data.cycleTimes.length > 0 &&
-                        session2Data.cycleTimes &&
-                        session2Data.cycleTimes.length > 0 && (
-                          <tr>
-                            <td
-                              className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              Average Cycle Time
-                            </td>
-                            <td
-                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              {getAverageCycleTime(session1Data.cycleTimes)}
-                            </td>
-                            <td
-                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              {getAverageCycleTime(session2Data.cycleTimes)}
-                            </td>
-                            <td
-                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-                            >
-                              —
-                            </td>
-                          </tr>
-                        )}
-                    </tbody>
-                  </table>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <div className="text-team-blue text-5xl mb-4">📊</div>
+                  <h3
+                    className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    Select Sessions to Compare
+                  </h3>
+                  <p
+                    className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  >
+                    Choose sessions from the dropdown above to see detailed
+                    comparison
+                  </p>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Summary Insights */}
-            <Card
-              className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-            >
-              <CardHeader>
-                <CardTitle
-                  className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {metrics.map((metric, index) => {
-                    if (metric.trend === 'neutral') return null;
-                    return (
-                      <div
-                        key={index}
-                        className={`flex items-center gap-3 p-3 rounded-lg ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
-                      >
-                        <div
-                          className={`${
-                            metric.trend === 'up'
-                              ? 'text-green-500'
-                              : 'text-red-500'
-                          }`}
-                        >
-                          {metric.trend === 'up' ? (
-                            <TrendingUp className="w-5 h-5" />
-                          ) : (
-                            <TrendingDown className="w-5 h-5" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <span
-                            className={`${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            {metric.label}{' '}
-                            {metric.trend === 'up' ? 'improved' : 'decreased'}{' '}
-                            by{' '}
-                          </span>
-                          <span
-                            className={`font-bold ${
-                              metric.trend === 'up'
-                                ? 'text-green-500'
-                                : 'text-red-500'
-                            }`}
-                          >
-                            {Math.abs(Number(metric.difference))} points
-                          </span>
-                          <span
-                            className={`${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            {' '}
-                            (
-                            {calculatePercentageChange(
-                              Number(metric.session1Value),
-                              Number(metric.session2Value)
-                            )}
-                            )
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          )
         ) : (
-          <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-          >
-            <CardContent className="py-12">
-              <div className="text-center">
-                <div className="text-team-blue text-5xl mb-4">📊</div>
-                <h3
-                  className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  Select Two Sessions to Compare
-                </h3>
-                <p
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Choose sessions from the dropdowns above to see detailed
-                  comparison
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          // Matches comparison mode
+          allMatches.length > 0 ? (
+            <div className="space-y-6">
+              <Card
+                className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+              >
+                <CardHeader>
+                  <CardTitle
+                    className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    Select Matches to Compare
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {allMatches.map((match, index) => (
+                      <label
+                        key={match.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all ${
+                          selectedMatches.some(m => m.id === match.id)
+                            ? `${isDarkMode ? 'bg-team-blue/20 border-team-blue-40' : 'bg-blue-50 border-team-blue'}`
+                            : `${isDarkMode ? 'bg-team-dark border-team-blue-40 hover:border-team-blue' : 'bg-white border-gray-200 hover:border-team-blue'}`
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedMatches.some(m => m.id === match.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMatches([...selectedMatches, match]);
+                            } else {
+                              setSelectedMatches(selectedMatches.filter(m => m.id !== match.id));
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <span className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {match.sessionName} - Match {match.matchNumber} (Score: {match.finalScore || 0})
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {selectedMatches.length > 0 && (
+                <>
+                  {/* Match Metrics Comparison */}
+                  <Card
+                    className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+                  >
+                    <CardHeader>
+                      <CardTitle
+                        className={`text-lg flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                      >
+                        <Trophy className="w-5 h-5 text-team-blue" />
+                        Score Comparison
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {selectedMatches.map((match) => (
+                          <div
+                            key={match.id}
+                            className={`p-4 rounded-lg ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
+                          >
+                            <div
+                              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                            >
+                              {match.sessionName} - Match {match.matchNumber}
+                            </div>
+                            <div className="text-3xl font-bold text-team-blue mt-2">
+                              {match.finalScore || 0}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Detailed Match Breakdown */}
+                  <Card
+                    className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+                  >
+                    <CardHeader>
+                      <CardTitle
+                        className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                      >
+                        Detailed Match Breakdown
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
+                            >
+                              <th
+                                className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              >
+                                Metric
+                              </th>
+                              {selectedMatches.map(match => (
+                                <th
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                >
+                                  {match.sessionName} - Match {match.matchNumber}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                            >
+                              <td
+                                className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                Final Score
+                              </td>
+                              {selectedMatches.map(match => (
+                                <td
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 font-medium text-team-blue`}
+                                >
+                                  {match.finalScore || 0}
+                                </td>
+                              ))}
+                            </tr>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                            >
+                              <td
+                                className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                Autonomous
+                              </td>
+                              {selectedMatches.map(match => (
+                                <td
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                >
+                                  {match.autonomousScore || 0}
+                                </td>
+                              ))}
+                            </tr>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                            >
+                              <td
+                                className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                TeleOp
+                              </td>
+                              {selectedMatches.map(match => (
+                                <td
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                >
+                                  {match.teleOpScore || 0}
+                                </td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td
+                                className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                End Game
+                              </td>
+                              {selectedMatches.map(match => (
+                                <td
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                >
+                                  {match.endGameScore || 0}
+                                </td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+          ) : (
+            <Card
+              className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+            >
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <div className="text-team-blue text-5xl mb-4">🎮</div>
+                  <h3
+                    className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    No Matches Found
+                  </h3>
+                  <p
+                    className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  >
+                    The selected sessions don't have any matches recorded yet
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )
         )}
       </div>
     </div>

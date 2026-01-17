@@ -11,6 +11,13 @@ import {
 } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import {
   Search,
   Plus,
   Calendar,
@@ -330,6 +337,7 @@ const Sessions = () => {
   const [filteredSessions, setFilteredSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
 
   // Check if there's an active session
   const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
@@ -355,20 +363,27 @@ const Sessions = () => {
   }, [user?.uid]);
 
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredSessions(sessions);
-      return;
+    let filtered = sessions;
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(
+        session =>
+          session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          session.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
-    const filtered = sessions.filter(
-      session =>
-        session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        session.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Filter by match type
+    if (selectedMatchType !== 'all') {
+      filtered = filtered.filter(
+        session => session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
+      );
+    }
 
     setFilteredSessions(filtered);
-  }, [searchTerm, sessions]);
+  }, [searchTerm, sessions, selectedMatchType]);
 
   const handleViewSession = (sessionId: string) => {
     navigate(`/analysis?sessionId=${sessionId}`);
@@ -574,8 +589,8 @@ const Sessions = () => {
           <div
             className={`mb-6 p-8 rounded-2xl border shadow-lg ${
               isDarkMode
-                ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40'
-                : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+                ? 'bg-team-dark-20 border-team-blue-40'
+                : 'bg-white border-gray-200'
             }`}
           >
             <h3
@@ -644,20 +659,45 @@ const Sessions = () => {
         )}
 
         <div className="mb-6">
-          <div className="relative">
-            <Search
-              className={`absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
-            />
-            <Input
-              placeholder="Search sessions by name, driver, or type..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className={`pl-12 h-12 text-base rounded-xl shadow-md transition-all duration-300 focus:shadow-lg ${
-                isDarkMode
-                  ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue'
-                  : 'bg-white border-gray-200 text-team-blue placeholder-gray-400 focus:border-team-blue'
-              }`}
-            />
+          <div className="relative flex gap-4">
+            <div className="flex-1">
+              <Search
+                className={`absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+              />
+              <Input
+                placeholder="Search sessions by name, driver, or type..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className={`pl-12 h-12 text-base rounded-xl shadow-md transition-all duration-300 focus:shadow-lg ${
+                  isDarkMode
+                    ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue'
+                    : 'bg-white border-gray-200 text-team-blue placeholder-gray-400 focus:border-team-blue'
+                }`}
+              />
+            </div>
+            <Select
+              value={selectedMatchType}
+              onValueChange={setSelectedMatchType}
+            >
+              <SelectTrigger
+                className={`w-[200px] h-12 rounded-xl shadow-md border ${
+                  isDarkMode
+                    ? 'bg-team-dark border-team-blue-40 text-white'
+                    : 'bg-white border-gray-300 text-team-blue'
+                }`}
+              >
+                <SelectValue placeholder="All Match Types" />
+              </SelectTrigger>
+              <SelectContent
+                className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-300'}`}
+              >
+                <SelectItem value="all">All Match Types</SelectItem>
+                <SelectItem value="autonomous">Autonomous</SelectItem>
+                <SelectItem value="teleop">TeleOp</SelectItem>
+                <SelectItem value="full game">Full Game</SelectItem>
+                <SelectItem value="practice">Practice</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

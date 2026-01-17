@@ -892,7 +892,6 @@ const Charts = () => {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-
             {/* Score Component Breakdown */}
             <Card
               className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
@@ -911,29 +910,31 @@ const Charts = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={scoreBreakdownData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                    />
-                    <XAxis
-                      dataKey="name"
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar
+                  <PieChart>
+                    <Pie
+                      data={scoreBreakdownData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) =>
+                        `${name}: ${value || 0}`
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
                       dataKey="value"
-                      fill={COLORS.primary}
-                      radius={[8, 8, 0, 0]}
                       animationDuration={1000}
-                      animationBegin={300}
-                    />
-                  </BarChart>
+                      animationBegin={200}
+                    >
+                      {scoreBreakdownData.map((_entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={PIE_COLORS[index % PIE_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: '14px' }} />
+                  </PieChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -970,8 +971,8 @@ const Charts = () => {
                       tick={{ fontSize: 11 }}
                     />
                     <Radar
-                      name="Performance"
-                      dataKey="value"
+                      name=\"Performance\"
+                      dataKey=\"value\"
                       stroke={COLORS.primary}
                       strokeWidth={2}
                       fill={COLORS.secondary}
@@ -1060,14 +1061,14 @@ const Charts = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
+                <ResponsiveContainer width=\"100%\" height={350}>
                   <BarChart data={scoreByMatchType}>
                     <CartesianGrid
-                      strokeDasharray="3 3"
+                      strokeDasharray=\"3 3\"
                       stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
                     />
                     <XAxis
-                      dataKey="name"
+                      dataKey=\"name\"
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                       tick={{ fontSize: 12 }}
                     />
@@ -1078,24 +1079,24 @@ const Charts = () => {
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: '14px' }} />
                     <Bar
-                      dataKey="Avg Auto"
+                      dataKey=\"Avg Auto\"
                       fill={COLORS.success}
-                      stackId="a"
+                      stackId=\"a\"
                       radius={[0, 0, 0, 0]}
                       animationDuration={1000}
                     />
                     <Bar
-                      dataKey="Avg Tele"
+                      dataKey=\"Avg Tele\"
                       fill={COLORS.warning}
-                      stackId="a"
+                      stackId=\"a\"
                       radius={[0, 0, 0, 0]}
                       animationDuration={1000}
                       animationBegin={200}
                     />
                     <Bar
-                      dataKey="Avg Endgame"
+                      dataKey=\"Avg Endgame\"
                       fill={COLORS.purple}
-                      stackId="a"
+                      stackId=\"a\"
                       radius={[8, 8, 0, 0]}
                       animationDuration={1000}
                       animationBegin={400}
@@ -1124,14 +1125,14 @@ const Charts = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
+                <ResponsiveContainer width=\"100%\" height={350}>
                   <LineChart data={cycleTimeData}>
                     <CartesianGrid
-                      strokeDasharray="3 3"
+                      strokeDasharray=\"3 3\"
                       stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
                     />
                     <XAxis
-                      dataKey="name"
+                      dataKey=\"name\"
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                       tick={{ fontSize: 12 }}
                     />
@@ -1143,29 +1144,29 @@ const Charts = () => {
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: '14px' }} />
                     <Line
-                      type="monotone"
-                      dataKey="Avg Cycle"
+                      type=\"monotone\"
+                      dataKey=\"Avg Cycle\"
                       stroke={COLORS.primary}
                       strokeWidth={3}
                       dot={{ fill: COLORS.primary, r: 6, strokeWidth: 2, stroke: '#fff' }}
                       animationDuration={1200}
                     />
                     <Line
-                      type="monotone"
-                      dataKey="Fastest"
+                      type=\"monotone\"
+                      dataKey=\"Fastest\"
                       stroke={COLORS.success}
                       strokeWidth={2}
-                      strokeDasharray="5 5"
+                      strokeDasharray=\"5 5\"
                       dot={{ fill: COLORS.success, r: 5, strokeWidth: 2, stroke: '#fff' }}
                       animationDuration={1200}
                       animationBegin={200}
                     />
                     <Line
-                      type="monotone"
-                      dataKey="Slowest"
+                      type=\"monotone\"
+                      dataKey=\"Slowest\"
                       stroke={COLORS.danger}
                       strokeWidth={2}
-                      strokeDasharray="5 5"
+                      strokeDasharray=\"5 5\"
                       dot={{ fill: COLORS.danger, r: 5, strokeWidth: 2, stroke: '#fff' }}
                       animationDuration={1200}
                       animationBegin={400}

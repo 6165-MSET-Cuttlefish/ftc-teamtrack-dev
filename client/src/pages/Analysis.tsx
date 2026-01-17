@@ -8,6 +8,7 @@ import {
   TrendingDown,
   BarChart3,
   ChevronRight,
+  Tabs,
 } from 'lucide-react';
 import {
   BarChart,
@@ -821,6 +822,18 @@ const AnalysisContent = () => {
     isOpen: false,
     metric: '',
   });
+  
+  // Match tracking
+  const [viewMode, setViewMode] = useState<'overview' | 'matches'>('overview');
+  const [sessionMatches, setSessionMatches] = useState<any[]>([]);
+  const [selectedMatchIndex, setSelectedMatchIndex] = useState<number | null>(null);
+
+  // Initialize matches from session data
+  useEffect(() => {
+    if (sessionData?.matches && sessionData.matches.length > 0) {
+      setSessionMatches(sessionData.matches);
+    }
+  }, [sessionData?.matches]);
 
   // Calculated metrics
   const [consistency, setConsistency] = useState<number>(0);
@@ -1126,6 +1139,130 @@ const AnalysisContent = () => {
               <CycleTimesCard cycleTimes={sessionData.cycleTimes} />
             )}
           </div>
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-team-blue text-2xl font-semibold">
+                    Matches in This Session
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const newMatch = {
+                        id: `match-${Date.now()}`,
+                        matchNumber: sessionMatches.length + 1,
+                        matchType: '',
+                        finalScore: 0,
+                        autonomousScore: 0,
+                        teleOpScore: 0,
+                        endGameScore: 0,
+                      };
+                      const updatedMatches = [...sessionMatches, newMatch];
+                      setSessionMatches(updatedMatches);
+                      updateSessionData({ matches: updatedMatches });
+                      setSelectedMatchIndex(updatedMatches.length - 1);
+                    }}
+                    className="px-4 py-2 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors"
+                  >
+                    + Add Match
+                  </button>
+                </div>
+
+                {sessionMatches.length > 0 ? (
+                  <>
+                    <div className="flex flex-col gap-4">
+                      {sessionMatches.map((match, index) => (
+                        <button
+                          key={match.id}
+                          onClick={() => setSelectedMatchIndex(index)}
+                          className={`p-4 rounded-lg text-left transition-all ${
+                            selectedMatchIndex === index
+                              ? `${isDarkMode ? 'bg-team-blue/20 border-2 border-team-blue-40' : 'bg-blue-50 border-2 border-team-blue'}`
+                              : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 hover:border-team-blue' : 'bg-white border border-gray-200 hover:border-team-blue'}`
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-4">
+                            <div>
+                              <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                Match {match.matchNumber}
+                              </h3>
+                              <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                                Score: {match.finalScore || 0} pts • Type: {match.matchType || 'N/A'}
+                              </p>
+                            </div>
+                            <ChevronRight className={`w-5 h-5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`} />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    <Link
+                      to="/original"
+                      className="w-full px-4 py-3 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors text-center font-semibold"
+                    >
+                      Record Another Match
+                    </Link>
+
+                    {selectedMatchIndex !== null && sessionMatches[selectedMatchIndex] && (
+                      <div className={`p-6 rounded-lg border space-y-4 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
+                        <div className="flex justify-between items-start">
+                          <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            Match {sessionMatches[selectedMatchIndex].matchNumber} Details
+                          </h3>
+                          <button
+                            onClick={() => {
+                              const updated = sessionMatches.filter((_, i) => i !== selectedMatchIndex);
+                              setSessionMatches(updated);
+                              updateSessionData({ matches: updated });
+                              setSelectedMatchIndex(null);
+                            }}
+                            className="text-red-500 hover:text-red-700 font-medium"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
+                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Final Score</p>
+                            <p className="text-2xl font-bold text-team-blue">{sessionMatches[selectedMatchIndex].finalScore || 0}</p>
+                          </div>
+                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
+                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Match Type</p>
+                            <p className="text-lg font-semibold text-team-blue">{sessionMatches[selectedMatchIndex].matchType || 'N/A'}</p>
+                          </div>
+                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
+                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Autonomous</p>
+                            <p className="text-lg font-semibold text-team-blue">{sessionMatches[selectedMatchIndex].autonomousScore || 0}</p>
+                          </div>
+                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
+                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>TeleOp</p>
+                            <p className="text-lg font-semibold text-team-blue">{sessionMatches[selectedMatchIndex].teleOpScore || 0}</p>
+                          </div>
+                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
+                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>End Game</p>
+                            <p className="text-lg font-semibold text-team-blue">{sessionMatches[selectedMatchIndex].endGameScore || 0}</p>
+                          </div>
+                        </div>
+                        <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                          Use the Compare page to view detailed analysis of this match alongside other matches and sessions.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className={`text-center py-12 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}>
+                    <p className={`text-lg mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                      No matches recorded yet
+                    </p>
+                    <Link
+                      to="/original"
+                      className="inline-block px-6 py-3 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors font-semibold"
+                    >
+                      Record Your First Match
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

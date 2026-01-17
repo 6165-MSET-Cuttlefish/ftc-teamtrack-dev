@@ -1,5 +1,25 @@
 import { Timestamp } from 'firebase/firestore';
 
+export interface Match {
+  id: string;
+  matchNumber: number;
+  matchType?: string;
+  finalScore?: number;
+  autonomousScore?: number;
+  teleOpScore?: number;
+  endGameScore?: number;
+  autonClassifiedArtifact?: number;
+  autonOverflowArtifact?: number;
+  autonMotif?: number;
+  autonLeave?: number;
+  teleClassifiedArtifact?: number;
+  teleOverflowArtifact?: number;
+  teleMotif?: number;
+  endgameHang?: number;
+  cycleTimes?: number[];
+  createdAt?: Timestamp | string;
+}
+
 export interface Session {
   id: string;
   userId: string;
@@ -24,5 +44,7 @@ export interface Session {
   // Features and cycle times
   selectedFeature?: string;
   cycleTimes?: number[];
+  // Matches within the session
+  matches?: Match[];
   [key: string]: unknown;
 }
