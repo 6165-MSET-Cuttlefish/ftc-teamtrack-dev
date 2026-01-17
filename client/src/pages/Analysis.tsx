@@ -1068,6 +1068,14 @@ const AnalysisContent = () => {
             <DataCard value={`${accuracy}%`} label="Accuracy" />
           </div>
 
+          {/* Performance Graphs */}
+          {historicalSessions.length > 0 && (
+            <PerformanceGraphs
+              currentSession={sessionData}
+              historicalSessions={historicalSessions}
+            />
+          )}
+
           {/* Sensor Overview */}
           <SensorOverviewCard
             sessionName={sessionData.sessionName}
