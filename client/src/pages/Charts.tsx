@@ -32,11 +32,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
   Area,
   AreaChart,
   LineChart,
@@ -152,22 +147,6 @@ const Charts = () => {
       }));
   };
 
-  // Match Type Distribution
-  const getMatchTypeData = (): ChartDataPoint[] => {
-    const filteredSessions = getFilteredSessions();
-    const distribution: Record<string, number> = {};
-
-    filteredSessions.forEach(session => {
-      const type = session.matchType || 'Practice';
-      distribution[type] = (distribution[type] || 0) + 1;
-    });
-
-    return Object.entries(distribution).map(([name, value]) => ({
-      name,
-      value,
-    }));
-  };
-
   // Score Component Breakdown (Average)
   const getScoreBreakdownData = (): ChartDataPoint[] => {
     const filteredSessions = getFilteredSessions();
@@ -188,49 +167,6 @@ const Charts = () => {
       { name: 'Autonomous', value: Math.round(totals.autonomous / count) },
       { name: 'TeleOp', value: Math.round(totals.teleOp / count) },
       { name: 'End Game', value: Math.round(totals.endGame / count) },
-    ];
-  };
-
-  // Performance Radar
-  const getPerformanceRadarData = (): ChartDataPoint[] => {
-    const filteredSessions = getFilteredSessions();
-    if (filteredSessions.length === 0) return [];
-
-    const avgScores = {
-      autonomous: 0,
-      teleOp: 0,
-      endGame: 0,
-      consistency: 0,
-      total: 0,
-    };
-
-    filteredSessions.forEach(session => {
-      avgScores.autonomous += session.autonomousScore || 0;
-      avgScores.teleOp += session.teleOpScore || 0;
-      avgScores.endGame += session.endGameScore || 0;
-      avgScores.total += session.finalScore || 0;
-    });
-
-    const count = filteredSessions.length;
-    avgScores.autonomous = Math.round(avgScores.autonomous / count);
-    avgScores.teleOp = Math.round(avgScores.teleOp / count);
-    avgScores.endGame = Math.round(avgScores.endGame / count);
-    avgScores.total = Math.round(avgScores.total / count);
-
-    // Calculate consistency (inverse of standard deviation)
-    const scores = filteredSessions.map(s => s.finalScore || 0);
-    const mean = avgScores.total;
-    const variance =
-      scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) / count;
-    const stdDev = Math.sqrt(variance);
-    avgScores.consistency = Math.max(0, 100 - stdDev * 2); // Scale to 0-100
-
-    return [
-      { category: 'Autonomous', value: avgScores.autonomous, fullMark: 50 },
-      { category: 'TeleOp', value: avgScores.teleOp, fullMark: 80 },
-      { category: 'End Game', value: avgScores.endGame, fullMark: 30 },
-      { category: 'Consistency', value: avgScores.consistency, fullMark: 100 },
-      { category: 'Total Avg', value: avgScores.total, fullMark: 150 },
     ];
   };
 
@@ -262,31 +198,6 @@ const Charts = () => {
     });
   };
 
-  // Score Comparison by Match Type
-  const getScoreByMatchType = (): ChartDataPoint[] => {
-    const filteredSessions = getFilteredSessions();
-    const matchTypes: { [key: string]: { scores: number[]; auto: number[]; tele: number[]; endgame: number[] } } = {};
-
-    filteredSessions.forEach(session => {
-      const type = session.matchType || 'Practice';
-      if (!matchTypes[type]) {
-        matchTypes[type] = { scores: [], auto: [], tele: [], endgame: [] };
-      }
-      matchTypes[type].scores.push(session.finalScore || 0);
-      matchTypes[type].auto.push(session.autonomousScore || 0);
-      matchTypes[type].tele.push(session.teleOpScore || 0);
-      matchTypes[type].endgame.push(session.endGameScore || 0);
-    });
-
-    return Object.entries(matchTypes).map(([name, data]) => ({
-      name,
-      'Avg Total': Math.round(data.scores.reduce((sum, s) => sum + s, 0) / data.scores.length),
-      'Avg Auto': Math.round(data.auto.reduce((sum, s) => sum + s, 0) / data.auto.length),
-      'Avg Tele': Math.round(data.tele.reduce((sum, s) => sum + s, 0) / data.tele.length),
-      'Avg Endgame': Math.round(data.endgame.reduce((sum, s) => sum + s, 0) / data.endgame.length),
-    }));
-  };
-
   // Recent Performance Trend (Last 10 sessions)
   const getRecentTrendData = (): ChartDataPoint[] => {
     const allSessions = getFilteredSessions();
@@ -313,6 +224,40 @@ const Charts = () => {
         name: `#${recent.length - index}`,
         Score: session.finalScore || 0,
         'Moving Avg': Math.round(movingAvg),
+      };
+    });
+  };
+
+  // Consistency Over Time (rolling standard deviation)
+  const getConsistencyOverTimeData = (): ChartDataPoint[] => {
+    const allSessions = getFilteredSessions();
+    const sorted = [...allSessions].sort((a, b) => {
+      const dateA =
+        typeof a.createdAt === 'string'
+          ? new Date(a.createdAt)
+          : new Date((a.createdAt as { seconds: number }).seconds * 1000);
+      const dateB =
+        typeof b.createdAt === 'string'
+          ? new Date(b.createdAt)
+          : new Date((b.createdAt as { seconds: number }).seconds * 1000);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    if (sorted.length < 3) return [];
+
+    return sorted.slice(2).map((session, index) => {
+      const windowSessions = sorted.slice(Math.max(0, index), index + 3);
+      const scores = windowSessions.map(s => s.finalScore || 0);
+      const mean = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+      const variance = scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) / scores.length;
+      const stdDev = Math.sqrt(variance);
+      // Convert to consistency percentage (lower std dev = higher consistency)
+      const consistency = Math.max(0, Math.min(100, 100 - (stdDev / mean) * 100));
+
+      return {
+        name: formatDate(session.createdAt),
+        Consistency: Math.round(consistency),
+        Score: session.finalScore || 0,
       };
     });
   };
@@ -446,12 +391,10 @@ const Charts = () => {
   }
 
   const scoreTrendData = getScoreTrendData();
-  const matchTypeData = getMatchTypeData();
   const scoreBreakdownData = getScoreBreakdownData();
-  const performanceRadarData = getPerformanceRadarData();
   const cycleTimeData = getCycleTimeData();
-  const scoreByMatchType = getScoreByMatchType();
   const recentTrendData = getRecentTrendData();
+  const consistencyOverTimeData = getConsistencyOverTimeData();
 
   return (
     <div
@@ -846,52 +789,6 @@ const Charts = () => {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Match Type Distribution */}
-            <Card
-              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
-            >
-              <CardHeader>
-                <CardTitle
-                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                    Match Type Distribution
-                </CardTitle>
-                <CardDescription
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Breakdown of practice vs competition sessions
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={matchTypeData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) =>
-                        `${name}: ${((percent || 0) * 100).toFixed(0)}%`
-                      }
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                      animationDuration={1000}
-                      animationBegin={200}
-                    >
-                      {matchTypeData.map((_entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={PIE_COLORS[index % PIE_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '14px' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
             {/* Score Component Breakdown */}
             <Card
               className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
@@ -941,52 +838,6 @@ const Charts = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Performance Radar */}
-            <Card
-              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
-            >
-              <CardHeader>
-                <CardTitle
-                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                    Performance Overview
-                </CardTitle>
-                <CardDescription
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Multi-dimensional performance analysis
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <RadarChart data={performanceRadarData}>
-                    <PolarGrid stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
-                    <PolarAngleAxis
-                      dataKey="category"
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <PolarRadiusAxis
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 11 }}
-                    />
-                    <Radar
-                      name=\"Performance\"
-                      dataKey=\"value\"
-                      stroke={COLORS.primary}
-                      strokeWidth={2}
-                      fill={COLORS.secondary}
-                      fillOpacity={0.6}
-                      animationDuration={1200}
-                      animationBegin={400}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '14px' }} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
             {/* Recent Performance Trend */}
             <Card
               className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
@@ -1041,71 +892,57 @@ const Charts = () => {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Score Comparison by Match Type */}
-          {scoreByMatchType.length > 0 && (
-            <Card
-              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
-            >
-              <CardHeader>
-                <CardTitle
-                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                    Performance by Match Type
-                </CardTitle>
-                <CardDescription
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Compare average scores across different match types
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width=\"100%\" height={350}>
-                  <BarChart data={scoreByMatchType}>
-                    <CartesianGrid
-                      strokeDasharray=\"3 3\"
-                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                    />
-                    <XAxis
-                      dataKey=\"name\"
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '14px' }} />
-                    <Bar
-                      dataKey=\"Avg Auto\"
-                      fill={COLORS.success}
-                      stackId=\"a\"
-                      radius={[0, 0, 0, 0]}
-                      animationDuration={1000}
-                    />
-                    <Bar
-                      dataKey=\"Avg Tele\"
-                      fill={COLORS.warning}
-                      stackId=\"a\"
-                      radius={[0, 0, 0, 0]}
-                      animationDuration={1000}
-                      animationBegin={200}
-                    />
-                    <Bar
-                      dataKey=\"Avg Endgame\"
-                      fill={COLORS.purple}
-                      stackId=\"a\"
-                      radius={[8, 8, 0, 0]}
-                      animationDuration={1000}
-                      animationBegin={400}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
+            {/* Consistency Over Time */}
+            {consistencyOverTimeData.length > 0 && (
+              <Card
+                className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
+              >
+                <CardHeader>
+                  <CardTitle
+                    className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                      Consistency Over Time
+                  </CardTitle>
+                  <CardDescription
+                    className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  >
+                    Rolling 3-session consistency percentage
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={consistencyOverTimeData}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        tick={{ fontSize: 12 }}
+                        domain={[0, 100]}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: '14px' }} />
+                      <Line
+                        type="monotone"
+                        dataKey="Consistency"
+                        stroke={COLORS.purple}
+                        strokeWidth={3}
+                        dot={{ fill: COLORS.purple, r: 5, strokeWidth: 2, stroke: '#fff' }}
+                        animationDuration={1200}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           {/* Cycle Time Analysis */}
           {cycleTimeData.length > 0 && (

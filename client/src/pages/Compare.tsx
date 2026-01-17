@@ -430,6 +430,74 @@ const Compare = () => {
                           className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                         >
                           <td
+                            className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            ↳ Classified Artifact
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.autonClassifiedArtifact || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            ↳ Overflow Artifact
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.autonOverflowArtifact || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            ↳ Motif
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.autonMotif || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            ↳ Leave
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.autonLeave || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
                             className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
                             TeleOp Score
@@ -447,6 +515,57 @@ const Compare = () => {
                           className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                         >
                           <td
+                            className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            ↳ Classified Artifact
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.teleClassifiedArtifact || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            ↳ Overflow Artifact
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.teleOverflowArtifact || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            ↳ Motif
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.teleMotif || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
                             className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
                             End Game Score
@@ -457,6 +576,23 @@ const Compare = () => {
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
                               {session.endGameScore || 0}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            ↳ Hang
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.endgameHang || 0}
                             </td>
                           ))}
                         </tr>

@@ -127,7 +127,7 @@ const SessionCard = ({
     <Card
       className={`transition-all duration-300 cursor-pointer group ${
         isDarkMode
-          ? 'border-team-blue-40 bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 hover:border-team-blue'
+          ? 'border-team-blue-40 bg-team-dark hover:border-team-blue'
           : 'border-gray-200 bg-white hover:border-team-blue'
       }`}
       onClick={onView}
@@ -205,7 +205,7 @@ const SessionCard = ({
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 bg-gradient-to-br from-team-blue/20 to-team-blue/10 px-4 py-2 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center gap-2 bg-team-blue/15 px-4 py-2 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
             <Trophy className="h-5 w-5 text-team-blue group-hover:scale-110 transition-transform duration-300" />
             <span className="text-xl font-bold text-team-blue">
               {session.finalScore || 0}
