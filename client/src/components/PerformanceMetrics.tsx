@@ -238,7 +238,7 @@ export const PerformanceMetrics = () => {
   // Keyboard event listener for 1, 2, 3 keys and Enter for cycle time
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      // Handle Enter key to confirm popup FIRST - prevent it from affecting anything else
+      // Handle Enter key to confirm popup and record cycle time
       if (event.key === 'Enter' && showPopup && madeCount !== null) {
         event.preventDefault();
         event.stopPropagation();
@@ -247,6 +247,11 @@ export const PerformanceMetrics = () => {
           setAutonomousBasket(prev => prev + madeCount);
         } else if (expandedSection === 'TeleOp Score') {
           setTeleOpSamples(prev => prev + madeCount);
+        }
+
+        // Record cycle time if Cycle Times feature is enabled
+        if (sessionData.selectedFeature === 'Cycle Times') {
+          recordCycleTime();
         }
 
         // Close popup after confirming
@@ -260,16 +265,6 @@ export const PerformanceMetrics = () => {
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement
       ) {
-        return;
-      }
-
-      // Handle Enter key for recording cycle time when Cycle Times is selected
-      if (
-        event.key === 'Enter' &&
-        sessionData.selectedFeature === 'Cycle Times'
-      ) {
-        event.preventDefault();
-        recordCycleTime();
         return;
       }
 
