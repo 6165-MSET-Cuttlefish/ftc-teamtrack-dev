@@ -962,14 +962,14 @@ const Charts = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width=\"100%\" height={350}>
+                <ResponsiveContainer width="100%" height={350}>
                   <LineChart data={cycleTimeData}>
                     <CartesianGrid
-                      strokeDasharray=\"3 3\"
+                      strokeDasharray="3 3"
                       stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
                     />
                     <XAxis
-                      dataKey=\"name\"
+                      dataKey="name"
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                       tick={{ fontSize: 12 }}
                     />
@@ -981,29 +981,29 @@ const Charts = () => {
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: '14px' }} />
                     <Line
-                      type=\"monotone\"
-                      dataKey=\"Avg Cycle\"
+                      type="monotone"
+                      dataKey="Avg Cycle"
                       stroke={COLORS.primary}
                       strokeWidth={3}
                       dot={{ fill: COLORS.primary, r: 6, strokeWidth: 2, stroke: '#fff' }}
                       animationDuration={1200}
                     />
                     <Line
-                      type=\"monotone\"
-                      dataKey=\"Fastest\"
+                      type="monotone"
+                      dataKey="Fastest"
                       stroke={COLORS.success}
                       strokeWidth={2}
-                      strokeDasharray=\"5 5\"
+                      strokeDasharray="5 5"
                       dot={{ fill: COLORS.success, r: 5, strokeWidth: 2, stroke: '#fff' }}
                       animationDuration={1200}
                       animationBegin={200}
                     />
                     <Line
-                      type=\"monotone\"
-                      dataKey=\"Slowest\"
+                      type="monotone"
+                      dataKey="Slowest"
                       stroke={COLORS.danger}
                       strokeWidth={2}
-                      strokeDasharray=\"5 5\"
+                      strokeDasharray="5 5"
                       dot={{ fill: COLORS.danger, r: 5, strokeWidth: 2, stroke: '#fff' }}
                       animationDuration={1200}
                       animationBegin={400}
