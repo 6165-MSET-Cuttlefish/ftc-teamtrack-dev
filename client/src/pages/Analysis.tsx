@@ -510,6 +510,70 @@ const ScoreBreakdownCard = ({
   );
 };
 
+const SessionSummary = ({
+  stats,
+  matchCount,
+}: {
+  stats: ReturnType<typeof calculateMatchStats>;
+  matchCount: number;
+}) => {
+  const { isDarkMode } = useTheme();
+
+  if (!stats) return null;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-team-blue text-2xl font-semibold">Session Summary</h2>
+
+      {/* Key Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <div className="text-xs text-team-white-60 mb-1">Average Score</div>
+          <div className="text-3xl font-bold text-team-blue">{stats.avgScore}</div>
+          <div className="text-xs text-team-white-60 mt-2">{matchCount} matches</div>
+        </div>
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <div className="text-xs text-team-white-60 mb-1">Highest Score</div>
+          <div className="text-3xl font-bold text-team-blue">{stats.maxScore}</div>
+        </div>
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <div className="text-xs text-team-white-60 mb-1">Lowest Score</div>
+          <div className="text-3xl font-bold text-team-blue">{stats.minScore}</div>
+        </div>
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <div className="text-xs text-team-white-60 mb-1">Consistency</div>
+          <div className="text-3xl font-bold text-team-blue">{stats.consistency}%</div>
+        </div>
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <div className="text-xs text-team-white-60 mb-1">Accuracy</div>
+          <div className="text-3xl font-bold text-team-blue">{stats.accuracy}%</div>
+        </div>
+      </div>
+
+      {/* Phase Averages */}
+      <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Average Points by Phase
+        </h3>
+        <div className="grid grid-cols-3 gap-4">
+          <div className={`p-4 rounded text-center ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
+            <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Autonomous</div>
+            <div className="text-2xl font-bold text-team-blue mt-2">{stats.avgAuto}</div>
+          </div>
+          <div className={`p-4 rounded text-center ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
+            <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>TeleOp</div>
+            <div className="text-2xl font-bold text-team-blue mt-2">{stats.avgTele}</div>
+          </div>
+          <div className={`p-4 rounded text-center ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
+            <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>End Game</div>
+            <div className="text-2xl font-bold text-team-blue mt-2">{stats.avgEndgame}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PerformanceGraphs = ({
   currentSession,
   historicalSessions,
