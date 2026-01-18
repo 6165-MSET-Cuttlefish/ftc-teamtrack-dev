@@ -840,6 +840,51 @@ const AnalysisContent = () => {
   const [consistency, setConsistency] = useState<number>(0);
   const [accuracy, setAccuracy] = useState<number>(0);
 
+  // Helper functions for match analysis
+  const calculateMatchStats = () => {
+    if (sessionMatches.length === 0) return null;
+
+    const scores = sessionMatches.map(m => m.finalScore || 0);
+    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const maxScore = Math.max(...scores);
+    const minScore = Math.min(...scores);
+
+    // Consistency calculation (inverse of coefficient of variation)
+    const variance = scores.reduce((sum, score) => sum + Math.pow(score - avgScore, 2), 0) / scores.length;
+    const stdDev = Math.sqrt(variance);
+    const consistencyPercent = avgScore > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / avgScore) * 100)) : 0;
+
+    // Accuracy calculation (percentage of theoretical max)
+    const maxPossible = 150;
+    const accuracyPercent = (avgScore / maxPossible) * 100;
+
+    const avgAuto = sessionMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / sessionMatches.length;
+    const avgTele = sessionMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / sessionMatches.length;
+    const avgEndgame = sessionMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / sessionMatches.length;
+
+    return {
+      avgScore: Math.round(avgScore),
+      maxScore,
+      minScore,
+      consistency: Math.round(consistencyPercent),
+      accuracy: Math.round(Math.min(100, accuracyPercent)),
+      avgAuto: Math.round(avgAuto),
+      avgTele: Math.round(avgTele),
+      avgEndgame: Math.round(avgEndgame),
+      totalMatches: sessionMatches.length,
+    };
+  };
+
+  const getMatchComparisonData = (): ChartDataPoint[] => {
+    return sessionMatches.map((match, idx) => ({
+      name: `Match ${idx + 1}`,
+      'Final Score': match.finalScore || 0,
+      Autonomous: match.autonomousScore || 0,
+      TeleOp: match.teleOpScore || 0,
+      'End Game': match.endGameScore || 0,
+    }));
+  };
+
   // Performance insights state
   const [insights, setInsights] = useState<
     {
