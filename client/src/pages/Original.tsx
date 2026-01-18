@@ -301,4 +301,24 @@ const OriginalContent = () => {
   );
 };
 
-export default OriginalContent;
+// Wrapper component to ensure context is available
+const Original = () => {
+  try {
+    return <OriginalContent />;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('useSession must be used within')) {
+      console.error('SessionProvider context not found. This is a configuration issue.', error);
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-500 font-semibold">Context Error</p>
+            <p className="text-gray-600">Please refresh the page</p>
+          </div>
+        </div>
+      );
+    }
+    throw error;
+  }
+};
+
+export default Original;
