@@ -238,6 +238,23 @@ export const PerformanceMetrics = () => {
   // Keyboard event listener for 1, 2, 3 keys and Enter for cycle time
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
+      // Handle Enter key to confirm popup FIRST - prevent it from affecting anything else
+      if (event.key === 'Enter' && showPopup && madeCount !== null) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        if (expandedSection === 'Autonomous Score') {
+          setAutonomousBasket(prev => prev + madeCount);
+        } else if (expandedSection === 'TeleOp Score') {
+          setTeleOpSamples(prev => prev + madeCount);
+        }
+
+        // Close popup after confirming
+        setShowPopup(false);
+        setMadeCount(null);
+        return; // Exit early to prevent any other handling
+      }
+
       // Only trigger if not typing in an input field
       if (
         event.target instanceof HTMLInputElement ||
@@ -276,19 +293,6 @@ export const PerformanceMetrics = () => {
         }
       }
 
-      // Handle Enter key to confirm and add to appropriate score
-      if (event.key === 'Enter' && showPopup && madeCount !== null) {
-        if (expandedSection === 'Autonomous Score') {
-          setAutonomousBasket(prev => prev + madeCount);
-        } else if (expandedSection === 'TeleOp Score') {
-          setTeleOpSamples(prev => prev + madeCount);
-        }
-
-        // Close popup after confirming
-        setShowPopup(false);
-        setMadeCount(null);
-      }
-
       // Close popup on Escape key
       if (event.key === 'Escape' && showPopup) {
         setShowPopup(false);
@@ -296,9 +300,10 @@ export const PerformanceMetrics = () => {
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
+    // Use capture phase to intercept events before they reach buttons
+    window.addEventListener('keydown', handleKeyPress, true);
     return () => {
-      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener('keydown', handleKeyPress, true);
     };
   }, [
     showPopup,
