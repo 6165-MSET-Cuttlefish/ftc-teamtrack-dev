@@ -1415,125 +1415,169 @@ const AnalysisContent = () => {
             )}
           </div>
               <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-team-blue text-2xl font-semibold">
-                    Matches in This Session
-                  </h2>
-                  <button
-                    onClick={() => {
-                      const newMatch = {
-                        id: `match-${Date.now()}`,
-                        matchNumber: sessionMatches.length + 1,
-                        matchType: '',
-                        finalScore: 0,
-                        autonomousScore: 0,
-                        teleOpScore: 0,
-                        endGameScore: 0,
-                      };
-                      const updatedMatches = [...sessionMatches, newMatch];
-                      setSessionMatches(updatedMatches);
-                      updateSessionData({ matches: updatedMatches });
-                      setSelectedMatchIndex(updatedMatches.length - 1);
-                    }}
-                    className="px-4 py-2 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors"
-                  >
-                    + Add Match
-                  </button>
-                </div>
+                {/* View Mode Tabs */}
+                {sessionMatches.length > 0 && (
+                  <div className="flex gap-3 border-b border-team-blue-40 overflow-x-auto">
+                    <button
+                      onClick={() => setViewMode('overview')}
+                      className={`px-4 py-3 font-medium whitespace-nowrap transition-colors ${
+                        viewMode === 'overview'
+                          ? 'text-team-blue border-b-2 border-team-blue'
+                          : isDarkMode ? 'text-team-white-60 hover:text-white' : 'text-gray-600 hover:text-black'
+                      }`}
+                    >
+                      Overview
+                    </button>
+                    <button
+                      onClick={() => setViewMode('session-summary')}
+                      className={`px-4 py-3 font-medium whitespace-nowrap transition-colors ${
+                        viewMode === 'session-summary'
+                          ? 'text-team-blue border-b-2 border-team-blue'
+                          : isDarkMode ? 'text-team-white-60 hover:text-white' : 'text-gray-600 hover:text-black'
+                      }`}
+                    >
+                      Session Summary
+                    </button>
+                    <button
+                      onClick={() => {
+                        setViewMode('match-analysis');
+                        if (selectedMatchIndex === null) setSelectedMatchIndex(0);
+                      }}
+                      className={`px-4 py-3 font-medium whitespace-nowrap transition-colors ${
+                        viewMode === 'match-analysis'
+                          ? 'text-team-blue border-b-2 border-team-blue'
+                          : isDarkMode ? 'text-team-white-60 hover:text-white' : 'text-gray-600 hover:text-black'
+                      }`}
+                    >
+                      Individual Match
+                    </button>
+                    <button
+                      onClick={() => setViewMode('matches')}
+                      className={`px-4 py-3 font-medium whitespace-nowrap transition-colors ${
+                        viewMode === 'matches'
+                          ? 'text-team-blue border-b-2 border-team-blue'
+                          : isDarkMode ? 'text-team-white-60 hover:text-white' : 'text-gray-600 hover:text-black'
+                      }`}
+                    >
+                      Compare All
+                    </button>
+                  </div>
+                )}
 
-                {sessionMatches.length > 0 ? (
+                {/* Session Summary View */}
+                {viewMode === 'session-summary' && sessionMatches.length > 0 && (
+                  <SessionSummary stats={calculateMatchStats()} matchCount={sessionMatches.length} />
+                )}
+
+                {/* Individual Match Analysis */}
+                {viewMode === 'match-analysis' && selectedMatchIndex !== null && sessionMatches[selectedMatchIndex] && (
+                  <div className="space-y-6">
+                    <MatchAnalysis
+                      match={sessionMatches[selectedMatchIndex]}
+                      matchIndex={selectedMatchIndex}
+                      allMatches={sessionMatches}
+                      isDarkMode={isDarkMode}
+                    />
+
+                    <div className="flex gap-3 justify-center mt-8 flex-wrap">
+                      <button
+                        onClick={() => {
+                          if (selectedMatchIndex > 0) setSelectedMatchIndex(selectedMatchIndex - 1);
+                        }}
+                        disabled={selectedMatchIndex === 0}
+                        className={`px-4 py-2 rounded-lg transition-colors ${
+                          selectedMatchIndex === 0
+                            ? isDarkMode ? 'bg-team-dark-20 text-team-white-40 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-team-blue text-white hover:bg-team-blue/90'
+                        }`}
+                      >
+                        ← Previous Match
+                      </button>
+                      <span className="px-4 py-2 text-team-blue font-medium">
+                        Match {(selectedMatchIndex || 0) + 1} of {sessionMatches.length}
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (selectedMatchIndex < sessionMatches.length - 1) setSelectedMatchIndex(selectedMatchIndex + 1);
+                        }}
+                        disabled={selectedMatchIndex === sessionMatches.length - 1}
+                        className={`px-4 py-2 rounded-lg transition-colors ${
+                          selectedMatchIndex === sessionMatches.length - 1
+                            ? isDarkMode ? 'bg-team-dark-20 text-team-white-40 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-team-blue text-white hover:bg-team-blue/90'
+                        }`}
+                      >
+                        Next Match →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Compare All Matches */}
+                {viewMode === 'matches' && sessionMatches.length > 0 && (
+                  <MatchComparison matches={sessionMatches} isDarkMode={isDarkMode} />
+                )}
+
+                {/* Original Matches List (Overview) */}
+                {viewMode === 'overview' && (
                   <>
-                    <div className="flex flex-col gap-4">
-                      {sessionMatches.map((match, index) => (
-                        <button
-                          key={match.id}
-                          onClick={() => setSelectedMatchIndex(index)}
-                          className={`p-4 rounded-lg text-left transition-all ${
-                            selectedMatchIndex === index
-                              ? `${isDarkMode ? 'bg-team-blue/20 border-2 border-team-blue-40' : 'bg-blue-50 border-2 border-team-blue'}`
-                              : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 hover:border-team-blue' : 'bg-white border border-gray-200 hover:border-team-blue'}`
-                          }`}
-                        >
-                          <div className="flex justify-between items-start gap-4">
-                            <div>
-                              <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                Match {match.matchNumber}
-                              </h3>
-                              <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-                                Score: {match.finalScore || 0} pts • Type: {match.matchType || 'N/A'}
-                              </p>
-                            </div>
-                            <ChevronRight className={`w-5 h-5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`} />
-                          </div>
-                        </button>
-                      ))}
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-team-blue text-2xl font-semibold">
+                        Matches in This Session
+                      </h2>
+                      <Link
+                        to="/original"
+                        className="px-4 py-2 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors"
+                      >
+                        + Record Match
+                      </Link>
                     </div>
 
-                    <Link
-                      to="/original"
-                      className="w-full px-4 py-3 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors text-center font-semibold"
-                    >
-                      Record Another Match
-                    </Link>
-
-                    {selectedMatchIndex !== null && sessionMatches[selectedMatchIndex] && (
-                      <div className={`p-6 rounded-lg border space-y-4 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
-                        <div className="flex justify-between items-start">
-                          <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            Match {sessionMatches[selectedMatchIndex].matchNumber} Details
-                          </h3>
-                          <button
-                            onClick={() => {
-                              const updated = sessionMatches.filter((_, i) => i !== selectedMatchIndex);
-                              setSessionMatches(updated);
-                              updateSessionData({ matches: updated });
-                              setSelectedMatchIndex(null);
-                            }}
-                            className="text-red-500 hover:text-red-700 font-medium"
-                          >
-                            Delete
-                          </button>
+                    {sessionMatches.length > 0 ? (
+                      <>
+                        <div className="flex flex-col gap-4">
+                          {sessionMatches.map((match, index) => (
+                            <button
+                              key={match.id}
+                              onClick={() => {
+                                setSelectedMatchIndex(index);
+                                setViewMode('match-analysis');
+                              }}
+                              className={`p-4 rounded-lg text-left transition-all ${
+                                selectedMatchIndex === index
+                                  ? `${isDarkMode ? 'bg-team-blue/20 border-2 border-team-blue-40' : 'bg-blue-50 border-2 border-team-blue'}`
+                                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 hover:border-team-blue' : 'bg-white border border-gray-200 hover:border-team-blue'}`
+                              }`}
+                            >
+                              <div className="flex justify-between items-start gap-4">
+                                <div>
+                                  <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    Match {match.matchNumber}
+                                  </h3>
+                                  <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                                    Score: {match.finalScore || 0} pts • Type: {match.matchType || 'N/A'}
+                                  </p>
+                                </div>
+                                <ChevronRight className={`w-5 h-5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`} />
+                              </div>
+                            </button>
+                          ))}
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
-                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Final Score</p>
-                            <p className="text-2xl font-bold text-team-blue">{sessionMatches[selectedMatchIndex].finalScore || 0}</p>
-                          </div>
-                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
-                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Match Type</p>
-                            <p className="text-lg font-semibold text-team-blue">{sessionMatches[selectedMatchIndex].matchType || 'N/A'}</p>
-                          </div>
-                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
-                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Autonomous</p>
-                            <p className="text-lg font-semibold text-team-blue">{sessionMatches[selectedMatchIndex].autonomousScore || 0}</p>
-                          </div>
-                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
-                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>TeleOp</p>
-                            <p className="text-lg font-semibold text-team-blue">{sessionMatches[selectedMatchIndex].teleOpScore || 0}</p>
-                          </div>
-                          <div className={`p-3 rounded ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}>
-                            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>End Game</p>
-                            <p className="text-lg font-semibold text-team-blue">{sessionMatches[selectedMatchIndex].endGameScore || 0}</p>
-                          </div>
-                        </div>
-                        <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-                          Use the Compare page to view detailed analysis of this match alongside other matches and sessions.
+                      </>
+                    ) : (
+                      <div className={`text-center py-12 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}>
+                        <p className={`text-lg mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                          No matches recorded yet
                         </p>
+                        <Link
+                          to="/original"
+                          className="inline-block px-6 py-3 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors font-semibold"
+                        >
+                          Record Your First Match
+                        </Link>
                       </div>
                     )}
                   </>
-                ) : (
-                  <div className={`text-center py-12 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}>
-                    <p className={`text-lg mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-                      No matches recorded yet
-                    </p>
-                    <Link
-                      to="/original"
-                      className="inline-block px-6 py-3 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors font-semibold"
-                    >
-                      Record Your First Match
-                    </Link>
-                  </div>
                 )}
               </div>
 
