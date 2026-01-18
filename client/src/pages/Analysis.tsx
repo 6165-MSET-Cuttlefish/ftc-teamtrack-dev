@@ -824,9 +824,10 @@ const AnalysisContent = () => {
   });
   
   // Match tracking
-  const [viewMode, setViewMode] = useState<'overview' | 'matches'>('overview');
+  const [viewMode, setViewMode] = useState<'overview' | 'matches' | 'match-analysis' | 'session-summary'>('overview');
   const [sessionMatches, setSessionMatches] = useState<any[]>([]);
   const [selectedMatchIndex, setSelectedMatchIndex] = useState<number | null>(null);
+  const [comparisonMatches, setComparisonMatches] = useState<number[]>([]);
 
   // Initialize matches from session data
   useEffect(() => {
