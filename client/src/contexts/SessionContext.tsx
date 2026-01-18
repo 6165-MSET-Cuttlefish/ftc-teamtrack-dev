@@ -56,7 +56,14 @@ interface SessionContextType {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  let user;
+  try {
+    const auth = useAuth();
+    user = auth?.user;
+  } catch (e) {
+    console.error('Failed to get user from AuthProvider:', e);
+    user = undefined;
+  }
 
   const [sessionData, setSessionData] = useState<SessionData>({
     sessionName: '',
