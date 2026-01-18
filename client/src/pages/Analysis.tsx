@@ -510,6 +510,171 @@ const ScoreBreakdownCard = ({
   );
 };
 
+const MatchAnalysis = ({
+  match,
+  matchIndex,
+  allMatches,
+  isDarkMode,
+}: {
+  match: any;
+  matchIndex: number;
+  allMatches: any[];
+  isDarkMode: boolean;
+}) => {
+  const COLORS = {
+    primary: '#537788',
+    secondary: '#B0E5FE',
+    success: '#10b981',
+    warning: '#f59e0b',
+  };
+
+  // Compare this match to average of others
+  const otherMatches = allMatches.filter((_, idx) => idx !== matchIndex);
+  const avgScore = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.finalScore || 0), 0) / otherMatches.length : 0;
+  const avgAuto = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / otherMatches.length : 0;
+  const avgTele = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / otherMatches.length : 0;
+  const avgEndgame = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / otherMatches.length : 0;
+
+  const comparisonData = [
+    { name: 'Autonomous', 'This Match': match.autonomousScore || 0, 'Session Avg': Math.round(avgAuto) },
+    { name: 'TeleOp', 'This Match': match.teleOpScore || 0, 'Session Avg': Math.round(avgTele) },
+    { name: 'End Game', 'This Match': match.endGameScore || 0, 'Session Avg': Math.round(avgEndgame) },
+  ];
+
+  const phaseData = [
+    { name: 'Autonomous', value: match.autonomousScore || 0 },
+    { name: 'TeleOp', value: match.teleOpScore || 0 },
+    { name: 'End Game', value: match.endGameScore || 0 },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-team-blue text-2xl font-semibold mb-2">Match {matchIndex + 1} Analysis</h2>
+        <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+          Type: {match.matchType || 'N/A'} • Score: {match.finalScore || 0}
+        </p>
+      </div>
+
+      {/* Score Comparison */}
+      {otherMatches.length > 0 && (
+        <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+            Comparison vs Session Average
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={comparisonData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
+              <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+              <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+              <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+              <Legend wrapperStyle={{ fontSize: '14px' }} />
+              <Bar dataKey="This Match" fill={COLORS.primary} radius={[8, 8, 0, 0]} />
+              <Bar dataKey="Session Avg" fill={COLORS.secondary} radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Phase Breakdown */}
+      {phaseData.some(d => d.value > 0) && (
+        <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+            Score Breakdown
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={phaseData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                animationDuration={800}
+              >
+                {phaseData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={[COLORS.primary, COLORS.success, COLORS.warning][index]} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MatchComparison = ({
+  matches,
+  isDarkMode,
+}: {
+  matches: any[];
+  isDarkMode: boolean;
+}) => {
+  const COLORS = {
+    primary: '#537788',
+    secondary: '#B0E5FE',
+    success: '#10b981',
+    warning: '#f59e0b',
+  };
+
+  const comparisonData = matches.map((match, idx) => ({
+    name: `Match ${idx + 1}`,
+    'Final Score': match.finalScore || 0,
+    Autonomous: match.autonomousScore || 0,
+    TeleOp: match.teleOpScore || 0,
+    'End Game': match.endGameScore || 0,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-team-blue text-2xl font-semibold">Compare All Matches</h2>
+
+      {/* Trend Chart */}
+      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Score Trends
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={comparisonData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
+            <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+            <Legend wrapperStyle={{ fontSize: '14px' }} />
+            <Line type="monotone" dataKey="Final Score" stroke={COLORS.primary} strokeWidth={3} dot={{ fill: COLORS.primary, r: 5 }} />
+            <Line type="monotone" dataKey="Autonomous" stroke={COLORS.success} strokeWidth={2} dot={{ fill: COLORS.success, r: 4 }} />
+            <Line type="monotone" dataKey="TeleOp" stroke={COLORS.warning} strokeWidth={2} dot={{ fill: COLORS.warning, r: 4 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Stacked Bar Chart */}
+      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Score Composition
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={comparisonData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
+            <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+            <Legend wrapperStyle={{ fontSize: '14px' }} />
+            <Bar dataKey="Autonomous" stackId="a" fill={COLORS.success} />
+            <Bar dataKey="TeleOp" stackId="a" fill={COLORS.warning} />
+            <Bar dataKey="End Game" stackId="a" fill={COLORS.primary} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
 const SessionSummary = ({
   stats,
   matchCount,
