@@ -47,6 +47,7 @@ interface SessionContextType {
   timer: number;
   isTimerRunning: boolean;
   setIsTimerRunning: (running: boolean) => void;
+  resetTimer: () => void;
   formatTime: (seconds: number) => string;
   expandedSection: string | null;
   setExpandedSection: (section: string | null) => void;
@@ -122,6 +123,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setIsTimerRunning(false); // Stop the timer when session completes
   }, []);
 
+  const resetTimer = useCallback(() => {
+    setTimer(0);
+  }, []);
+
   const resetSession = useCallback(() => {
     setSessionData({
       sessionName: '',
@@ -158,6 +163,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         timer,
         isTimerRunning,
         setIsTimerRunning,
+        resetTimer,
         formatTime,
         expandedSection,
         setExpandedSection,

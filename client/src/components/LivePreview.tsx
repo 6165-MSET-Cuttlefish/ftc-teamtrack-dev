@@ -172,7 +172,9 @@ export const LivePreview = () => {
     setIsTimerRunning,
     formatTime,
     resetSession,
+    resetTimer,
     setExpandedSection,
+    updateSessionData,
   } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -185,10 +187,22 @@ export const LivePreview = () => {
   const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] =
     useState<boolean>(false);
 
+  // Session timer - starts when component mounts and runs continuously
+  const [sessionTimer, setSessionTimer] = useState<number>(0);
+
   // Real-time consistency calculation
   const [consistency, setConsistency] = useState<number>(0);
   const [isCalculatingConsistency, setIsCalculatingConsistency] =
     useState(true);
+
+  // Session timer effect - always running
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSessionTimer(prev => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Check if timer reaches 30 seconds in Full Game mode
   useEffect(() => {
@@ -285,6 +299,54 @@ export const LivePreview = () => {
     // Stay on the current page to start a new session
   };
 
+  const handleSaveMatch = () => {
+    // Create a new match from current session data
+    const newMatch = {
+      id: `match-${Date.now()}`,
+      matchNumber: (sessionData.matches?.length || 0) + 1,
+      matchType: sessionData.matchType,
+      finalScore: sessionData.finalScore,
+      autonomousScore: sessionData.autonomousScore,
+      teleOpScore: sessionData.teleOpScore,
+      endGameScore: sessionData.endGameScore,
+      autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
+      autonOverflowArtifact: sessionData.autonOverflowArtifact,
+      autonMotif: sessionData.autonMotif,
+      autonLeave: sessionData.autonLeave,
+      teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
+      teleOverflowArtifact: sessionData.teleOverflowArtifact,
+      teleMotif: sessionData.teleMotif,
+      endgameHang: sessionData.endgameHang,
+      cycleTimes: sessionData.cycleTimes,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add to matches array
+    const updatedMatches = [...(sessionData.matches || []), newMatch];
+    updateSessionData({
+      matches: updatedMatches,
+      // Reset scoring for next match
+      finalScore: 0,
+      autonomousScore: 0,
+      teleOpScore: 0,
+      endGameScore: 0,
+      autonClassifiedArtifact: 0,
+      autonOverflowArtifact: 0,
+      autonMotif: 0,
+      autonLeave: 0,
+      teleClassifiedArtifact: 0,
+      teleOverflowArtifact: 0,
+      teleMotif: 0,
+      endgameHang: 0,
+      cycleTimes: [],
+    });
+    
+    // Reset match timer and tracking states
+    resetTimer();
+    setHasStarted(false);
+    setIsTimerRunning(false);
+  };
+
   const handleCompleteSession = async () => {
     const currentTime = formatTime(timer);
     setIsTimerRunning(false);
@@ -346,28 +408,45 @@ export const LivePreview = () => {
           </p>
         </div>
 
-        <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
-          {formatTime(timer)}
+        <div className="text-center">
+          <p className={`text-sm mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+            Session Timer
+          </p>
+          <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
+            {formatTime(sessionTimer)}
+          </div>
         </div>
       </div>
 
       <div className="flex flex-col items-center gap-6 lg:gap-8 w-full">
-        <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 w-full justify-center">
-          <DataCard
-            value={sessionData.finalScore.toString()}
-            label="Final Score"
-          />
-          <DataCard
-            value={isCalculatingConsistency ? '...' : `${consistency}%`}
-            label="Consistency"
+        {/* Current Match Box */}
+        <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-white'} space-y-6`}>
+          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+            Current Match
+          </h3>
+          
+          <div className="text-center">
+            <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
+              {formatTime(timer)}
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 w-full justify-center">
+            <DataCard
+              value={sessionData.finalScore.toString()}
+              label="Final Score"
+            />
+            <DataCard
+              value={isCalculatingConsistency ? '...' : `${consistency}%`}
+              label="Consistency"
+            />
+          </div>
+
+          <InsightsCard
+            currentTeleOpScore={sessionData.teleOpScore}
+            currentAutonomousScore={sessionData.autonomousScore}
+            userId={user?.uid || ''}
           />
         </div>
-
-        <InsightsCard
-          currentTeleOpScore={sessionData.teleOpScore}
-          currentAutonomousScore={sessionData.autonomousScore}
-          userId={user?.uid || ''}
-        />
 
         <div className="flex flex-col gap-4 w-full sm:w-60">
           {!sessionData.isSessionCompleted && (
@@ -389,7 +468,7 @@ export const LivePreview = () => {
                       }}
                       className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors"
                     >
-                      {hasStarted ? 'Resume' : 'Start'}
+                      {hasStarted ? 'Resume' : 'Start Timer'}
                     </button>
                   ) : (
                     <button
@@ -401,6 +480,13 @@ export const LivePreview = () => {
                   )}
                 </>
               )}
+
+              <button
+                onClick={handleSaveMatch}
+                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+              >
+                Save Match & Start New
+              </button>
 
               <button
                 onClick={handleCompleteSession}
