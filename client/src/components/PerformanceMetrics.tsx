@@ -567,15 +567,16 @@ export const PerformanceMetrics = () => {
                         style={{ height: '150px', overflowY: 'auto' }}
                       >
                         <div className="flex flex-col gap-2">
-                          {sessionData.cycleTimes.map((time, index) => {
+                          {[...sessionData.cycleTimes].reverse().map((time, index) => {
                             const minutes = Math.floor(time / 60);
                             const seconds = time % 60;
+                            const actualIndex = sessionData.cycleTimes.length - index;
                             return (
                               <div
                                 key={index}
                                 className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue-40 text-white'}`}
                               >
-                                {index + 1}. {minutes}:
+                                {actualIndex}. {minutes}:
                                 {seconds.toString().padStart(2, '0')}
                               </div>
                             );
