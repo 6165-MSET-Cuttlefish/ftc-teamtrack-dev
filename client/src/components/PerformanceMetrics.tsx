@@ -223,7 +223,7 @@ export const PerformanceMetrics = () => {
     } else {
       // Record the time and reset
       updateSessionData({
-        cycleTimes: [...sessionData.cycleTimes, cycleTimerElapsed],
+        cycleTimes: [...(sessionData.cycleTimes ?? []), cycleTimerElapsed],
       });
       setCycleTimerStartTime(Date.now()); // Restart for next cycle
       setCycleTimerElapsed(0);
@@ -335,7 +335,7 @@ export const PerformanceMetrics = () => {
       autonomousBasket,
       autonomousSpecimen,
       autonomousFloorMark,
-      autonomousLeave,
+      autonLeave: autonomousLeave,
       teleOpSamples,
       teleOpSpecimen,
       teleOpFloorMark,
@@ -548,7 +548,7 @@ export const PerformanceMetrics = () => {
                   </div>
                 </div>
 
-                {sessionData.cycleTimes.length > 0 && (
+                {(sessionData.cycleTimes?.length ?? 0) > 0 && (
                   <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
                     <button
                       onClick={() =>
@@ -559,7 +559,7 @@ export const PerformanceMetrics = () => {
                       <ChevronRight
                         className={`w-4 h-4 transition-transform ${isCycleTimesLogExpanded ? 'rotate-90' : ''}`}
                       />
-                      Cycle Times Log ({sessionData.cycleTimes.length})
+                      Cycle Times Log ({sessionData.cycleTimes?.length ?? 0})
                     </button>
                     {isCycleTimesLogExpanded && (
                       <div
@@ -567,10 +567,10 @@ export const PerformanceMetrics = () => {
                         style={{ height: '150px', overflowY: 'auto' }}
                       >
                         <div className="flex flex-col gap-2">
-                          {[...sessionData.cycleTimes].reverse().map((time, index) => {
+                          {[...(sessionData.cycleTimes ?? [])].reverse().map((time, index) => {
                             const minutes = Math.floor(time / 60);
                             const seconds = time % 60;
-                            const actualIndex = sessionData.cycleTimes.length - index;
+                            const actualIndex = (sessionData.cycleTimes?.length ?? 0) - index;
                             return (
                               <div
                                 key={index}
@@ -631,7 +631,7 @@ export const PerformanceMetrics = () => {
           <div className="space-y-8">
             <MetricField
               label="Final Score"
-              value={sessionData.finalScore}
+              value={sessionData.finalScore ?? 0}
               onChange={value => updateSessionData({ finalScore: value })}
               hasDropdown={false}
               editable={true}
@@ -640,7 +640,7 @@ export const PerformanceMetrics = () => {
             {sessionData.matchType !== 'TeleOp' && (
               <MetricField
                 label="Autonomous Score"
-                value={sessionData.autonomousScore}
+                value={sessionData.autonomousScore ?? 0}
                 onChange={value =>
                   updateSessionData({ autonomousScore: value })
                 }
@@ -653,7 +653,7 @@ export const PerformanceMetrics = () => {
             {sessionData.matchType !== 'Autonomous' && (
               <MetricField
                 label="TeleOp Score"
-                value={sessionData.teleOpScore}
+                value={sessionData.teleOpScore ?? 0}
                 onChange={value => updateSessionData({ teleOpScore: value })}
                 onDropdownClick={() => toggleSection('TeleOp Score')}
                 editable={true}
@@ -663,7 +663,7 @@ export const PerformanceMetrics = () => {
             )}
             <MetricField
               label="End Game Score"
-              value={sessionData.endGameScore}
+              value={sessionData.endGameScore ?? 0}
               onChange={value => updateSessionData({ endGameScore: value })}
               onDropdownClick={() => toggleSection('End Game Score')}
               editable={true}

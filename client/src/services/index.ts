@@ -1,3 +1,3 @@
-// Service barrel exports for cleaner imports
+// Service barrel exports
 export { firebaseService } from './firebaseService';
 export type { SessionData } from './firebaseService';

@@ -249,7 +249,7 @@ export const LivePreview = () => {
         }
 
         const allScores = [
-          sessionData.finalScore,
+          sessionData.finalScore ?? 0,
           ...lastThreeSessions.map(session => session.finalScore || 0),
         ];
 
@@ -364,7 +364,7 @@ export const LivePreview = () => {
       autonClassifiedArtifact: sessionData.autonomousBasket || 0,
       autonOverflowArtifact: sessionData.autonomousSpecimen || 0,
       autonMotif: sessionData.autonomousFloorMark || 0,
-      autonLeave: sessionData.autonomousLeave || 0,
+      autonLeave: sessionData.autonLeave || 0,
 
       teleClassifiedArtifact: sessionData.teleOpSamples || 0,
       teleOverflowArtifact: sessionData.teleOpSpecimen || 0,
@@ -432,7 +432,7 @@ export const LivePreview = () => {
           </div>
           <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 w-full justify-center">
             <DataCard
-              value={sessionData.finalScore.toString()}
+              value={(sessionData.finalScore ?? 0).toString()}
               label="Final Score"
             />
             <DataCard
@@ -442,8 +442,8 @@ export const LivePreview = () => {
           </div>
 
           <InsightsCard
-            currentTeleOpScore={sessionData.teleOpScore}
-            currentAutonomousScore={sessionData.autonomousScore}
+            currentTeleOpScore={sessionData.teleOpScore ?? 0}
+            currentAutonomousScore={sessionData.autonomousScore ?? 0}
             userId={user?.uid || ''}
           />
         </div>

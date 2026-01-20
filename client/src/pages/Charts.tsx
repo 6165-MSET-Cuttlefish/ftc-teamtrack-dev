@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { firebaseService, SessionData } from '@/services';
+import { firebaseService } from '@/services';
 import { ROUTES } from '@/constants';
+import type { Session, ChartDataPoint } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,18 +11,17 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from '../components/ui/card';
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select';
+} from '@/components/ui/select';
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, Award, Target, Zap, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  BarChart,
   Bar,
   PieChart,
   Pie,
@@ -39,20 +39,12 @@ import {
   ComposedChart,
 } from 'recharts';
 
-interface ChartDataPoint {
-  name?: string;
-  value?: number;
-  category?: string;
-  fullMark?: number;
-  [key: string]: string | number | undefined;
-}
-
 const Charts = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
-  const [sessions, setSessions] = useState<SessionData[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90' | 'all'>('30');
 
@@ -95,7 +87,7 @@ const Charts = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const getFilteredSessions = (): SessionData[] => {
+  const getFilteredSessions = (): Session[] => {
     if (timeRange === 'all') return sessions;
 
     const days = parseInt(timeRange);

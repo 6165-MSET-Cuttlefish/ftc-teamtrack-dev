@@ -4,13 +4,12 @@ import {
   Notes,
   LivePreview,
 } from '@/components';
-import { useTheme } from '@/contexts';
+import { useTheme, useSession } from '@/contexts';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useSession } from '@/contexts';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 const OriginalContent = () => {
   const { isDarkMode } = useTheme();

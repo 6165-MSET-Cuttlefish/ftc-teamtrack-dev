@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme } from '@/contexts';
-import { firebaseService, SessionData } from '@/services';
+import { firebaseService } from '@/services';
+import { formatDate } from '@/lib/utils';
+import type { Session, FirebaseTimestamp } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from '../components/ui/card';
-import { Input } from '../components/ui/input';
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select';
+} from '@/components/ui/select';
 import {
   Search,
   Plus,
@@ -32,30 +34,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface FirebaseTimestamp {
-  seconds: number;
-  nanoseconds: number;
-}
-
-const toDate = (timestamp: unknown): Date => {
-  if (!timestamp) return new Date();
-
-  if (typeof timestamp === 'string') {
-    return new Date(timestamp);
-  }
-
-  if (typeof timestamp === 'object' && timestamp !== null) {
-    const ts = timestamp as FirebaseTimestamp;
-    if ('seconds' in ts && 'nanoseconds' in ts) {
-      return new Date(ts.seconds * 1000 + ts.nanoseconds / 1000000);
-    }
-  }
-
-  return new Date();
-};
-
 interface SessionCardProps {
-  session: SessionData;
+  session: Session;
   onView: () => void;
   onNameChange: (newName: string) => void;
   onDelete: () => void;
@@ -71,20 +51,6 @@ const SessionCard = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(session.sessionName || '');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-
-  const formatDate = (timestamp: unknown) => {
-    if (!timestamp) return 'Unknown date';
-
-    const date = toDate(timestamp);
-
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const handleSaveName = () => {
     if (!editedName.trim()) {
@@ -333,8 +299,8 @@ const Sessions = () => {
   const { isDarkMode } = useTheme();
   const { resetSession, sessionData } = useSession();
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<SessionData[]>([]);
-  const [filteredSessions, setFilteredSessions] = useState<SessionData[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');

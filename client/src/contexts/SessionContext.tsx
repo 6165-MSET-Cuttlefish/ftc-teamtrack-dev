@@ -2,46 +2,40 @@ import {
   createContext,
   useContext,
   useState,
-  ReactNode,
   useCallback,
   useEffect,
+  type ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
+import { formatTime as formatTimeUtil } from '@/lib/utils';
+import type { Match, ScoringFields } from '@/types';
 
-interface SessionData {
+// ============================================================================
+// Types
+// ============================================================================
+
+interface SessionFormData extends ScoringFields {
   sessionName: string;
   driverName: string;
   sessionDuration: string;
   matchType: string;
-  finalScore: number;
-  autonomousScore: number;
-  teleOpScore: number;
-  endGameScore: number;
   isSessionCompleted: boolean;
+  selectedFeature: string;
+  // Legacy fields (kept for backwards compatibility)
   autonomousBasket: number;
   autonomousSpecimen: number;
   autonomousFloorMark: number;
-  autonomousLeave: number;
   teleOpSamples: number;
   teleOpSpecimen: number;
   teleOpFloorMark: number;
   endGameValue: number;
-  selectedFeature: string;
-  cycleTimes: number[];
-  // New scoring system properties
-  autonClassifiedArtifact?: number;
-  autonOverflowArtifact?: number;
-  autonMotif?: number;
-  autonLeave?: number;
-  teleClassifiedArtifact?: number;
-  teleOverflowArtifact?: number;
-  teleMotif?: number;
-  endgameHang?: number;
+  // Matches within session
+  matches?: Match[];
 }
 
 interface SessionContextType {
-  sessionData: SessionData;
-  updateSessionData: (updates: Partial<SessionData>) => void;
+  sessionData: SessionFormData;
+  updateSessionData: (updates: Partial<SessionFormData>) => void;
   completeSession: (timerValue: string) => void;
   resetSession: () => void;
   timer: number;
@@ -53,64 +47,60 @@ interface SessionContextType {
   setExpandedSection: (section: string | null) => void;
 }
 
+// ============================================================================
+// Initial State
+// ============================================================================
+
+const createInitialSessionData = (displayName?: string | null): SessionFormData => ({
+  sessionName: '',
+  driverName: displayName || '',
+  sessionDuration: '',
+  matchType: 'Full Game',
+  finalScore: 0,
+  autonomousScore: 0,
+  teleOpScore: 0,
+  endGameScore: 0,
+  isSessionCompleted: false,
+  autonomousBasket: 0,
+  autonomousSpecimen: 0,
+  autonomousFloorMark: 0,
+  autonLeave: 0,
+  teleOpSamples: 0,
+  teleOpSpecimen: 0,
+  teleOpFloorMark: 0,
+  endGameValue: 0,
+  selectedFeature: '',
+  cycleTimes: [],
+});
+
+// ============================================================================
+// Context
+// ============================================================================
+
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
 
-  const [sessionData, setSessionData] = useState<SessionData>({
-    sessionName: '',
-    driverName: user?.displayName || '',
-    sessionDuration: '',
-    matchType: 'Full Game',
-    finalScore: 0,
-    autonomousScore: 0,
-    teleOpScore: 0,
-    endGameScore: 0,
-    isSessionCompleted: false,
-    autonomousBasket: 0,
-    autonomousSpecimen: 0,
-    autonomousFloorMark: 0,
-    autonomousLeave: 0,
-    teleOpSamples: 0,
-    teleOpSpecimen: 0,
-    teleOpFloorMark: 0,
-    endGameValue: 0,
-    selectedFeature: '',
-    cycleTimes: [],
-  });
-
-  // Timer state - persists across navigation
+  const [sessionData, setSessionData] = useState<SessionFormData>(() =>
+    createInitialSessionData(user?.displayName)
+  );
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>('Autonomous Score');
 
-  // Expanded section state - for PerformanceMetrics
-  const [expandedSection, setExpandedSection] = useState<string | null>(
-    'Autonomous Score'
-  );
-
-  // Timer effect - runs continuously while timer is running
+  // Timer effect
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    if (!isTimerRunning || sessionData.isSessionCompleted) return;
 
-    if (isTimerRunning && !sessionData.isSessionCompleted) {
-      interval = setInterval(() => {
-        setTimer(prev => prev + 1);
-      }, 1000);
-    }
+    const interval = setInterval(() => {
+      setTimer(prev => prev + 1);
+    }, 1000);
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [isTimerRunning, sessionData.isSessionCompleted]);
 
-  const formatTime = useCallback((seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  }, []);
-
-  const updateSessionData = useCallback((updates: Partial<SessionData>) => {
+  const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {
     setSessionData(prev => ({ ...prev, ...updates }));
   }, []);
 
@@ -120,55 +110,33 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       sessionDuration: timerValue,
       isSessionCompleted: true,
     }));
-    setIsTimerRunning(false); // Stop the timer when session completes
+    setIsTimerRunning(false);
   }, []);
 
-  const resetTimer = useCallback(() => {
-    setTimer(0);
-  }, []);
+  const resetTimer = useCallback(() => setTimer(0), []);
 
   const resetSession = useCallback(() => {
-    setSessionData({
-      sessionName: '',
-      driverName: user?.displayName || '',
-      sessionDuration: '',
-      matchType: 'Full Game',
-      finalScore: 0,
-      autonomousScore: 0,
-      teleOpScore: 0,
-      endGameScore: 0,
-      isSessionCompleted: false,
-      autonomousBasket: 0,
-      autonomousSpecimen: 0,
-      autonomousFloorMark: 0,
-      autonomousLeave: 0,
-      teleOpSamples: 0,
-      teleOpSpecimen: 0,
-      teleOpFloorMark: 0,
-      endGameValue: 0,
-      selectedFeature: '',
-      cycleTimes: [],
-    });
-    setTimer(0); // Reset timer to 0
-    setIsTimerRunning(true); // Restart timer for new session
-  }, [user]);
+    setSessionData(createInitialSessionData(user?.displayName));
+    setTimer(0);
+    setIsTimerRunning(true);
+  }, [user?.displayName]);
+
+  const value: SessionContextType = {
+    sessionData,
+    updateSessionData,
+    completeSession,
+    resetSession,
+    timer,
+    isTimerRunning,
+    setIsTimerRunning,
+    resetTimer,
+    formatTime: formatTimeUtil,
+    expandedSection,
+    setExpandedSection,
+  };
 
   return (
-    <SessionContext.Provider
-      value={{
-        sessionData,
-        updateSessionData,
-        completeSession,
-        resetSession,
-        timer,
-        isTimerRunning,
-        setIsTimerRunning,
-        resetTimer,
-        formatTime,
-        expandedSection,
-        setExpandedSection,
-      }}
-    >
+    <SessionContext.Provider value={value}>
       {children}
     </SessionContext.Provider>
   );
@@ -177,9 +145,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 export const useSession = () => {
   const context = useContext(SessionContext);
   if (!context) {
-    console.error(
-      'SessionContext is undefined. Ensure SessionProvider wraps your component.'
-    );
     throw new Error('useSession must be used within a SessionProvider');
   }
   return context;

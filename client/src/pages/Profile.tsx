@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth, useTheme } from '@/contexts';
+import { getInitials } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -25,18 +26,10 @@ const Profile = () => {
       setLoading(true);
       await logout();
     } catch {
-      // Handle logout error silently - could show user notification here instead
+      // Handle logout error silently
     } finally {
       setLoading(false);
     }
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase();
   };
 
   if (!user) {

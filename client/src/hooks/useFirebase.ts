@@ -1,49 +1,56 @@
 import { useState, useCallback } from 'react';
-import { firebaseService, SessionData } from '../services/firebaseService';
+import { firebaseService } from '@/services';
+import { isAbortError } from '@/lib/utils';
+import type { Session, CreateSessionData } from '@/types';
+
+// Re-export SessionData for backwards compatibility
+export type SessionData = Session;
+
+// ============================================================================
+// Hook State
+// ============================================================================
+
+interface UseFirebaseState {
+  loading: boolean;
+  error: string | null;
+}
+
+// ============================================================================
+// Hook
+// ============================================================================
 
 export const useFirebase = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<UseFirebaseState>({
+    loading: false,
+    error: null,
+  });
 
-  const execute = useCallback(
-    async <T>(operation: () => Promise<T>): Promise<T | null> => {
-      setLoading(true);
-      setError(null);
+  const execute = useCallback(async <T>(operation: () => Promise<T>): Promise<T | null> => {
+    setState({ loading: true, error: null });
 
-      try {
-        const result = await operation();
-        return result;
-      } catch (err: unknown) {
-        // Suppress AbortError which can occur due to HMR, navigation cancelling, or component unmount
-        if (
-          err &&
-          typeof err === 'object' &&
-          'name' in err &&
-          err.name === 'AbortError'
-        ) {
-          setError(null);
-          return null;
-        }
-        // Also check for signal-related error messages
-        if (err instanceof Error && err.message?.includes('signal')) {
-          setError(null);
-          return null;
-        }
-        const errorMessage =
-          err instanceof Error ? err.message : 'An error occurred';
-        setError(errorMessage);
-        console.error('Firebase operation failed:', err);
+    try {
+      const result = await operation();
+      setState({ loading: false, error: null });
+      return result;
+    } catch (err) {
+      if (isAbortError(err)) {
+        setState({ loading: false, error: null });
         return null;
-      } finally {
-        setLoading(false);
       }
-    },
-    []
-  );
+      
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setState({ loading: false, error: errorMessage });
+      console.error('Firebase operation failed:', err);
+      return null;
+    }
+  }, []);
+
+  // ==========================================================================
+  // Session Operations
+  // ==========================================================================
 
   const createSession = useCallback(
-    (sessionData: Omit<SessionData, 'id' | 'createdAt'>) =>
-      execute(() => firebaseService.createSession(sessionData)),
+    (sessionData: CreateSessionData) => execute(() => firebaseService.createSession(sessionData)),
     [execute]
   );
 
@@ -62,12 +69,24 @@ export const useFirebase = () => {
     [execute]
   );
 
+  const deleteSession = useCallback(
+    (sessionId: string) => execute(() => firebaseService.deleteSession(sessionId)),
+    [execute]
+  );
+
+  const updateSession = useCallback(
+    (sessionId: string, updates: Partial<Session>) =>
+      execute(() => firebaseService.updateSession(sessionId, updates)),
+    [execute]
+  );
+
   return {
-    loading,
-    error,
+    ...state,
     createSession,
     getUserSessions,
     getSession,
     getAllSessions,
+    deleteSession,
+    updateSession,
   };
 };

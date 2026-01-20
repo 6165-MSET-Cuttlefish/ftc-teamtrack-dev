@@ -1,5 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
+import { getInitials } from '@/lib/utils';
+import { ROUTES } from '@/constants';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -18,7 +20,7 @@ const TeamTrackLogo = () => {
 
   return (
     <Link
-      to="/sessions"
+      to={ROUTES.SESSIONS}
       aria-label="TeamTrack home"
       className="flex items-center gap-6 focus:outline-none transition-all duration-200 hover:scale-105"
     >
@@ -79,24 +81,11 @@ const NavigationMenu = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase();
-  };
-
   const handleLogout = async () => {
     try {
       await logout();
     } catch {
-      // Show a brief toast so user knows sign out failed
-      try {
-        toast.error('Sign out failed. Please try again.');
-      } catch {
-        // Ignore toast errors
-      }
+      toast.error('Sign out failed. Please try again.');
     }
   };
 
@@ -108,7 +97,7 @@ const NavigationMenu = () => {
     >
       {/* About Us link */}
       <Link
-        to="/about"
+        to={ROUTES.ABOUT}
         className={`text-base font-medium ${
           isDarkMode ? 'text-white' : 'text-black'
         }`}
@@ -132,7 +121,7 @@ const NavigationMenu = () => {
       {/* New Session button */}
       {user && (
         <button
-          onClick={() => navigate('/original')}
+          onClick={() => navigate(ROUTES.ORIGINAL)}
           aria-label="New session"
           className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
         >
@@ -177,13 +166,13 @@ const NavigationMenu = () => {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/sessions" className="flex items-center">
+              <Link to={ROUTES.SESSIONS} className="flex items-center">
                 <BarChart3 className="mr-2 h-4 w-4" />
                 <span>My Sessions</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to="/profile" className="flex items-center">
+              <Link to={ROUTES.PROFILE} className="flex items-center">
                 <UserCircle className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </Link>
@@ -197,10 +186,10 @@ const NavigationMenu = () => {
       ) : (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/login">Sign in</Link>
+            <Link to={ROUTES.LOGIN}>Sign in</Link>
           </Button>
           <Button size="sm" asChild>
-            <Link to="/signup">Sign up</Link>
+            <Link to={ROUTES.SIGNUP}>Sign up</Link>
           </Button>
         </div>
       )}

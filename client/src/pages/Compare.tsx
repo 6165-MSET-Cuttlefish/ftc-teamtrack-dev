@@ -1,26 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { firebaseService, SessionData } from '@/services';
+import { firebaseService } from '@/services';
 import { ROUTES } from '@/constants';
+import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from '../components/ui/card';
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select';
+} from '@/components/ui/select';
 import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
   ArrowLeft,
   Trophy,
   Clock,
@@ -43,9 +41,9 @@ const Compare = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [sessions, setSessions] = useState<SessionData[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
-  const [selectedSessionsData, setSelectedSessionsData] = useState<SessionData[]>([]);
+  const [selectedSessionsData, setSelectedSessionsData] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Match comparison state
@@ -86,11 +84,11 @@ const Compare = () => {
   // Load selected sessions data
   useEffect(() => {
     const loadSessionsData = async () => {
-      const sessionsData: SessionData[] = [];
+      const sessionsData: Session[] = [];
       for (const sessionId of selectedSessionIds) {
         try {
           const session = await firebaseService.getSession(sessionId);
-          sessionsData.push(session);
+          if (session) sessionsData.push(session);
         } catch (error) {
           console.error(`Error loading session ${sessionId}:`, error);
         }
@@ -672,7 +670,7 @@ const Compare = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {allMatches.map((match, index) => (
+                    {allMatches.map((match) => (
                       <label
                         key={match.id}
                         className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all ${

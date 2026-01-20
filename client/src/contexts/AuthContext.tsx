@@ -1,18 +1,12 @@
-import React, {
+import {
   createContext,
   useContext,
   useState,
   useEffect,
-  ReactNode,
+  type ReactNode,
 } from 'react';
-import getFirebase from '../lib/firebase';
-// Simple user type for our Firebase auth
-interface User {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
-}
+import getFirebase from '@/lib/firebase';
+import type { User } from '@/types';
 import type {
   Auth,
   User as FirebaseUser,

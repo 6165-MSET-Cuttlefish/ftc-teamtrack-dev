@@ -2,39 +2,49 @@ import {
   createContext,
   useContext,
   useState,
-  ReactNode,
   useEffect,
+  type ReactNode,
 } from 'react';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const THEME_STORAGE_KEY = 'teamtrack-theme';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface ThemeContextType {
   isDarkMode: boolean;
   toggleTheme: () => void;
 }
 
+// ============================================================================
+// Context
+// ============================================================================
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('teamtrack-theme');
-      return saved ? JSON.parse(saved) : true;
-    }
-    return true;
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : true;
   });
 
   useEffect(() => {
-    if (typeof document !== 'undefined') {
-      if (isDarkMode) document.documentElement.classList.add('dark');
-      else document.documentElement.classList.remove('dark');
-    }
+    if (typeof document === 'undefined') return;
+    document.documentElement.classList.toggle('dark', isDarkMode);
   }, [isDarkMode]);
 
   const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('teamtrack-theme', JSON.stringify(newTheme));
-    }
+    setIsDarkMode((prev: boolean) => {
+      const next = !prev;
+      localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   return (
@@ -46,7 +56,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
 export const useTheme = () => {
   const context = useContext(ThemeContext);
-  if (context === undefined)
+  if (!context) {
     throw new Error('useTheme must be used within a ThemeProvider');
+  }
   return context;
 };

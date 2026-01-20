@@ -3,20 +3,18 @@ import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { useFirebase } from '@/hooks';
 import { firebaseService } from '@/services';
+import type { Session } from '@/types';
 import {
   TrendingUp,
   TrendingDown,
   BarChart3,
   ChevronRight,
-  Tabs,
 } from 'lucide-react';
 import {
   BarChart,
   Bar,
   LineChart,
   Line,
-  AreaChart,
-  Area,
   RadarChart,
   Radar,
   PieChart,
@@ -39,6 +37,18 @@ interface ChartDataPoint {
   category?: string;
   fullMark?: number;
   [key: string]: string | number | undefined;
+}
+
+interface MatchStats {
+  avgScore: number;
+  maxScore: number;
+  minScore: number;
+  consistency: number;
+  accuracy: number;
+  avgAuto: number;
+  avgTele: number;
+  avgEndgame: number;
+  totalMatches: number;
 }
 
 const CustomTooltip = ({
@@ -530,7 +540,6 @@ const MatchAnalysis = ({
 
   // Compare this match to average of others
   const otherMatches = allMatches.filter((_, idx) => idx !== matchIndex);
-  const avgScore = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.finalScore || 0), 0) / otherMatches.length : 0;
   const avgAuto = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / otherMatches.length : 0;
   const avgTele = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / otherMatches.length : 0;
   const avgEndgame = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / otherMatches.length : 0;
@@ -679,7 +688,7 @@ const SessionSummary = ({
   stats,
   matchCount,
 }: {
-  stats: ReturnType<typeof calculateMatchStats>;
+  stats: MatchStats | null;
   matchCount: number;
 }) => {
   const { isDarkMode } = useTheme();
@@ -744,7 +753,7 @@ const PerformanceGraphs = ({
   historicalSessions,
 }: {
   currentSession: Record<string, unknown>;
-  historicalSessions: SessionData[];
+  historicalSessions: Session[];
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -1041,7 +1050,7 @@ const AnalysisContent = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
-  const [historicalSessions, setHistoricalSessions] = useState<SessionData[]>(
+  const [historicalSessions, setHistoricalSessions] = useState<Session[]>(
     []
   );
   const [_graphModal, _setGraphModal] = useState<{
@@ -1056,7 +1065,6 @@ const AnalysisContent = () => {
   const [viewMode, setViewMode] = useState<'overview' | 'matches' | 'match-analysis' | 'session-summary'>('overview');
   const [sessionMatches, setSessionMatches] = useState<any[]>([]);
   const [selectedMatchIndex, setSelectedMatchIndex] = useState<number | null>(null);
-  const [comparisonMatches, setComparisonMatches] = useState<number[]>([]);
 
   // Initialize matches from session data
   useEffect(() => {
@@ -1070,7 +1078,7 @@ const AnalysisContent = () => {
   const [accuracy, setAccuracy] = useState<number>(0);
 
   // Helper functions for match analysis
-  const calculateMatchStats = () => {
+  const calculateMatchStats = (): MatchStats | null => {
     if (sessionMatches.length === 0) return null;
 
     const scores = sessionMatches.map(m => m.finalScore || 0);
@@ -1102,16 +1110,6 @@ const AnalysisContent = () => {
       avgEndgame: Math.round(avgEndgame),
       totalMatches: sessionMatches.length,
     };
-  };
-
-  const getMatchComparisonData = (): ChartDataPoint[] => {
-    return sessionMatches.map((match, idx) => ({
-      name: `Match ${idx + 1}`,
-      'Final Score': match.finalScore || 0,
-      Autonomous: match.autonomousScore || 0,
-      TeleOp: match.teleOpScore || 0,
-      'End Game': match.endGameScore || 0,
-    }));
   };
 
   // Performance insights state
@@ -1167,7 +1165,7 @@ const AnalysisContent = () => {
               autonomousBasket: session.autonClassifiedArtifact || 0,
               autonomousSpecimen: session.autonOverflowArtifact || 0,
               autonomousFloorMark: session.autonMotif || 0,
-              autonomousLeave: session.autonLeave || 0,
+              autonLeave: session.autonLeave || 0,
               teleOpSamples: session.teleClassifiedArtifact || 0,
               teleOpSpecimen: session.teleOverflowArtifact || 0,
               teleOpFloorMark: session.teleMotif || 0,
@@ -1302,7 +1300,10 @@ const AnalysisContent = () => {
         // Calculate accuracy: percentage of theoretical max score achieved
         // Assuming max score is around 150 for FTC (adjust if needed)
         const maxPossibleScore = 150;
-        const accuracyPercent = (sessionData.finalScore / maxPossibleScore) * 100;
+        const currentFinalScore = sessionData.finalScore ?? 0;
+        const currentAutonScore = sessionData.autonomousScore ?? 0;
+        const currentTeleScore = sessionData.teleOpScore ?? 0;
+        const accuracyPercent = (currentFinalScore / maxPossibleScore) * 100;
 
         const formatChange = (current: number, average: number) => {
           if (average === 0) return 'N/A';
@@ -1311,9 +1312,9 @@ const AnalysisContent = () => {
           return `${sign}${Math.round(perc)}%`;
         };
 
-        const consistencyChange = formatChange(sessionData.finalScore, avgFinal);
-        const autonChange = formatChange(sessionData.autonomousScore, avgAuton);
-        const teleChange = formatChange(sessionData.teleOpScore, avgTele);
+        const consistencyChange = formatChange(currentFinalScore, avgFinal);
+        const autonChange = formatChange(currentAutonScore, avgAuton);
+        const teleChange = formatChange(currentTeleScore, avgTele);
 
         if (mounted) {
           setConsistency(Math.round(consistencyPercent));
@@ -1323,19 +1324,19 @@ const AnalysisContent = () => {
               id: 1,
               metric: 'Consistency',
               value: consistencyChange,
-              isPositive: sessionData.finalScore >= avgFinal,
+              isPositive: currentFinalScore >= avgFinal,
             },
             {
               id: 2,
               metric: 'Autonomous',
               value: autonChange,
-              isPositive: sessionData.autonomousScore >= avgAuton,
+              isPositive: currentAutonScore >= avgAuton,
             },
             {
               id: 3,
               metric: 'TeleOp',
               value: teleChange,
-              isPositive: sessionData.teleOpScore >= avgTele,
+              isPositive: currentTeleScore >= avgTele,
             },
           ]);
         }
@@ -1395,7 +1396,7 @@ const AnalysisContent = () => {
           {/* Data Cards */}
           <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 justify-center">
             <DataCard
-              value={sessionData.finalScore.toString()}
+              value={(sessionData.finalScore ?? 0).toString()}
               label="Final Score"
             />
             <DataCard value={`${consistency}%`} label="Consistency" />
@@ -1408,7 +1409,7 @@ const AnalysisContent = () => {
             driverName={sessionData.driverName}
             matchType={sessionData.matchType}
             sessionDuration={sessionData.sessionDuration}
-            finalScore={sessionData.finalScore}
+            finalScore={sessionData.finalScore ?? 0}
             totalTime={sessionData.sessionDuration}
           />
 
@@ -1433,7 +1434,7 @@ const AnalysisContent = () => {
             {/* Performance Graphs */}
             {historicalSessions.length > 0 && (
               <PerformanceGraphs
-                currentSession={sessionData}
+                currentSession={sessionData as unknown as Record<string, unknown>}
                 historicalSessions={historicalSessions}
               />
             )}

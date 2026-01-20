@@ -1,3 +1,13 @@
-// Library barrel exports for cleaner imports
+// Library barrel exports
 export { default as getFirebase } from './firebase';
-export { cn } from './utils';
+export {
+  cn,
+  toDate,
+  formatDate,
+  formatTime,
+  getInitials,
+  isAbortError,
+  safeAsync,
+  calculatePercentChange,
+  average,
+} from './utils';
