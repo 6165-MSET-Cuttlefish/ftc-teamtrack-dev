@@ -14,13 +14,18 @@ export const useFirebase = () => {
         const result = await operation();
         return result;
       } catch (err: unknown) {
-        // Suppress AbortError which can occur due to HMR or navigation cancelling in dev
+        // Suppress AbortError which can occur due to HMR, navigation cancelling, or component unmount
         if (
           err &&
           typeof err === 'object' &&
           'name' in err &&
           err.name === 'AbortError'
         ) {
+          setError(null);
+          return null;
+        }
+        // Also check for signal-related error messages
+        if (err instanceof Error && err.message?.includes('signal')) {
           setError(null);
           return null;
         }
