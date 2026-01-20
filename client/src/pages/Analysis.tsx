@@ -1217,122 +1217,143 @@ const AnalysisContent = () => {
   // Calculate metrics based on historical data
   useEffect(() => {
     let mounted = true;
+    let abortController: AbortController | null = null;
+
     const fetchComparisons = async () => {
       if (!user?.uid) {
         // no user - can't compare
-        setInsights([
-          { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
-          { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
-          { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
-        ]);
-        setConsistency(0);
-        setAccuracy(0);
+        if (mounted) {
+          setInsights([
+            { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
+            { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
+            { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
+          ]);
+          setConsistency(0);
+          setAccuracy(0);
+        }
         return;
       }
 
-      const result = await getUserSessions(user.uid);
-      if (!mounted) return;
+      try {
+        abortController = new AbortController();
+        const result = await getUserSessions(user.uid);
+        if (!mounted) return;
 
-      if (!result || result.length === 0) {
-        setInsights([
-          { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
-          { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
-          { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
-        ]);
-        setConsistency(0);
-        setAccuracy(0);
-        return;
+        if (!result || result.length === 0) {
+          if (mounted) {
+            setInsights([
+              { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
+              { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
+              { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
+            ]);
+            setConsistency(0);
+            setAccuracy(0);
+          }
+          return;
+        }
+
+        // Use last 3 previous sessions (excluding current if it matches by finalScore and duration)
+        // Filter out the current session when possible (match by finalScore and sessionDuration)
+        const filtered = result.filter(
+          s =>
+            !(
+              s.finalScore === sessionData.finalScore &&
+              s.sessionDuration === sessionData.sessionDuration
+            )
+        );
+        const prevSessions = filtered.slice(0, 3);
+
+        if (prevSessions.length === 0) {
+          if (mounted) {
+            setInsights([
+              { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
+              { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
+              { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
+            ]);
+            setConsistency(0);
+            setAccuracy(0);
+          }
+          return;
+        }
+
+        const avgFinal =
+          prevSessions.reduce((s, p) => s + (p.finalScore || 0), 0) /
+          prevSessions.length;
+        const avgAuton =
+          prevSessions.reduce((s, p) => s + (p.autonomousScore || 0), 0) /
+          prevSessions.length;
+        const avgTele =
+          prevSessions.reduce((s, p) => s + (p.teleOpScore || 0), 0) /
+          prevSessions.length;
+
+        // Calculate consistency: standard deviation of scores
+        const scoreVariance =
+          prevSessions.reduce((sum, session) => {
+            const diff = (session.finalScore || 0) - avgFinal;
+            return sum + diff * diff;
+          }, 0) / prevSessions.length;
+        const stdDev = Math.sqrt(scoreVariance);
+        // Convert to percentage: lower std dev = higher consistency
+        const consistencyPercent =
+          avgFinal > 0
+            ? Math.max(0, Math.min(100, 100 - (stdDev / avgFinal) * 100))
+            : 0;
+
+        // Calculate accuracy: percentage of theoretical max score achieved
+        // Assuming max score is around 150 for FTC (adjust if needed)
+        const maxPossibleScore = 150;
+        const accuracyPercent = (sessionData.finalScore / maxPossibleScore) * 100;
+
+        const formatChange = (current: number, average: number) => {
+          if (average === 0) return 'N/A';
+          const perc = ((current - average) / average) * 100;
+          const sign = perc >= 0 ? '+' : '';
+          return `${sign}${Math.round(perc)}%`;
+        };
+
+        const consistencyChange = formatChange(sessionData.finalScore, avgFinal);
+        const autonChange = formatChange(sessionData.autonomousScore, avgAuton);
+        const teleChange = formatChange(sessionData.teleOpScore, avgTele);
+
+        if (mounted) {
+          setConsistency(Math.round(consistencyPercent));
+          setAccuracy(Math.round(Math.min(100, accuracyPercent)));
+          setInsights([
+            {
+              id: 1,
+              metric: 'Consistency',
+              value: consistencyChange,
+              isPositive: sessionData.finalScore >= avgFinal,
+            },
+            {
+              id: 2,
+              metric: 'Autonomous',
+              value: autonChange,
+              isPositive: sessionData.autonomousScore >= avgAuton,
+            },
+            {
+              id: 3,
+              metric: 'TeleOp',
+              value: teleChange,
+              isPositive: sessionData.teleOpScore >= avgTele,
+            },
+          ]);
+        }
+      } catch (error: any) {
+        // Suppress AbortError which occurs during cleanup
+        if (mounted && error?.name !== 'AbortError') {
+          console.error('Error fetching comparisons:', error);
+        }
       }
-
-      // Use last 3 previous sessions (excluding current if it matches by finalScore and duration)
-      // Filter out the current session when possible (match by finalScore and sessionDuration)
-      const filtered = result.filter(
-        s =>
-          !(
-            s.finalScore === sessionData.finalScore &&
-            s.sessionDuration === sessionData.sessionDuration
-          )
-      );
-      const prevSessions = filtered.slice(0, 3);
-
-      if (prevSessions.length === 0) {
-        setInsights([
-          { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
-          { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
-          { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
-        ]);
-        setConsistency(0);
-        setAccuracy(0);
-        return;
-      }
-
-      const avgFinal =
-        prevSessions.reduce((s, p) => s + (p.finalScore || 0), 0) /
-        prevSessions.length;
-      const avgAuton =
-        prevSessions.reduce((s, p) => s + (p.autonomousScore || 0), 0) /
-        prevSessions.length;
-      const avgTele =
-        prevSessions.reduce((s, p) => s + (p.teleOpScore || 0), 0) /
-        prevSessions.length;
-
-      // Calculate consistency: standard deviation of scores
-      const scoreVariance =
-        prevSessions.reduce((sum, session) => {
-          const diff = (session.finalScore || 0) - avgFinal;
-          return sum + diff * diff;
-        }, 0) / prevSessions.length;
-      const stdDev = Math.sqrt(scoreVariance);
-      // Convert to percentage: lower std dev = higher consistency
-      const consistencyPercent =
-        avgFinal > 0
-          ? Math.max(0, Math.min(100, 100 - (stdDev / avgFinal) * 100))
-          : 0;
-      setConsistency(Math.round(consistencyPercent));
-
-      // Calculate accuracy: percentage of theoretical max score achieved
-      // Assuming max score is around 150 for FTC (adjust if needed)
-      const maxPossibleScore = 150;
-      const accuracyPercent = (sessionData.finalScore / maxPossibleScore) * 100;
-      setAccuracy(Math.round(Math.min(100, accuracyPercent)));
-
-      const formatChange = (current: number, average: number) => {
-        if (average === 0) return 'N/A';
-        const perc = ((current - average) / average) * 100;
-        const sign = perc >= 0 ? '+' : '';
-        return `${sign}${Math.round(perc)}%`;
-      };
-
-      const consistencyChange = formatChange(sessionData.finalScore, avgFinal);
-      const autonChange = formatChange(sessionData.autonomousScore, avgAuton);
-      const teleChange = formatChange(sessionData.teleOpScore, avgTele);
-
-      setInsights([
-        {
-          id: 1,
-          metric: 'Consistency',
-          value: consistencyChange,
-          isPositive: sessionData.finalScore >= avgFinal,
-        },
-        {
-          id: 2,
-          metric: 'Autonomous',
-          value: autonChange,
-          isPositive: sessionData.autonomousScore >= avgAuton,
-        },
-        {
-          id: 3,
-          metric: 'TeleOp',
-          value: teleChange,
-          isPositive: sessionData.teleOpScore >= avgTele,
-        },
-      ]);
     };
 
     fetchComparisons();
 
     return () => {
       mounted = false;
+      if (abortController) {
+        abortController.abort();
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
