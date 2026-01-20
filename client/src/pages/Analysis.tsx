@@ -1126,6 +1126,9 @@ const AnalysisContent = () => {
 
   // Load session data from Firebase or location state
   useEffect(() => {
+    let mounted = true;
+    let abortController: AbortController | null = null;
+
     const loadSessionData = async () => {
       setLoading(true);
 
@@ -1135,8 +1138,10 @@ const AnalysisContent = () => {
         isTemporary?: boolean;
       } | null;
       if (stateData?.sessionData) {
-        updateSessionData(stateData.sessionData);
-        setLoading(false);
+        if (mounted) {
+          updateSessionData(stateData.sessionData);
+          setLoading(false);
+        }
         return;
       }
 
@@ -1144,8 +1149,10 @@ const AnalysisContent = () => {
       const sessionId = searchParams.get('sessionId');
       if (sessionId) {
         try {
+          abortController = new AbortController();
           const session = await firebaseService.getSession(sessionId);
-          if (session) {
+
+          if (mounted && session) {
             // Update the session context with loaded data
             updateSessionData({
               sessionName: session.sessionName || '',
@@ -1169,25 +1176,42 @@ const AnalysisContent = () => {
               cycleTimes: session.cycleTimes || [],
             });
           }
-        } catch (error) {
-          console.error('Error loading session:', error);
+        } catch (error: any) {
+          // Suppress AbortError which occurs during cleanup
+          if (mounted && error?.name !== 'AbortError') {
+            console.error('Error loading session:', error);
+          }
         }
       }
 
       // Load historical sessions for comparison
-      if (user?.uid) {
+      if (mounted && user?.uid) {
         try {
           const sessions = await firebaseService.getUserSessions(user.uid);
-          setHistoricalSessions(sessions);
-        } catch (error) {
-          console.error('Error loading historical sessions:', error);
+          if (mounted) {
+            setHistoricalSessions(sessions || []);
+          }
+        } catch (error: any) {
+          // Suppress AbortError which occurs during cleanup
+          if (mounted && error?.name !== 'AbortError') {
+            console.error('Error loading historical sessions:', error);
+          }
         }
       }
 
-      setLoading(false);
+      if (mounted) {
+        setLoading(false);
+      }
     };
 
     loadSessionData();
+
+    return () => {
+      mounted = false;
+      if (abortController) {
+        abortController.abort();
+      }
+    };
   }, [searchParams, location.state, updateSessionData, user?.uid]);
 
   // Calculate metrics based on historical data
