@@ -24,6 +24,11 @@ const isFirestoreAbortError = (error: any): boolean => {
     return true;
   }
 
+  // Also catch generic "aborted" errors from Firestore internal processes
+  if (error.name === 'AbortError' && !error.message) {
+    return true;
+  }
+
   return false;
 };
 
@@ -52,6 +57,16 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
     event.preventDefault();
   }
 });
+
+// Also suppress AbortError errors that might be thrown synchronously
+const originalError = Error;
+Error.captureStackTrace = function(targetObject: any, constructorOpt: any) {
+  try {
+    originalError.captureStackTrace?.call(this, targetObject, constructorOpt);
+  } catch {
+    // Silently ignore any errors during stack trace capture
+  }
+};
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode>
