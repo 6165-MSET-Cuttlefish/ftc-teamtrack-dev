@@ -20,10 +20,6 @@ import type { Session, CreateSessionData } from '@/types';
 // Re-export Session type for backwards compatibility
 export type SessionData = Session;
 
-// ============================================================================
-// Firebase Service Class
-// ============================================================================
-
 class FirebaseService {
   private dbInstance: Firestore | null = null;
 
@@ -56,10 +52,6 @@ class FirebaseService {
       return fallback;
     }
   }
-
-  // ==========================================================================
-  // Session CRUD Operations
-  // ==========================================================================
 
   /** Create a new session */
   async createSession(sessionData: CreateSessionData): Promise<SessionData | null> {
@@ -170,5 +162,4 @@ class FirebaseService {
   }
 }
 
-// Export singleton instance
 export const firebaseService = new FirebaseService();

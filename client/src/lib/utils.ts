@@ -2,18 +2,10 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { FirebaseTimestamp, TimestampValue } from '@/types';
 
-// ============================================================================
-// Styling Utilities
-// ============================================================================
-
 /** Merge Tailwind CSS classes with clsx */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-// ============================================================================
-// Date/Time Utilities
-// ============================================================================
 
 /** Convert Firebase timestamp or various date formats to Date object */
 export function toDate(timestamp: TimestampValue | unknown): Date {
@@ -66,10 +58,6 @@ export function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-// ============================================================================
-// String Utilities
-// ============================================================================
-
 /** Get initials from a name string */
 export function getInitials(name: string): string {
   return name
@@ -78,10 +66,6 @@ export function getInitials(name: string): string {
     .join('')
     .toUpperCase();
 }
-
-// ============================================================================
-// Error Handling Utilities
-// ============================================================================
 
 /** Check if error is a Firebase Firestore AbortError (commonly occurs during HMR/navigation) */
 export function isAbortError(error: unknown): boolean {
@@ -125,10 +109,6 @@ export async function safeAsync<T>(
     throw error;
   }
 }
-
-// ============================================================================
-// Math Utilities
-// ============================================================================
 
 /** Calculate percentage change between two values */
 export function calculatePercentChange(current: number, baseline: number): number {

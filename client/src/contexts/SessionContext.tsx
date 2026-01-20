@@ -10,10 +10,6 @@ import { useAuth } from './AuthContext';
 import { formatTime as formatTimeUtil } from '@/lib/utils';
 import type { Match, ScoringFields } from '@/types';
 
-// ============================================================================
-// Types
-// ============================================================================
-
 interface SessionFormData extends ScoringFields {
   sessionName: string;
   driverName: string;
@@ -47,10 +43,6 @@ interface SessionContextType {
   setExpandedSection: (section: string | null) => void;
 }
 
-// ============================================================================
-// Initial State
-// ============================================================================
-
 const createInitialSessionData = (displayName?: string | null): SessionFormData => ({
   sessionName: '',
   driverName: displayName || '',
@@ -72,10 +64,6 @@ const createInitialSessionData = (displayName?: string | null): SessionFormData 
   selectedFeature: '',
   cycleTimes: [],
 });
-
-// ============================================================================
-// Context
-// ============================================================================
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 

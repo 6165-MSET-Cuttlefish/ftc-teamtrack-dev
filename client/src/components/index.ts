@@ -1,4 +1,3 @@
-// Component barrel exports
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { Header } from './Header';
 export { LivePreview } from './LivePreview';

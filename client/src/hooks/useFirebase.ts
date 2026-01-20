@@ -6,18 +6,10 @@ import type { Session, CreateSessionData } from '@/types';
 // Re-export SessionData for backwards compatibility
 export type SessionData = Session;
 
-// ============================================================================
-// Hook State
-// ============================================================================
-
 interface UseFirebaseState {
   loading: boolean;
   error: string | null;
 }
-
-// ============================================================================
-// Hook
-// ============================================================================
 
 export const useFirebase = () => {
   const [state, setState] = useState<UseFirebaseState>({
@@ -44,10 +36,6 @@ export const useFirebase = () => {
       return null;
     }
   }, []);
-
-  // ==========================================================================
-  // Session Operations
-  // ==========================================================================
 
   const createSession = useCallback(
     (sessionData: CreateSessionData) => execute(() => firebaseService.createSession(sessionData)),

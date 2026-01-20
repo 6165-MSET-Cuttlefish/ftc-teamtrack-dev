@@ -1,4 +1,3 @@
-// Library barrel exports
 export { default as getFirebase } from './firebase';
 export {
   cn,

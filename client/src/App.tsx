@@ -6,17 +6,16 @@ import { AuthProvider, ThemeProvider, SessionProvider } from '@/contexts';
 import { ErrorBoundary, Header, ProtectedRoute } from '@/components';
 import { ROUTES } from '@/constants';
 
-// Lazy load pages for better performance
-const Original = lazy(() => import('./pages/Original'));
-const Analysis = lazy(() => import('./pages/Analysis'));
-const About = lazy(() => import('./pages/About'));
-const Login = lazy(() => import('./pages/Login'));
-const Signup = lazy(() => import('./pages/Signup'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Sessions = lazy(() => import('./pages/Sessions'));
-const Compare = lazy(() => import('./pages/Compare'));
-const Charts = lazy(() => import('./pages/Charts'));
+const Original = lazy(() => import('./pages/session/Original'));
+const Analysis = lazy(() => import('./pages/session/Analysis'));
+const About = lazy(() => import('./pages/dashboard/About'));
+const Login = lazy(() => import('./pages/auth/Login'));
+const Signup = lazy(() => import('./pages/auth/Signup'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const Profile = lazy(() => import('./pages/dashboard/Profile'));
+const Sessions = lazy(() => import('./pages/session/Sessions'));
+const Compare = lazy(() => import('./pages/session/Compare'));
+const Charts = lazy(() => import('./pages/session/Charts'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component

@@ -1,4 +1,3 @@
-// Type barrel exports
 export type {
   Session,
   Match,
