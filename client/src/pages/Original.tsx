@@ -8,12 +8,7 @@ import { useTheme } from '@/contexts';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSession } from '@/contexts';
 import { ChevronLeft, Plus } from 'lucide-react';
 
@@ -64,18 +59,33 @@ const OriginalContent = () => {
       endgameHang: 0,
       cycleTimes: [],
     });
-    
+
     setShowMatchSummary(false);
   };
 
   const handleFinishSession = () => {
     // Update session with overall scores from all matches if no scores set
-    if (sessionData.finalScore === 0 && sessionData.matches && sessionData.matches.length > 0) {
-      const totalScore = sessionData.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-      const avgAuton = sessionData.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / sessionData.matches.length;
-      const avgTele = sessionData.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / sessionData.matches.length;
-      const avgEndgame = sessionData.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / sessionData.matches.length;
-      
+    if (
+      sessionData.finalScore === 0 &&
+      sessionData.matches &&
+      sessionData.matches.length > 0
+    ) {
+      const totalScore = sessionData.matches.reduce(
+        (sum, m) => sum + (m.finalScore || 0),
+        0
+      );
+      const avgAuton =
+        sessionData.matches.reduce(
+          (sum, m) => sum + (m.autonomousScore || 0),
+          0
+        ) / sessionData.matches.length;
+      const avgTele =
+        sessionData.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) /
+        sessionData.matches.length;
+      const avgEndgame =
+        sessionData.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) /
+        sessionData.matches.length;
+
       updateSessionData({
         isSessionCompleted: true,
         finalScore: totalScore,
@@ -86,7 +96,7 @@ const OriginalContent = () => {
     } else {
       updateSessionData({ isSessionCompleted: true });
     }
-    
+
     navigate('/analysis');
   };
 
@@ -113,8 +123,11 @@ const OriginalContent = () => {
                   : 'Match 1 - Track your score'}
               </p>
               {sessionData.matches && sessionData.matches.length > 0 && (
-                <div className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
-                  {sessionData.matches.length} match{sessionData.matches.length !== 1 ? 'es' : ''} recorded
+                <div
+                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                >
+                  {sessionData.matches.length} match
+                  {sessionData.matches.length !== 1 ? 'es' : ''} recorded
                 </div>
               )}
             </div>
