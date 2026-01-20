@@ -128,6 +128,8 @@ class FirebaseService {
   async getAllSessions(): Promise<SessionData[]> {
     try {
       const db = await this.getDB();
+      if (!db) return [];
+
       const q = query(
         collection(db, 'sessions'),
         orderBy('createdAt', 'desc'),
@@ -140,12 +142,17 @@ class FirebaseService {
         ...doc.data(),
       })) as SessionData[];
     } catch (error: unknown) {
+      // Silently handle AbortError which occurs during component unmount or navigation
       if (
         error &&
         typeof error === 'object' &&
         'name' in error &&
         error.name === 'AbortError'
       ) {
+        return [];
+      }
+      // Also check for "signal is aborted" message pattern
+      if (error instanceof Error && error.message?.includes('signal')) {
         return [];
       }
       console.error('Error fetching all sessions:', error);
