@@ -87,6 +87,8 @@ class FirebaseService {
   async getSession(sessionId: string): Promise<SessionData | null> {
     try {
       const db = await this.getDB();
+      if (!db) return null;
+
       const docRef = doc(db, 'sessions', sessionId);
       const docSnap = await getDoc(docRef);
 
@@ -99,12 +101,17 @@ class FirebaseService {
 
       return null;
     } catch (error: unknown) {
+      // Silently handle AbortError which occurs during component unmount
       if (
         error &&
         typeof error === 'object' &&
         'name' in error &&
         error.name === 'AbortError'
       ) {
+        return null;
+      }
+      // Also check for "signal is aborted" message pattern
+      if (error instanceof Error && error.message?.includes('signal')) {
         return null;
       }
       console.error('Error fetching session:', error);
