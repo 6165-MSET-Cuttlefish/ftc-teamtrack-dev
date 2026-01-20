@@ -57,6 +57,8 @@ class FirebaseService {
   async getUserSessions(userId: string): Promise<SessionData[]> {
     try {
       const db = await this.getDB();
+      if (!db) return [];
+
       const q = query(
         collection(db, 'sessions'),
         where('userId', '==', userId),
@@ -70,13 +72,17 @@ class FirebaseService {
         ...doc.data(),
       })) as SessionData[];
     } catch (error: unknown) {
+      // Silently handle AbortError which occurs during component unmount or navigation
       if (
         error &&
         typeof error === 'object' &&
         'name' in error &&
         error.name === 'AbortError'
       ) {
-        // Suppress noisy AbortError from Firestore/internal fetch during HMR or navigation
+        return [];
+      }
+      // Also check for "signal is aborted" message pattern
+      if (error instanceof Error && error.message?.includes('signal')) {
         return [];
       }
       console.error('Error fetching user sessions:', error);
