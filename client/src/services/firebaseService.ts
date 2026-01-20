@@ -30,6 +30,8 @@ class FirebaseService {
   ): Promise<SessionData | null> {
     try {
       const db = await this.getDB();
+      if (!db) return null;
+
       const newSession = {
         ...sessionData,
         createdAt: Timestamp.now(),
@@ -41,12 +43,17 @@ class FirebaseService {
         ...newSession,
       } as SessionData;
     } catch (error: unknown) {
+      // Silently handle AbortError which occurs during component unmount
       if (
         error &&
         typeof error === 'object' &&
         'name' in error &&
         error.name === 'AbortError'
       ) {
+        return null;
+      }
+      // Also check for "signal is aborted" message pattern
+      if (error instanceof Error && error.message?.includes('signal')) {
         return null;
       }
       console.error('Error creating session:', error);
