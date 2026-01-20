@@ -28,6 +28,7 @@ interface SessionData {
   endGameValue: number;
   selectedFeature: string;
   cycleTimes: number[];
+  matches?: any[];
   // New scoring system properties
   autonClassifiedArtifact?: number;
   autonOverflowArtifact?: number;

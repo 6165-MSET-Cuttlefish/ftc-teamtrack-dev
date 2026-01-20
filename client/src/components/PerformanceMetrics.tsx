@@ -196,6 +196,9 @@ export const PerformanceMetrics = () => {
   const [popupNumber, setPopupNumber] = useState<string>('');
   const [madeCount, setMadeCount] = useState<number | null>(null);
 
+  // State for collapsible session analysis section
+  const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(false);
+
   const toggleSection = (metricType: string) =>
     setExpandedSection(expandedSection === metricType ? null : metricType);
 
@@ -623,64 +626,119 @@ export const PerformanceMetrics = () => {
         </div>
       )}
 
-      <div className="flex gap-6">
-        <div className="flex-1">
-          <h2 className="text-team-blue text-3xl font-bold leading-6 mb-8">
-            Performance Metrics
+      <div className="flex flex-col gap-12">
+        {/* Matches section at the top (main content) */}
+        <div className="flex flex-col gap-6">
+          <h2 className="text-team-blue text-3xl font-bold leading-6">
+            Matches in this Session
           </h2>
-          <div className="space-y-8">
-            <MetricField
-              label="Final Score"
-              value={sessionData.finalScore}
-              onChange={value => updateSessionData({ finalScore: value })}
-              hasDropdown={false}
-              editable={true}
-              showArrows={false}
-            />
-            {sessionData.matchType !== 'TeleOp' && (
-              <MetricField
-                label="Autonomous Score"
-                value={sessionData.autonomousScore}
-                onChange={value =>
-                  updateSessionData({ autonomousScore: value })
-                }
-                onDropdownClick={() => toggleSection('Autonomous Score')}
-                editable={true}
-                showArrows={false}
-                isSelected={expandedSection === 'Autonomous Score'}
-              />
-            )}
-            {sessionData.matchType !== 'Autonomous' && (
-              <MetricField
-                label="TeleOp Score"
-                value={sessionData.teleOpScore}
-                onChange={value => updateSessionData({ teleOpScore: value })}
-                onDropdownClick={() => toggleSection('TeleOp Score')}
-                editable={true}
-                showArrows={false}
-                isSelected={expandedSection === 'TeleOp Score'}
-              />
-            )}
-            <MetricField
-              label="End Game Score"
-              value={sessionData.endGameScore}
-              onChange={value => updateSessionData({ endGameScore: value })}
-              onDropdownClick={() => toggleSection('End Game Score')}
-              editable={true}
-              showArrows={false}
-              isSelected={expandedSection === 'End Game Score'}
-            />
-          </div>
+          {sessionData.matches && sessionData.matches.length > 0 ? (
+            <div className="space-y-4">
+              {sessionData.matches.map((match) => (
+                <div
+                  key={match.id}
+                  className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue/60 bg-white'}`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div className="text-team-blue font-bold text-xl">
+                        Match {match.matchNumber}
+                      </div>
+                      <div className={`text-lg ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        {match.matchType}
+                      </div>
+                    </div>
+                    <div className={`text-3xl font-bold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
+                      {match.finalScore}
+                    </div>
+                  </div>
+                  <div className={`mt-3 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+                    <div>Auto: {match.autonomousScore} | TeleOp: {match.teleOpScore} | EndGame: {match.endGameScore}</div>
+                    <div>{new Date(match.createdAt).toLocaleTimeString()}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={`p-6 rounded-lg border text-center ${isDarkMode ? 'border-team-blue-40 bg-team-dark text-team-white-60' : 'border-team-blue/60 bg-white text-team-blue-40'}`}>
+              No matches recorded yet. Start by entering performance data below.
+            </div>
+          )}
         </div>
-        <div className="flex-1 flex flex-col justify-start items-center">
-          <div className="mb-2 min-h-[48px]">
-            {getSectionTitle() && (
-              <h2 className="text-team-blue text-3xl font-bold leading-6">
-                {getSectionTitle()}
-              </h2>
-            )}
-          </div>
-          <div className="min-h-[200px]">{getBreakdownFields()}</div>
+
+        {/* Session Analysis section - collapsible */}
+        <div className="flex flex-col gap-4">
+          <button
+            onClick={() => setIsAnalysisExpanded(!isAnalysisExpanded)}
+            className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${isDarkMode ? 'border-team-blue-40 bg-team-dark hover:bg-team-dark-20' : 'border-team-blue/60 bg-white hover:bg-gray-50'}`}
+          >
+            <ChevronRight
+              className={`w-6 h-6 text-team-blue transition-transform ${isAnalysisExpanded ? 'rotate-90' : ''}`}
+            />
+            <h2 className="text-team-blue text-2xl font-bold">
+              Session Analysis
+            </h2>
+          </button>
+
+          {isAnalysisExpanded && (
+            <div className="flex gap-6">
+              <div className="flex-1">
+                <div className="space-y-8">
+                  <MetricField
+                    label="Final Score"
+                    value={sessionData.finalScore}
+                    onChange={value => updateSessionData({ finalScore: value })}
+                    hasDropdown={false}
+                    editable={true}
+                    showArrows={false}
+                  />
+                  {sessionData.matchType !== 'TeleOp' && (
+                    <MetricField
+                      label="Autonomous Score"
+                      value={sessionData.autonomousScore}
+                      onChange={value =>
+                        updateSessionData({ autonomousScore: value })
+                      }
+                      onDropdownClick={() => toggleSection('Autonomous Score')}
+                      editable={true}
+                      showArrows={false}
+                      isSelected={expandedSection === 'Autonomous Score'}
+                    />
+                  )}
+                  {sessionData.matchType !== 'Autonomous' && (
+                    <MetricField
+                      label="TeleOp Score"
+                      value={sessionData.teleOpScore}
+                      onChange={value => updateSessionData({ teleOpScore: value })}
+                      onDropdownClick={() => toggleSection('TeleOp Score')}
+                      editable={true}
+                      showArrows={false}
+                      isSelected={expandedSection === 'TeleOp Score'}
+                    />
+                  )}
+                  <MetricField
+                    label="End Game Score"
+                    value={sessionData.endGameScore}
+                    onChange={value => updateSessionData({ endGameScore: value })}
+                    onDropdownClick={() => toggleSection('End Game Score')}
+                    editable={true}
+                    showArrows={false}
+                    isSelected={expandedSection === 'End Game Score'}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col justify-start items-center">
+                <div className="mb-2 min-h-[48px]">
+                  {getSectionTitle() && (
+                    <h2 className="text-team-blue text-3xl font-bold leading-6">
+                      {getSectionTitle()}
+                    </h2>
+                  )}
+                </div>
+                <div className="min-h-[200px]">{getBreakdownFields()}</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
