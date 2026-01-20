@@ -170,16 +170,23 @@ class FirebaseService {
   async deleteSession(sessionId: string): Promise<boolean> {
     try {
       const db = await this.getDB();
+      if (!db) return false;
+
       const docRef = doc(db, 'sessions', sessionId);
       await deleteDoc(docRef);
       return true;
     } catch (error: unknown) {
+      // Silently handle AbortError which occurs during component unmount
       if (
         error &&
         typeof error === 'object' &&
         'name' in error &&
         error.name === 'AbortError'
       ) {
+        return false;
+      }
+      // Also check for "signal is aborted" message pattern
+      if (error instanceof Error && error.message?.includes('signal')) {
         return false;
       }
       console.error('Error deleting session:', error);
