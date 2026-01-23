@@ -468,15 +468,24 @@ export const LivePreview = () => {
                       }}
                       className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors"
                     >
-                      {hasStarted ? 'Resume' : 'Start Timer'}
+                      {hasStarted ? 'Resume' : 'Start Match'}
                     </button>
                   ) : (
-                    <button
-                      onClick={() => setIsTimerRunning(false)}
-                      className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
-                    >
-                      Pause
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setIsTimerRunning(false)}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                      >
+                        Stop Match
+                      </button>
+                      
+                      <button
+                        onClick={() => setIsTimerRunning(false)}
+                        className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors"
+                      >
+                        Pause Match
+                      </button>
+                    </>
                   )}
                 </>
               )}
@@ -485,7 +494,7 @@ export const LivePreview = () => {
                 onClick={handleSaveMatch}
                 className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
               >
-                Save Match & Start New
+                Save Match
               </button>
 
               <button

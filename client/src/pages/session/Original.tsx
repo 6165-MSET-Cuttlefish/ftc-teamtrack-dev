@@ -142,12 +142,6 @@ const OriginalContent = () => {
 
             {/* Match Actions */}
             <div className="flex flex-col gap-4 px-4 lg:px-0">
-              <Button
-                onClick={() => setShowMatchSummary(true)}
-                className="w-full bg-team-blue hover:bg-team-blue/90 text-white py-6 text-lg font-semibold rounded-xl"
-              >
-                Save Match & Start New
-              </Button>
               {sessionData.matches && sessionData.matches.length > 0 && (
                 <Button
                   onClick={handleFinishSession}
