@@ -690,7 +690,7 @@ const Sessions = () => {
               {searchTerm ? 'No sessions found' : 'No sessions yet'}
             </h3>
             <p
-              className={`mb-6 ${isDarkMode ? 'text-[#191919]' : 'text-team-blue-40'}`}
+              className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
             >
               {searchTerm
                 ? 'Try adjusting your search terms'
