@@ -511,29 +511,15 @@ export const PerformanceMetrics = ({
                       onClick={() => setIsCycleTimesLogExpanded(!isCycleTimesLogExpanded)}
                       className={`text-base leading-6 font-medium flex items-center gap-2 ${isDarkMode ? 'text-white hover:text-team-blue' : 'text-black hover:text-team-blue'} transition-colors`}
                     >
-<<<<<<< Updated upstream
-                      <ChevronRight
-                        className={`w-4 h-4 transition-transform ${isCycleTimesLogExpanded ? 'rotate-90' : ''}`}
-                      />
-                      Cycle Times Log ({sessionData.cycleTimes?.length ?? 0})
-=======
                       <ChevronRight className={`w-4 h-4 transition-transform ${isCycleTimesLogExpanded ? 'rotate-90' : ''}`} />
                       Cycle Times Log ({sessionData.cycleTimes.length})
->>>>>>> Stashed changes
                     </button>
                     {isCycleTimesLogExpanded && (
                       <div className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`} style={{ height: '150px', overflowY: 'auto' }}>
                         <div className="flex flex-col gap-2">
-<<<<<<< Updated upstream
-                          {[...(sessionData.cycleTimes ?? [])].reverse().map((time, index) => {
-                            const minutes = Math.floor(time / 60);
-                            const seconds = time % 60;
-                            const actualIndex = (sessionData.cycleTimes?.length ?? 0) - index;
-=======
                           {sessionData.cycleTimes.map((time, index) => {
                             const minutes = Math.floor(time / 60);
                             const seconds = time % 60;
->>>>>>> Stashed changes
                             return (
                               <div
                                 key={index}
@@ -582,29 +568,6 @@ export const PerformanceMetrics = ({
       )}
 
       <div className="flex gap-6">
-<<<<<<< Updated upstream
-        <div className="flex-1">
-          <h2 className="text-team-blue text-3xl font-bold leading-6 mb-8">
-            Performance Metrics
-          </h2>
-          <div className="space-y-8">
-            <MetricField
-              label="Final Score"
-              value={sessionData.finalScore ?? 0}
-              onChange={value => updateSessionData({ finalScore: value })}
-              hasDropdown={false}
-              editable={true}
-              showArrows={false}
-            />
-            {sessionData.matchType !== 'TeleOp' && (
-              <MetricField
-                label="Autonomous Score"
-                value={sessionData.autonomousScore ?? 0}
-                onChange={value =>
-                  updateSessionData({ autonomousScore: value })
-                }
-                onDropdownClick={() => toggleSection('Autonomous Score')}
-=======
         <div className="flex-1 flex flex-col justify-between">
           <div>
             <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-8">
@@ -613,17 +576,16 @@ export const PerformanceMetrics = ({
             <div className="space-y-8">
               <MetricField
                 label="Final Score"
-                value={sessionData.finalScore}
+                value={sessionData.finalScore ?? 0}
                 onChange={(value) => updateSessionData({ finalScore: value })}
                 hasDropdown={false}
->>>>>>> Stashed changes
                 editable={true}
                 showArrows={false}
               />
               {sessionData.matchType !== 'TeleOp' && (
                 <MetricField
                   label="Autonomous Score"
-                  value={sessionData.autonomousScore}
+                  value={sessionData.autonomousScore ?? 0}
                   onChange={(value) => updateSessionData({ autonomousScore: value })}
                   onDropdownClick={() => toggleSection('Autonomous Score')}
                   editable={true}
@@ -634,7 +596,7 @@ export const PerformanceMetrics = ({
               {sessionData.matchType !== 'Autonomous' && (
                 <MetricField
                   label="TeleOp Score"
-                  value={sessionData.teleOpScore}
+                  value={sessionData.teleOpScore ?? 0}
                   onChange={(value) => updateSessionData({ teleOpScore: value })}
                   onDropdownClick={() => toggleSection('TeleOp Score')}
                   editable={true}
@@ -643,35 +605,15 @@ export const PerformanceMetrics = ({
                 />
               )}
               <MetricField
-<<<<<<< Updated upstream
-                label="TeleOp Score"
-                value={sessionData.teleOpScore ?? 0}
-                onChange={value => updateSessionData({ teleOpScore: value })}
-                onDropdownClick={() => toggleSection('TeleOp Score')}
-=======
                 label="End Game Score"
-                value={sessionData.endGameScore}
+                value={sessionData.endGameScore ?? 0}
                 onChange={(value) => updateSessionData({ endGameScore: value })}
                 onDropdownClick={() => toggleSection('End Game Score')}
->>>>>>> Stashed changes
                 editable={true}
                 showArrows={false}
                 isSelected={expandedSection === 'End Game Score'}
               />
-<<<<<<< Updated upstream
-            )}
-            <MetricField
-              label="End Game Score"
-              value={sessionData.endGameScore ?? 0}
-              onChange={value => updateSessionData({ endGameScore: value })}
-              onDropdownClick={() => toggleSection('End Game Score')}
-              editable={true}
-              showArrows={false}
-              isSelected={expandedSection === 'End Game Score'}
-            />
-=======
             </div>
->>>>>>> Stashed changes
           </div>
 
           {/* Timer control button at bottom of left side - only show when match is active */}
