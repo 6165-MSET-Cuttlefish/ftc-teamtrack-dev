@@ -14,7 +14,7 @@ import { Plus } from 'lucide-react';
 const OriginalContent = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
-  const { sessionData, updateSessionData } = useSession();
+  const { sessionData, updateSessionData, isTimerRunning, setIsTimerRunning } = useSession();
   const [showMatchSummary, setShowMatchSummary] = useState(false);
 
   const handleSaveMatch = () => {
@@ -135,7 +135,11 @@ const OriginalContent = () => {
             <SessionSetup />
 
             {/* Performance Metrics */}
-            <PerformanceMetrics />
+            <PerformanceMetrics 
+              isTimerRunning={isTimerRunning}
+              onTimerToggle={setIsTimerRunning}
+              hasActiveMatch={!showMatchSummary}
+            />
 
             {/* Notes */}
             <Notes />

@@ -25,8 +25,23 @@ interface SessionFormData extends ScoringFields {
   teleOpSpecimen: number;
   teleOpFloorMark: number;
   endGameValue: number;
+<<<<<<< Updated upstream
   // Matches within session
   matches?: Match[];
+=======
+  selectedFeature: string;
+  cycleTimes: number[];
+  matches?: any[];
+  // New scoring system properties
+  autonClassifiedArtifact?: number;
+  autonOverflowArtifact?: number;
+  autonMotif?: number;
+  autonLeave?: number;
+  teleClassifiedArtifact?: number;
+  teleOverflowArtifact?: number;
+  teleMotif?: number;
+  endgameHang?: number;
+>>>>>>> Stashed changes
 }
 
 interface SessionContextType {

@@ -460,7 +460,14 @@ export const LivePreview = () => {
                 </button>
               ) : (
                 <>
-                  {!isTimerRunning ? (
+                  {hasStarted ? (
+                    <button
+                      onClick={handleSaveMatch}
+                      className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                    >
+                      Save Match
+                    </button>
+                  ) : (
                     <button
                       onClick={() => {
                         setIsTimerRunning(true);
@@ -468,25 +475,11 @@ export const LivePreview = () => {
                       }}
                       className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors"
                     >
-                      {hasStarted ? 'Resume' : 'Start Timer'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setIsTimerRunning(false)}
-                      className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
-                    >
-                      Pause
+                      Start New Match
                     </button>
                   )}
                 </>
               )}
-
-              <button
-                onClick={handleSaveMatch}
-                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
-              >
-                Save Match & Start New
-              </button>
 
               <button
                 onClick={handleCompleteSession}
