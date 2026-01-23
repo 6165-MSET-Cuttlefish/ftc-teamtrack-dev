@@ -461,12 +461,20 @@ export const LivePreview = () => {
               ) : (
                 <>
                   {hasStarted ? (
-                    <button
-                      onClick={handleSaveMatch}
-                      className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
-                    >
-                      Save Match
-                    </button>
+                    <>
+                      <button
+                        onClick={handleSaveMatch}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                      >
+                        Save Match
+                      </button>
+                      <button
+                        onClick={() => setIsTimerRunning(!isTimerRunning)}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                      >
+                        {isTimerRunning ? 'Pause Match' : 'Resume Match'}
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={() => {

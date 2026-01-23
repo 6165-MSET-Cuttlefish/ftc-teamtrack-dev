@@ -6,15 +6,13 @@ import {
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
 
 const OriginalContent = () => {
   const { isDarkMode } = useTheme();
-  const navigate = useNavigate();
-  const { sessionData, updateSessionData, isTimerRunning, setIsTimerRunning } = useSession();
+  const { sessionData, updateSessionData } = useSession();
   const [showMatchSummary, setShowMatchSummary] = useState(false);
 
   const handleSaveMatch = () => {
@@ -62,43 +60,6 @@ const OriginalContent = () => {
     setShowMatchSummary(false);
   };
 
-  const handleFinishSession = () => {
-    // Update session with overall scores from all matches if no scores set
-    if (
-      sessionData.finalScore === 0 &&
-      sessionData.matches &&
-      sessionData.matches.length > 0
-    ) {
-      const totalScore = sessionData.matches.reduce(
-        (sum, m) => sum + (m.finalScore || 0),
-        0
-      );
-      const avgAuton =
-        sessionData.matches.reduce(
-          (sum, m) => sum + (m.autonomousScore || 0),
-          0
-        ) / sessionData.matches.length;
-      const avgTele =
-        sessionData.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) /
-        sessionData.matches.length;
-      const avgEndgame =
-        sessionData.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) /
-        sessionData.matches.length;
-
-      updateSessionData({
-        isSessionCompleted: true,
-        finalScore: totalScore,
-        autonomousScore: Math.round(avgAuton),
-        teleOpScore: Math.round(avgTele),
-        endGameScore: Math.round(avgEndgame),
-      });
-    } else {
-      updateSessionData({ isSessionCompleted: true });
-    }
-
-    navigate('/analysis');
-  };
-
   return (
     <div
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
@@ -135,33 +96,10 @@ const OriginalContent = () => {
             <SessionSetup />
 
             {/* Performance Metrics */}
-            <PerformanceMetrics 
-              isTimerRunning={isTimerRunning}
-              onTimerToggle={setIsTimerRunning}
-              hasActiveMatch={!showMatchSummary}
-            />
+            <PerformanceMetrics />
 
             {/* Notes */}
             <Notes />
-
-            {/* Match Actions */}
-            <div className="flex flex-col gap-4 px-4 lg:px-0">
-              <Button
-                onClick={() => setShowMatchSummary(true)}
-                className="w-full bg-team-blue hover:bg-team-blue/90 text-white py-6 text-lg font-semibold rounded-xl"
-              >
-                Save Match & Start New
-              </Button>
-              {sessionData.matches && sessionData.matches.length > 0 && (
-                <Button
-                  onClick={handleFinishSession}
-                  variant="outline"
-                  className="w-full border-team-blue text-team-blue hover:bg-team-blue/10 py-6 text-lg font-semibold rounded-xl"
-                >
-                  Finish Session
-                </Button>
-              )}
-            </div>
           </div>
         </div>
 

@@ -1,13 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
-import { useFirebase } from '@/hooks';
 import { firebaseService } from '@/services';
-import type { Session } from '@/types';
 import {
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
   ChevronRight,
 } from 'lucide-react';
 import {
@@ -15,8 +10,6 @@ import {
   Bar,
   LineChart,
   Line,
-  RadarChart,
-  Radar,
   PieChart,
   Pie,
   Cell,
@@ -26,18 +19,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
 } from 'recharts';
-
-interface ChartDataPoint {
-  name?: string;
-  value?: number;
-  category?: string;
-  fullMark?: number;
-  [key: string]: string | number | undefined;
-}
 
 interface MatchStats {
   avgScore: number;
@@ -292,234 +274,6 @@ const CycleTimesCard = ({ cycleTimes }: { cycleTimes?: number[] }) => {
   );
 };
 
-const PerformanceInsightCard = ({
-  metric,
-  value,
-  isPositive,
-}: {
-  metric: string;
-  value: string;
-  isPositive: boolean;
-}) => {
-  const { isDarkMode } = useTheme();
-  return (
-    <div
-      className={`flex items-center justify-between px-6 py-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
-    >
-      <div className="flex items-center gap-4">
-        <span
-          className={`text-base font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
-        >
-          {metric || 'Metric Name'}
-        </span>
-        <span className="text-team-blue text-base font-medium">
-          {value || 'Value'}
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <div
-          className={`p-2 rounded ${isDarkMode ? 'text-white' : 'text-black'}`}
-        >
-          <BarChart3 className="w-5 h-5" />
-        </div>
-        <div
-          className={`p-2 rounded ${
-            isPositive ? 'text-green-500' : 'text-red-500'
-          }`}
-        >
-          {isPositive ? (
-            <TrendingUp className="w-5 h-5" />
-          ) : (
-            <TrendingDown className="w-5 h-5" />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ScoreBreakdownCard = ({
-  matchType,
-  autonomousScore,
-  teleOpScore,
-  endGameScore,
-  autonClassifiedArtifact,
-  autonOverflowArtifact,
-  autonMotif,
-  autonLeave,
-  teleClassifiedArtifact,
-  teleOverflowArtifact,
-  teleMotif,
-  endgameHang,
-}: {
-  matchType?: string;
-  autonomousScore?: number;
-  teleOpScore?: number;
-  endGameScore?: number;
-  autonClassifiedArtifact?: number;
-  autonOverflowArtifact?: number;
-  autonMotif?: number;
-  autonLeave?: number;
-  teleClassifiedArtifact?: number;
-  teleOverflowArtifact?: number;
-  teleMotif?: number;
-  endgameHang?: number;
-}) => {
-  const { isDarkMode } = useTheme();
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const isTeleOnlyMatch = matchType?.toLowerCase().includes('tele');
-
-  const scoreBreakdown = isTeleOnlyMatch
-    ? [
-        { label: 'TeleOp', score: teleOpScore || 0 },
-        { label: 'Endgame', score: endGameScore || 0 },
-      ]
-    : [
-        { label: 'Autonomous', score: autonomousScore || 0 },
-        { label: 'TeleOp', score: teleOpScore || 0 },
-        { label: 'Endgame', score: endGameScore || 0 },
-      ];
-
-  const totalBreakdownScore = scoreBreakdown.reduce(
-    (sum, item) => sum + item.score,
-    0
-  );
-
-  const DetailRow = ({
-    label,
-    value,
-  }: {
-    label: string;
-    value: number | undefined;
-  }) => (
-    <div className="flex items-center justify-between py-2 px-3 rounded">
-      <span
-        className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
-      >
-        {label}
-      </span>
-      <span className="text-base font-semibold text-team-blue">
-        {value || 0}
-      </span>
-    </div>
-  );
-
-  return (
-    <div
-      className={`w-full px-6 py-6 rounded-lg border cursor-pointer transition-all ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 hover:bg-team-dark-40' : 'border-team-blue-40 bg-white hover:bg-gray-50'}`}
-      onClick={() => setIsExpanded(!isExpanded)}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col gap-2">
-            <h4
-              className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-            >
-              Score Breakdown
-            </h4>
-            <p
-              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
-            >
-              {scoreBreakdown.length} phases • Total: {totalBreakdownScore}
-            </p>
-          </div>
-        </div>
-        <ChevronRight
-          className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''} ${isDarkMode ? 'text-white' : 'text-black'}`}
-        />
-      </div>
-
-      {isExpanded && (
-        <div className="mt-6 pt-6 border-t border-team-blue-40 space-y-4">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            {scoreBreakdown.map((item, index) => (
-              <div
-                key={index}
-                className={`px-4 py-3 rounded ${isDarkMode ? 'bg-team-dark text-white border border-team-blue-40' : 'bg-[#FEFEFE] text-black border border-team-blue-40'}`}
-              >
-                <div
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs mb-1`}
-                >
-                  {item.label}
-                </div>
-                <div className="text-2xl font-semibold text-team-blue">
-                  {item.score}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {!isTeleOnlyMatch && (
-            <div
-              className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}
-            >
-              <h5
-                className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}
-              >
-                Autonomous
-              </h5>
-              <DetailRow
-                label="Classified Artifacts"
-                value={autonClassifiedArtifact}
-              />
-              <DetailRow
-                label="Overflow Artifacts"
-                value={autonOverflowArtifact}
-              />
-              <DetailRow label="Motifs" value={autonMotif} />
-              <DetailRow label="Leave Bonus" value={autonLeave} />
-            </div>
-          )}
-
-          <div
-            className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}
-          >
-            <h5
-              className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}
-            >
-              Tele-Op
-            </h5>
-            <DetailRow
-              label="Classified Artifacts"
-              value={teleClassifiedArtifact}
-            />
-            <DetailRow
-              label="Overflow Artifacts"
-              value={teleOverflowArtifact}
-            />
-            <DetailRow label="Motifs" value={teleMotif} />
-          </div>
-
-          <div
-            className={`p-4 rounded border ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-[#FEFEFE]'}`}
-          >
-            <h5
-              className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}
-            >
-              Endgame
-            </h5>
-            <DetailRow label="Hang" value={endgameHang} />
-          </div>
-
-          <div
-            className={`mt-4 px-4 py-3 rounded text-center ${isDarkMode ? 'bg-team-blue-40/20 text-white border border-team-blue-40' : 'bg-team-blue-40/10 text-black border border-team-blue-40'}`}
-          >
-            <div
-              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs mb-1`}
-            >
-              Score Breakdown Total
-            </div>
-            <div className="text-2xl font-semibold text-team-blue">
-              {totalBreakdownScore}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const MatchAnalysis = ({
   match,
   matchIndex,
@@ -748,311 +502,13 @@ const SessionSummary = ({
   );
 };
 
-const PerformanceGraphs = ({
-  currentSession,
-  historicalSessions,
-}: {
-  currentSession: Record<string, unknown>;
-  historicalSessions: Session[];
-}) => {
-  const { isDarkMode } = useTheme();
-
-  const COLORS = {
-    primary: '#537788',
-    secondary: '#B0E5FE',
-    success: '#10b981',
-    warning: '#f59e0b',
-    danger: '#ef4444',
-    purple: '#8b5cf6',
-  };
-
-  // Score comparison data (current vs average)
-  const getScoreComparisonData = (): ChartDataPoint[] => {
-    if (historicalSessions.length === 0) return [];
-
-    const avgFinal =
-      historicalSessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
-      historicalSessions.length;
-    const avgAuto =
-      historicalSessions.reduce((sum, s) => sum + (s.autonomousScore || 0), 0) /
-      historicalSessions.length;
-    const avgTele =
-      historicalSessions.reduce((sum, s) => sum + (s.teleOpScore || 0), 0) /
-      historicalSessions.length;
-    const avgEndgame =
-      historicalSessions.reduce((sum, s) => sum + (s.endGameScore || 0), 0) /
-      historicalSessions.length;
-
-    return [
-      {
-        name: 'Autonomous',
-        'This Session': (currentSession.autonomousScore as number) || 0,
-        'Your Average': Math.round(avgAuto),
-      },
-      {
-        name: 'TeleOp',
-        'This Session': (currentSession.teleOpScore as number) || 0,
-        'Your Average': Math.round(avgTele),
-      },
-      {
-        name: 'End Game',
-        'This Session': (currentSession.endGameScore as number) || 0,
-        'Your Average': Math.round(avgEndgame),
-      },
-      {
-        name: 'Final',
-        'This Session': (currentSession.finalScore as number) || 0,
-        'Your Average': Math.round(avgFinal),
-      },
-    ];
-  };
-
-  // Phase breakdown pie chart
-  const getPhaseBreakdownData = (): ChartDataPoint[] => {
-    const auto = (currentSession.autonomousScore as number) || 0;
-    const tele = (currentSession.teleOpScore as number) || 0;
-    const endgame = (currentSession.endGameScore as number) || 0;
-
-    return [
-      { name: 'Autonomous', value: auto },
-      { name: 'TeleOp', value: tele },
-      { name: 'End Game', value: endgame },
-    ];
-  };
-
-  // Performance trend (current vs last 5 sessions)
-  const getPerformanceTrendData = (): ChartDataPoint[] => {
-    const recent = historicalSessions.slice(0, 5).reverse();
-    return [
-      ...recent.map((session, idx) => ({
-        name: `Session ${5 - idx}`,
-        Score: session.finalScore || 0,
-      })),
-      {
-        name: 'Current',
-        Score: (currentSession.finalScore as number) || 0,
-      },
-    ];
-  };
-
-  // Radar chart data for consistency analysis
-  const getConsistencyRadarData = (): ChartDataPoint[] => {
-    if (historicalSessions.length === 0) return [];
-
-    const avgAuto =
-      historicalSessions.reduce((sum, s) => sum + (s.autonomousScore || 0), 0) /
-      historicalSessions.length;
-    const avgTele =
-      historicalSessions.reduce((sum, s) => sum + (s.teleOpScore || 0), 0) /
-      historicalSessions.length;
-    const avgEndgame =
-      historicalSessions.reduce((sum, s) => sum + (s.endGameScore || 0), 0) /
-      historicalSessions.length;
-
-    // Calculate standard deviation for consistency
-    const scores = historicalSessions.map(s => s.finalScore || 0);
-    const avgScore =
-      historicalSessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
-      historicalSessions.length;
-    const variance =
-      scores.reduce((acc, score) => acc + Math.pow(score - avgScore, 2), 0) /
-      scores.length;
-    const stdDev = Math.sqrt(variance);
-    const consistency = Math.max(0, 100 - stdDev * 2);
-
-    return [
-      { category: 'Autonomous', value: avgAuto, fullMark: 50 },
-      { category: 'TeleOp', value: avgTele, fullMark: 80 },
-      { category: 'End Game', value: avgEndgame, fullMark: 30 },
-      { category: 'Consistency', value: consistency, fullMark: 100 },
-    ];
-  };
-
-  const scoreComparisonData = getScoreComparisonData();
-  const phaseBreakdownData = getPhaseBreakdownData();
-  const performanceTrendData = getPerformanceTrendData();
-  const consistencyRadarData = getConsistencyRadarData();
-
-  return (
-    <div className="space-y-8">
-      {/* Score Comparison */}
-      {scoreComparisonData.length > 0 && (
-        <div
-          className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
-        >
-          <h3
-            className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-          >
-            Score Comparison
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={scoreComparisonData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-              />
-              <XAxis
-                dataKey="name"
-                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis
-                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                tick={{ fontSize: 12 }}
-              />
-              <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-              <Legend wrapperStyle={{ fontSize: '14px' }} />
-              <Bar
-                dataKey="This Session"
-                fill={COLORS.primary}
-                radius={[8, 8, 0, 0]}
-                animationDuration={800}
-              />
-              <Bar
-                dataKey="Your Average"
-                fill={COLORS.secondary}
-                radius={[8, 8, 0, 0]}
-                animationDuration={1000}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* Phase Breakdown & Performance Trend */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Phase Breakdown Pie */}
-        {phaseBreakdownData.length > 0 && (
-          <div
-            className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
-          >
-            <h3
-              className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-            >
-              Phase Breakdown
-            </h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={phaseBreakdownData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) =>
-                    `${name}: ${((percent || 0) * 100).toFixed(0)}%`
-                  }
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  animationDuration={800}
-                >
-                  {phaseBreakdownData.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={
-                        [COLORS.primary, COLORS.success, COLORS.warning][index]
-                      }
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* Performance Trend */}
-        {performanceTrendData.length > 0 && (
-          <div
-            className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
-          >
-            <h3
-              className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-            >
-              Recent Performance
-            </h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={performanceTrendData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                />
-                <XAxis
-                  dataKey="name"
-                  stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis
-                  stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-                <Line
-                  type="monotone"
-                  dataKey="Score"
-                  stroke={COLORS.primary}
-                  strokeWidth={3}
-                  dot={{ fill: COLORS.primary, r: 5 }}
-                  animationDuration={800}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      {/* Consistency Radar */}
-      {consistencyRadarData.length > 0 && (
-        <div
-          className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
-        >
-          <h3
-            className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-          >
-            Performance Analysis
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <RadarChart data={consistencyRadarData}>
-              <PolarGrid stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
-              <PolarAngleAxis
-                dataKey="category"
-                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                tick={{ fontSize: 12 }}
-              />
-              <PolarRadiusAxis
-                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                tick={{ fontSize: 11 }}
-              />
-              <Radar
-                name="Average Performance"
-                dataKey="value"
-                stroke={COLORS.primary}
-                strokeWidth={2}
-                fill={COLORS.secondary}
-                fillOpacity={0.6}
-                animationDuration={1000}
-              />
-              <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-              <Legend wrapperStyle={{ fontSize: '14px' }} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const AnalysisContent = () => {
   const { sessionData, updateSessionData } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
-  const { getUserSessions } = useFirebase();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
-  const [historicalSessions, setHistoricalSessions] = useState<Session[]>(
-    []
-  );
   const [_graphModal, _setGraphModal] = useState<{
     isOpen: boolean;
     metric: string;
@@ -1111,16 +567,6 @@ const AnalysisContent = () => {
       totalMatches: sessionMatches.length,
     };
   };
-
-  // Performance insights state
-  const [insights, setInsights] = useState<
-    {
-      id: number;
-      metric: string;
-      value: string;
-      isPositive: boolean;
-    }[]
-  >([]);
 
   // Load session data from Firebase or location state
   useEffect(() => {
@@ -1182,20 +628,7 @@ const AnalysisContent = () => {
         }
       }
 
-      // Load historical sessions for comparison
-      if (mounted && user?.uid) {
-        try {
-          const sessions = await firebaseService.getUserSessions(user.uid);
-          if (mounted) {
-            setHistoricalSessions(sessions || []);
-          }
-        } catch (error: any) {
-          // Suppress AbortError which occurs during cleanup
-          if (mounted && error?.name !== 'AbortError') {
-            console.error('Error loading historical sessions:', error);
-          }
-        }
-      }
+      // Historical sessions loading removed - not needed for current UI
 
       if (mounted) {
         setLoading(false);
@@ -1211,158 +644,14 @@ const AnalysisContent = () => {
       }
     };
   }, [searchParams, location.state, updateSessionData, user?.uid]);
-
-  // Calculate metrics based on historical data
+  // Initialize consistency and accuracy metrics
   useEffect(() => {
-    let mounted = true;
-    let abortController: AbortController | null = null;
-
-    const fetchComparisons = async () => {
-      if (!user?.uid) {
-        // no user - can't compare
-        if (mounted) {
-          setInsights([
-            { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
-            { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
-            { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
-          ]);
-          setConsistency(0);
-          setAccuracy(0);
-        }
-        return;
-      }
-
-      try {
-        abortController = new AbortController();
-        const result = await getUserSessions(user.uid);
-        if (!mounted) return;
-
-        if (!result || result.length === 0) {
-          if (mounted) {
-            setInsights([
-              { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
-              { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
-              { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
-            ]);
-            setConsistency(0);
-            setAccuracy(0);
-          }
-          return;
-        }
-
-        // Use last 3 previous sessions (excluding current if it matches by finalScore and duration)
-        // Filter out the current session when possible (match by finalScore and sessionDuration)
-        const filtered = result.filter(
-          s =>
-            !(
-              s.finalScore === sessionData.finalScore &&
-              s.sessionDuration === sessionData.sessionDuration
-            )
-        );
-        const prevSessions = filtered.slice(0, 3);
-
-        if (prevSessions.length === 0) {
-          if (mounted) {
-            setInsights([
-              { id: 1, metric: 'Consistency', value: 'N/A', isPositive: false },
-              { id: 2, metric: 'Autonomous', value: 'N/A', isPositive: false },
-              { id: 3, metric: 'TeleOp', value: 'N/A', isPositive: false },
-            ]);
-            setConsistency(0);
-            setAccuracy(0);
-          }
-          return;
-        }
-
-        const avgFinal =
-          prevSessions.reduce((s, p) => s + (p.finalScore || 0), 0) /
-          prevSessions.length;
-        const avgAuton =
-          prevSessions.reduce((s, p) => s + (p.autonomousScore || 0), 0) /
-          prevSessions.length;
-        const avgTele =
-          prevSessions.reduce((s, p) => s + (p.teleOpScore || 0), 0) /
-          prevSessions.length;
-
-        // Calculate consistency: standard deviation of scores
-        const scoreVariance =
-          prevSessions.reduce((sum, session) => {
-            const diff = (session.finalScore || 0) - avgFinal;
-            return sum + diff * diff;
-          }, 0) / prevSessions.length;
-        const stdDev = Math.sqrt(scoreVariance);
-        // Convert to percentage: lower std dev = higher consistency
-        const consistencyPercent =
-          avgFinal > 0
-            ? Math.max(0, Math.min(100, 100 - (stdDev / avgFinal) * 100))
-            : 0;
-
-        // Calculate accuracy: percentage of theoretical max score achieved
-        // Assuming max score is around 150 for FTC (adjust if needed)
-        const maxPossibleScore = 150;
-        const currentFinalScore = sessionData.finalScore ?? 0;
-        const currentAutonScore = sessionData.autonomousScore ?? 0;
-        const currentTeleScore = sessionData.teleOpScore ?? 0;
-        const accuracyPercent = (currentFinalScore / maxPossibleScore) * 100;
-
-        const formatChange = (current: number, average: number) => {
-          if (average === 0) return 'N/A';
-          const perc = ((current - average) / average) * 100;
-          const sign = perc >= 0 ? '+' : '';
-          return `${sign}${Math.round(perc)}%`;
-        };
-
-        const consistencyChange = formatChange(currentFinalScore, avgFinal);
-        const autonChange = formatChange(currentAutonScore, avgAuton);
-        const teleChange = formatChange(currentTeleScore, avgTele);
-
-        if (mounted) {
-          setConsistency(Math.round(consistencyPercent));
-          setAccuracy(Math.round(Math.min(100, accuracyPercent)));
-          setInsights([
-            {
-              id: 1,
-              metric: 'Consistency',
-              value: consistencyChange,
-              isPositive: currentFinalScore >= avgFinal,
-            },
-            {
-              id: 2,
-              metric: 'Autonomous',
-              value: autonChange,
-              isPositive: currentAutonScore >= avgAuton,
-            },
-            {
-              id: 3,
-              metric: 'TeleOp',
-              value: teleChange,
-              isPositive: currentTeleScore >= avgTele,
-            },
-          ]);
-        }
-      } catch (error: any) {
-        // Suppress AbortError which occurs during cleanup
-        if (mounted && error?.name !== 'AbortError') {
-          console.error('Error fetching comparisons:', error);
-        }
-      }
-    };
-
-    fetchComparisons();
-
-    return () => {
-      mounted = false;
-      if (abortController) {
-        abortController.abort();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    user?.uid,
-    sessionData.finalScore,
-    sessionData.autonomousScore,
-    sessionData.teleOpScore,
-  ]);
+    const stats = calculateMatchStats();
+    if (stats) {
+      setConsistency(stats.consistency);
+      setAccuracy(stats.accuracy);
+    }
+  }, [sessionMatches]);
 
   // Show loading state
   if (loading) {
@@ -1413,54 +702,60 @@ const AnalysisContent = () => {
             totalTime={sessionData.sessionDuration}
           />
 
-          {/* Performance Analysis & Insights - Unified Section */}
-          <div className="space-y-6">
-            <h2 className="text-team-blue text-2xl font-semibold leading-6">
-              Performance Analysis & Insights
-            </h2>
+          {/* Session Analysis - Average Scores & Consistency */}
+            {sessionMatches.length > 0 && (
+              <div className="space-y-6">
+                <h2 className="text-team-blue text-2xl font-semibold">Session Analysis</h2>
+                
+                {/* Average Scores Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Average Autonomous Score */}
+                  <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average Autonomous</p>
+                    <p className="text-3xl font-bold text-team-blue mt-2">
+                      {Math.round(sessionMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / sessionMatches.length)}
+                    </p>
+                  </div>
 
-            {/* Insight Cards Row */}
-            <div className="space-y-4">
-              {insights.map(insight => (
-                <PerformanceInsightCard
-                  key={insight.id}
-                  metric={insight.metric}
-                  value={insight.value}
-                  isPositive={insight.isPositive}
-                />
-              ))}
-            </div>
+                  {/* Average TeleOp Score */}
+                  <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average TeleOp</p>
+                    <p className="text-3xl font-bold text-team-blue mt-2">
+                      {Math.round(sessionMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / sessionMatches.length)}
+                    </p>
+                  </div>
 
-            {/* Performance Graphs */}
-            {historicalSessions.length > 0 && (
-              <PerformanceGraphs
-                currentSession={sessionData as unknown as Record<string, unknown>}
-                historicalSessions={historicalSessions}
-              />
+                  {/* Average End Game Score */}
+                  <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average End Game</p>
+                    <p className="text-3xl font-bold text-team-blue mt-2">
+                      {Math.round(sessionMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / sessionMatches.length)}
+                    </p>
+                  </div>
+
+                  {/* Consistency Score */}
+                  <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Consistency</p>
+                    <p className="text-3xl font-bold text-team-blue mt-2">
+                      {(() => {
+                        const scores = sessionMatches.map(m => m.finalScore || 0);
+                        const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+                        const variance = scores.reduce((acc, score) => acc + Math.pow(score - avgScore, 2), 0) / scores.length;
+                        const stdDev = Math.sqrt(variance);
+                        return Math.round(Math.max(0, 100 - stdDev * 2));
+                      })()}%
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
-
-            {/* Score Breakdown Card */}
-            <ScoreBreakdownCard
-              matchType={sessionData.matchType}
-              autonomousScore={sessionData.autonomousScore}
-              teleOpScore={sessionData.teleOpScore}
-              endGameScore={sessionData.endGameScore}
-              autonClassifiedArtifact={sessionData.autonClassifiedArtifact}
-              autonOverflowArtifact={sessionData.autonOverflowArtifact}
-              autonMotif={sessionData.autonMotif}
-              autonLeave={sessionData.autonLeave}
-              teleClassifiedArtifact={sessionData.teleClassifiedArtifact}
-              teleOverflowArtifact={sessionData.teleOverflowArtifact}
-              teleMotif={sessionData.teleMotif}
-              endgameHang={sessionData.endgameHang}
-            />
 
             {/* Cycle Times Card */}
             {sessionData.selectedFeature === 'Cycle Times' && (
               <CycleTimesCard cycleTimes={sessionData.cycleTimes} />
             )}
-          </div>
-              <div className="space-y-6">
+
+          <div className="space-y-6">
                 {/* View Mode Tabs */}
                 {sessionMatches.length > 0 && (
                   <div className="flex gap-3 border-b border-team-blue-40 overflow-x-auto">
@@ -1567,17 +862,9 @@ const AnalysisContent = () => {
                 {/* Original Matches List (Overview) */}
                 {viewMode === 'overview' && (
                   <>
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-team-blue text-2xl font-semibold">
-                        Matches in This Session
-                      </h2>
-                      <Link
-                        to="/original"
-                        className="px-4 py-2 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors"
-                      >
-                        + Record Match
-                      </Link>
-                    </div>
+                    <h2 className="text-team-blue text-2xl font-semibold">
+                      Matches in This Session
+                    </h2>
 
                     {sessionMatches.length > 0 ? (
                       <>
@@ -1612,15 +899,9 @@ const AnalysisContent = () => {
                       </>
                     ) : (
                       <div className={`text-center py-12 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}>
-                        <p className={`text-lg mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                        <p className={`text-lg ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
                           No matches recorded yet
                         </p>
-                        <Link
-                          to="/original"
-                          className="inline-block px-6 py-3 bg-team-blue text-white rounded-lg hover:bg-team-blue/90 transition-colors font-semibold"
-                        >
-                          Record Your First Match
-                        </Link>
                       </div>
                     )}
                   </>

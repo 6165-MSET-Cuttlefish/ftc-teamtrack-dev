@@ -154,17 +154,7 @@ const MetricField = ({
   );
 };
 
-interface PerformanceMetricsProps {
-  isTimerRunning?: boolean;
-  onTimerToggle?: (running: boolean) => void;
-  hasActiveMatch?: boolean;
-}
-
-export const PerformanceMetrics = ({
-  isTimerRunning = false,
-  onTimerToggle,
-  hasActiveMatch = false,
-}: PerformanceMetricsProps) => {
+export const PerformanceMetrics = () => {
   const { sessionData, updateSessionData, expandedSection, setExpandedSection } = useSession();
   const { isDarkMode } = useTheme();
 
@@ -615,27 +605,6 @@ export const PerformanceMetrics = ({
               />
             </div>
           </div>
-
-          {/* Timer control button at bottom of left side - only show when match is active */}
-          {hasActiveMatch && onTimerToggle && (
-            <div className="mt-8">
-              {!isTimerRunning ? (
-                <button
-                  onClick={() => onTimerToggle(true)}
-                  className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors hover:bg-team-blue/10"
-                >
-                  Start Timer
-                </button>
-              ) : (
-                <button
-                  onClick={() => onTimerToggle(false)}
-                  className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
-                >
-                  Stop / Pause Match
-                </button>
-              )}
-            </div>
-          )}
         </div>
         <div className="flex-1">
           <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-6 min-h-[32px]">
