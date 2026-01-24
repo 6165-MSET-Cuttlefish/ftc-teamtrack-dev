@@ -31,6 +31,8 @@ const TeamTrackLogo = () => {
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           className="w-2 h-5"
+          role="img"
+          aria-label="TeamTrack logo icon"
         >
           <path
             d="M3.9994 0.645596L7.60709 6.46935H0.464233L3.9994 0.645596Z"
@@ -104,13 +106,11 @@ const NavigationMenu = () => {
   const handleLogout = async () => {
     try {
       await logout();
-    } catch {
-      // Show a brief toast so user knows sign out failed
-      try {
-        toast.error('Sign out failed. Please try again.');
-      } catch {
-        // Ignore toast errors
-      }
+      navigate('/login');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast.error('Failed to sign out. Please try again.');
     }
   };
 
@@ -118,8 +118,10 @@ const NavigationMenu = () => {
     setShowKeybindTutorial(false);
     const hasSeenTutorials = localStorage.getItem('teamtrack_tutorials_seen');
     if (!hasSeenTutorials) {
-      // Show features tutorial next
-      setTimeout(() => setShowFeaturesTutorial(true), 300);
+      // Use requestAnimationFrame for more reliable timing
+      requestAnimationFrame(() => {
+        setTimeout(() => setShowFeaturesTutorial(true), 100);
+      });
     }
   };
 

@@ -102,13 +102,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     displayName: string
   ) => {
     const { authInstance, authModule } = await ensureAuth();
-    if (
-      !authInstance ||
-      !authModule ||
-      !authModule.createUserWithEmailAndPassword
-    ) {
-      throw new Error('Auth not configured');
+    
+    if (!authInstance) {
+      throw new Error('Authentication service unavailable. Please refresh the page.');
     }
+    
+    if (!authModule?.createUserWithEmailAndPassword) {
+      throw new Error('Sign-up service unavailable. Please check your internet connection.');
+    }
+    
     const userCredential = await authModule.createUserWithEmailAndPassword(
       authInstance,
       email,
@@ -121,13 +123,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const login = async (email: string, password: string) => {
     const { authInstance, authModule } = await ensureAuth();
-    if (
-      !authInstance ||
-      !authModule ||
-      !authModule.signInWithEmailAndPassword
-    ) {
-      throw new Error('Auth not configured');
+    
+    if (!authInstance) {
+      throw new Error('Authentication service unavailable. Please refresh the page.');
     }
+    
+    if (!authModule?.signInWithEmailAndPassword) {
+      throw new Error('Sign-in service unavailable. Please check your internet connection.');
+    }
+    
     await authModule.signInWithEmailAndPassword(authInstance, email, password);
   };
 
@@ -139,22 +143,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const resetPassword = async (email: string) => {
     const { authInstance, authModule } = await ensureAuth();
-    if (!authInstance || !authModule || !authModule.sendPasswordResetEmail) {
-      throw new Error('Auth not configured');
+    
+    if (!authInstance) {
+      throw new Error('Authentication service unavailable. Please refresh the page.');
     }
+    
+    if (!authModule?.sendPasswordResetEmail) {
+      throw new Error('Password reset service unavailable. Please check your internet connection.');
+    }
+    
     await authModule.sendPasswordResetEmail(authInstance, email);
   };
 
   const loginWithGoogle = async () => {
     const { authInstance, authModule } = await ensureAuth();
-    if (
-      !authInstance ||
-      !authModule ||
-      !authModule.signInWithPopup ||
-      !authModule.GoogleAuthProvider
-    ) {
-      throw new Error('Auth not configured');
+    
+    if (!authInstance) {
+      throw new Error('Authentication service unavailable. Please refresh the page.');
     }
+    
+    if (!authModule?.signInWithPopup || !authModule?.GoogleAuthProvider) {
+      throw new Error('Google Sign-In unavailable. Please check your internet connection.');
+    }
+    
     const provider = new authModule.GoogleAuthProvider();
     await authModule.signInWithPopup(authInstance, provider);
   };

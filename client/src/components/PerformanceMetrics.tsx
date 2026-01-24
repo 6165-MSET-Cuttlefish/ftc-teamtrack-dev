@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { ChevronUp, ChevronDown, ChevronRight, Clock } from 'lucide-react';
@@ -18,6 +18,8 @@ const NumberInput: React.FC<{
 
   useEffect(() => {
     // Only update local state if the input is not focused
+    // The 'local' dependency is intentionally omitted to prevent infinite loops
+    // This effect only runs when value or isFocused changes
     if (!isFocused) {
       const asString = value !== undefined && value !== null ? String(value) : '';
       if (asString !== local) {
@@ -158,6 +160,8 @@ export const PerformanceMetrics = () => {
   const { sessionData, updateSessionData, expandedSection, setExpandedSection } = useSession();
   const { isDarkMode } = useTheme();
 
+  // Local state for scoring metrics - needed for controlled input behavior
+  // These sync with sessionData but allow for intermediate input states
   const [autonClassifiedArtifact, setAutonClassifiedArtifact] = useState(0);
   const [autonOverflowArtifact, setAutonOverflowArtifact] = useState(0);
   const [autonMotif, setAutonMotif] = useState(0);
@@ -168,6 +172,45 @@ export const PerformanceMetrics = () => {
   const [teleMotif, setTeleMotif] = useState(0);
 
   const [endgameHang, setEndgameHang] = useState(0);
+
+  // Memoize the score update function to prevent infinite loops
+  const updateScores = useCallback(() => {
+    const autonomousScore =
+      autonClassifiedArtifact * 3 +
+      autonOverflowArtifact * 1 +
+      autonMotif * 2 +
+      autonomousLeave * 3;
+
+    const teleOpScore =
+      teleClassifiedArtifact * 3 + teleOverflowArtifact * 1 + teleMotif * 2;
+
+    const finalScore = autonomousScore + teleOpScore + endgameHang;
+
+    updateSessionData({
+      autonomousScore,
+      teleOpScore,
+      endGameScore: endgameHang,
+      finalScore,
+      autonClassifiedArtifact,
+      autonOverflowArtifact,
+      autonMotif,
+      autonLeave: autonomousLeave,
+      teleClassifiedArtifact,
+      teleOverflowArtifact,
+      teleMotif,
+      endgameHang,
+    });
+  }, [
+    autonClassifiedArtifact,
+    autonOverflowArtifact,
+    autonMotif,
+    autonomousLeave,
+    teleClassifiedArtifact,
+    teleOverflowArtifact,
+    teleMotif,
+    endgameHang,
+    updateSessionData,
+  ]);
 
   // Cycle time tracking
   const [cycleTimerStartTime, setCycleTimerStartTime] = useState<number | null>(null);
@@ -186,7 +229,7 @@ export const PerformanceMetrics = () => {
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (cycleTimerStartTime !== null) {
+    if (cycleTimerStartTime !== null && !sessionData.isSessionCompleted) {
       interval = setInterval(() => {
         const now = Date.now();
         const elapsed = Math.floor((now - cycleTimerStartTime) / 1000);
@@ -197,7 +240,7 @@ export const PerformanceMetrics = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [cycleTimerStartTime]);
+  }, [cycleTimerStartTime, sessionData.isSessionCompleted]);
 
   const recordCycleTime = () => {
     if (cycleTimerStartTime === null) {
@@ -243,10 +286,25 @@ export const PerformanceMetrics = () => {
 
       // Handle Enter key to confirm and add to appropriate score
       if (event.key === 'Enter' && showPopup && madeCount !== null) {
-        if (expandedSection === 'Autonomous Score') {
-          setAutonClassifiedArtifact(prev => prev + madeCount);
+        // Auto-detect which section to update based on match type
+        const matchType = sessionData.matchType;
+        
+        if (!expandedSection || expandedSection === 'Autonomous Score') {
+          // Default to autonomous if no section expanded or if autonomous is expanded
+          if (matchType !== 'TeleOp') {
+            setAutonClassifiedArtifact(prev => prev + madeCount);
+          } else {
+            setTeleClassifiedArtifact(prev => prev + madeCount);
+          }
         } else if (expandedSection === 'TeleOp Score') {
           setTeleClassifiedArtifact(prev => prev + madeCount);
+        } else {
+          // If End Game or other section is expanded, use match type to determine
+          if (matchType === 'Autonomous') {
+            setAutonClassifiedArtifact(prev => prev + madeCount);
+          } else {
+            setTeleClassifiedArtifact(prev => prev + madeCount);
+          }
         }
         
         // Close popup after confirming
@@ -268,37 +326,7 @@ export const PerformanceMetrics = () => {
   }, [showPopup, popupNumber, madeCount, expandedSection]);
 
   useEffect(() => {
-    // Always auto-calculate scores based on breakdown fields
-    // New scoring multipliers:
-    // Classified Artifact = 3 pts
-    // Overflow Artifact = 1 pt
-    // Motif = 2 pts
-    // Leave = 3 pts (autonomous only)
-    const autonomousScore =
-      autonClassifiedArtifact * 3 +
-      autonOverflowArtifact * 1 +
-      autonMotif * 2 +
-      autonomousLeave * 3;
-
-    const teleOpScore =
-      teleClassifiedArtifact * 3 + teleOverflowArtifact * 1 + teleMotif * 2;
-
-    const finalScore = autonomousScore + teleOpScore + endgameHang;
-
-    updateSessionData({
-      autonomousScore,
-      teleOpScore,
-      endGameScore: endgameHang,
-      finalScore,
-      autonClassifiedArtifact,
-      autonOverflowArtifact,
-      autonMotif,
-      autonLeave: autonomousLeave,
-      teleClassifiedArtifact,
-      teleOverflowArtifact,
-      teleMotif,
-      endgameHang,
-    });
+    updateScores();
   }, [
     autonClassifiedArtifact,
     autonOverflowArtifact,
@@ -308,7 +336,7 @@ export const PerformanceMetrics = () => {
     teleOverflowArtifact,
     teleMotif,
     endgameHang,
-    updateSessionData,
+    updateScores,
   ]);
 
   const InlineBreakdownField = ({
@@ -557,6 +585,13 @@ export const PerformanceMetrics = () => {
         </div>
       )}
 
+      {/* Keyboard shortcuts help */}
+      {!showPopup && (
+        <div className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'} mb-4 text-center`}>
+          💡 Quick entry: Press 1, 2, or 3 for shot attempts, then the number made, then Enter (auto-detects section)
+        </div>
+      )}
+
       <div className="flex gap-6">
         <div className="flex-1 flex flex-col justify-between">
           <div>
@@ -569,7 +604,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.finalScore ?? 0}
                 onChange={(value) => updateSessionData({ finalScore: value })}
                 hasDropdown={false}
-                editable={true}
+                editable={false}
                 showArrows={false}
               />
               {sessionData.matchType !== 'TeleOp' && (

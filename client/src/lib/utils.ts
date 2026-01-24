@@ -67,7 +67,14 @@ export function getInitials(name: string): string {
     .toUpperCase();
 }
 
-/** Check if error is a Firebase Firestore AbortError (commonly occurs during HMR/navigation) */
+/** 
+ * Check if error is a Firebase Firestore AbortError
+ * These commonly occur during:
+ * - Hot Module Replacement (HMR) in development
+ * - Component unmounting during active requests
+ * - Navigation away from pages with pending Firestore queries
+ * We suppress these to avoid cluttering console during development
+ */
 export function isAbortError(error: unknown): boolean {
   if (!error) return false;
 
@@ -108,6 +115,16 @@ export async function safeAsync<T>(
     }
     throw error;
   }
+}
+
+/** Get human-readable error message from unknown error type */
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return 'An unexpected error occurred';
 }
 
 /** Calculate percentage change between two values */

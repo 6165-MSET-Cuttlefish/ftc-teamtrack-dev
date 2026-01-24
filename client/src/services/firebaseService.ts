@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import getFirebase from '@/lib/firebase';
 import { isAbortError } from '@/lib/utils';
+import { SESSION_LIMITS } from '@/constants';
 import type { Session, CreateSessionData } from '@/types';
 
 // Re-export Session type for backwards compatibility
@@ -36,11 +37,18 @@ class FirebaseService {
     return this.dbInstance;
   }
 
-  /** Safely execute a database operation with abort error handling */
+  /** 
+   * Safely execute a database operation with abort error handling
+   * @param operation - The async operation to execute
+   * @param fallback - Value to return on error (if not throwing)
+   * @param errorMessage - Message to log on error
+   * @param throwOnError - If true, re-throws errors after logging (for critical operations)
+   */
   private async safeExecute<T>(
     operation: () => Promise<T>,
     fallback: T,
-    errorMessage: string
+    errorMessage: string,
+    throwOnError = false
   ): Promise<T> {
     try {
       return await operation();
@@ -49,6 +57,9 @@ class FirebaseService {
         return fallback;
       }
       console.error(errorMessage, error);
+      if (throwOnError) {
+        throw error;
+      }
       return fallback;
     }
   }
@@ -66,7 +77,8 @@ class FirebaseService {
         return { id: docRef.id, ...newSession } as SessionData;
       },
       null,
-      'Error creating session:'
+      'Error creating session:',
+      true // Throw errors for session creation
     );
   }
 
@@ -79,13 +91,20 @@ class FirebaseService {
           collection(db, 'sessions'),
           where('userId', '==', userId),
           orderBy('createdAt', 'desc'),
-          limit(50)
+          limit(SESSION_LIMITS.MAX_SESSIONS_PER_USER)
         );
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as SessionData[];
+        return snapshot.docs.map(doc => {
+          const data = doc.data();
+          // Basic validation to ensure required fields exist
+          return {
+            id: doc.id,
+            userId: data.userId || userId,
+            sessionName: data.sessionName || 'Untitled Session',
+            createdAt: data.createdAt,
+            ...data,
+          } as SessionData;
+        });
       },
       [],
       'Error fetching user sessions:'
@@ -120,10 +139,16 @@ class FirebaseService {
           limit(100)
         );
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as SessionData[];
+        return snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: data.userId || '',
+            sessionName: data.sessionName || 'Untitled Session',
+            createdAt: data.createdAt,
+            ...data,
+          } as SessionData;
+        });
       },
       [],
       'Error fetching all sessions:'
@@ -143,7 +168,8 @@ class FirebaseService {
         return true;
       },
       false,
-      'Error updating session:'
+      'Error updating session:',
+      true // Throw errors for updates
     );
   }
 
@@ -157,7 +183,8 @@ class FirebaseService {
         return true;
       },
       false,
-      'Error deleting session:'
+      'Error deleting session:',
+      true // Throw errors for deletes
     );
   }
 }

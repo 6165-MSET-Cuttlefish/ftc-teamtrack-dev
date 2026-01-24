@@ -17,8 +17,8 @@ export default defineConfig(() => ({
     },
     watch: {
       // Use polling for file watching (more reliable)
-      usePolling: true,
-      interval: 1000,
+      usePolling: process.env.USE_POLLING !== 'false',
+      interval: parseInt(process.env.WATCH_INTERVAL || '2000', 10),
     },
     fs: {
       allow: ['.', '../', './src'],

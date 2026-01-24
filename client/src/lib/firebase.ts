@@ -12,8 +12,16 @@ export async function getFirebase() {
     const db = getFirestore(app);
     return { app, auth, db };
   } catch (err) {
-    // Firebase not available — return null so callers can fallback
-    console.warn('Firebase not initialized:', err);
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    
+    if (errorMsg.includes('FIREBASE_CONFIG') || errorMsg.includes('apiKey')) {
+      console.error('Firebase configuration missing. Check constants/index.ts');
+    } else if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
+      console.warn('Network error loading Firebase modules. Check your internet connection.');
+    } else {
+      console.error('Firebase initialization error:', err);
+    }
+    
     return null;
   }
 }

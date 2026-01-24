@@ -5,60 +5,11 @@ import {
   LivePreview,
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus } from 'lucide-react';
 
 const OriginalContent = () => {
   const { isDarkMode } = useTheme();
-  const { sessionData, updateSessionData } = useSession();
-  const [showMatchSummary, setShowMatchSummary] = useState(false);
-
-  const handleSaveMatch = () => {
-    // Create a new match from current session data
-    const newMatch = {
-      id: `match-${Date.now()}`,
-      matchNumber: (sessionData.matches?.length || 0) + 1,
-      matchType: sessionData.matchType,
-      finalScore: sessionData.finalScore,
-      autonomousScore: sessionData.autonomousScore,
-      teleOpScore: sessionData.teleOpScore,
-      endGameScore: sessionData.endGameScore,
-      autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
-      autonOverflowArtifact: sessionData.autonOverflowArtifact,
-      autonMotif: sessionData.autonMotif,
-      autonLeave: sessionData.autonLeave,
-      teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
-      teleOverflowArtifact: sessionData.teleOverflowArtifact,
-      teleMotif: sessionData.teleMotif,
-      endgameHang: sessionData.endgameHang,
-      cycleTimes: sessionData.cycleTimes,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Add to matches array
-    const updatedMatches = [...(sessionData.matches || []), newMatch];
-    updateSessionData({
-      matches: updatedMatches,
-      // Reset scoring for next match
-      finalScore: 0,
-      autonomousScore: 0,
-      teleOpScore: 0,
-      endGameScore: 0,
-      autonClassifiedArtifact: 0,
-      autonOverflowArtifact: 0,
-      autonMotif: 0,
-      autonLeave: 0,
-      teleClassifiedArtifact: 0,
-      teleOverflowArtifact: 0,
-      teleMotif: 0,
-      endgameHang: 0,
-      cycleTimes: [],
-    });
-
-    setShowMatchSummary(false);
-  };
+  const { sessionData } = useSession();
 
   return (
     <div
@@ -150,107 +101,6 @@ const OriginalContent = () => {
           )}
         </div>
       </div>
-
-      {/* Match Summary Modal */}
-      {showMatchSummary && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card
-            className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
-          >
-            <CardHeader>
-              <CardTitle
-                className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-              >
-                Match {(sessionData.matches?.length || 0) + 1} Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div
-                  className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
-                >
-                  <p
-                    className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    Total Score
-                  </p>
-                  <p className="text-3xl font-bold text-team-blue">
-                    {sessionData.finalScore || 0}
-                  </p>
-                </div>
-                <div
-                  className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
-                >
-                  <p
-                    className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    Match Type
-                  </p>
-                  <p className="text-lg font-semibold text-team-blue">
-                    {sessionData.matchType || 'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div
-                  className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
-                >
-                  <p
-                    className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    Autonomous
-                  </p>
-                  <p className="text-xl font-bold text-team-blue">
-                    {sessionData.autonomousScore || 0}
-                  </p>
-                </div>
-                <div
-                  className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
-                >
-                  <p
-                    className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    TeleOp
-                  </p>
-                  <p className="text-xl font-bold text-team-blue">
-                    {sessionData.teleOpScore || 0}
-                  </p>
-                </div>
-                <div
-                  className={`p-3 rounded-lg text-center ${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
-                >
-                  <p
-                    className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    End Game
-                  </p>
-                  <p className="text-xl font-bold text-team-blue">
-                    {sessionData.endGameScore || 0}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => setShowMatchSummary(false)}
-                  variant="outline"
-                  className="flex-1 border-team-blue text-team-blue hover:bg-team-blue/10"
-                >
-                  Keep Editing
-                </Button>
-                <Button
-                  onClick={handleSaveMatch}
-                  className="flex-1 bg-team-blue hover:bg-team-blue/90 text-white"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Save & Continue
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };

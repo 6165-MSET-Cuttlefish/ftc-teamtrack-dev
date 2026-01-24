@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
+import { getErrorMessage } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,7 +44,7 @@ const Login = () => {
       await login(email, password);
       navigate(from, { replace: true });
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to sign in');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -56,7 +57,7 @@ const Login = () => {
       await loginWithGoogle();
       navigate(from, { replace: true });
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to sign in with Google');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

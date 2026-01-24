@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
+import { getErrorMessage } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,7 +40,7 @@ const ForgotPassword = () => {
       await resetPassword(email);
       setMessage('Check your inbox for further instructions');
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to reset password');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -47,7 +48,7 @@ const ForgotPassword = () => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} py-12 px-4 sm:px-6 lg:px-8`}
+      className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-12 px-4 sm:px-6 lg:px-8`}
     >
       <Card
         className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue/60'}`}

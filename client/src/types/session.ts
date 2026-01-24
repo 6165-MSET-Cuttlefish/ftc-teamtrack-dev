@@ -9,38 +9,62 @@ export interface FirebaseTimestamp {
 export type TimestampValue = Timestamp | FirebaseTimestamp | string | Date;
 
 export interface ScoringFields {
+  finalScore: number;
+  autonomousScore: number;
+  teleOpScore: number;
+  endGameScore: number;
+  /** Classified Artifact (3 pts each) */
+  autonClassifiedArtifact: number;
+  /** Overflow Artifact (1 pt each) */
+  autonOverflowArtifact: number;
+  /** Motif (2 pts each) */
+  autonMotif: number;
+  /** Leave (3 pts) */
+  autonLeave: number;
+  /** Classified Artifact (3 pts each) */
+  teleClassifiedArtifact: number;
+  /** Overflow Artifact (1 pt each) */
+  teleOverflowArtifact: number;
+  /** Motif (2 pts each) */
+  teleMotif: number;
+  endgameHang: number;
+  cycleTimes: number[];
+}
+
+export interface Match {
+  id: string;
+  matchNumber: number;
+  matchType?: string;
+  createdAt?: TimestampValue;
+  // Scoring fields
   finalScore?: number;
   autonomousScore?: number;
   teleOpScore?: number;
   endGameScore?: number;
-  /** Classified Artifact (3 pts each) */
   autonClassifiedArtifact?: number;
-  /** Overflow Artifact (1 pt each) */
   autonOverflowArtifact?: number;
-  /** Motif (2 pts each) */
   autonMotif?: number;
-  /** Leave (3 pts) */
   autonLeave?: number;
-  /** Classified Artifact (3 pts each) */
   teleClassifiedArtifact?: number;
-  /** Overflow Artifact (1 pt each) */
   teleOverflowArtifact?: number;
-  /** Motif (2 pts each) */
   teleMotif?: number;
   endgameHang?: number;
   cycleTimes?: number[];
 }
 
-export interface Match extends ScoringFields {
-  id: string;
-  matchNumber: number;
-  matchType?: string;
-  createdAt?: TimestampValue;
-}
-
-export interface Session extends ScoringFields {
+/**
+ * Represents a practice/training session that can contain multiple matches.
+ * 
+ * Data Model:
+ * - A Session contains metadata (name, driver, duration) and an array of Match objects
+ * - Individual scoring fields on Session are DEPRECATED - they exist for backwards compatibility
+ * - New sessions should store scoring data only in the matches array
+ * - When displaying session totals, aggregate from the matches array
+ */
+export interface Session {
   id: string;
   userId: string;
+  userEmail?: string;
   sessionName: string;
   driverName?: string;
   matchType?: string;
@@ -49,6 +73,20 @@ export interface Session extends ScoringFields {
   selectedFeature?: string;
   notes?: string;
   matches?: Match[];
+  // Scoring fields are optional on Session to support legacy data
+  finalScore?: number;
+  autonomousScore?: number;
+  teleOpScore?: number;
+  endGameScore?: number;
+  autonClassifiedArtifact?: number;
+  autonOverflowArtifact?: number;
+  autonMotif?: number;
+  autonLeave?: number;
+  teleClassifiedArtifact?: number;
+  teleOverflowArtifact?: number;
+  teleMotif?: number;
+  endgameHang?: number;
+  cycleTimes?: number[];
   [key: string]: unknown;
 }
 

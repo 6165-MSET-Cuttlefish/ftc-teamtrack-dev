@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams, useLocation } from 'react-router-dom';
+import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
+import { GAME_TIMING } from '@/constants';
 import type { Match } from '@/types';
 import {
   ChevronRight,
@@ -504,12 +505,17 @@ const SessionSummary = ({
 };
 
 const AnalysisContent = () => {
-  const { sessionData, updateSessionData } = useSession();
+  const { sessionData: contextSessionData } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
+  
+  // Use local state for loaded session to avoid overwriting context
+  const [localSessionData, setLocalSessionData] = useState(contextSessionData);
+  const sessionData = localSessionData;
+  
   const [_graphModal, _setGraphModal] = useState<{
     isOpen: boolean;
     metric: string;
@@ -549,8 +555,7 @@ const AnalysisContent = () => {
     const consistencyPercent = avgScore > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / avgScore) * 100)) : 0;
 
     // Accuracy calculation (percentage of theoretical max)
-    const maxPossible = 150;
-    const accuracyPercent = (avgScore / maxPossible) * 100;
+    const accuracyPercent = (avgScore / GAME_TIMING.MAX_THEORETICAL_SCORE) * 100;
 
     const avgAuto = sessionMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / sessionMatches.length;
     const avgTele = sessionMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / sessionMatches.length;
@@ -584,7 +589,7 @@ const AnalysisContent = () => {
       } | null;
       if (stateData?.sessionData) {
         if (mounted) {
-          updateSessionData(stateData.sessionData);
+          setLocalSessionData(stateData.sessionData as typeof contextSessionData);
           setLoading(false);
         }
         return;
@@ -598,8 +603,8 @@ const AnalysisContent = () => {
           const session = await firebaseService.getSession(sessionId);
 
           if (mounted && session) {
-            // Update the session context with loaded data
-            updateSessionData({
+            // Use local state instead of updating global context
+            setLocalSessionData({
               sessionName: session.sessionName || '',
               driverName: session.driverName || '',
               sessionDuration: session.sessionDuration || '',
@@ -646,7 +651,7 @@ const AnalysisContent = () => {
         abortController.abort();
       }
     };
-  }, [searchParams, location.state, updateSessionData, user?.uid]);
+  }, [searchParams, location.state, user?.uid]);
   // Initialize consistency and accuracy metrics
   useEffect(() => {
     const stats = calculateMatchStats();
@@ -932,10 +937,10 @@ const AnalysisContent = () => {
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              to="/original"
+              to="/sessions"
               className="w-full sm:w-60 px-2.5 py-2.5 rounded-2xl border border-team-blue text-team-blue text-base leading-6 font-normal text-center hover:bg-team-blue hover:text-team-dark transition-colors"
             >
-              Back to Session
+              Back to Sessions
             </Link>
             <Link
               to="/charts"

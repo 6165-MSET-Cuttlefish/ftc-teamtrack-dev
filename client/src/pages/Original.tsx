@@ -17,6 +17,15 @@ const OriginalContent = () => {
   const [showMatchSummary, setShowMatchSummary] = useState(false);
 
   const handleSaveMatch = () => {
+    // Validate that some scoring data exists
+    if ((sessionData.finalScore || 0) === 0 && 
+        (sessionData.autonomousScore || 0) === 0 && 
+        (sessionData.teleOpScore || 0) === 0 && 
+        (sessionData.endGameScore || 0) === 0) {
+      // Don't show error, just don't save empty match
+      return;
+    }
+
     // Create a new match from current session data
     const newMatch = {
       id: `match-${Date.now()}`,

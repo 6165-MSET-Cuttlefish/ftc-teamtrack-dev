@@ -18,9 +18,7 @@ interface SessionFormData extends ScoringFields {
   isSessionCompleted: boolean;
   selectedFeature: string;
   notes: string;
-  // Matches within session
-  matches?: Match[];
-  cycleTimes: number[];
+  matches: Match[];
 }
 
 interface SessionContextType {
@@ -58,6 +56,7 @@ const createInitialSessionData = (displayName?: string | null): SessionFormData 
   selectedFeature: '',
   notes: '',
   cycleTimes: [],
+  matches: [],
 });
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -99,9 +98,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const resetTimer = useCallback(() => setTimer(0), []);
 
   const resetSession = useCallback(() => {
-    setSessionData(createInitialSessionData(user?.displayName));
+    const newSessionData = createInitialSessionData(user?.displayName);
+    setSessionData(newSessionData);
     setTimer(0);
-    setIsTimerRunning(true);
+    setIsTimerRunning(false);
   }, [user?.displayName]);
 
   const value: SessionContextType = {

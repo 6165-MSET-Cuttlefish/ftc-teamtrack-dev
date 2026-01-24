@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
+import { formatDate } from '@/lib/utils';
 import { ROUTES } from '@/constants';
 import type { Session, Match } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -87,35 +88,42 @@ const Compare = () => {
     loadSessions();
   }, [user?.uid, searchParams]);
 
-  // Load selected sessions data
+  
+  // Load selected sessions data with improved error handling
   useEffect(() => {
+    let isMounted = true;
+    
     const loadSessionsData = async () => {
-      const sessionsData: Session[] = [];
-      for (const sessionId of selectedSessionIds) {
-        try {
-          const session = await firebaseService.getSession(sessionId);
-          if (session) sessionsData.push(session);
-        } catch (error) {
-          console.error(`Error loading session ${sessionId}:`, error);
-        }
-      }
-      setSelectedSessionsData(sessionsData);
-      
-      // Load all matches from selected sessions
-      const matches: CompareMatch[] = [];
-      sessionsData.forEach((session, sessionIndex) => {
-        if (session.matches && session.matches.length > 0) {
-          session.matches.forEach((match) => {
-            matches.push({
-              ...match,
-              sessionId: session.id,
-              sessionName: session.sessionName,
-              sessionIndex,
+      try {
+        // Load all sessions in parallel for better performance
+        const sessionsData = await Promise.all(
+          selectedSessionIds.map(id => firebaseService.getSession(id))
+        );
+        
+        if (!isMounted) return;
+        
+        setSelectedSessionsData(sessionsData.filter(s => s !== null) as Session[]);
+        
+        // Load all matches from selected sessions
+        const matches: CompareMatch[] = [];
+        sessionsData.forEach((session, sessionIndex) => {
+          if (session && session.matches && session.matches.length > 0) {
+            session.matches.forEach((match) => {
+              matches.push({
+                ...match,
+                sessionId: session.id,
+                sessionName: session.sessionName,
+                sessionIndex,
+              });
             });
-          });
-        }
-      });
-      setAllMatches(matches);
+          }
+        });
+        setAllMatches(matches);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Error loading sessions:', error);
+        toast.error('Failed to load some sessions');
+      }
     };
 
     if (selectedSessionIds.length > 0) {
@@ -124,31 +132,9 @@ const Compare = () => {
       setSelectedSessionsData([]);
       setAllMatches([]);
     }
+    
+    return () => { isMounted = false; };
   }, [selectedSessionIds]);
-  const formatDate = (timestamp: unknown): string => {
-    if (!timestamp) return 'Unknown';
-
-    let date: Date;
-    if (typeof timestamp === 'string') {
-      date = new Date(timestamp);
-    } else if (
-      typeof timestamp === 'object' &&
-      timestamp !== null &&
-      'seconds' in timestamp
-    ) {
-      const ts = timestamp as { seconds: number; nanoseconds: number };
-      date = new Date(ts.seconds * 1000);
-    } else {
-      return 'Unknown';
-    }
-
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   const addSession = (sessionId: string) => {
     if (!selectedSessionIds.includes(sessionId)) {
       setSelectedSessionIds([...selectedSessionIds, sessionId]);
@@ -193,7 +179,7 @@ const Compare = () => {
   if (loading) {
     return (
       <div
-        className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+        className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
       >
         <div className="text-team-blue text-2xl">Loading sessions...</div>
       </div>
@@ -202,7 +188,7 @@ const Compare = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
         {/* Header */}

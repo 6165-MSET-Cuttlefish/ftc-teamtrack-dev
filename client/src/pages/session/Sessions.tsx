@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
-import type { Session, FirebaseTimestamp } from '@/types';
+import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -39,6 +39,7 @@ interface SessionCardProps {
   onView: () => void;
   onNameChange: (newName: string) => void;
   onDelete: () => void;
+  isDeleting?: boolean;
 }
 
 const SessionCard = ({
@@ -46,22 +47,33 @@ const SessionCard = ({
   onView,
   onNameChange,
   onDelete,
+  isDeleting = false,
 }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(session.sessionName || '');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [isSavingName, setIsSavingName] = useState(false);
 
-  const handleSaveName = () => {
+  // Reset delete confirmation after 5 seconds
+  useEffect(() => {
+    if (deleteConfirm) {
+      const timeout = setTimeout(() => setDeleteConfirm(false), 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [deleteConfirm]);
+
+  const handleSaveName = async () => {
     if (!editedName.trim()) {
       toast.error('Session name cannot be empty');
       setEditedName(session.sessionName || '');
       setIsEditing(false);
       return;
     }
-    onNameChange(editedName.trim());
+    setIsSavingName(true);
+    await onNameChange(editedName.trim());
+    setIsSavingName(false);
     setIsEditing(false);
-    toast.success('Session name updated');
   };
 
   const handleCancelEdit = () => {
@@ -132,42 +144,57 @@ const SessionCard = ({
                 >
                   {session.sessionName || 'Untitled Session'}
                 </CardTitle>
-                <button
-                  onClick={handleEditClick}
-                  className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
-                    isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                  } hover:text-team-blue`}
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <div className="flex items-center gap-1 w-16">
-                  <button
-                    onClick={handleDeleteClick}
-                    className={`p-1.5 rounded flex-1 transition-colors ${
-                      deleteConfirm
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                        : `${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} hover:bg-team-blue/20 hover:text-team-blue`
-                    }`}
-                    title={
-                      deleteConfirm
-                        ? 'Click again to confirm delete'
-                        : 'Delete session'
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                  {deleteConfirm && (
+                {isSavingName ? (
+                  <div className="h-4 w-4 border-2 border-team-blue border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
                     <button
-                      onClick={handleDeleteCancel}
-                      className={`p-1.5 rounded flex-1 hover:bg-team-blue/20 transition-colors ${
-                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                      }`}
-                      title="Cancel delete"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+                      onClick={handleEditClick}
+                      className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
+                      isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                    } hover:text-team-blue`}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                    <div className="flex items-center gap-1 w-16">
+                      <button
+                        onClick={handleDeleteClick}
+                        disabled={isDeleting}
+                        className={`p-1.5 rounded flex-1 transition-colors ${
+                          isDeleting
+                            ? 'opacity-50 cursor-not-allowed'
+                            : deleteConfirm
+                              ? 'bg-red-500 hover:bg-red-600 text-white'
+                              : `${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} hover:bg-team-blue/20 hover:text-team-blue`
+                        }`}
+                        title={
+                          isDeleting
+                            ? 'Deleting...'
+                            : deleteConfirm
+                              ? 'Click again to confirm delete'
+                              : 'Delete session'
+                        }
+                      >
+                        {isDeleting ? (
+                          <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                      {deleteConfirm && !isDeleting && (
+                        <button
+                          onClick={handleDeleteCancel}
+                          className={`p-1.5 rounded flex-1 hover:bg-team-blue/20 transition-colors ${
+                            isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                          }`}
+                          title="Cancel delete"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -304,6 +331,7 @@ const Sessions = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   // Check if there's an active session
   const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
@@ -355,27 +383,42 @@ const Sessions = () => {
     navigate(`/analysis?sessionId=${sessionId}`);
   };
 
-  const handleUpdateSessionName = (sessionId: string, newName: string) => {
-    // Update local state only (frontend only - no database save)
-    setSessions(prevSessions =>
-      prevSessions.map(session =>
-        session.id === sessionId
-          ? { ...session, sessionName: newName }
-          : session
-      )
-    );
-
-    setFilteredSessions(prevSessions =>
-      prevSessions.map(session =>
-        session.id === sessionId
-          ? { ...session, sessionName: newName }
-          : session
-      )
-    );
+  const handleUpdateSessionName = async (sessionId: string, newName: string) => {
+    try {
+      // Update local state optimistically for instant feedback
+      setSessions(prevSessions =>
+        prevSessions.map(session =>
+          session.id === sessionId
+            ? { ...session, sessionName: newName }
+            : session
+        )
+      );
+      
+      // Then update Firebase to persist changes
+      const success = await firebaseService.updateSession(sessionId, { sessionName: newName });
+      
+      if (!success) {
+        // Revert on failure
+        setSessions(prevSessions =>
+          prevSessions.map(session =>
+            session.id === sessionId
+              ? { ...session, sessionName: sessions.find(s => s.id === sessionId)?.sessionName || newName }
+              : session
+          )
+        );
+        toast.error('Failed to update session name');
+      } else {
+        toast.success('Session name updated');
+      }
+    } catch (error) {
+      console.error('Error updating session name:', error);
+      toast.error('Failed to update session name');
+    }
   };
 
   const handleDeleteSession = async (sessionId: string) => {
     try {
+      setDeletingSessionId(sessionId);
       await firebaseService.deleteSession(sessionId);
       setSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
       setFilteredSessions(prevSessions =>
@@ -385,6 +428,8 @@ const Sessions = () => {
     } catch (error) {
       console.error('Error deleting session:', error);
       toast.error('Failed to delete session');
+    } finally {
+      setDeletingSessionId(null);
     }
   };
 
@@ -414,42 +459,10 @@ const Sessions = () => {
       'Date',
     ];
 
-    // Format date helper
-    const formatDate = (timestamp: unknown) => {
-      if (!timestamp) return 'Unknown date';
-
-      if (typeof timestamp === 'string') {
-        return new Date(timestamp).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-      }
-
-      if (typeof timestamp === 'object' && timestamp !== null) {
-        const ts = timestamp as FirebaseTimestamp;
-        if ('seconds' in ts && 'nanoseconds' in ts) {
-          return new Date(
-            ts.seconds * 1000 + ts.nanoseconds / 1000000
-          ).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-        }
-      }
-
-      return 'Unknown date';
-    };
-
-    // Convert sessions to CSV rows
+    // Convert sessions to CSV rows with proper escaping
     const rows = sessions.map(session => [
-      `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""')}"`,
-      `"${(session.driverName || 'Unknown').replace(/"/g, '""')}"`,
+      `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+      `"${(session.driverName || 'Unknown').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
       `"${(session.matchType || 'Practice').replace(/"/g, '""')}"`,
       session.finalScore || 0,
       session.autonomousScore || 0,
@@ -492,7 +505,7 @@ const Sessions = () => {
 
   return (
     <div
-      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
     >
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
@@ -733,6 +746,7 @@ const Sessions = () => {
                   handleUpdateSessionName(session.id, newName)
                 }
                 onDelete={() => handleDeleteSession(session.id)}
+                isDeleting={deletingSessionId === session.id}
               />
             ))}
           </div>

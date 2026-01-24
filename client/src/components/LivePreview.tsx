@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useBlocker } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { useFirebase } from '@/hooks';
+import { GAME_TIMING } from '@/constants';
+import { toast } from 'sonner';
+import type { Match } from '@/types';
 
 const DataCard = ({ value, label }: { value: string; label: string }) => {
   const { isDarkMode } = useTheme();
@@ -48,11 +51,15 @@ const InsightsCard = ({
 
   useEffect(() => {
     const calculateImprovements = async () => {
+      if (!userId) {
+        setTeleOpImprovement('No user');
+        setAutonomousImprovement('No user');
+        return;
+      }
+
       try {
         const { firebaseService } = await import('../services/firebaseService');
-
         const recentSessions = await firebaseService.getUserSessions(userId);
-
         const lastThreeSessions = recentSessions.slice(0, 3);
 
         if (lastThreeSessions.length === 0) {
@@ -186,14 +193,61 @@ export const LivePreview = () => {
     useState<boolean>(false);
   const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] =
     useState<boolean>(false);
+  const [sessionLimitReached, setSessionLimitReached] = useState<boolean>(false);
 
-  // Session timer - starts when component mounts and runs continuously
+  // Two timers:
+  // - sessionTimer: Total time since page load (overall session duration)
+  // - timer: Current match timer (from useSession context, resets per match)
   const [sessionTimer, setSessionTimer] = useState<number>(0);
+  const [sessionLimitChecked, setSessionLimitChecked] = useState(false);
+
+  // Block navigation if there's unsaved work
+  const hasUnsavedWork = 
+    !sessionData.isSessionCompleted && 
+    ((sessionData.matches && sessionData.matches.length > 0) || 
+     (sessionData.finalScore || 0) > 0 || 
+     (sessionData.autonomousScore || 0) > 0 || 
+     (sessionData.teleOpScore || 0) > 0);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedWork) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedWork]);
 
   // Real-time consistency calculation
   const [consistency, setConsistency] = useState<number>(0);
   const [isCalculatingConsistency, setIsCalculatingConsistency] =
     useState(true);
+
+  // Check session limit on mount
+  useEffect(() => {
+    const checkSessionLimit = async () => {
+      if (user?.uid && !sessionData.isSessionCompleted) {
+        const { firebaseService } = await import('../services/firebaseService');
+        const userSessions = await firebaseService.getUserSessions(user.uid);
+        const { SESSION_LIMITS } = await import('../constants');
+        
+        if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
+          setSessionLimitReached(true);
+          toast.error(`You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`, {
+            duration: 10000,
+          });
+        } else {
+          setSessionLimitReached(false);
+        }
+      }
+      setSessionLimitChecked(true);
+    };
+    
+    checkSessionLimit();
+  }, [user?.uid, sessionData.isSessionCompleted]);
 
   // Session timer effect - always running
   useEffect(() => {
@@ -204,11 +258,11 @@ export const LivePreview = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Check if timer reaches 30 seconds in Full Game mode
+  // Check if timer reaches autonomous duration in Full Game mode
   useEffect(() => {
     if (
       sessionData.matchType === 'Full Game' &&
-      timer === 30 &&
+      timer === GAME_TIMING.AUTONOMOUS_DURATION_SECONDS && // 30 seconds for autonomous phase
       isTimerRunning &&
       !hasTransitionedToTeleOp
     ) {
@@ -227,19 +281,28 @@ export const LivePreview = () => {
     setShowTeleOpTransition(false);
     setHasTransitionedToTeleOp(true);
     setExpandedSection('TeleOp Score');
+    // Don't reset timer - continue from autonomous phase
     setIsTimerRunning(true);
+  };
+
+  const handleSkipTeleOp = () => {
+    setShowTeleOpTransition(false);
+    setHasTransitionedToTeleOp(true);
+    // Don't auto-start timer or change section
   };
 
   useEffect(() => {
     const calculateConsistency = async () => {
+      if (!user?.uid) {
+        setConsistency(100);
+        setIsCalculatingConsistency(false);
+        return;
+      }
+
       try {
         setIsCalculatingConsistency(true);
         const { firebaseService } = await import('../services/firebaseService');
-
-        const recentSessions = await firebaseService.getUserSessions(
-          user?.uid || ''
-        );
-
+        const recentSessions = await firebaseService.getUserSessions(user.uid);
         const lastThreeSessions = recentSessions.slice(0, 3);
 
         if (lastThreeSessions.length === 0) {
@@ -292,17 +355,47 @@ export const LivePreview = () => {
   };
 
   const handleNewSession = () => {
-    // Reset the session to default state
+    // Check if there's unsaved work
+    if (sessionData.matches && sessionData.matches.length > 0 && !sessionData.isSessionCompleted) {
+      if (!window.confirm('You have unsaved matches. Starting a new session will discard them. Continue?')) {
+        return;
+      }
+    }
+    
+    // Reset all session state
     resetSession();
     setSavedSessionId(null);
     setHasStarted(false);
+    setHasTransitionedToTeleOp(false);
+    setSessionTimer(0);  // Reset session timer
     // Stay on the current page to start a new session
   };
 
   const handleSaveMatch = () => {
+    // Validate required fields
+    if (!sessionData.sessionName?.trim() || !sessionData.driverName?.trim()) {
+      toast.error('Please fill in Session Name and Driver Name before saving a match');
+      return;
+    }
+
+    // Validate that timer was started
+    if (!hasStarted) {
+      toast.error('Please start the match timer before saving');
+      return;
+    }
+
+    // Validate that some scoring data exists
+    if ((sessionData.finalScore || 0) === 0 && 
+        (sessionData.autonomousScore || 0) === 0 && 
+        (sessionData.teleOpScore || 0) === 0 && 
+        (sessionData.endGameScore || 0) === 0) {
+      toast.error('Please enter some scoring data before saving a match');
+      return;
+    }
+
     // Create a new match from current session data
-    const newMatch = {
-      id: `match-${Date.now()}`,
+    const newMatch: Match = {
+      id: crypto.randomUUID(),
       matchNumber: (sessionData.matches?.length || 0) + 1,
       matchType: sessionData.matchType,
       finalScore: sessionData.finalScore,
@@ -317,7 +410,7 @@ export const LivePreview = () => {
       teleOverflowArtifact: sessionData.teleOverflowArtifact,
       teleMotif: sessionData.teleMotif,
       endgameHang: sessionData.endgameHang,
-      cycleTimes: sessionData.cycleTimes,
+      cycleTimes: [...(sessionData.cycleTimes || [])],
       createdAt: new Date().toISOString(),
     };
 
@@ -345,41 +438,82 @@ export const LivePreview = () => {
     resetTimer();
     setHasStarted(false);
     setIsTimerRunning(false);
+    setHasTransitionedToTeleOp(false);
+    
+    toast.success(`Match ${updatedMatches.length} saved successfully!`);
   };
 
   const handleCompleteSession = async () => {
-    const currentTime = formatTime(timer);
+    // Validate required fields
+    if (!sessionData.sessionName?.trim() || !sessionData.driverName?.trim()) {
+      toast.error('Please fill in Session Name and Driver Name before completing the session');
+      return;
+    }
+
+    // Validate that at least one match has been saved
+    if (!sessionData.matches || sessionData.matches.length === 0) {
+      toast.error('Please save at least one match before completing the session');
+      return;
+    }
+
+    // Check if there's unsaved current match data
+    const hasUnsavedData = 
+      (sessionData.finalScore || 0) > 0 || 
+      (sessionData.autonomousScore || 0) > 0 || 
+      (sessionData.teleOpScore || 0) > 0 || 
+      (sessionData.endGameScore || 0) > 0;
+
+    if (hasUnsavedData) {
+      toast.error('Please save the current match before completing the session, or reset the scoring fields');
+      return;
+    }
+
+    // Check session limit
+    if (user?.uid) {
+      const { firebaseService } = await import('../services/firebaseService');
+      const userSessions = await firebaseService.getUserSessions(user.uid);
+      const { SESSION_LIMITS } = await import('../constants');
+      
+      if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
+        toast.error(`You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`);
+        return;
+      }
+    }
+
+    // Use sessionTimer for total session duration, not match timer
+    const totalSessionTime = formatTime(sessionTimer);
     setIsTimerRunning(false);
-    completeSession(currentTime);
+    completeSession(totalSessionTime);
 
     const sessionToSave = {
-      sessionName: sessionData.sessionName.trim() || 'Untitled Session',
-      driverName: sessionData.driverName.trim() || 'Unknown Driver',
+      sessionName: sessionData.sessionName.trim(),
+      driverName: sessionData.driverName.trim(),
       matchType: sessionData.matchType || 'Practice',
-      sessionDuration: currentTime,
+      sessionDuration: totalSessionTime,
 
       userId: user?.uid || '',
       userEmail: user?.email || '',
 
-      autonClassifiedArtifact: sessionData.autonClassifiedArtifact || 0,
-      autonOverflowArtifact: sessionData.autonOverflowArtifact || 0,
-      autonMotif: sessionData.autonMotif || 0,
-      autonLeave: sessionData.autonLeave || 0,
+      // Don't save individual scoring fields - deprecated
+      // Data is in matches array
+      autonClassifiedArtifact: 0,
+      autonOverflowArtifact: 0,
+      autonMotif: 0,
+      autonLeave: 0,
 
-      teleClassifiedArtifact: sessionData.teleClassifiedArtifact || 0,
-      teleOverflowArtifact: sessionData.teleOverflowArtifact || 0,
-      teleMotif: sessionData.teleMotif || 0,
+      teleClassifiedArtifact: 0,
+      teleOverflowArtifact: 0,
+      teleMotif: 0,
 
-      endgameHang: sessionData.endgameHang || 0,
-      endgamePark: 0,
+      endgameHang: 0,
 
-      finalScore: sessionData.finalScore || 0,
-      autonomousScore: sessionData.autonomousScore || 0,
-      teleOpScore: sessionData.teleOpScore || 0,
-      endGameScore: sessionData.endGameScore || 0,
+      finalScore: 0,
+      autonomousScore: 0,
+      teleOpScore: 0,
+      endGameScore: 0,
 
       selectedFeature: sessionData.selectedFeature || '',
-      cycleTimes: sessionData.cycleTimes || [],
+      cycleTimes: [],
       notes: sessionData.notes || '',
       matches: sessionData.matches || [],
 
@@ -389,10 +523,14 @@ export const LivePreview = () => {
     try {
       const result = await createSession(sessionToSave);
       if (result && result.id) {
-        // session saved successfully; navigation or toast can be added here
+        toast.success('Session saved successfully!');
+        setSavedSessionId(result.id);
+      } else {
+        toast.error('Failed to save session. Please try again.');
       }
-    } catch {
-      // Ignore session save errors
+    } catch (error) {
+      console.error('Error saving session:', error);
+      toast.error('An error occurred while saving the session.');
     }
   };
 
@@ -450,16 +588,32 @@ export const LivePreview = () => {
           />
         </div>
 
+        {/* Session Limit Warning */}
+        {sessionLimitReached && (
+          <div className={`w-full px-4 py-3 rounded-lg border-2 ${isDarkMode ? 'bg-red-900/20 border-red-500 text-red-400' : 'bg-red-50 border-red-500 text-red-800'}`}>
+            <p className="text-sm font-semibold">⚠️ Session Limit Reached</p>
+            <p className="text-xs mt-1">You cannot save new sessions. Please delete old sessions from the Sessions page.</p>
+          </div>
+        )}
+
         <div className="flex flex-col gap-4 w-full sm:w-60">
           {!sessionData.isSessionCompleted && (
             <>
               {showTeleOpTransition ? (
-                <button
-                  onClick={handleContinueToTeleOp}
-                  className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
-                >
-                  Continue into TeleOp
-                </button>
+                <div className="space-y-3">
+                  <button
+                    onClick={handleContinueToTeleOp}
+                    className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                  >
+                    Continue into TeleOp
+                  </button>
+                  <button
+                    onClick={handleSkipTeleOp}
+                    className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
+                  >
+                    Skip / End Autonomous Only
+                  </button>
+                </div>
               ) : (
                 <>
                   {hasStarted ? (
@@ -493,10 +647,10 @@ export const LivePreview = () => {
 
               <button
                 onClick={handleCompleteSession}
-                disabled={loading}
+                disabled={loading || sessionLimitReached}
                 className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
               >
-                {loading ? 'Saving...' : 'Complete Session'}
+                {loading ? 'Saving...' : sessionLimitReached ? 'Session Limit Reached' : 'Complete Session'}
               </button>
             </>
           )}

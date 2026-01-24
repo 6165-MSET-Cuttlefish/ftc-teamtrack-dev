@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
+import { getErrorMessage } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -67,7 +68,7 @@ const Signup = () => {
       await signup(formData.email, formData.password, formData.displayName);
       navigate('/sessions');
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to create account');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,7 @@ const Signup = () => {
       await loginWithGoogle();
       navigate('/sessions');
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to sign up with Google');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

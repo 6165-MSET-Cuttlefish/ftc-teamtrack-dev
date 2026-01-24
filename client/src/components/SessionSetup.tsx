@@ -51,6 +51,9 @@ const FormField = ({
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
       <Label htmlFor={fieldId} className="text-base leading-6 font-medium">
         {label}
+        {(label === 'Session Name' || label === 'Driver Name') && (
+          <span className="text-red-500 ml-1" title="Required field">*</span>
+        )}
       </Label>
       <Input
         id={fieldId}
@@ -78,11 +81,25 @@ export const SessionSetup = () => {
   const setSelectedFeature = (value: string) =>
     updateSessionData({ selectedFeature: value });
 
+  // Check if required fields are filled
+  const isSessionNameEmpty = !sessionData.sessionName?.trim();
+  const isDriverNameEmpty = !sessionData.driverName?.trim();
+  const hasRequiredFields = !isSessionNameEmpty && !isDriverNameEmpty;
+
   return (
     <div className="space-y-8 mt-16">
-      <h2 className="text-team-blue text-3xl font-bold leading-6">
-        Session Setup
-      </h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-team-blue text-3xl font-bold leading-6">
+          Session Setup
+        </h2>
+        <span className="text-red-500 text-xl font-bold" title="Required fields">*</span>
+      </div>
+
+      {!hasRequiredFields && (
+        <div className={`p-3 rounded-lg text-sm ${isDarkMode ? 'bg-red-900/20 border border-red-500/30 text-red-400' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+          <strong>Required:</strong> Please fill in Session Name and Driver Name before completing the session.
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* First Row */}

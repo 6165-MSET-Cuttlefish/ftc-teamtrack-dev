@@ -20,6 +20,12 @@ export const ROUTES = {
   ABOUT: '/about',
 } as const;
 
+/**
+ * Firebase configuration
+ * Note: These API keys are safe to expose in client-side code.
+ * Firebase security is enforced through Firestore security rules and authentication.
+ * For production, consider using environment variables.
+ */
 export const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyA6WhYwzW8quaC9NykmCOAA9tEHc_-KAy8',
   authDomain: 'teamtrack-572e5.firebaseapp.com',
@@ -38,6 +44,13 @@ export const SCORING = {
   TELE_CLASSIFIED_ARTIFACT: 3,
   TELE_OVERFLOW_ARTIFACT: 1,
   TELE_MOTIF: 2,
+} as const;
+
+export const GAME_TIMING = {
+  AUTONOMOUS_DURATION_SECONDS: 30,
+  TELEOP_DURATION_SECONDS: 120,
+  FULL_GAME_DURATION_SECONDS: 150,
+  MAX_THEORETICAL_SCORE: 150,
 } as const;
 
 export const SESSION_LIMITS = {
