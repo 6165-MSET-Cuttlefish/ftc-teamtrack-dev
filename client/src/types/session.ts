@@ -47,6 +47,7 @@ export interface Session extends ScoringFields {
   sessionDuration?: string;
   createdAt: TimestampValue;
   selectedFeature?: string;
+  notes?: string;
   matches?: Match[];
   [key: string]: unknown;
 }

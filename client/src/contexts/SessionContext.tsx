@@ -17,6 +17,7 @@ interface SessionFormData extends ScoringFields {
   matchType: string;
   isSessionCompleted: boolean;
   selectedFeature: string;
+  notes: string;
   // Legacy fields (kept for backwards compatibility)
   autonomousBasket: number;
   autonomousSpecimen: number;
@@ -63,6 +64,7 @@ const createInitialSessionData = (displayName?: string | null): SessionFormData 
   teleOpFloorMark: 0,
   endGameValue: 0,
   selectedFeature: '',
+  notes: '',
   cycleTimes: [],
 });
 
