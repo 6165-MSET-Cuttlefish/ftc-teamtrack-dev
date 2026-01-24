@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus, Keyboard } from 'lucide-react';
+import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus, Keyboard, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
@@ -80,6 +80,7 @@ const NavigationMenu = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
+  const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
 
   const getInitials = (name: string) => {
     return name
@@ -125,6 +126,15 @@ const NavigationMenu = () => {
         className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
       >
         <Keyboard className="w-5 h-5" />
+      </button>
+
+      {/* Session Features Tutorial button */}
+      <button
+        onClick={() => setShowFeaturesTutorial(true)}
+        aria-label="Session features tutorial"
+        className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+      >
+        <HelpCircle className="w-5 h-5" />
       </button>
 
       {/* Theme toggle button */}
@@ -218,6 +228,147 @@ const NavigationMenu = () => {
                 isDarkMode 
                   ? 'bg-team-blue hover:bg-team-blue/80 text-black' 
                   : 'bg-team-blue hover:bg-team-blue/90 text-white'
+              }`}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Session Features Tutorial Modal */}
+      {showFeaturesTutorial && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowFeaturesTutorial(false)}
+        >
+          <div
+            className={`relative w-full max-w-2xl mx-4 p-6 rounded-lg shadow-lg max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold mb-4">Session Scoring Features</h2>
+            
+            <div className="space-y-6">
+              {/* Overview */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Overview</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Track your robot's performance during FTC matches with comprehensive scoring across Autonomous, TeleOp, and End Game periods.
+                </p>
+              </div>
+
+              {/* Scoring Sections */}
+              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className="text-lg font-semibold mb-3">Scoring Sections</h3>
+                
+                {/* Autonomous */}
+                <div className="mb-4">
+                  <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
+                    🤖 Autonomous Score
+                  </h4>
+                  <ul className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <li><strong>Classified Artifact:</strong> 3 points each</li>
+                    <li><strong>Overflow Artifact:</strong> 1 point each</li>
+                    <li><strong>Motif:</strong> 2 points each</li>
+                    <li><strong>Leave:</strong> 3 points (checkbox)</li>
+                  </ul>
+                  <p className={`text-xs mt-2 ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Click the arrow button to expand and see detailed breakdown with +/- controls
+                  </p>
+                </div>
+
+                {/* TeleOp */}
+                <div className="mb-4">
+                  <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
+                    🎮 TeleOp Score
+                  </h4>
+                  <ul className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <li><strong>Classified Artifact:</strong> 3 points each</li>
+                    <li><strong>Overflow Artifact:</strong> 1 point each</li>
+                    <li><strong>Motif:</strong> 2 points each</li>
+                  </ul>
+                </div>
+
+                {/* End Game */}
+                <div className="mb-4">
+                  <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
+                    🏁 End Game Score
+                  </h4>
+                  <p className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <strong>Base Score:</strong> Set the end game value based on ascent level or parking
+                  </p>
+                </div>
+              </div>
+
+              {/* Cycle Timer Feature */}
+              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className="text-lg font-semibold mb-2">⏱️ Cycle Timer Feature</h3>
+                <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Available in TeleOp section when enabled:
+                </p>
+                <ul className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  <li><strong>Clock Button:</strong> Click to record cycle times</li>
+                  <li><strong>Timer Display:</strong> Shows current cycle time in MM:SS format</li>
+                  <li><strong>Cycle Times Log:</strong> View all recorded cycle times (expandable)</li>
+                  <li><strong>Auto Recording:</strong> Each click saves the time and starts a new cycle</li>
+                </ul>
+              </div>
+
+              {/* Input Methods */}
+              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className="text-lg font-semibold mb-2">📊 Input Methods</h3>
+                <div className="space-y-2">
+                  <div>
+                    <p className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                      Number Input Fields:
+                    </p>
+                    <ul className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <li>• Type directly or use up/down arrows</li>
+                      <li>• Press Enter or click away to save</li>
+                      <li>• Automatically calculates total scores</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                      Breakdown Controls (when expanded):
+                    </p>
+                    <ul className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <li>• Large +/- buttons for quick adjustments</li>
+                      <li>• Center display shows current value</li>
+                      <li>• Can also type directly in the center</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className="text-lg font-semibold mb-2">💡 Tips</h3>
+                <ul className={`text-sm space-y-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  <li>• Scores are calculated automatically as you input values</li>
+                  <li>• Expand sections to see detailed breakdowns</li>
+                  <li>• Use keyboard shortcuts (1-3 keys) for faster scoring</li>
+                  <li>• The total final score updates in real-time</li>
+                  <li>• All data is saved automatically to your session</li>
+                </ul>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowFeaturesTutorial(false)}
+              className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors ${
+                isDarkMode 
+                  ? 'bg-team-blue hover:bg-team-blue/80 text-black' 
+                  : 'bg-team-blue hover:bg-team-blue/90 text-white'
+              }`}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/*         : 'bg-team-blue hover:bg-team-blue/90 text-white'
               }`}
             >
               Got it!
