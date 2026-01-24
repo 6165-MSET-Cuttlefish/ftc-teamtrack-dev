@@ -380,6 +380,8 @@ export const LivePreview = () => {
 
       selectedFeature: sessionData.selectedFeature || '',
       cycleTimes: sessionData.cycleTimes || [],
+      notes: sessionData.notes || '',
+      matches: sessionData.matches || [],
 
       completedAt: new Date().toISOString(),
     };

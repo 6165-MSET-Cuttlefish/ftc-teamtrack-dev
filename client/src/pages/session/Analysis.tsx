@@ -620,6 +620,7 @@ const AnalysisContent = () => {
               selectedFeature: session.selectedFeature || '',
               cycleTimes: session.cycleTimes || [],
               notes: session.notes || '',
+              matches: session.matches || [],
             });
           }
         } catch (error) {
