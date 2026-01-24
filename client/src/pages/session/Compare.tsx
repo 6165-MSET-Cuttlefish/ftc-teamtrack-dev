@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES } from '@/constants';
-import type { Session } from '@/types';
+import type { Session, Match } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -35,6 +35,12 @@ interface ComparisonMetric {
   icon: React.ReactNode;
 }
 
+interface CompareMatch extends Match {
+  sessionId: string;
+  sessionName: string;
+  sessionIndex: number;
+}
+
 const Compare = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
@@ -48,8 +54,8 @@ const Compare = () => {
   
   // Match comparison state
   const [comparisonMode, setComparisonMode] = useState<'sessions' | 'matches'>('sessions');
-  const [allMatches, setAllMatches] = useState<any[]>([]);
-  const [selectedMatches, setSelectedMatches] = useState<any[]>([]);
+  const [allMatches, setAllMatches] = useState<CompareMatch[]>([]);
+  const [selectedMatches, setSelectedMatches] = useState<CompareMatch[]>([]);
 
   // Load user sessions
   useEffect(() => {
@@ -96,10 +102,10 @@ const Compare = () => {
       setSelectedSessionsData(sessionsData);
       
       // Load all matches from selected sessions
-      const matches: any[] = [];
+      const matches: CompareMatch[] = [];
       sessionsData.forEach((session, sessionIndex) => {
         if (session.matches && session.matches.length > 0) {
-          session.matches.forEach((match: any) => {
+          session.matches.forEach((match) => {
             matches.push({
               ...match,
               sessionId: session.id,

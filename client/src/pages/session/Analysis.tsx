@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
+import type { Match } from '@/types';
 import {
   ChevronRight,
 } from 'lucide-react';
@@ -280,9 +281,9 @@ const MatchAnalysis = ({
   allMatches,
   isDarkMode,
 }: {
-  match: any;
+  match: Match;
   matchIndex: number;
-  allMatches: any[];
+  allMatches: Match[];
   isDarkMode: boolean;
 }) => {
   const COLORS = {
@@ -375,7 +376,7 @@ const MatchComparison = ({
   matches,
   isDarkMode,
 }: {
-  matches: any[];
+  matches: Match[];
   isDarkMode: boolean;
 }) => {
   const COLORS = {
@@ -519,7 +520,7 @@ const AnalysisContent = () => {
   
   // Match tracking
   const [viewMode, setViewMode] = useState<'overview' | 'matches' | 'match-analysis' | 'session-summary'>('overview');
-  const [sessionMatches, setSessionMatches] = useState<any[]>([]);
+  const [sessionMatches, setSessionMatches] = useState<Match[]>([]);
   const [selectedMatchIndex, setSelectedMatchIndex] = useState<number | null>(null);
 
   // Initialize matches from session data
@@ -534,7 +535,7 @@ const AnalysisContent = () => {
   const [accuracy, setAccuracy] = useState<number>(0);
 
   // Helper functions for match analysis
-  const calculateMatchStats = (): MatchStats | null => {
+  const calculateMatchStats = useCallback((): MatchStats | null => {
     if (sessionMatches.length === 0) return null;
 
     const scores = sessionMatches.map(m => m.finalScore || 0);
@@ -566,7 +567,7 @@ const AnalysisContent = () => {
       avgEndgame: Math.round(avgEndgame),
       totalMatches: sessionMatches.length,
     };
-  };
+  }, [sessionMatches]);
 
   // Load session data from Firebase or location state
   useEffect(() => {
@@ -620,9 +621,9 @@ const AnalysisContent = () => {
               cycleTimes: session.cycleTimes || [],
             });
           }
-        } catch (error: any) {
+        } catch (error) {
           // Suppress AbortError which occurs during cleanup
-          if (mounted && error?.name !== 'AbortError') {
+          if (mounted && (error as Error)?.name !== 'AbortError') {
             console.error('Error loading session:', error);
           }
         }
@@ -651,7 +652,7 @@ const AnalysisContent = () => {
       setConsistency(stats.consistency);
       setAccuracy(stats.accuracy);
     }
-  }, [sessionMatches]);
+  }, [sessionMatches, calculateMatchStats]);
 
   // Show loading state
   if (loading) {
