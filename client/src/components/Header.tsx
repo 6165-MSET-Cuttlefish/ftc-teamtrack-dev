@@ -12,7 +12,7 @@ import {
 import { Button } from './ui/button';
 import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus, Keyboard, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
@@ -82,6 +82,17 @@ const NavigationMenu = () => {
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
   const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
 
+  // Check if this is the user's first time and show tutorials
+  useEffect(() => {
+    if (user) {
+      const hasSeenTutorials = localStorage.getItem('teamtrack_tutorials_seen');
+      if (!hasSeenTutorials) {
+        // Show keybinds tutorial first
+        setShowKeybindTutorial(true);
+      }
+    }
+  }, [user]);
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -101,6 +112,21 @@ const NavigationMenu = () => {
         // Ignore toast errors
       }
     }
+  };
+
+  const handleCloseKeybindTutorial = () => {
+    setShowKeybindTutorial(false);
+    const hasSeenTutorials = localStorage.getItem('teamtrack_tutorials_seen');
+    if (!hasSeenTutorials) {
+      // Show features tutorial next
+      setTimeout(() => setShowFeaturesTutorial(true), 300);
+    }
+  };
+
+  const handleCloseFeaturesTutorial = () => {
+    setShowFeaturesTutorial(false);
+    // Mark tutorials as seen
+    localStorage.setItem('teamtrack_tutorials_seen', 'true');
   };
 
   return (
@@ -165,7 +191,7 @@ const NavigationMenu = () => {
       {showKeybindTutorial && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowKeybindTutorial(false)}
+          onClick={handleCloseKeybindTutorial}
         >
           <div
             className={`relative w-full max-w-lg mx-4 p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
@@ -223,7 +249,7 @@ const NavigationMenu = () => {
             </div>
 
             <button
-              onClick={() => setShowKeybindTutorial(false)}
+              onClick={handleCloseKeybindTutorial}
               className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors ${
                 isDarkMode 
                   ? 'bg-team-blue hover:bg-team-blue/80 text-black' 
@@ -240,7 +266,7 @@ const NavigationMenu = () => {
       {showFeaturesTutorial && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowFeaturesTutorial(false)}
+          onClick={handleCloseFeaturesTutorial}
         >
           <div
             className={`relative w-full max-w-2xl mx-4 p-6 rounded-lg shadow-lg max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
@@ -264,7 +290,7 @@ const NavigationMenu = () => {
                 {/* Autonomous */}
                 <div className="mb-4">
                   <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
-                    🤖 Autonomous Score
+                    Autonomous Score
                   </h4>
                   <ul className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     <li><strong>Classified Artifact:</strong> 3 points each</li>
@@ -280,7 +306,7 @@ const NavigationMenu = () => {
                 {/* TeleOp */}
                 <div className="mb-4">
                   <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
-                    🎮 TeleOp Score
+                    TeleOp Score
                   </h4>
                   <ul className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     <li><strong>Classified Artifact:</strong> 3 points each</li>
@@ -292,7 +318,7 @@ const NavigationMenu = () => {
                 {/* End Game */}
                 <div className="mb-4">
                   <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
-                    🏁 End Game Score
+                    End Game Score
                   </h4>
                   <p className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     <strong>Base Score:</strong> Set the end game value based on ascent level or parking
@@ -302,7 +328,7 @@ const NavigationMenu = () => {
 
               {/* Cycle Timer Feature */}
               <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-2">⏱️ Cycle Timer Feature</h3>
+                <h3 className="text-lg font-semibold mb-2">Cycle Timer Feature</h3>
                 <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   Available in TeleOp section when enabled:
                 </p>
@@ -316,7 +342,7 @@ const NavigationMenu = () => {
 
               {/* Input Methods */}
               <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-2">📊 Input Methods</h3>
+                <h3 className="text-lg font-semibold mb-2">Input Methods</h3>
                 <div className="space-y-2">
                   <div>
                     <p className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -340,10 +366,10 @@ const NavigationMenu = () => {
                   </div>
                 </div>
               </div>
-
+handleCloseFeaturesTutorial
               {/* Tips */}
               <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-2">💡 Tips</h3>
+                <h3 className="text-lg font-semibold mb-2">Tips</h3>
                 <ul className={`text-sm space-y-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   <li>• Scores are calculated automatically as you input values</li>
                   <li>• Expand sections to see detailed breakdowns</li>
@@ -355,7 +381,7 @@ const NavigationMenu = () => {
             </div>
 
             <button
-              onClick={() => setShowFeaturesTutorial(false)}
+              onClick={handleCloseFeaturesTutorial}
               className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors ${
                 isDarkMode 
                   ? 'bg-team-blue hover:bg-team-blue/80 text-black' 
