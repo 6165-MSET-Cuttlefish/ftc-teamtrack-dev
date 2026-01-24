@@ -158,16 +158,16 @@ export const PerformanceMetrics = () => {
   const { sessionData, updateSessionData, expandedSection, setExpandedSection } = useSession();
   const { isDarkMode } = useTheme();
 
-  const [autonomousBasket, setAutonomousBasket] = useState(0);
-  const [autonomousSpecimen, setAutonomousSpecimen] = useState(0);
-  const [autonomousFloorMark, setAutonomousFloorMark] = useState(0);
+  const [autonClassifiedArtifact, setAutonClassifiedArtifact] = useState(0);
+  const [autonOverflowArtifact, setAutonOverflowArtifact] = useState(0);
+  const [autonMotif, setAutonMotif] = useState(0);
   const [autonomousLeave, setAutonomousLeave] = useState(0);
 
-  const [teleOpSamples, setTeleOpSamples] = useState(0);
-  const [teleOpSpecimen, setTeleOpSpecimen] = useState(0);
-  const [teleOpFloorMark, setTeleOpFloorMark] = useState(0);
+  const [teleClassifiedArtifact, setTeleClassifiedArtifact] = useState(0);
+  const [teleOverflowArtifact, setTeleOverflowArtifact] = useState(0);
+  const [teleMotif, setTeleMotif] = useState(0);
 
-  const [endGameValue, setEndGameValue] = useState(0);
+  const [endgameHang, setEndgameHang] = useState(0);
 
   // Cycle time tracking
   const [cycleTimerStartTime, setCycleTimerStartTime] = useState<number | null>(null);
@@ -244,9 +244,9 @@ export const PerformanceMetrics = () => {
       // Handle Enter key to confirm and add to appropriate score
       if (event.key === 'Enter' && showPopup && madeCount !== null) {
         if (expandedSection === 'Autonomous Score') {
-          setAutonomousBasket(prev => prev + madeCount);
+          setAutonClassifiedArtifact(prev => prev + madeCount);
         } else if (expandedSection === 'TeleOp Score') {
-          setTeleOpSamples(prev => prev + madeCount);
+          setTeleClassifiedArtifact(prev => prev + madeCount);
         }
         
         // Close popup after confirming
@@ -275,39 +275,39 @@ export const PerformanceMetrics = () => {
     // Motif = 2 pts
     // Leave = 3 pts (autonomous only)
     const autonomousScore =
-      autonomousBasket * 3 +
-      autonomousSpecimen * 1 +
-      autonomousFloorMark * 2 +
+      autonClassifiedArtifact * 3 +
+      autonOverflowArtifact * 1 +
+      autonMotif * 2 +
       autonomousLeave * 3;
 
     const teleOpScore =
-      teleOpSamples * 3 + teleOpSpecimen * 1 + teleOpFloorMark * 2;
+      teleClassifiedArtifact * 3 + teleOverflowArtifact * 1 + teleMotif * 2;
 
-    const finalScore = autonomousScore + teleOpScore + endGameValue;
+    const finalScore = autonomousScore + teleOpScore + endgameHang;
 
     updateSessionData({
       autonomousScore,
       teleOpScore,
-      endGameScore: endGameValue,
+      endGameScore: endgameHang,
       finalScore,
-      autonomousBasket,
-      autonomousSpecimen,
-      autonomousFloorMark,
+      autonClassifiedArtifact,
+      autonOverflowArtifact,
+      autonMotif,
       autonLeave: autonomousLeave,
-      teleOpSamples,
-      teleOpSpecimen,
-      teleOpFloorMark,
-      endGameValue,
+      teleClassifiedArtifact,
+      teleOverflowArtifact,
+      teleMotif,
+      endgameHang,
     });
   }, [
-    autonomousBasket,
-    autonomousSpecimen,
-    autonomousFloorMark,
+    autonClassifiedArtifact,
+    autonOverflowArtifact,
+    autonMotif,
     autonomousLeave,
-    teleOpSamples,
-    teleOpSpecimen,
-    teleOpFloorMark,
-    endGameValue,
+    teleClassifiedArtifact,
+    teleOverflowArtifact,
+    teleMotif,
+    endgameHang,
     updateSessionData,
   ]);
 
@@ -426,18 +426,18 @@ export const PerformanceMetrics = () => {
           <div className="space-y-8">
             <InlineBreakdownField
               label="Classified Artifact (3 pts each)"
-              value={autonomousBasket}
-              onChange={setAutonomousBasket}
+              value={autonClassifiedArtifact}
+              onChange={setAutonClassifiedArtifact}
             />
             <InlineBreakdownField
               label="Overflow Artifact (1 pt each)"
-              value={autonomousSpecimen}
-              onChange={setAutonomousSpecimen}
+              value={autonOverflowArtifact}
+              onChange={setAutonOverflowArtifact}
             />
             <InlineBreakdownField
               label="Motif (2 pts each)"
-              value={autonomousFloorMark}
-              onChange={setAutonomousFloorMark}
+              value={autonMotif}
+              onChange={setAutonMotif}
             />
             <CheckboxField
               label="Leave (Check if left)"
@@ -451,18 +451,18 @@ export const PerformanceMetrics = () => {
           <div className="space-y-8">
             <InlineBreakdownField
               label="Classified Artifact (3 pts each)"
-              value={teleOpSamples}
-              onChange={setTeleOpSamples}
+              value={teleClassifiedArtifact}
+              onChange={setTeleClassifiedArtifact}
             />
             <InlineBreakdownField
               label="Overflow Artifact (1 pt each)"
-              value={teleOpSpecimen}
-              onChange={setTeleOpSpecimen}
+              value={teleOverflowArtifact}
+              onChange={setTeleOverflowArtifact}
             />
             <InlineBreakdownField
               label="Motif (2 pts each)"
-              value={teleOpFloorMark}
-              onChange={setTeleOpFloorMark}
+              value={teleMotif}
+              onChange={setTeleMotif}
             />
             {sessionData.selectedFeature === 'Cycle Times' && (
               <div className="space-y-4">
@@ -533,8 +533,8 @@ export const PerformanceMetrics = () => {
           <div className="space-y-8">
             <InlineBreakdownField
               label="Base Score"
-              value={endGameValue}
-              onChange={setEndGameValue}
+              value={endgameHang}
+              onChange={setEndgameHang}
             />
           </div>
         );

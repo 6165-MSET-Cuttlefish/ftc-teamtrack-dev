@@ -361,16 +361,16 @@ export const LivePreview = () => {
       userId: user?.uid || '',
       userEmail: user?.email || '',
 
-      autonClassifiedArtifact: sessionData.autonomousBasket || 0,
-      autonOverflowArtifact: sessionData.autonomousSpecimen || 0,
-      autonMotif: sessionData.autonomousFloorMark || 0,
+      autonClassifiedArtifact: sessionData.autonClassifiedArtifact || 0,
+      autonOverflowArtifact: sessionData.autonOverflowArtifact || 0,
+      autonMotif: sessionData.autonMotif || 0,
       autonLeave: sessionData.autonLeave || 0,
 
-      teleClassifiedArtifact: sessionData.teleOpSamples || 0,
-      teleOverflowArtifact: sessionData.teleOpSpecimen || 0,
-      teleMotif: sessionData.teleOpFloorMark || 0,
+      teleClassifiedArtifact: sessionData.teleClassifiedArtifact || 0,
+      teleOverflowArtifact: sessionData.teleOverflowArtifact || 0,
+      teleMotif: sessionData.teleMotif || 0,
 
-      endgameHang: sessionData.endGameValue || 0,
+      endgameHang: sessionData.endgameHang || 0,
       endgamePark: 0,
 
       finalScore: sessionData.finalScore || 0,
