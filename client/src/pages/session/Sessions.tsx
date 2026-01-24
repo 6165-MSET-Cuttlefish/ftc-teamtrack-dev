@@ -403,6 +403,14 @@ const Sessions = () => {
       'Autonomous Score',
       'TeleOp Score',
       'End Game Score',
+      'Auton Classified Artifact',
+      'Auton Overflow Artifact',
+      'Auton Motif',
+      'Auton Leave',
+      'Tele Classified Artifact',
+      'Tele Overflow Artifact',
+      'Tele Motif',
+      'Endgame Hang',
       'Date',
     ];
 
@@ -447,6 +455,14 @@ const Sessions = () => {
       session.autonomousScore || 0,
       session.teleOpScore || 0,
       session.endGameScore || 0,
+      session.autonClassifiedArtifact || 0,
+      session.autonOverflowArtifact || 0,
+      session.autonMotif || 0,
+      session.autonLeave || 0,
+      session.teleClassifiedArtifact || 0,
+      session.teleOverflowArtifact || 0,
+      session.teleMotif || 0,
+      session.endgameHang || 0,
       `"${formatDate(session.createdAt)}"`,
     ]);
 
