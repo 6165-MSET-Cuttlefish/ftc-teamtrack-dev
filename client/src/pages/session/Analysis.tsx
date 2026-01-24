@@ -618,6 +618,7 @@ const AnalysisContent = () => {
               endGameValue: session.endgameHang || 0,
               selectedFeature: session.selectedFeature || '',
               cycleTimes: session.cycleTimes || [],
+              notes: session.notes || '',
             });
           }
         } catch (error: any) {
@@ -701,6 +702,24 @@ const AnalysisContent = () => {
             finalScore={sessionData.finalScore ?? 0}
             totalTime={sessionData.sessionDuration}
           />
+
+          {/* Notes Section */}
+          {sessionData.notes && (
+            <div
+              className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'} space-y-4`}
+            >
+              <h3
+                className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+              >
+                Performance Notes & Observations
+              </h3>
+              <p
+                className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+              >
+                {sessionData.notes}
+              </p>
+            </div>
+          )}
 
           {/* Session Analysis - Average Scores & Consistency */}
             {sessionMatches.length > 0 && (
