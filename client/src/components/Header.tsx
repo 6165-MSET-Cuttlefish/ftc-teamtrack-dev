@@ -1,7 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
-import { getInitials } from '@/lib/utils';
-import { ROUTES } from '@/constants';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -12,15 +10,16 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus } from 'lucide-react';
+import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus, Keyboard } from 'lucide-react';
 import { toast } from 'sonner';
+import { useState } from 'react';
 
 const TeamTrackLogo = () => {
   const { isDarkMode } = useTheme();
 
   return (
     <Link
-      to={ROUTES.SESSIONS}
+      to="/sessions"
       aria-label="TeamTrack home"
       className="flex items-center gap-6 focus:outline-none transition-all duration-200 hover:scale-105"
     >
@@ -80,12 +79,26 @@ const NavigationMenu = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
 
   const handleLogout = async () => {
     try {
       await logout();
     } catch {
-      toast.error('Sign out failed. Please try again.');
+      // Show a brief toast so user knows sign out failed
+      try {
+        toast.error('Sign out failed. Please try again.');
+      } catch {
+        // Ignore toast errors
+      }
     }
   };
 
@@ -97,13 +110,22 @@ const NavigationMenu = () => {
     >
       {/* About Us link */}
       <Link
-        to={ROUTES.ABOUT}
+        to="/about"
         className={`text-base font-medium ${
           isDarkMode ? 'text-white' : 'text-black'
         }`}
       >
         About Us
       </Link>
+
+      {/* Keybinds Tutorial button */}
+      <button
+        onClick={() => setShowKeybindTutorial(true)}
+        aria-label="Keybinds tutorial"
+        className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+      >
+        <Keyboard className="w-5 h-5" />
+      </button>
 
       {/* Theme toggle button */}
       <button
@@ -121,12 +143,87 @@ const NavigationMenu = () => {
       {/* New Session button */}
       {user && (
         <button
-          onClick={() => navigate(ROUTES.ORIGINAL)}
+          onClick={() => navigate('/original')}
           aria-label="New session"
           className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
         >
           <Plus className="w-5 h-5" />
         </button>
+      )}
+
+      {/* Keybind Tutorial Modal */}
+      {showKeybindTutorial && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowKeybindTutorial(false)}
+        >
+          <div
+            className={`relative w-full max-w-lg mx-4 p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold mb-4">Keyboard Shortcuts</h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Scoring Shortcuts</h3>
+                <p className={`text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Use these shortcuts when in the Autonomous or TeleOp section:
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span>Select shot type:</span>
+                    <div className="flex gap-2">
+                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>1</kbd>
+                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>2</kbd>
+                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>3</kbd>
+                    </div>
+                  </div>
+                  <p className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Press 1, 2, or 3 to select the shot type
+                  </p>
+                  
+                  <div className="flex items-center justify-between mt-3">
+                    <span>Set made count:</span>
+                    <div className="flex gap-2">
+                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>1</kbd>
+                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>2</kbd>
+                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>3</kbd>
+                    </div>
+                  </div>
+                  <p className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    After selecting shot type, press number to set how many were made (≤ shot type)
+                  </p>
+
+                  <div className="flex items-center justify-between mt-3">
+                    <span>Confirm entry:</span>
+                    <kbd className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>Enter</kbd>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-3">
+                    <span>Cancel:</span>
+                    <kbd className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>Esc</kbd>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <strong>Note:</strong> Keyboard shortcuts only work when you're not typing in an input field.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowKeybindTutorial(false)}
+              className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors ${
+                isDarkMode 
+                  ? 'bg-team-blue hover:bg-team-blue/80 text-black' 
+                  : 'bg-team-blue hover:bg-team-blue/90 text-white'
+              }`}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
       )}
 
       {/* User section */}
@@ -166,13 +263,13 @@ const NavigationMenu = () => {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to={ROUTES.SESSIONS} className="flex items-center">
+              <Link to="/sessions" className="flex items-center">
                 <BarChart3 className="mr-2 h-4 w-4" />
                 <span>My Sessions</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to={ROUTES.PROFILE} className="flex items-center">
+              <Link to="/profile" className="flex items-center">
                 <UserCircle className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </Link>
@@ -186,10 +283,10 @@ const NavigationMenu = () => {
       ) : (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
-            <Link to={ROUTES.LOGIN}>Sign in</Link>
+            <Link to="/login">Sign in</Link>
           </Button>
           <Button size="sm" asChild>
-            <Link to={ROUTES.SIGNUP}>Sign up</Link>
+            <Link to="/signup">Sign up</Link>
           </Button>
         </div>
       )}
