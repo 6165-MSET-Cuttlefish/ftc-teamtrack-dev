@@ -373,7 +373,7 @@ const MatchAnalysis = ({
   );
 };
 
-const MatchComparison = ({
+const MatchTrendComparison = ({
   matches,
   isDarkMode,
 }: {
@@ -435,6 +435,426 @@ const MatchComparison = ({
             <Bar dataKey="End Game" stackId="a" fill={COLORS.primary} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+interface MatchComparison {
+  matchA: Match;
+  matchB: Match;
+  indexA: number;
+  indexB: number;
+  finalScoreDiff: number;
+  finalScoreDiffPercent: number;
+  autoDiff: number;
+  autoPercent: number;
+  teleDiff: number;
+  telePercent: number;
+  endgameDiff: number;
+  endgamePercent: number;
+}
+
+const calculateMatchComparison = (matchA: Match, matchB: Match): MatchComparison => {
+  const finalScoreDiff = (matchB.finalScore || 0) - (matchA.finalScore || 0);
+  const finalScoreDiffPercent = matchA.finalScore ? (finalScoreDiff / (matchA.finalScore || 1)) * 100 : 0;
+  
+  const autoDiff = (matchB.autonomousScore || 0) - (matchA.autonomousScore || 0);
+  const autoPercent = matchA.autonomousScore ? (autoDiff / (matchA.autonomousScore || 1)) * 100 : 0;
+  
+  const teleDiff = (matchB.teleOpScore || 0) - (matchA.teleOpScore || 0);
+  const telePercent = matchA.teleOpScore ? (teleDiff / (matchA.teleOpScore || 1)) * 100 : 0;
+  
+  const endgameDiff = (matchB.endGameScore || 0) - (matchA.endGameScore || 0);
+  const endgamePercent = matchA.endGameScore ? (endgameDiff / (matchA.endGameScore || 1)) * 100 : 0;
+
+  return {
+    matchA,
+    matchB,
+    indexA: -1,
+    indexB: -1,
+    finalScoreDiff,
+    finalScoreDiffPercent,
+    autoDiff,
+    autoPercent,
+    teleDiff,
+    telePercent,
+    endgameDiff,
+    endgamePercent,
+  };
+};
+
+const MatchComparisonView = ({
+  matches,
+  isDarkMode,
+}: {
+  matches: Match[];
+  isDarkMode: boolean;
+}) => {
+  const [matchAIndex, setMatchAIndex] = useState<number>(0);
+  const [matchBIndex, setMatchBIndex] = useState<number>(matches.length > 1 ? 1 : 0);
+
+  if (matches.length < 2) {
+    return (
+      <div className={`text-center py-12 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}>
+        <p className={`text-lg ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+          Need at least 2 matches to compare
+        </p>
+      </div>
+    );
+  }
+
+  const comparison = calculateMatchComparison(matches[matchAIndex], matches[matchBIndex]);
+
+  const COLORS = {
+    primary: '#537788',
+    secondary: '#B0E5FE',
+    success: '#10b981',
+    warning: '#f59e0b',
+  };
+
+  // Data for comparison charts
+  const scoreComparisonData = [
+    {
+      name: `Match ${matches[matchAIndex].matchNumber}`,
+      'Autonomous': matches[matchAIndex].autonomousScore || 0,
+      'TeleOp': matches[matchAIndex].teleOpScore || 0,
+      'End Game': matches[matchAIndex].endGameScore || 0,
+    },
+    {
+      name: `Match ${matches[matchBIndex].matchNumber}`,
+      'Autonomous': matches[matchBIndex].autonomousScore || 0,
+      'TeleOp': matches[matchBIndex].teleOpScore || 0,
+      'End Game': matches[matchBIndex].endGameScore || 0,
+    },
+  ];
+
+  // Detailed breakdown comparison data
+  const breakdownData = [
+    {
+      name: 'Classified Artifacts',
+      [matches[matchAIndex].matchNumber]: matches[matchAIndex].autonClassifiedArtifact || 0,
+      [matches[matchBIndex].matchNumber]: matches[matchBIndex].autonClassifiedArtifact || 0,
+    },
+    {
+      name: 'Overflow Artifacts',
+      [matches[matchAIndex].matchNumber]: matches[matchAIndex].autonOverflowArtifact || 0,
+      [matches[matchBIndex].matchNumber]: matches[matchBIndex].autonOverflowArtifact || 0,
+    },
+    {
+      name: 'Motifs',
+      [matches[matchAIndex].matchNumber]: matches[matchAIndex].autonMotif || 0,
+      [matches[matchBIndex].matchNumber]: matches[matchBIndex].autonMotif || 0,
+    },
+    {
+      name: 'Leave',
+      [matches[matchAIndex].matchNumber]: matches[matchAIndex].autonLeave || 0,
+      [matches[matchBIndex].matchNumber]: matches[matchBIndex].autonLeave || 0,
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-team-blue text-2xl font-semibold">Compare Matches</h2>
+
+      {/* Match Selection */}
+      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Select Matches to Compare
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Match A Selection */}
+          <div className="flex flex-col gap-2">
+            <label className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+              First Match
+            </label>
+            <select
+              value={matchAIndex}
+              onChange={(e) => setMatchAIndex(Number(e.target.value))}
+              className={`w-full px-4 py-2 rounded-lg border ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-team-blue-40 text-black'} focus:outline-none focus:ring-2 focus:ring-team-blue`}
+            >
+              {matches.map((match, idx) => (
+                <option key={idx} value={idx}>
+                  Match {match.matchNumber} • Score: {match.finalScore || 0} pts • {match.matchType || 'N/A'}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Match B Selection */}
+          <div className="flex flex-col gap-2">
+            <label className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+              Second Match
+            </label>
+            <select
+              value={matchBIndex}
+              onChange={(e) => setMatchBIndex(Number(e.target.value))}
+              className={`w-full px-4 py-2 rounded-lg border ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-team-blue-40 text-black'} focus:outline-none focus:ring-2 focus:ring-team-blue`}
+            >
+              {matches.map((match, idx) => (
+                <option key={idx} value={idx}>
+                  Match {match.matchNumber} • Score: {match.finalScore || 0} pts • {match.matchType || 'N/A'}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Score Comparison Highlight */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Final Score */}
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <p className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Final Score Difference</p>
+          <p className={`text-2xl font-bold mt-2 ${comparison.finalScoreDiff >= 0 ? 'text-team-blue' : 'text-red-500'}`}>
+            {comparison.finalScoreDiff > 0 ? '+' : ''}{comparison.finalScoreDiff}
+            <span className={`text-sm ml-2 ${comparison.finalScoreDiffPercent >= 0 ? 'text-team-blue' : 'text-red-500'}`}>
+              ({comparison.finalScoreDiffPercent > 0 ? '+' : ''}{comparison.finalScoreDiffPercent.toFixed(1)}%)
+            </span>
+          </p>
+        </div>
+
+        {/* Autonomous Difference */}
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <p className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Autonomous Difference</p>
+          <p className={`text-2xl font-bold mt-2 ${comparison.autoDiff >= 0 ? 'text-team-blue' : 'text-red-500'}`}>
+            {comparison.autoDiff > 0 ? '+' : ''}{comparison.autoDiff}
+            <span className={`text-sm ml-2 ${comparison.autoPercent >= 0 ? 'text-team-blue' : 'text-red-500'}`}>
+              ({comparison.autoPercent > 0 ? '+' : ''}{comparison.autoPercent.toFixed(1)}%)
+            </span>
+          </p>
+        </div>
+
+        {/* TeleOp Difference */}
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <p className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>TeleOp Difference</p>
+          <p className={`text-2xl font-bold mt-2 ${comparison.teleDiff >= 0 ? 'text-team-blue' : 'text-red-500'}`}>
+            {comparison.teleDiff > 0 ? '+' : ''}{comparison.teleDiff}
+            <span className={`text-sm ml-2 ${comparison.telePercent >= 0 ? 'text-team-blue' : 'text-red-500'}`}>
+              ({comparison.telePercent > 0 ? '+' : ''}{comparison.telePercent.toFixed(1)}%)
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* Score Composition Comparison Chart */}
+      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Score Component Comparison
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={scoreComparisonData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
+            <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+            <Legend wrapperStyle={{ fontSize: '14px' }} />
+            <Bar dataKey="Autonomous" stackId="a" fill={COLORS.success} />
+            <Bar dataKey="TeleOp" stackId="a" fill={COLORS.warning} />
+            <Bar dataKey="End Game" stackId="a" fill={COLORS.primary} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Detailed Scoring Breakdown */}
+      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Scoring Breakdown Comparison
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={breakdownData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
+            <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+            <Legend wrapperStyle={{ fontSize: '14px' }} />
+            <Bar dataKey={matches[matchAIndex].matchNumber} fill={COLORS.primary} />
+            <Bar dataKey={matches[matchBIndex].matchNumber} fill={COLORS.secondary} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Detailed Statistics Table */}
+      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Detailed Statistics
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <th className={`text-left py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Metric</th>
+                <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Match {matches[matchAIndex].matchNumber}
+                </th>
+                <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Match {matches[matchBIndex].matchNumber}
+                </th>
+                <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Difference
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Final Score */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Final Score</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].finalScore || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].finalScore || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${comparison.finalScoreDiff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {comparison.finalScoreDiff > 0 ? '+' : ''}{comparison.finalScoreDiff}
+                </td>
+              </tr>
+              {/* Autonomous Score */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Autonomous Score</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].autonomousScore || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].autonomousScore || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${comparison.autoDiff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {comparison.autoDiff > 0 ? '+' : ''}{comparison.autoDiff}
+                </td>
+              </tr>
+              {/* TeleOp Score */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>TeleOp Score</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].teleOpScore || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].teleOpScore || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${comparison.teleDiff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {comparison.teleDiff > 0 ? '+' : ''}{comparison.teleDiff}
+                </td>
+              </tr>
+              {/* End Game Score */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>End Game Score</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].endGameScore || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].endGameScore || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${comparison.endgameDiff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {comparison.endgameDiff > 0 ? '+' : ''}{comparison.endgameDiff}
+                </td>
+              </tr>
+              {/* Classified Artifacts (Autonomous) */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Classified Artifacts (Auto)</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].autonClassifiedArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].autonClassifiedArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].autonClassifiedArtifact || 0) >= (matches[matchAIndex].autonClassifiedArtifact || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].autonClassifiedArtifact || 0) - (matches[matchAIndex].autonClassifiedArtifact || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].autonClassifiedArtifact || 0) - (matches[matchAIndex].autonClassifiedArtifact || 0)}
+                </td>
+              </tr>
+              {/* Classified Artifacts (TeleOp) */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Classified Artifacts (TeleOp)</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].teleClassifiedArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].teleClassifiedArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].teleClassifiedArtifact || 0) >= (matches[matchAIndex].teleClassifiedArtifact || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].teleClassifiedArtifact || 0) - (matches[matchAIndex].teleClassifiedArtifact || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].teleClassifiedArtifact || 0) - (matches[matchAIndex].teleClassifiedArtifact || 0)}
+                </td>
+              </tr>
+              {/* Overflow Artifacts (Autonomous) */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Overflow Artifacts (Auto)</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].autonOverflowArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].autonOverflowArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].autonOverflowArtifact || 0) >= (matches[matchAIndex].autonOverflowArtifact || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].autonOverflowArtifact || 0) - (matches[matchAIndex].autonOverflowArtifact || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].autonOverflowArtifact || 0) - (matches[matchAIndex].autonOverflowArtifact || 0)}
+                </td>
+              </tr>
+              {/* Overflow Artifacts (TeleOp) */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Overflow Artifacts (TeleOp)</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].teleOverflowArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].teleOverflowArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].teleOverflowArtifact || 0) >= (matches[matchAIndex].teleOverflowArtifact || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].teleOverflowArtifact || 0) - (matches[matchAIndex].teleOverflowArtifact || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].teleOverflowArtifact || 0) - (matches[matchAIndex].teleOverflowArtifact || 0)}
+                </td>
+              </tr>
+              {/* Motifs (Autonomous) */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Motifs (Auto)</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].autonMotif || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].autonMotif || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].autonMotif || 0) >= (matches[matchAIndex].autonMotif || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].autonMotif || 0) - (matches[matchAIndex].autonMotif || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].autonMotif || 0) - (matches[matchAIndex].autonMotif || 0)}
+                </td>
+              </tr>
+              {/* Motifs (TeleOp) */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Motifs (TeleOp)</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].teleMotif || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].teleMotif || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].teleMotif || 0) >= (matches[matchAIndex].teleMotif || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].teleMotif || 0) - (matches[matchAIndex].teleMotif || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].teleMotif || 0) - (matches[matchAIndex].teleMotif || 0)}
+                </td>
+              </tr>
+              {/* Leave */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Leave</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].autonLeave || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].autonLeave || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].autonLeave || 0) >= (matches[matchAIndex].autonLeave || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].autonLeave || 0) - (matches[matchAIndex].autonLeave || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].autonLeave || 0) - (matches[matchAIndex].autonLeave || 0)}
+                </td>
+              </tr>
+              {/* End Game Hang */}
+              <tr>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>End Game Hang</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].endgameHang || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].endgameHang || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].endgameHang || 0) >= (matches[matchAIndex].endgameHang || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].endgameHang || 0) - (matches[matchAIndex].endgameHang || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].endgameHang || 0) - (matches[matchAIndex].endgameHang || 0)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -525,7 +945,7 @@ const AnalysisContent = () => {
   });
   
   // Match tracking
-  const [viewMode, setViewMode] = useState<'overview' | 'matches' | 'match-analysis' | 'session-summary'>('overview');
+  const [viewMode, setViewMode] = useState<'overview' | 'matches' | 'match-analysis' | 'session-summary' | 'compare'>('overview');
   const [sessionMatches, setSessionMatches] = useState<Match[]>([]);
   const [selectedMatchIndex, setSelectedMatchIndex] = useState<number | null>(null);
 
@@ -589,7 +1009,7 @@ const AnalysisContent = () => {
       } | null;
       if (stateData?.sessionData) {
         if (mounted) {
-          setLocalSessionData(stateData.sessionData as typeof contextSessionData);
+          setLocalSessionData(stateData.sessionData as unknown as typeof contextSessionData);
           setLoading(false);
         }
         return;
@@ -828,6 +1248,16 @@ const AnalysisContent = () => {
                     >
                       Compare All
                     </button>
+                    <button
+                      onClick={() => setViewMode('compare')}
+                      className={`px-4 py-3 font-medium whitespace-nowrap transition-colors ${
+                        viewMode === 'compare'
+                          ? 'text-team-blue border-b-2 border-team-blue'
+                          : isDarkMode ? 'text-team-white-60 hover:text-white' : 'text-gray-600 hover:text-black'
+                      }`}
+                    >
+                      Compare Two Matches
+                    </button>
                   </div>
                 )}
 
@@ -882,7 +1312,12 @@ const AnalysisContent = () => {
 
                 {/* Compare All Matches */}
                 {viewMode === 'matches' && sessionMatches.length > 0 && (
-                  <MatchComparison matches={sessionMatches} isDarkMode={isDarkMode} />
+                  <MatchTrendComparison matches={sessionMatches} isDarkMode={isDarkMode} />
+                )}
+
+                {/* Compare Two Matches */}
+                {viewMode === 'compare' && sessionMatches.length >= 2 && (
+                  <MatchComparisonView matches={sessionMatches} isDarkMode={isDarkMode} />
                 )}
 
                 {/* Original Matches List (Overview) */}
