@@ -634,7 +634,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.autonomousScore ?? 0}
                   onChange={(value) => updateSessionData({ autonomousScore: value })}
                   onDropdownClick={() => toggleSection('Autonomous Score')}
-                  editable={true}
+                  editable={false}
                   showArrows={false}
                   isSelected={expandedSection === 'Autonomous Score'}
                 />
@@ -645,7 +645,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.teleOpScore ?? 0}
                   onChange={(value) => updateSessionData({ teleOpScore: value })}
                   onDropdownClick={() => toggleSection('TeleOp Score')}
-                  editable={true}
+                  editable={false}
                   showArrows={false}
                   isSelected={expandedSection === 'TeleOp Score'}
                 />
@@ -655,7 +655,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.endGameScore ?? 0}
                 onChange={(value) => updateSessionData({ endGameScore: value })}
                 onDropdownClick={() => toggleSection('End Game Score')}
-                editable={true}
+                editable={false}
                 showArrows={false}
                 isSelected={expandedSection === 'End Game Score'}
               />
