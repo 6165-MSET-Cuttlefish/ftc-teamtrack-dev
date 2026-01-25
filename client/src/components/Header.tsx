@@ -419,12 +419,6 @@ const NavigationMenu = () => {
                 <span>Profile</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/about" className="flex items-center">
-                <HelpCircle className="mr-2 h-4 w-4" />
-                <span>About Us</span>
-              </Link>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
