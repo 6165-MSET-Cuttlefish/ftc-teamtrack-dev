@@ -217,6 +217,27 @@ export const PerformanceMetrics = () => {
   const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
   const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
+  // Sync local state with sessionData when scores are reset (after match save)
+  useEffect(() => {
+    setAutonClassifiedArtifact(sessionData.autonClassifiedArtifact || 0);
+    setAutonOverflowArtifact(sessionData.autonOverflowArtifact || 0);
+    setAutonMotif(sessionData.autonMotif || 0);
+    setAutonomousLeave(sessionData.autonLeave || 0);
+    setTeleClassifiedArtifact(sessionData.teleClassifiedArtifact || 0);
+    setTeleOverflowArtifact(sessionData.teleOverflowArtifact || 0);
+    setTeleMotif(sessionData.teleMotif || 0);
+    setEndgameHang(sessionData.endgameHang || 0);
+  }, [
+    sessionData.autonClassifiedArtifact,
+    sessionData.autonOverflowArtifact,
+    sessionData.autonMotif,
+    sessionData.autonLeave,
+    sessionData.teleClassifiedArtifact,
+    sessionData.teleOverflowArtifact,
+    sessionData.teleMotif,
+    sessionData.endgameHang,
+  ]);
+
   // Popup state for keyboard shortcuts
   const [showPopup, setShowPopup] = useState(false);
   const [popupNumber, setPopupNumber] = useState<string>('');

@@ -28,148 +28,6 @@ const DataCard = ({ value, label }: { value: string; label: string }) => {
   );
 };
 
-const InsightsCard = ({
-  currentTeleOpScore,
-  currentAutonomousScore,
-  userId,
-}: {
-  currentTeleOpScore: number;
-  currentAutonomousScore: number;
-  userId: string;
-}) => {
-  const { isDarkMode } = useTheme();
-  const [teleOpImprovement, setTeleOpImprovement] =
-    useState<string>('Calculating...');
-  const [autonomousImprovement, setAutonomousImprovement] =
-    useState<string>('Calculating...');
-  const [teleOpTrend, setTeleOpTrend] = useState<'up' | 'down' | 'neutral'>(
-    'neutral'
-  );
-  const [autonomousTrend, setAutonomousTrend] = useState<
-    'up' | 'down' | 'neutral'
-  >('neutral');
-
-  useEffect(() => {
-    const calculateImprovements = async () => {
-      if (!userId) {
-        setTeleOpImprovement('No user');
-        setAutonomousImprovement('No user');
-        return;
-      }
-
-      try {
-        const { firebaseService } = await import('../services/firebaseService');
-        const recentSessions = await firebaseService.getUserSessions(userId);
-        const lastThreeSessions = recentSessions.slice(0, 3);
-
-        if (lastThreeSessions.length === 0) {
-          setTeleOpImprovement('First session');
-          setAutonomousImprovement('First session');
-          setTeleOpTrend('neutral');
-          setAutonomousTrend('neutral');
-          return;
-        }
-
-        const avgTeleOp =
-          lastThreeSessions.reduce(
-            (sum, session) => sum + (session.teleOpScore || 0),
-            0
-          ) / lastThreeSessions.length;
-        const avgAutonomous =
-          lastThreeSessions.reduce(
-            (sum, session) => sum + (session.autonomousScore || 0),
-            0
-          ) / lastThreeSessions.length;
-
-        const calcPercentChange = (current: number, average: number) => {
-          if (average === 0) return current > 0 ? 100 : 0;
-          return ((current - average) / average) * 100;
-        };
-
-        const teleOpChange = calcPercentChange(currentTeleOpScore, avgTeleOp);
-        const autonomousChange = calcPercentChange(
-          currentAutonomousScore,
-          avgAutonomous
-        );
-
-        setTeleOpImprovement(
-          `${teleOpChange >= 0 ? '+' : ''}${teleOpChange.toFixed(1)}%`
-        );
-        setAutonomousImprovement(
-          `${autonomousChange >= 0 ? '+' : ''}${autonomousChange.toFixed(1)}%`
-        );
-
-        setTeleOpTrend(
-          teleOpChange > 0 ? 'up' : teleOpChange < 0 ? 'down' : 'neutral'
-        );
-        setAutonomousTrend(
-          autonomousChange > 0
-            ? 'up'
-            : autonomousChange < 0
-              ? 'down'
-              : 'neutral'
-        );
-      } catch (error) {
-        console.error('Error calculating improvements:', error);
-        setTeleOpImprovement('Error');
-        setAutonomousImprovement('Error');
-      }
-    };
-
-    if (userId) {
-      calculateImprovements();
-    }
-  }, [currentTeleOpScore, currentAutonomousScore, userId]);
-
-  const getTrendIcon = (trend: 'up' | 'down' | 'neutral') => {
-    if (trend === 'up') return '↑';
-    if (trend === 'down') return '↓';
-    return '—';
-  };
-
-  const getTrendColor = (trend: 'up' | 'down' | 'neutral') => {
-    if (trend === 'up') return 'text-green-500';
-    if (trend === 'down') return 'text-red-500';
-    return 'text-gray-500';
-  };
-
-  return (
-    <div className="w-full px-6 py-6 rounded-lg border border-team-blue-40 space-y-2.5">
-      <h3
-        className={`text-base font-medium leading-6 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-      >
-        Performance Insights
-      </h3>
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <span
-            className={`text-xs leading-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue'}`}
-          >
-            TeleOp vs Avg (last 3):
-          </span>
-          <span
-            className={`text-xs font-semibold ${getTrendColor(teleOpTrend)}`}
-          >
-            {getTrendIcon(teleOpTrend)} {teleOpImprovement}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span
-            className={`text-xs leading-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue'}`}
-          >
-            Autonomous vs Avg (last 3):
-          </span>
-          <span
-            className={`text-xs font-semibold ${getTrendColor(autonomousTrend)}`}
-          >
-            {getTrendIcon(autonomousTrend)} {autonomousImprovement}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const LivePreview = () => {
   const {
     sessionData,
@@ -418,15 +276,15 @@ export const LivePreview = () => {
     const updatedMatches = [...(sessionData.matches || []), newMatch];
     updateSessionData({
       matches: updatedMatches,
-      // Reset scoring for next match
+      // Reset ALL scoring fields for next match
       finalScore: 0,
       autonomousScore: 0,
       teleOpScore: 0,
       endGameScore: 0,
+      autonLeave: 0,
       autonClassifiedArtifact: 0,
       autonOverflowArtifact: 0,
       autonMotif: 0,
-      autonLeave: 0,
       teleClassifiedArtifact: 0,
       teleOverflowArtifact: 0,
       teleMotif: 0,
@@ -562,7 +420,7 @@ export const LivePreview = () => {
         {/* Current Match Box */}
         <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-white'} space-y-6`}>
           <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
-            Current Match
+            Current Match: Match {(sessionData.matches?.length || 0) + 1}
           </h3>
           
           <div className="text-center">
@@ -580,12 +438,6 @@ export const LivePreview = () => {
               label="Consistency"
             />
           </div>
-
-          <InsightsCard
-            currentTeleOpScore={sessionData.teleOpScore ?? 0}
-            currentAutonomousScore={sessionData.autonomousScore ?? 0}
-            userId={user?.uid || ''}
-          />
         </div>
 
         {/* Session Limit Warning */}
@@ -620,13 +472,13 @@ export const LivePreview = () => {
                     <>
                       <button
                         onClick={handleSaveMatch}
-                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-green-700 transition-colors`}
                       >
                         Save Match
                       </button>
                       <button
                         onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-600 bg-red-600' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-700' : 'hover:bg-blue-600'} transition-colors`}
                       >
                         {isTimerRunning ? 'Pause Match' : 'Resume Match'}
                       </button>
@@ -637,7 +489,7 @@ export const LivePreview = () => {
                         setIsTimerRunning(true);
                         setHasStarted(true);
                       }}
-                      className="w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors"
+                      className="w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 text-white text-base leading-6 font-normal hover:bg-green-700 transition-colors"
                     >
                       Start New Match
                     </button>
