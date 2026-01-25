@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useTheme, useAuth } from '@/contexts';
+import { useTheme, useAuth, useSession } from '@/contexts';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -80,9 +80,13 @@ const TeamTrackLogo = () => {
 const NavigationMenu = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { sessionData } = useSession();
   const navigate = useNavigate();
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
   const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
+
+  // Check if there's an active session
+  const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
 
   // Check if this is the user's first time and show tutorials
   useEffect(() => {
@@ -137,15 +141,20 @@ const NavigationMenu = () => {
         isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''
       }`}
     >
-      {/* About Us link */}
-      <Link
-        to="/about"
-        className={`text-base font-medium ${
-          isDarkMode ? 'text-white' : 'text-black'
-        }`}
-      >
-        About Us
-      </Link>
+      {/* Active Session Button */}
+      {hasActiveSession && (
+        <button
+          onClick={() => navigate('/original')}
+          aria-label="Active practice session"
+          className={`relative px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${isDarkMode ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400' : 'bg-red-500/10 hover:bg-red-500/20 text-red-600'}`}
+        >
+          <span className="text-sm font-medium">Active Session</span>
+          <div className="relative w-2 h-2">
+            <div className="absolute inset-0 bg-red-500 rounded-full animate-pulse"></div>
+            <div className="absolute inset-0 bg-red-500 rounded-full"></div>
+          </div>
+        </button>
+      )}
 
       {/* Keybinds Tutorial button */}
       <button
@@ -453,6 +462,13 @@ handleCloseFeaturesTutorial
                 <span>Profile</span>
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/about" className="flex items-center">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                <span>About Us</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Sign out</span>

@@ -12,9 +12,6 @@ import {
   Bar,
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -306,12 +303,6 @@ const MatchAnalysis = ({
     { name: 'End Game', 'This Match': match.endGameScore || 0, 'Session Avg': Math.round(avgEndgame) },
   ];
 
-  const phaseData = [
-    { name: 'Autonomous', value: match.autonomousScore || 0 },
-    { name: 'TeleOp', value: match.teleOpScore || 0 },
-    { name: 'End Game', value: match.endGameScore || 0 },
-  ];
-
   return (
     <div className="space-y-6">
       <div>
@@ -341,34 +332,119 @@ const MatchAnalysis = ({
         </div>
       )}
 
-      {/* Phase Breakdown */}
-      {phaseData.some(d => d.value > 0) && (
+      {/* Cycle Times Curve */}
+      {match.cycleTimes && match.cycleTimes.length > 0 && (
         <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
           <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-            Score Breakdown
+            Cycle Times
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={phaseData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-                animationDuration={800}
-              >
-                {phaseData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={[COLORS.primary, COLORS.success, COLORS.warning][index]} />
-                ))}
-              </Pie>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart 
+              data={match.cycleTimes.map((time, idx) => ({ cycle: idx + 1, time }))}
+              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
+              <XAxis 
+                dataKey="cycle" 
+                label={{ value: 'Cycle #', position: 'insideBottomRight', offset: -10 }}
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'} 
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                label={{ value: 'Time (seconds)', angle: -90, position: 'insideLeft' }}
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'} 
+                tick={{ fontSize: 12 }}
+              />
               <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-            </PieChart>
+              <Line 
+                type="monotone"
+                dataKey="time" 
+                stroke="#a855f7"
+                strokeWidth={2}
+                dot={{ fill: '#a855f7', r: 4 }}
+                activeDot={{ r: 6 }}
+                name="Cycle Time"
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* Scoring Breakdown Table */}
+      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Scoring Breakdown
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <th className={`text-left py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Phase</th>
+                <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Classified</th>
+                <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Overflow</th>
+                <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Motifs</th>
+                <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Leave/Hang</th>
+                <th className={`text-right py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Total Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Autonomous Row */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Autonomous</td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.autonClassifiedArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.autonOverflowArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.autonMotif || 0}
+                </td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.autonLeave || 0}
+                </td>
+                <td className={`text-right py-3 px-4 font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
+                  {match.autonomousScore || 0}
+                </td>
+              </tr>
+
+              {/* TeleOp Row */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>TeleOp</td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.teleClassifiedArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.teleOverflowArtifact || 0}
+                </td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.teleMotif || 0}
+                </td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  —
+                </td>
+                <td className={`text-right py-3 px-4 font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
+                  {match.teleOpScore || 0}
+                </td>
+              </tr>
+
+              {/* End Game Row */}
+              <tr>
+                <td className={`py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>End Game</td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.endgameHang || 0}
+                </td>
+                <td className={`text-right py-3 px-4 font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
+                  {match.endGameScore || 0}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
@@ -529,30 +605,6 @@ const MatchComparisonView = ({
     },
   ];
 
-  // Detailed breakdown comparison data
-  const breakdownData = [
-    {
-      name: 'Classified Artifacts',
-      [matches[matchAIndex].matchNumber]: matches[matchAIndex].autonClassifiedArtifact || 0,
-      [matches[matchBIndex].matchNumber]: matches[matchBIndex].autonClassifiedArtifact || 0,
-    },
-    {
-      name: 'Overflow Artifacts',
-      [matches[matchAIndex].matchNumber]: matches[matchAIndex].autonOverflowArtifact || 0,
-      [matches[matchBIndex].matchNumber]: matches[matchBIndex].autonOverflowArtifact || 0,
-    },
-    {
-      name: 'Motifs',
-      [matches[matchAIndex].matchNumber]: matches[matchAIndex].autonMotif || 0,
-      [matches[matchBIndex].matchNumber]: matches[matchBIndex].autonMotif || 0,
-    },
-    {
-      name: 'Leave',
-      [matches[matchAIndex].matchNumber]: matches[matchAIndex].autonLeave || 0,
-      [matches[matchBIndex].matchNumber]: matches[matchBIndex].autonLeave || 0,
-    },
-  ];
-
   return (
     <div className="space-y-6">
       <h2 className="text-team-blue text-2xl font-semibold">Compare Matches</h2>
@@ -652,24 +704,6 @@ const MatchComparisonView = ({
             <Bar dataKey="Autonomous" stackId="a" fill={COLORS.success} />
             <Bar dataKey="TeleOp" stackId="a" fill={COLORS.warning} />
             <Bar dataKey="End Game" stackId="a" fill={COLORS.primary} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Detailed Scoring Breakdown */}
-      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
-        <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-          Scoring Breakdown Comparison
-        </h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={breakdownData}>
-            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
-            <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
-            <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
-            <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-            <Legend wrapperStyle={{ fontSize: '14px' }} />
-            <Bar dataKey={matches[matchAIndex].matchNumber} fill={COLORS.primary} />
-            <Bar dataKey={matches[matchBIndex].matchNumber} fill={COLORS.secondary} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -1157,7 +1191,7 @@ const AnalysisContent = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Average Autonomous Score */}
                   <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
-                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average Autonomous</p>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average Auto</p>
                     <p className="text-3xl font-bold text-team-blue mt-2">
                       {Math.round(sessionMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / sessionMatches.length)}
                     </p>
@@ -1173,7 +1207,7 @@ const AnalysisContent = () => {
 
                   {/* Average End Game Score */}
                   <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
-                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average End Game</p>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average E.G.</p>
                     <p className="text-3xl font-bold text-team-blue mt-2">
                       {Math.round(sessionMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / sessionMatches.length)}
                     </p>
@@ -1285,7 +1319,7 @@ const AnalysisContent = () => {
                         className={`px-4 py-2 rounded-lg transition-colors ${
                           selectedMatchIndex === 0
                             ? isDarkMode ? 'bg-team-dark-20 text-team-white-40 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-team-blue text-white hover:bg-team-blue/90'
+                            : 'bg-team-blue text-[#191919] hover:bg-team-blue/90'
                         }`}
                       >
                         ← Previous Match
@@ -1301,7 +1335,7 @@ const AnalysisContent = () => {
                         className={`px-4 py-2 rounded-lg transition-colors ${
                           selectedMatchIndex === sessionMatches.length - 1
                             ? isDarkMode ? 'bg-team-dark-20 text-team-white-40 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-team-blue text-white hover:bg-team-blue/90'
+                            : 'bg-team-blue text-[#191919] hover:bg-team-blue/90'
                         }`}
                       >
                         Next Match →

@@ -324,7 +324,7 @@ const LoadingCard = () => {
 const Sessions = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
-  const { resetSession, sessionData } = useSession();
+  const { resetSession } = useSession();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
@@ -332,9 +332,6 @@ const Sessions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-
-  // Check if there's an active session
-  const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -520,19 +517,13 @@ const Sessions = () => {
             <div className="flex gap-3">
               <Button
                 onClick={() => {
-                  if (hasActiveSession) {
-                    // If there's an active session, go to it
-                    navigate('/original');
-                  } else {
-                    // If no active session, reset and create new
-                    resetSession();
-                    navigate('/original');
-                  }
+                  resetSession();
+                  navigate('/original');
                 }}
                 className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
-                {!hasActiveSession && <Plus className="h-4 w-4 mr-2" />}
-                {hasActiveSession ? 'Current Session' : 'New Session'}
+                <Plus className="h-4 w-4 mr-2" />
+                New Session
               </Button>
               {sessions.length > 0 && (
                 <Button
