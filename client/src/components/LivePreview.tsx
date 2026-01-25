@@ -478,7 +478,7 @@ export const LivePreview = () => {
                       </button>
                       <button
                         onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-600 bg-red-600' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-700' : 'hover:bg-blue-600'} transition-colors`}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
                       >
                         {isTimerRunning ? 'Pause Match' : 'Resume Match'}
                       </button>
