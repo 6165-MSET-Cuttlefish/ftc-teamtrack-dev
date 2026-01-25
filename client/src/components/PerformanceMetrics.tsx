@@ -606,13 +606,6 @@ export const PerformanceMetrics = () => {
         </div>
       )}
 
-      {/* Keyboard shortcuts help */}
-      {!showPopup && (
-        <div className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'} mb-4 text-center`}>
-          💡 Quick entry: Press 1, 2, or 3 for shot attempts, then the number made, then Enter (auto-detects section)
-        </div>
-      )}
-
       <div className="flex gap-6">
         <div className="flex-1 flex flex-col justify-between">
           <div>
