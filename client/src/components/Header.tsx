@@ -285,49 +285,6 @@ const NavigationMenu = () => {
                 </p>
               </div>
 
-              {/* Scoring Sections */}
-              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-3">Scoring Sections</h3>
-                
-                {/* Autonomous */}
-                <div className="mb-4">
-                  <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
-                    Autonomous Score
-                  </h4>
-                  <ul className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <li><strong>Classified Artifact:</strong> 3 points each</li>
-                    <li><strong>Overflow Artifact:</strong> 1 point each</li>
-                    <li><strong>Motif:</strong> 2 points each</li>
-                    <li><strong>Leave:</strong> 3 points (checkbox)</li>
-                  </ul>
-                  <p className={`text-xs mt-2 ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Click the arrow button to expand and see detailed breakdown with +/- controls
-                  </p>
-                </div>
-
-                {/* TeleOp */}
-                <div className="mb-4">
-                  <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
-                    TeleOp Score
-                  </h4>
-                  <ul className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <li><strong>Classified Artifact:</strong> 3 points each</li>
-                    <li><strong>Overflow Artifact:</strong> 1 point each</li>
-                    <li><strong>Motif:</strong> 2 points each</li>
-                  </ul>
-                </div>
-
-                {/* End Game */}
-                <div className="mb-4">
-                  <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
-                    End Game Score
-                  </h4>
-                  <p className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <strong>Base Score:</strong> Set the end game value based on ascent level or parking
-                  </p>
-                </div>
-              </div>
-
               {/* Cycle Timer Feature */}
               <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 <h3 className="text-lg font-semibold mb-2">Cycle Timer Feature</h3>
@@ -368,7 +325,7 @@ const NavigationMenu = () => {
                   </div>
                 </div>
               </div>
-handleCloseFeaturesTutorial
+
               {/* Tips */}
               <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 <h3 className="text-lg font-semibold mb-2">Tips</h3>
