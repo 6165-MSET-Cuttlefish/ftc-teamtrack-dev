@@ -103,10 +103,6 @@ const SessionCard = ({
 
   // Calculate session scores from matches
   const getSessionScores = () => {
-    if (!session.matches || session.matches.length === 0) {
-      return { highestScore: 0, averageScore: 0 };
-    }
-    
     const scores = session.matches
       .map(match => match.finalScore || 0)
       .filter(score => score > 0);
@@ -479,24 +475,39 @@ const Sessions = () => {
     ];
 
     // Convert sessions to CSV rows with proper escaping
-    const rows = sessions.map(session => [
-      `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-      `"${(session.driverName || 'Unknown').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-      `"${(session.matchType || 'Practice').replace(/"/g, '""')}"`,
-      session.finalScore || 0,
-      session.autonomousScore || 0,
-      session.teleOpScore || 0,
-      session.endGameScore || 0,
-      session.autonClassifiedArtifact || 0,
-      session.autonOverflowArtifact || 0,
-      session.autonMotif || 0,
-      session.autonLeave || 0,
-      session.teleClassifiedArtifact || 0,
-      session.teleOverflowArtifact || 0,
-      session.teleMotif || 0,
-      session.endgameHang || 0,
-      `"${formatDate(session.createdAt)}"`,
-    ]);
+    const rows = sessions.map(session => {
+      const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
+      const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
+      const teleOpScore = session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0);
+      const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
+      const autonClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.autonClassifiedArtifact || 0), 0);
+      const autonOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.autonOverflowArtifact || 0), 0);
+      const autonMotif = session.matches.reduce((sum, m) => sum + (m.autonMotif || 0), 0);
+      const autonLeave = session.matches.reduce((sum, m) => sum + (m.autonLeave || 0), 0);
+      const teleClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0);
+      const teleOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0);
+      const teleMotif = session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0);
+      const endgameHang = session.matches.reduce((sum, m) => sum + (m.endgameHang || 0), 0);
+
+      return [
+        `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+        `"${(session.driverName || 'Unknown').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+        `"${(session.matchType || 'Practice').replace(/"/g, '""')}"`,
+        finalScore,
+        autonomousScore,
+        teleOpScore,
+        endGameScore,
+        autonClassifiedArtifact,
+        autonOverflowArtifact,
+        autonMotif,
+        autonLeave,
+        teleClassifiedArtifact,
+        teleOverflowArtifact,
+        teleMotif,
+        endgameHang,
+        `"${formatDate(session.createdAt)}"`,
+      ];
+    });
 
     // Combine headers and rows
     const csv = [headers.join(','), ...rows.map(row => row.join(','))].join(

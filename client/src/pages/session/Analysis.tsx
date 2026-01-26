@@ -1041,27 +1041,42 @@ const AnalysisContent = () => {
           const session = await firebaseService.getSession(sessionId);
 
           if (mounted && session) {
+            // Calculate aggregates from matches
+            const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
+            const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
+            const teleOpScore = session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0);
+            const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
+            const autonClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.autonClassifiedArtifact || 0), 0);
+            const autonOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.autonOverflowArtifact || 0), 0);
+            const autonMotif = session.matches.reduce((sum, m) => sum + (m.autonMotif || 0), 0);
+            const autonLeave = session.matches.reduce((sum, m) => sum + (m.autonLeave || 0), 0);
+            const teleClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0);
+            const teleOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0);
+            const teleMotif = session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0);
+            const endgameHang = session.matches.reduce((sum, m) => sum + (m.endgameHang || 0), 0);
+            const cycleTimes = session.matches.flatMap(m => m.cycleTimes || []);
+
             // Use local state instead of updating global context
             setLocalSessionData({
               sessionName: session.sessionName || '',
               driverName: session.driverName || '',
               sessionDuration: session.sessionDuration || '',
               matchType: session.matchType || '',
-              finalScore: session.finalScore || 0,
-              autonomousScore: session.autonomousScore || 0,
-              teleOpScore: session.teleOpScore || 0,
-              endGameScore: session.endGameScore || 0,
+              finalScore,
+              autonomousScore,
+              teleOpScore,
+              endGameScore,
               isSessionCompleted: true,
-              autonClassifiedArtifact: session.autonClassifiedArtifact || 0,
-              autonOverflowArtifact: session.autonOverflowArtifact || 0,
-              autonMotif: session.autonMotif || 0,
-              autonLeave: session.autonLeave || 0,
-              teleClassifiedArtifact: session.teleClassifiedArtifact || 0,
-              teleOverflowArtifact: session.teleOverflowArtifact || 0,
-              teleMotif: session.teleMotif || 0,
-              endgameHang: session.endgameHang || 0,
+              autonClassifiedArtifact,
+              autonOverflowArtifact,
+              autonMotif,
+              autonLeave,
+              teleClassifiedArtifact,
+              teleOverflowArtifact,
+              teleMotif,
+              endgameHang,
               selectedFeature: session.selectedFeature || '',
-              cycleTimes: session.cycleTimes || [],
+              cycleTimes,
               notes: session.notes || '',
               matches: session.matches || [],
             });

@@ -107,7 +107,7 @@ const Compare = () => {
         // Load all matches from selected sessions
         const matches: CompareMatch[] = [];
         sessionsData.forEach((session, sessionIndex) => {
-          if (session && session.matches && session.matches.length > 0) {
+          if (session) {
             session.matches.forEach((match) => {
               matches.push({
                 ...match,
@@ -151,25 +151,25 @@ const Compare = () => {
     return [
       {
         label: 'Final Score',
-        values: selectedSessionsData.map(s => s.finalScore || 0),
+        values: selectedSessionsData.map(s => s.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)),
         sessionIds: selectedSessionIds,
         icon: <Trophy className="w-5 h-5" />,
       },
       {
         label: 'Autonomous Score',
-        values: selectedSessionsData.map(s => s.autonomousScore || 0),
+        values: selectedSessionsData.map(s => s.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0)),
         sessionIds: selectedSessionIds,
         icon: <Target className="w-5 h-5" />,
       },
       {
         label: 'TeleOp Score',
-        values: selectedSessionsData.map(s => s.teleOpScore || 0),
+        values: selectedSessionsData.map(s => s.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0)),
         sessionIds: selectedSessionIds,
         icon: <Zap className="w-5 h-5" />,
       },
       {
         label: 'End Game Score',
-        values: selectedSessionsData.map(s => s.endGameScore || 0),
+        values: selectedSessionsData.map(s => s.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0)),
         sessionIds: selectedSessionIds,
         icon: <Clock className="w-5 h-5" />,
       },
@@ -269,7 +269,7 @@ const Compare = () => {
                         {session.sessionName || 'Unnamed Session'} -{' '}
                         {formatDate(session.createdAt)} -{' '}
                         {session.driverName || 'Unknown'} - Score:{' '}
-                        {session.finalScore || 0}
+                        {session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -395,7 +395,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 font-medium text-team-blue`}
                             >
-                              {session.finalScore || 0}
+                              {session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -412,7 +412,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.autonomousScore || 0}
+                              {session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -497,7 +497,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.teleOpScore || 0}
+                              {session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -565,7 +565,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.endGameScore || 0}
+                              {session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0)}
                             </td>
                           ))}
                         </tr>

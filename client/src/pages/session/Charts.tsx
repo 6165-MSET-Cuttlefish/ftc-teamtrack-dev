@@ -132,21 +132,10 @@ const Charts = () => {
         return dateA.getTime() - dateB.getTime();
       })
       .map((session, index) => {
-        let finalScore = 0;
-        let autonomousScore = 0;
-        let teleOpScore = 0;
-        let endGameScore = 0;
-        if (session.matches && session.matches.length > 0) {
-          finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-          autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
-          teleOpScore = session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0);
-          endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
-        } else {
-          finalScore = session.finalScore || 0;
-          autonomousScore = session.autonomousScore || 0;
-          teleOpScore = session.teleOpScore || 0;
-          endGameScore = session.endGameScore || 0;
-        }
+        const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
+        const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
+        const teleOpScore = session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0);
+        const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
         return {
           name: formatDate(session.createdAt),
           sessionNumber: index + 1,
@@ -163,28 +152,16 @@ const Charts = () => {
     const filteredSessions = getFilteredSessions();
     if (filteredSessions.length === 0) return [];
 
-    let totalMatches = 0;
     const totals = filteredSessions.reduce(
-      (acc, session) => {
-        if (session.matches && session.matches.length > 0) {
-          totalMatches += session.matches.length;
-          return {
-            autonomous: acc.autonomous + session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0),
-            teleOp: acc.teleOp + session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0),
-            endGame: acc.endGame + session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0),
-          };
-        } else {
-          totalMatches += 1;
-          return {
-            autonomous: acc.autonomous + (session.autonomousScore || 0),
-            teleOp: acc.teleOp + (session.teleOpScore || 0),
-            endGame: acc.endGame + (session.endGameScore || 0),
-          };
-        }
-      },
+      (acc, session) => ({
+        autonomous: acc.autonomous + session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0),
+        teleOp: acc.teleOp + session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0),
+        endGame: acc.endGame + session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0),
+      }),
       { autonomous: 0, teleOp: 0, endGame: 0 }
     );
 
+    const totalMatches = filteredSessions.reduce((sum, s) => sum + s.matches.length, 0);
     const count = totalMatches > 0 ? totalMatches : 1;
 
     return [
@@ -204,15 +181,11 @@ const Charts = () => {
       if (!cycleData[date]) {
         cycleData[date] = [];
       }
-      if (session.matches && session.matches.length > 0) {
-        session.matches.forEach(match => {
-          if (match.cycleTimes && Array.isArray(match.cycleTimes) && match.cycleTimes.length > 0) {
-            cycleData[date].push(...match.cycleTimes);
-          }
-        });
-      } else if (session.cycleTimes && Array.isArray(session.cycleTimes) && session.cycleTimes.length > 0) {
-        cycleData[date].push(...session.cycleTimes);
-      }
+      session.matches.forEach(match => {
+        if (match.cycleTimes && Array.isArray(match.cycleTimes) && match.cycleTimes.length > 0) {
+          cycleData[date].push(...match.cycleTimes);
+        }
+      });
     });
 
     if (Object.keys(cycleData).length === 0) return [];
@@ -248,21 +221,11 @@ const Charts = () => {
     const recent = sorted.slice(0, 10).reverse();
     
     return recent.map((session, index) => {
-      let sessionScore = 0;
-      if (session.matches && session.matches.length > 0) {
-        sessionScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-      } else {
-        sessionScore = session.finalScore || 0;
-      }
+      const sessionScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
 
       const movingAvg = recent
         .slice(Math.max(0, index - 2), index + 1)
-        .reduce((sum, s) => {
-          if (s.matches && s.matches.length > 0) {
-            return sum + s.matches.reduce((mSum, m) => mSum + (m.finalScore || 0), 0);
-          }
-          return sum + (s.finalScore || 0);
-        }, 0) / Math.min(3, index + 1);
+        .reduce((sum, s) => sum + s.matches.reduce((mSum, m) => mSum + (m.finalScore || 0), 0), 0) / Math.min(3, index + 1);
 
       return {
         name: `#${recent.length - index}`,
@@ -291,24 +254,14 @@ const Charts = () => {
 
     return sorted.slice(2).map((session, index) => {
       const windowSessions = sorted.slice(Math.max(0, index), index + 3);
-      const scores = windowSessions.map(s => {
-        if (s.matches && s.matches.length > 0) {
-          return s.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-        }
-        return s.finalScore || 0;
-      });
+      const scores = windowSessions.map(s => s.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0));
       const mean = scores.reduce((sum, s) => sum + s, 0) / scores.length;
       const variance = scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) / scores.length;
       const stdDev = Math.sqrt(variance);
       // Convert to consistency percentage (lower std dev = higher consistency)
       const consistency = mean > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / mean) * 100)) : 0;
 
-      let sessionScore = 0;
-      if (session.matches && session.matches.length > 0) {
-        sessionScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-      } else {
-        sessionScore = session.finalScore || 0;
-      }
+      const sessionScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
 
       return {
         name: formatDate(session.createdAt),
@@ -448,10 +401,7 @@ const Charts = () => {
 
   // Helper function to get session score
   const getSessionScore = (session: Session): number => {
-    if (session.matches && session.matches.length > 0) {
-      return session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-    }
-    return session.finalScore || 0;
+    return session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
   };
 
   const scoreTrendData = getScoreTrendData();
@@ -535,30 +485,20 @@ const Charts = () => {
                       let totalAuto = 0;
                       let totalTele = 0;
                       let totalEndgame = 0;
-                      let totalDataPoints = 0;
                       const allScores: number[] = [];
 
                       sessions.forEach(s => {
-                        if (s.matches && s.matches.length > 0) {
-                          s.matches.forEach(m => {
-                            totalScore += m.finalScore || 0;
-                            totalAuto += m.autonomousScore || 0;
-                            totalTele += m.teleOpScore || 0;
-                            totalEndgame += m.endGameScore || 0;
-                            allScores.push(m.finalScore || 0);
-                            totalDataPoints++;
-                          });
-                        } else {
-                          totalScore += s.finalScore || 0;
-                          totalAuto += s.autonomousScore || 0;
-                          totalTele += s.teleOpScore || 0;
-                          totalEndgame += s.endGameScore || 0;
-                          allScores.push(s.finalScore || 0);
-                          totalDataPoints++;
-                        }
+                        s.matches.forEach(m => {
+                          totalScore += m.finalScore || 0;
+                          totalAuto += m.autonomousScore || 0;
+                          totalTele += m.teleOpScore || 0;
+                          totalEndgame += m.endGameScore || 0;
+                          allScores.push(m.finalScore || 0);
+                        });
                       });
 
-                      const count = totalDataPoints || 1;
+                      const totalMatches = sessions.reduce((sum, s) => sum + s.matches.length, 0);
+                      const count = totalMatches || 1;
                       const avgScore = totalScore / count;
                       const autoAvg = totalAuto / count;
                       const teleAvg = totalTele / count;

@@ -57,9 +57,8 @@ export interface Match {
  * 
  * Data Model:
  * - A Session contains metadata (name, driver, duration) and an array of Match objects
- * - Individual scoring fields on Session are DEPRECATED - they exist for backwards compatibility
- * - New sessions should store scoring data only in the matches array
- * - When displaying session totals, aggregate from the matches array
+ * - All scoring data is stored in the matches array
+ * - Aggregate from the matches array when displaying session totals
  */
 export interface Session {
   id: string;
@@ -72,21 +71,7 @@ export interface Session {
   createdAt: TimestampValue;
   selectedFeature?: string;
   notes?: string;
-  matches?: Match[];
-  // Scoring fields are optional on Session to support legacy data
-  finalScore?: number;
-  autonomousScore?: number;
-  teleOpScore?: number;
-  endGameScore?: number;
-  autonClassifiedArtifact?: number;
-  autonOverflowArtifact?: number;
-  autonMotif?: number;
-  autonLeave?: number;
-  teleClassifiedArtifact?: number;
-  teleOverflowArtifact?: number;
-  teleMotif?: number;
-  endgameHang?: number;
-  cycleTimes?: number[];
+  matches: Match[];
   [key: string]: unknown;
 }
 
