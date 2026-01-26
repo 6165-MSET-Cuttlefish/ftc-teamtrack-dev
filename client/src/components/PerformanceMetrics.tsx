@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { ChevronUp, ChevronDown, ChevronRight, Clock } from 'lucide-react';
@@ -160,6 +160,9 @@ export const PerformanceMetrics = () => {
   const { sessionData, updateSessionData, expandedSection, setExpandedSection } = useSession();
   const { isDarkMode } = useTheme();
 
+  // Use a ref to track if we're currently updating scores to prevent circular updates
+  const isUpdatingRef = useRef(false);
+
   // Local state for scoring metrics - needed for controlled input behavior
   // These sync with sessionData but allow for intermediate input states
   const [autonClassifiedArtifact, setAutonClassifiedArtifact] = useState(0);
@@ -186,6 +189,7 @@ export const PerformanceMetrics = () => {
 
     const finalScore = autonomousScore + teleOpScore + endgameHang;
 
+    isUpdatingRef.current = true;
     updateSessionData({
       autonomousScore,
       teleOpScore,
@@ -200,6 +204,10 @@ export const PerformanceMetrics = () => {
       teleMotif,
       endgameHang,
     });
+    // Reset the flag after a short delay to allow the context update to complete
+    setTimeout(() => {
+      isUpdatingRef.current = false;
+    }, 0);
   }, [
     autonClassifiedArtifact,
     autonOverflowArtifact,
@@ -218,7 +226,12 @@ export const PerformanceMetrics = () => {
   const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
   // Sync local state with sessionData when scores are reset (after match save)
+  // But only if we're not currently updating to prevent circular updates
   useEffect(() => {
+    if (isUpdatingRef.current) {
+      return;
+    }
+    
     setAutonClassifiedArtifact(sessionData.autonClassifiedArtifact || 0);
     setAutonOverflowArtifact(sessionData.autonOverflowArtifact || 0);
     setAutonMotif(sessionData.autonMotif || 0);
@@ -621,7 +634,7 @@ export const PerformanceMetrics = () => {
           </div>
         </div>
       )}
-
+    
       <div className="flex gap-6">
         <div className="flex-1 flex flex-col justify-between">
           <div>
