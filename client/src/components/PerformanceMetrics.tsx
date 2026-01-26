@@ -307,6 +307,9 @@ export const PerformanceMetrics = () => {
 
       // Handle Enter key to confirm and add to appropriate score
       if (event.key === 'Enter' && showPopup && madeCount !== null) {
+        event.preventDefault();
+        event.stopPropagation();
+        
         // Auto-detect which section to update based on match type
         const matchType = sessionData.matchType;
         let isTeleOpScore = false;
@@ -340,12 +343,16 @@ export const PerformanceMetrics = () => {
         // Close popup after confirming
         setShowPopup(false);
         setMadeCount(null);
+        return;
       }
 
       // Close popup on Escape key
       if (event.key === 'Escape' && showPopup) {
+        event.preventDefault();
+        event.stopPropagation();
         setShowPopup(false);
         setMadeCount(null);
+        return;
       }
     };
 
