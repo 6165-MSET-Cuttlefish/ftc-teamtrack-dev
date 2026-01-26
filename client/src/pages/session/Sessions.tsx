@@ -101,6 +101,28 @@ const SessionCard = ({
     setDeleteConfirm(false);
   };
 
+  // Calculate session scores from matches
+  const getSessionScores = () => {
+    if (!session.matches || session.matches.length === 0) {
+      return { highestScore: 0, averageScore: 0 };
+    }
+    
+    const scores = session.matches
+      .map(match => match.finalScore || 0)
+      .filter(score => score > 0);
+    
+    if (scores.length === 0) {
+      return { highestScore: 0, averageScore: 0 };
+    }
+
+    const highestScore = Math.max(...scores);
+    const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    
+    return { highestScore, averageScore };
+  };
+
+  const { highestScore, averageScore } = getSessionScores();
+
   return (
     <Card
       className={`transition-all duration-300 cursor-pointer group ${
@@ -111,8 +133,8 @@ const SessionCard = ({
       onClick={onView}
     >
       <CardHeader className="pb-4 pt-6 px-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex-1">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex-1 min-w-0">
             {isEditing ? (
               <div
                 className="flex items-center gap-3"
@@ -140,7 +162,7 @@ const SessionCard = ({
             ) : (
               <div className="flex items-center gap-2">
                 <CardTitle
-                  className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                  className={`text-xl font-semibold line-clamp-1 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
                 >
                   {session.sessionName || 'Untitled Session'}
                 </CardTitle>
@@ -201,7 +223,7 @@ const SessionCard = ({
           <div className="flex items-center gap-2 bg-team-blue/15 px-4 py-2 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
             <Trophy className="h-5 w-5 text-team-blue group-hover:scale-110 transition-transform duration-300" />
             <span className="text-xl font-bold text-team-blue">
-              {session.finalScore || 0}
+              {highestScore}
             </span>
           </div>
         </div>
@@ -278,12 +300,12 @@ const SessionCard = ({
               <span
                 className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
               >
-                Score
+                Avg Score
               </span>
               <span
                 className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
-                {session.finalScore || 0} pts
+                {averageScore} pts
               </span>
             </div>
           </div>

@@ -96,7 +96,7 @@ export const SessionSetup = () => {
       </div>
 
       {!hasRequiredFields && (
-        <div className={`p-3 rounded-lg text-sm ${isDarkMode ? 'bg-red-900/20 border border-red-500/30 text-red-400' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+        <div className="text-sm text-red-500">
           <strong>Required:</strong> Please fill in Session Name and Driver Name before completing the session.
         </div>
       )}
