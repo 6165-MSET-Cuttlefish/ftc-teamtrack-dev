@@ -112,14 +112,12 @@ const SensorOverviewCard = ({
   driverName,
   matchType,
   sessionDuration,
-  finalScore,
   totalTime,
 }: {
   sessionName: string;
   driverName: string;
   matchType: string;
   sessionDuration: string;
-  finalScore: number;
   totalTime: string;
 }) => {
   const { isDarkMode } = useTheme();
@@ -173,11 +171,6 @@ const SensorOverviewCard = ({
             <div
               className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
             >
-              Final Score
-            </div>
-            <div
-              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
-            >
               Total Finished Time
             </div>
           </div>
@@ -185,7 +178,6 @@ const SensorOverviewCard = ({
             <div className="text-team-blue text-xs leading-6">
               {sessionDuration || 'N/A'}
             </div>
-            <div className="text-team-blue text-xs leading-6">{finalScore}</div>
             <div className="text-team-blue text-xs leading-6">{totalTime}</div>
           </div>
         </div>
@@ -910,7 +902,7 @@ const SessionSummary = ({
       <h2 className="text-team-blue text-2xl font-semibold">Session Summary</h2>
 
       {/* Key Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
           <div className="text-xs text-team-white-60 mb-1">Average Score</div>
           <div className="text-3xl font-bold text-team-blue">{stats.avgScore}</div>
@@ -923,14 +915,6 @@ const SessionSummary = ({
         <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
           <div className="text-xs text-team-white-60 mb-1">Lowest Score</div>
           <div className="text-3xl font-bold text-team-blue">{stats.minScore}</div>
-        </div>
-        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
-          <div className="text-xs text-team-white-60 mb-1">Consistency</div>
-          <div className="text-3xl font-bold text-team-blue">{stats.consistency}%</div>
-        </div>
-        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
-          <div className="text-xs text-team-white-60 mb-1">Accuracy</div>
-          <div className="text-3xl font-bold text-team-blue">{stats.accuracy}%</div>
         </div>
       </div>
 
@@ -1160,7 +1144,6 @@ const AnalysisContent = () => {
             driverName={sessionData.driverName}
             matchType={sessionData.matchType}
             sessionDuration={sessionData.sessionDuration}
-            finalScore={sessionData.finalScore ?? 0}
             totalTime={sessionData.sessionDuration}
           />
 

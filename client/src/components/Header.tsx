@@ -146,12 +146,12 @@ const NavigationMenu = () => {
         <button
           onClick={() => navigate('/original')}
           aria-label="Active practice session"
-          className={`relative px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${isDarkMode ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400' : 'bg-red-500/10 hover:bg-red-500/20 text-red-600'}`}
+          className={`relative px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${isDarkMode ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' : 'bg-green-500/10 hover:bg-green-500/20 text-green-600'}`}
         >
           <span className="text-sm font-medium">Active Session</span>
           <div className="relative w-2 h-2">
-            <div className="absolute inset-0 bg-red-500 rounded-full animate-pulse"></div>
-            <div className="absolute inset-0 bg-red-500 rounded-full"></div>
+            <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse"></div>
+            <div className="absolute inset-0 bg-green-500 rounded-full"></div>
           </div>
         </button>
       )}

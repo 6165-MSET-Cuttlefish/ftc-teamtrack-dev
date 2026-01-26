@@ -472,13 +472,13 @@ export const LivePreview = () => {
                     <>
                       <button
                         onClick={handleSaveMatch}
-                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-green-700 transition-colors`}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 ${isDarkMode ? 'text-[#FEFEFE]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-green-700 transition-colors`}
                       >
                         Save Match
                       </button>
                       <button
                         onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#FEFEFE]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
                       >
                         {isTimerRunning ? 'Pause Match' : 'Resume Match'}
                       </button>
