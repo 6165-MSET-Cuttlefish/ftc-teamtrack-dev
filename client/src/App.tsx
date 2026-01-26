@@ -8,7 +8,6 @@ import { ROUTES } from '@/constants';
 
 const Original = lazy(() => import('./pages/session/Original'));
 const Analysis = lazy(() => import('./pages/session/Analysis'));
-const About = lazy(() => import('./pages/dashboard/About'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
@@ -44,7 +43,6 @@ const App = () => (
                         path={ROUTES.FORGOT_PASSWORD}
                         element={<ForgotPassword />}
                       />
-                      <Route path={ROUTES.ABOUT} element={<About />} />
 
                       {/* Protected Routes */}
                       <Route

@@ -606,13 +606,6 @@ export const PerformanceMetrics = () => {
         </div>
       )}
 
-      {/* Keyboard shortcuts help */}
-      {!showPopup && (
-        <div className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'} mb-4 text-center`}>
-          💡 Quick entry: Press 1, 2, or 3 for shot attempts, then the number made, then Enter (auto-detects section)
-        </div>
-      )}
-
       <div className="flex gap-6">
         <div className="flex-1 flex flex-col justify-between">
           <div>
@@ -634,7 +627,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.autonomousScore ?? 0}
                   onChange={(value) => updateSessionData({ autonomousScore: value })}
                   onDropdownClick={() => toggleSection('Autonomous Score')}
-                  editable={true}
+                  editable={false}
                   showArrows={false}
                   isSelected={expandedSection === 'Autonomous Score'}
                 />
@@ -645,7 +638,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.teleOpScore ?? 0}
                   onChange={(value) => updateSessionData({ teleOpScore: value })}
                   onDropdownClick={() => toggleSection('TeleOp Score')}
-                  editable={true}
+                  editable={false}
                   showArrows={false}
                   isSelected={expandedSection === 'TeleOp Score'}
                 />
@@ -655,7 +648,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.endGameScore ?? 0}
                 onChange={(value) => updateSessionData({ endGameScore: value })}
                 onDropdownClick={() => toggleSection('End Game Score')}
-                editable={true}
+                editable={false}
                 showArrows={false}
                 isSelected={expandedSection === 'End Game Score'}
               />

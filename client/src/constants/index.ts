@@ -17,7 +17,6 @@ export const ROUTES = {
   COMPARE: '/compare',
   CHARTS: '/charts',
   PROFILE: '/profile',
-  ABOUT: '/about',
 } as const;
 
 /**
