@@ -150,7 +150,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-white' : 'text-white'}`}
+              className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
               disabled={loading}
             >
               {loading ? 'Signing In...' : 'Sign In'}
@@ -175,7 +175,7 @@ const Login = () => {
           <Button
             type="button"
             variant="outline"
-            className={`w-full ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 text-white hover:bg-team-blue-10' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'}`}
+            className={`w-full ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 text-black hover:bg-team-blue-10' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'}`}
             onClick={handleGoogleSignIn}
             disabled={loading}
           >

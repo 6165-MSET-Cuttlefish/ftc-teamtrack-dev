@@ -220,7 +220,7 @@ const CycleTimesCard = ({ cycleTimes }: { cycleTimes?: number[] }) => {
             })}
           </div>
           <div
-            className={`mt-4 px-4 py-3 rounded text-center ${isDarkMode ? 'bg-team-blue-40/20 text-white border border-team-blue-40' : 'bg-team-blue-40/10 text-black border border-team-blue-40'}`}
+            className={`mt-4 px-4 py-3 rounded text-center ${isDarkMode ? 'bg-team-blue-40/20 text-black border border-team-blue-40' : 'bg-team-blue-40/10 text-black border border-team-blue-40'}`}
           >
             <div
               className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs`}

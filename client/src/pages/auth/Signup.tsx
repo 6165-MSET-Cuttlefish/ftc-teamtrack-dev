@@ -236,7 +236,7 @@ const Signup = () => {
 
             <Button
               type="submit"
-              className="w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 text-white"
+              className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
               disabled={loading}
             >
               {loading ? 'Creating Account...' : 'Create Account'}

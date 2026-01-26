@@ -365,7 +365,7 @@ const Charts = () => {
                 </p>
                 <Button
                   onClick={() => navigate(ROUTES.ACTIVE)}
-                  className="bg-team-blue hover:bg-team-blue/90 text-white"
+                  className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
                 >
                   Start New Session
                 </Button>

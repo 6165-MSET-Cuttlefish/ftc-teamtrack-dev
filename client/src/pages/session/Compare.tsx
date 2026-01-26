@@ -218,7 +218,7 @@ const Compare = () => {
               onClick={() => setComparisonMode('sessions')}
               className={`px-6 py-2 rounded-lg font-medium transition-all ${
                 comparisonMode === 'sessions'
-                  ? `${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue text-black'}`
+                  ? `${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue text-[#FEFEFE]'}`
                   : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900'}`
               }`}
             >
@@ -228,7 +228,7 @@ const Compare = () => {
               onClick={() => setComparisonMode('matches')}
               className={`px-6 py-2 rounded-lg font-medium transition-all ${
                 comparisonMode === 'matches'
-                  ? `${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue text-black'}`
+                  ? `${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue text-[#FEFEFE]'}`
                   : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900'}`
               }`}
               disabled={selectedSessionIds.length === 0}

@@ -112,7 +112,7 @@ const ForgotPassword = () => {
 
             <Button
               type="submit"
-              className="w-full bg-team-blue hover:bg-team-blue/90 text-white"
+              className={`w-full bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
               disabled={loading}
             >
               {loading ? 'Sending...' : 'Reset Password'}

@@ -558,9 +558,10 @@ const Sessions = () => {
               <Button
                 onClick={() => {
                   resetSession();
+                  localStorage.setItem('teamtrack_new_session_created', 'true');
                   navigate('/active');
                 }}
-                className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+                className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Session
@@ -758,9 +759,12 @@ const Sessions = () => {
             </p>
             {!searchTerm && (
               <Button
-                onClick={() => navigate('/active')}
+                onClick={() => {
+                  localStorage.setItem('teamtrack_new_session_created', 'true');
+                  navigate('/active');
+                }}
                 className="bg-team-blue hover:bg-team-blue/90"
-                style={{ color: '#191919' }}
+                style={{ color: isDarkMode ? '#191919' : '#FFFFFF' }}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Session

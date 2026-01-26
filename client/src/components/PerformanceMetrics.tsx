@@ -629,7 +629,7 @@ export const PerformanceMetrics = () => {
                             return (
                               <div
                                 key={index}
-                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue-40 text-white'}`}
+                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue-40 text-white'}`}
                               >
                                 {index + 1}. {minutes}:{seconds.toString().padStart(2, '0')}
                               </div>
@@ -662,7 +662,7 @@ export const PerformanceMetrics = () => {
                     robot1Park === 'none'
                       ? isDarkMode
                         ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-white'
+                        : 'bg-team-blue text-[#FEFEFE]'
                       : isDarkMode
                       ? 'bg-team-dark text-white hover:bg-team-dark-20'
                       : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
@@ -693,10 +693,10 @@ export const PerformanceMetrics = () => {
                     setRobot1Park('full');
                   }}
                   className={`flex-1 py-3 text-base font-medium transition-colors ${
-                    robot1Park === 'full'
+                    robot1Park === 'partial'
                       ? isDarkMode
                         ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-white'
+                        : 'bg-team-blue text-[#FEFEFE]'
                       : isDarkMode
                       ? 'bg-team-dark text-white hover:bg-team-dark-20'
                       : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
@@ -722,7 +722,7 @@ export const PerformanceMetrics = () => {
                     robot2Park === 'none'
                       ? isDarkMode
                         ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-white'
+                        : 'bg-team-blue text-[#FEFEFE]'
                       : isDarkMode
                       ? 'bg-team-dark text-white hover:bg-team-dark-20'
                       : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
@@ -739,7 +739,7 @@ export const PerformanceMetrics = () => {
                     robot2Park === 'partial'
                       ? isDarkMode
                         ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-white'
+                        : 'bg-team-blue text-[#FEFEFE]'
                       : isDarkMode
                       ? 'bg-team-dark text-white hover:bg-team-dark-20'
                       : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
@@ -756,7 +756,7 @@ export const PerformanceMetrics = () => {
                     robot2Park === 'full'
                       ? isDarkMode
                         ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-white'
+                        : 'bg-team-blue text-[#FEFEFE]'
                       : isDarkMode
                       ? 'bg-team-dark text-white hover:bg-team-dark-20'
                       : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
@@ -778,7 +778,7 @@ export const PerformanceMetrics = () => {
       {/* Keyboard shortcut popup */}
       {showPopup && (
         <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
-          <div className={`${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue text-black'} rounded-lg shadow-2xl p-12 text-center`}>
+          <div className={`${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue text-black'} rounded-lg shadow-2xl p-12 text-center`}>
             <div className="text-6xl font-bold mb-4">shot {popupNumber}</div>
             <div className="text-4xl mb-4">{madeCount !== null ? `${madeCount} made` : '__ made'}</div>
             <div className={`text-sm mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>press enter to confirm</div>
