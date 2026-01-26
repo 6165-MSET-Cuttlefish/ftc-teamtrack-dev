@@ -23,9 +23,6 @@ import { ArrowLeft, TrendingUp, TrendingDown, Calendar, Award, Target, Zap, Acti
 import { toast } from 'sonner';
 import {
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -147,60 +144,45 @@ const Charts = () => {
       });
   };
 
-  // Score Component Breakdown (Average)
-  const getScoreBreakdownData = (): ChartDataPoint[] => {
-    const filteredSessions = getFilteredSessions();
-    if (filteredSessions.length === 0) return [];
-
-    const totals = filteredSessions.reduce(
-      (acc, session) => ({
-        autonomous: acc.autonomous + session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0),
-        teleOp: acc.teleOp + session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0),
-        endGame: acc.endGame + session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0),
-      }),
-      { autonomous: 0, teleOp: 0, endGame: 0 }
-    );
-
-    const totalMatches = filteredSessions.reduce((sum, s) => sum + s.matches.length, 0);
-    const count = totalMatches > 0 ? totalMatches : 1;
-
-    return [
-      { name: 'Autonomous', value: Math.round(totals.autonomous / count) },
-      { name: 'TeleOp', value: Math.round(totals.teleOp / count) },
-      { name: 'End Game', value: Math.round(totals.endGame / count) },
-    ];
-  };
-
   // Cycle Time Analysis
   const getCycleTimeData = (): ChartDataPoint[] => {
     const filteredSessions = getFilteredSessions();
-    const cycleData: { [key: string]: number[] } = {};
-
-    filteredSessions.forEach(session => {
-      const date = formatDate(session.createdAt);
-      if (!cycleData[date]) {
-        cycleData[date] = [];
-      }
-      session.matches.forEach(match => {
-        if (match.cycleTimes && Array.isArray(match.cycleTimes) && match.cycleTimes.length > 0) {
-          cycleData[date].push(...match.cycleTimes);
-        }
-      });
+    
+    // Get sessions that have cycle times
+    const sessionsWithCycleTimes = filteredSessions.filter(session => {
+      // Check if session has matches with cycle times
+      const hasCycleTimes = session.matches && session.matches.length > 0 && session.matches.some(match => 
+        match.cycleTimes && Array.isArray(match.cycleTimes) && match.cycleTimes.length > 0
+      );
+      return hasCycleTimes;
     });
 
-    if (Object.keys(cycleData).length === 0) return [];
+    if (sessionsWithCycleTimes.length === 0) return [];
 
-    return Object.entries(cycleData).map(([name, times]) => {
-      const avg = times.reduce((sum, t) => sum + t, 0) / times.length;
-      const min = Math.min(...times);
-      const max = Math.max(...times);
+    const results = sessionsWithCycleTimes.map(session => {
+      // Collect all cycle times from all matches in this session
+      const allCycleTimes: number[] = [];
+      session.matches.forEach(match => {
+        if (match.cycleTimes && Array.isArray(match.cycleTimes) && match.cycleTimes.length > 0) {
+          allCycleTimes.push(...match.cycleTimes);
+        }
+      });
+
+      if (allCycleTimes.length === 0) return null;
+
+      const avg = allCycleTimes.reduce((sum, t) => sum + t, 0) / allCycleTimes.length;
+      const min = Math.min(...allCycleTimes);
+      const max = Math.max(...allCycleTimes);
+      
       return {
-        name,
+        name: session.sessionName || formatDate(session.createdAt),
         'Avg Cycle': parseFloat(avg.toFixed(1)),
         'Fastest': parseFloat(min.toFixed(1)),
         'Slowest': parseFloat(max.toFixed(1)),
       };
     });
+
+    return results.filter((item): item is NonNullable<typeof item> => item !== null);
   };
 
   // Recent Performance Trend (Last 10 sessions)
@@ -280,15 +262,6 @@ const Charts = () => {
     purple: '#8b5cf6',
     pink: '#ec4899',
   };
-
-  const PIE_COLORS = [
-    COLORS.primary,
-    COLORS.secondary,
-    COLORS.success,
-    COLORS.warning,
-    COLORS.purple,
-    COLORS.pink,
-  ];
 
   const CustomTooltip = ({
     active,
@@ -405,7 +378,6 @@ const Charts = () => {
   };
 
   const scoreTrendData = getScoreTrendData();
-  const scoreBreakdownData = getScoreBreakdownData();
   const cycleTimeData = getCycleTimeData();
   const recentTrendData = getRecentTrendData();
   const consistencyOverTimeData = getConsistencyOverTimeData();
@@ -809,55 +781,6 @@ const Charts = () => {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Score Component Breakdown */}
-            <Card
-              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
-            >
-              <CardHeader>
-                <CardTitle
-                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                    Average Score Breakdown
-                </CardTitle>
-                <CardDescription
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Average points per game phase
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={scoreBreakdownData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) =>
-                        `${name}: ${value || 0}`
-                      }
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                      animationDuration={1000}
-                      animationBegin={200}
-                    >
-                      {scoreBreakdownData.map((_entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={PIE_COLORS[index % PIE_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '14px' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Recent Performance Trend */}
             <Card
               className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
@@ -978,7 +901,7 @@ const Charts = () => {
                 <CardDescription
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                 >
-                  Average, fastest, and slowest cycle times (seconds)
+                  Average cycle time per session (seconds)
                 </CardDescription>
               </CardHeader>
               <CardContent>
