@@ -21,11 +21,11 @@ const TeamTrackLogo = () => {
     <Link
       to="/sessions"
       aria-label="TeamTrack home"
-      className="flex items-center gap-6 focus:outline-none transition-all duration-200 hover:scale-105"
+      className="flex items-center gap-6 focus:outline-none transition-all duration-200 hover:scale-105 scale-150 origin-left"
     >
       <div className="flex items-center gap-2.5">
         <svg
-          width="8"
+          width="8on "
           height="20"
           viewBox="0 0 8 20"
           fill="none"
@@ -448,7 +448,7 @@ export const Header = () => {
     >
       <div className="max-w-[1216px] mx-auto px-6 grid grid-cols-[auto_1fr_auto] items-center">
         <div className="flex items-center justify-start gap-3">
-          <TeamTrackLogo />
+          <TeamTrackLogo/>
         </div>
 
         <div className="flex items-center justify-center"></div>
