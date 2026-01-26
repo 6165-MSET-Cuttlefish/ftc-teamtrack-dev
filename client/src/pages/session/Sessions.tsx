@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
+import { UI_TIMING } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,10 +56,10 @@ const SessionCard = ({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
 
-  // Reset delete confirmation after 5 seconds
+  // Reset delete confirmation after timeout
   useEffect(() => {
     if (deleteConfirm) {
-      const timeout = setTimeout(() => setDeleteConfirm(false), 5000);
+      const timeout = setTimeout(() => setDeleteConfirm(false), UI_TIMING.DELETE_CONFIRM_TIMEOUT);
       return () => clearTimeout(timeout);
     }
   }, [deleteConfirm]);
@@ -361,7 +362,8 @@ const Sessions = () => {
         setSessions(userSessions);
         setFilteredSessions(userSessions);
       } catch (error) {
-        console.error('Error loading sessions:', error);
+        const { logger } = await import('@/lib/logger');
+        logger.error('Error loading sessions', error);
         toast.error('Failed to load sessions');
       } finally {
         setLoading(false);
@@ -426,7 +428,8 @@ const Sessions = () => {
         toast.success('Session name updated');
       }
     } catch (error) {
-      console.error('Error updating session name:', error);
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error updating session name', error);
       toast.error('Failed to update session name');
     }
   };
@@ -441,7 +444,8 @@ const Sessions = () => {
       );
       toast.success('Session deleted');
     } catch (error) {
-      console.error('Error deleting session:', error);
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error deleting session', error);
       toast.error('Failed to delete session');
     } finally {
       setDeletingSessionId(null);
@@ -470,7 +474,7 @@ const Sessions = () => {
       'Tele Classified Artifact',
       'Tele Overflow Artifact',
       'Tele Motif',
-      'Endgame Hang',
+      'End Game Score',
       'Date',
     ];
 
@@ -487,7 +491,6 @@ const Sessions = () => {
       const teleClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0);
       const teleOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0);
       const teleMotif = session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0);
-      const endgameHang = session.matches.reduce((sum, m) => sum + (m.endgameHang || 0), 0);
 
       return [
         `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
@@ -504,7 +507,7 @@ const Sessions = () => {
         teleClassifiedArtifact,
         teleOverflowArtifact,
         teleMotif,
-        endgameHang,
+        endGameScore,
         `"${formatDate(session.createdAt)}"`,
       ];
     });
@@ -636,7 +639,7 @@ const Sessions = () => {
               >
                 <div className="text-3xl font-bold text-team-blue mb-1">
                   {Math.round(
-                    sessions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
+                    (sessions.reduce((sum, s) => sum + ((s.finalScore as number) || 0), 0) as number) /
                       sessions.length
                   ) || 0}
                 </div>
@@ -650,7 +653,7 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-3xl font-bold text-team-blue mb-1">
-                  {Math.max(...sessions.map(s => s.finalScore || 0)) || 0}
+                  {Math.max(...sessions.map(s => (s.finalScore as number) || 0)) || 0}
                 </div>
                 <div
                   className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
+import { STORAGE_KEYS, UI_TIMING } from '@/constants';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -92,7 +93,7 @@ const NavigationMenu = () => {
   // Check if this is the user's first time and show tutorials
   useEffect(() => {
     if (user) {
-      const hasSeenTutorials = localStorage.getItem('teamtrack_tutorials_seen');
+      const hasSeenTutorials = localStorage.getItem(STORAGE_KEYS.TUTORIALS_SEEN);
       if (!hasSeenTutorials) {
         // Show keybinds tutorial first
         setShowKeybindTutorial(true);
@@ -114,18 +115,19 @@ const NavigationMenu = () => {
       navigate('/login');
       toast.success('Logged out successfully');
     } catch (error) {
-      console.error('Logout failed:', error);
+      const { logger } = await import('@/lib/logger');
+      logger.error('Logout failed', error);
       toast.error('Failed to sign out. Please try again.');
     }
   };
 
   const handleCloseKeybindTutorial = () => {
     setShowKeybindTutorial(false);
-    const hasSeenTutorials = localStorage.getItem('teamtrack_tutorials_seen');
+    const hasSeenTutorials = localStorage.getItem(STORAGE_KEYS.TUTORIALS_SEEN);
     if (!hasSeenTutorials) {
       // Use requestAnimationFrame for more reliable timing
       requestAnimationFrame(() => {
-        setTimeout(() => setShowFeaturesTutorial(true), 100);
+        setTimeout(() => setShowFeaturesTutorial(true), UI_TIMING.TUTORIAL_TRANSITION_DELAY);
       });
     }
   };
@@ -133,7 +135,7 @@ const NavigationMenu = () => {
   const handleCloseFeaturesTutorial = () => {
     setShowFeaturesTutorial(false);
     // Mark tutorials as seen
-    localStorage.setItem('teamtrack_tutorials_seen', 'true');
+    localStorage.setItem(STORAGE_KEYS.TUTORIALS_SEEN, 'true');
   };
 
   return (

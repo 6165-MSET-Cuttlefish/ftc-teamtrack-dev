@@ -404,7 +404,7 @@ const MatchAnalysis = ({
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-                  {match.endgameHang || 0}
+                  {match.endGameScore || 0}
                 </td>
                 <td className={`text-right py-3 px-4 font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
                   {match.endGameScore || 0}
@@ -842,17 +842,17 @@ const MatchComparisonView = ({
                   {((matches[matchBIndex].autonLeave || 0) - (matches[matchAIndex].autonLeave || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].autonLeave || 0) - (matches[matchAIndex].autonLeave || 0)}
                 </td>
               </tr>
-              {/* End Game Hang */}
+              {/* End Game Score */}
               <tr>
-                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>End Game Hang</td>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>End Game Score</td>
                 <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {matches[matchAIndex].endgameHang || 0}
+                  {matches[matchAIndex].endGameScore || 0}
                 </td>
                 <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {matches[matchBIndex].endgameHang || 0}
+                  {matches[matchBIndex].endGameScore || 0}
                 </td>
-                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].endgameHang || 0) >= (matches[matchAIndex].endgameHang || 0) ? 'text-green-500' : 'text-red-500'}`}>
-                  {((matches[matchBIndex].endgameHang || 0) - (matches[matchAIndex].endgameHang || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].endgameHang || 0) - (matches[matchAIndex].endgameHang || 0)}
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].endGameScore || 0) >= (matches[matchAIndex].endGameScore || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].endGameScore || 0) - (matches[matchAIndex].endGameScore || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].endGameScore || 0) - (matches[matchAIndex].endGameScore || 0)}
                 </td>
               </tr>
             </tbody>
@@ -1016,7 +1016,6 @@ const AnalysisContent = () => {
             const teleClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0);
             const teleOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0);
             const teleMotif = session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0);
-            const endgameHang = session.matches.reduce((sum, m) => sum + (m.endgameHang || 0), 0);
             const cycleTimes = session.matches.flatMap(m => m.cycleTimes || []);
 
             // Use local state instead of updating global context
@@ -1037,7 +1036,8 @@ const AnalysisContent = () => {
               teleClassifiedArtifact,
               teleOverflowArtifact,
               teleMotif,
-              endgameHang,
+              robot1Park: 'none',
+              robot2Park: 'none',
               selectedFeature: session.selectedFeature || '',
               cycleTimes,
               notes: session.notes || '',
@@ -1047,7 +1047,8 @@ const AnalysisContent = () => {
         } catch (error) {
           // Suppress AbortError which occurs during cleanup
           if (mounted && (error as Error)?.name !== 'AbortError') {
-            console.error('Error loading session:', error);
+            const { logger } = await import('@/lib/logger');
+            logger.error('Error loading session', error);
           }
         }
       }

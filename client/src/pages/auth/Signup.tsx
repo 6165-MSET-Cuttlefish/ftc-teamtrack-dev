@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,9 @@ const Signup = () => {
   const { signup, loginWithGoogle } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname || '/sessions';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -66,7 +69,7 @@ const Signup = () => {
       setError('');
       setLoading(true);
       await signup(formData.email, formData.password, formData.displayName);
-      navigate('/sessions');
+      navigate(from, { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -79,7 +82,7 @@ const Signup = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      navigate('/sessions');
+      navigate(from, { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {

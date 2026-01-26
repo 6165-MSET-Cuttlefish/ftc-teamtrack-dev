@@ -46,7 +46,6 @@ export const LivePreview = () => {
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
-  const [, setSavedSessionId] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
   const [showTeleOpTransition, setShowTeleOpTransition] =
     useState<boolean>(false);
@@ -59,7 +58,6 @@ export const LivePreview = () => {
   // - sessionTimer: Total time since page load (overall session duration)
   // - timer: Current match timer (from useSession context, resets per match)
   const [sessionTimer, setSessionTimer] = useState<number>(0);
-  const [, setSessionLimitChecked] = useState(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork = 
@@ -103,7 +101,6 @@ export const LivePreview = () => {
           setSessionLimitReached(false);
         }
       }
-      setSessionLimitChecked(true);
     };
     
     checkSessionLimit();
@@ -199,7 +196,8 @@ export const LivePreview = () => {
         setConsistency(Math.round(consistencyScore));
         setIsCalculatingConsistency(false);
       } catch (error) {
-        console.error('Error calculating consistency:', error);
+        const { logger } = await import('@/lib/logger');
+        logger.error('Error calculating consistency', error);
         setConsistency(0);
         setIsCalculatingConsistency(false);
       }
@@ -224,7 +222,6 @@ export const LivePreview = () => {
     
     // Reset all session state
     resetSession();
-    setSavedSessionId(null);
     setHasStarted(false);
     setHasTransitionedToTeleOp(false);
     setSessionTimer(0);  // Reset session timer
@@ -306,6 +303,12 @@ export const LivePreview = () => {
   };
 
   const handleCompleteSession = async () => {
+    // Validate user is authenticated
+    if (!user?.uid) {
+      toast.error('You must be logged in to save sessions');
+      return;
+    }
+
     // Validate required fields
     if (!sessionData.sessionName?.trim() || !sessionData.driverName?.trim()) {
       toast.error('Please fill in Session Name and Driver Name before completing the session');
@@ -331,15 +334,13 @@ export const LivePreview = () => {
     }
 
     // Check session limit
-    if (user?.uid) {
-      const { firebaseService } = await import('../services/firebaseService');
-      const userSessions = await firebaseService.getUserSessions(user.uid);
-      const { SESSION_LIMITS } = await import('../constants');
-      
-      if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
-        toast.error(`You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`);
-        return;
-      }
+    const { firebaseService } = await import('../services/firebaseService');
+    const userSessions = await firebaseService.getUserSessions(user.uid);
+    const { SESSION_LIMITS } = await import('../constants');
+    
+    if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
+      toast.error(`You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`);
+      return;
     }
 
     // Use sessionTimer for total session duration, not match timer
@@ -353,8 +354,8 @@ export const LivePreview = () => {
       matchType: sessionData.matchType || 'Practice',
       sessionDuration: totalSessionTime,
 
-      userId: user?.uid || '',
-      userEmail: user?.email || '',
+      userId: user.uid, // Always set from validated user
+      userEmail: user.email || '',
 
       // Don't save individual scoring fields - deprecated
       // Data is in matches array
@@ -366,8 +367,6 @@ export const LivePreview = () => {
       teleClassifiedArtifact: 0,
       teleOverflowArtifact: 0,
       teleMotif: 0,
-
-      endgameHang: 0,
 
       finalScore: 0,
       autonomousScore: 0,
@@ -386,12 +385,13 @@ export const LivePreview = () => {
       const result = await createSession(sessionToSave);
       if (result && result.id) {
         toast.success('Session saved successfully!');
-        setSavedSessionId(result.id);
+        // Session saved - sessionLimitReached will be checked on next action
       } else {
         toast.error('Failed to save session. Please try again.');
       }
     } catch (error) {
-      console.error('Error saving session:', error);
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error saving session', error);
       toast.error('An error occurred while saving the session.');
     }
   };

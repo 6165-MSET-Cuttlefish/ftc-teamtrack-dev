@@ -293,7 +293,7 @@ export const PerformanceMetrics = () => {
     };
   }, [cycleTimerStartTime, sessionData.isSessionCompleted]);
 
-  const recordCycleTime = () => {
+  const recordCycleTime = useCallback(() => {
     if (cycleTimerStartTime === null) {
       // Start the cycle timer
       setCycleTimerStartTime(Date.now());
@@ -305,7 +305,7 @@ export const PerformanceMetrics = () => {
       setCycleTimerStartTime(Date.now()); // Restart for next cycle
       setCycleTimerElapsed(0);
     }
-  };
+  }, [cycleTimerStartTime, cycleTimerElapsed, sessionData.cycleTimes, updateSessionData]);
 
   // Keyboard event listener for 1, 2, 3 keys
   useEffect(() => {
