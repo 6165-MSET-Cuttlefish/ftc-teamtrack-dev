@@ -53,7 +53,7 @@ const createInitialSessionData = (displayName?: string | null): SessionFormData 
   teleOverflowArtifact: 0,
   teleMotif: 0,
   endgameHang: 0,
-  selectedFeature: '',
+  selectedFeature: 'Cycle Times',
   notes: '',
   cycleTimes: [],
   matches: [],
