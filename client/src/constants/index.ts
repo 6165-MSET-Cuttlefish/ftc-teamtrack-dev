@@ -21,19 +21,22 @@ export const ROUTES = {
 
 /**
  * Firebase configuration
- * Note: These API keys are safe to expose in client-side code.
- * Firebase security is enforced through Firestore security rules and authentication.
- * For production, consider using environment variables.
+ * These are public keys used by the web client (not secrets)
+ * Firebase security is enforced through Firestore security rules and authentication
  */
-export const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyA6WhYwzW8quaC9NykmCOAA9tEHc_-KAy8',
-  authDomain: 'teamtrack-572e5.firebaseapp.com',
-  projectId: 'teamtrack-572e5',
-  storageBucket: 'teamtrack-572e5.firebasestorage.app',
-  messagingSenderId: '590917117893',
-  appId: '1:590917117893:web:f14b58885344da4fcf8dac',
-  measurementId: 'G-WTN320D7S5',
-} as const;
+const getFirebaseConfig = () => {
+  return {
+    apiKey: 'AIzaSyA6WhYwzW8quaC9NykmCOAA9tEHc_-KAy8',
+    authDomain: 'teamtrack-572e5.firebaseapp.com',
+    projectId: 'teamtrack-572e5',
+    storageBucket: 'teamtrack-572e5.firebasestorage.app',
+    messagingSenderId: '590917117893',
+    appId: '1:590917117893:web:f14b58885344da4fcf8dac',
+    measurementId: 'G-WTN320D7S5',
+  } as const;
+};
+
+export const FIREBASE_CONFIG = getFirebaseConfig();
 
 export const SCORING = {
   AUTON_CLASSIFIED_ARTIFACT: 3,
@@ -55,4 +58,26 @@ export const GAME_TIMING = {
 export const SESSION_LIMITS = {
   MAX_SESSIONS_PER_USER: 50,
   MAX_CYCLE_TIMES: 100,
+} as const;
+
+/**
+ * UI Timing constants for animations, timeouts, and delays
+ */
+export const UI_TIMING = {
+  // Delete confirmation auto-dismiss (milliseconds)
+  DELETE_CONFIRM_TIMEOUT: 5000,
+  // Tutorial transition delay
+  TUTORIAL_TRANSITION_DELAY: 100,
+  // Generic short toast display duration
+  SHORT_DELAY: 1000,
+  // Session limit check timeout
+  SESSION_LIMIT_CHECK_DELAY: 2000,
+} as const;
+
+/**
+ * LocalStorage keys for persistent user preferences and state
+ */
+export const STORAGE_KEYS = {
+  THEME: 'teamtrack-theme',
+  TUTORIALS_SEEN: 'teamtrack_tutorials_seen',
 } as const;

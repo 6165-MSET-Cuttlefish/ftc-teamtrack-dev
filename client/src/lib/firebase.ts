@@ -1,4 +1,5 @@
 import { FIREBASE_CONFIG } from '@/constants';
+import { logger } from '@/lib/logger';
 
 // Lazy firebase initializer. Uses dynamic imports so dev server won't fail if Firebase isn't configured or installed.
 export async function getFirebase() {
@@ -15,11 +16,11 @@ export async function getFirebase() {
     const errorMsg = err instanceof Error ? err.message : String(err);
     
     if (errorMsg.includes('FIREBASE_CONFIG') || errorMsg.includes('apiKey')) {
-      console.error('Firebase configuration missing. Check constants/index.ts');
+      logger.error('Firebase configuration missing. Check constants/index.ts and .env file');
     } else if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
-      console.warn('Network error loading Firebase modules. Check your internet connection.');
+      logger.warn('Network error loading Firebase modules. Check your internet connection.');
     } else {
-      console.error('Firebase initialization error:', err);
+      logger.error('Firebase initialization error', err);
     }
     
     return null;

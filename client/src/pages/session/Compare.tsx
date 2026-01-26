@@ -78,7 +78,8 @@ const Compare = () => {
           }
         }
       } catch (error) {
-        console.error('Error loading sessions:', error);
+        const { logger } = await import('@/lib/logger');
+        logger.error('Error loading sessions', error);
         toast.error('Failed to load sessions');
       } finally {
         setLoading(false);
@@ -121,7 +122,8 @@ const Compare = () => {
         setAllMatches(matches);
       } catch (error) {
         if (!isMounted) return;
-        console.error('Error loading sessions:', error);
+        const { logger } = await import('@/lib/logger');
+        logger.error('Error loading sessions', error);
         toast.error('Failed to load some sessions');
       }
     };
@@ -429,7 +431,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.autonClassifiedArtifact || 0}
+                              {String(session.autonClassifiedArtifact || 0)}
                             </td>
                           ))}
                         </tr>
@@ -446,7 +448,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.autonOverflowArtifact || 0}
+                              {String(session.autonOverflowArtifact || 0)}
                             </td>
                           ))}
                         </tr>
@@ -463,7 +465,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.autonMotif || 0}
+                              {String(session.autonMotif || 0)}
                             </td>
                           ))}
                         </tr>
@@ -480,7 +482,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.autonLeave || 0}
+                              {String(session.autonLeave || 0)}
                             </td>
                           ))}
                         </tr>
@@ -514,7 +516,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.teleClassifiedArtifact || 0}
+                              {String(session.teleClassifiedArtifact || 0)}
                             </td>
                           ))}
                         </tr>
@@ -531,7 +533,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.teleOverflowArtifact || 0}
+                              {String(session.teleOverflowArtifact || 0)}
                             </td>
                           ))}
                         </tr>
@@ -548,7 +550,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.teleMotif || 0}
+                              {String(session.teleMotif || 0)}
                             </td>
                           ))}
                         </tr>
@@ -575,14 +577,14 @@ const Compare = () => {
                           <td
                             className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                           >
-                            ↳ Hang
+                            ↳ Hang Time
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.endgameHang || 0}
+                              {session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / Math.max(session.matches.length, 1)}
                             </td>
                           ))}
                         </tr>

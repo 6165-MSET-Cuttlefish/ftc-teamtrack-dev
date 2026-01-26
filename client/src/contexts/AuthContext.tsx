@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import getFirebase from '@/lib/firebase';
+import { logger } from '@/lib/logger';
 import type { User } from '@/types';
 import type {
   Auth,
@@ -91,7 +92,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       firebaseAuth = firebase.auth;
       return { authInstance: firebaseAuth, authModule: firebaseAuthModule };
     } catch (err) {
-      console.warn('Firebase auth module not available:', err);
+      const errorContext = err instanceof Error ? { message: err.message } : undefined;
+      logger.warn('Firebase auth module not available', errorContext);
       return { authInstance: null, authModule: null };
     }
   };

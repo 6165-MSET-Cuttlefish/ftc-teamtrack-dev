@@ -56,7 +56,8 @@ class FirebaseService {
       if (isAbortError(error)) {
         return fallback;
       }
-      console.error(errorMessage, error);
+      const { logger } = await import('@/lib/logger');
+      logger.error(errorMessage, error);
       if (throwOnError) {
         throw error;
       }

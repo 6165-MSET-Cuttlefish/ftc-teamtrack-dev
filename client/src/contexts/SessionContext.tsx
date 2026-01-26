@@ -72,15 +72,20 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('Autonomous Score');
 
-  // Timer effect
+  // Timer effect - only runs while timer is active and session is not completed
   useEffect(() => {
-    if (!isTimerRunning || sessionData.isSessionCompleted) return;
+    if (!isTimerRunning || sessionData.isSessionCompleted) {
+      return; // Early return, no interval created
+    }
 
     const interval = setInterval(() => {
       setTimer(prev => prev + 1);
     }, 1000);
 
-    return () => clearInterval(interval);
+    // Always clean up the interval when effect re-runs or component unmounts
+    return () => {
+      clearInterval(interval);
+    };
   }, [isTimerRunning, sessionData.isSessionCompleted]);
 
   const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {

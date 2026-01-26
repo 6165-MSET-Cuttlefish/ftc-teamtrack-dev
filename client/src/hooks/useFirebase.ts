@@ -32,7 +32,8 @@ export const useFirebase = () => {
       
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setState({ loading: false, error: errorMessage });
-      console.error('Firebase operation failed:', err);
+      const { logger } = await import('@/lib/logger');
+      logger.error('Firebase operation failed', err);
       return null;
     }
   }, []);

@@ -5,8 +5,7 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
-
-const THEME_STORAGE_KEY = 'teamtrack-theme';
+import { STORAGE_KEYS } from '@/constants';
 
 interface ThemeContextType {
   isDarkMode: boolean;
@@ -18,7 +17,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === 'undefined') return true;
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    const saved = localStorage.getItem(STORAGE_KEYS.THEME);
     return saved ? JSON.parse(saved) : true;
   });
 
@@ -30,7 +29,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const toggleTheme = () => {
     setIsDarkMode((prev: boolean) => {
       const next = !prev;
-      localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(next));
       return next;
     });
   };

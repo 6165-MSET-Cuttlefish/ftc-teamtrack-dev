@@ -54,7 +54,8 @@ const Charts = () => {
         const userSessions = await firebaseService.getUserSessions(user.uid);
         setSessions(userSessions);
       } catch (error) {
-        console.error('Error loading sessions:', error);
+        const { logger } = await import('@/lib/logger');
+        logger.error('Error loading sessions', error);
         toast.error('Failed to load sessions');
       } finally {
         setLoading(false);
