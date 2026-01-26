@@ -309,6 +309,7 @@ export const PerformanceMetrics = () => {
       if (event.key === 'Enter' && showPopup && madeCount !== null) {
         // Auto-detect which section to update based on match type
         const matchType = sessionData.matchType;
+        let isTeleOpScore = false;
         
         if (!expandedSection || expandedSection === 'Autonomous Score') {
           // Default to autonomous if no section expanded or if autonomous is expanded
@@ -316,16 +317,24 @@ export const PerformanceMetrics = () => {
             setAutonClassifiedArtifact(prev => prev + madeCount);
           } else {
             setTeleClassifiedArtifact(prev => prev + madeCount);
+            isTeleOpScore = true;
           }
         } else if (expandedSection === 'TeleOp Score') {
           setTeleClassifiedArtifact(prev => prev + madeCount);
+          isTeleOpScore = true;
         } else {
           // If End Game or other section is expanded, use match type to determine
           if (matchType === 'Autonomous') {
             setAutonClassifiedArtifact(prev => prev + madeCount);
           } else {
             setTeleClassifiedArtifact(prev => prev + madeCount);
+            isTeleOpScore = true;
           }
+        }
+        
+        // If updating TeleOp score and Cycle Times is enabled, record cycle time
+        if (isTeleOpScore && sessionData.selectedFeature === 'Cycle Times') {
+          recordCycleTime();
         }
         
         // Close popup after confirming
@@ -344,7 +353,7 @@ export const PerformanceMetrics = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [showPopup, popupNumber, madeCount, expandedSection]);
+  }, [showPopup, popupNumber, madeCount, expandedSection, sessionData.matchType, sessionData.selectedFeature, recordCycleTime]);
 
   useEffect(() => {
     updateScores();
