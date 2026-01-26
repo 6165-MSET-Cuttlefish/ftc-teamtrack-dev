@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { ChevronUp, ChevronDown, ChevronRight, Clock } from 'lucide-react';
@@ -10,21 +10,19 @@ const NumberInput: React.FC<{
   placeholder?: string;
   className?: string;
   readOnly?: boolean;
-}> = ({ value, onChange, placeholder, className, readOnly = false }) => {
+}> = memo(({ value, onChange, placeholder, className, readOnly = false }) => {
   const [local, setLocal] = useState<string>(
     value !== undefined && value !== null ? String(value) : ''
   );
   const [isFocused, setIsFocused] = useState(false);
+  const prevValueRef = useRef(value);
 
   useEffect(() => {
-    // Only update local state if the input is not focused
-    // The 'local' dependency is intentionally omitted to prevent infinite loops
-    // This effect only runs when value or isFocused changes
-    if (!isFocused) {
+    // Only update local state if the input is not focused AND the value has actually changed
+    if (!isFocused && prevValueRef.current !== value) {
       const asString = value !== undefined && value !== null ? String(value) : '';
-      if (asString !== local) {
-        setLocal(asString);
-      }
+      setLocal(asString);
+      prevValueRef.current = value;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, isFocused]);
@@ -66,7 +64,9 @@ const NumberInput: React.FC<{
       readOnly={readOnly}
     />
   );
-};
+});
+
+NumberInput.displayName = 'NumberInput';
 
 const MetricField = ({
   label,
@@ -240,33 +240,35 @@ export const PerformanceMetrics = () => {
   const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
   const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
-  // Sync local state with sessionData when scores are reset (after match save)
-  // But only if we're not currently updating to prevent circular updates
+  // Sync local state with sessionData only when all values are reset to 0 (after match save)
+  // This prevents syncing during active editing
   useEffect(() => {
     if (isUpdatingRef.current) {
       return;
     }
     
-    setAutonClassifiedArtifact(sessionData.autonClassifiedArtifact || 0);
-    setAutonOverflowArtifact(sessionData.autonOverflowArtifact || 0);
-    setAutonMotif(sessionData.autonMotif || 0);
-    setAutonomousLeave(sessionData.autonLeave || 0);
-    setTeleClassifiedArtifact(sessionData.teleClassifiedArtifact || 0);
-    setTeleOverflowArtifact(sessionData.teleOverflowArtifact || 0);
-    setTeleMotif(sessionData.teleMotif || 0);
-    setRobot1Park(sessionData.robot1Park || 'none');
-    setRobot2Park(sessionData.robot2Park || 'none');
-  }, [
-    sessionData.autonClassifiedArtifact,
-    sessionData.autonOverflowArtifact,
-    sessionData.autonMotif,
-    sessionData.autonLeave,
-    sessionData.teleClassifiedArtifact,
-    sessionData.teleOverflowArtifact,
-    sessionData.teleMotif,
-    sessionData.robot1Park,
-    sessionData.robot2Park,
-  ]);
+    // Only sync if ALL artifact values are 0 (indicating a reset)
+    const allZero = 
+      !sessionData.autonClassifiedArtifact &&
+      !sessionData.autonOverflowArtifact &&
+      !sessionData.autonMotif &&
+      !sessionData.autonLeave &&
+      !sessionData.teleClassifiedArtifact &&
+      !sessionData.teleOverflowArtifact &&
+      !sessionData.teleMotif;
+    
+    if (allZero) {
+      setAutonClassifiedArtifact(0);
+      setAutonOverflowArtifact(0);
+      setAutonMotif(0);
+      setAutonomousLeave(0);
+      setTeleClassifiedArtifact(0);
+      setTeleOverflowArtifact(0);
+      setTeleMotif(0);
+      setRobot1Park('none');
+      setRobot2Park('none');
+    }
+  }, [sessionData]);
 
   // Popup state for keyboard shortcuts
   const [showPopup, setShowPopup] = useState(false);
@@ -393,7 +395,12 @@ export const PerformanceMetrics = () => {
   }, [showPopup, popupNumber, madeCount, expandedSection, sessionData.matchType, sessionData.selectedFeature, recordCycleTime]);
 
   useEffect(() => {
-    updateScores();
+    // Debounce the score updates - only update after 300ms of no changes
+    const timer = setTimeout(() => {
+      updateScores();
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [
     autonClassifiedArtifact,
     autonOverflowArtifact,
@@ -407,24 +414,26 @@ export const PerformanceMetrics = () => {
     updateScores,
   ]);
 
-  const InlineBreakdownField = ({
+  const InlineBreakdownField = memo(({
     label,
     value,
     onChange,
+    editable = true,
   }: {
     label: string;
     value: number;
     onChange: (value: number) => void;
+    editable?: boolean;
   }) => {
     const { isDarkMode } = useTheme();
 
-    const handleIncrement = () => {
-      onChange(value + 1);
-    };
+    const handleIncrement = useCallback(() => {
+      if (editable) onChange(value + 1);
+    }, [editable, value, onChange]);
 
-    const handleDecrement = () => {
-      onChange(Math.max(0, value - 1));
-    };
+    const handleDecrement = useCallback(() => {
+      if (editable) onChange(Math.max(0, value - 1));
+    }, [editable, value, onChange]);
 
     return (
       <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
@@ -438,9 +447,10 @@ export const PerformanceMetrics = () => {
         <div className={`flex justify-between items-center gap-2 h-[48px]`}>
           <button
             onClick={handleIncrement}
-            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
-              isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
-            }`}
+            disabled={!editable}
+            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors ${
+              editable ? 'hover:bg-team-blue-40 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+            } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
           >
             <ChevronUp className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
           </button>
@@ -453,21 +463,25 @@ export const PerformanceMetrics = () => {
               value={value}
               onChange={onChange}
               placeholder="0"
+              readOnly={!editable}
               className={`w-full h-full bg-transparent text-2xl font-semibold text-center focus:outline-none ${isDarkMode ? 'text-white' : 'text-black'}`}
             />
           </div>
           <button
             onClick={handleDecrement}
-            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors hover:bg-team-blue-40 ${
-              isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
-            }`}
+            disabled={!editable}
+            className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors ${
+              editable ? 'hover:bg-team-blue-40 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+            } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
           >
             <ChevronDown className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
           </button>
         </div>
       </div>
     );
-  };
+  });
+
+  InlineBreakdownField.displayName = 'InlineBreakdownField';
 
   const CheckboxField = ({
     label,
@@ -524,16 +538,19 @@ export const PerformanceMetrics = () => {
               label="Classified Artifact (3 pts each)"
               value={autonClassifiedArtifact}
               onChange={setAutonClassifiedArtifact}
+              editable={isTimerRunning}
             />
             <InlineBreakdownField
               label="Overflow Artifact (1 pt each)"
               value={autonOverflowArtifact}
               onChange={setAutonOverflowArtifact}
+              editable={isTimerRunning}
             />
             <InlineBreakdownField
               label="Motif (2 pts each)"
               value={autonMotif}
               onChange={setAutonMotif}
+              editable={isTimerRunning}
             />
             <CheckboxField
               label="Leave (Check if left)"
@@ -549,16 +566,19 @@ export const PerformanceMetrics = () => {
               label="Classified Artifact (3 pts each)"
               value={teleClassifiedArtifact}
               onChange={setTeleClassifiedArtifact}
+              editable={isTimerRunning}
             />
             <InlineBreakdownField
               label="Overflow Artifact (1 pt each)"
               value={teleOverflowArtifact}
               onChange={setTeleOverflowArtifact}
+              editable={isTimerRunning}
             />
             <InlineBreakdownField
               label="Motif (2 pts each)"
               value={teleMotif}
               onChange={setTeleMotif}
+              editable={isTimerRunning}
             />
             {sessionData.selectedFeature === 'Cycle Times' && (
               <div className="space-y-4">
@@ -779,7 +799,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.finalScore ?? 0}
                 onChange={(value) => updateSessionData({ finalScore: value })}
                 hasDropdown={false}
-                editable={!isTimerRunning}
+                editable={isTimerRunning}
                 showArrows={false}
               />
               {sessionData.matchType !== 'TeleOp' && (
@@ -788,7 +808,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.autonomousScore ?? 0}
                   onChange={(value) => updateSessionData({ autonomousScore: value })}
                   onDropdownClick={() => toggleSection('Autonomous Score')}
-                  editable={!isTimerRunning}
+                  editable={isTimerRunning}
                   showArrows={false}
                   isSelected={expandedSection === 'Autonomous Score'}
                 />
@@ -799,7 +819,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.teleOpScore ?? 0}
                   onChange={(value) => updateSessionData({ teleOpScore: value })}
                   onDropdownClick={() => toggleSection('TeleOp Score')}
-                  editable={!isTimerRunning}
+                  editable={isTimerRunning}
                   showArrows={false}
                   isSelected={expandedSection === 'TeleOp Score'}
                 />
@@ -809,7 +829,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.endGameScore ?? 0}
                 onChange={(value) => updateSessionData({ endGameScore: value })}
                 onDropdownClick={() => toggleSection('End Game Score')}
-                editable={!isTimerRunning}
+                editable={isTimerRunning}
                 showArrows={false}
                 isSelected={expandedSection === 'End Game Score'}
               />
@@ -820,7 +840,21 @@ export const PerformanceMetrics = () => {
           <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-6 min-h-[32px]">
             {getSectionTitle()}
           </h2>
-          <div className="min-h-[200px]">{getBreakdownFields()}</div>
+          <div className="min-h-[200px]">
+            {useMemo(() => getBreakdownFields(), [
+              expandedSection,
+              autonClassifiedArtifact,
+              autonOverflowArtifact,
+              autonMotif,
+              autonomousLeave,
+              teleClassifiedArtifact,
+              teleOverflowArtifact,
+              teleMotif,
+              robot1Park,
+              robot2Park,
+              isTimerRunning,
+            ])}
+          </div>
         </div>
       </div>
     </>
