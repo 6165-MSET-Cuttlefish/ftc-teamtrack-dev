@@ -23,9 +23,6 @@ import { ArrowLeft, TrendingUp, TrendingDown, Calendar, Award, Target, Zap, Acti
 import { toast } from 'sonner';
 import {
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -147,30 +144,6 @@ const Charts = () => {
       });
   };
 
-  // Score Component Breakdown (Average)
-  const getScoreBreakdownData = (): ChartDataPoint[] => {
-    const filteredSessions = getFilteredSessions();
-    if (filteredSessions.length === 0) return [];
-
-    const totals = filteredSessions.reduce(
-      (acc, session) => ({
-        autonomous: acc.autonomous + session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0),
-        teleOp: acc.teleOp + session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0),
-        endGame: acc.endGame + session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0),
-      }),
-      { autonomous: 0, teleOp: 0, endGame: 0 }
-    );
-
-    const totalMatches = filteredSessions.reduce((sum, s) => sum + s.matches.length, 0);
-    const count = totalMatches > 0 ? totalMatches : 1;
-
-    return [
-      { name: 'Autonomous', value: Math.round(totals.autonomous / count) },
-      { name: 'TeleOp', value: Math.round(totals.teleOp / count) },
-      { name: 'End Game', value: Math.round(totals.endGame / count) },
-    ];
-  };
-
   // Cycle Time Analysis
   const getCycleTimeData = (): ChartDataPoint[] => {
     const filteredSessions = getFilteredSessions();
@@ -186,7 +159,7 @@ const Charts = () => {
 
     if (sessionsWithCycleTimes.length === 0) return [];
 
-    return sessionsWithCycleTimes.map(session => {
+    const results = sessionsWithCycleTimes.map(session => {
       // Collect all cycle times from all matches in this session
       const allCycleTimes: number[] = [];
       session.matches.forEach(match => {
@@ -207,7 +180,9 @@ const Charts = () => {
         'Fastest': parseFloat(min.toFixed(1)),
         'Slowest': parseFloat(max.toFixed(1)),
       };
-    }).filter((item): item is ChartDataPoint => item !== null);
+    });
+
+    return results.filter((item): item is NonNullable<typeof item> => item !== null);
   };
 
   // Recent Performance Trend (Last 10 sessions)
@@ -287,15 +262,6 @@ const Charts = () => {
     purple: '#8b5cf6',
     pink: '#ec4899',
   };
-
-  const PIE_COLORS = [
-    COLORS.primary,
-    COLORS.secondary,
-    COLORS.success,
-    COLORS.warning,
-    COLORS.purple,
-    COLORS.pink,
-  ];
 
   const CustomTooltip = ({
     active,
@@ -412,7 +378,6 @@ const Charts = () => {
   };
 
   const scoreTrendData = getScoreTrendData();
-  const scoreBreakdownData = getScoreBreakdownData();
   const cycleTimeData = getCycleTimeData();
   const recentTrendData = getRecentTrendData();
   const consistencyOverTimeData = getConsistencyOverTimeData();

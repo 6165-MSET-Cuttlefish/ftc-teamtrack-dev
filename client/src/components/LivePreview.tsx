@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useBlocker } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { useFirebase } from '@/hooks';
 import { GAME_TIMING } from '@/constants';
@@ -59,7 +59,7 @@ export const LivePreview = () => {
   // - sessionTimer: Total time since page load (overall session duration)
   // - timer: Current match timer (from useSession context, resets per match)
   const [sessionTimer, setSessionTimer] = useState<number>(0);
-  const [sessionLimitChecked, setSessionLimitChecked] = useState(false);
+  const [, setSessionLimitChecked] = useState(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork = 
@@ -171,13 +171,13 @@ export const LivePreview = () => {
           return;
         }
 
-        const allScores = [
+        const allScores: number[] = [
           sessionData.finalScore ?? 0,
-          ...lastThreeSessions.map(session => session.finalScore || 0),
+          ...lastThreeSessions.map(session => (session.finalScore || 0) as number),
         ];
 
         const avgScore =
-          allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
+          allScores.reduce((sum: number, score: number) => sum + score, 0) / allScores.length;
 
         if (avgScore === 0) {
           setConsistency(100);
@@ -186,7 +186,7 @@ export const LivePreview = () => {
         }
 
         const variance =
-          allScores.reduce((sum, score) => {
+          allScores.reduce((sum: number, score: number) => {
             return sum + Math.pow(score - avgScore, 2);
           }, 0) / allScores.length;
 
