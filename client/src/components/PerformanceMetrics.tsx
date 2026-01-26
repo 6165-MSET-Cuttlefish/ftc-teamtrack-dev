@@ -778,11 +778,11 @@ export const PerformanceMetrics = () => {
       {/* Keyboard shortcut popup */}
       {showPopup && (
         <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
-          <div className="bg-team-blue text-white rounded-lg shadow-2xl p-12 text-center">
+          <div className={`${isDarkMode ? 'bg-team-blue-40 text-white' : 'bg-team-blue text-black'} rounded-lg shadow-2xl p-12 text-center`}>
             <div className="text-6xl font-bold mb-4">shot {popupNumber}</div>
             <div className="text-4xl mb-4">{madeCount !== null ? `${madeCount} made` : '__ made'}</div>
-            <div className="text-sm opacity-75 mb-2">press enter to confirm</div>
-            <div className="text-sm opacity-75">press esc to exit</div>
+            <div className={`text-sm mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>press enter to confirm</div>
+            <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-black'}`}>press esc to exit</div>
           </div>
         </div>
       )}

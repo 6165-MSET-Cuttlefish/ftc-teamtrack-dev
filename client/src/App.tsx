@@ -6,7 +6,7 @@ import { AuthProvider, ThemeProvider, SessionProvider } from '@/contexts';
 import { ErrorBoundary, Header, ProtectedRoute } from '@/components';
 import { ROUTES } from '@/constants';
 
-const Original = lazy(() => import('./pages/session/Original'));
+const Active = lazy(() => import('./pages/session/Active'));
 const Analysis = lazy(() => import('./pages/session/Analysis'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
@@ -50,10 +50,10 @@ const App = () => (
                         element={<Navigate to={ROUTES.SESSIONS} replace />}
                       />
                       <Route
-                        path={ROUTES.ORIGINAL}
+                        path={ROUTES.ACTIVE}
                         element={
                           <ProtectedRoute>
-                            <Original />
+                            <Active />
                           </ProtectedRoute>
                         }
                       />

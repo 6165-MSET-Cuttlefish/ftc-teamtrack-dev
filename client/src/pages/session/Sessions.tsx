@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
-import { UI_TIMING } from '@/constants';
+import { UI_TIMING, APP_CONFIG } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -353,6 +353,10 @@ const Sessions = () => {
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = `Sessions - ${APP_CONFIG.name}`;
+  }, []);
+
+  useEffect(() => {
     const loadSessions = async () => {
       if (!user?.uid) return;
 
@@ -554,7 +558,7 @@ const Sessions = () => {
               <Button
                 onClick={() => {
                   resetSession();
-                  navigate('/original');
+                  navigate('/active');
                 }}
                 className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
@@ -754,7 +758,7 @@ const Sessions = () => {
             </p>
             {!searchTerm && (
               <Button
-                onClick={() => navigate('/original')}
+                onClick={() => navigate('/active')}
                 className="bg-team-blue hover:bg-team-blue/90"
                 style={{ color: '#191919' }}
               >

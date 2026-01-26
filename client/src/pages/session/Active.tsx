@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   SessionSetup,
   PerformanceMetrics,
@@ -6,8 +7,12 @@ import {
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { APP_CONFIG } from '@/constants';
 
-const OriginalContent = () => {
+const ActiveSessionContent = () => {
+  useEffect(() => {
+    document.title = `Active Session - ${APP_CONFIG.name}`;
+  }, []);
   const { isDarkMode } = useTheme();
   const { sessionData } = useSession();
 
@@ -105,4 +110,4 @@ const OriginalContent = () => {
   );
 };
 
-export default OriginalContent;
+export default ActiveSessionContent;

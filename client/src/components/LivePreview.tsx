@@ -34,6 +34,8 @@ export const LivePreview = () => {
     sessionData,
     completeSession,
     timer,
+    sessionTimer,
+    setSessionTimer,
     isTimerRunning,
     setIsTimerRunning,
     formatTime,
@@ -41,23 +43,20 @@ export const LivePreview = () => {
     resetTimer,
     setExpandedSection,
     updateSessionData,
+    hasStarted,
+    setHasStarted,
+    showTeleOpTransition,
+    setShowTeleOpTransition,
+    hasTransitionedToTeleOp,
+    setHasTransitionedToTeleOp,
   } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
-  const [hasStarted, setHasStarted] = useState<boolean>(false);
-  const [showTeleOpTransition, setShowTeleOpTransition] =
-    useState<boolean>(false);
-  const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] =
-    useState<boolean>(false);
   const [sessionLimitReached, setSessionLimitReached] = useState<boolean>(false);
   const [deleteConfirm, setDeleteConfirm] = useState<boolean>(false);
-
-  // Two timers:
-  // - sessionTimer: Total time since page load (overall session duration)
-  // - timer: Current match timer (from useSession context, resets per match)
-  const [sessionTimer, setSessionTimer] = useState<number>(0);
+  const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork = 
@@ -106,16 +105,7 @@ export const LivePreview = () => {
     checkSessionLimit();
   }, [user?.uid, sessionData.isSessionCompleted]);
 
-  // Session timer effect - always running
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSessionTimer(prev => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Check if timer reaches autonomous duration in Full Game mode
+  // Real-time consistency calculation
   useEffect(() => {
     if (
       sessionData.matchType === 'Full Game' &&
@@ -220,11 +210,11 @@ export const LivePreview = () => {
       }
     }
     
-    // Reset all session state
+    // Reset all session state (including sessionTimer)
     resetSession();
-    setHasStarted(false);
-    setHasTransitionedToTeleOp(false);
-    setSessionTimer(0);  // Reset session timer
+    // Clear any UI state for confirmations
+    setDeleteConfirm(false);
+    setCancelConfirm(false);
     // Stay on the current page to start a new session
   };
 
@@ -528,6 +518,10 @@ export const LivePreview = () => {
                       onClick={() => {
                         setIsTimerRunning(true);
                         setHasStarted(true);
+                        // Start the overall session timer when first match starts
+                        if (sessionTimer === 0 && sessionData.matches.length === 0) {
+                          // Will be picked up by the session timer effect
+                        }
                       }}
                       className="w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 text-white text-base leading-6 font-normal hover:bg-green-700 transition-colors"
                     >
@@ -544,6 +538,46 @@ export const LivePreview = () => {
               >
                 {loading ? 'Saving...' : sessionLimitReached ? 'Session Limit Reached' : 'Complete Session'}
               </button>
+
+              {hasStarted && (
+                !cancelConfirm ? (
+                  <button
+                    onClick={() => {
+                      setCancelConfirm(true);
+                      // Pause the timer when showing cancellation confirmation
+                      setIsTimerRunning(false);
+                    }}
+                    className={`w-full px-2.5 py-2.5 rounded-2xl border border-red-500 bg-transparent text-red-500 text-base leading-6 font-normal transition-colors ${isDarkMode ? 'hover:bg-red-500/10' : 'hover:bg-red-500 hover:text-[#FEFEFE]'}`}
+                  >
+                    Cancel Session
+                  </button>
+                ) : (
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => {
+                        handleNewSession();
+                        setCancelConfirm(false);
+                        toast.success('Session cancelled');
+                      }}
+                      className="p-2 rounded bg-green-500 hover:bg-green-600 text-white transition-all"
+                      title="Confirm cancel"
+                    >
+                      <Check className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCancelConfirm(false);
+                        // Resume timer if they decide to keep the session
+                        setIsTimerRunning(true);
+                      }}
+                      className="p-2 rounded bg-red-500 hover:bg-red-600 text-white transition-all"
+                      title="Keep session"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                )
+              )}
             </>
           )}
 

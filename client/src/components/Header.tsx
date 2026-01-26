@@ -87,8 +87,9 @@ const NavigationMenu = () => {
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
   const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
 
-  // Check if there's an active session
-  const hasActiveSession = sessionData && !sessionData.isSessionCompleted;
+  // Check if there's an active session (only when a match has actually started)
+  const { hasStarted } = useSession();
+  const hasActiveSession = hasStarted && sessionData && !sessionData.isSessionCompleted;
 
   // Check if this is the user's first time and show tutorials
   useEffect(() => {
@@ -111,6 +112,10 @@ const NavigationMenu = () => {
 
   const handleLogout = async () => {
     try {
+      // Clear session data from storage before logging out
+      const { clearSessionFromStorage } = await import('@/lib/sessionStorage');
+      clearSessionFromStorage();
+      
       await logout();
       navigate('/login');
       toast.success('Logged out successfully');
@@ -147,7 +152,7 @@ const NavigationMenu = () => {
       {/* Active Session Button */}
       {hasActiveSession && (
         <button
-          onClick={() => navigate('/original')}
+          onClick={() => navigate('/active')}
           aria-label="Active practice session"
           className={`relative px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${isDarkMode ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' : 'bg-green-500/10 hover:bg-green-500/20 text-green-600'}`}
         >
@@ -193,7 +198,7 @@ const NavigationMenu = () => {
       {/* New Session button */}
       {user && (
         <button
-          onClick={() => navigate('/original')}
+          onClick={() => navigate('/active')}
           aria-label="New session"
           className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
         >
@@ -447,7 +452,7 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-4 sm:px-8 py-4 border-b relative ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      className={`w-full px-4 sm:px-8 py-4 border-b relative z-20 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1216px] mx-auto px-6 grid grid-cols-[auto_1fr_auto] items-center">
         <div className="flex items-center justify-start gap-3">

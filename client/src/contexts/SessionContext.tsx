@@ -8,6 +8,17 @@ import {
 } from 'react';
 import { useAuth } from './AuthContext';
 import { formatTime as formatTimeUtil } from '@/lib/utils';
+import { 
+  saveSessionToStorage, 
+  loadSessionFromStorage, 
+  loadTimerStateFromStorage, 
+  clearSessionFromStorage,
+  hasActiveSession,
+  saveMatchStateToStorage,
+  type SessionFormData as StorageSessionFormData,
+  type SessionTimerState,
+  type MatchState,
+} from '@/lib/sessionStorage';
 import type { Match, ScoringFields } from '@/types';
 
 interface SessionFormData extends ScoringFields {
@@ -27,12 +38,21 @@ interface SessionContextType {
   completeSession: (timerValue: string) => void;
   resetSession: () => void;
   timer: number;
+  sessionTimer: number;
+  setSessionTimer: (timer: number) => void;
   isTimerRunning: boolean;
   setIsTimerRunning: (running: boolean) => void;
   resetTimer: () => void;
   formatTime: (seconds: number) => string;
   expandedSection: string | null;
   setExpandedSection: (section: string | null) => void;
+  hasActiveSession: boolean;
+  hasStarted: boolean;
+  setHasStarted: (started: boolean) => void;
+  hasTransitionedToTeleOp: boolean;
+  setHasTransitionedToTeleOp: (transitioned: boolean) => void;
+  showTeleOpTransition: boolean;
+  setShowTeleOpTransition: (show: boolean) => void;
 }
 
 const createInitialSessionData = (displayName?: string | null): SessionFormData => ({
@@ -65,28 +85,125 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
 
-  const [sessionData, setSessionData] = useState<SessionFormData>(() =>
-    createInitialSessionData(user?.displayName)
+  // Try to load from storage first, otherwise create new
+  // Only load session if it's fresh or from the same user session
+  const [sessionData, setSessionData] = useState<SessionFormData>(() => {
+    const stored = loadSessionFromStorage();
+    // Load stored session only if it's not a completed session from a previous session
+    // or if the user has just logged in fresh
+    if (stored && !stored.isSessionCompleted) {
+      return stored;
+    }
+    return createInitialSessionData(user?.displayName);
+  });
+
+  // Load timer state from storage - but only if we actually loaded session data
+  const storedTimerState = (() => {
+    const stored = loadSessionFromStorage();
+    // Only use timer state if session wasn't completed
+    if (stored && !stored.isSessionCompleted) {
+      return loadTimerStateFromStorage();
+    }
+    return null;
+  })();
+
+  // Match timer (per-match timer)
+  const [timer, setTimer] = useState<number>(() => storedTimerState?.matchTimer ?? 0);
+
+  // Session timer (overall session time)
+  const [sessionTimer, setSessionTimer] = useState<number>(() => storedTimerState?.sessionTimer ?? 0);
+
+  const [isTimerRunning, setIsTimerRunning] = useState(
+    storedTimerState?.isTimerRunning ?? false
   );
-  const [timer, setTimer] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
+
   const [expandedSection, setExpandedSection] = useState<string | null>('Autonomous Score');
 
-  // Timer effect - only runs while timer is active and session is not completed
+  // Match state flags for UI
+  const [hasStarted, setHasStarted] = useState(
+    storedTimerState?.hasStarted ?? false
+  );
+
+  const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] = useState(
+    storedTimerState?.hasTransitionedToTeleOp ?? false
+  );
+
+  const [showTeleOpTransition, setShowTeleOpTransition] = useState(
+    storedTimerState?.showTeleOpTransition ?? false
+  );
+
+  const [hasActiveSessionLocal, setHasActiveSessionLocal] = useState(() =>
+    hasActiveSession()
+  );
+
+  // Match timer effect - runs for the current match
   useEffect(() => {
     if (!isTimerRunning || sessionData.isSessionCompleted) {
-      return; // Early return, no interval created
+      return;
     }
 
     const interval = setInterval(() => {
       setTimer(prev => prev + 1);
     }, 1000);
 
-    // Always clean up the interval when effect re-runs or component unmounts
     return () => {
       clearInterval(interval);
     };
   }, [isTimerRunning, sessionData.isSessionCompleted]);
+
+  // Session timer effect - runs for the entire session
+  useEffect(() => {
+    // Only run if we have an active session (not completed)
+    if (sessionData.isSessionCompleted) {
+      return;
+    }
+
+    // Start the session timer when a match begins
+    if (!hasStarted) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setSessionTimer(prev => prev + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [hasStarted, sessionData.isSessionCompleted]);
+
+  // Persist session data and timer state to localStorage whenever they change
+  useEffect(() => {
+    if (sessionData.isSessionCompleted) {
+      // Don't persist completed sessions
+      return;
+    }
+
+    // Save if there's session data OR if timers are active
+    const hasSessionData = sessionData.sessionName || sessionData.driverName || sessionData.matches.length > 0;
+    const hasActiveTimers = isTimerRunning || hasStarted || sessionTimer > 0 || timer > 0;
+    
+    if (!hasSessionData && !hasActiveTimers) {
+      // Nothing to persist - ensure storage is clear
+      clearSessionFromStorage();
+      return;
+    }
+
+    const timerState: SessionTimerState = {
+      sessionTimer,
+      matchTimer: timer,
+      isTimerRunning,
+      hasStarted,
+      hasTransitionedToTeleOp,
+      showTeleOpTransition,
+      isSessionStarted: false,
+      sessionStartTime: 0,
+      matchStartTime: 0,
+    };
+
+    saveSessionToStorage(sessionData as StorageSessionFormData, timerState);
+    setHasActiveSessionLocal(true);
+  }, [sessionData, timer, sessionTimer, isTimerRunning, hasStarted, hasTransitionedToTeleOp, showTeleOpTransition]);
 
   const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {
     setSessionData(prev => ({ ...prev, ...updates }));
@@ -99,15 +216,27 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       isSessionCompleted: true,
     }));
     setIsTimerRunning(false);
+    // Clear from storage when session is completed
+    clearSessionFromStorage();
+    setHasActiveSessionLocal(false);
   }, []);
 
-  const resetTimer = useCallback(() => setTimer(0), []);
+  const resetTimer = useCallback(() => {
+    setTimer(0);
+  }, []);
 
   const resetSession = useCallback(() => {
     const newSessionData = createInitialSessionData(user?.displayName);
     setSessionData(newSessionData);
     setTimer(0);
+    setSessionTimer(0);
     setIsTimerRunning(false);
+    setHasStarted(false);
+    setHasTransitionedToTeleOp(false);
+    setShowTeleOpTransition(false);
+    // Clear from storage immediately to prevent race conditions with persistence effect
+    clearSessionFromStorage();
+    setHasActiveSessionLocal(false);
   }, [user?.displayName]);
 
   const value: SessionContextType = {
@@ -116,12 +245,21 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     completeSession,
     resetSession,
     timer,
+    sessionTimer,
+    setSessionTimer,
     isTimerRunning,
     setIsTimerRunning,
     resetTimer,
     formatTime: formatTimeUtil,
     expandedSection,
     setExpandedSection,
+    hasActiveSession: hasActiveSessionLocal,
+    hasStarted,
+    setHasStarted,
+    hasTransitionedToTeleOp,
+    setHasTransitionedToTeleOp,
+    showTeleOpTransition,
+    setShowTeleOpTransition,
   };
 
   return (

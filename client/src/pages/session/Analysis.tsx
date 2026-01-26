@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
+import { APP_CONFIG } from '@/constants';
 import type { Match } from '@/types';
 import {
   ChevronRight,
@@ -931,6 +932,10 @@ const AnalysisContent = () => {
   const [localSessionData, setLocalSessionData] = useState(contextSessionData);
   const sessionData = localSessionData;
   
+  useEffect(() => {
+    document.title = `Analysis - ${APP_CONFIG.name}`;
+  }, []);
+  
   const [_graphModal, _setGraphModal] = useState<{
     isOpen: boolean;
     metric: string;
@@ -1307,7 +1312,7 @@ const AnalysisContent = () => {
                   <MatchComparisonView matches={sessionMatches} isDarkMode={isDarkMode} />
                 )}
 
-                {/* Original Matches List (Overview) */}
+                {/* Matches List (Overview) */}
                 {viewMode === 'overview' && (
                   <>
                     <h2 className="text-team-blue text-2xl font-semibold">

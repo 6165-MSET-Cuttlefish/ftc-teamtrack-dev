@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
-import { ROUTES } from '@/constants';
+import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, ChartDataPoint } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +44,10 @@ const Charts = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90' | 'all'>('30');
+
+  useEffect(() => {
+    document.title = `Charts - ${APP_CONFIG.name}`;
+  }, []);
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -360,7 +364,7 @@ const Charts = () => {
                   Record some sessions to see your performance charts
                 </p>
                 <Button
-                  onClick={() => navigate(ROUTES.ORIGINAL)}
+                  onClick={() => navigate(ROUTES.ACTIVE)}
                   className="bg-team-blue hover:bg-team-blue/90 text-white"
                 >
                   Start New Session

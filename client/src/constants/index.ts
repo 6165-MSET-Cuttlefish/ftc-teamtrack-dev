@@ -12,7 +12,7 @@ export const ROUTES = {
   SIGNUP: '/signup',
   FORGOT_PASSWORD: '/forgot-password',
   SESSIONS: '/sessions',
-  ORIGINAL: '/original',
+  ACTIVE: '/active',
   ANALYSIS: '/analysis',
   COMPARE: '/compare',
   CHARTS: '/charts',
