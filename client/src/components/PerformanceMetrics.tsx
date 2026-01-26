@@ -174,7 +174,8 @@ export const PerformanceMetrics = () => {
   const [teleOverflowArtifact, setTeleOverflowArtifact] = useState(0);
   const [teleMotif, setTeleMotif] = useState(0);
 
-  const [endgameHang, setEndgameHang] = useState(0);
+  const [robot1Park, setRobot1Park] = useState<'none' | 'partial' | 'full'>('none');
+  const [robot2Park, setRobot2Park] = useState<'none' | 'partial' | 'full'>('none');
 
   // Memoize the score update function to prevent infinite loops
   const updateScores = useCallback(() => {
@@ -187,13 +188,25 @@ export const PerformanceMetrics = () => {
     const teleOpScore =
       teleClassifiedArtifact * 3 + teleOverflowArtifact * 1 + teleMotif * 2;
 
-    const finalScore = autonomousScore + teleOpScore + endgameHang;
+    // Calculate endgame score based on parking
+    let endGameScore = 0;
+    const robot1Score = robot1Park === 'partial' ? 5 : robot1Park === 'full' ? 10 : 0;
+    const robot2Score = robot2Park === 'partial' ? 5 : robot2Park === 'full' ? 10 : 0;
+    
+    // Special case: two full parks = 30 points total
+    if (robot1Park === 'full' && robot2Park === 'full') {
+      endGameScore = 30;
+    } else {
+      endGameScore = robot1Score + robot2Score;
+    }
+
+    const finalScore = autonomousScore + teleOpScore + endGameScore;
 
     isUpdatingRef.current = true;
     updateSessionData({
       autonomousScore,
       teleOpScore,
-      endGameScore: endgameHang,
+      endGameScore,
       finalScore,
       autonClassifiedArtifact,
       autonOverflowArtifact,
@@ -202,7 +215,8 @@ export const PerformanceMetrics = () => {
       teleClassifiedArtifact,
       teleOverflowArtifact,
       teleMotif,
-      endgameHang,
+      robot1Park,
+      robot2Park,
     });
     // Reset the flag after a short delay to allow the context update to complete
     setTimeout(() => {
@@ -216,7 +230,8 @@ export const PerformanceMetrics = () => {
     teleClassifiedArtifact,
     teleOverflowArtifact,
     teleMotif,
-    endgameHang,
+    robot1Park,
+    robot2Park,
     updateSessionData,
   ]);
 
@@ -239,7 +254,8 @@ export const PerformanceMetrics = () => {
     setTeleClassifiedArtifact(sessionData.teleClassifiedArtifact || 0);
     setTeleOverflowArtifact(sessionData.teleOverflowArtifact || 0);
     setTeleMotif(sessionData.teleMotif || 0);
-    setEndgameHang(sessionData.endgameHang || 0);
+    setRobot1Park(sessionData.robot1Park || 'none');
+    setRobot2Park(sessionData.robot2Park || 'none');
   }, [
     sessionData.autonClassifiedArtifact,
     sessionData.autonOverflowArtifact,
@@ -248,7 +264,8 @@ export const PerformanceMetrics = () => {
     sessionData.teleClassifiedArtifact,
     sessionData.teleOverflowArtifact,
     sessionData.teleMotif,
-    sessionData.endgameHang,
+    sessionData.robot1Park,
+    sessionData.robot2Park,
   ]);
 
   // Popup state for keyboard shortcuts
@@ -385,7 +402,8 @@ export const PerformanceMetrics = () => {
     teleClassifiedArtifact,
     teleOverflowArtifact,
     teleMotif,
-    endgameHang,
+    robot1Park,
+    robot2Park,
     updateScores,
   ]);
 
@@ -608,12 +626,126 @@ export const PerformanceMetrics = () => {
         );
       case 'End Game Score':
         return (
-          <div className="space-y-8">
-            <InlineBreakdownField
-              label="Base Score"
-              value={endgameHang}
-              onChange={setEndgameHang}
-            />
+          <div className="space-y-6">
+            {/* Robot 1 Parking */}
+            <div className="flex flex-col gap-2">
+              <label className={`text-base leading-6 font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                Robot 1:
+              </label>
+              <div className="flex gap-0 rounded-lg overflow-hidden border border-team-blue-40">
+                <button
+                  onClick={(e) => {
+                    e.currentTarget.blur();
+                    setRobot1Park('none');
+                  }}
+                  className={`flex-1 py-3 text-base font-medium transition-colors ${
+                    robot1Park === 'none'
+                      ? isDarkMode
+                        ? 'bg-team-blue text-black'
+                        : 'bg-team-blue text-white'
+                      : isDarkMode
+                      ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                      : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                  }`}
+                >
+                  None
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.currentTarget.blur();
+                    setRobot1Park('partial');
+                  }}
+                  className={`flex-1 py-3 text-base font-medium transition-colors border-l border-r border-team-blue-40 ${
+                    robot1Park === 'partial'
+                      ? isDarkMode
+                        ? 'bg-team-blue text-black'
+                        : 'bg-team-blue text-white'
+                      : isDarkMode
+                      ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                      : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                  }`}
+                >
+                  PARTIAL
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.currentTarget.blur();
+                    setRobot1Park('full');
+                  }}
+                  className={`flex-1 py-3 text-base font-medium transition-colors ${
+                    robot1Park === 'full'
+                      ? isDarkMode
+                        ? 'bg-team-blue text-black'
+                        : 'bg-team-blue text-white'
+                      : isDarkMode
+                      ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                      : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                  }`}
+                >
+                  FULL
+                </button>
+              </div>
+            </div>
+
+            {/* Robot 2 Parking */}
+            <div className="flex flex-col gap-2">
+              <label className={`text-base leading-6 font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                Robot 2:
+              </label>
+              <div className="flex gap-0 rounded-lg overflow-hidden border border-team-blue-40">
+                <button
+                  onClick={(e) => {
+                    e.currentTarget.blur();
+                    setRobot2Park('none');
+                  }}
+                  className={`flex-1 py-3 text-base font-medium transition-colors ${
+                    robot2Park === 'none'
+                      ? isDarkMode
+                        ? 'bg-team-blue text-black'
+                        : 'bg-team-blue text-white'
+                      : isDarkMode
+                      ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                      : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                  }`}
+                >
+                  None
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.currentTarget.blur();
+                    setRobot2Park('partial');
+                  }}
+                  className={`flex-1 py-3 text-base font-medium transition-colors border-l border-r border-team-blue-40 ${
+                    robot2Park === 'partial'
+                      ? isDarkMode
+                        ? 'bg-team-blue text-black'
+                        : 'bg-team-blue text-white'
+                      : isDarkMode
+                      ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                      : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                  }`}
+                >
+                  PARTIAL
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.currentTarget.blur();
+                    setRobot2Park('full');
+                  }}
+                  className={`flex-1 py-3 text-base font-medium transition-colors ${
+                    robot2Park === 'full'
+                      ? isDarkMode
+                        ? 'bg-team-blue text-black'
+                        : 'bg-team-blue text-white'
+                      : isDarkMode
+                      ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                      : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                  }`}
+                >
+                  FULL
+                </button>
+              </div>
+            </div>
           </div>
         );
       default:

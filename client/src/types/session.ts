@@ -27,7 +27,10 @@ export interface ScoringFields {
   teleOverflowArtifact: number;
   /** Motif (2 pts each) */
   teleMotif: number;
-  endgameHang: number;
+  /** Robot 1 parking status */
+  robot1Park: 'none' | 'partial' | 'full';
+  /** Robot 2 parking status */
+  robot2Park: 'none' | 'partial' | 'full';
   cycleTimes: number[];
 }
 
@@ -48,7 +51,8 @@ export interface Match {
   teleClassifiedArtifact?: number;
   teleOverflowArtifact?: number;
   teleMotif?: number;
-  endgameHang?: number;
+  robot1Park?: 'none' | 'partial' | 'full';
+  robot2Park?: 'none' | 'partial' | 'full';
   cycleTimes?: number[];
 }
 
