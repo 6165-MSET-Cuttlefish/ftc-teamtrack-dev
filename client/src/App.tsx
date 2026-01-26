@@ -43,7 +43,6 @@ const App = () => (
                         path={ROUTES.FORGOT_PASSWORD}
                         element={<ForgotPassword />}
                       />
-                      <Route path={ROUTES.ABOUT} element={<About />} />
 
                       {/* Protected Routes */}
                       <Route
