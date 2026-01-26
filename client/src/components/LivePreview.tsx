@@ -3,6 +3,7 @@ import { useNavigate, useBlocker } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { useFirebase } from '@/hooks';
 import { GAME_TIMING } from '@/constants';
+import { Trash2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Match } from '@/types';
 
@@ -52,6 +53,7 @@ export const LivePreview = () => {
   const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] =
     useState<boolean>(false);
   const [sessionLimitReached, setSessionLimitReached] = useState<boolean>(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<boolean>(false);
 
   // Two timers:
   // - sessionTimer: Total time since page load (overall session duration)
@@ -419,9 +421,45 @@ export const LivePreview = () => {
       <div className="flex flex-col items-center gap-6 lg:gap-8 w-full">
         {/* Current Match Box */}
         <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-white'} space-y-6`}>
-          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
-            Current Match: Match {(sessionData.matches?.length || 0) + 1}
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+              Current Match: Match {(sessionData.matches?.length || 0) + 1}
+            </h3>
+            {!deleteConfirm ? (
+              <button
+                onClick={() => setDeleteConfirm(true)}
+                className={`p-2 rounded transition-all ${
+                  isDarkMode
+                    ? 'text-team-white-60 hover:bg-team-dark hover:text-red-400'
+                    : 'text-team-blue-40 hover:bg-gray-100 hover:text-red-500'
+                }`}
+                title="Delete current match"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    resetSession();
+                    setDeleteConfirm(false);
+                    toast.success('Current match deleted');
+                  }}
+                  className="p-2 rounded bg-green-500 hover:bg-green-600 text-white transition-all"
+                  title="Confirm delete"
+                >
+                  <Check className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  className="p-2 rounded bg-red-500 hover:bg-red-600 text-white transition-all"
+                  title="Cancel delete"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
           
           <div className="text-center">
             <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
