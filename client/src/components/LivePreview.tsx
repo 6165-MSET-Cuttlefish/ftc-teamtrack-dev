@@ -269,7 +269,8 @@ export const LivePreview = () => {
       teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
       teleOverflowArtifact: sessionData.teleOverflowArtifact,
       teleMotif: sessionData.teleMotif,
-      endgameHang: sessionData.endgameHang,
+      robot1Park: sessionData.robot1Park,
+      robot2Park: sessionData.robot2Park,
       cycleTimes: [...(sessionData.cycleTimes || [])],
       createdAt: new Date().toISOString(),
     };
@@ -290,7 +291,8 @@ export const LivePreview = () => {
       teleClassifiedArtifact: 0,
       teleOverflowArtifact: 0,
       teleMotif: 0,
-      endgameHang: 0,
+      robot1Park: 'none',
+      robot2Park: 'none',
       cycleTimes: [],
     });
     
