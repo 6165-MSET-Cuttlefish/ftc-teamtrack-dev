@@ -157,7 +157,7 @@ const MetricField = ({
 };
 
 export const PerformanceMetrics = () => {
-  const { sessionData, updateSessionData, expandedSection, setExpandedSection } = useSession();
+  const { sessionData, updateSessionData, expandedSection, setExpandedSection, isTimerRunning } = useSession();
   const { isDarkMode } = useTheme();
 
   // Use a ref to track if we're currently updating scores to prevent circular updates
@@ -647,7 +647,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.finalScore ?? 0}
                 onChange={(value) => updateSessionData({ finalScore: value })}
                 hasDropdown={false}
-                editable={false}
+                editable={!isTimerRunning}
                 showArrows={false}
               />
               {sessionData.matchType !== 'TeleOp' && (
@@ -656,7 +656,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.autonomousScore ?? 0}
                   onChange={(value) => updateSessionData({ autonomousScore: value })}
                   onDropdownClick={() => toggleSection('Autonomous Score')}
-                  editable={false}
+                  editable={!isTimerRunning}
                   showArrows={false}
                   isSelected={expandedSection === 'Autonomous Score'}
                 />
@@ -667,7 +667,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.teleOpScore ?? 0}
                   onChange={(value) => updateSessionData({ teleOpScore: value })}
                   onDropdownClick={() => toggleSection('TeleOp Score')}
-                  editable={false}
+                  editable={!isTimerRunning}
                   showArrows={false}
                   isSelected={expandedSection === 'TeleOp Score'}
                 />
@@ -677,7 +677,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.endGameScore ?? 0}
                 onChange={(value) => updateSessionData({ endGameScore: value })}
                 onDropdownClick={() => toggleSection('End Game Score')}
-                editable={false}
+                editable={!isTimerRunning}
                 showArrows={false}
                 isSelected={expandedSection === 'End Game Score'}
               />

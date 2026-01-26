@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { GAME_TIMING } from '@/constants';
 import type { Match } from '@/types';
 import {
   ChevronRight,
@@ -24,8 +23,6 @@ interface MatchStats {
   avgScore: number;
   maxScore: number;
   minScore: number;
-  consistency: number;
-  accuracy: number;
   avgAuto: number;
   avgTele: number;
   avgEndgame: number;
@@ -89,36 +86,16 @@ const CustomTooltip = ({
   return null;
 };
 
-const DataCard = ({ value, label }: { value: string; label: string }) => {
-  const { isDarkMode } = useTheme();
-  return (
-    <div
-      className={`flex flex-col items-center gap-4 px-9 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
-    >
-      <div className="text-team-blue text-3xl font-medium leading-6">
-        {value}
-      </div>
-      <div
-        className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-base leading-6`}
-      >
-        {label}
-      </div>
-    </div>
-  );
-};
-
 const SensorOverviewCard = ({
   sessionName,
   driverName,
   matchType,
   sessionDuration,
-  totalTime,
 }: {
   sessionName: string;
   driverName: string;
   matchType: string;
   sessionDuration: string;
-  totalTime: string;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -134,51 +111,45 @@ const SensorOverviewCard = ({
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-2.5">
             <div
-              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-sm leading-6`}
             >
               Session Name
             </div>
             <div
-              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-sm leading-6`}
             >
               Driver
             </div>
-            <div
-              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
-            >
-              Match Type
-            </div>
           </div>
           <div className="flex flex-col gap-2.5">
-            <div className="text-team-blue text-xs leading-6">
+            <div className="text-team-blue text-sm leading-6">
               {sessionName || 'N/A'}
             </div>
-            <div className="text-team-blue text-xs leading-6">
+            <div className="text-team-blue text-sm leading-6">
               {driverName || 'N/A'}
-            </div>
-            <div className="text-team-blue text-xs leading-6">
-              {matchType || 'N/A'}
             </div>
           </div>
         </div>
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-2.5">
             <div
-              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-sm leading-6`}
+            >
+              Match Type
+            </div>
+            <div
+              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-sm leading-6`}
             >
               Duration
             </div>
-            <div
-              className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} text-xs leading-6`}
-            >
-              Total Finished Time
-            </div>
           </div>
           <div className="flex flex-col gap-2.5">
-            <div className="text-team-blue text-xs leading-6">
+            <div className="text-team-blue text-sm leading-6">
+              {matchType || 'N/A'}
+            </div>
+            <div className="text-team-blue text-sm leading-6">
               {sessionDuration || 'N/A'}
             </div>
-            <div className="text-team-blue text-xs leading-6">{totalTime}</div>
           </div>
         </div>
       </div>
@@ -289,10 +260,15 @@ const MatchAnalysis = ({
   const avgTele = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / otherMatches.length : 0;
   const avgEndgame = otherMatches.length > 0 ? otherMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / otherMatches.length : 0;
 
+  // Calculate all-time average (including this match)
+  const allTimeAvgAuto = allMatches.length > 0 ? Math.round(allMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / allMatches.length) : 0;
+  const allTimeAvgTele = allMatches.length > 0 ? Math.round(allMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / allMatches.length) : 0;
+  const allTimeAvgEndgame = allMatches.length > 0 ? Math.round(allMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / allMatches.length) : 0;
+
   const comparisonData = [
-    { name: 'Autonomous', 'This Match': match.autonomousScore || 0, 'Session Avg': Math.round(avgAuto) },
-    { name: 'TeleOp', 'This Match': match.teleOpScore || 0, 'Session Avg': Math.round(avgTele) },
-    { name: 'End Game', 'This Match': match.endGameScore || 0, 'Session Avg': Math.round(avgEndgame) },
+    { name: 'Autonomous', 'This Match': match.autonomousScore || 0, 'Session Avg': Math.round(avgAuto), 'All Time Avg': allTimeAvgAuto },
+    { name: 'TeleOp', 'This Match': match.teleOpScore || 0, 'Session Avg': Math.round(avgTele), 'All Time Avg': allTimeAvgTele },
+    { name: 'End Game', 'This Match': match.endGameScore || 0, 'Session Avg': Math.round(avgEndgame), 'All Time Avg': allTimeAvgEndgame },
   ];
 
   return (
@@ -319,6 +295,7 @@ const MatchAnalysis = ({
               <Legend wrapperStyle={{ fontSize: '14px' }} />
               <Bar dataKey="This Match" fill={COLORS.primary} radius={[8, 8, 0, 0]} />
               <Bar dataKey="Session Avg" fill={COLORS.secondary} radius={[8, 8, 0, 0]} />
+              <Bar dataKey="All Time Avg" fill="#10b981" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -974,10 +951,6 @@ const AnalysisContent = () => {
     }
   }, [sessionData?.matches]);
 
-  // Calculated metrics
-  const [consistency, setConsistency] = useState<number>(0);
-  const [accuracy, setAccuracy] = useState<number>(0);
-
   // Helper functions for match analysis
   const calculateMatchStats = useCallback((): MatchStats | null => {
     if (sessionMatches.length === 0) return null;
@@ -987,14 +960,6 @@ const AnalysisContent = () => {
     const maxScore = Math.max(...scores);
     const minScore = Math.min(...scores);
 
-    // Consistency calculation (inverse of coefficient of variation)
-    const variance = scores.reduce((sum, score) => sum + Math.pow(score - avgScore, 2), 0) / scores.length;
-    const stdDev = Math.sqrt(variance);
-    const consistencyPercent = avgScore > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / avgScore) * 100)) : 0;
-
-    // Accuracy calculation (percentage of theoretical max)
-    const accuracyPercent = (avgScore / GAME_TIMING.MAX_THEORETICAL_SCORE) * 100;
-
     const avgAuto = sessionMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / sessionMatches.length;
     const avgTele = sessionMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / sessionMatches.length;
     const avgEndgame = sessionMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / sessionMatches.length;
@@ -1003,8 +968,6 @@ const AnalysisContent = () => {
       avgScore: Math.round(avgScore),
       maxScore,
       minScore,
-      consistency: Math.round(consistencyPercent),
-      accuracy: Math.round(Math.min(100, accuracyPercent)),
       avgAuto: Math.round(avgAuto),
       avgTele: Math.round(avgTele),
       avgEndgame: Math.round(avgEndgame),
@@ -1105,14 +1068,6 @@ const AnalysisContent = () => {
       }
     };
   }, [searchParams, location.state, user?.uid]);
-  // Initialize consistency and accuracy metrics
-  useEffect(() => {
-    const stats = calculateMatchStats();
-    if (stats) {
-      setConsistency(stats.consistency);
-      setAccuracy(stats.accuracy);
-    }
-  }, [sessionMatches, calculateMatchStats]);
 
   // Show loading state
   if (loading) {
@@ -1143,15 +1098,7 @@ const AnalysisContent = () => {
             </p>
           </div>
 
-          {/* Data Cards */}
-          <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 justify-center">
-            <DataCard
-              value={(sessionData.finalScore ?? 0).toString()}
-              label="Final Score"
-            />
-            <DataCard value={`${consistency}%`} label="Consistency" />
-            <DataCard value={`${accuracy}%`} label="Accuracy" />
-          </div>
+          {/* Data Cards - Removed Final Score, Consistency, and Accuracy */}
 
           {/* Sensor Overview */}
           <SensorOverviewCard
@@ -1159,7 +1106,6 @@ const AnalysisContent = () => {
             driverName={sessionData.driverName}
             matchType={sessionData.matchType}
             sessionDuration={sessionData.sessionDuration}
-            totalTime={sessionData.sessionDuration}
           />
 
           {/* Notes Section */}
@@ -1186,7 +1132,15 @@ const AnalysisContent = () => {
                 <h2 className="text-team-blue text-2xl font-semibold">Session Analysis</h2>
                 
                 {/* Average Scores Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {/* Average Final Score */}
+                  <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average Final</p>
+                    <p className="text-3xl font-bold text-team-blue mt-2">
+                      {Math.round(sessionMatches.reduce((sum, m) => sum + (m.finalScore || 0), 0) / sessionMatches.length)}
+                    </p>
+                  </div>
+
                   {/* Average Autonomous Score */}
                   <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
                     <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average Auto</p>
@@ -1213,7 +1167,7 @@ const AnalysisContent = () => {
 
                   {/* Consistency Score */}
                   <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
-                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Consistency</p>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Score Consistency</p>
                     <p className="text-3xl font-bold text-team-blue mt-2">
                       {(() => {
                         const scores = sessionMatches.map(m => m.finalScore || 0);
