@@ -22,17 +22,16 @@ const TeamTrackLogo = () => {
     <Link
       to="/sessions"
       aria-label="TeamTrack home"
-      className="flex items-center gap-6 focus:outline-none transition-all duration-200 origin-left"
-      style={{ transform: 'scale(1.3)' }}
+      className="flex items-center gap-2 sm:gap-4 focus:outline-none transition-all duration-200 origin-left"
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2.5">
         <svg
-          width="8on "
+          width="8"
           height="20"
           viewBox="0 0 8 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="w-2 h-5"
+          className="w-1.5 h-4 sm:w-2 sm:h-5"
           role="img"
           aria-label="TeamTrack logo icon"
         >
@@ -70,7 +69,7 @@ const TeamTrackLogo = () => {
           />
         </svg>
         <span
-          className={`font-montserrat italic text-xs leading-6 relative -top-.5 ${isDarkMode ? 'text-white' : 'text-black'}`}
+          className={`font-montserrat italic text-[0.625rem] sm:text-xs leading-6 relative -top-.5 hidden sm:inline ${isDarkMode ? 'text-white' : 'text-black'}`}
         >
           TeamTrack
         </span>
@@ -145,7 +144,7 @@ const NavigationMenu = () => {
 
   return (
     <div
-      className={`flex items-center gap-3 px-3 py-2 ${
+      className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 ${
         isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''
       }`}
     >
@@ -168,30 +167,30 @@ const NavigationMenu = () => {
       <button
         onClick={() => setShowKeybindTutorial(true)}
         aria-label="Keybinds tutorial"
-        className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
       >
-        <Keyboard className="w-5 h-5" />
+        <Keyboard className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
       {/* Session Features Tutorial button */}
       <button
         onClick={() => setShowFeaturesTutorial(true)}
         aria-label="Session features tutorial"
-        className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
       >
-        <HelpCircle className="w-5 h-5" />
+        <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
       {/* Theme toggle button */}
       <button
         onClick={toggleTheme}
         aria-label="Toggle theme"
-        className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
+        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
       >
         {isDarkMode ? (
-          <Sun className="w-5 h-5 text-yellow-400" />
+          <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
         ) : (
-          <Moon className="w-5 h-5 text-gray-600" />
+          <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
         )}
       </button>
 
@@ -200,39 +199,39 @@ const NavigationMenu = () => {
         <button
           onClick={() => navigate('/active')}
           aria-label="New session"
-          className={`p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+          className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
       )}
 
       {/* Keybind Tutorial Modal */}
       {showKeybindTutorial && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4"
           onClick={handleCloseKeybindTutorial}
         >
           <div
-            className={`relative w-full max-w-lg mx-4 p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
+            className={`relative w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-2xl font-bold mb-4">Keyboard Shortcuts</h2>
-            <div className="space-y-4">
+            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Keyboard Shortcuts</h2>
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <h3 className="text-lg font-semibold mb-2">Scoring Shortcuts</h3>
-                <p className={`text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <h3 className="text-base sm:text-lg font-semibold mb-2">Scoring Shortcuts</h3>
+                <p className={`text-xs sm:text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   Use these shortcuts when in the Autonomous or TeleOp section:
                 </p>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span>Select shot type:</span>
-                    <div className="flex gap-2">
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>1</kbd>
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>2</kbd>
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>3</kbd>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-sm sm:text-base">Select shot type:</span>
+                    <div className="flex gap-1 sm:gap-2">
+                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>1</kbd>
+                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>2</kbd>
+                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>3</kbd>
                     </div>
                   </div>
-                  <p className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className={`text-xs sm:text-xs ml-0 sm:ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Press 1, 2, or 3 to select the shot type
                   </p>
                   
@@ -284,11 +283,11 @@ const NavigationMenu = () => {
       {/* Session Features Tutorial Modal */}
       {showFeaturesTutorial && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={handleCloseFeaturesTutorial}
         >
           <div
-            className={`relative w-full max-w-2xl mx-4 p-6 rounded-lg shadow-lg max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
+            className={`relative w-full max-w-2xl p-4 sm:p-6 rounded-lg shadow-lg max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold mb-4">Session Scoring Features</h2>
@@ -452,16 +451,16 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-4 sm:px-8 py-4 border-b relative z-20 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      className={`w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b relative z-20 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1216px] mx-auto px-6 grid grid-cols-[auto_1fr_auto] items-center">
-        <div className="flex items-center justify-start gap-3">
+      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4 md:gap-6">
+        <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
           <TeamTrackLogo/>
         </div>
 
         <div className="flex items-center justify-center"></div>
 
-        <div className="flex items-center justify-end gap-6">
+        <div className="flex items-center justify-end gap-1 sm:gap-2 md:gap-4 lg:gap-6 flex-shrink-0">
           <NavigationMenu />
         </div>
       </div>

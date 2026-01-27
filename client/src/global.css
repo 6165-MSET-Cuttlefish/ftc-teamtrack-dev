@@ -132,6 +132,11 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    
+    /* Mobile touch optimizations */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   html {
@@ -154,6 +159,14 @@
   /* Improved button transitions */
   button {
     transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Allow text selection only on interactive elements */
+  p, span, a, div {
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   /* Custom scrollbar */
@@ -183,6 +196,38 @@
 }
 
 @layer utilities {
+  /* Mobile optimizations */
+  @media (max-width: 640px) {
+    /* Increase touch target size for mobile */
+    button, a {
+      min-height: 44px;
+      min-width: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    input, textarea, select {
+      font-size: 16px;
+      min-height: 44px;
+    }
+
+    /* Prevent zoom on input focus */
+    input:focus,
+    textarea:focus,
+    select:focus {
+      font-size: 16px;
+    }
+  }
+
+  /* Reduce scrollbar on mobile */
+  @media (max-width: 768px) {
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+  }
+
   /* Smooth page transitions */
   .page-transition {
     animation: fadeIn 0.3s ease-in-out;

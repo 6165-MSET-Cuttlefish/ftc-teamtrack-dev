@@ -48,8 +48,8 @@ const FormField = ({
   const fieldId = id || label.toLowerCase().replace(/\s+/g, '-');
 
   return (
-    <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-      <Label htmlFor={fieldId} className="text-base leading-6 font-medium">
+    <div className="flex flex-col gap-2 w-full">
+      <Label htmlFor={fieldId} className="text-sm sm:text-base leading-6 font-medium">
         {label}
         {(label === 'Session Name' || label === 'Driver Name') && (
           <span className="text-red-500 ml-1" title="Required field">*</span>
@@ -62,7 +62,7 @@ const FormField = ({
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-12 px-4 py-2.5 rounded-lg text-base font-normal leading-6 border border-team-blue-40 shadow-sm transition-all duration-200 focus:outline-none focus:border-team-blue focus:ring-2 focus:ring-team-blue/20 hover:border-team-blue/60 placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-11 sm:h-12 px-3 sm:px-4 py-2.5 rounded-lg text-sm sm:text-base font-normal leading-6 border border-team-blue-40 shadow-sm transition-all duration-200 focus:outline-none focus:border-team-blue focus:ring-2 focus:ring-team-blue/20 hover:border-team-blue/60 placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
       />
     </div>
   );

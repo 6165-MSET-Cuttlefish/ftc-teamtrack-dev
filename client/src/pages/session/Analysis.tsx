@@ -1079,9 +1079,9 @@ const AnalysisContent = () => {
   if (loading) {
     return (
       <div
-        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} flex items-center justify-center`}
+        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} flex items-center justify-center p-4`}
       >
-        <div className="text-team-blue text-2xl">Loading session...</div>
+        <div className="text-team-blue text-xl sm:text-2xl">Loading session...</div>
       </div>
     );
   }
@@ -1090,15 +1090,15 @@ const AnalysisContent = () => {
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[800px] mx-auto px-4 sm:px-8 py-8 lg:py-16">
-        <div className="space-y-12">
+      <div className="max-w-[800px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 lg:py-16">
+        <div className="space-y-8 sm:space-y-12">
           {/* Header */}
-          <div className="text-center space-y-6">
-            <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-[48px]">
+          <div className="text-center space-y-4 sm:space-y-6">
+            <h1 className="text-team-blue text-2xl sm:text-3xl lg:text-5xl font-semibold leading-tight sm:leading-[48px]">
               {sessionData.sessionName || 'Session'} Analysis
             </h1>
             <p
-              className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
+              className={`text-sm sm:text-base leading-6 ${isDarkMode ? 'text-white' : 'text-[#191919]'}`}
             >
               Detailed performance analysis
             </p>

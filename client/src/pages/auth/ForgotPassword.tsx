@@ -48,24 +48,24 @@ const ForgotPassword = () => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-12 px-4 sm:px-6 lg:px-8`}
+      className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-3 sm:px-4 md:px-6 lg:px-8`}
     >
       <Card
-        className={`w-full max-w-md ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue/60'}`}
+        className={`w-full max-w-md shadow-2xl border-2 transition-all ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center text-team-blue">
+        <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-center text-team-blue">
             Reset Password
           </CardTitle>
           <CardDescription
-            className={`text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            className={`text-center text-sm sm:text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
             Enter your email address and we'll send you a link to reset your
             password
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

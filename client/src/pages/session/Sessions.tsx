@@ -542,70 +542,74 @@ const Sessions = () => {
 
   return (
     <div
-      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
+      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 md:py-8 lg:py-12">
+        <div className="mb-4 sm:mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
             <div>
               <h1
-                className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
                 My Sessions
               </h1>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
               <Button
                 onClick={() => {
                   resetSession();
                   localStorage.setItem('teamtrack_new_session_created', 'true');
                   navigate('/active');
                 }}
-                className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
+                className={`bg-team-blue hover:bg-team-blue/90 text-white px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px]`}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                New Session
+                <Plus className="h-3 sm:h-4 w-3 sm:w-4" />
+                <span className="hidden sm:inline">New Session</span>
+                <span className="sm:hidden">New</span>
               </Button>
               {sessions.length > 0 && (
                 <Button
                   onClick={() => navigate('/charts')}
-                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors ${
+                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
                     isDarkMode
                       ? 'text-team-blue border-team-blue-40'
                       : 'text-team-blue border-team-blue-40'
                   }`}
                   variant="outline"
                 >
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Charts
+                  <TrendingUp className="h-3 sm:h-4 w-3 sm:w-4" />
+                  <span className="hidden sm:inline">Charts</span>
+                  <span className="sm:hidden">Stats</span>
                 </Button>
               )}
               {sessions.length > 1 && (
                 <Button
                   onClick={() => navigate('/compare')}
-                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors ${
+                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
                     isDarkMode
                       ? 'text-team-blue border-team-blue-40'
                       : 'text-team-blue border-team-blue-40'
                   }`}
                   variant="outline"
                 >
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Compare
+                  <BarChart3 className="h-3 sm:h-4 w-3 sm:w-4" />
+                  <span className="hidden sm:inline">Compare</span>
+                  <span className="sm:hidden">Comp</span>
                 </Button>
               )}
               {sessions.length > 0 && (
                 <Button
                   onClick={handleExportCSV}
-                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors ${
+                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
                     isDarkMode
                       ? 'text-team-blue border-team-blue-40'
                       : 'text-team-blue border-team-blue-40'
                   }`}
                   variant="outline"
                 >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
+                  <Download className="h-3 sm:h-4 w-3 sm:w-4" />
+                  <span className="hidden sm:inline">Export</span>
+                  <span className="sm:hidden">CSV</span>
                 </Button>
               )}
             </div>
@@ -614,27 +618,27 @@ const Sessions = () => {
 
         {!loading && sessions.length > 0 && (
           <div
-            className={`mb-6 p-8 rounded-2xl border shadow-lg ${
+            className={`mb-6 p-4 sm:p-6 lg:p-8 rounded-2xl border shadow-lg ${
               isDarkMode
                 ? 'bg-team-dark-20 border-team-blue-40'
                 : 'bg-white border-gray-200'
             }`}
           >
             <h3
-              className={`text-xl font-semibold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              className={`text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
             >
-              <TrendingUp className="h-5 w-5" />
+              <TrendingUp className="h-4 sm:h-5 w-4 sm:w-5" />
               Quick Stats
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               <div
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
-                <div className="text-3xl font-bold text-team-blue mb-1">
+                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {sessions.length}
                 </div>
                 <div
-                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
                   Total Sessions
                 </div>
@@ -642,14 +646,14 @@ const Sessions = () => {
               <div
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
-                <div className="text-3xl font-bold text-team-blue mb-1">
+                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {Math.round(
                     (sessions.reduce((sum, s) => sum + ((s.finalScore as number) || 0), 0) as number) /
                       sessions.length
                   ) || 0}
                 </div>
                 <div
-                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
                   Avg Score
                 </div>
@@ -657,11 +661,11 @@ const Sessions = () => {
               <div
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
-                <div className="text-3xl font-bold text-team-blue mb-1">
+                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {Math.max(...sessions.map(s => (s.finalScore as number) || 0)) || 0}
                 </div>
                 <div
-                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
                   Best Score
                 </div>
@@ -669,14 +673,14 @@ const Sessions = () => {
               <div
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
-                <div className="text-3xl font-bold text-team-blue mb-1">
+                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {
                     sessions.filter(s => s.matchType?.toLowerCase() === 'match')
                       .length
                   }
                 </div>
                 <div
-                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
                   Matches
                 </div>
@@ -686,16 +690,16 @@ const Sessions = () => {
         )}
 
         <div className="mb-6">
-          <div className="relative flex gap-4">
-            <div className="flex-1">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex-1 relative">
               <Search
-                className={`absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                className={`absolute left-2 sm:left-3 md:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
               />
               <Input
-                placeholder="Search sessions by name, driver, or type..."
+                placeholder="Search sessions..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className={`pl-12 h-12 text-base rounded-xl shadow-md transition-all duration-300 focus:shadow-lg ${
+                className={`pl-8 sm:pl-10 md:pl-12 h-9 sm:h-10 md:h-12 text-xs sm:text-sm md:text-base rounded-xl shadow-md transition-all duration-300 focus:shadow-lg ${
                   isDarkMode
                     ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue'
                     : 'bg-white border-gray-200 text-team-blue placeholder-gray-400 focus:border-team-blue'
@@ -707,7 +711,7 @@ const Sessions = () => {
               onValueChange={setSelectedMatchType}
             >
               <SelectTrigger
-                className={`w-[200px] h-12 rounded-xl shadow-md border ${
+                className={`w-full sm:w-auto h-9 sm:h-10 md:h-12 text-xs sm:text-sm md:text-base rounded-xl shadow-md border ${
                   isDarkMode
                     ? 'bg-team-dark border-team-blue-40 text-white'
                     : 'bg-white border-gray-300 text-team-blue'
@@ -729,20 +733,20 @@ const Sessions = () => {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {[...Array(6)].map((_, i) => (
               <LoadingCard key={i} />
             ))}
           </div>
         ) : filteredSessions.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 sm:py-16">
             <div
-              className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-4 ${
+              className={`mx-auto w-16 sm:w-24 h-16 sm:h-24 rounded-full flex items-center justify-center mb-4 ${
                 isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'
               }`}
             >
               <BarChart3
-                className={`h-12 w-12 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                className={`h-8 sm:h-12 w-8 sm:w-12 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
               />
             </div>
             <h3
@@ -772,7 +776,7 @@ const Sessions = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredSessions.map(session => (
               <SessionCard
                 key={session.id}

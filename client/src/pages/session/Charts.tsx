@@ -391,29 +391,29 @@ const Charts = () => {
     <div
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <Button
             variant="ghost"
             onClick={() => navigate(ROUTES.SESSIONS)}
-            className="mb-4"
+            className="mb-3 sm:mb-4 p-1 h-auto"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Sessions
+            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            <span className="text-xs sm:text-sm">Back</span>
           </Button>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-team-blue text-3xl lg:text-5xl font-bold mb-2">
+              <h1 className="text-team-blue text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2">
                 Performance Charts
               </h1>
               <p
-                className={`text-base ml-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                className={`text-xs sm:text-sm md:text-base ml-0 sm:ml-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
                 Visualize your session data and track progress
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3 flex-shrink-0">
               <Select
                 value={timeRange}
                 onValueChange={value =>
@@ -421,9 +421,9 @@ const Charts = () => {
                 }
               >
                 <SelectTrigger
-                  className={`w-[180px] ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
+                  className={`w-auto text-xs sm:text-sm px-2 h-9 sm:h-10 ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
                 >
-                  <Calendar className="w-4 h-4 mr-2" />
+                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent
@@ -442,19 +442,19 @@ const Charts = () => {
         {/* Key Insights */}
         {getFilteredSessions().length >= 3 && (
           <Card
-            className={`mb-8 shadow-lg ${isDarkMode ? 'bg-gradient-to-r from-team-blue/20 to-team-dark border-team-blue-40' : 'bg-gradient-to-r from-blue-50 to-white border-blue-200'}`}
+            className={`mb-6 sm:mb-8 shadow-lg ${isDarkMode ? 'bg-gradient-to-r from-team-blue/20 to-team-dark border-team-blue-40' : 'bg-gradient-to-r from-blue-50 to-white border-blue-200'}`}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-4">
-                <Zap className="w-8 h-8 text-team-blue flex-shrink-0 mt-1" />
-                <div>
+            <CardContent className="pt-4 sm:pt-6">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-team-blue flex-shrink-0 mt-0 sm:mt-1" />
+                <div className="flex-1 min-w-0">
                   <h3
-                    className={`text-lg font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    className={`text-base sm:text-lg font-bold mb-2 sm:mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
                     Key Insights
                   </h3>
                   <div
-                    className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-700'}`}
+                    className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-700'}`}
                   >
                     {(() => {
                       const sessions = getFilteredSessions();
@@ -544,7 +544,7 @@ const Charts = () => {
         )}
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           <Card
             className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
@@ -677,7 +677,7 @@ const Charts = () => {
         </div>
 
         {/* Charts Grid */}
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {/* Score Trend Line Chart */}
           <Card
             className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
@@ -695,8 +695,9 @@ const Charts = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <AreaChart data={scoreTrendData}>
+              <div className="w-full overflow-x-auto">
+                <ResponsiveContainer width="100%" height={250} minWidth={300}>
+                  <AreaChart data={scoreTrendData}>
                   <defs>
                     <linearGradient id="colorFinal" x1="0" y1="0" x2="0" y2="1">
                       <stop
@@ -781,7 +782,8 @@ const Charts = () => {
                     animationDuration={1500}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
@@ -803,8 +805,9 @@ const Charts = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={recentTrendData}>
+                <div className="w-full overflow-x-auto">
+                  <ResponsiveContainer width="100%" height={220} minWidth={300}>
+                    <ComposedChart data={recentTrendData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
@@ -837,7 +840,8 @@ const Charts = () => {
                       animationBegin={300}
                     />
                   </ComposedChart>
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
@@ -848,18 +852,19 @@ const Charts = () => {
               >
                 <CardHeader>
                   <CardTitle
-                    className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
                       Consistency Over Time
                   </CardTitle>
                   <CardDescription
-                    className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                    className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
                     Rolling 3-session consistency percentage
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <div className="w-full overflow-x-auto">
+                    <ResponsiveContainer width="100%" height={220} minWidth={300}>
                     <LineChart data={consistencyOverTimeData}>
                       <CartesianGrid
                         strokeDasharray="3 3"
@@ -886,7 +891,8 @@ const Charts = () => {
                         animationDuration={1200}
                       />
                     </LineChart>
-                  </ResponsiveContainer>
+                    </ResponsiveContainer>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -899,19 +905,20 @@ const Charts = () => {
             >
               <CardHeader>
                 <CardTitle
-                  className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
                     Cycle Time Analysis
                 </CardTitle>
                 <CardDescription
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                 >
                   Average cycle time per session (seconds)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
-                  <LineChart data={cycleTimeData}>
+                <div className="w-full overflow-x-auto">
+                  <ResponsiveContainer width="100%" height={240} minWidth={300}>
+                    <LineChart data={cycleTimeData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
@@ -957,7 +964,8 @@ const Charts = () => {
                       animationBegin={400}
                     />
                   </LineChart>
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           )}
