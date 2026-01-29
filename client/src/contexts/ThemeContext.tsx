@@ -7,12 +7,11 @@ import {
 } from 'react';
 import { STORAGE_KEYS } from '@/constants';
 
-type ThemeMode = 'dark' | 'light' | 'honeycomb' | 'zen';
+type ThemeMode = 'dark' | 'light' | 'honeycomb';
 
 interface ThemeContextType {
   isDarkMode: boolean;
   isHoneycombMode: boolean;
-  isZenMode: boolean;
   themeMode: ThemeMode;
   toggleTheme: () => void;
 }
@@ -32,7 +31,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         const parsed = JSON.parse(saved);
         if (parsed === true) return 'dark';
         if (parsed === false) return 'light';
-        if (typeof parsed === 'string' && ['dark', 'light', 'honeycomb', 'zen'].includes(parsed)) {
+        if (typeof parsed === 'string' && ['dark', 'light', 'honeycomb'].includes(parsed)) {
           return parsed as ThemeMode;
         }
       } catch {
@@ -43,32 +42,28 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   });
 
   // Derived values for backward compatibility
-  const isDarkMode = themeMode === 'dark' || themeMode === 'honeycomb' || themeMode === 'zen';
+  const isDarkMode = themeMode === 'dark' || themeMode === 'honeycomb';
   const isHoneycombMode = themeMode === 'honeycomb';
-  const isZenMode = themeMode === 'zen';
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     // Remove all theme classes first
-    document.documentElement.classList.remove('dark', 'honeycomb', 'zen');
+    document.documentElement.classList.remove('dark', 'honeycomb');
     // Add appropriate classes
     if (themeMode === 'dark') {
       document.documentElement.classList.add('dark');
     } else if (themeMode === 'honeycomb') {
       document.documentElement.classList.add('dark', 'honeycomb');
-    } else if (themeMode === 'zen') {
-      document.documentElement.classList.add('dark', 'zen');
     }
     // light mode = no classes
   }, [themeMode]);
 
   const toggleTheme = () => {
     setThemeMode((prev: ThemeMode) => {
-      // Cycle: dark -> light -> honeycomb -> zen -> dark
+      // Cycle: dark -> light -> honeycomb -> dark
       let next: ThemeMode;
       if (prev === 'dark') next = 'light';
       else if (prev === 'light') next = 'honeycomb';
-      else if (prev === 'honeycomb') next = 'zen';
       else next = 'dark';
       
       localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(next));
@@ -77,7 +72,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, isHoneycombMode, isZenMode, themeMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDarkMode, isHoneycombMode, themeMode, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
