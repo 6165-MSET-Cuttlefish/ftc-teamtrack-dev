@@ -11,12 +11,15 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus, Keyboard, HelpCircle } from 'lucide-react';
+import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus, Keyboard, HelpCircle, Hexagon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 
 const TeamTrackLogo = () => {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, isHoneycombMode } = useTheme();
+  
+  // Determine logo color based on theme
+  const logoColor = isHoneycombMode ? '#DAA520' : (isDarkMode ? '#B0E5FE' : '#537788');
 
   return (
     <Link
@@ -37,39 +40,39 @@ const TeamTrackLogo = () => {
         >
           <path
             d="M3.9994 0.645596L7.60709 6.46935H0.464233L3.9994 0.645596Z"
-            fill={isDarkMode ? '#B0E5FE' : '#537788'}
+            fill={logoColor}
           />
           <path
             d="M4.00005 9.38123L0.392909 7.23372H7.53577L4.00005 9.38123Z"
-            fill={isDarkMode ? '#B0E5FE' : '#537788'}
+            fill={logoColor}
           />
           <path
             d="M0.321429 2.31992L3.28571 0.5L0 6.06897L0.321429 2.31992Z"
-            fill={isDarkMode ? '#B0E5FE' : '#537788'}
+            fill={logoColor}
           />
           <path
             d="M7.67857 2.31992L4.71429 0.5L8 6.06897L7.67857 2.31992Z"
-            fill={isDarkMode ? '#B0E5FE' : '#537788'}
+            fill={logoColor}
           />
           <path
             d="M0.392822 9.24855C0.392822 8.74891 0.92601 8.43006 1.36618 8.66649C1.58053 8.78162 1.71425 9.00524 1.71425 9.24855V18.3817C1.71425 18.6225 1.58325 18.8442 1.37235 18.9604C0.932001 19.203 0.392822 18.8844 0.392822 18.3817V9.24855Z"
-            fill={isDarkMode ? '#B0E5FE' : '#537788'}
+            fill={logoColor}
           />
           <path
             d="M2.3681 10.2849C2.37112 9.76044 2.94632 9.44078 3.39332 9.71519C3.59274 9.83762 3.71427 10.0548 3.71427 10.2888V17.1858C3.71427 17.4334 3.58216 17.6622 3.36771 17.786C2.9042 18.0535 2.32529 17.717 2.32837 17.1818L2.3681 10.2849Z"
-            fill={isDarkMode ? '#B0E5FE' : '#537788'}
+            fill={logoColor}
           />
           <path
             d="M7.53577 9.26287C7.53577 8.75993 6.9962 8.4414 6.55585 8.68437C6.34516 8.80063 6.21434 9.02223 6.21434 9.26287V18.4077C6.21434 18.6534 6.35068 18.8788 6.5683 18.9929C7.00823 19.2235 7.53577 18.9044 7.53577 18.4077V9.26287Z"
-            fill={isDarkMode ? '#B0E5FE' : '#537788'}
+            fill={logoColor}
           />
           <path
             d="M5.6319 10.2849C5.62888 9.76044 5.05368 9.44078 4.60668 9.71519C4.40726 9.83762 4.28573 10.0548 4.28573 10.2888V17.1858C4.28573 17.4334 4.41784 17.6622 4.63229 17.786C5.0958 18.0535 5.67471 17.717 5.67163 17.1818L5.6319 10.2849Z"
-            fill={isDarkMode ? '#B0E5FE' : '#537788'}
+            fill={logoColor}
           />
         </svg>
         <span
-          className={`font-montserrat italic text-[0.625rem] sm:text-xs leading-6 relative -top-.5 hidden sm:inline ${isDarkMode ? 'text-white' : 'text-black'}`}
+          className={`font-montserrat italic text-[0.625rem] sm:text-xs leading-6 relative -top-.5 hidden sm:inline ${isHoneycombMode ? 'text-[#DAA520]' : (isDarkMode ? 'text-white' : 'text-black')}`}
         >
           TeamTrack
         </span>
@@ -79,16 +82,21 @@ const TeamTrackLogo = () => {
 };
 
 const NavigationMenu = () => {
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { isDarkMode, themeMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const { sessionData } = useSession();
   const navigate = useNavigate();
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
   const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
 
-  // Check if there's an active session (only when a match has actually started)
+  // Check if there's an active session (when session has data or matches, not completed)
   const { hasStarted } = useSession();
-  const hasActiveSession = hasStarted && sessionData && !sessionData.isSessionCompleted;
+  const hasActiveSession = sessionData && !sessionData.isSessionCompleted && (
+    hasStarted || 
+    sessionData.sessionName?.trim() || 
+    sessionData.driverName?.trim() || 
+    (sessionData.matches && sessionData.matches.length > 0)
+  );
 
   // Check if this is the user's first time and show tutorials
   useEffect(() => {
@@ -187,10 +195,12 @@ const NavigationMenu = () => {
         aria-label="Toggle theme"
         className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
       >
-        {isDarkMode ? (
+        {themeMode === 'dark' ? (
           <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+        ) : themeMode === 'light' ? (
+          <Hexagon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
         ) : (
-          <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+          <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
         )}
       </button>
 
@@ -438,7 +448,7 @@ const NavigationMenu = () => {
           <Button variant="ghost" size="sm" asChild>
             <Link to="/login">Sign in</Link>
           </Button>
-          <Button size="sm" asChild>
+          <Button size="sm" asChild className={isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}>
             <Link to="/signup">Sign up</Link>
           </Button>
         </div>
@@ -451,7 +461,7 @@ export const Header = () => {
   const { isDarkMode } = useTheme();
   return (
     <header
-      className={`w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b relative z-20 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4 md:gap-6">
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">

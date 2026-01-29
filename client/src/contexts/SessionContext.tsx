@@ -14,10 +14,8 @@ import {
   loadTimerStateFromStorage, 
   clearSessionFromStorage,
   hasActiveSession,
-  saveMatchStateToStorage,
   type SessionFormData as StorageSessionFormData,
   type SessionTimerState,
-  type MatchState,
 } from '@/lib/sessionStorage';
 import type { Match, ScoringFields } from '@/types';
 
@@ -53,6 +51,11 @@ interface SessionContextType {
   setHasTransitionedToTeleOp: (transitioned: boolean) => void;
   showTeleOpTransition: boolean;
   setShowTeleOpTransition: (show: boolean) => void;
+  editingMatchId: string | null;
+  setEditingMatchId: (id: string | null) => void;
+  startEditingMatch: (match: Match) => void;
+  returnToCurrentMatch: () => void;
+  saveEditedMatch: () => void;
 }
 
 const createInitialSessionData = (displayName?: string | null): SessionFormData => ({
@@ -136,6 +139,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     hasActiveSession()
   );
 
+  // Edit mode state
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+  const [currentMatchData, setCurrentMatchData] = useState<Partial<SessionFormData> | null>(null);
+
   // Match timer effect - runs for the current match
   useEffect(() => {
     if (!isTimerRunning || sessionData.isSessionCompleted) {
@@ -196,7 +203,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       hasStarted,
       hasTransitionedToTeleOp,
       showTeleOpTransition,
-      isSessionStarted: false,
       sessionStartTime: 0,
       matchStartTime: 0,
     };
@@ -224,6 +230,85 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const resetTimer = useCallback(() => {
     setTimer(0);
   }, []);
+
+  const startEditingMatch = useCallback((match: Match) => {
+    // Save current form data
+    setCurrentMatchData({
+      finalScore: sessionData.finalScore,
+      autonomousScore: sessionData.autonomousScore,
+      teleOpScore: sessionData.teleOpScore,
+      endGameScore: sessionData.endGameScore,
+      autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
+      autonOverflowArtifact: sessionData.autonOverflowArtifact,
+      autonMotif: sessionData.autonMotif,
+      autonLeave: sessionData.autonLeave,
+      teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
+      teleOverflowArtifact: sessionData.teleOverflowArtifact,
+      teleMotif: sessionData.teleMotif,
+      robot1Park: sessionData.robot1Park,
+      robot2Park: sessionData.robot2Park,
+      cycleTimes: sessionData.cycleTimes,
+    });
+    
+    // Load match data into form
+    setSessionData(prev => ({
+      ...prev,
+      finalScore: match.finalScore || 0,
+      autonomousScore: match.autonomousScore || 0,
+      teleOpScore: match.teleOpScore || 0,
+      endGameScore: match.endGameScore || 0,
+      autonClassifiedArtifact: match.autonClassifiedArtifact || 0,
+      autonOverflowArtifact: match.autonOverflowArtifact || 0,
+      autonMotif: match.autonMotif || 0,
+      autonLeave: match.autonLeave || 0,
+      teleClassifiedArtifact: match.teleClassifiedArtifact || 0,
+      teleOverflowArtifact: match.teleOverflowArtifact || 0,
+      teleMotif: match.teleMotif || 0,
+      robot1Park: match.robot1Park || 'none',
+      robot2Park: match.robot2Park || 'none',
+      cycleTimes: match.cycleTimes || [],
+    }));
+    
+    setEditingMatchId(match.id);
+  }, [sessionData]);
+
+  const returnToCurrentMatch = useCallback(() => {
+    if (currentMatchData) {
+      setSessionData(prev => ({ ...prev, ...currentMatchData }));
+    }
+    setEditingMatchId(null);
+    setCurrentMatchData(null);
+  }, [currentMatchData]);
+
+  const saveEditedMatch = useCallback(() => {
+    if (!editingMatchId) return;
+
+    // Update the match in the matches array with current form data
+    setSessionData(prev => ({
+      ...prev,
+      matches: prev.matches.map(match => 
+        match.id === editingMatchId 
+          ? {
+              ...match,
+              finalScore: prev.finalScore,
+              autonomousScore: prev.autonomousScore,
+              teleOpScore: prev.teleOpScore,
+              endGameScore: prev.endGameScore,
+              autonClassifiedArtifact: prev.autonClassifiedArtifact,
+              autonOverflowArtifact: prev.autonOverflowArtifact,
+              autonMotif: prev.autonMotif,
+              autonLeave: prev.autonLeave,
+              teleClassifiedArtifact: prev.teleClassifiedArtifact,
+              teleOverflowArtifact: prev.teleOverflowArtifact,
+              teleMotif: prev.teleMotif,
+              robot1Park: prev.robot1Park,
+              robot2Park: prev.robot2Park,
+              cycleTimes: prev.cycleTimes,
+            }
+          : match
+      ),
+    }));
+  }, [editingMatchId]);
 
   const resetSession = useCallback(() => {
     const newSessionData = createInitialSessionData(user?.displayName);
@@ -260,6 +345,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setHasTransitionedToTeleOp,
     showTeleOpTransition,
     setShowTeleOpTransition,
+    editingMatchId,
+    setEditingMatchId,
+    startEditingMatch,
+    returnToCurrentMatch,
+    saveEditedMatch,
   };
 
   return (

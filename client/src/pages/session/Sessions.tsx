@@ -561,7 +561,7 @@ const Sessions = () => {
                   localStorage.setItem('teamtrack_new_session_created', 'true');
                   navigate('/active');
                 }}
-                className={`bg-team-blue hover:bg-team-blue/90 text-white px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px]`}
+                className={`bg-team-blue hover:bg-team-blue/90 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px] ${isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}`}
               >
                 <Plus className="h-3 sm:h-4 w-3 sm:w-4" />
                 <span className="hidden sm:inline">New Session</span>

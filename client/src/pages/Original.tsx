@@ -9,11 +9,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSession } from '@/contexts';
-import { Plus } from 'lucide-react';
+import { Plus, Edit2 } from 'lucide-react';
 
 const OriginalContent = () => {
   const { isDarkMode } = useTheme();
-  const { sessionData, updateSessionData } = useSession();
+  const { sessionData, updateSessionData, editingMatchId, returnToCurrentMatch, startEditingMatch } = useSession();
   const [showMatchSummary, setShowMatchSummary] = useState(false);
 
   const handleSaveMatch = () => {
@@ -26,44 +26,80 @@ const OriginalContent = () => {
       return;
     }
 
-    // Create a new match from current session data
-    const newMatch = {
-      id: `match-${Date.now()}`,
-      matchNumber: (sessionData.matches?.length || 0) + 1,
-      matchType: sessionData.matchType,
-      finalScore: sessionData.finalScore,
-      autonomousScore: sessionData.autonomousScore,
-      teleOpScore: sessionData.teleOpScore,
-      endGameScore: sessionData.endGameScore,
-      autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
-      autonOverflowArtifact: sessionData.autonOverflowArtifact,
-      autonMotif: sessionData.autonMotif,
-      autonLeave: sessionData.autonLeave,
-      teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
-      teleOverflowArtifact: sessionData.teleOverflowArtifact,
-      teleMotif: sessionData.teleMotif,
-      cycleTimes: sessionData.cycleTimes,
-      createdAt: new Date().toISOString(),
-    };
+    if (editingMatchId) {
+      // Update existing match
+      const updatedMatches = sessionData.matches.map(match => 
+        match.id === editingMatchId 
+          ? {
+              ...match,
+              matchType: sessionData.matchType,
+              finalScore: sessionData.finalScore,
+              autonomousScore: sessionData.autonomousScore,
+              teleOpScore: sessionData.teleOpScore,
+              endGameScore: sessionData.endGameScore,
+              autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
+              autonOverflowArtifact: sessionData.autonOverflowArtifact,
+              autonMotif: sessionData.autonMotif,
+              autonLeave: sessionData.autonLeave,
+              teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
+              teleOverflowArtifact: sessionData.teleOverflowArtifact,
+              teleMotif: sessionData.teleMotif,
+              robot1Park: sessionData.robot1Park,
+              robot2Park: sessionData.robot2Park,
+              cycleTimes: sessionData.cycleTimes,
+            }
+          : match
+      );
+      
+      updateSessionData({
+        matches: updatedMatches,
+      });
+      
+      returnToCurrentMatch();
+    } else {
+      // Create a new match from current session data
+      const newMatch = {
+        id: `match-${Date.now()}`,
+        matchNumber: (sessionData.matches?.length || 0) + 1,
+        matchType: sessionData.matchType,
+        finalScore: sessionData.finalScore,
+        autonomousScore: sessionData.autonomousScore,
+        teleOpScore: sessionData.teleOpScore,
+        endGameScore: sessionData.endGameScore,
+        autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
+        autonOverflowArtifact: sessionData.autonOverflowArtifact,
+        autonMotif: sessionData.autonMotif,
+        autonLeave: sessionData.autonLeave,
+        teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
+        teleOverflowArtifact: sessionData.teleOverflowArtifact,
+        teleMotif: sessionData.teleMotif,
+        robot1Park: sessionData.robot1Park,
+        robot2Park: sessionData.robot2Park,
+        cycleTimes: sessionData.cycleTimes,
+        createdAt: new Date().toISOString(),
+      };
 
-    // Add to matches array
-    const updatedMatches = [...(sessionData.matches || []), newMatch];
-    updateSessionData({
-      matches: updatedMatches,
-      // Reset scoring for next match
-      finalScore: 0,
-      autonomousScore: 0,
-      teleOpScore: 0,
-      endGameScore: 0,
-      autonClassifiedArtifact: 0,
-      autonOverflowArtifact: 0,
-      autonMotif: 0,
-      autonLeave: 0,
-      teleClassifiedArtifact: 0,
-      teleOverflowArtifact: 0,
-      teleMotif: 0,
-      cycleTimes: [],
-    });
+      // Add to matches array
+      const updatedMatches = [...(sessionData.matches || []), newMatch];
+      updateSessionData({
+        matches: updatedMatches,
+        // Reset scoring for next match
+        finalScore: 0,
+        autonomousScore: 0,
+        teleOpScore: 0,
+        endGameScore: 0,
+        autonClassifiedArtifact: 0,
+        autonOverflowArtifact: 0,
+        autonMotif: 0,
+        autonLeave: 0,
+        teleClassifiedArtifact: 0,
+        teleOverflowArtifact: 0,
+        teleMotif: 0,
+        robot1Park: 'none',
+        robot2Park: 'none',
+        cycleTimes: [],
+      });
+    }
 
     setShowMatchSummary(false);
   };
@@ -141,9 +177,18 @@ const OriginalContent = () => {
                         >
                           Match {index + 1}
                         </span>
-                        <span className="text-team-blue font-bold">
-                          {match.finalScore || 0}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => startEditingMatch(match)}
+                            aria-label="Edit match"
+                            className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-team-white-10 text-team-white-80 hover:text-team-blue' : 'hover:bg-gray-200 text-gray-700 hover:text-team-blue'}`}
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+                          <span className="text-team-blue font-bold">
+                            {match.finalScore || 0}
+                          </span>
+                        </div>
                       </div>
                       <p
                         className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}

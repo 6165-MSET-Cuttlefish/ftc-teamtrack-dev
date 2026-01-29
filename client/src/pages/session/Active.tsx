@@ -8,13 +8,14 @@ import {
 import { useTheme, useSession } from '@/contexts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { APP_CONFIG } from '@/constants';
+import { Edit2 } from 'lucide-react';
 
 const ActiveSessionContent = () => {
   useEffect(() => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
   }, []);
   const { isDarkMode } = useTheme();
-  const { sessionData } = useSession();
+  const { sessionData, startEditingMatch } = useSession();
 
   return (
     <div
@@ -28,7 +29,7 @@ const ActiveSessionContent = () => {
           <div className="space-y-6 sm:space-y-8 md:space-y-12 lg:space-y-16">
             {/* Header with Match Counter */}
             <div className="text-center px-1 sm:px-2 md:px-4 lg:px-24 space-y-3 sm:space-y-4 md:space-y-6">
-              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-[46px] text-team-blue font-semibold leading-tight sm:leading-[48px]">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-[46px] text-team-blue font-semibold leading-snug sm:leading-snug md:leading-snug lg:leading-[56px]">
                 {sessionData.sessionName || 'Active Practice Session'}
               </h1>
               <p
@@ -89,9 +90,18 @@ const ActiveSessionContent = () => {
                         >
                           Match {index + 1}
                         </span>
-                        <span className="text-team-blue font-bold">
-                          {match.finalScore || 0}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => startEditingMatch(match)}
+                            aria-label="Edit match"
+                            className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-team-white-10 text-team-white-80 hover:text-team-blue' : 'hover:bg-gray-200 text-gray-700 hover:text-team-blue'}`}
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+                          <span className="text-team-blue font-bold">
+                            {match.finalScore || 0}
+                          </span>
+                        </div>
                       </div>
                       <p
                         className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}

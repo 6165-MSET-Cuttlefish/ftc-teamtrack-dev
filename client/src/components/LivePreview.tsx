@@ -35,7 +35,6 @@ export const LivePreview = () => {
     completeSession,
     timer,
     sessionTimer,
-    setSessionTimer,
     isTimerRunning,
     setIsTimerRunning,
     formatTime,
@@ -49,6 +48,9 @@ export const LivePreview = () => {
     setShowTeleOpTransition,
     hasTransitionedToTeleOp,
     setHasTransitionedToTeleOp,
+    editingMatchId,
+    returnToCurrentMatch,
+    saveEditedMatch,
   } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -386,6 +388,29 @@ export const LivePreview = () => {
     }
   };
 
+  // Show persistent toast when editing a match
+  useEffect(() => {
+    if (editingMatchId) {
+      const toastId = toast.warning("You're currently editing a saved match", {
+        duration: Infinity,
+        classNames: {
+          toast: '!bg-yellow-950 !border-2 !border-yellow-500 !text-yellow-100',
+          actionButton: '!bg-yellow-500 !text-black hover:!bg-yellow-400',
+        },
+        action: {
+          label: 'Return to Current Match',
+          onClick: () => {
+            returnToCurrentMatch();
+          },
+        },
+      });
+
+      return () => {
+        toast.dismiss(toastId);
+      };
+    }
+  }, [editingMatchId, returnToCurrentMatch]);
+
   return (
     <div className="flex flex-col items-center gap-12 lg:gap-16">
       <div className="flex flex-col items-center gap-8 lg:gap-12">
@@ -412,10 +437,13 @@ export const LivePreview = () => {
 
       <div className="flex flex-col items-center gap-6 lg:gap-8 w-full">
         {/* Current Match Box */}
-        <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-white'} space-y-6`}>
+        <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-white'} ${editingMatchId ? 'ring-2 ring-yellow-500' : ''} space-y-6`}>
           <div className="flex items-center justify-between">
-            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
-              Current Match: Match {(sessionData.matches?.length || 0) + 1}
+            <h3 className={`text-lg font-semibold ${editingMatchId ? 'text-yellow-500' : isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+              {editingMatchId 
+                ? `Editing Match: Match ${(sessionData.matches?.findIndex(m => m.id === editingMatchId) ?? 0) + 1}`
+                : `Current Match: Match ${(sessionData.matches?.length || 0) + 1}`
+              }
             </h3>
             {!deleteConfirm ? (
               <button
@@ -498,7 +526,26 @@ export const LivePreview = () => {
                 </div>
               ) : (
                 <>
-                  {hasStarted ? (
+                  {editingMatchId ? (
+                    /* Show Save and Return buttons when editing a saved match */
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => {
+                          saveEditedMatch();
+                          toast.success('Match changes saved!');
+                        }}
+                        className="w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 text-[#FEFEFE] text-base leading-6 font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={returnToCurrentMatch}
+                        className="w-full px-2.5 py-2.5 rounded-2xl border-2 border-yellow-500 bg-yellow-400 text-[#191919] text-base leading-6 font-semibold hover:bg-yellow-300 transition-colors"
+                      >
+                        Return to Current Match
+                      </button>
+                    </div>
+                  ) : hasStarted ? (
                     <>
                       <button
                         onClick={handleSaveMatch}
@@ -539,44 +586,42 @@ export const LivePreview = () => {
                 {loading ? 'Saving...' : sessionLimitReached ? 'Session Limit Reached' : 'Complete Session'}
               </button>
 
-              {hasStarted && (
-                !cancelConfirm ? (
+              {!cancelConfirm ? (
+                <button
+                  onClick={() => {
+                    setCancelConfirm(true);
+                    // Pause the timer when showing cancellation confirmation
+                    if (isTimerRunning) setIsTimerRunning(false);
+                  }}
+                  className={`w-full px-2.5 py-2.5 rounded-2xl border border-red-500 bg-transparent text-red-500 text-base leading-6 font-normal transition-colors ${isDarkMode ? 'hover:bg-red-500/10' : 'hover:bg-red-500 hover:text-[#FEFEFE]'}`}
+                >
+                  Cancel Session
+                </button>
+              ) : (
+                <div className="flex gap-2 justify-center">
                   <button
                     onClick={() => {
-                      setCancelConfirm(true);
-                      // Pause the timer when showing cancellation confirmation
-                      setIsTimerRunning(false);
+                      handleNewSession();
+                      setCancelConfirm(false);
+                      toast.success('Session cancelled');
                     }}
-                    className={`w-full px-2.5 py-2.5 rounded-2xl border border-red-500 bg-transparent text-red-500 text-base leading-6 font-normal transition-colors ${isDarkMode ? 'hover:bg-red-500/10' : 'hover:bg-red-500 hover:text-[#FEFEFE]'}`}
+                    className="p-2 rounded bg-green-500 hover:bg-green-600 text-white transition-all"
+                    title="Confirm cancel"
                   >
-                    Cancel Session
+                    <Check className="h-5 w-5" />
                   </button>
-                ) : (
-                  <div className="flex gap-2 justify-center">
-                    <button
-                      onClick={() => {
-                        handleNewSession();
-                        setCancelConfirm(false);
-                        toast.success('Session cancelled');
-                      }}
-                      className="p-2 rounded bg-green-500 hover:bg-green-600 text-white transition-all"
-                      title="Confirm cancel"
-                    >
-                      <Check className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setCancelConfirm(false);
-                        // Resume timer if they decide to keep the session
-                        setIsTimerRunning(true);
-                      }}
-                      className="p-2 rounded bg-red-500 hover:bg-red-600 text-white transition-all"
-                      title="Keep session"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                )
+                  <button
+                    onClick={() => {
+                      setCancelConfirm(false);
+                      // Resume timer if they decide to keep the session and timer was running
+                      if (hasStarted) setIsTimerRunning(true);
+                    }}
+                    className="p-2 rounded bg-red-500 hover:bg-red-600 text-white transition-all"
+                    title="Keep session"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               )}
             </>
           )}

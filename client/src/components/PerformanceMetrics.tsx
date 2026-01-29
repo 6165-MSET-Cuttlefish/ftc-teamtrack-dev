@@ -157,8 +157,11 @@ const MetricField = ({
 };
 
 export const PerformanceMetrics = () => {
-  const { sessionData, updateSessionData, expandedSection, setExpandedSection, isTimerRunning } = useSession();
+  const { sessionData, updateSessionData, expandedSection, setExpandedSection, isTimerRunning, editingMatchId } = useSession();
   const { isDarkMode } = useTheme();
+
+  // Allow editing when timer is running OR when editing a saved match
+  const isEditable = isTimerRunning || editingMatchId !== null;
 
   // Use a ref to track if we're currently updating scores to prevent circular updates
   const isUpdatingRef = useRef(false);
@@ -241,13 +244,19 @@ export const PerformanceMetrics = () => {
   const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
   // Sync local state with sessionData only when all values are reset to 0 (after match save)
+  // OR when we start editing a saved match (editingMatchId changes to a non-null value)
   // This prevents syncing during active editing
+  const prevEditingMatchIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
     if (isUpdatingRef.current) {
       return;
     }
     
-    // Only sync if ALL artifact values are 0 (indicating a reset)
+    // Check if we just started editing a match (editingMatchId changed from null to something)
+    const justStartedEditing = editingMatchId !== null && prevEditingMatchIdRef.current !== editingMatchId;
+    
+    // Only sync if ALL artifact values are 0 (indicating a reset) OR if we just started editing
     const allZero = 
       !sessionData.autonClassifiedArtifact &&
       !sessionData.autonOverflowArtifact &&
@@ -257,18 +266,21 @@ export const PerformanceMetrics = () => {
       !sessionData.teleOverflowArtifact &&
       !sessionData.teleMotif;
     
-    if (allZero) {
-      setAutonClassifiedArtifact(0);
-      setAutonOverflowArtifact(0);
-      setAutonMotif(0);
-      setAutonomousLeave(0);
-      setTeleClassifiedArtifact(0);
-      setTeleOverflowArtifact(0);
-      setTeleMotif(0);
-      setRobot1Park('none');
-      setRobot2Park('none');
+    if (allZero || justStartedEditing) {
+      setAutonClassifiedArtifact(sessionData.autonClassifiedArtifact || 0);
+      setAutonOverflowArtifact(sessionData.autonOverflowArtifact || 0);
+      setAutonMotif(sessionData.autonMotif || 0);
+      setAutonomousLeave(sessionData.autonLeave || 0);
+      setTeleClassifiedArtifact(sessionData.teleClassifiedArtifact || 0);
+      setTeleOverflowArtifact(sessionData.teleOverflowArtifact || 0);
+      setTeleMotif(sessionData.teleMotif || 0);
+      setRobot1Park(sessionData.robot1Park || 'none');
+      setRobot2Park(sessionData.robot2Park || 'none');
     }
-  }, [sessionData]);
+    
+    // Update the ref to track current editingMatchId
+    prevEditingMatchIdRef.current = editingMatchId;
+  }, [sessionData, editingMatchId]);
 
   // Popup state for keyboard shortcuts
   const [showPopup, setShowPopup] = useState(false);
@@ -538,19 +550,19 @@ export const PerformanceMetrics = () => {
               label="Classified Artifact (3 pts each)"
               value={autonClassifiedArtifact}
               onChange={setAutonClassifiedArtifact}
-              editable={isTimerRunning}
+              editable={isEditable}
             />
             <InlineBreakdownField
               label="Overflow Artifact (1 pt each)"
               value={autonOverflowArtifact}
               onChange={setAutonOverflowArtifact}
-              editable={isTimerRunning}
+              editable={isEditable}
             />
             <InlineBreakdownField
               label="Motif (2 pts each)"
               value={autonMotif}
               onChange={setAutonMotif}
-              editable={isTimerRunning}
+              editable={isEditable}
             />
             <CheckboxField
               label="Leave (Check if left)"
@@ -566,19 +578,19 @@ export const PerformanceMetrics = () => {
               label="Classified Artifact (3 pts each)"
               value={teleClassifiedArtifact}
               onChange={setTeleClassifiedArtifact}
-              editable={isTimerRunning}
+              editable={isEditable}
             />
             <InlineBreakdownField
               label="Overflow Artifact (1 pt each)"
               value={teleOverflowArtifact}
               onChange={setTeleOverflowArtifact}
-              editable={isTimerRunning}
+              editable={isEditable}
             />
             <InlineBreakdownField
               label="Motif (2 pts each)"
               value={teleMotif}
               onChange={setTeleMotif}
-              editable={isTimerRunning}
+              editable={isEditable}
             />
             {sessionData.selectedFeature === 'Cycle Times' && (
               <div className="space-y-4">
@@ -693,7 +705,7 @@ export const PerformanceMetrics = () => {
                     setRobot1Park('full');
                   }}
                   className={`flex-1 py-3 text-base font-medium transition-colors ${
-                    robot1Park === 'partial'
+                    robot1Park === 'full'
                       ? isDarkMode
                         ? 'bg-team-blue text-black'
                         : 'bg-team-blue text-[#FEFEFE]'
@@ -787,7 +799,7 @@ export const PerformanceMetrics = () => {
         </div>
       )}
     
-      <div className="flex gap-6">
+      <div className="flex gap-10">
         <div className="flex-1 flex flex-col justify-between">
           <div>
             <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-8">
@@ -799,7 +811,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.finalScore ?? 0}
                 onChange={(value) => updateSessionData({ finalScore: value })}
                 hasDropdown={false}
-                editable={isTimerRunning}
+                editable={isEditable}
                 showArrows={false}
               />
               {sessionData.matchType !== 'TeleOp' && (
@@ -808,7 +820,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.autonomousScore ?? 0}
                   onChange={(value) => updateSessionData({ autonomousScore: value })}
                   onDropdownClick={() => toggleSection('Autonomous Score')}
-                  editable={isTimerRunning}
+                  editable={isEditable}
                   showArrows={false}
                   isSelected={expandedSection === 'Autonomous Score'}
                 />
@@ -819,7 +831,7 @@ export const PerformanceMetrics = () => {
                   value={sessionData.teleOpScore ?? 0}
                   onChange={(value) => updateSessionData({ teleOpScore: value })}
                   onDropdownClick={() => toggleSection('TeleOp Score')}
-                  editable={isTimerRunning}
+                  editable={isEditable}
                   showArrows={false}
                   isSelected={expandedSection === 'TeleOp Score'}
                 />
@@ -829,7 +841,7 @@ export const PerformanceMetrics = () => {
                 value={sessionData.endGameScore ?? 0}
                 onChange={(value) => updateSessionData({ endGameScore: value })}
                 onDropdownClick={() => toggleSection('End Game Score')}
-                editable={isTimerRunning}
+                editable={isEditable}
                 showArrows={false}
                 isSelected={expandedSection === 'End Game Score'}
               />
