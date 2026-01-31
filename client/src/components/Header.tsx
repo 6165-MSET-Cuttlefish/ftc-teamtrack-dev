@@ -34,7 +34,7 @@ const TeamTrackLogo = () => {
           viewBox="0 0 8 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="w-1.5 h-4 sm:w-2 sm:h-5"
+          className="w-1.5 h-4 sm:w-[0.65rem] sm:h-[1.625rem]"
           role="img"
           aria-label="TeamTrack logo icon"
         >

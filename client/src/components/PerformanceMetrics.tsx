@@ -167,18 +167,18 @@ export const PerformanceMetrics = () => {
   const isUpdatingRef = useRef(false);
 
   // Local state for scoring metrics - needed for controlled input behavior
-  // These sync with sessionData but allow for intermediate input states
-  const [autonClassifiedArtifact, setAutonClassifiedArtifact] = useState(0);
-  const [autonOverflowArtifact, setAutonOverflowArtifact] = useState(0);
-  const [autonMotif, setAutonMotif] = useState(0);
-  const [autonomousLeave, setAutonomousLeave] = useState(0);
+  // Initialize from sessionData to restore values when navigating back to the page
+  const [autonClassifiedArtifact, setAutonClassifiedArtifact] = useState(sessionData.autonClassifiedArtifact || 0);
+  const [autonOverflowArtifact, setAutonOverflowArtifact] = useState(sessionData.autonOverflowArtifact || 0);
+  const [autonMotif, setAutonMotif] = useState(sessionData.autonMotif || 0);
+  const [autonomousLeave, setAutonomousLeave] = useState(sessionData.autonLeave || 0);
 
-  const [teleClassifiedArtifact, setTeleClassifiedArtifact] = useState(0);
-  const [teleOverflowArtifact, setTeleOverflowArtifact] = useState(0);
-  const [teleMotif, setTeleMotif] = useState(0);
+  const [teleClassifiedArtifact, setTeleClassifiedArtifact] = useState(sessionData.teleClassifiedArtifact || 0);
+  const [teleOverflowArtifact, setTeleOverflowArtifact] = useState(sessionData.teleOverflowArtifact || 0);
+  const [teleMotif, setTeleMotif] = useState(sessionData.teleMotif || 0);
 
-  const [robot1Park, setRobot1Park] = useState<'none' | 'partial' | 'full'>('none');
-  const [robot2Park, setRobot2Park] = useState<'none' | 'partial' | 'full'>('none');
+  const [robot1Park, setRobot1Park] = useState<'none' | 'partial' | 'full'>(sessionData.robot1Park || 'none');
+  const [robot2Park, setRobot2Park] = useState<'none' | 'partial' | 'full'>(sessionData.robot2Park || 'none');
 
   // Memoize the score update function to prevent infinite loops
   const updateScores = useCallback(() => {
@@ -243,10 +243,12 @@ export const PerformanceMetrics = () => {
   const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
   const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
-  // Sync local state with sessionData only when all values are reset to 0 (after match save)
-  // OR when we start editing a saved match (editingMatchId changes to a non-null value)
-  // This prevents syncing during active editing
+  // Sync local state with sessionData when:
+  // 1. Session scores are reset to 0 (after match save) - detected by TRANSITION to all zeros
+  // 2. Starting to edit a saved match (editingMatchId changes to a non-null value)
+  // This prevents syncing during active editing while allowing restoration of saved scores
   const prevEditingMatchIdRef = useRef<string | null>(null);
+  const prevSessionDataRef = useRef(sessionData);
   
   useEffect(() => {
     if (isUpdatingRef.current) {
@@ -256,8 +258,18 @@ export const PerformanceMetrics = () => {
     // Check if we just started editing a match (editingMatchId changed from null to something)
     const justStartedEditing = editingMatchId !== null && prevEditingMatchIdRef.current !== editingMatchId;
     
-    // Only sync if ALL artifact values are 0 (indicating a reset) OR if we just started editing
-    const allZero = 
+    // Check if sessionData just TRANSITIONED to all zeros (after match save/reset)
+    // This is detected by comparing previous sessionData (which had values) to current (all zeros)
+    const prevHadValues = 
+      prevSessionDataRef.current.autonClassifiedArtifact ||
+      prevSessionDataRef.current.autonOverflowArtifact ||
+      prevSessionDataRef.current.autonMotif ||
+      prevSessionDataRef.current.autonLeave ||
+      prevSessionDataRef.current.teleClassifiedArtifact ||
+      prevSessionDataRef.current.teleOverflowArtifact ||
+      prevSessionDataRef.current.teleMotif;
+    
+    const currentAllZero = 
       !sessionData.autonClassifiedArtifact &&
       !sessionData.autonOverflowArtifact &&
       !sessionData.autonMotif &&
@@ -266,7 +278,12 @@ export const PerformanceMetrics = () => {
       !sessionData.teleOverflowArtifact &&
       !sessionData.teleMotif;
     
-    if (allZero || justStartedEditing) {
+    const justResetToZeros = prevHadValues && currentAllZero;
+    
+    // Sync if: sessionData just transitioned to zeros (match saved), OR starting edit
+    const shouldSyncFromSessionData = justResetToZeros || justStartedEditing;
+    
+    if (shouldSyncFromSessionData) {
       setAutonClassifiedArtifact(sessionData.autonClassifiedArtifact || 0);
       setAutonOverflowArtifact(sessionData.autonOverflowArtifact || 0);
       setAutonMotif(sessionData.autonMotif || 0);
@@ -278,8 +295,9 @@ export const PerformanceMetrics = () => {
       setRobot2Park(sessionData.robot2Park || 'none');
     }
     
-    // Update the ref to track current editingMatchId
+    // Update refs to track current state for next comparison
     prevEditingMatchIdRef.current = editingMatchId;
+    prevSessionDataRef.current = sessionData;
   }, [sessionData, editingMatchId]);
 
   // Popup state for keyboard shortcuts

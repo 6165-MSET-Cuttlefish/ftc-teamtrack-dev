@@ -284,9 +284,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     if (!editingMatchId) return;
 
     // Update the match in the matches array with current form data
-    setSessionData(prev => ({
-      ...prev,
-      matches: prev.matches.map(match => 
+    // Then restore the form to the current match state
+    setSessionData(prev => {
+      const updatedMatches = prev.matches.map(match => 
         match.id === editingMatchId 
           ? {
               ...match,
@@ -306,9 +306,42 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
               cycleTimes: prev.cycleTimes,
             }
           : match
-      ),
-    }));
-  }, [editingMatchId]);
+      );
+
+      // Restore the current match data if available, otherwise reset scoring fields
+      if (currentMatchData) {
+        return {
+          ...prev,
+          matches: updatedMatches,
+          ...currentMatchData,
+        };
+      }
+
+      // Reset scoring fields for new match
+      return {
+        ...prev,
+        matches: updatedMatches,
+        finalScore: 0,
+        autonomousScore: 0,
+        teleOpScore: 0,
+        endGameScore: 0,
+        autonClassifiedArtifact: 0,
+        autonOverflowArtifact: 0,
+        autonMotif: 0,
+        autonLeave: 0,
+        teleClassifiedArtifact: 0,
+        teleOverflowArtifact: 0,
+        teleMotif: 0,
+        robot1Park: 'none',
+        robot2Park: 'none',
+        cycleTimes: [],
+      };
+    });
+
+    // Clear edit mode state
+    setEditingMatchId(null);
+    setCurrentMatchData(null);
+  }, [editingMatchId, currentMatchData]);
 
   const resetSession = useCallback(() => {
     const newSessionData = createInitialSessionData(user?.displayName);
