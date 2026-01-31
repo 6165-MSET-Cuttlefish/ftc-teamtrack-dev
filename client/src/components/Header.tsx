@@ -379,15 +379,6 @@ const NavigationMenu = () => {
         </div>
       )}
 
-      {/*         : 'bg-team-blue hover:bg-team-blue/90 text-white'
-              }`}
-            >
-              Got it!
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* User section */}
       {user ? (
         <DropdownMenu>

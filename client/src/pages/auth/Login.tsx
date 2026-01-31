@@ -175,7 +175,7 @@ const Login = () => {
           <Button
             type="button"
             variant="outline"
-            className={`w-full ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 text-black hover:bg-team-blue-10' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'}`}
+            className={`w-full ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 text-white hover:bg-team-blue-10' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'}`}
             onClick={handleGoogleSignIn}
             disabled={loading}
           >

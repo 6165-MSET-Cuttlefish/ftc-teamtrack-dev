@@ -104,7 +104,8 @@ const SessionCard = ({
 
   // Calculate session scores from matches
   const getSessionScores = () => {
-    const scores = session.matches
+    const matches = session.matches || [];
+    const scores = matches
       .map(match => match.finalScore || 0)
       .filter(score => score > 0);
     
@@ -405,6 +406,9 @@ const Sessions = () => {
   };
 
   const handleUpdateSessionName = async (sessionId: string, newName: string) => {
+    // Store original name before optimistic update for potential revert
+    const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
+    
     try {
       // Update local state optimistically for instant feedback
       setSessions(prevSessions =>
@@ -419,11 +423,11 @@ const Sessions = () => {
       const success = await firebaseService.updateSession(sessionId, { sessionName: newName });
       
       if (!success) {
-        // Revert on failure
+        // Revert on failure using stored original name
         setSessions(prevSessions =>
           prevSessions.map(session =>
             session.id === sessionId
-              ? { ...session, sessionName: sessions.find(s => s.id === sessionId)?.sessionName || newName }
+              ? { ...session, sessionName: originalName || newName }
               : session
           )
         );
@@ -434,6 +438,14 @@ const Sessions = () => {
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error updating session name', error);
+      // Revert on error using stored original name
+      setSessions(prevSessions =>
+        prevSessions.map(session =>
+          session.id === sessionId
+            ? { ...session, sessionName: originalName || newName }
+            : session
+        )
+      );
       toast.error('Failed to update session name');
     }
   };
@@ -478,7 +490,6 @@ const Sessions = () => {
       'Tele Classified Artifact',
       'Tele Overflow Artifact',
       'Tele Motif',
-      'End Game Score',
       'Date',
     ];
 
@@ -511,7 +522,6 @@ const Sessions = () => {
         teleClassifiedArtifact,
         teleOverflowArtifact,
         teleMotif,
-        endGameScore,
         `"${formatDate(session.createdAt)}"`,
       ];
     });
@@ -647,10 +657,14 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {Math.round(
-                    (sessions.reduce((sum, s) => sum + ((s.finalScore as number) || 0), 0) as number) /
-                      sessions.length
-                  ) || 0}
+                  {(() => {
+                    const allScores = sessions.flatMap(s => 
+                      (s.matches || []).map(m => m.finalScore || 0)
+                    ).filter(score => score > 0);
+                    return allScores.length > 0 
+                      ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) 
+                      : 0;
+                  })()}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
@@ -662,7 +676,12 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {Math.max(...sessions.map(s => (s.finalScore as number) || 0)) || 0}
+                  {(() => {
+                    const allScores = sessions.flatMap(s => 
+                      (s.matches || []).map(m => m.finalScore || 0)
+                    );
+                    return allScores.length > 0 ? Math.max(...allScores) : 0;
+                  })()}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}

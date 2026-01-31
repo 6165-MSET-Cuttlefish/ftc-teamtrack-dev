@@ -128,7 +128,7 @@ export const SessionSetup = () => {
               >
                 <SelectValue placeholder="Select match type" />
               </SelectTrigger>
-              <SelectContent className="bg-[#191919] border-team-blue-40">
+              <SelectContent className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}>
                 <SelectItem value="Autonomous">Autonomous</SelectItem>
                 <SelectItem value="TeleOp">TeleOp</SelectItem>
                 <SelectItem value="Full Game">Full Game</SelectItem>
@@ -148,7 +148,7 @@ export const SessionSetup = () => {
               >
                 <SelectValue placeholder="Select feature" />
               </SelectTrigger>
-              <SelectContent className="bg-[#191919] border-team-blue-40">
+              <SelectContent className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}>
                 <SelectItem value="Cycle Times">Cycle Times</SelectItem>
               </SelectContent>
             </Select>

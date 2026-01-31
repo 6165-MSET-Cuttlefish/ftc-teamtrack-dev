@@ -14,21 +14,10 @@ import {
   loadTimerStateFromStorage, 
   clearSessionFromStorage,
   hasActiveSession,
-  type SessionFormData as StorageSessionFormData,
+  type SessionFormData,
   type SessionTimerState,
 } from '@/lib/sessionStorage';
-import type { Match, ScoringFields } from '@/types';
-
-interface SessionFormData extends ScoringFields {
-  sessionName: string;
-  driverName: string;
-  sessionDuration: string;
-  matchType: string;
-  isSessionCompleted: boolean;
-  selectedFeature: string;
-  notes: string;
-  matches: Match[];
-}
+import type { Match } from '@/types';
 
 interface SessionContextType {
   sessionData: SessionFormData;
@@ -207,7 +196,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       matchStartTime: 0,
     };
 
-    saveSessionToStorage(sessionData as StorageSessionFormData, timerState);
+    saveSessionToStorage(sessionData, timerState);
     setHasActiveSessionLocal(true);
   }, [sessionData, timer, sessionTimer, isTimerRunning, hasStarted, hasTransitionedToTeleOp, showTeleOpTransition]);
 

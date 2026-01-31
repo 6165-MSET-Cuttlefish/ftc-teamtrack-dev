@@ -124,6 +124,7 @@ export const LivePreview = () => {
     sessionData.matchType,
     hasTransitionedToTeleOp,
     setIsTimerRunning,
+    setShowTeleOpTransition,
   ]);
 
   const handleContinueToTeleOp = () => {
@@ -160,10 +161,21 @@ export const LivePreview = () => {
           return;
         }
 
+        // Get scores from previous sessions by aggregating from matches array
+        const previousScores = lastThreeSessions.flatMap(session => 
+          (session.matches || []).map(match => match.finalScore || 0)
+        ).filter(score => score > 0);
+
         const allScores: number[] = [
           sessionData.finalScore ?? 0,
-          ...lastThreeSessions.map(session => (session.finalScore || 0) as number),
-        ];
+          ...previousScores,
+        ].filter(score => score > 0);
+
+        if (allScores.length === 0) {
+          setConsistency(100);
+          setIsCalculatingConsistency(false);
+          return;
+        }
 
         const avgScore =
           allScores.reduce((sum: number, score: number) => sum + score, 0) / allScores.length;
