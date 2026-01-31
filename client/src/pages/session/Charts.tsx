@@ -69,7 +69,8 @@ const Charts = () => {
     loadSessions();
   }, [user?.uid]);
 
-  const formatDate = (timestamp: unknown): string => {
+  // Use a custom short date format for charts (different from the imported formatDate)
+  const formatChartDate = (timestamp: unknown): string => {
     if (!timestamp) return 'Unknown';
 
     let date: Date;
@@ -139,7 +140,7 @@ const Charts = () => {
         const teleOpScore = session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0);
         const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
         return {
-          name: formatDate(session.createdAt),
+          name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
           'Final Score': finalScore,
           Autonomous: autonomousScore,
@@ -180,7 +181,7 @@ const Charts = () => {
       const max = Math.max(...allCycleTimes);
       
       return {
-        name: session.sessionName || formatDate(session.createdAt),
+        name: session.sessionName || formatChartDate(session.createdAt),
         'Avg Cycle': parseFloat(avg.toFixed(1)),
         'Fastest': parseFloat(min.toFixed(1)),
         'Slowest': parseFloat(max.toFixed(1)),
@@ -251,7 +252,7 @@ const Charts = () => {
       const sessionScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
 
       return {
-        name: formatDate(session.createdAt),
+        name: formatChartDate(session.createdAt),
         Consistency: Math.round(consistency),
         Score: sessionScore,
       };

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
-import { STORAGE_KEYS, UI_TIMING } from '@/constants';
+import { STORAGE_KEYS, UI_TIMING, ROUTES } from '@/constants';
+import { getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -109,14 +110,6 @@ const NavigationMenu = () => {
     }
   }, [user]);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase();
-  };
-
   const handleLogout = async () => {
     try {
       // Clear session data from storage before logging out
@@ -124,7 +117,7 @@ const NavigationMenu = () => {
       clearSessionFromStorage();
       
       await logout();
-      navigate('/login');
+      navigate(ROUTES.LOGIN);
       toast.success('Logged out successfully');
     } catch (error) {
       const { logger } = await import('@/lib/logger');
@@ -207,7 +200,7 @@ const NavigationMenu = () => {
       {/* New Session button */}
       {user && (
         <button
-          onClick={() => navigate('/active')}
+          onClick={() => navigate(ROUTES.ACTIVE)}
           aria-label="New session"
           className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
         >

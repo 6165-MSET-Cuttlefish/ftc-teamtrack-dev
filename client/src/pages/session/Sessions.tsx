@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
-import { UI_TIMING, APP_CONFIG } from '@/constants';
+import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -569,7 +569,7 @@ const Sessions = () => {
                 onClick={() => {
                   resetSession();
                   localStorage.setItem('teamtrack_new_session_created', 'true');
-                  navigate('/active');
+                  navigate(ROUTES.ACTIVE);
                 }}
                 className={`bg-team-blue hover:bg-team-blue/90 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px] ${isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}`}
               >
@@ -579,7 +579,7 @@ const Sessions = () => {
               </Button>
               {sessions.length > 0 && (
                 <Button
-                  onClick={() => navigate('/charts')}
+                  onClick={() => navigate(ROUTES.CHARTS)}
                   className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
                     isDarkMode
                       ? 'text-team-blue border-team-blue-40'
@@ -594,7 +594,7 @@ const Sessions = () => {
               )}
               {sessions.length > 1 && (
                 <Button
-                  onClick={() => navigate('/compare')}
+                  onClick={() => navigate(ROUTES.COMPARE)}
                   className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
                     isDarkMode
                       ? 'text-team-blue border-team-blue-40'
@@ -694,14 +694,13 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {
-                    sessions.filter(s => s.matchType?.toLowerCase() === 'match')
-                      .length
+                    sessions.reduce((total, s) => total + (s.matches?.length || 0), 0)
                   }
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
                 >
-                  Matches
+                  Total Matches
                 </div>
               </div>
             </div>
@@ -783,6 +782,7 @@ const Sessions = () => {
             {!searchTerm && (
               <Button
                 onClick={() => {
+                  resetSession();
                   localStorage.setItem('teamtrack_new_session_created', 'true');
                   navigate('/active');
                 }}

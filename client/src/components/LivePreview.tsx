@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { useFirebase } from '@/hooks';
-import { GAME_TIMING } from '@/constants';
+import { GAME_TIMING, ROUTES } from '@/constants';
 import { Trash2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Match } from '@/types';
@@ -66,7 +66,9 @@ export const LivePreview = () => {
     ((sessionData.matches && sessionData.matches.length > 0) || 
      (sessionData.finalScore || 0) > 0 || 
      (sessionData.autonomousScore || 0) > 0 || 
-     (sessionData.teleOpScore || 0) > 0);
+     (sessionData.teleOpScore || 0) > 0 ||
+     (sessionData.notes && sessionData.notes.trim().length > 0) ||
+     (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -213,7 +215,7 @@ export const LivePreview = () => {
   }, [sessionData.finalScore, user?.uid]);
 
   const handleViewAnalysis = async () => {
-    navigate('/analysis');
+    navigate(ROUTES.ANALYSIS);
   };
 
   const handleNewSession = () => {
@@ -465,7 +467,7 @@ export const LivePreview = () => {
                     ? 'text-team-white-60 hover:bg-team-dark hover:text-red-400'
                     : 'text-team-blue-40 hover:bg-gray-100 hover:text-red-500'
                 }`}
-                title="Delete current match"
+                title="Reset current match scores"
               >
                 <Trash2 className="h-5 w-5" />
               </button>
@@ -473,19 +475,39 @@ export const LivePreview = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    resetSession();
+                    // Reset only current match scoring fields, not the entire session
+                    updateSessionData({
+                      finalScore: 0,
+                      autonomousScore: 0,
+                      teleOpScore: 0,
+                      endGameScore: 0,
+                      autonLeave: 0,
+                      autonClassifiedArtifact: 0,
+                      autonOverflowArtifact: 0,
+                      autonMotif: 0,
+                      teleClassifiedArtifact: 0,
+                      teleOverflowArtifact: 0,
+                      teleMotif: 0,
+                      robot1Park: 'none',
+                      robot2Park: 'none',
+                      cycleTimes: [],
+                    });
+                    resetTimer();
+                    setHasStarted(false);
+                    setIsTimerRunning(false);
+                    setHasTransitionedToTeleOp(false);
                     setDeleteConfirm(false);
-                    toast.success('Current match deleted');
+                    toast.success('Current match scores reset');
                   }}
                   className="p-2 rounded bg-green-500 hover:bg-green-600 text-white transition-all"
-                  title="Confirm delete"
+                  title="Confirm reset"
                 >
                   <Check className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setDeleteConfirm(false)}
                   className="p-2 rounded bg-red-500 hover:bg-red-600 text-white transition-all"
-                  title="Cancel delete"
+                  title="Cancel reset"
                 >
                   <X className="h-5 w-5" />
                 </button>

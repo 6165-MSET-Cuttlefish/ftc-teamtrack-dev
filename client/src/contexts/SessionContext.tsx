@@ -79,6 +79,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   // Try to load from storage first, otherwise create new
   // Only load session if it's fresh or from the same user session
+  // Note: Don't use user.displayName here as it may not be available yet during initial load
   const [sessionData, setSessionData] = useState<SessionFormData>(() => {
     const stored = loadSessionFromStorage();
     // Load stored session only if it's not a completed session from a previous session
@@ -86,8 +87,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     if (stored && !stored.isSessionCompleted) {
       return stored;
     }
-    return createInitialSessionData(user?.displayName);
+    return createInitialSessionData();
   });
+
+  // Update driver name when user becomes available (handles initial load timing)
+  useEffect(() => {
+    if (user?.displayName && !sessionData.driverName && !sessionData.isSessionCompleted) {
+      setSessionData(prev => ({
+        ...prev,
+        driverName: prev.driverName || user.displayName || '',
+      }));
+    }
+  }, [user?.displayName, sessionData.driverName, sessionData.isSessionCompleted]);
 
   // Load timer state from storage - but only if we actually loaded session data
   const storedTimerState = (() => {
