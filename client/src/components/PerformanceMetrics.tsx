@@ -157,7 +157,7 @@ const MetricField = ({
 };
 
 export const PerformanceMetrics = () => {
-  const { sessionData, updateSessionData, expandedSection, setExpandedSection, isTimerRunning, editingMatchId } = useSession();
+  const { sessionData, updateSessionData, expandedSection, setExpandedSection, isTimerRunning, editingMatchId, hasStarted } = useSession();
   const { isDarkMode } = useTheme();
 
   // Allow editing when timer is running OR when editing a saved match
@@ -347,6 +347,11 @@ export const PerformanceMetrics = () => {
         return;
       }
 
+      // Only allow keybinds when match has started
+      if (!hasStarted) {
+        return;
+      }
+
       if (['1', '2', '3'].includes(event.key)) {
         if (!showPopup) {
           // First press - open popup with shot type
@@ -422,7 +427,7 @@ export const PerformanceMetrics = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [showPopup, popupNumber, madeCount, expandedSection, sessionData.matchType, sessionData.selectedFeature, recordCycleTime]);
+  }, [showPopup, popupNumber, madeCount, expandedSection, sessionData.matchType, sessionData.selectedFeature, recordCycleTime, hasStarted]);
 
   useEffect(() => {
     // Debounce the score updates - only update after 300ms of no changes
@@ -620,7 +625,7 @@ export const PerformanceMetrics = () => {
                     <button
                       onClick={recordCycleTime}
                       className={`w-12 h-12 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors flex-shrink-0 ${
-                        isDarkMode ? 'bg-team-dark text-white hover:bg-team-dark-20' : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                        isDarkMode ? 'bg-team-dark text-white hover:bg-team-dark-20' : 'bg-[#FEFEFE] text-team-blue hover:bg-gray-100'
                       }`}
                     >
                       <Clock className="w-6 h-6" />
@@ -808,11 +813,11 @@ export const PerformanceMetrics = () => {
       {/* Keyboard shortcut popup */}
       {showPopup && (
         <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
-          <div className={`${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue text-black'} rounded-lg shadow-2xl p-12 text-center`}>
+          <div className={`${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-600 text-white'} rounded-lg shadow-2xl p-12 text-center`}>
             <div className="text-6xl font-bold mb-4">shot {popupNumber}</div>
             <div className="text-4xl mb-4">{madeCount !== null ? `${madeCount} made` : '__ made'}</div>
-            <div className={`text-sm mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>press enter to confirm</div>
-            <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-black'}`}>press esc to exit</div>
+            <div className="text-sm mb-2 text-white/80">press enter to confirm</div>
+            <div className="text-sm text-white/80">press esc to exit</div>
           </div>
         </div>
       )}
