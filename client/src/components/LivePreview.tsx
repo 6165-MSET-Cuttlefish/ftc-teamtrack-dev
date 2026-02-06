@@ -579,35 +579,30 @@ export const LivePreview = () => {
                         Return to Current Match
                       </button>
                     </div>
-                  ) : hasStarted ? (
+                  ) : !hasStarted ? (
+                    <button
+                      onClick={() => {
+                        setHasStarted(true);
+                      }}
+                      className="w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 text-white text-base leading-6 font-normal hover:bg-green-700 transition-colors"
+                    >
+                      Start New Match
+                    </button>
+                  ) : (
                     <>
+                      <button
+                        onClick={() => setIsTimerRunning(!isTimerRunning)}
+                        className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#FEFEFE]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
+                      >
+                        {isTimerRunning ? 'Stop / Pause Match' : (timer === 0 ? 'Start Timer' : 'Resume Match')}
+                      </button>
                       <button
                         onClick={handleSaveMatch}
                         className={`w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 ${isDarkMode ? 'text-[#FEFEFE]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-green-700 transition-colors`}
                       >
                         Save Match
                       </button>
-                      <button
-                        onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#FEFEFE]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
-                      >
-                        {isTimerRunning ? 'Pause Match' : 'Resume Match'}
-                      </button>
                     </>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setIsTimerRunning(true);
-                        setHasStarted(true);
-                        // Start the overall session timer when first match starts
-                        if (sessionTimer === 0 && sessionData.matches.length === 0) {
-                          // Will be picked up by the session timer effect
-                        }
-                      }}
-                      className="w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 text-white text-base leading-6 font-normal hover:bg-green-700 transition-colors"
-                    >
-                      Start New Match
-                    </button>
                   )}
                 </>
               )}
