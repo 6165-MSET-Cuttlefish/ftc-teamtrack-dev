@@ -12,15 +12,28 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import { Sun, Moon, LogOut, UserCircle, BarChart3, Keyboard, HelpCircle, Hexagon } from 'lucide-react';
+import {
+  Sun,
+  Moon,
+  LogOut,
+  UserCircle,
+  BarChart3,
+  Keyboard,
+  HelpCircle,
+  Hexagon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 
 const TeamTrackLogo = () => {
   const { isDarkMode, isHoneycombMode } = useTheme();
-  
+
   // Determine logo color based on theme
-  const logoColor = isHoneycombMode ? '#DAA520' : (isDarkMode ? '#B0E5FE' : '#537788');
+  const logoColor = isHoneycombMode
+    ? '#DAA520'
+    : isDarkMode
+      ? '#B0E5FE'
+      : '#537788';
 
   return (
     <Link
@@ -73,7 +86,7 @@ const TeamTrackLogo = () => {
           />
         </svg>
         <span
-          className={`font-montserrat italic text-[0.625rem] sm:text-xs leading-6 relative -top-.5 hidden sm:inline ${isHoneycombMode ? 'text-[#DAA520]' : (isDarkMode ? 'text-white' : 'text-black')}`}
+          className={`font-montserrat italic text-[0.625rem] sm:text-xs leading-6 relative -top-.5 hidden sm:inline ${isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
         >
           TeamTrack
         </span>
@@ -92,17 +105,20 @@ const NavigationMenu = () => {
 
   // Check if there's an active session (when session has data or matches, not completed)
   const { hasStarted } = useSession();
-  const hasActiveSession = sessionData && !sessionData.isSessionCompleted && (
-    hasStarted || 
-    sessionData.sessionName?.trim() || 
-    sessionData.driverName?.trim() || 
-    (sessionData.matches && sessionData.matches.length > 0)
-  );
+  const hasActiveSession =
+    sessionData &&
+    !sessionData.isSessionCompleted &&
+    (hasStarted ||
+      sessionData.sessionName?.trim() ||
+      sessionData.driverName?.trim() ||
+      (sessionData.matches && sessionData.matches.length > 0));
 
   // Check if this is the user's first time and show tutorials
   useEffect(() => {
     if (user) {
-      const hasSeenTutorials = localStorage.getItem(STORAGE_KEYS.TUTORIALS_SEEN);
+      const hasSeenTutorials = localStorage.getItem(
+        STORAGE_KEYS.TUTORIALS_SEEN
+      );
       if (!hasSeenTutorials) {
         // Show keybinds tutorial first
         setShowKeybindTutorial(true);
@@ -115,7 +131,7 @@ const NavigationMenu = () => {
       // Clear session data from storage before logging out
       const { clearSessionFromStorage } = await import('@/lib/sessionStorage');
       clearSessionFromStorage();
-      
+
       await logout();
       navigate(ROUTES.LOGIN);
       toast.success('Logged out successfully');
@@ -132,7 +148,10 @@ const NavigationMenu = () => {
     if (!hasSeenTutorials) {
       // Use requestAnimationFrame for more reliable timing
       requestAnimationFrame(() => {
-        setTimeout(() => setShowFeaturesTutorial(true), UI_TIMING.TUTORIAL_TRANSITION_DELAY);
+        setTimeout(
+          () => setShowFeaturesTutorial(true),
+          UI_TIMING.TUTORIAL_TRANSITION_DELAY
+        );
       });
     }
   };
@@ -150,8 +169,8 @@ const NavigationMenu = () => {
       }`}
     >
       {/* Active / New Session Button */}
-      {user && (
-        hasActiveSession ? (
+      {user &&
+        (hasActiveSession ? (
           <button
             onClick={() => navigate('/active')}
             aria-label="Active practice session"
@@ -173,15 +192,16 @@ const NavigationMenu = () => {
           >
             <span className="text-sm font-semibold">New Session</span>
           </button>
-        )
-      )}
+        ))}
 
       {/* My Sessions button */}
       {user && (
         <button
           onClick={() => navigate('/sessions')}
           className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'
+            isDarkMode
+              ? 'hover:bg-team-white-10 text-white'
+              : 'hover:bg-gray-100 text-black'
           }`}
         >
           My Sessions
@@ -221,7 +241,6 @@ const NavigationMenu = () => {
         )}
       </button>
 
-
       {/* Keybind Tutorial Modal */}
       {showKeybindTutorial && (
         <div
@@ -230,55 +249,105 @@ const NavigationMenu = () => {
         >
           <div
             className={`relative w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
-            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Keyboard Shortcuts</h2>
+            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
+              Keyboard Shortcuts
+            </h2>
             <div className="space-y-3 sm:space-y-4">
               <div>
-                <h3 className="text-base sm:text-lg font-semibold mb-2">Scoring Shortcuts</h3>
-                <p className={`text-xs sm:text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <h3 className="text-base sm:text-lg font-semibold mb-2">
+                  Scoring Shortcuts
+                </h3>
+                <p
+                  className={`text-xs sm:text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                >
                   Use these shortcuts when in the Autonomous or TeleOp section:
                 </p>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-sm sm:text-base">Select shot type:</span>
+                    <span className="text-sm sm:text-base">
+                      Select shot type:
+                    </span>
                     <div className="flex gap-1 sm:gap-2">
-                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>1</kbd>
-                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>2</kbd>
-                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>3</kbd>
+                      <kbd
+                        className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                      >
+                        1
+                      </kbd>
+                      <kbd
+                        className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                      >
+                        2
+                      </kbd>
+                      <kbd
+                        className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                      >
+                        3
+                      </kbd>
                     </div>
                   </div>
-                  <p className={`text-xs sm:text-xs ml-0 sm:ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p
+                    className={`text-xs sm:text-xs ml-0 sm:ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  >
                     Press 1, 2, or 3 to select the shot type
                   </p>
-                  
+
                   <div className="flex items-center justify-between mt-3">
                     <span>Set made count:</span>
                     <div className="flex gap-2">
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>1</kbd>
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>2</kbd>
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>3</kbd>
+                      <kbd
+                        className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                      >
+                        1
+                      </kbd>
+                      <kbd
+                        className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                      >
+                        2
+                      </kbd>
+                      <kbd
+                        className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                      >
+                        3
+                      </kbd>
                     </div>
                   </div>
-                  <p className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    After selecting shot type, press number to set how many were made (≤ shot type)
+                  <p
+                    className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  >
+                    After selecting shot type, press number to set how many were
+                    made (≤ shot type)
                   </p>
 
                   <div className="flex items-center justify-between mt-3">
                     <span>Confirm entry:</span>
-                    <kbd className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>Enter</kbd>
+                    <kbd
+                      className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                    >
+                      Enter
+                    </kbd>
                   </div>
-                  
+
                   <div className="flex items-center justify-between mt-3">
                     <span>Cancel:</span>
-                    <kbd className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>Esc</kbd>
+                    <kbd
+                      className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                    >
+                      Esc
+                    </kbd>
                   </div>
                 </div>
               </div>
 
-              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  <strong>Note:</strong> Keyboard shortcuts only work when you're not typing in an input field.
+              <div
+                className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+              >
+                <p
+                  className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                >
+                  <strong>Note:</strong> Keyboard shortcuts only work when
+                  you're not typing in an input field.
                 </p>
               </div>
             </div>
@@ -286,8 +355,8 @@ const NavigationMenu = () => {
             <button
               onClick={handleCloseKeybindTutorial}
               className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors ${
-                isDarkMode 
-                  ? 'bg-team-blue hover:bg-team-blue/80 text-black' 
+                isDarkMode
+                  ? 'bg-team-blue hover:bg-team-blue/80 text-black'
                   : 'bg-team-blue hover:bg-team-blue/90 text-white'
               }`}
             >
@@ -305,52 +374,87 @@ const NavigationMenu = () => {
         >
           <div
             className={`relative w-full max-w-2xl p-4 sm:p-6 rounded-lg shadow-lg max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
-            <h2 className="text-2xl font-bold mb-4">Session Scoring Features</h2>
-            
+            <h2 className="text-2xl font-bold mb-4">
+              Session Scoring Features
+            </h2>
+
             <div className="space-y-6">
               {/* Overview */}
               <div>
                 <h3 className="text-lg font-semibold mb-2">Overview</h3>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Track your robot's performance during FTC matches with comprehensive scoring across Autonomous, TeleOp, and End Game periods.
+                <p
+                  className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                >
+                  Track your robot's performance during FTC matches with
+                  comprehensive scoring across Autonomous, TeleOp, and End Game
+                  periods.
                 </p>
               </div>
 
               {/* Cycle Timer Feature */}
-              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-2">Cycle Timer Feature</h3>
-                <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              <div
+                className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+              >
+                <h3 className="text-lg font-semibold mb-2">
+                  Cycle Timer Feature
+                </h3>
+                <p
+                  className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                >
                   Available in TeleOp section when enabled:
                 </p>
-                <ul className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  <li><strong>Clock Button:</strong> Click to record cycle times</li>
-                  <li><strong>Timer Display:</strong> Shows current cycle time in MM:SS format</li>
-                  <li><strong>Cycle Times Log:</strong> View all recorded cycle times (expandable)</li>
-                  <li><strong>Auto Recording:</strong> Each click saves the time and starts a new cycle</li>
+                <ul
+                  className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                >
+                  <li>
+                    <strong>Clock Button:</strong> Click to record cycle times
+                  </li>
+                  <li>
+                    <strong>Timer Display:</strong> Shows current cycle time in
+                    MM:SS format
+                  </li>
+                  <li>
+                    <strong>Cycle Times Log:</strong> View all recorded cycle
+                    times (expandable)
+                  </li>
+                  <li>
+                    <strong>Auto Recording:</strong> Each click saves the time
+                    and starts a new cycle
+                  </li>
                 </ul>
               </div>
 
               {/* Input Methods */}
-              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div
+                className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+              >
                 <h3 className="text-lg font-semibold mb-2">Input Methods</h3>
                 <div className="space-y-2">
                   <div>
-                    <p className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    <p
+                      className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}
+                    >
                       Number Input Fields:
                     </p>
-                    <ul className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <ul
+                      className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                    >
                       <li>• Type directly or use up/down arrows</li>
                       <li>• Press Enter or click away to save</li>
                       <li>• Automatically calculates total scores</li>
                     </ul>
                   </div>
                   <div>
-                    <p className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    <p
+                      className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}
+                    >
                       Breakdown Controls (when expanded):
                     </p>
-                    <ul className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <ul
+                      className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                    >
                       <li>• Large +/- buttons for quick adjustments</li>
                       <li>• Center display shows current value</li>
                       <li>• Can also type directly in the center</li>
@@ -360,12 +464,20 @@ const NavigationMenu = () => {
               </div>
 
               {/* Tips */}
-              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div
+                className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+              >
                 <h3 className="text-lg font-semibold mb-2">Tips</h3>
-                <ul className={`text-sm space-y-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  <li>• Scores are calculated automatically as you input values</li>
+                <ul
+                  className={`text-sm space-y-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                >
+                  <li>
+                    • Scores are calculated automatically as you input values
+                  </li>
                   <li>• Expand sections to see detailed breakdowns</li>
-                  <li>• Use keyboard shortcuts (1-3 keys) for faster scoring</li>
+                  <li>
+                    • Use keyboard shortcuts (1-3 keys) for faster scoring
+                  </li>
                   <li>• The total final score updates in real-time</li>
                   <li>• All data is saved automatically to your session</li>
                 </ul>
@@ -375,8 +487,8 @@ const NavigationMenu = () => {
             <button
               onClick={handleCloseFeaturesTutorial}
               className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors ${
-                isDarkMode 
-                  ? 'bg-team-blue hover:bg-team-blue/80 text-black' 
+                isDarkMode
+                  ? 'bg-team-blue hover:bg-team-blue/80 text-black'
                   : 'bg-team-blue hover:bg-team-blue/90 text-white'
               }`}
             >
@@ -446,7 +558,11 @@ const NavigationMenu = () => {
           <Button variant="ghost" size="sm" asChild>
             <Link to="/login">Sign in</Link>
           </Button>
-          <Button size="sm" asChild className={isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}>
+          <Button
+            size="sm"
+            asChild
+            className={isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}
+          >
             <Link to="/signup">Sign up</Link>
           </Button>
         </div>
@@ -463,7 +579,7 @@ export const Header = () => {
     >
       <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4 md:gap-6">
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
-          <TeamTrackLogo/>
+          <TeamTrackLogo />
         </div>
 
         <div className="flex items-center justify-center"></div>

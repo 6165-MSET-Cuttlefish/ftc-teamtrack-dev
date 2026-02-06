@@ -56,19 +56,20 @@ export const LivePreview = () => {
   const { user } = useAuth();
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
-  const [sessionLimitReached, setSessionLimitReached] = useState<boolean>(false);
+  const [sessionLimitReached, setSessionLimitReached] =
+    useState<boolean>(false);
   const [deleteConfirm, setDeleteConfirm] = useState<boolean>(false);
   const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
-  const hasUnsavedWork = 
-    !sessionData.isSessionCompleted && 
-    ((sessionData.matches && sessionData.matches.length > 0) || 
-     (sessionData.finalScore || 0) > 0 || 
-     (sessionData.autonomousScore || 0) > 0 || 
-     (sessionData.teleOpScore || 0) > 0 ||
-     (sessionData.notes && sessionData.notes.trim().length > 0) ||
-     (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
+  const hasUnsavedWork =
+    !sessionData.isSessionCompleted &&
+    ((sessionData.matches && sessionData.matches.length > 0) ||
+      (sessionData.finalScore || 0) > 0 ||
+      (sessionData.autonomousScore || 0) > 0 ||
+      (sessionData.teleOpScore || 0) > 0 ||
+      (sessionData.notes && sessionData.notes.trim().length > 0) ||
+      (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -94,18 +95,21 @@ export const LivePreview = () => {
         const { firebaseService } = await import('../services/firebaseService');
         const userSessions = await firebaseService.getUserSessions(user.uid);
         const { SESSION_LIMITS } = await import('../constants');
-        
+
         if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
           setSessionLimitReached(true);
-          toast.error(`You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`, {
-            duration: 10000,
-          });
+          toast.error(
+            `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`,
+            {
+              duration: 10000,
+            }
+          );
         } else {
           setSessionLimitReached(false);
         }
       }
     };
-    
+
     checkSessionLimit();
   }, [user?.uid, sessionData.isSessionCompleted]);
 
@@ -164,9 +168,11 @@ export const LivePreview = () => {
         }
 
         // Get scores from previous sessions by aggregating from matches array
-        const previousScores = lastThreeSessions.flatMap(session => 
-          (session.matches || []).map(match => match.finalScore || 0)
-        ).filter(score => score > 0);
+        const previousScores = lastThreeSessions
+          .flatMap(session =>
+            (session.matches || []).map(match => match.finalScore || 0)
+          )
+          .filter(score => score > 0);
 
         const allScores: number[] = [
           sessionData.finalScore ?? 0,
@@ -180,7 +186,8 @@ export const LivePreview = () => {
         }
 
         const avgScore =
-          allScores.reduce((sum: number, score: number) => sum + score, 0) / allScores.length;
+          allScores.reduce((sum: number, score: number) => sum + score, 0) /
+          allScores.length;
 
         if (avgScore === 0) {
           setConsistency(100);
@@ -220,12 +227,20 @@ export const LivePreview = () => {
 
   const handleNewSession = () => {
     // Check if there's unsaved work
-    if (sessionData.matches && sessionData.matches.length > 0 && !sessionData.isSessionCompleted) {
-      if (!window.confirm('You have unsaved matches. Starting a new session will discard them. Continue?')) {
+    if (
+      sessionData.matches &&
+      sessionData.matches.length > 0 &&
+      !sessionData.isSessionCompleted
+    ) {
+      if (
+        !window.confirm(
+          'You have unsaved matches. Starting a new session will discard them. Continue?'
+        )
+      ) {
         return;
       }
     }
-    
+
     // Reset all session state (including sessionTimer)
     resetSession();
     // Clear any UI state for confirmations
@@ -237,7 +252,9 @@ export const LivePreview = () => {
   const handleSaveMatch = () => {
     // Validate required fields
     if (!sessionData.sessionName?.trim() || !sessionData.driverName?.trim()) {
-      toast.error('Please fill in Session Name and Driver Name before saving a match');
+      toast.error(
+        'Please fill in Session Name and Driver Name before saving a match'
+      );
       return;
     }
 
@@ -248,10 +265,12 @@ export const LivePreview = () => {
     }
 
     // Validate that some scoring data exists
-    if ((sessionData.finalScore || 0) === 0 && 
-        (sessionData.autonomousScore || 0) === 0 && 
-        (sessionData.teleOpScore || 0) === 0 && 
-        (sessionData.endGameScore || 0) === 0) {
+    if (
+      (sessionData.finalScore || 0) === 0 &&
+      (sessionData.autonomousScore || 0) === 0 &&
+      (sessionData.teleOpScore || 0) === 0 &&
+      (sessionData.endGameScore || 0) === 0
+    ) {
       toast.error('Please enter some scoring data before saving a match');
       return;
     }
@@ -298,13 +317,13 @@ export const LivePreview = () => {
       robot2Park: 'none',
       cycleTimes: [],
     });
-    
+
     // Reset match timer and tracking states
     resetTimer();
     setHasStarted(false);
     setIsTimerRunning(false);
     setHasTransitionedToTeleOp(false);
-    
+
     toast.success(`Match ${updatedMatches.length} saved successfully!`);
   };
 
@@ -317,25 +336,31 @@ export const LivePreview = () => {
 
     // Validate required fields
     if (!sessionData.sessionName?.trim() || !sessionData.driverName?.trim()) {
-      toast.error('Please fill in Session Name and Driver Name before completing the session');
+      toast.error(
+        'Please fill in Session Name and Driver Name before completing the session'
+      );
       return;
     }
 
     // Validate that at least one match has been saved
     if (!sessionData.matches || sessionData.matches.length === 0) {
-      toast.error('Please save at least one match before completing the session');
+      toast.error(
+        'Please save at least one match before completing the session'
+      );
       return;
     }
 
     // Check if there's unsaved current match data
-    const hasUnsavedData = 
-      (sessionData.finalScore || 0) > 0 || 
-      (sessionData.autonomousScore || 0) > 0 || 
-      (sessionData.teleOpScore || 0) > 0 || 
+    const hasUnsavedData =
+      (sessionData.finalScore || 0) > 0 ||
+      (sessionData.autonomousScore || 0) > 0 ||
+      (sessionData.teleOpScore || 0) > 0 ||
       (sessionData.endGameScore || 0) > 0;
 
     if (hasUnsavedData) {
-      toast.error('Please save the current match before completing the session, or reset the scoring fields');
+      toast.error(
+        'Please save the current match before completing the session, or reset the scoring fields'
+      );
       return;
     }
 
@@ -343,9 +368,11 @@ export const LivePreview = () => {
     const { firebaseService } = await import('../services/firebaseService');
     const userSessions = await firebaseService.getUserSessions(user.uid);
     const { SESSION_LIMITS } = await import('../constants');
-    
+
     if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
-      toast.error(`You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`);
+      toast.error(
+        `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`
+      );
       return;
     }
 
@@ -440,7 +467,9 @@ export const LivePreview = () => {
         </div>
 
         <div className="text-center">
-          <p className={`text-sm mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+          <p
+            className={`text-sm mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+          >
             Session Timer
           </p>
           <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
@@ -451,13 +480,16 @@ export const LivePreview = () => {
 
       <div className="flex flex-col items-center gap-6 lg:gap-8 w-full">
         {/* Current Match Box */}
-        <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-white'} ${editingMatchId ? 'ring-2 ring-yellow-500' : ''} space-y-6`}>
+        <div
+          className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-white'} ${editingMatchId ? 'ring-2 ring-yellow-500' : ''} space-y-6`}
+        >
           <div className="flex items-center justify-between">
-            <h3 className={`text-lg font-semibold ${editingMatchId ? 'text-yellow-500' : isDarkMode ? 'text-white' : 'text-team-blue'}`}>
-              {editingMatchId 
+            <h3
+              className={`text-lg font-semibold ${editingMatchId ? 'text-yellow-500' : isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
+              {editingMatchId
                 ? `Editing Match: Match ${(sessionData.matches?.findIndex(m => m.id === editingMatchId) ?? 0) + 1}`
-                : `Current Match: Match ${(sessionData.matches?.length || 0) + 1}`
-              }
+                : `Current Match: Match ${(sessionData.matches?.length || 0) + 1}`}
             </h3>
             {!deleteConfirm ? (
               <button
@@ -514,7 +546,7 @@ export const LivePreview = () => {
               </div>
             )}
           </div>
-          
+
           <div className="text-center">
             <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
               {formatTime(timer)}
@@ -534,9 +566,14 @@ export const LivePreview = () => {
 
         {/* Session Limit Warning */}
         {sessionLimitReached && (
-          <div className={`w-full px-4 py-3 rounded-lg border-2 ${isDarkMode ? 'bg-red-900/20 border-red-500 text-red-400' : 'bg-red-50 border-red-500 text-red-800'}`}>
+          <div
+            className={`w-full px-4 py-3 rounded-lg border-2 ${isDarkMode ? 'bg-red-900/20 border-red-500 text-red-400' : 'bg-red-50 border-red-500 text-red-800'}`}
+          >
             <p className="text-sm font-semibold">⚠️ Session Limit Reached</p>
-            <p className="text-xs mt-1">You cannot save new sessions. Please delete old sessions from the Sessions page.</p>
+            <p className="text-xs mt-1">
+              You cannot save new sessions. Please delete old sessions from the
+              Sessions page.
+            </p>
           </div>
         )}
 
@@ -594,7 +631,11 @@ export const LivePreview = () => {
                         onClick={() => setIsTimerRunning(!isTimerRunning)}
                         className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#FEFEFE]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
                       >
-                        {isTimerRunning ? 'Stop / Pause Match' : (timer === 0 ? 'Start Timer' : 'Resume Match')}
+                        {isTimerRunning
+                          ? 'Stop / Pause Match'
+                          : timer === 0
+                            ? 'Start Timer'
+                            : 'Resume Match'}
                       </button>
                       <button
                         onClick={handleSaveMatch}
@@ -612,7 +653,11 @@ export const LivePreview = () => {
                 disabled={loading || sessionLimitReached}
                 className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
               >
-                {loading ? 'Saving...' : sessionLimitReached ? 'Session Limit Reached' : 'Complete Session'}
+                {loading
+                  ? 'Saving...'
+                  : sessionLimitReached
+                    ? 'Session Limit Reached'
+                    : 'Complete Session'}
               </button>
 
               {!cancelConfirm ? (
