@@ -149,18 +149,42 @@ const NavigationMenu = () => {
         isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''
       }`}
     >
-      {/* Active Session Button */}
-      {hasActiveSession && (
+      {/* Active / New Session Button */}
+      {user && (
+        hasActiveSession ? (
+          <button
+            onClick={() => navigate('/active')}
+            aria-label="Active practice session"
+            className={`relative px-4 py-1.5 rounded-full flex items-center gap-2 transition-colors ${isDarkMode ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' : 'bg-green-500/10 hover:bg-green-500/20 text-green-600'}`}
+          >
+            <span className="text-sm font-semibold">Active Session</span>
+            <div className="relative w-2 h-2">
+              <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="absolute inset-0 bg-green-500 rounded-full"></div>
+            </div>
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate(ROUTES.ACTIVE)}
+            aria-label="New session"
+            className={`px-4 py-1.5 rounded-full flex items-center gap-2 transition-all bg-team-blue hover:opacity-90 ${
+              isDarkMode ? 'text-[#191919]' : 'text-white'
+            }`}
+          >
+            <span className="text-sm font-semibold">New Session</span>
+          </button>
+        )
+      )}
+
+      {/* My Sessions button */}
+      {user && (
         <button
-          onClick={() => navigate('/active')}
-          aria-label="Active practice session"
-          className={`relative px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${isDarkMode ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' : 'bg-green-500/10 hover:bg-green-500/20 text-green-600'}`}
+          onClick={() => navigate('/sessions')}
+          className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'
+          }`}
         >
-          <span className="text-sm font-medium">Active Session</span>
-          <div className="relative w-2 h-2">
-            <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse"></div>
-            <div className="absolute inset-0 bg-green-500 rounded-full"></div>
-          </div>
+          My Sessions
         </button>
       )}
 
@@ -197,16 +221,6 @@ const NavigationMenu = () => {
         )}
       </button>
 
-      {/* New Session button */}
-      {user && (
-        <button
-          onClick={() => navigate(ROUTES.ACTIVE)}
-          aria-label="New session"
-          className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
-        >
-          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-        </button>
-      )}
 
       {/* Keybind Tutorial Modal */}
       {showKeybindTutorial && (
