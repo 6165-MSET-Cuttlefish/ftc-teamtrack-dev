@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import { Sun, Moon, LogOut, UserCircle, BarChart3, Plus, Keyboard, HelpCircle, Hexagon } from 'lucide-react';
+import { Sun, Moon, LogOut, UserCircle, BarChart3, Keyboard, HelpCircle, Hexagon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 
