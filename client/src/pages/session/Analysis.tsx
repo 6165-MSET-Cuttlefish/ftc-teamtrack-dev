@@ -895,6 +895,10 @@ const SessionSummary = ({
           <div className="text-xs text-team-white-60 mb-1">Lowest Score</div>
           <div className="text-3xl font-bold text-team-blue">{stats.minScore}</div>
         </div>
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <div className="text-xs text-team-white-60 mb-1">Avg Balls Missed</div>
+          <div className="text-3xl font-bold text-team-blue">{stats.avgBallsMissed}</div>
+        </div>
       </div>
 
       {/* Phase Averages */}
