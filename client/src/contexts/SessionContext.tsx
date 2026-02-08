@@ -8,10 +8,10 @@ import {
 } from 'react';
 import { useAuth } from './AuthContext';
 import { formatTime as formatTimeUtil } from '@/lib/utils';
-import { 
-  saveSessionToStorage, 
-  loadSessionFromStorage, 
-  loadTimerStateFromStorage, 
+import {
+  saveSessionToStorage,
+  loadSessionFromStorage,
+  loadTimerStateFromStorage,
   clearSessionFromStorage,
   hasActiveSession,
   type SessionFormData,
@@ -47,7 +47,9 @@ interface SessionContextType {
   saveEditedMatch: () => void;
 }
 
-const createInitialSessionData = (displayName?: string | null): SessionFormData => ({
+const createInitialSessionData = (
+  displayName?: string | null
+): SessionFormData => ({
   sessionName: '',
   driverName: displayName || '',
   sessionDuration: '',
@@ -94,13 +96,21 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   // Update driver name when user becomes available (handles initial load timing)
   useEffect(() => {
-    if (user?.displayName && !sessionData.driverName && !sessionData.isSessionCompleted) {
+    if (
+      user?.displayName &&
+      !sessionData.driverName &&
+      !sessionData.isSessionCompleted
+    ) {
       setSessionData(prev => ({
         ...prev,
         driverName: prev.driverName || user.displayName || '',
       }));
     }
-  }, [user?.displayName, sessionData.driverName, sessionData.isSessionCompleted]);
+  }, [
+    user?.displayName,
+    sessionData.driverName,
+    sessionData.isSessionCompleted,
+  ]);
 
   // Load timer state from storage - but only if we actually loaded session data
   const storedTimerState = (() => {
@@ -113,16 +123,22 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   })();
 
   // Match timer (per-match timer)
-  const [timer, setTimer] = useState<number>(() => storedTimerState?.matchTimer ?? 0);
+  const [timer, setTimer] = useState<number>(
+    () => storedTimerState?.matchTimer ?? 0
+  );
 
   // Session timer (overall session time)
-  const [sessionTimer, setSessionTimer] = useState<number>(() => storedTimerState?.sessionTimer ?? 0);
+  const [sessionTimer, setSessionTimer] = useState<number>(
+    () => storedTimerState?.sessionTimer ?? 0
+  );
 
   const [isTimerRunning, setIsTimerRunning] = useState(
     storedTimerState?.isTimerRunning ?? false
   );
 
-  const [expandedSection, setExpandedSection] = useState<string | null>('Autonomous Score');
+  const [expandedSection, setExpandedSection] = useState<string | null>(
+    'Autonomous Score'
+  );
 
   // Match state flags for UI
   const [hasStarted, setHasStarted] = useState(
@@ -143,7 +159,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   // Edit mode state
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
-  const [currentMatchData, setCurrentMatchData] = useState<Partial<SessionFormData> | null>(null);
+  const [currentMatchData, setCurrentMatchData] =
+    useState<Partial<SessionFormData> | null>(null);
 
   // Match timer effect - runs for the current match
   useEffect(() => {
@@ -189,9 +206,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // Save if there's session data OR if timers are active
-    const hasSessionData = sessionData.sessionName || sessionData.driverName || sessionData.matches.length > 0;
-    const hasActiveTimers = isTimerRunning || hasStarted || sessionTimer > 0 || timer > 0;
-    
+    const hasSessionData =
+      sessionData.sessionName ||
+      sessionData.driverName ||
+      sessionData.matches.length > 0;
+    const hasActiveTimers =
+      isTimerRunning || hasStarted || sessionTimer > 0 || timer > 0;
+
     if (!hasSessionData && !hasActiveTimers) {
       // Nothing to persist - ensure storage is clear
       clearSessionFromStorage();
@@ -211,7 +232,15 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     saveSessionToStorage(sessionData, timerState);
     setHasActiveSessionLocal(true);
-  }, [sessionData, timer, sessionTimer, isTimerRunning, hasStarted, hasTransitionedToTeleOp, showTeleOpTransition]);
+  }, [
+    sessionData,
+    timer,
+    sessionTimer,
+    isTimerRunning,
+    hasStarted,
+    hasTransitionedToTeleOp,
+    showTeleOpTransition,
+  ]);
 
   const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {
     setSessionData(prev => ({ ...prev, ...updates }));
@@ -233,50 +262,53 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setTimer(0);
   }, []);
 
-  const startEditingMatch = useCallback((match: Match) => {
-    // Save current form data
-    setCurrentMatchData({
-      finalScore: sessionData.finalScore,
-      autonomousScore: sessionData.autonomousScore,
-      teleOpScore: sessionData.teleOpScore,
-      endGameScore: sessionData.endGameScore,
-      autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
-      autonOverflowArtifact: sessionData.autonOverflowArtifact,
-      autonMotif: sessionData.autonMotif,
-      autonBallsMissed: sessionData.autonBallsMissed,
-      autonLeave: sessionData.autonLeave,
-      teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
-      teleOverflowArtifact: sessionData.teleOverflowArtifact,
-      teleMotif: sessionData.teleMotif,
-      teleBallsMissed: sessionData.teleBallsMissed,
-      robot1Park: sessionData.robot1Park,
-      robot2Park: sessionData.robot2Park,
-      cycleTimes: sessionData.cycleTimes,
-    });
-    
-    // Load match data into form
-    setSessionData(prev => ({
-      ...prev,
-      finalScore: match.finalScore || 0,
-      autonomousScore: match.autonomousScore || 0,
-      teleOpScore: match.teleOpScore || 0,
-      endGameScore: match.endGameScore || 0,
-      autonClassifiedArtifact: match.autonClassifiedArtifact || 0,
-      autonOverflowArtifact: match.autonOverflowArtifact || 0,
-      autonMotif: match.autonMotif || 0,
-      autonBallsMissed: match.autonBallsMissed || 0,
-      autonLeave: match.autonLeave || 0,
-      teleClassifiedArtifact: match.teleClassifiedArtifact || 0,
-      teleOverflowArtifact: match.teleOverflowArtifact || 0,
-      teleMotif: match.teleMotif || 0,
-      teleBallsMissed: match.teleBallsMissed || 0,
-      robot1Park: match.robot1Park || 'none',
-      robot2Park: match.robot2Park || 'none',
-      cycleTimes: match.cycleTimes || [],
-    }));
-    
-    setEditingMatchId(match.id);
-  }, [sessionData]);
+  const startEditingMatch = useCallback(
+    (match: Match) => {
+      // Save current form data
+      setCurrentMatchData({
+        finalScore: sessionData.finalScore,
+        autonomousScore: sessionData.autonomousScore,
+        teleOpScore: sessionData.teleOpScore,
+        endGameScore: sessionData.endGameScore,
+        autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
+        autonOverflowArtifact: sessionData.autonOverflowArtifact,
+        autonMotif: sessionData.autonMotif,
+        autonBallsMissed: sessionData.autonBallsMissed,
+        autonLeave: sessionData.autonLeave,
+        teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
+        teleOverflowArtifact: sessionData.teleOverflowArtifact,
+        teleMotif: sessionData.teleMotif,
+        teleBallsMissed: sessionData.teleBallsMissed,
+        robot1Park: sessionData.robot1Park,
+        robot2Park: sessionData.robot2Park,
+        cycleTimes: sessionData.cycleTimes,
+      });
+
+      // Load match data into form
+      setSessionData(prev => ({
+        ...prev,
+        finalScore: match.finalScore || 0,
+        autonomousScore: match.autonomousScore || 0,
+        teleOpScore: match.teleOpScore || 0,
+        endGameScore: match.endGameScore || 0,
+        autonClassifiedArtifact: match.autonClassifiedArtifact || 0,
+        autonOverflowArtifact: match.autonOverflowArtifact || 0,
+        autonMotif: match.autonMotif || 0,
+        autonBallsMissed: match.autonBallsMissed || 0,
+        autonLeave: match.autonLeave || 0,
+        teleClassifiedArtifact: match.teleClassifiedArtifact || 0,
+        teleOverflowArtifact: match.teleOverflowArtifact || 0,
+        teleMotif: match.teleMotif || 0,
+        teleBallsMissed: match.teleBallsMissed || 0,
+        robot1Park: match.robot1Park || 'none',
+        robot2Park: match.robot2Park || 'none',
+        cycleTimes: match.cycleTimes || [],
+      }));
+
+      setEditingMatchId(match.id);
+    },
+    [sessionData]
+  );
 
   const returnToCurrentMatch = useCallback(() => {
     if (currentMatchData) {
@@ -292,8 +324,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     // Update the match in the matches array with current form data
     // Then restore the form to the current match state
     setSessionData(prev => {
-      const updatedMatches = prev.matches.map(match => 
-        match.id === editingMatchId 
+      const updatedMatches = prev.matches.map(match =>
+        match.id === editingMatchId
           ? {
               ...match,
               finalScore: prev.finalScore,
@@ -396,9 +428,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <SessionContext.Provider value={value}>
-      {children}
-    </SessionContext.Provider>
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
   );
 };
 

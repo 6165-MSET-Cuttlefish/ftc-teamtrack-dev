@@ -64,7 +64,7 @@ export interface Match {
 
 /**
  * Represents a practice/training session that can contain multiple matches.
- * 
+ *
  * Data Model:
  * - A Session contains metadata (name, driver, duration) and an array of Match objects
  * - All scoring data is stored in the matches array

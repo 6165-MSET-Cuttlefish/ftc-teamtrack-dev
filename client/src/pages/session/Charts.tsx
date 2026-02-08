@@ -19,7 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, TrendingUp, TrendingDown, Calendar, Award, Target, Zap, Activity } from 'lucide-react';
+import {
+  ArrowLeft,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  Award,
+  Target,
+  Zap,
+  Activity,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Bar,
@@ -122,7 +131,7 @@ const Charts = () => {
   const getScoreTrendData = (): ChartDataPoint[] => {
     const filteredSessions = getFilteredSessions();
     if (filteredSessions.length === 0) return [];
-    
+
     return filteredSessions
       .sort((a, b) => {
         const dateA =
@@ -136,11 +145,27 @@ const Charts = () => {
         return dateA.getTime() - dateB.getTime();
       })
       .map((session, index) => {
-        const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-        const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
-        const teleOpScore = session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0);
-        const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
-        const ballsMissed = session.matches.reduce((sum, m) => sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0), 0);
+        const finalScore = session.matches.reduce(
+          (sum, m) => sum + (m.finalScore || 0),
+          0
+        );
+        const autonomousScore = session.matches.reduce(
+          (sum, m) => sum + (m.autonomousScore || 0),
+          0
+        );
+        const teleOpScore = session.matches.reduce(
+          (sum, m) => sum + (m.teleOpScore || 0),
+          0
+        );
+        const endGameScore = session.matches.reduce(
+          (sum, m) => sum + (m.endGameScore || 0),
+          0
+        );
+        const ballsMissed = session.matches.reduce(
+          (sum, m) =>
+            sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
+          0
+        );
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
@@ -156,13 +181,19 @@ const Charts = () => {
   // Cycle Time Analysis
   const getCycleTimeData = (): ChartDataPoint[] => {
     const filteredSessions = getFilteredSessions();
-    
+
     // Get sessions that have cycle times
     const sessionsWithCycleTimes = filteredSessions.filter(session => {
       // Check if session has matches with cycle times
-      const hasCycleTimes = session.matches && session.matches.length > 0 && session.matches.some(match => 
-        match.cycleTimes && Array.isArray(match.cycleTimes) && match.cycleTimes.length > 0
-      );
+      const hasCycleTimes =
+        session.matches &&
+        session.matches.length > 0 &&
+        session.matches.some(
+          match =>
+            match.cycleTimes &&
+            Array.isArray(match.cycleTimes) &&
+            match.cycleTimes.length > 0
+        );
       return hasCycleTimes;
     });
 
@@ -172,26 +203,33 @@ const Charts = () => {
       // Collect all cycle times from all matches in this session
       const allCycleTimes: number[] = [];
       session.matches.forEach(match => {
-        if (match.cycleTimes && Array.isArray(match.cycleTimes) && match.cycleTimes.length > 0) {
+        if (
+          match.cycleTimes &&
+          Array.isArray(match.cycleTimes) &&
+          match.cycleTimes.length > 0
+        ) {
           allCycleTimes.push(...match.cycleTimes);
         }
       });
 
       if (allCycleTimes.length === 0) return null;
 
-      const avg = allCycleTimes.reduce((sum, t) => sum + t, 0) / allCycleTimes.length;
+      const avg =
+        allCycleTimes.reduce((sum, t) => sum + t, 0) / allCycleTimes.length;
       const min = Math.min(...allCycleTimes);
       const max = Math.max(...allCycleTimes);
-      
+
       return {
         name: session.sessionName || formatChartDate(session.createdAt),
         'Avg Cycle': parseFloat(avg.toFixed(1)),
-        'Fastest': parseFloat(min.toFixed(1)),
-        'Slowest': parseFloat(max.toFixed(1)),
+        Fastest: parseFloat(min.toFixed(1)),
+        Slowest: parseFloat(max.toFixed(1)),
       };
     });
 
-    return results.filter((item): item is NonNullable<typeof item> => item !== null);
+    return results.filter(
+      (item): item is NonNullable<typeof item> => item !== null
+    );
   };
 
   // Recent Performance Trend (Last 10 sessions)
@@ -210,13 +248,22 @@ const Charts = () => {
     });
 
     const recent = sorted.slice(0, 10).reverse();
-    
-    return recent.map((session, index) => {
-      const sessionScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
 
-      const movingAvg = recent
-        .slice(Math.max(0, index - 2), index + 1)
-        .reduce((sum, s) => sum + s.matches.reduce((mSum, m) => mSum + (m.finalScore || 0), 0), 0) / Math.min(3, index + 1);
+    return recent.map((session, index) => {
+      const sessionScore = session.matches.reduce(
+        (sum, m) => sum + (m.finalScore || 0),
+        0
+      );
+
+      const movingAvg =
+        recent
+          .slice(Math.max(0, index - 2), index + 1)
+          .reduce(
+            (sum, s) =>
+              sum +
+              s.matches.reduce((mSum, m) => mSum + (m.finalScore || 0), 0),
+            0
+          ) / Math.min(3, index + 1);
 
       return {
         name: `#${recent.length - index}`,
@@ -230,7 +277,7 @@ const Charts = () => {
   const getConsistencyOverTimeData = (): ChartDataPoint[] => {
     const allSessions = getFilteredSessions();
     if (allSessions.length < 3) return [];
-    
+
     const sorted = [...allSessions].sort((a, b) => {
       const dateA =
         typeof a.createdAt === 'string'
@@ -245,14 +292,22 @@ const Charts = () => {
 
     return sorted.slice(2).map((session, index) => {
       const windowSessions = sorted.slice(Math.max(0, index), index + 3);
-      const scores = windowSessions.map(s => s.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0));
+      const scores = windowSessions.map(s =>
+        s.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)
+      );
       const mean = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-      const variance = scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) / scores.length;
+      const variance =
+        scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) /
+        scores.length;
       const stdDev = Math.sqrt(variance);
       // Convert to consistency percentage (lower std dev = higher consistency)
-      const consistency = mean > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / mean) * 100)) : 0;
+      const consistency =
+        mean > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / mean) * 100)) : 0;
 
-      const sessionScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
+      const sessionScore = session.matches.reduce(
+        (sum, m) => sum + (m.finalScore || 0),
+        0
+      );
 
       return {
         name: formatChartDate(session.createdAt),
@@ -278,7 +333,12 @@ const Charts = () => {
     label,
   }: {
     active?: boolean;
-    payload?: Array<{ name: string; value: number; color: string; dataKey?: string }>;
+    payload?: Array<{
+      name: string;
+      value: number;
+      color: string;
+      dataKey?: string;
+    }>;
     label?: string;
   }) => {
     if (active && payload && payload.length) {
@@ -478,14 +538,28 @@ const Charts = () => {
                         });
                       });
 
-                      const totalMatches = sessions.reduce((sum, s) => sum + s.matches.length, 0);
+                      const totalMatches = sessions.reduce(
+                        (sum, s) => sum + s.matches.length,
+                        0
+                      );
                       const count = totalMatches || 1;
                       const avgScore = totalScore / count;
                       const autoAvg = totalAuto / count;
                       const teleAvg = totalTele / count;
                       const endgameAvg = totalEndgame / count;
 
-                      const totalMissed = sessions.reduce((sum, s) => sum + s.matches.reduce((mSum, m) => mSum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0), 0), 0);
+                      const totalMissed = sessions.reduce(
+                        (sum, s) =>
+                          sum +
+                          s.matches.reduce(
+                            (mSum, m) =>
+                              mSum +
+                              (m.autonBallsMissed || 0) +
+                              (m.teleBallsMissed || 0),
+                            0
+                          ),
+                        0
+                      );
                       const avgMissed = (totalMissed / count).toFixed(1);
 
                       const bestPhase =
@@ -495,8 +569,12 @@ const Charts = () => {
                             ? 'TeleOp'
                             : 'End Game';
 
-                      const autoPercent = ((autoAvg / avgScore) * 100).toFixed(0);
-                      const telePercent = ((teleAvg / avgScore) * 100).toFixed(0);
+                      const autoPercent = ((autoAvg / avgScore) * 100).toFixed(
+                        0
+                      );
+                      const telePercent = ((teleAvg / avgScore) * 100).toFixed(
+                        0
+                      );
 
                       const mean = avgScore;
                       const variance =
@@ -631,7 +709,9 @@ const Charts = () => {
                       return (
                         <>
                           <Zap className="text-team-blue w-7 h-7" />
-                          <div className="text-team-blue text-4xl font-bold">—</div>
+                          <div className="text-team-blue text-4xl font-bold">
+                            —
+                          </div>
                         </>
                       );
                     }
@@ -640,24 +720,35 @@ const Charts = () => {
                         typeof a.createdAt === 'string'
                           ? new Date(a.createdAt)
                           : new Date(
-                              (a.createdAt as { seconds: number }).seconds * 1000
+                              (a.createdAt as { seconds: number }).seconds *
+                                1000
                             );
                       const dateB =
                         typeof b.createdAt === 'string'
                           ? new Date(b.createdAt)
                           : new Date(
-                              (b.createdAt as { seconds: number }).seconds * 1000
+                              (b.createdAt as { seconds: number }).seconds *
+                                1000
                             );
                       return dateA.getTime() - dateB.getTime();
                     });
-                    const firstHalf = sorted.slice(0, Math.floor(sorted.length / 2));
-                    const secondHalf = sorted.slice(Math.floor(sorted.length / 2));
+                    const firstHalf = sorted.slice(
+                      0,
+                      Math.floor(sorted.length / 2)
+                    );
+                    const secondHalf = sorted.slice(
+                      Math.floor(sorted.length / 2)
+                    );
                     const firstAvg =
-                      firstHalf.reduce((sum, s) => sum + getSessionScore(s), 0) /
-                      firstHalf.length;
+                      firstHalf.reduce(
+                        (sum, s) => sum + getSessionScore(s),
+                        0
+                      ) / firstHalf.length;
                     const secondAvg =
-                      secondHalf.reduce((sum, s) => sum + getSessionScore(s), 0) /
-                      secondHalf.length;
+                      secondHalf.reduce(
+                        (sum, s) => sum + getSessionScore(s),
+                        0
+                      ) / secondHalf.length;
                     const improvement = secondAvg - firstAvg;
                     const isPositive = improvement > 0;
 
@@ -711,90 +802,108 @@ const Charts = () => {
               <div className="w-full overflow-x-auto">
                 <ResponsiveContainer width="100%" height={250} minWidth={300}>
                   <AreaChart data={scoreTrendData}>
-                  <defs>
-                    <linearGradient id="colorFinal" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor={COLORS.primary}
-                        stopOpacity={0.8}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor={COLORS.primary}
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                    <linearGradient id="colorAuto" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor={COLORS.success}
-                        stopOpacity={0.8}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor={COLORS.success}
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                    <linearGradient id="colorTele" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor={COLORS.warning}
-                        stopOpacity={0.8}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor={COLORS.warning}
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                  />
-                  <XAxis
-                    dataKey="name"
-                    stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis
-                    stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip
-                    content={<CustomTooltip />}
-                    cursor={{ stroke: COLORS.primary, strokeWidth: 2 }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '14px' }} />
-                  <Area
-                    type="monotone"
-                    dataKey="Final Score"
-                    stroke={COLORS.primary}
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorFinal)"
-                    animationDuration={1500}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="Autonomous"
-                    stroke={COLORS.success}
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorAuto)"
-                    animationDuration={1500}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="Teleop"
-                    stroke={COLORS.warning}
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorTele)"
-                    animationDuration={1500}
-                  />
-                </AreaChart>
+                    <defs>
+                      <linearGradient
+                        id="colorFinal"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={COLORS.primary}
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={COLORS.primary}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                      <linearGradient
+                        id="colorAuto"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={COLORS.success}
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={COLORS.success}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                      <linearGradient
+                        id="colorTele"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={COLORS.warning}
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={COLORS.warning}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip
+                      content={<CustomTooltip />}
+                      cursor={{ stroke: COLORS.primary, strokeWidth: 2 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '14px' }} />
+                    <Area
+                      type="monotone"
+                      dataKey="Final Score"
+                      stroke={COLORS.primary}
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorFinal)"
+                      animationDuration={1500}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="Autonomous"
+                      stroke={COLORS.success}
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorAuto)"
+                      animationDuration={1500}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="Teleop"
+                      stroke={COLORS.warning}
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorTele)"
+                      animationDuration={1500}
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
@@ -809,7 +918,7 @@ const Charts = () => {
                 <CardTitle
                   className={`text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                    Recent Performance (Last 10)
+                  Recent Performance (Last 10)
                 </CardTitle>
                 <CardDescription
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -821,38 +930,43 @@ const Charts = () => {
                 <div className="w-full overflow-x-auto">
                   <ResponsiveContainer width="100%" height={220} minWidth={300}>
                     <ComposedChart data={recentTrendData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                    />
-                    <XAxis
-                      dataKey="name"
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '14px' }} />
-                    <Bar
-                      dataKey="Score"
-                      fill={COLORS.primary}
-                      opacity={1}
-                      radius={[6, 6, 0, 0]}
-                      animationDuration={1000}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="Moving Avg"
-                      stroke={COLORS.success}
-                      strokeWidth={3}
-                      dot={{ fill: COLORS.success, r: 5, strokeWidth: 2, stroke: '#fff' }}
-                      animationDuration={1200}
-                      animationBegin={300}
-                    />
-                  </ComposedChart>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: '14px' }} />
+                      <Bar
+                        dataKey="Score"
+                        fill={COLORS.primary}
+                        opacity={1}
+                        radius={[6, 6, 0, 0]}
+                        animationDuration={1000}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Moving Avg"
+                        stroke={COLORS.success}
+                        strokeWidth={3}
+                        dot={{
+                          fill: COLORS.success,
+                          r: 5,
+                          strokeWidth: 2,
+                          stroke: '#fff',
+                        }}
+                        animationDuration={1200}
+                        animationBegin={300}
+                      />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -867,7 +981,7 @@ const Charts = () => {
                   <CardTitle
                     className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
-                      Consistency Over Time
+                    Consistency Over Time
                   </CardTitle>
                   <CardDescription
                     className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -877,33 +991,42 @@ const Charts = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="w-full overflow-x-auto">
-                    <ResponsiveContainer width="100%" height={220} minWidth={300}>
-                    <LineChart data={consistencyOverTimeData}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                      />
-                      <XAxis
-                        dataKey="name"
-                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis
-                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                        tick={{ fontSize: 12 }}
-                        domain={[0, 100]}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ fontSize: '14px' }} />
-                      <Line
-                        type="monotone"
-                        dataKey="Consistency"
-                        stroke={COLORS.purple}
-                        strokeWidth={3}
-                        dot={{ fill: COLORS.purple, r: 5, strokeWidth: 2, stroke: '#fff' }}
-                        animationDuration={1200}
-                      />
-                    </LineChart>
+                    <ResponsiveContainer
+                      width="100%"
+                      height={220}
+                      minWidth={300}
+                    >
+                      <LineChart data={consistencyOverTimeData}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                        />
+                        <XAxis
+                          dataKey="name"
+                          stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis
+                          stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                          tick={{ fontSize: 12 }}
+                          domain={[0, 100]}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: '14px' }} />
+                        <Line
+                          type="monotone"
+                          dataKey="Consistency"
+                          stroke={COLORS.purple}
+                          strokeWidth={3}
+                          dot={{
+                            fill: COLORS.purple,
+                            r: 5,
+                            strokeWidth: 2,
+                            stroke: '#fff',
+                          }}
+                          animationDuration={1200}
+                        />
+                      </LineChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
@@ -967,7 +1090,7 @@ const Charts = () => {
                 <CardTitle
                   className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                    Cycle Time Analysis
+                  Cycle Time Analysis
                 </CardTitle>
                 <CardDescription
                   className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -979,51 +1102,71 @@ const Charts = () => {
                 <div className="w-full overflow-x-auto">
                   <ResponsiveContainer width="100%" height={240} minWidth={300}>
                     <LineChart data={cycleTimeData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                    />
-                    <XAxis
-                      dataKey="name"
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      label={{ value: 'Seconds', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '14px' }} />
-                    <Line
-                      type="monotone"
-                      dataKey="Avg Cycle"
-                      stroke={COLORS.primary}
-                      strokeWidth={3}
-                      dot={{ fill: COLORS.primary, r: 6, strokeWidth: 2, stroke: '#fff' }}
-                      animationDuration={1200}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="Fastest"
-                      stroke={COLORS.success}
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={{ fill: COLORS.success, r: 5, strokeWidth: 2, stroke: '#fff' }}
-                      animationDuration={1200}
-                      animationBegin={200}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="Slowest"
-                      stroke={COLORS.danger}
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={{ fill: COLORS.danger, r: 5, strokeWidth: 2, stroke: '#fff' }}
-                      animationDuration={1200}
-                      animationBegin={400}
-                    />
-                  </LineChart>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        label={{
+                          value: 'Seconds',
+                          angle: -90,
+                          position: 'insideLeft',
+                          style: { fontSize: 12 },
+                        }}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: '14px' }} />
+                      <Line
+                        type="monotone"
+                        dataKey="Avg Cycle"
+                        stroke={COLORS.primary}
+                        strokeWidth={3}
+                        dot={{
+                          fill: COLORS.primary,
+                          r: 6,
+                          strokeWidth: 2,
+                          stroke: '#fff',
+                        }}
+                        animationDuration={1200}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Fastest"
+                        stroke={COLORS.success}
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={{
+                          fill: COLORS.success,
+                          r: 5,
+                          strokeWidth: 2,
+                          stroke: '#fff',
+                        }}
+                        animationDuration={1200}
+                        animationBegin={200}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Slowest"
+                        stroke={COLORS.danger}
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={{
+                          fill: COLORS.danger,
+                          r: 5,
+                          strokeWidth: 2,
+                          stroke: '#fff',
+                        }}
+                        animationDuration={1200}
+                        animationBegin={400}
+                      />
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
