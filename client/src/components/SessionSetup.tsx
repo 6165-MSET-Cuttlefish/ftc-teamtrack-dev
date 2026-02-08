@@ -48,7 +48,7 @@ const FormField = ({
   const fieldId = id || label.toLowerCase().replace(/\s+/g, '-');
 
   return (
-    <div className="flex flex-col gap-2 w-full">
+    <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
       <Label htmlFor={fieldId} className="text-sm sm:text-base leading-6 font-medium">
         {label}
         {(label === 'Session Name' || label === 'Driver Name') && (
