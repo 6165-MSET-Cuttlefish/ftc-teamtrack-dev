@@ -442,24 +442,31 @@ export const PerformanceMetrics = () => {
         // Auto-detect which section to update based on match type
         const matchType = sessionData.matchType;
         let isTeleOpScore = false;
+        const shotType = parseInt(popupNumber);
+        const missed = shotType - madeCount;
 
         if (!expandedSection || expandedSection === 'Autonomous Score') {
           // Default to autonomous if no section expanded or if autonomous is expanded
           if (matchType !== 'TeleOp') {
             setAutonClassifiedArtifact(prev => prev + madeCount);
+            if (missed > 0) setAutonBallsMissed(prev => prev + missed);
           } else {
             setTeleClassifiedArtifact(prev => prev + madeCount);
+            if (missed > 0) setTeleBallsMissed(prev => prev + missed);
             isTeleOpScore = true;
           }
         } else if (expandedSection === 'TeleOp Score') {
           setTeleClassifiedArtifact(prev => prev + madeCount);
+          if (missed > 0) setTeleBallsMissed(prev => prev + missed);
           isTeleOpScore = true;
         } else {
           // If End Game or other section is expanded, use match type to determine
           if (matchType === 'Autonomous') {
             setAutonClassifiedArtifact(prev => prev + madeCount);
+            if (missed > 0) setAutonBallsMissed(prev => prev + missed);
           } else {
             setTeleClassifiedArtifact(prev => prev + madeCount);
+            if (missed > 0) setTeleBallsMissed(prev => prev + missed);
             isTeleOpScore = true;
           }
         }
@@ -672,6 +679,12 @@ export const PerformanceMetrics = () => {
               onChange={setAutonMotif}
               editable={isEditable}
             />
+            <InlineBreakdownField
+              label="Balls Missed"
+              value={autonBallsMissed}
+              onChange={setAutonBallsMissed}
+              editable={isEditable}
+            />
             <CheckboxField
               label="Leave (Check if left)"
               checked={autonomousLeave === 1}
@@ -698,6 +711,12 @@ export const PerformanceMetrics = () => {
               label="Motif (2 pts each)"
               value={teleMotif}
               onChange={setTeleMotif}
+              editable={isEditable}
+            />
+            <InlineBreakdownField
+              label="Balls Missed"
+              value={teleBallsMissed}
+              onChange={setTeleBallsMissed}
               editable={isEditable}
             />
             {sessionData.selectedFeature === 'Cycle Times' && (
