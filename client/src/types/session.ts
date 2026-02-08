@@ -21,12 +21,16 @@ export interface ScoringFields {
   autonMotif: number;
   /** Leave (3 pts) */
   autonLeave: number;
+  /** Balls Missed in Autonomous */
+  autonBallsMissed: number;
   /** Classified Artifact (3 pts each) */
   teleClassifiedArtifact: number;
   /** Overflow Artifact (1 pt each) */
   teleOverflowArtifact: number;
   /** Motif (2 pts each) */
   teleMotif: number;
+  /** Balls Missed in TeleOp */
+  teleBallsMissed: number;
   /** Robot 1 parking status */
   robot1Park: 'none' | 'partial' | 'full';
   /** Robot 2 parking status */
@@ -48,9 +52,11 @@ export interface Match {
   autonOverflowArtifact?: number;
   autonMotif?: number;
   autonLeave?: number;
+  autonBallsMissed?: number;
   teleClassifiedArtifact?: number;
   teleOverflowArtifact?: number;
   teleMotif?: number;
+  teleBallsMissed?: number;
   robot1Park?: 'none' | 'partial' | 'full';
   robot2Park?: 'none' | 'partial' | 'full';
   cycleTimes?: number[];
