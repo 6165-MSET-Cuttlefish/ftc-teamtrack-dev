@@ -160,8 +160,8 @@ export const PerformanceMetrics = () => {
   const { sessionData, updateSessionData, expandedSection, setExpandedSection, isTimerRunning, editingMatchId, hasStarted } = useSession();
   const { isDarkMode } = useTheme();
 
-  // Allow editing when timer is running OR when editing a saved match
-  const isEditable = isTimerRunning || editingMatchId !== null;
+  // Allow editing when a match has started (even if paused/transitioning) OR when editing a saved match
+  const isEditable = hasStarted || editingMatchId !== null;
 
   // Use a ref to track if we're currently updating scores to prevent circular updates
   const isUpdatingRef = useRef(false);
