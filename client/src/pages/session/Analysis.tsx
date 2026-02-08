@@ -27,6 +27,7 @@ interface MatchStats {
   avgAuto: number;
   avgTele: number;
   avgEndgame: number;
+  avgBallsMissed: number;
   totalMatches: number;
 }
 
@@ -968,6 +969,7 @@ const AnalysisContent = () => {
     const avgAuto = sessionMatches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / sessionMatches.length;
     const avgTele = sessionMatches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0) / sessionMatches.length;
     const avgEndgame = sessionMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / sessionMatches.length;
+    const avgBallsMissed = sessionMatches.reduce((sum, m) => sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0), 0) / sessionMatches.length;
 
     return {
       avgScore: Math.round(avgScore),
@@ -976,6 +978,7 @@ const AnalysisContent = () => {
       avgAuto: Math.round(avgAuto),
       avgTele: Math.round(avgTele),
       avgEndgame: Math.round(avgEndgame),
+      avgBallsMissed: Math.round(avgBallsMissed * 10) / 10,
       totalMatches: sessionMatches.length,
     };
   }, [sessionMatches]);
