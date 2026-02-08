@@ -1197,7 +1197,7 @@ const AnalysisContent = () => {
                 <h2 className="text-team-blue text-2xl font-semibold">Session Analysis</h2>
                 
                 {/* Average Scores Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                   {/* Average Final Score */}
                   <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
                     <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average Final</p>
@@ -1227,6 +1227,14 @@ const AnalysisContent = () => {
                     <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average E.G.</p>
                     <p className="text-3xl font-bold text-team-blue mt-2">
                       {Math.round(sessionMatches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / sessionMatches.length)}
+                    </p>
+                  </div>
+
+                  {/* Average Missed Balls */}
+                  <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Average Missed</p>
+                    <p className="text-3xl font-bold text-team-blue mt-2">
+                      {(sessionMatches.reduce((sum, m) => sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0), 0) / sessionMatches.length).toFixed(1)}
                     </p>
                   </div>
 
