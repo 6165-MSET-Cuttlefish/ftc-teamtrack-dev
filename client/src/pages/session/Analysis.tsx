@@ -354,6 +354,7 @@ const MatchAnalysis = ({
                 <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Classified</th>
                 <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Overflow</th>
                 <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Motifs</th>
+                <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Missed</th>
                 <th className={`text-center py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Leave/Hang</th>
                 <th className={`text-right py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Total Points</th>
               </tr>
@@ -370,6 +371,9 @@ const MatchAnalysis = ({
                 </td>
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
                   {match.autonMotif || 0}
+                </td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.autonBallsMissed || 0}
                 </td>
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
                   {match.autonLeave || 0}
@@ -392,6 +396,9 @@ const MatchAnalysis = ({
                   {match.teleMotif || 0}
                 </td>
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                  {match.teleBallsMissed || 0}
+                </td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
                   —
                 </td>
                 <td className={`text-right py-3 px-4 font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}>
@@ -401,7 +408,8 @@ const MatchAnalysis = ({
 
               {/* End Game Row */}
               <tr>
-                <td className={`py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>End Game</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>End Game</td>
+                <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
                 <td className={`text-center py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>—</td>
