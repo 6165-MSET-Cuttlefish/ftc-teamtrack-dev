@@ -470,7 +470,30 @@ const MatchTrendComparison = ({
             <Line type="monotone" dataKey="Final Score" stroke={COLORS.primary} strokeWidth={3} dot={{ fill: COLORS.primary, r: 5 }} />
             <Line type="monotone" dataKey="Autonomous" stroke={COLORS.success} strokeWidth={2} dot={{ fill: COLORS.success, r: 4 }} />
             <Line type="monotone" dataKey="TeleOp" stroke={COLORS.warning} strokeWidth={2} dot={{ fill: COLORS.warning, r: 4 }} />
-            <Line type="monotone" dataKey="Balls Missed" stroke="#ef4444" strokeWidth={2} dot={{ fill: "#ef4444", r: 4 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Missed Balls Trend */}
+      <div className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+        <h3 className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          Missed Balls Trend
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={comparisonData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'} />
+            <XAxis dataKey="name" stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} />
+            <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+            <Legend wrapperStyle={{ fontSize: '14px' }} />
+            <Line
+              type="monotone"
+              dataKey="Balls Missed"
+              stroke="#f59e0b"
+              strokeWidth={3}
+              dot={{ fill: "#f59e0b", r: 5 }}
+              activeDot={{ r: 8 }}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
