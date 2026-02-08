@@ -523,7 +523,10 @@ const calculateMatchComparison = (matchA: Match, matchB: Match): MatchComparison
   const telePercent = matchA.teleOpScore ? (teleDiff / (matchA.teleOpScore || 1)) * 100 : 0;
   
   const endgameDiff = (matchB.endGameScore || 0) - (matchA.endGameScore || 0);
-  const endgamePercent = matchA.endGameScore ? (endgameDiff / (matchA.endGameScore || 1)) * 100 : 0;
+  const endgamePercent = endgameDiff / (matchA.endGameScore || 1) * 100;
+
+  const missedDiff = ((matchB.autonBallsMissed || 0) + (matchB.teleBallsMissed || 0)) - ((matchA.autonBallsMissed || 0) + (matchA.teleBallsMissed || 0));
+  const missedPercent = missedDiff / (((matchA.autonBallsMissed || 0) + (matchA.teleBallsMissed || 0)) || 1) * 100;
 
   return {
     matchA,
@@ -538,7 +541,9 @@ const calculateMatchComparison = (matchA: Match, matchB: Match): MatchComparison
     telePercent,
     endgameDiff,
     endgamePercent,
-  };
+    missedDiff,
+    missedPercent,
+  } as any;
 };
 
 const MatchComparisonView = ({
@@ -665,6 +670,17 @@ const MatchComparisonView = ({
             {comparison.teleDiff > 0 ? '+' : ''}{comparison.teleDiff}
             <span className={`text-sm ml-2 ${comparison.telePercent >= 0 ? 'text-team-blue' : 'text-red-500'}`}>
               ({comparison.telePercent > 0 ? '+' : ''}{comparison.telePercent.toFixed(1)}%)
+            </span>
+          </p>
+        </div>
+
+        {/* Balls Missed Difference */}
+        <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}>
+          <p className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>Balls Missed Difference</p>
+          <p className={`text-2xl font-bold mt-2 ${(comparison as any).missedDiff <= 0 ? 'text-team-blue' : 'text-red-500'}`}>
+            {(comparison as any).missedDiff > 0 ? '+' : ''}{(comparison as any).missedDiff}
+            <span className={`text-sm ml-2 ${(comparison as any).missedPercent <= 0 ? 'text-team-blue' : 'text-red-500'}`}>
+              ({(comparison as any).missedPercent > 0 ? '+' : ''}{(comparison as any).missedPercent.toFixed(1)}%)
             </span>
           </p>
         </div>
@@ -839,6 +855,32 @@ const MatchComparisonView = ({
                 </td>
                 <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].teleMotif || 0) >= (matches[matchAIndex].teleMotif || 0) ? 'text-green-500' : 'text-red-500'}`}>
                   {((matches[matchBIndex].teleMotif || 0) - (matches[matchAIndex].teleMotif || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].teleMotif || 0) - (matches[matchAIndex].teleMotif || 0)}
+                </td>
+              </tr>
+              {/* Balls Missed (Autonomous) */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Balls Missed (Auto)</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].autonBallsMissed || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].autonBallsMissed || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].autonBallsMissed || 0) <= (matches[matchAIndex].autonBallsMissed || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].autonBallsMissed || 0) - (matches[matchAIndex].autonBallsMissed || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].autonBallsMissed || 0) - (matches[matchAIndex].autonBallsMissed || 0)}
+                </td>
+              </tr>
+              {/* Balls Missed (TeleOp) */}
+              <tr className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
+                <td className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>Balls Missed (TeleOp)</td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchAIndex].teleBallsMissed || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {matches[matchBIndex].teleBallsMissed || 0}
+                </td>
+                <td className={`text-center py-3 px-4 font-medium ${(matches[matchBIndex].teleBallsMissed || 0) <= (matches[matchAIndex].teleBallsMissed || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                  {((matches[matchBIndex].teleBallsMissed || 0) - (matches[matchAIndex].teleBallsMissed || 0)) >= 0 ? '+' : ''}{(matches[matchBIndex].teleBallsMissed || 0) - (matches[matchAIndex].teleBallsMissed || 0)}
                 </td>
               </tr>
               {/* Leave */}
