@@ -139,6 +139,7 @@ const Charts = () => {
         const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
         const teleOpScore = session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0);
         const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
+        const ballsMissed = session.matches.reduce((sum, m) => sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0), 0);
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
@@ -146,6 +147,7 @@ const Charts = () => {
           Autonomous: autonomousScore,
           TeleOp: teleOpScore,
           'End Game': endGameScore,
+          'Balls Missed': ballsMissed,
         };
       });
   };
@@ -482,6 +484,9 @@ const Charts = () => {
                       const teleAvg = totalTele / count;
                       const endgameAvg = totalEndgame / count;
 
+                      const totalMissed = sessions.reduce((sum, s) => sum + s.matches.reduce((mSum, m) => mSum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0), 0), 0);
+                      const avgMissed = (totalMissed / count).toFixed(1);
+
                       const bestPhase =
                         autoAvg > teleAvg && autoAvg > endgameAvg
                           ? 'Autonomous'
@@ -533,6 +538,12 @@ const Charts = () => {
                                 ? 'Good'
                                 : 'Improving'}{' '}
                             (±{Math.round(stdDev)} pts)
+                          </div>
+                          <div>
+                            <span className="font-semibold text-team-blue">
+                              Accuracy:
+                            </span>{' '}
+                            Avg {avgMissed} balls missed per match
                           </div>
                         </>
                       );
