@@ -193,6 +193,9 @@ export const PerformanceMetrics = () => {
     sessionData.autonOverflowArtifact || 0
   );
   const [autonMotif, setAutonMotif] = useState(sessionData.autonMotif || 0);
+  const [autonBallsMissed, setAutonBallsMissed] = useState(
+    sessionData.autonBallsMissed || 0
+  );
   const [autonomousLeave, setAutonomousLeave] = useState(
     sessionData.autonLeave || 0
   );
@@ -204,6 +207,9 @@ export const PerformanceMetrics = () => {
     sessionData.teleOverflowArtifact || 0
   );
   const [teleMotif, setTeleMotif] = useState(sessionData.teleMotif || 0);
+  const [teleBallsMissed, setTeleBallsMissed] = useState(
+    sessionData.teleBallsMissed || 0
+  );
 
   const [robot1Park, setRobot1Park] = useState<'none' | 'partial' | 'full'>(
     sessionData.robot1Park || 'none'
@@ -248,10 +254,12 @@ export const PerformanceMetrics = () => {
       autonClassifiedArtifact,
       autonOverflowArtifact,
       autonMotif,
+      autonBallsMissed,
       autonLeave: autonomousLeave,
       teleClassifiedArtifact,
       teleOverflowArtifact,
       teleMotif,
+      teleBallsMissed,
       robot1Park,
       robot2Park,
     });
@@ -263,10 +271,12 @@ export const PerformanceMetrics = () => {
     autonClassifiedArtifact,
     autonOverflowArtifact,
     autonMotif,
+    autonBallsMissed,
     autonomousLeave,
     teleClassifiedArtifact,
     teleOverflowArtifact,
     teleMotif,
+    teleBallsMissed,
     robot1Park,
     robot2Park,
     updateSessionData,
@@ -302,19 +312,23 @@ export const PerformanceMetrics = () => {
       prevSessionDataRef.current.autonClassifiedArtifact ||
       prevSessionDataRef.current.autonOverflowArtifact ||
       prevSessionDataRef.current.autonMotif ||
+      prevSessionDataRef.current.autonBallsMissed ||
       prevSessionDataRef.current.autonLeave ||
       prevSessionDataRef.current.teleClassifiedArtifact ||
       prevSessionDataRef.current.teleOverflowArtifact ||
-      prevSessionDataRef.current.teleMotif;
+      prevSessionDataRef.current.teleMotif ||
+      prevSessionDataRef.current.teleBallsMissed;
 
     const currentAllZero =
       !sessionData.autonClassifiedArtifact &&
       !sessionData.autonOverflowArtifact &&
       !sessionData.autonMotif &&
+      !sessionData.autonBallsMissed &&
       !sessionData.autonLeave &&
       !sessionData.teleClassifiedArtifact &&
       !sessionData.teleOverflowArtifact &&
-      !sessionData.teleMotif;
+      !sessionData.teleMotif &&
+      !sessionData.teleBallsMissed;
 
     const justResetToZeros = prevHadValues && currentAllZero;
 
@@ -325,10 +339,12 @@ export const PerformanceMetrics = () => {
       setAutonClassifiedArtifact(sessionData.autonClassifiedArtifact || 0);
       setAutonOverflowArtifact(sessionData.autonOverflowArtifact || 0);
       setAutonMotif(sessionData.autonMotif || 0);
+      setAutonBallsMissed(sessionData.autonBallsMissed || 0);
       setAutonomousLeave(sessionData.autonLeave || 0);
       setTeleClassifiedArtifact(sessionData.teleClassifiedArtifact || 0);
       setTeleOverflowArtifact(sessionData.teleOverflowArtifact || 0);
       setTeleMotif(sessionData.teleMotif || 0);
+      setTeleBallsMissed(sessionData.teleBallsMissed || 0);
       setRobot1Park(sessionData.robot1Park || 'none');
       setRobot2Park(sessionData.robot2Park || 'none');
     }
@@ -495,10 +511,12 @@ export const PerformanceMetrics = () => {
     autonClassifiedArtifact,
     autonOverflowArtifact,
     autonMotif,
+    autonBallsMissed,
     autonomousLeave,
     teleClassifiedArtifact,
     teleOverflowArtifact,
     teleMotif,
+    teleBallsMissed,
     robot1Park,
     robot2Park,
     updateScores,
@@ -977,10 +995,12 @@ export const PerformanceMetrics = () => {
                 autonClassifiedArtifact,
                 autonOverflowArtifact,
                 autonMotif,
+                autonBallsMissed,
                 autonomousLeave,
                 teleClassifiedArtifact,
                 teleOverflowArtifact,
                 teleMotif,
+                teleBallsMissed,
                 robot1Park,
                 robot2Park,
                 isTimerRunning,
