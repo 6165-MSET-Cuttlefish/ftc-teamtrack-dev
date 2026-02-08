@@ -23,6 +23,7 @@ import { ArrowLeft, TrendingUp, TrendingDown, Calendar, Award, Target, Zap, Acti
 import { toast } from 'sonner';
 import {
   Bar,
+  BarChart,
   XAxis,
   YAxis,
   CartesianGrid,
