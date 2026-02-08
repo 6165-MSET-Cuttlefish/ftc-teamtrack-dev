@@ -910,6 +910,53 @@ const Charts = () => {
             )}
           </div>
 
+          {/* Balls Missed Trend Chart */}
+          <Card
+            className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+          >
+            <CardHeader>
+              <CardTitle
+                className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+              >
+                Balls Missed Trend
+              </CardTitle>
+              <CardDescription
+                className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+              >
+                Track total balls missed per session (Autonomous + TeleOp)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full overflow-x-auto">
+                <ResponsiveContainer width="100%" height={240} minWidth={300}>
+                  <BarChart data={scoreTrendData}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: '14px' }} />
+                    <Bar
+                      dataKey="Balls Missed"
+                      fill={COLORS.danger}
+                      radius={[6, 6, 0, 0]}
+                      animationDuration={1500}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Cycle Time Analysis */}
           {cycleTimeData.length > 0 && (
             <Card
