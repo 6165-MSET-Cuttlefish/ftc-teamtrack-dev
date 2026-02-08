@@ -448,6 +448,7 @@ const MatchTrendComparison = ({
     Autonomous: match.autonomousScore || 0,
     TeleOp: match.teleOpScore || 0,
     'End Game': match.endGameScore || 0,
+    'Balls Missed': (match.autonBallsMissed || 0) + (match.teleBallsMissed || 0),
   }));
 
   return (
@@ -469,6 +470,7 @@ const MatchTrendComparison = ({
             <Line type="monotone" dataKey="Final Score" stroke={COLORS.primary} strokeWidth={3} dot={{ fill: COLORS.primary, r: 5 }} />
             <Line type="monotone" dataKey="Autonomous" stroke={COLORS.success} strokeWidth={2} dot={{ fill: COLORS.success, r: 4 }} />
             <Line type="monotone" dataKey="TeleOp" stroke={COLORS.warning} strokeWidth={2} dot={{ fill: COLORS.warning, r: 4 }} />
+            <Line type="monotone" dataKey="Balls Missed" stroke="#ef4444" strokeWidth={2} dot={{ fill: "#ef4444", r: 4 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
