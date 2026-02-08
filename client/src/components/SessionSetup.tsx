@@ -49,10 +49,15 @@ const FormField = ({
 
   return (
     <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-      <Label htmlFor={fieldId} className="text-sm sm:text-base leading-6 font-medium">
+      <Label
+        htmlFor={fieldId}
+        className="text-sm sm:text-base leading-6 font-medium"
+      >
         {label}
         {(label === 'Session Name' || label === 'Driver Name') && (
-          <span className="text-red-500 ml-1" title="Required field">*</span>
+          <span className="text-red-500 ml-1" title="Required field">
+            *
+          </span>
         )}
       </Label>
       <Input
@@ -92,12 +97,18 @@ export const SessionSetup = () => {
         <h2 className="text-team-blue text-3xl font-bold leading-6">
           Session Setup
         </h2>
-        <span className="text-red-500 text-xl font-bold" title="Required fields">*</span>
+        <span
+          className="text-red-500 text-xl font-bold"
+          title="Required fields"
+        >
+          *
+        </span>
       </div>
 
       {!hasRequiredFields && (
         <div className="text-sm text-red-500">
-          <strong>Required:</strong> Please fill in Session Name and Driver Name before completing the session.
+          <strong>Required:</strong> Please fill in Session Name and Driver Name
+          before completing the session.
         </div>
       )}
 
@@ -121,14 +132,18 @@ export const SessionSetup = () => {
         {/* Second Row */}
         <div className="flex flex-col sm:flex-row gap-12">
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-            <Label className="text-sm sm:text-base leading-6 font-medium">Match Type</Label>
+            <Label className="text-sm sm:text-base leading-6 font-medium">
+              Match Type
+            </Label>
             <Select value={sessionData.matchType} onValueChange={setMatchType}>
               <SelectTrigger
                 className={`w-full h-12 text-base font-normal leading-6 px-4 py-2.5 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
               >
                 <SelectValue placeholder="Select match type" />
               </SelectTrigger>
-              <SelectContent className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}>
+              <SelectContent
+                className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}
+              >
                 <SelectItem value="Autonomous">Autonomous</SelectItem>
                 <SelectItem value="TeleOp">TeleOp</SelectItem>
                 <SelectItem value="Full Game">Full Game</SelectItem>
@@ -138,7 +153,9 @@ export const SessionSetup = () => {
           </div>
 
           <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
-            <Label className="text-sm sm:text-base leading-6 font-medium">Features</Label>
+            <Label className="text-sm sm:text-base leading-6 font-medium">
+              Features
+            </Label>
             <Select
               value={sessionData.selectedFeature}
               onValueChange={setSelectedFeature}
@@ -148,7 +165,9 @@ export const SessionSetup = () => {
               >
                 <SelectValue placeholder="Select feature" />
               </SelectTrigger>
-              <SelectContent className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}>
+              <SelectContent
+                className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}
+              >
                 <SelectItem value="Cycle Times">Cycle Times</SelectItem>
               </SelectContent>
             </Select>
