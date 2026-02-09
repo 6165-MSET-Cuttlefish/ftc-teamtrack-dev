@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
@@ -13,6 +13,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -55,6 +60,18 @@ const SessionCard = ({
   const [editedName, setEditedName] = useState(session.sessionName || '');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
+  const [isTitleTruncated, setIsTitleTruncated] = useState(false);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  // Check if title is truncated
+  useEffect(() => {
+    if (titleRef.current && !isEditing) {
+      const isTruncated = titleRef.current.scrollHeight > titleRef.current.clientHeight;
+      setIsTitleTruncated(isTruncated);
+    } else {
+      setIsTitleTruncated(false);
+    }
+  }, [session.sessionName, isEditing]);
 
   // Reset delete confirmation after timeout
   useEffect(() => {
@@ -121,7 +138,7 @@ const SessionCard = ({
 
   const { highestScore, averageScore } = getSessionScores();
 
-  return (
+  const cardContent = (
     <Card
       className={`transition-all duration-300 cursor-pointer group ${
         isDarkMode
@@ -131,7 +148,7 @@ const SessionCard = ({
       onClick={onView}
     >
       <CardHeader className="pb-4 pt-6 px-6">
-        <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-4 mb-4">
           <div className="flex-1 min-w-0">
             {isEditing ? (
               <div
@@ -158,12 +175,17 @@ const SessionCard = ({
                 />
               </div>
             ) : (
+              <CardTitle
+                ref={titleRef}
+                className={`text-lg font-semibold line-clamp-3 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
+                {session.sessionName || 'Untitled Session'}
+              </CardTitle>
+            )}
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {!isEditing && (
               <div className="flex items-center gap-2">
-                <CardTitle
-                  className={`text-xl font-semibold line-clamp-1 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-                >
-                  {session.sessionName || 'Untitled Session'}
-                </CardTitle>
                 {isSavingName ? (
                   <div className="h-4 w-4 border-2 border-team-blue border-t-transparent rounded-full animate-spin" />
                 ) : (
@@ -171,16 +193,16 @@ const SessionCard = ({
                     <button
                       onClick={handleEditClick}
                       className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
-                      isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                    } hover:text-team-blue`}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                    <div className="flex items-center gap-1 w-16">
+                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                      } hover:text-team-blue`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={handleDeleteClick}
                         disabled={isDeleting}
-                        className={`p-1.5 rounded flex-1 transition-colors ${
+                        className={`p-1.5 rounded transition-colors ${
                           isDeleting
                             ? 'opacity-50 cursor-not-allowed'
                             : deleteConfirm
@@ -204,7 +226,7 @@ const SessionCard = ({
                       {deleteConfirm && !isDeleting && (
                         <button
                           onClick={handleDeleteCancel}
-                          className={`p-1.5 rounded flex-1 hover:bg-team-blue/20 transition-colors ${
+                          className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
                             isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                           }`}
                           title="Cancel delete"
@@ -217,12 +239,12 @@ const SessionCard = ({
                 )}
               </div>
             )}
-          </div>
-          <div className="flex items-center gap-2 bg-team-blue/15 px-4 py-2 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
-            <Trophy className="h-5 w-5 text-team-blue group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-xl font-bold text-team-blue">
-              {highestScore}
-            </span>
+            <div className="flex items-center gap-2 bg-team-blue/15 px-4 py-2 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
+              <Trophy className="h-5 w-5 text-team-blue group-hover:scale-110 transition-transform duration-300" />
+              <span className="text-xl font-bold text-team-blue">
+                {highestScore}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -311,6 +333,21 @@ const SessionCard = ({
       </CardContent>
     </Card>
   );
+
+  if (isTitleTruncated) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {cardContent}
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs break-words">
+          {session.sessionName || 'Untitled Session'}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return cardContent;
 };
 
 const LoadingCard = () => {
