@@ -26,6 +26,7 @@ import {
   Target,
   Zap,
   X,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -52,6 +53,7 @@ const Compare = () => {
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const [selectedSessionsData, setSelectedSessionsData] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDetailedBreakdownOpen, setIsDetailedBreakdownOpen] = useState(false);
   
   // Match comparison state
   const [comparisonMode, setComparisonMode] = useState<'sessions' | 'matches'>('sessions');
@@ -315,43 +317,7 @@ const Compare = () => {
         {comparisonMode === 'sessions' ? (
           selectedSessionsData.length > 0 ? (
             <div className="space-y-6">
-              {/* Metrics Comparison */}
-              {getMetrics().map((metric, index) => (
-                <Card
-                  key={index}
-                  className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-                >
-                  <CardHeader>
-                    <CardTitle
-                      className={`text-lg flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      <div className="text-team-blue">{metric.icon}</div>
-                      {metric.label}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {selectedSessionsData.map((session, idx) => (
-                        <div
-                          key={session.id}
-                          className={`p-4 rounded-lg ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
-                        >
-                          <div
-                            className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                          >
-                            {session.sessionName || 'Unnamed'} - {formatDate(session.createdAt)}
-                          </div>
-                          <div className="text-3xl font-bold text-team-blue mt-2">
-                            {metric.values[idx] || 0}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-
-              {/* Detailed Table */}
+              {/* Score Metrics Table */}
               <Card
                 className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
               >
@@ -359,9 +325,128 @@ const Compare = () => {
                   <CardTitle
                     className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
-                    Detailed Breakdown
+                    Score Comparison
                   </CardTitle>
                 </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
+                        >
+                          <th
+                            className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                          >
+                            Score Type
+                          </th>
+                          {selectedSessionsData.map(session => (
+                            <th
+                              key={session.id}
+                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                            >
+                              {session.sessionName || 'Unnamed'}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            <Trophy className="w-4 h-4 text-team-blue" />
+                            Final Score
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 font-bold text-2xl text-team-blue`}
+                            >
+                              {session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            <Target className="w-4 h-4 text-team-blue" />
+                            Autonomous Score
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            <Zap className="w-4 h-4 text-team-blue" />
+                            TeleOp Score
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr
+                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                        >
+                          <td
+                            className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          >
+                            <Clock className="w-4 h-4 text-team-blue" />
+                            End Game Score
+                          </td>
+                          {selectedSessionsData.map(session => (
+                            <td
+                              key={session.id}
+                              className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            >
+                              {session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0)}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Detailed Table */}
+              <Card
+                className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+              >
+                <CardHeader
+                  onClick={() => setIsDetailedBreakdownOpen(!isDetailedBreakdownOpen)}
+                  className="cursor-pointer hover:bg-opacity-80 transition-all"
+                >
+                  <CardTitle
+                    className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    <span>Detailed Breakdown</span>
+                    <ChevronDown
+                      className={`w-5 h-5 transition-transform duration-200 ${isDetailedBreakdownOpen ? 'rotate-180' : ''}`}
+                    />
+                  </CardTitle>
+                </CardHeader>
+                {isDetailedBreakdownOpen && (
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -625,6 +710,7 @@ const Compare = () => {
                     </table>
                   </div>
                 </CardContent>
+                )}
               </Card>
             </div>
           ) : (
