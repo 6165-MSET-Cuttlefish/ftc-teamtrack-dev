@@ -37,6 +37,7 @@ import {
   Trash2,
   Download,
   TrendingUp,
+  Edit3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,6 +46,7 @@ interface SessionCardProps {
   onView: () => void;
   onNameChange: (newName: string) => void;
   onDelete: () => void;
+  onEditMatches: () => void;
   isDeleting?: boolean;
 }
 
@@ -53,6 +55,7 @@ const SessionCard = ({
   onView,
   onNameChange,
   onDelete,
+  onEditMatches,
   isDeleting = false,
 }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
@@ -195,8 +198,21 @@ const SessionCard = ({
                       className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
                         isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                       } hover:text-team-blue`}
+                      title="Edit session name"
                     >
                       <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditMatches();
+                      }}
+                      className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
+                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                      } hover:text-team-blue`}
+                      title="Edit matches"
+                    >
+                      <Edit3 className="h-4 w-4" />
                     </button>
                     <div className="flex items-center gap-1">
                       <button
@@ -843,6 +859,7 @@ const Sessions = () => {
                   handleUpdateSessionName(session.id, newName)
                 }
                 onDelete={() => handleDeleteSession(session.id)}
+                onEditMatches={() => navigate(`${ROUTES.EDIT_SESSION}?sessionId=${session.id}`)}
                 isDeleting={deletingSessionId === session.id}
               />
             ))}
