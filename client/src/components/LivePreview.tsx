@@ -356,7 +356,7 @@ export const LivePreview = () => {
   return (
     <div className="flex flex-col gap-8">
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3 w-full">
+      <div className="flex flex-wrap gap-4 w-full">
           {!sessionData.isSessionCompleted && (
             <>
               {showTeleOpTransition ? (

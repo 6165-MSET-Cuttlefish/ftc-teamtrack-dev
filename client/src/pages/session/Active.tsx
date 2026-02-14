@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import {
   SessionSetup,
-  PerformanceMetrics,
+  ScoringUI,
   Notes,
   LivePreview,
+  PerformanceMetrics,
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
 import { APP_CONFIG } from '@/constants';
@@ -20,7 +21,7 @@ const ActiveSessionContent = () => {
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       {/* Single Column Content - All Scrollable */}
-      <div className="max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-8 sm:pb-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-8 sm:pb-12">
         <div className="space-y-16 sm:space-y-20">
           {/* Timer Section at Top - Scrolls with Page */}
           {sessionTimer > 0 && (
@@ -57,6 +58,9 @@ const ActiveSessionContent = () => {
 
           {/* Session Setup */}
           <SessionSetup />
+
+          {/* Scoring UI */}
+          <ScoringUI />
 
           {/* Performance Metrics */}
           <PerformanceMetrics />

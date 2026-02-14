@@ -48,10 +48,10 @@ const FormField = ({
   const fieldId = id || label.toLowerCase().replace(/\s+/g, '-');
 
   return (
-    <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+    <div className="flex flex-col gap-2 w-full">
       <Label
         htmlFor={fieldId}
-        className="text-sm sm:text-base leading-6 font-medium"
+        className="text-xs sm:text-sm leading-5 font-medium"
       >
         {label}
         {(label === 'Session Name' || label === 'Driver Name') && (
@@ -67,7 +67,7 @@ const FormField = ({
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-11 sm:h-12 px-3 sm:px-4 py-2.5 rounded-lg text-sm sm:text-base font-normal leading-6 border border-team-blue-40 shadow-sm transition-all duration-200 focus:outline-none focus:border-team-blue focus:ring-2 focus:ring-team-blue/20 hover:border-team-blue/60 placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-10 px-3 py-2 rounded-lg text-sm font-normal leading-6 border border-team-blue-40 shadow-sm transition-all duration-200 focus:outline-none focus:border-team-blue focus:ring-2 focus:ring-team-blue/20 hover:border-team-blue/60 placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -113,7 +113,7 @@ export const SessionSetup = () => {
       )}
 
       {/* Session and Driver Name - Full Width on Top */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
         <FormField
           label="Session Name"
           placeholder="ex. practice"
@@ -129,14 +129,14 @@ export const SessionSetup = () => {
       </div>
 
       {/* Match Type and Features - 2x2 Grid Below */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
         <div className="flex flex-col gap-2 w-full">
-          <Label className="text-sm sm:text-base leading-6 font-medium">
+          <Label className="text-xs sm:text-sm leading-5 font-medium">
             Match Type
           </Label>
           <Select value={sessionData.matchType} onValueChange={setMatchType}>
             <SelectTrigger
-              className={`w-full h-12 text-base font-normal leading-6 px-4 py-2.5 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
+              className={`w-full h-10 text-sm font-normal px-3 py-2 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
             >
               <SelectValue placeholder="Select match type" />
             </SelectTrigger>
@@ -152,7 +152,7 @@ export const SessionSetup = () => {
         </div>
 
         <div className="flex flex-col gap-2 w-full">
-          <Label className="text-sm sm:text-base leading-6 font-medium">
+          <Label className="text-xs sm:text-sm leading-5 font-medium">
             Features
           </Label>
           <Select
@@ -160,7 +160,7 @@ export const SessionSetup = () => {
             onValueChange={setSelectedFeature}
           >
             <SelectTrigger
-              className={`w-full h-12 text-base font-normal leading-6 px-4 py-2.5 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
+              className={`w-full h-10 text-sm font-normal px-3 py-2 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
             >
               <SelectValue placeholder="Select feature" />
             </SelectTrigger>
