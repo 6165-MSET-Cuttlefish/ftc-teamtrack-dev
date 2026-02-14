@@ -29,7 +29,7 @@ export const Dialog = ({ open = false, onOpenChange, children }: DialogProps) =>
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={handleBackdropClick}
     >
       {children}
@@ -44,7 +44,7 @@ export const DialogContent = ({
 }: HTMLAttributes<HTMLDivElement>) => (
   <div
     {...props}
-    className={`bg-white dark:bg-slate-900 rounded-lg shadow-lg max-w-lg w-full ${className || ''}`}
+    className={`rounded-2xl shadow-2xl max-w-lg w-full animate-in zoom-in-95 duration-200 ${className || ''}`}
     onClick={(e) => e.stopPropagation()}
   >
     {children}
@@ -53,27 +53,30 @@ export const DialogContent = ({
 
 export const DialogHeader = ({
   children,
+  className = '',
   ...props
 }: HTMLAttributes<HTMLDivElement>) => (
-  <div {...props} className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+  <div {...props} className={`px-6 py-5 border-b ${className}`}>
     {children}
   </div>
 );
 
 export const DialogTitle = ({
   children,
+  className = '',
   ...props
 }: HTMLAttributes<HTMLHeadingElement>) => (
-  <h2 {...props} className="text-lg font-semibold text-gray-900 dark:text-white">
+  <h2 {...props} className={`text-xl font-bold flex items-center gap-2 ${className}`}>
     {children}
   </h2>
 );
 
 export const DialogDescription = ({
   children,
+  className = '',
   ...props
 }: HTMLAttributes<HTMLDivElement>) => (
-  <p {...props} className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+  <p {...props} className={`text-sm mt-1 ${className}`}>
     {children}
   </p>
 );

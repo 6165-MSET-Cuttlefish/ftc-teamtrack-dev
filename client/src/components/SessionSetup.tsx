@@ -54,11 +54,6 @@ const FormField = ({
         className="text-xs sm:text-sm leading-5 font-medium"
       >
         {label}
-        {(label === 'Session Name' || label === 'Driver Name') && (
-          <span className="text-red-500 ml-1" title="Required field">
-            *
-          </span>
-        )}
       </Label>
       <Input
         id={fieldId}
@@ -79,40 +74,16 @@ export const SessionSetup = () => {
 
   const setSessionName = (value: string) =>
     updateSessionData({ sessionName: value });
-  const setDriverName = (value: string) =>
-    updateSessionData({ driverName: value });
   const setMatchType = (value: string) =>
     updateSessionData({ matchType: value });
-  const setSelectedFeature = (value: string) =>
-    updateSessionData({ selectedFeature: value });
-
-  // Check if required fields are filled
-  const isSessionNameEmpty = !sessionData.sessionName?.trim();
-  const isDriverNameEmpty = !sessionData.driverName?.trim();
-  const hasRequiredFields = !isSessionNameEmpty && !isDriverNameEmpty;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6">
-          Session Setup
-        </h2>
-        <span
-          className="text-red-500 text-xl font-bold"
-          title="Required fields"
-        >
-          *
-        </span>
-      </div>
+      <h2 className="text-team-blue text-2xl font-semibold leading-6">
+        Session Setup
+      </h2>
 
-      {!hasRequiredFields && (
-        <div className="text-sm text-red-500">
-          <strong>Required:</strong> Please fill in Session Name and Driver Name
-          before completing the session.
-        </div>
-      )}
-
-      {/* Session and Driver Name - Full Width on Top */}
+      {/* Session Name and Match Type on same line */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
         <FormField
           label="Session Name"
@@ -120,16 +91,6 @@ export const SessionSetup = () => {
           value={sessionData.sessionName}
           onChange={setSessionName}
         />
-        <FormField
-          label="Driver Name"
-          placeholder="Enter driver name"
-          value={sessionData.driverName}
-          onChange={setDriverName}
-        />
-      </div>
-
-      {/* Match Type and Features - 2x2 Grid Below */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
         <div className="flex flex-col gap-2 w-full">
           <Label className="text-xs sm:text-sm leading-5 font-medium">
             Match Type
@@ -143,31 +104,9 @@ export const SessionSetup = () => {
             <SelectContent
               className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}
             >
-              <SelectItem value="Autonomous">Autonomous</SelectItem>
-              <SelectItem value="TeleOp">TeleOp</SelectItem>
               <SelectItem value="Full Game">Full Game</SelectItem>
-              <SelectItem value="Practice">Practice</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-2 w-full">
-          <Label className="text-xs sm:text-sm leading-5 font-medium">
-            Features
-          </Label>
-          <Select
-            value={sessionData.selectedFeature}
-            onValueChange={setSelectedFeature}
-          >
-            <SelectTrigger
-              className={`w-full h-10 text-sm font-normal px-3 py-2 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
-            >
-              <SelectValue placeholder="Select feature" />
-            </SelectTrigger>
-            <SelectContent
-              className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}
-            >
-              <SelectItem value="Cycle Times">Cycle Times</SelectItem>
+              <SelectItem value="Autonomous">Autonomous</SelectItem>
+              <SelectItem value="Teleop">Teleop</SelectItem>
             </SelectContent>
           </Select>
         </div>

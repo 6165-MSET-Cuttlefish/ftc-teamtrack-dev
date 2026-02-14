@@ -20,7 +20,7 @@ const OriginalContent = () => {
     // Validate that some scoring data exists
     if ((sessionData.finalScore || 0) === 0 && 
         (sessionData.autonomousScore || 0) === 0 && 
-        (sessionData.teleOpScore || 0) === 0 && 
+        (sessionData.teleopScore || 0) === 0 && 
         (sessionData.endGameScore || 0) === 0) {
       // Don't show error, just don't save empty match
       return;
@@ -35,7 +35,7 @@ const OriginalContent = () => {
               matchType: sessionData.matchType,
               finalScore: sessionData.finalScore,
               autonomousScore: sessionData.autonomousScore,
-              teleOpScore: sessionData.teleOpScore,
+              teleopScore: sessionData.teleopScore,
               endGameScore: sessionData.endGameScore,
               autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
               autonOverflowArtifact: sessionData.autonOverflowArtifact,
@@ -66,7 +66,7 @@ const OriginalContent = () => {
         matchType: sessionData.matchType,
         finalScore: sessionData.finalScore,
         autonomousScore: sessionData.autonomousScore,
-        teleOpScore: sessionData.teleOpScore,
+        teleopScore: sessionData.teleopScore,
         endGameScore: sessionData.endGameScore,
         autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
         autonOverflowArtifact: sessionData.autonOverflowArtifact,
@@ -90,7 +90,7 @@ const OriginalContent = () => {
         // Reset scoring for next match
         finalScore: 0,
         autonomousScore: 0,
-        teleOpScore: 0,
+        teleopScore: 0,
         endGameScore: 0,
         autonClassifiedArtifact: 0,
         autonOverflowArtifact: 0,
@@ -268,10 +268,10 @@ const OriginalContent = () => {
                   <p
                     className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    TeleOp
+                    Teleop
                   </p>
                   <p className="text-xl font-bold text-team-blue">
-                    {sessionData.teleOpScore || 0}
+                    {sessionData.teleopScore || 0}
                   </p>
                 </div>
                 <div
@@ -280,7 +280,7 @@ const OriginalContent = () => {
                   <p
                     className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    End Game
+                    Endgame
                   </p>
                   <p className="text-xl font-bold text-team-blue">
                     {sessionData.endGameScore || 0}

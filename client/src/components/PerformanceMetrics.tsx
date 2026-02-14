@@ -226,7 +226,7 @@ export const PerformanceMetrics = () => {
       autonMotif * 2 +
       autonomousLeave * 3;
 
-    const teleOpScore =
+    const teleopScore =
       teleClassifiedArtifact * 3 + teleOverflowArtifact * 1 + teleMotif * 2;
 
     // Calculate endgame score based on parking
@@ -243,12 +243,12 @@ export const PerformanceMetrics = () => {
       endGameScore = robot1Score + robot2Score;
     }
 
-    const finalScore = autonomousScore + teleOpScore + endGameScore;
+    const finalScore = autonomousScore + teleopScore + endGameScore;
 
     isUpdatingRef.current = true;
     updateSessionData({
       autonomousScore,
-      teleOpScore,
+      teleopScore,
       endGameScore,
       finalScore,
       autonClassifiedArtifact,
@@ -441,38 +441,38 @@ export const PerformanceMetrics = () => {
 
         // Auto-detect which section to update based on match type
         const matchType = sessionData.matchType;
-        let isTeleOpScore = false;
+        let isTeleopScore = false;
         const shotType = parseInt(popupNumber);
         const missed = shotType - madeCount;
 
         if (!expandedSection || expandedSection === 'Autonomous Score') {
           // Default to autonomous if no section expanded or if autonomous is expanded
-          if (matchType !== 'TeleOp') {
+          if (matchType !== 'Teleop') {
             setAutonClassifiedArtifact(prev => prev + madeCount);
             if (missed > 0) setAutonBallsMissed(prev => prev + missed);
           } else {
             setTeleClassifiedArtifact(prev => prev + madeCount);
             if (missed > 0) setTeleBallsMissed(prev => prev + missed);
-            isTeleOpScore = true;
+            isTeleopScore = true;
           }
-        } else if (expandedSection === 'TeleOp Score') {
+        } else if (expandedSection === 'Teleop Score') {
           setTeleClassifiedArtifact(prev => prev + madeCount);
           if (missed > 0) setTeleBallsMissed(prev => prev + missed);
-          isTeleOpScore = true;
+          isTeleopScore = true;
         } else {
-          // If End Game or other section is expanded, use match type to determine
+          // If Endgame or other section is expanded, use match type to determine
           if (matchType === 'Autonomous') {
             setAutonClassifiedArtifact(prev => prev + madeCount);
             if (missed > 0) setAutonBallsMissed(prev => prev + missed);
           } else {
             setTeleClassifiedArtifact(prev => prev + madeCount);
             if (missed > 0) setTeleBallsMissed(prev => prev + missed);
-            isTeleOpScore = true;
+            isTeleopScore = true;
           }
         }
 
-        // If updating TeleOp score and Cycle Times is enabled, record cycle time
-        if (isTeleOpScore && sessionData.selectedFeature === 'Cycle Times') {
+        // If updating Teleop score and Cycle Times is enabled, record cycle time
+        if (isTeleopScore && sessionData.selectedFeature === 'Cycle Times') {
           recordCycleTime();
         }
 
@@ -642,14 +642,56 @@ export const PerformanceMetrics = () => {
     );
   };
 
+  const ButtonGroupField = ({
+    label,
+    value,
+    onChange,
+    options,
+  }: {
+    label: string;
+    value: number;
+    onChange: (value: number) => void;
+    options: number[];
+  }) => {
+    const { isDarkMode } = useTheme();
+
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <label
+          className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+        >
+          {label}
+        </label>
+        <div className="flex gap-2">
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onChange(option)}
+              className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
+                value === option
+                  ? 'bg-team-blue border-team-blue text-black'
+                  : isDarkMode
+                    ? 'bg-team-dark border-team-blue-40 text-white hover:bg-team-blue/20'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const getSectionTitle = () => {
     switch (expandedSection) {
       case 'Autonomous Score':
         return 'Autonomous Score';
-      case 'TeleOp Score':
-        return 'TeleOp Score';
-      case 'End Game Score':
-        return 'End Game Score';
+      case 'Teleop Score':
+        return 'Teleop Score';
+      case 'Endgame Score':
+        return 'Endgame Score';
       default:
         return '';
     }
@@ -685,14 +727,15 @@ export const PerformanceMetrics = () => {
               onChange={setAutonBallsMissed}
               editable={isEditable}
             />
-            <CheckboxField
-              label="Leave (Check if left)"
-              checked={autonomousLeave === 1}
-              onChange={checked => setAutonomousLeave(checked ? 1 : 0)}
+            <ButtonGroupField
+              label="Leave (3 pts each)"
+              value={autonomousLeave}
+              onChange={setAutonomousLeave}
+              options={[0, 1, 2]}
             />
           </div>
         );
-      case 'TeleOp Score':
+      case 'Teleop Score':
         return (
           <div className="space-y-8">
             <InlineBreakdownField
@@ -783,7 +826,7 @@ export const PerformanceMetrics = () => {
                             return (
                               <div
                                 key={index}
-                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue-40 text-white'}`}
+                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue-40 text-black'}`}
                               >
                                 {index + 1}. {minutes}:
                                 {seconds.toString().padStart(2, '0')}
@@ -799,7 +842,7 @@ export const PerformanceMetrics = () => {
             )}
           </div>
         );
-      case 'End Game Score':
+      case 'Endgame Score':
         return (
           <div className="space-y-6">
             {/* Robot 1 Parking */}
@@ -967,7 +1010,7 @@ export const PerformanceMetrics = () => {
             editable={isEditable}
             showArrows={false}
           />
-          {sessionData.matchType !== 'TeleOp' && (
+          {sessionData.matchType !== 'Teleop' && (
             <MetricField
               label="Autonomous"
               value={sessionData.autonomousScore ?? 0}
@@ -982,23 +1025,23 @@ export const PerformanceMetrics = () => {
           )}
           {sessionData.matchType !== 'Autonomous' && (
             <MetricField
-              label="TeleOp"
-              value={sessionData.teleOpScore ?? 0}
-              onChange={value => updateSessionData({ teleOpScore: value })}
-              onDropdownClick={() => toggleSection('TeleOp Score')}
+              label="Teleop"
+              value={sessionData.teleopScore ?? 0}
+              onChange={value => updateSessionData({ teleopScore: value })}
+              onDropdownClick={() => toggleSection('Teleop Score')}
               editable={isEditable}
               showArrows={false}
-              isSelected={expandedSection === 'TeleOp Score'}
+              isSelected={expandedSection === 'Teleop Score'}
             />
           )}
           <MetricField
-            label="End Game"
+            label="Endgame"
             value={sessionData.endGameScore ?? 0}
             onChange={value => updateSessionData({ endGameScore: value })}
-            onDropdownClick={() => toggleSection('End Game Score')}
+            onDropdownClick={() => toggleSection('Endgame Score')}
             editable={isEditable}
             showArrows={false}
-            isSelected={expandedSection === 'End Game Score'}
+            isSelected={expandedSection === 'Endgame Score'}
           />
         </div>
 

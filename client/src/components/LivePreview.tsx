@@ -22,10 +22,10 @@ export const LivePreview = () => {
     updateSessionData,
     hasStarted,
     setHasStarted,
-    showTeleOpTransition,
-    setShowTeleOpTransition,
-    hasTransitionedToTeleOp,
-    setHasTransitionedToTeleOp,
+    showTeleopTransition,
+    setShowTeleopTransition,
+    hasTransitionedToTeleop,
+    setHasTransitionedToTeleop,
     editingMatchId,
     returnToCurrentMatch,
     saveEditedMatch,
@@ -44,7 +44,7 @@ export const LivePreview = () => {
     ((sessionData.matches && sessionData.matches.length > 0) ||
       (sessionData.finalScore || 0) > 0 ||
       (sessionData.autonomousScore || 0) > 0 ||
-      (sessionData.teleOpScore || 0) > 0 ||
+      (sessionData.teleopScore || 0) > 0 ||
       (sessionData.notes && sessionData.notes.trim().length > 0) ||
       (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
 
@@ -91,31 +91,31 @@ export const LivePreview = () => {
       sessionData.matchType === 'Full Game' &&
       timer === GAME_TIMING.AUTONOMOUS_DURATION_SECONDS && // 30 seconds for autonomous phase
       isTimerRunning &&
-      !hasTransitionedToTeleOp
+      !hasTransitionedToTeleop
     ) {
       setIsTimerRunning(false);
-      setShowTeleOpTransition(true);
+      setShowTeleopTransition(true);
     }
   }, [
     timer,
     isTimerRunning,
     sessionData.matchType,
-    hasTransitionedToTeleOp,
+    hasTransitionedToTeleop,
     setIsTimerRunning,
-    setShowTeleOpTransition,
+    setShowTeleopTransition,
   ]);
 
-  const handleContinueToTeleOp = () => {
-    setShowTeleOpTransition(false);
-    setHasTransitionedToTeleOp(true);
-    setExpandedSection('TeleOp Score');
+  const handleContinueToTeleop = () => {
+    setShowTeleopTransition(false);
+    setHasTransitionedToTeleop(true);
+    setExpandedSection('Teleop Score');
     // Don't reset timer - continue from autonomous phase
     setIsTimerRunning(true);
   };
 
-  const handleSkipTeleOp = () => {
-    setShowTeleOpTransition(false);
-    setHasTransitionedToTeleOp(true);
+  const handleSkipTeleop = () => {
+    setShowTeleopTransition(false);
+    setHasTransitionedToTeleop(true);
     // Don't auto-start timer or change section
   };
 
@@ -147,14 +147,6 @@ export const LivePreview = () => {
   };
 
   const handleSaveMatch = () => {
-    // Validate required fields
-    if (!sessionData.sessionName?.trim() || !sessionData.driverName?.trim()) {
-      toast.error(
-        'Please fill in Session Name and Driver Name before saving a match'
-      );
-      return;
-    }
-
     // Validate that timer was started
     if (!hasStarted) {
       toast.error('Please start the match timer before saving');
@@ -165,7 +157,7 @@ export const LivePreview = () => {
     if (
       (sessionData.finalScore || 0) === 0 &&
       (sessionData.autonomousScore || 0) === 0 &&
-      (sessionData.teleOpScore || 0) === 0 &&
+      (sessionData.teleopScore || 0) === 0 &&
       (sessionData.endGameScore || 0) === 0
     ) {
       toast.error('Please enter some scoring data before saving a match');
@@ -179,7 +171,7 @@ export const LivePreview = () => {
       matchType: sessionData.matchType,
       finalScore: sessionData.finalScore,
       autonomousScore: sessionData.autonomousScore,
-      teleOpScore: sessionData.teleOpScore,
+      teleopScore: sessionData.teleopScore,
       endGameScore: sessionData.endGameScore,
       autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
       autonOverflowArtifact: sessionData.autonOverflowArtifact,
@@ -203,7 +195,7 @@ export const LivePreview = () => {
       // Reset ALL scoring fields for next match
       finalScore: 0,
       autonomousScore: 0,
-      teleOpScore: 0,
+      teleopScore: 0,
       endGameScore: 0,
       autonLeave: 0,
       autonClassifiedArtifact: 0,
@@ -223,7 +215,7 @@ export const LivePreview = () => {
     resetTimer();
     setHasStarted(false);
     setIsTimerRunning(false);
-    setHasTransitionedToTeleOp(false);
+    setHasTransitionedToTeleop(false);
 
     toast.success(`Match ${updatedMatches.length} saved successfully!`);
   };
@@ -232,14 +224,6 @@ export const LivePreview = () => {
     // Validate user is authenticated
     if (!user?.uid) {
       toast.error('You must be logged in to save sessions');
-      return;
-    }
-
-    // Validate required fields
-    if (!sessionData.sessionName?.trim() || !sessionData.driverName?.trim()) {
-      toast.error(
-        'Please fill in Session Name and Driver Name before completing the session'
-      );
       return;
     }
 
@@ -255,7 +239,7 @@ export const LivePreview = () => {
     const hasUnsavedData =
       (sessionData.finalScore || 0) > 0 ||
       (sessionData.autonomousScore || 0) > 0 ||
-      (sessionData.teleOpScore || 0) > 0 ||
+      (sessionData.teleopScore || 0) > 0 ||
       (sessionData.endGameScore || 0) > 0;
 
     if (hasUnsavedData) {
@@ -282,10 +266,26 @@ export const LivePreview = () => {
     setIsTimerRunning(false);
     completeSession(totalSessionTime);
 
+    // Generate a unique session name if not provided
+    let finalSessionName = sessionData.sessionName?.trim();
+    if (!finalSessionName) {
+      // Find the next available number for "Untitled Session #X"
+      const untitledSessions = userSessions.filter(s => 
+        s.sessionName?.startsWith('Untitled Session #')
+      );
+      const numbers = untitledSessions
+        .map(s => {
+          const match = s.sessionName?.match(/Untitled Session #(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter(n => !isNaN(n));
+      const nextNumber = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+      finalSessionName = `Untitled Session #${nextNumber}`;
+    }
+
     const sessionToSave = {
-      sessionName: sessionData.sessionName.trim(),
-      driverName: sessionData.driverName.trim(),
-      matchType: sessionData.matchType || 'Practice',
+      sessionName: finalSessionName,
+      matchType: sessionData.matchType || 'Full Game',
       sessionDuration: totalSessionTime,
 
       userId: user.uid, // Always set from validated user
@@ -304,7 +304,7 @@ export const LivePreview = () => {
 
       finalScore: 0,
       autonomousScore: 0,
-      teleOpScore: 0,
+      teleopScore: 0,
       endGameScore: 0,
 
       selectedFeature: sessionData.selectedFeature || '',
@@ -359,16 +359,18 @@ export const LivePreview = () => {
       <div className="flex flex-wrap gap-4 w-full">
           {!sessionData.isSessionCompleted && (
             <>
-              {showTeleOpTransition ? (
+              {showTeleopTransition ? (
                 <>
                   <button
-                    onClick={handleContinueToTeleOp}
-                    className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-sm font-medium hover:bg-team-blue/90 transition-colors`}
+                    onClick={handleContinueToTeleop}
+                    className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${
+                      isDarkMode ? 'text-black' : 'text-white'
+                    }`}
                   >
-                    Continue into TeleOp
+                    Continue into Teleop
                   </button>
                   <button
-                    onClick={handleSkipTeleOp}
+                    onClick={handleSkipTeleop}
                     className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
                   >
                     Skip / End Autonomous Only

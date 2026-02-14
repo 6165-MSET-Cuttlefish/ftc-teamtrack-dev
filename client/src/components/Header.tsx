@@ -112,7 +112,6 @@ const NavigationMenu = () => {
     !sessionData.isSessionCompleted &&
     (hasStarted ||
       sessionData.sessionName?.trim() ||
-      sessionData.driverName?.trim() ||
       (sessionData.matches && sessionData.matches.length > 0));
 
   // Check if this is the user's first time and show tutorials
@@ -189,7 +188,7 @@ const NavigationMenu = () => {
             onClick={() => navigate(ROUTES.ACTIVE)}
             aria-label="New session"
             className={`px-4 py-1.5 rounded-full flex items-center gap-2 transition-all bg-team-blue hover:opacity-90 ${
-              isDarkMode ? 'text-[#191919]' : 'text-white'
+              isDarkMode ? 'text-black' : 'text-white'
             }`}
           >
             <span className="text-sm font-semibold">New Session</span>
@@ -286,7 +285,7 @@ const NavigationMenu = () => {
                 <p
                   className={`text-xs sm:text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
                 >
-                  Use these shortcuts when in the Autonomous or TeleOp section:
+                  Use these shortcuts when in the Autonomous or Teleop section:
                 </p>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
@@ -378,10 +377,10 @@ const NavigationMenu = () => {
 
             <button
               onClick={handleCloseKeybindTutorial}
-              className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors ${
+              className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
                 isDarkMode
-                  ? 'bg-team-blue hover:bg-team-blue/80 text-black'
-                  : 'bg-team-blue hover:bg-team-blue/90 text-white'
+                  ? 'hover:bg-team-blue/80 text-black'
+                  : 'hover:bg-team-blue/90 text-white'
               }`}
             >
               Got it!
@@ -412,7 +411,7 @@ const NavigationMenu = () => {
                   className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
                 >
                   Track your robot's performance during FTC matches with
-                  comprehensive scoring across Autonomous, TeleOp, and End Game
+                  comprehensive scoring across Autonomous, Teleop, and Endgame
                   periods.
                 </p>
               </div>
@@ -427,7 +426,7 @@ const NavigationMenu = () => {
                 <p
                   className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
                 >
-                  Available in TeleOp section when enabled:
+                  Available in Teleop section when enabled:
                 </p>
                 <ul
                   className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
@@ -510,10 +509,10 @@ const NavigationMenu = () => {
 
             <button
               onClick={handleCloseFeaturesTutorial}
-              className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors ${
+              className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
                 isDarkMode
-                  ? 'bg-team-blue hover:bg-team-blue/80 text-black'
-                  : 'bg-team-blue hover:bg-team-blue/90 text-white'
+                  ? 'hover:bg-team-blue/80 text-black'
+                  : 'hover:bg-team-blue/90 text-white'
               }`}
             >
               Got it!
@@ -536,7 +535,9 @@ const NavigationMenu = () => {
                   alt={user.displayName || ''}
                 />
                 <AvatarFallback
-                  className={`text-xs ${isDarkMode ? 'bg-team-blue text-black' : 'bg-team-blue text-white'}`}
+                  className={`text-xs bg-team-blue ${
+                    isDarkMode ? 'text-black' : 'text-white'
+                  }`}
                 >
                   {getInitials(user.displayName || user.email || 'User')}
                 </AvatarFallback>

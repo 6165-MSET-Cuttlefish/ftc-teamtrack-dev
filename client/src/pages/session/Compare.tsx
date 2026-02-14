@@ -175,13 +175,13 @@ const Compare = () => {
         icon: <Target className="w-5 h-5" />,
       },
       {
-        label: 'Avg TeleOp Score',
-        values: selectedSessionsData.map(s => avg(s, 'teleOpScore')),
+        label: 'Avg Teleop Score',
+        values: selectedSessionsData.map(s => avg(s, 'teleopScore')),
         sessionIds: selectedSessionIds,
         icon: <Zap className="w-5 h-5" />,
       },
       {
-        label: 'Avg End Game Score',
+        label: 'Avg Endgame Score',
         values: selectedSessionsData.map(s => avg(s, 'endGameScore')),
         sessionIds: selectedSessionIds,
         icon: <Clock className="w-5 h-5" />,
@@ -280,8 +280,7 @@ const Compare = () => {
                         className={`${isDarkMode ? 'text-white focus:bg-team-blue-40' : ''}`}
                       >
                         {session.sessionName || 'Unnamed Session'} -{' '}
-                        {formatDate(session.createdAt)} -{' '}
-                        {session.driverName || 'Unknown'} - Score:{' '}
+                        {formatDate(session.createdAt)} - Score:{' '}
                         {session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)}
                       </SelectItem>
                     ))}
@@ -402,14 +401,14 @@ const Compare = () => {
                             className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
                             <Zap className="w-4 h-4 text-team-blue" />
-                            TeleOp Score
+                            Teleop Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -420,7 +419,7 @@ const Compare = () => {
                             className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
                             <Clock className="w-4 h-4 text-team-blue" />
-                            End Game Score
+                            Endgame Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
@@ -586,14 +585,14 @@ const Compare = () => {
                           <td
                             className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
-                            TeleOp Score
+                            Teleop Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -654,7 +653,7 @@ const Compare = () => {
                           <td
                             className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
-                            End Game Score
+                            Endgame Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
@@ -679,23 +678,6 @@ const Compare = () => {
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
                               {session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / Math.max(session.matches.length, 1)}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr
-                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                        >
-                          <td
-                            className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            Driver
-                          </td>
-                          {selectedSessionsData.map(session => (
-                            <td
-                              key={session.id}
-                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              {session.driverName || 'N/A'}
                             </td>
                           ))}
                         </tr>
@@ -868,14 +850,14 @@ const Compare = () => {
                                 className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
                                 <Zap className="w-4 h-4 text-team-blue" />
-                                TeleOp Score
+                                Teleop Score
                               </td>
                               {selectedMatches.map(match => (
                                 <td
                                   key={match.id}
                                   className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                                 >
-                                  {match.teleOpScore || 0}
+                                  {match.teleopScore || 0}
                                 </td>
                               ))}
                             </tr>
@@ -886,7 +868,7 @@ const Compare = () => {
                                 className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
                                 <Clock className="w-4 h-4 text-team-blue" />
-                                End Game Score
+                                Endgame Score
                               </td>
                               {selectedMatches.map(match => (
                                 <td
@@ -984,14 +966,14 @@ const Compare = () => {
                               <td
                                 className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                TeleOp
+                                Teleop
                               </td>
                               {selectedMatches.map(match => (
                                 <td
                                   key={match.id}
                                   className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                                 >
-                                  {match.teleOpScore || 0}
+                                  {match.teleopScore || 0}
                                 </td>
                               ))}
                             </tr>
@@ -999,7 +981,7 @@ const Compare = () => {
                               <td
                                 className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                End Game
+                                Endgame
                               </td>
                               {selectedMatches.map(match => (
                                 <td

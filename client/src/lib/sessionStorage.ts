@@ -15,7 +15,6 @@ const MATCH_STATE = 'teamtrack-match-state';
 
 export interface SessionFormData extends ScoringFields {
   sessionName: string;
-  driverName: string;
   sessionDuration: string;
   matchType: string;
   isSessionCompleted: boolean;
@@ -29,16 +28,16 @@ export interface SessionTimerState {
   matchTimer: number;
   isTimerRunning: boolean;
   hasStarted: boolean;
-  hasTransitionedToTeleOp: boolean;
-  showTeleOpTransition: boolean;
+  hasTransitionedToTeleop: boolean;
+  showTeleopTransition: boolean;
   sessionStartTime: number;
   matchStartTime: number;
 }
 
 export interface MatchState {
   hasStarted: boolean;
-  hasTransitionedToTeleOp: boolean;
-  showTeleOpTransition: boolean;
+  hasTransitionedToTeleop: boolean;
+  showTeleopTransition: boolean;
 }
 
 /**
@@ -77,8 +76,8 @@ export const saveSessionToStorage = (
       MATCH_STATE,
       JSON.stringify({
         hasStarted: timerState.hasStarted,
-        hasTransitionedToTeleOp: timerState.hasTransitionedToTeleOp,
-        showTeleOpTransition: timerState.showTeleOpTransition,
+        hasTransitionedToTeleop: timerState.hasTransitionedToTeleop,
+        showTeleopTransition: timerState.showTeleopTransition,
       })
     );
 
@@ -142,8 +141,8 @@ export const loadTimerStateFromStorage = (): SessionTimerState | null => {
       matchTimer: matchData.value + matchElapsed,
       isTimerRunning: sessionData.isRunning,
       hasStarted: matchState.hasStarted ?? false,
-      hasTransitionedToTeleOp: matchState.hasTransitionedToTeleOp ?? false,
-      showTeleOpTransition: matchState.showTeleOpTransition ?? false,
+      hasTransitionedToTeleop: matchState.hasTransitionedToTeleop ?? false,
+      showTeleopTransition: matchState.showTeleopTransition ?? false,
       sessionStartTime: parseInt(sessionStartTime || '0', 10),
       matchStartTime: parseInt(matchStartTime || '0', 10),
     };

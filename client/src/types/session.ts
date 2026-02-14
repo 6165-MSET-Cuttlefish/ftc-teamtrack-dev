@@ -11,7 +11,7 @@ export type TimestampValue = Timestamp | FirebaseTimestamp | string | Date;
 export interface ScoringFields {
   finalScore: number;
   autonomousScore: number;
-  teleOpScore: number;
+  teleopScore: number;
   endGameScore: number;
   /** Classified Artifact (3 pts each) */
   autonClassifiedArtifact: number;
@@ -29,7 +29,7 @@ export interface ScoringFields {
   teleOverflowArtifact: number;
   /** Motif (2 pts each) */
   teleMotif: number;
-  /** Balls Missed in TeleOp */
+  /** Balls Missed in Teleop */
   teleBallsMissed: number;
   /** Robot 1 parking status */
   robot1Park: 'none' | 'partial' | 'full';
@@ -46,7 +46,7 @@ export interface Match {
   // Scoring fields
   finalScore?: number;
   autonomousScore?: number;
-  teleOpScore?: number;
+  teleopScore?: number;
   endGameScore?: number;
   autonClassifiedArtifact?: number;
   autonOverflowArtifact?: number;
@@ -66,7 +66,7 @@ export interface Match {
  * Represents a practice/training session that can contain multiple matches.
  *
  * Data Model:
- * - A Session contains metadata (name, driver, duration) and an array of Match objects
+ * - A Session contains metadata (name, duration) and an array of Match objects
  * - All scoring data is stored in the matches array
  * - Aggregate from the matches array when displaying session totals
  */
@@ -75,7 +75,6 @@ export interface Session {
   userId: string;
   userEmail?: string;
   sessionName: string;
-  driverName?: string;
   matchType?: string;
   sessionDuration?: string;
   createdAt: TimestampValue;

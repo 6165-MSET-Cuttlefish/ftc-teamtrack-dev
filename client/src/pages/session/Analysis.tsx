@@ -4,6 +4,8 @@ import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
 import { APP_CONFIG } from '@/constants';
 import type { Match } from '@/types';
+import { MatchForm } from '@/components';
+import { toast } from 'sonner';
 import {
   ChevronRight,
   ChevronLeft,
@@ -17,6 +19,9 @@ import {
   BarChart3,
   ArrowRightLeft,
   LayoutList,
+  Edit,
+  Trash2,
+  Plus,
 } from 'lucide-react';
 import {
   BarChart,
@@ -263,7 +268,7 @@ const computeStats = (matches: Match[]): SessionStats | null => {
   const avgAuto =
     matches.reduce((s, m) => s + (m.autonomousScore || 0), 0) / matches.length;
   const avgTele =
-    matches.reduce((s, m) => s + (m.teleOpScore || 0), 0) / matches.length;
+    matches.reduce((s, m) => s + (m.teleopScore || 0), 0) / matches.length;
   const avgEndgame =
     matches.reduce((s, m) => s + (m.endGameScore || 0), 0) / matches.length;
   const avgMissed =
@@ -321,21 +326,21 @@ const SummaryTab = ({
     name: `M${i + 1}`,
     'Final Score': m.finalScore || 0,
     Autonomous: m.autonomousScore || 0,
-    TeleOp: m.teleOpScore || 0,
-    'End Game': m.endGameScore || 0,
+    Teleop: m.teleopScore || 0,
+    'Endgame': m.endGameScore || 0,
   }));
 
   const missedData = matches.map((m, i) => ({
     name: `M${i + 1}`,
     'Auto Missed': m.autonBallsMissed || 0,
-    'TeleOp Missed': m.teleBallsMissed || 0,
+    'Teleop Missed': m.teleBallsMissed || 0,
   }));
 
   const compositionData = matches.map((m, i) => ({
     name: `M${i + 1}`,
     Autonomous: m.autonomousScore || 0,
-    TeleOp: m.teleOpScore || 0,
-    'End Game': m.endGameScore || 0,
+    Teleop: m.teleopScore || 0,
+    'Endgame': m.endGameScore || 0,
   }));
 
   const totalAvg = stats.avgAuto + stats.avgTele + stats.avgEndgame;
@@ -353,14 +358,14 @@ const SummaryTab = ({
             isDarkMode={isDarkMode}
           />
           <PhaseBar
-            label="TeleOp"
+            label="Teleop"
             value={stats.avgTele}
             max={totalAvg}
             color={CHART_COLORS.tele}
             isDarkMode={isDarkMode}
           />
           <PhaseBar
-            label="End Game"
+            label="Endgame"
             value={stats.avgEndgame}
             max={totalAvg}
             color={CHART_COLORS.endgame}
@@ -418,7 +423,7 @@ const SummaryTab = ({
               />
               <Line
                 type="monotone"
-                dataKey="TeleOp"
+                dataKey="Teleop"
                 stroke={CHART_COLORS.tele}
                 strokeWidth={2}
                 dot={{ fill: CHART_COLORS.tele, r: 3 }}
@@ -454,18 +459,21 @@ const SummaryTab = ({
                 stackId="a"
                 fill={CHART_COLORS.auto}
                 radius={[0, 0, 0, 0]}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
               <Bar
-                dataKey="TeleOp"
+                dataKey="Teleop"
                 stackId="a"
                 fill={CHART_COLORS.tele}
                 radius={[0, 0, 0, 0]}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
               <Bar
-                dataKey="End Game"
+                dataKey="Endgame"
                 stackId="a"
                 fill={CHART_COLORS.endgame}
                 radius={[4, 4, 0, 0]}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -499,11 +507,13 @@ const SummaryTab = ({
                 dataKey="Auto Missed"
                 fill={CHART_COLORS.missed}
                 radius={[4, 4, 0, 0]}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
               <Bar
-                dataKey="TeleOp Missed"
+                dataKey="Teleop Missed"
                 fill="#f97316"
                 radius={[4, 4, 0, 0]}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -520,11 +530,25 @@ const SummaryTab = ({
 const MatchDetailTab = ({
   matches,
   isDarkMode,
+  onEdit,
+  onDelete,
+  onAdd,
 }: {
   matches: Match[];
   isDarkMode: boolean;
+  onEdit: (match: Match) => void;
+  onDelete: (matchId: string) => void;
+  onAdd: () => void;
 }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
+  
+  // Reset selected index if it's out of bounds after matches change
+  useEffect(() => {
+    if (matches.length > 0 && selectedIdx >= matches.length) {
+      setSelectedIdx(Math.max(0, matches.length - 1));
+    }
+  }, [matches.length, selectedIdx]);
+  
   const match = matches[selectedIdx];
   if (!match) return null;
 
@@ -546,18 +570,18 @@ const MatchDetailTab = ({
       color: CHART_COLORS.auto,
     },
     {
-      phase: 'TeleOp',
+      phase: 'Teleop',
       classified: match.teleClassifiedArtifact || 0,
       overflow: match.teleOverflowArtifact || 0,
       motifs: match.teleMotif || 0,
       missed: match.teleBallsMissed || 0,
       extra: null,
       extraLabel: '-',
-      total: match.teleOpScore || 0,
+      total: match.teleopScore || 0,
       color: CHART_COLORS.tele,
     },
     {
-      phase: 'End Game',
+      phase: 'Endgame',
       classified: null,
       overflow: null,
       motifs: null,
@@ -594,7 +618,9 @@ const MatchDetailTab = ({
               onClick={() => setSelectedIdx(i)}
               className={`w-9 h-9 rounded-lg text-sm font-semibold transition-all ${
                 i === selectedIdx
-                  ? 'bg-team-blue text-white shadow-md'
+                  ? isDarkMode
+                    ? 'bg-team-blue text-black shadow-md'
+                    : 'bg-team-blue text-white shadow-md'
                   : isDarkMode
                     ? 'bg-team-dark text-team-white-60 hover:bg-team-blue/20'
                     : 'bg-gray-100 text-gray-600 hover:bg-team-blue/10'
@@ -603,6 +629,17 @@ const MatchDetailTab = ({
               {i + 1}
             </button>
           ))}
+          <button
+            onClick={onAdd}
+            className={`w-9 h-9 rounded-lg transition-all flex items-center justify-center ${
+              isDarkMode
+                ? 'bg-team-blue/20 text-team-blue hover:bg-team-blue/30'
+                : 'bg-team-blue/10 text-team-blue hover:bg-team-blue/20'
+            }`}
+            title="Add New Match"
+          >
+            <Plus size={18} />
+          </button>
         </div>
 
         <button
@@ -622,32 +659,60 @@ const MatchDetailTab = ({
 
       {/* Match score hero */}
       <div
-        className={`rounded-xl border p-6 text-center ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
+        className={`rounded-xl border p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
       >
-        <p
-          className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
-        >
-          Match {match.matchNumber} &middot;{' '}
-          {match.matchType || 'Full Game'}
-        </p>
-        <p className="text-5xl font-bold text-team-blue mt-2">{totalScore}</p>
-        <p
-          className={`text-sm mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
-        >
-          points scored
-        </p>
-        {matches.length > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-3">
-            <TrendIcon value={diffFromAvg} />
-            <span
-              className={`text-sm font-medium ${
-                diffFromAvg >= 0 ? 'text-emerald-500' : 'text-red-500'
-              }`}
-            >
-              {diffStr(Math.round(diffFromAvg))} vs session avg
-            </span>
-          </div>
-        )}
+        <div className="text-center">
+          <p
+            className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+          >
+            Match {match.matchNumber} &middot;{' '}
+            {match.matchType || 'Full Game'}
+          </p>
+          <p className="text-5xl font-bold text-team-blue mt-2">{totalScore}</p>
+          <p
+            className={`text-sm mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+          >
+            points scored
+          </p>
+          {matches.length > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <TrendIcon value={diffFromAvg} />
+              <span
+                className={`text-sm font-medium ${
+                  diffFromAvg >= 0 ? 'text-emerald-500' : 'text-red-500'
+                }`}
+              >
+                {diffStr(Math.round(diffFromAvg))} vs session avg
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {/* Edit and Delete buttons */}
+        <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-team-blue-40">
+          <button
+            onClick={() => onEdit(match)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isDarkMode
+                ? 'bg-team-blue/20 text-team-blue hover:bg-team-blue/30'
+                : 'bg-team-blue/10 text-team-blue hover:bg-team-blue/20'
+            }`}
+          >
+            <Edit size={16} />
+            Edit Match
+          </button>
+          <button
+            onClick={() => match.id && onDelete(match.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isDarkMode
+                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                : 'bg-red-50 text-red-600 hover:bg-red-100'
+            }`}
+          >
+            <Trash2 size={16} />
+            Delete Match
+          </button>
+        </div>
       </div>
 
       {/* Phase scores */}
@@ -894,15 +959,15 @@ const MatchDetailTab = ({
                   ),
                 },
                 {
-                  name: 'TeleOp',
-                  'This Match': match.teleOpScore || 0,
+                  name: 'Teleop',
+                  'This Match': match.teleopScore || 0,
                   'Session Avg': Math.round(
-                    matches.reduce((s, m) => s + (m.teleOpScore || 0), 0) /
+                    matches.reduce((s, m) => s + (m.teleopScore || 0), 0) /
                       matches.length,
                   ),
                 },
                 {
-                  name: 'End Game',
+                  name: 'Endgame',
                   'This Match': match.endGameScore || 0,
                   'Session Avg': Math.round(
                     matches.reduce((s, m) => s + (m.endGameScore || 0), 0) /
@@ -930,11 +995,13 @@ const MatchDetailTab = ({
                 dataKey="This Match"
                 fill={CHART_COLORS.primary}
                 radius={[4, 4, 0, 0]}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
               <Bar
                 dataKey="Session Avg"
                 fill={CHART_COLORS.secondary}
                 radius={[4, 4, 0, 0]}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -964,6 +1031,17 @@ const CompareTab = ({
 }) => {
   const [idxA, setIdxA] = useState(0);
   const [idxB, setIdxB] = useState(Math.min(1, matches.length - 1));
+
+  useEffect(() => {
+    if (matches.length > 0) {
+      if (idxA >= matches.length) {
+        setIdxA(Math.max(0, matches.length - 1));
+      }
+      if (idxB >= matches.length) {
+        setIdxB(Math.max(0, matches.length - 1));
+      }
+    }
+  }, [matches.length, idxA, idxB]);
 
   if (matches.length < 2) {
     return (
@@ -1000,13 +1078,13 @@ const CompareTab = ({
       higherIsBetter: true,
     },
     {
-      label: 'TeleOp',
-      a: mA.teleOpScore || 0,
-      b: mB.teleOpScore || 0,
+      label: 'Teleop',
+      a: mA.teleopScore || 0,
+      b: mB.teleopScore || 0,
       higherIsBetter: true,
     },
     {
-      label: 'End Game',
+      label: 'Endgame',
       a: mA.endGameScore || 0,
       b: mB.endGameScore || 0,
       higherIsBetter: true,
@@ -1018,7 +1096,7 @@ const CompareTab = ({
       higherIsBetter: true,
     },
     {
-      label: 'Classified (TeleOp)',
+      label: 'Classified (Teleop)',
       a: mA.teleClassifiedArtifact || 0,
       b: mB.teleClassifiedArtifact || 0,
       higherIsBetter: true,
@@ -1030,7 +1108,7 @@ const CompareTab = ({
       higherIsBetter: true,
     },
     {
-      label: 'Overflow (TeleOp)',
+      label: 'Overflow (Teleop)',
       a: mA.teleOverflowArtifact || 0,
       b: mB.teleOverflowArtifact || 0,
       higherIsBetter: true,
@@ -1042,7 +1120,7 @@ const CompareTab = ({
       higherIsBetter: true,
     },
     {
-      label: 'Motifs (TeleOp)',
+      label: 'Motifs (Teleop)',
       a: mA.teleMotif || 0,
       b: mB.teleMotif || 0,
       higherIsBetter: true,
@@ -1054,7 +1132,7 @@ const CompareTab = ({
       higherIsBetter: false,
     },
     {
-      label: 'Balls Missed (TeleOp)',
+      label: 'Balls Missed (Teleop)',
       a: mA.teleBallsMissed || 0,
       b: mB.teleBallsMissed || 0,
       higherIsBetter: false,
@@ -1065,14 +1143,14 @@ const CompareTab = ({
     {
       name: `Match ${mA.matchNumber}`,
       Autonomous: mA.autonomousScore || 0,
-      TeleOp: mA.teleOpScore || 0,
-      'End Game': mA.endGameScore || 0,
+      Teleop: mA.teleopScore || 0,
+      'Endgame': mA.endGameScore || 0,
     },
     {
       name: `Match ${mB.matchNumber}`,
       Autonomous: mB.autonomousScore || 0,
-      TeleOp: mB.teleOpScore || 0,
-      'End Game': mB.endGameScore || 0,
+      Teleop: mB.teleopScore || 0,
+      'Endgame': mB.endGameScore || 0,
     },
   ];
 
@@ -1177,13 +1255,20 @@ const CompareTab = ({
               dataKey="Autonomous"
               stackId="s"
               fill={CHART_COLORS.auto}
+              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
             />
-            <Bar dataKey="TeleOp" stackId="s" fill={CHART_COLORS.tele} />
             <Bar
-              dataKey="End Game"
+              dataKey="Teleop"
+              stackId="s"
+              fill={CHART_COLORS.tele}
+              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+            />
+            <Bar
+              dataKey="Endgame"
               stackId="s"
               fill={CHART_COLORS.endgame}
               radius={[4, 4, 0, 0]}
+              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
             />
           </BarChart>
         </ResponsiveContainer>
@@ -1289,6 +1374,9 @@ const AnalysisContent = () => {
   const [localSessionData, setLocalSessionData] = useState(contextSessionData);
   const sessionData = localSessionData;
   const [activeTab, setActiveTab] = useState<TabId>('summary');
+  const [isMatchFormOpen, setIsMatchFormOpen] = useState(false);
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     document.title = `Analysis - ${APP_CONFIG.name}`;
@@ -1334,12 +1422,11 @@ const AnalysisContent = () => {
 
             setLocalSessionData({
               sessionName: session.sessionName || '',
-              driverName: session.driverName || '',
               sessionDuration: session.sessionDuration || '',
               matchType: session.matchType || '',
               finalScore: sum((m) => m.finalScore || 0),
               autonomousScore: sum((m) => m.autonomousScore || 0),
-              teleOpScore: sum((m) => m.teleOpScore || 0),
+              teleopScore: sum((m) => m.teleopScore || 0),
               endGameScore: sum((m) => m.endGameScore || 0),
               isSessionCompleted: true,
               autonClassifiedArtifact: sum(
@@ -1384,6 +1471,116 @@ const AnalysisContent = () => {
     };
   }, [searchParams, location.state, user?.uid]);
 
+  // ── Match management ──────────────────────────────────────────────────
+
+  const handleAddMatch = () => {
+    setEditingMatch(null);
+    setIsMatchFormOpen(true);
+  };
+
+  const handleEditMatch = (match: Match) => {
+    setEditingMatch(match);
+    setIsMatchFormOpen(true);
+  };
+
+  const handleDeleteMatch = async (matchId: string) => {
+    const sessionId = searchParams.get('sessionId');
+    if (!sessionId || !sessionData.matches) return;
+
+    if (!confirm('Are you sure you want to delete this match?')) return;
+
+    setIsUpdating(true);
+    try {
+      const updatedMatches = sessionData.matches.filter(
+        (m) => m.id !== matchId,
+      );
+      await firebaseService.updateSession(sessionId, {
+        matches: updatedMatches,
+      });
+
+      setLocalSessionData({
+        ...sessionData,
+        matches: updatedMatches,
+      });
+
+      toast.success('Match deleted successfully');
+    } catch (error) {
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error deleting match', error);
+      toast.error('Failed to delete match');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSaveMatch = async (matchData: Partial<Match>) => {
+    const sessionId = searchParams.get('sessionId');
+    if (!sessionId) {
+      toast.error('No session ID found');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const currentMatches = sessionData.matches || [];
+      let updatedMatches: Match[];
+
+      if (editingMatch) {
+        // Update existing match
+        updatedMatches = currentMatches.map((m) =>
+          m.id === editingMatch.id ? { ...m, ...matchData } : m,
+        );
+      } else {
+        // Add new match
+        const newMatch: Match = {
+          id: `match_${Date.now()}`,
+          matchNumber: matchData.matchNumber || currentMatches.length + 1,
+          matchType: matchData.matchType || 'Full Game',
+          finalScore: matchData.finalScore || 0,
+          autonomousScore: matchData.autonomousScore || 0,
+          teleopScore: matchData.teleopScore || 0,
+          endGameScore: matchData.endGameScore || 0,
+          autonClassifiedArtifact: matchData.autonClassifiedArtifact || 0,
+          autonOverflowArtifact: matchData.autonOverflowArtifact || 0,
+          autonMotif: matchData.autonMotif || 0,
+          autonLeave: matchData.autonLeave || 0,
+          autonBallsMissed: matchData.autonBallsMissed || 0,
+          teleClassifiedArtifact: matchData.teleClassifiedArtifact || 0,
+          teleOverflowArtifact: matchData.teleOverflowArtifact || 0,
+          teleMotif: matchData.teleMotif || 0,
+          teleBallsMissed: matchData.teleBallsMissed || 0,
+          robot1Park: matchData.robot1Park || 'none',
+          robot2Park: matchData.robot2Park || 'none',
+          cycleTimes: matchData.cycleTimes || [],
+        };
+        updatedMatches = [...currentMatches, newMatch];
+      }
+
+      await firebaseService.updateSession(sessionId, {
+        matches: updatedMatches,
+      });
+
+      setLocalSessionData({
+        ...sessionData,
+        matches: updatedMatches,
+      });
+
+      toast.success(
+        editingMatch
+          ? 'Match updated successfully'
+          : 'Match added successfully',
+      );
+      setIsMatchFormOpen(false);
+      setEditingMatch(null);
+    } catch (error) {
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error saving match', error);
+      toast.error('Failed to save match');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   // ── Loading ───────────────────────────────────────────────────────────
 
   if (loading) {
@@ -1413,9 +1610,6 @@ const AnalysisContent = () => {
           <div
             className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
           >
-            {sessionData.driverName && (
-              <span>Driver: {sessionData.driverName}</span>
-            )}
             {sessionData.matchType && <span>{sessionData.matchType}</span>}
             {sessionData.sessionDuration && (
               <span>{sessionData.sessionDuration}</span>
@@ -1527,6 +1721,9 @@ const AnalysisContent = () => {
                 <MatchDetailTab
                   matches={sessionMatches}
                   isDarkMode={isDarkMode}
+                  onEdit={handleEditMatch}
+                  onDelete={handleDeleteMatch}
+                  onAdd={handleAddMatch}
                 />
               )}
               {activeTab === 'compare' && (
@@ -1549,10 +1746,19 @@ const AnalysisContent = () => {
               className={`mx-auto mb-3 ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`}
             />
             <p
-              className={`text-lg font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+              className={`text-lg font-medium mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
             >
               No matches recorded yet
             </p>
+            <button
+              onClick={handleAddMatch}
+              className={`px-6 py-2.5 rounded-xl bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors inline-flex items-center gap-2 ${
+                isDarkMode ? 'text-black' : 'text-white'
+              }`}
+            >
+              <Plus size={18} />
+              Add First Match
+            </button>
           </div>
         )}
 
@@ -1560,18 +1766,36 @@ const AnalysisContent = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <Link
             to="/sessions"
-            className="w-full sm:w-56 px-5 py-2.5 rounded-xl border border-team-blue text-team-blue text-sm font-medium text-center hover:bg-team-blue hover:text-white transition-colors"
+            className={`w-full sm:w-56 px-5 py-2.5 rounded-xl border border-team-blue text-team-blue text-sm font-medium text-center transition-colors ${
+              isDarkMode
+                ? 'hover:bg-team-blue hover:text-black'
+                : 'hover:bg-team-blue hover:text-white'
+            }`}
           >
             Back to Sessions
           </Link>
           <Link
             to="/charts"
-            className="w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-white text-sm font-medium text-center hover:bg-team-blue/90 transition-colors"
+            className={`w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors ${
+              isDarkMode ? 'text-black' : 'text-white'
+            }`}
           >
             View Charts
           </Link>
         </div>
       </div>
+
+      {/* ── Match Form Modal ──────────────────────────────────────── */}
+      <MatchForm
+        isOpen={isMatchFormOpen}
+        onClose={() => {
+          setIsMatchFormOpen(false);
+          setEditingMatch(null);
+        }}
+        onSave={handleSaveMatch}
+        initialMatch={editingMatch || undefined}
+        isLoading={isUpdating}
+      />
     </div>
   );
 };

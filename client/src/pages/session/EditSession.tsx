@@ -15,6 +15,10 @@ import {
   Pencil,
   Trash2,
   Trophy,
+  TrendingUp,
+  Target,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -200,13 +204,13 @@ const EditSession = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} page-transition`}
     >
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-8">
         <Button
           onClick={() => navigate(ROUTES.SESSIONS)}
           variant="outline"
-          className="mb-6"
+          className={`mb-6 transition-all hover:scale-105 ${isDarkMode ? 'border-team-blue-40 hover:border-team-blue' : ''}`}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Sessions
@@ -214,34 +218,48 @@ const EditSession = () => {
 
         {/* Session Header */}
         <Card
-          className={`mb-8 ${
+          className={`mb-8 overflow-hidden border-2 ${
             isDarkMode
-              ? 'border-team-blue-40 bg-team-dark'
-              : 'border-gray-200 bg-white'
+              ? 'border-team-blue-40 bg-gradient-to-br from-team-dark via-team-dark to-team-blue/10'
+              : 'border-team-blue/20 bg-gradient-to-br from-white via-white to-team-blue/5'
           }`}
         >
-          <CardHeader>
+          <CardHeader className="relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-team-blue/5 rounded-full blur-3xl -z-10" />
             <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className={isDarkMode ? 'text-white' : 'text-team-blue'}>
+              <div className="flex-1">
+                <CardTitle className={`text-3xl mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
                   {session.sessionName || 'Untitled Session'}
                 </CardTitle>
-                <p
-                  className={`text-sm mt-2 ${
-                    isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                  }`}
-                >
-                  {formatDate(session.createdAt)} • Driver: {session.driverName || 'Unknown'}
-                </p>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <p
+                    className={`text-sm flex items-center gap-2 ${
+                      isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                    }`}
+                  >
+                    <Clock className="h-4 w-4" />
+                    {formatDate(session.createdAt)}
+                  </p>
+                  <p
+                    className={`text-sm flex items-center gap-2 ${
+                      isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                    }`}
+                  >
+                    <Target className="h-4 w-4" />
+                    Match Type: {session.matchType || 'Full Game'}
+                  </p>
+                </div>
               </div>
               <div
-                className={`text-right p-4 rounded-lg ${
-                  isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'
+                className={`px-6 py-4 rounded-xl border-2 backdrop-blur-sm ${
+                  isDarkMode 
+                    ? 'bg-team-blue/10 border-team-blue/40' 
+                    : 'bg-team-blue/10 border-team-blue/30'
                 }`}
               >
-                <p className="text-sm text-team-blue-40 mb-1">Match Type</p>
-                <p className="font-semibold text-team-blue">
-                  {session.matchType || 'Practice'}
+                <p className="text-sm text-team-blue-40 mb-1 font-medium">Match Type</p>
+                <p className="font-bold text-team-blue text-lg">
+                  {session.matchType || 'Full Game'}
                 </p>
               </div>
             </div>
@@ -251,64 +269,68 @@ const EditSession = () => {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card
-            className={`${
+            className={`overflow-hidden border-2 transform transition-all duration-300 hover:scale-105 hover:shadow-xl ${
               isDarkMode
-                ? 'border-team-blue-40 bg-team-dark'
-                : 'border-gray-200 bg-white'
+                ? 'border-team-blue-40 bg-gradient-to-br from-team-dark to-team-blue/10'
+                : 'border-team-blue/20 bg-gradient-to-br from-white to-team-blue/5'
             }`}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
+            <CardContent className="pt-6 relative">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-team-blue/10 rounded-full blur-2xl" />
+              <div className="flex items-center justify-between relative z-10">
                 <div>
-                  <p className="text-sm text-team-blue-40">Total Matches</p>
-                  <p className="text-3xl font-bold text-team-blue">{matches.length}</p>
+                  <p className="text-sm text-team-blue-40 font-medium">Total Matches</p>
+                  <p className="text-4xl font-bold text-team-blue mt-1">{matches.length}</p>
                 </div>
-                <Trophy className="h-8 w-8 text-team-blue/40" />
+                <Trophy className="h-10 w-10 text-team-blue/30" />
               </div>
             </CardContent>
           </Card>
 
           <Card
-            className={`${
+            className={`overflow-hidden border-2 transform transition-all duration-300 hover:scale-105 hover:shadow-xl ${
               isDarkMode
-                ? 'border-team-blue-40 bg-team-dark'
-                : 'border-gray-200 bg-white'
+                ? 'border-purple-500/40 bg-gradient-to-br from-team-dark to-purple-500/10'
+                : 'border-purple-500/20 bg-gradient-to-br from-white to-purple-500/5'
             }`}
           >
-            <CardContent className="pt-6">
-              <div>
-                <p className="text-sm text-team-blue-40">Total Score</p>
-                <p className="text-3xl font-bold text-team-blue">{totalScore}</p>
+            <CardContent className="pt-6 relative">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full blur-2xl" />
+              <div className="relative z-10">
+                <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">Total Score</p>
+                <p className="text-4xl font-bold text-purple-600 dark:text-purple-400 mt-1">{totalScore}</p>
               </div>
             </CardContent>
           </Card>
 
           <Card
-            className={`${
+            className={`overflow-hidden border-2 transform transition-all duration-300 hover:scale-105 hover:shadow-xl ${
               isDarkMode
-                ? 'border-team-blue-40 bg-team-dark'
-                : 'border-gray-200 bg-white'
+                ? 'border-green-500/40 bg-gradient-to-br from-team-dark to-green-500/10'
+                : 'border-green-500/20 bg-gradient-to-br from-white to-green-500/5'
             }`}
           >
-            <CardContent className="pt-6">
-              <div>
-                <p className="text-sm text-team-blue-40">Average Score</p>
-                <p className="text-3xl font-bold text-team-blue">{averageScore}</p>
+            <CardContent className="pt-6 relative">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full blur-2xl" />
+              <div className="relative z-10">
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium">Average Score</p>
+                <p className="text-4xl font-bold text-green-600 dark:text-green-400 mt-1">{averageScore}</p>
               </div>
             </CardContent>
           </Card>
 
           <Card
-            className={`${
+            className={`overflow-hidden border-2 transform transition-all duration-300 hover:scale-105 hover:shadow-xl ${
               isDarkMode
-                ? 'border-team-blue-40 bg-team-dark'
-                : 'border-gray-200 bg-white'
+                ? 'border-orange-500/40 bg-gradient-to-br from-team-dark to-orange-500/10'
+                : 'border-orange-500/20 bg-gradient-to-br from-white to-orange-500/5'
             }`}
           >
-            <CardContent className="pt-6">
-              <div>
-                <p className="text-sm text-team-blue-40">Best Score</p>
-                <p className="text-3xl font-bold text-team-blue">
+            <CardContent className="pt-6 relative">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full blur-2xl" />
+              <div className="relative z-10">
+                <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">Best Score</p>
+                <p className="text-4xl font-bold text-orange-600 dark:text-orange-400 mt-1">
                   {matches.length > 0
                     ? Math.max(...matches.map(m => m.finalScore || 0))
                     : 0}
@@ -320,15 +342,19 @@ const EditSession = () => {
 
         {/* Matches List */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <h2
-              className={`text-2xl font-semibold ${
+              className={`text-3xl font-bold flex items-center gap-3 ${
                 isDarkMode ? 'text-white' : 'text-team-blue'
               }`}
             >
+              <TrendingUp className="h-7 w-7 text-team-blue" />
               Matches
             </h2>
-            <Button onClick={handleAddMatch} className="bg-team-blue hover:bg-team-blue/90">
+            <Button 
+              onClick={handleAddMatch} 
+              className="bg-gradient-to-r from-team-blue to-team-blue/80 hover:from-team-blue/90 hover:to-team-blue/70 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Match
             </Button>
@@ -336,18 +362,34 @@ const EditSession = () => {
 
           {matches.length === 0 ? (
             <Card
-              className={`${
+              className={`border-2 border-dashed ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark'
-                  : 'border-gray-200 bg-white'
+                  : 'border-gray-300 bg-white'
               }`}
             >
-              <CardContent className="py-12 text-center">
-                <p
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
-                >
-                  No matches yet. Click "Add Match" to create one.
-                </p>
+              <CardContent className="py-16 text-center">
+                <div className="flex flex-col items-center gap-4">
+                  <div className={`p-6 rounded-full ${
+                    isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'
+                  }`}>
+                    <Sparkles className="h-12 w-12 text-team-blue" />
+                  </div>
+                  <div>
+                    <h3 className={`text-lg font-semibold mb-2 ${
+                      isDarkMode ? 'text-white' : 'text-team-blue'
+                    }`}>
+                      No matches yet
+                    </h3>
+                    <p
+                      className={`text-sm ${
+                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                      }`}
+                    >
+                      Click "Add Match" to create your first match
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -355,74 +397,88 @@ const EditSession = () => {
               {matches.map((match, index) => (
                 <Card
                   key={match.id}
-                  className={`${
+                  className={`group overflow-hidden border-2 transform transition-all duration-200 hover:scale-[1.02] hover:shadow-xl ${
                     isDarkMode
-                      ? 'border-team-blue-40 bg-team-dark hover:bg-team-dark-20'
-                      : 'border-gray-200 bg-white hover:bg-gray-50'
-                  } transition-all`}
+                      ? 'border-team-blue-40 bg-gradient-to-r from-team-dark to-team-dark hover:border-team-blue'
+                      : 'border-gray-200 bg-gradient-to-r from-white to-gray-50 hover:border-team-blue'
+                  }`}
                 >
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
+                  <CardContent className="py-4 relative">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-team-blue to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex items-center justify-between pl-2">
                       <div className="flex-1">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-wrap">
                           <div
-                            className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                            className={`px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${
                               isDarkMode
-                                ? 'bg-team-blue/20 text-team-blue'
-                                : 'bg-team-blue/10 text-team-blue'
+                                ? 'bg-gradient-to-r from-team-blue/30 to-purple-500/30 text-team-blue'
+                                : 'bg-gradient-to-r from-team-blue/20 to-purple-500/20 text-team-blue'
                             }`}
                           >
+                            <Trophy className="h-4 w-4" />
                             Match {index + 1}
                           </div>
                           <p
-                            className={`text-sm ${
+                            className={`text-sm font-medium ${
                               isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                             }`}
                           >
                             {match.matchType || 'Full Game'}
                           </p>
-                          <p className="text-lg font-bold text-team-blue">
-                            {match.finalScore || 0} pts
-                          </p>
+                          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-500/20 to-green-500/20">
+                            <Sparkles className="h-4 w-4 text-emerald-600" />
+                            <p className="text-lg font-bold text-emerald-600">
+                              {match.finalScore || 0} pts
+                            </p>
+                          </div>
                         </div>
                         <div
-                          className={`mt-2 text-xs ${
+                          className={`mt-3 text-xs flex items-center gap-4 ${
                             isDarkMode ? 'text-team-white-40' : 'text-gray-500'
                           }`}
                         >
-                          Autonomous: {match.autonomousScore || 0} • TeleOp:{' '}
-                          {match.teleOpScore || 0} • End Game:{' '}
-                          {match.endGameScore || 0}
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-purple-500" />
+                            Auto: {match.autonomousScore || 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            Teleop: {match.teleopScore || 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-orange-500" />
+                            End: {match.endGameScore || 0}
+                          </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditMatch(match)}
-                          className={`p-2 rounded-lg transition-colors ${
+                          className={`p-3 rounded-lg transition-all transform hover:scale-110 ${
                             isDarkMode
-                              ? 'text-team-white-60 hover:bg-team-blue/20'
-                              : 'text-team-blue-40 hover:bg-team-blue/10'
+                              ? 'text-team-white-60 hover:bg-team-blue/20 hover:text-team-blue'
+                              : 'text-team-blue-40 hover:bg-team-blue/10 hover:text-team-blue'
                           }`}
                           title="Edit match"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteMatch(match.id)}
                           disabled={deletingMatchId === match.id}
-                          className={`p-2 rounded-lg transition-colors ${
+                          className={`p-3 rounded-lg transition-all transform hover:scale-110 ${
                             deletingMatchId === match.id
                               ? 'opacity-50 cursor-not-allowed'
                               : isDarkMode
-                                ? 'text-team-white-60 hover:bg-red-500/20'
-                                : 'text-team-blue-40 hover:bg-red-500/10'
+                                ? 'text-team-white-60 hover:bg-red-500/20 hover:text-red-400'
+                                : 'text-team-blue-40 hover:bg-red-500/10 hover:text-red-500'
                           }`}
                           title="Delete match"
                         >
                           {deletingMatchId === match.id ? (
-                            <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                           ) : (
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                           )}
                         </button>
                       </div>

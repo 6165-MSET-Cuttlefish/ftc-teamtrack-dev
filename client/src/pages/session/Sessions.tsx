@@ -29,7 +29,6 @@ import {
   Search,
   Plus,
   Calendar,
-  User,
   Trophy,
   Clock,
   BarChart3,
@@ -37,7 +36,7 @@ import {
   Trash2,
   Download,
   TrendingUp,
-  Edit3,
+  Hash,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -46,7 +45,6 @@ interface SessionCardProps {
   onView: () => void;
   onNameChange: (newName: string) => void;
   onDelete: () => void;
-  onEditMatches: () => void;
   isDeleting?: boolean;
 }
 
@@ -55,7 +53,6 @@ const SessionCard = ({
   onView,
   onNameChange,
   onDelete,
-  onEditMatches,
   isDeleting = false,
 }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
@@ -130,16 +127,17 @@ const SessionCard = ({
       .filter(score => score > 0);
     
     if (scores.length === 0) {
-      return { highestScore: 0, averageScore: 0 };
+      return { highestScore: 0, averageScore: 0, totalScore: 0, matchCount: matches.length };
     }
 
+    const totalScore = scores.reduce((a, b) => a + b, 0);
     const highestScore = Math.max(...scores);
-    const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    const averageScore = Math.round(totalScore / scores.length);
     
-    return { highestScore, averageScore };
+    return { highestScore, averageScore, totalScore, matchCount: matches.length };
   };
 
-  const { highestScore, averageScore } = getSessionScores();
+  const { highestScore, averageScore, totalScore, matchCount } = getSessionScores();
 
   const cardContent = (
     <Card
@@ -195,35 +193,23 @@ const SessionCard = ({
                   <>
                     <button
                       onClick={handleEditClick}
-                      className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
+                      className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
                         isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                       } hover:text-team-blue`}
                       title="Edit session name"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditMatches();
-                      }}
-                      className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
-                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                      } hover:text-team-blue`}
-                      title="Edit matches"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={handleDeleteClick}
                         disabled={isDeleting}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`p-1.5 rounded-lg transition-all transform hover:scale-110 ${
                           isDeleting
                             ? 'opacity-50 cursor-not-allowed'
                             : deleteConfirm
-                              ? 'bg-red-500 hover:bg-red-600 text-white'
-                              : `${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} hover:bg-team-blue/20 hover:text-team-blue`
+                              ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg'
+                              : `${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} hover:bg-red-500/20 hover:text-red-500`
                         }`}
                         title={
                           isDeleting
@@ -242,7 +228,7 @@ const SessionCard = ({
                       {deleteConfirm && !isDeleting && (
                         <button
                           onClick={handleDeleteCancel}
-                          className={`p-1.5 rounded hover:bg-team-blue/20 transition-colors ${
+                          className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
                             isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                           }`}
                           title="Cancel delete"
@@ -275,24 +261,6 @@ const SessionCard = ({
       <CardContent className="pt-0 pb-6 px-6">
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
           <div className="flex items-center gap-3">
-            <User
-              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
-              >
-                Driver
-              </span>
-              <span
-                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {session.driverName || 'Unknown'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
             <Clock
               className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
             />
@@ -311,19 +279,19 @@ const SessionCard = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <BarChart3
+            <Hash
               className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
             />
             <div className="flex flex-col">
               <span
                 className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
               >
-                Type
+                Matches
               </span>
               <span
                 className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
-                {session.matchType || 'Practice'}
+                {matchCount}
               </span>
             </div>
           </div>
@@ -342,6 +310,24 @@ const SessionCard = ({
                 className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
                 {averageScore} pts
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <TrendingUp
+              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            />
+            <div className="flex flex-col">
+              <span
+                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+              >
+                Total Score
+              </span>
+              <span
+                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
+                {totalScore} pts
               </span>
             </div>
           </div>
@@ -440,7 +426,6 @@ const Sessions = () => {
       filtered = filtered.filter(
         session =>
           session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          session.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -531,12 +516,11 @@ const Sessions = () => {
     // Define CSV headers
     const headers = [
       'Session Name',
-      'Driver Name',
       'Match Type',
       'Final Score',
       'Autonomous Score',
-      'TeleOp Score',
-      'End Game Score',
+      'Teleop Score',
+      'Endgame Score',
       'Auton Classified Artifact',
       'Auton Overflow Artifact',
       'Auton Motif',
@@ -551,7 +535,7 @@ const Sessions = () => {
     const rows = sessions.map(session => {
       const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
       const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
-      const teleOpScore = session.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0);
+      const teleopScore = session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0);
       const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
       const autonClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.autonClassifiedArtifact || 0), 0);
       const autonOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.autonOverflowArtifact || 0), 0);
@@ -563,11 +547,10 @@ const Sessions = () => {
 
       return [
         `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-        `"${(session.driverName || 'Unknown').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-        `"${(session.matchType || 'Practice').replace(/"/g, '""')}"`,
+        `"${(session.matchType || 'Full Game').replace(/"/g, '""')}"`,
         finalScore,
         autonomousScore,
-        teleOpScore,
+        teleopScore,
         endGameScore,
         autonClassifiedArtifact,
         autonOverflowArtifact,
@@ -625,7 +608,9 @@ const Sessions = () => {
                   localStorage.setItem('teamtrack_new_session_created', 'true');
                   navigate(ROUTES.ACTIVE);
                 }}
-                className={`bg-team-blue hover:bg-team-blue/90 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px] ${isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}`}
+                className={`bg-team-blue hover:bg-team-blue/90 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px] ${
+                  isDarkMode ? '!text-black' : '!text-white'
+                }`}
               >
                 <Plus className="h-3 sm:h-4 w-3 sm:w-4" />
                 <span className="hidden sm:inline">New Session</span>
@@ -795,10 +780,9 @@ const Sessions = () => {
                 className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-300'}`}
               >
                 <SelectItem value="all">All Match Types</SelectItem>
-                <SelectItem value="autonomous">Autonomous</SelectItem>
-                <SelectItem value="teleop">TeleOp</SelectItem>
                 <SelectItem value="full game">Full Game</SelectItem>
-                <SelectItem value="practice">Practice</SelectItem>
+                <SelectItem value="autonomous">Autonomous</SelectItem>
+                <SelectItem value="teleop">Teleop</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -840,8 +824,9 @@ const Sessions = () => {
                   localStorage.setItem('teamtrack_new_session_created', 'true');
                   navigate('/active');
                 }}
-                className="bg-team-blue hover:bg-team-blue/90"
-                style={{ color: isDarkMode ? '#191919' : '#FFFFFF' }}
+                className={`bg-team-blue hover:bg-team-blue/90 ${
+                  isDarkMode ? 'text-black' : 'text-white'
+                }`}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Session
@@ -859,7 +844,6 @@ const Sessions = () => {
                   handleUpdateSessionName(session.id, newName)
                 }
                 onDelete={() => handleDeleteSession(session.id)}
-                onEditMatches={() => navigate(`${ROUTES.EDIT_SESSION}?sessionId=${session.id}`)}
                 isDeleting={deletingSessionId === session.id}
               />
             ))}

@@ -55,7 +55,9 @@ const Profile = () => {
                   src={user.photoURL || ''}
                   alt={user.displayName || ''}
                 />
-                <AvatarFallback className={`bg-team-blue text-xl ${isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}`}>
+                <AvatarFallback className={`bg-team-blue text-xl ${
+                  isDarkMode ? '!text-black' : '!text-white'
+                }`}>
                   {getInitials(user.displayName || user.email || 'User')}
                 </AvatarFallback>
               </Avatar>

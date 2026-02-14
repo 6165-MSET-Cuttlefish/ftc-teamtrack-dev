@@ -154,8 +154,8 @@ const Charts = () => {
           (sum, m) => sum + (m.autonomousScore || 0),
           0
         );
-        const teleOpScore = session.matches.reduce(
-          (sum, m) => sum + (m.teleOpScore || 0),
+        const teleopScore = session.matches.reduce(
+          (sum, m) => sum + (m.teleopScore || 0),
           0
         );
         const endGameScore = session.matches.reduce(
@@ -167,8 +167,8 @@ const Charts = () => {
           sessionNumber: index + 1,
           'Final Score': finalScore,
           Autonomous: autonomousScore,
-          TeleOp: teleOpScore,
-          'End Game': endGameScore,
+          Teleop: teleopScore,
+          'Endgame': endGameScore,
         };
       });
   };
@@ -559,7 +559,7 @@ const Charts = () => {
                         s.matches.forEach(m => {
                           totalScore += m.finalScore || 0;
                           totalAuto += m.autonomousScore || 0;
-                          totalTele += m.teleOpScore || 0;
+                          totalTele += m.teleopScore || 0;
                           totalEndgame += m.endGameScore || 0;
                           allScores.push(m.finalScore || 0);
                         });
@@ -593,8 +593,8 @@ const Charts = () => {
                         autoAvg > teleAvg && autoAvg > endgameAvg
                           ? 'Autonomous'
                           : teleAvg > endgameAvg
-                            ? 'TeleOp'
-                            : 'End Game';
+                            ? 'Teleop'
+                            : 'Endgame';
 
                       const autoPercent = ((autoAvg / avgScore) * 100).toFixed(
                         0
@@ -622,7 +622,7 @@ const Charts = () => {
                             {Math.round(
                               bestPhase === 'Autonomous'
                                 ? autoAvg
-                                : bestPhase === 'TeleOp'
+                                : bestPhase === 'Teleop'
                                   ? teleAvg
                                   : endgameAvg
                             )}{' '}
@@ -632,7 +632,7 @@ const Charts = () => {
                             <span className="font-semibold text-team-blue">
                               Score Distribution:
                             </span>{' '}
-                            {autoPercent}% Auto, {telePercent}% TeleOp
+                            {autoPercent}% Auto, {telePercent}% Teleop
                           </div>
                           <div>
                             <span className="font-semibold text-team-blue">
@@ -923,7 +923,7 @@ const Charts = () => {
                     />
                     <Area
                       type="monotone"
-                      dataKey="TeleOp"
+                      dataKey="Teleop"
                       stroke={COLORS.warning}
                       strokeWidth={2}
                       fillOpacity={1}
@@ -978,6 +978,7 @@ const Charts = () => {
                         opacity={1}
                         radius={[6, 6, 0, 0]}
                         animationDuration={1000}
+                        activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
                       />
                       <Line
                         type="monotone"
@@ -1074,7 +1075,7 @@ const Charts = () => {
               <CardDescription
                 className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
-                Track total balls missed per session (Autonomous + TeleOp)
+                Track total balls missed per session (Autonomous + Teleop)
               </CardDescription>
             </CardHeader>
             <CardContent>

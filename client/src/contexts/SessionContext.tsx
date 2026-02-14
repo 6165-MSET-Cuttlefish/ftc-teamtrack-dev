@@ -36,10 +36,10 @@ interface SessionContextType {
   hasActiveSession: boolean;
   hasStarted: boolean;
   setHasStarted: (started: boolean) => void;
-  hasTransitionedToTeleOp: boolean;
-  setHasTransitionedToTeleOp: (transitioned: boolean) => void;
-  showTeleOpTransition: boolean;
-  setShowTeleOpTransition: (show: boolean) => void;
+  hasTransitionedToTeleop: boolean;
+  setHasTransitionedToTeleop: (transitioned: boolean) => void;
+  showTeleopTransition: boolean;
+  setShowTeleopTransition: (show: boolean) => void;
   editingMatchId: string | null;
   setEditingMatchId: (id: string | null) => void;
   startEditingMatch: (match: Match) => void;
@@ -51,12 +51,11 @@ const createInitialSessionData = (
   displayName?: string | null
 ): SessionFormData => ({
   sessionName: '',
-  driverName: displayName || '',
   sessionDuration: '',
   matchType: 'Full Game',
   finalScore: 0,
   autonomousScore: 0,
-  teleOpScore: 0,
+  teleopScore: 0,
   endGameScore: 0,
   isSessionCompleted: false,
   autonLeave: 0,
@@ -94,24 +93,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return createInitialSessionData();
   });
 
-  // Update driver name when user becomes available (handles initial load timing)
-  useEffect(() => {
-    if (
-      user?.displayName &&
-      !sessionData.driverName &&
-      !sessionData.isSessionCompleted
-    ) {
-      setSessionData(prev => ({
-        ...prev,
-        driverName: prev.driverName || user.displayName || '',
-      }));
-    }
-  }, [
-    user?.displayName,
-    sessionData.driverName,
-    sessionData.isSessionCompleted,
-  ]);
-
   // Load timer state from storage - but only if we actually loaded session data
   const storedTimerState = (() => {
     // Only use timer state if session wasn't completed
@@ -144,12 +125,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     storedTimerState?.hasStarted ?? false
   );
 
-  const [hasTransitionedToTeleOp, setHasTransitionedToTeleOp] = useState(
-    storedTimerState?.hasTransitionedToTeleOp ?? false
+  const [hasTransitionedToTeleop, setHasTransitionedToTeleop] = useState(
+    storedTimerState?.hasTransitionedToTeleop ?? false
   );
 
-  const [showTeleOpTransition, setShowTeleOpTransition] = useState(
-    storedTimerState?.showTeleOpTransition ?? false
+  const [showTeleopTransition, setShowTeleopTransition] = useState(
+    storedTimerState?.showTeleopTransition ?? false
   );
 
   const [hasActiveSessionLocal, setHasActiveSessionLocal] = useState(() =>
@@ -207,7 +188,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     // Save if there's session data OR if timers are active
     const hasSessionData =
       sessionData.sessionName ||
-      sessionData.driverName ||
       sessionData.matches.length > 0;
     const hasActiveTimers =
       isTimerRunning || hasStarted || sessionTimer > 0 || timer > 0;
@@ -223,8 +203,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       matchTimer: timer,
       isTimerRunning,
       hasStarted,
-      hasTransitionedToTeleOp,
-      showTeleOpTransition,
+      hasTransitionedToTeleop,
+      showTeleopTransition,
       sessionStartTime: 0,
       matchStartTime: 0,
     };
@@ -237,8 +217,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     sessionTimer,
     isTimerRunning,
     hasStarted,
-    hasTransitionedToTeleOp,
-    showTeleOpTransition,
+    hasTransitionedToTeleop,
+    showTeleopTransition,
   ]);
 
   const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {
@@ -267,7 +247,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       setCurrentMatchData({
         finalScore: sessionData.finalScore,
         autonomousScore: sessionData.autonomousScore,
-        teleOpScore: sessionData.teleOpScore,
+        teleopScore: sessionData.teleopScore,
         endGameScore: sessionData.endGameScore,
         autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
         autonOverflowArtifact: sessionData.autonOverflowArtifact,
@@ -288,7 +268,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         ...prev,
         finalScore: match.finalScore || 0,
         autonomousScore: match.autonomousScore || 0,
-        teleOpScore: match.teleOpScore || 0,
+        teleopScore: match.teleopScore || 0,
         endGameScore: match.endGameScore || 0,
         autonClassifiedArtifact: match.autonClassifiedArtifact || 0,
         autonOverflowArtifact: match.autonOverflowArtifact || 0,
@@ -329,7 +309,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
               ...match,
               finalScore: prev.finalScore,
               autonomousScore: prev.autonomousScore,
-              teleOpScore: prev.teleOpScore,
+              teleopScore: prev.teleopScore,
               endGameScore: prev.endGameScore,
               autonClassifiedArtifact: prev.autonClassifiedArtifact,
               autonOverflowArtifact: prev.autonOverflowArtifact,
@@ -362,7 +342,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         matches: updatedMatches,
         finalScore: 0,
         autonomousScore: 0,
-        teleOpScore: 0,
+        teleopScore: 0,
         endGameScore: 0,
         autonClassifiedArtifact: 0,
         autonOverflowArtifact: 0,
@@ -391,8 +371,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setSessionTimer(0);
     setIsTimerRunning(false);
     setHasStarted(false);
-    setHasTransitionedToTeleOp(false);
-    setShowTeleOpTransition(false);
+    setHasTransitionedToTeleop(false);
+    setShowTeleopTransition(false);
     // Clear from storage immediately to prevent race conditions with persistence effect
     clearSessionFromStorage();
     setHasActiveSessionLocal(false);
@@ -415,10 +395,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     hasActiveSession: hasActiveSessionLocal,
     hasStarted,
     setHasStarted,
-    hasTransitionedToTeleOp,
-    setHasTransitionedToTeleOp,
-    showTeleOpTransition,
-    setShowTeleOpTransition,
+    hasTransitionedToTeleop,
+    setHasTransitionedToTeleop,
+    showTeleopTransition,
+    setShowTeleopTransition,
     editingMatchId,
     setEditingMatchId,
     startEditingMatch,
