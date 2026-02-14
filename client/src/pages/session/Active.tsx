@@ -4,7 +4,6 @@ import {
   PerformanceMetrics,
   Notes,
   LivePreview,
-  LargeTimer,
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,14 +21,10 @@ const ActiveSessionContent = () => {
     <div
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <LargeTimer />
-      </div>
-
-      <div className="flex flex-col lg:flex-row items-start max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pb-10 gap-10">
+      <div className="flex flex-col lg:flex-row items-start max-w-[1216px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 pt-4 sm:pt-6 md:pt-8 lg:pt-12 pb-4 sm:pb-6 md:pb-8 lg:pb-10 gap-3 sm:gap-4 md:gap-6 lg:gap-10">
         {/* Left Column - Session Form */}
         <div
-          className={`flex-1 w-full lg:max-w-[900px] py-10 lg:pr-12 lg:border-r ${isDarkMode ? 'border-team-white-20' : 'border-team-blue/60'}`}
+          className={`flex-1 w-full lg:max-w-[776px] py-4 sm:py-6 md:py-8 lg:py-14 lg:pr-12 lg:border-r ${isDarkMode ? 'border-team-white-20' : 'border-team-blue/60'}`}
         >
           <div className="space-y-6 sm:space-y-8 md:space-y-12 lg:space-y-16">
             {/* Header with Match Counter */}
@@ -66,7 +61,7 @@ const ActiveSessionContent = () => {
         </div>
 
         {/* Right Column - Live Preview & Match History */}
-        <div className="w-full lg:w-[480px] py-10 space-y-6">
+        <div className="w-full lg:w-[413px] py-4 sm:py-6 md:py-8 lg:py-14 px-0 space-y-3 sm:space-y-4 md:space-y-6">
           {/* Live Preview */}
           <LivePreview />
 

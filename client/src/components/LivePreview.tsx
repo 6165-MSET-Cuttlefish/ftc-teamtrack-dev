@@ -457,15 +457,29 @@ export const LivePreview = () => {
   }, [editingMatchId, returnToCurrentMatch]);
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full">
-      {/* Session Timer (Moved/Miniaturized) */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className={`text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}>
-          Session:
-        </span>
-        <span className="text-team-blue font-mono font-bold">
-          {formatTime(sessionTimer)}
-        </span>
+    <div className="flex flex-col items-center gap-12 lg:gap-16">
+      <div className="flex flex-col items-center gap-8 lg:gap-12">
+        <div className="text-center space-y-6">
+          <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-tight lg:leading-9">
+            Live Preview
+          </h1>
+          <p
+            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+          >
+            Real time analysis
+          </p>
+        </div>
+
+        <div className="text-center">
+          <p
+            className={`text-sm mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+          >
+            Session Timer
+          </p>
+          <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
+            {formatTime(sessionTimer)}
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col items-center gap-6 lg:gap-8 w-full">
@@ -539,7 +553,12 @@ export const LivePreview = () => {
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 w-full justify-center pt-2">
+          <div className="text-center">
+            <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
+              {formatTime(timer)}
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 w-full justify-center">
             <DataCard
               value={(sessionData.finalScore ?? 0).toString()}
               label="Final Score"
