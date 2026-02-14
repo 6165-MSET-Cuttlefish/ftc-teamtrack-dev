@@ -92,9 +92,9 @@ export const SessionSetup = () => {
   const hasRequiredFields = !isSessionNameEmpty && !isDriverNameEmpty;
 
   return (
-    <div className="space-y-8 mt-16">
+    <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <h2 className="text-team-blue text-3xl font-bold leading-6">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6">
           Session Setup
         </h2>
         <span
@@ -112,7 +112,8 @@ export const SessionSetup = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+      {/* Session and Driver Name - Full Width on Top */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField
           label="Session Name"
           placeholder="ex. practice"
@@ -125,8 +126,11 @@ export const SessionSetup = () => {
           value={sessionData.driverName}
           onChange={setDriverName}
         />
+      </div>
 
-        <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+      {/* Match Type and Features - 2x2 Grid Below */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-2 w-full">
           <Label className="text-sm sm:text-base leading-6 font-medium">
             Match Type
           </Label>
@@ -147,7 +151,7 @@ export const SessionSetup = () => {
           </Select>
         </div>
 
-        <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+        <div className="flex flex-col gap-2 w-full">
           <Label className="text-sm sm:text-base leading-6 font-medium">
             Features
           </Label>

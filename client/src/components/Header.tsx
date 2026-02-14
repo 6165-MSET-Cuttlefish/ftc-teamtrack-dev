@@ -100,6 +100,8 @@ const NavigationMenu = () => {
   const { user, logout } = useAuth();
   const { sessionData } = useSession();
   const navigate = useNavigate();
+  const location = window.location.pathname;
+  const isOnActivePage = location.includes('/active');
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
   const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
 
@@ -169,7 +171,7 @@ const NavigationMenu = () => {
       }`}
     >
       {/* Active / New Session Button */}
-      {user &&
+      {user && !isOnActivePage &&
         (hasActiveSession ? (
           <button
             onClick={() => navigate('/active')}

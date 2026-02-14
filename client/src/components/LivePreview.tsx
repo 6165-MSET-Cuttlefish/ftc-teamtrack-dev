@@ -3,31 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { useFirebase } from '@/hooks';
 import { GAME_TIMING, ROUTES } from '@/constants';
-import { Trash2, Check, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Match } from '@/types';
-
-const DataCard = ({ value, label }: { value: string; label: string }) => {
-  const { isDarkMode } = useTheme();
-  return (
-    <div
-      className={`flex flex-col items-center gap-4 px-9 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
-    >
-      <div className="text-team-blue text-3xl font-medium leading-6">
-        {value}
-      </div>
-      <div
-        className={
-          isDarkMode
-            ? 'text-team-white-60 text-base leading-6'
-            : 'text-team-blue-40 text-base leading-6'
-        }
-      >
-        {label}
-      </div>
-    </div>
-  );
-};
 
 export const LivePreview = () => {
   const {
@@ -58,7 +36,6 @@ export const LivePreview = () => {
   const navigate = useNavigate();
   const [sessionLimitReached, setSessionLimitReached] =
     useState<boolean>(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<boolean>(false);
   const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
@@ -82,11 +59,6 @@ export const LivePreview = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedWork]);
-
-  // Real-time consistency calculation
-  const [consistency, setConsistency] = useState<number>(0);
-  const [isCalculatingConsistency, setIsCalculatingConsistency] =
-    useState(true);
 
   // Check session limit on mount
   useEffect(() => {
@@ -147,80 +119,6 @@ export const LivePreview = () => {
     // Don't auto-start timer or change section
   };
 
-  useEffect(() => {
-    const calculateConsistency = async () => {
-      if (!user?.uid) {
-        setConsistency(100);
-        setIsCalculatingConsistency(false);
-        return;
-      }
-
-      try {
-        setIsCalculatingConsistency(true);
-        const { firebaseService } = await import('../services/firebaseService');
-        const recentSessions = await firebaseService.getUserSessions(user.uid);
-        const lastThreeSessions = recentSessions.slice(0, 3);
-
-        if (lastThreeSessions.length === 0) {
-          setConsistency(100);
-          setIsCalculatingConsistency(false);
-          return;
-        }
-
-        // Get scores from previous sessions by aggregating from matches array
-        const previousScores = lastThreeSessions
-          .flatMap(session =>
-            (session.matches || []).map(match => match.finalScore || 0)
-          )
-          .filter(score => score > 0);
-
-        const allScores: number[] = [
-          sessionData.finalScore ?? 0,
-          ...previousScores,
-        ].filter(score => score > 0);
-
-        if (allScores.length === 0) {
-          setConsistency(100);
-          setIsCalculatingConsistency(false);
-          return;
-        }
-
-        const avgScore =
-          allScores.reduce((sum: number, score: number) => sum + score, 0) /
-          allScores.length;
-
-        if (avgScore === 0) {
-          setConsistency(100);
-          setIsCalculatingConsistency(false);
-          return;
-        }
-
-        const variance =
-          allScores.reduce((sum: number, score: number) => {
-            return sum + Math.pow(score - avgScore, 2);
-          }, 0) / allScores.length;
-
-        const stdDev = Math.sqrt(variance);
-
-        const cv = stdDev / avgScore;
-
-        const consistencyScore = 100 / (1 + cv);
-
-        setConsistency(Math.round(consistencyScore));
-        setIsCalculatingConsistency(false);
-      } catch (error) {
-        const { logger } = await import('@/lib/logger');
-        logger.error('Error calculating consistency', error);
-        setConsistency(0);
-        setIsCalculatingConsistency(false);
-      }
-    };
-
-    if (user?.uid) {
-      calculateConsistency();
-    }
-  }, [sessionData.finalScore, user?.uid]);
-
   const handleViewAnalysis = async () => {
     navigate(ROUTES.ANALYSIS);
   };
@@ -244,7 +142,6 @@ export const LivePreview = () => {
     // Reset all session state (including sessionTimer)
     resetSession();
     // Clear any UI state for confirmations
-    setDeleteConfirm(false);
     setCancelConfirm(false);
     // Stay on the current page to start a new session
   };
@@ -457,177 +354,52 @@ export const LivePreview = () => {
   }, [editingMatchId, returnToCurrentMatch]);
 
   return (
-    <div className="flex flex-col items-center gap-12 lg:gap-16">
-      <div className="flex flex-col items-center gap-8 lg:gap-12">
-        <div className="text-center space-y-6">
-          <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold leading-tight lg:leading-9">
-            Live Preview
-          </h1>
-          <p
-            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-          >
-            Real time analysis
-          </p>
-        </div>
-
-        <div className="text-center">
-          <p
-            className={`text-sm mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
-          >
-            Session Timer
-          </p>
-          <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
-            {formatTime(sessionTimer)}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col items-center gap-6 lg:gap-8 w-full">
-        {/* Current Match Box */}
-        <div
-          className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue/60 bg-white'} ${editingMatchId ? 'ring-2 ring-yellow-500' : ''} space-y-6`}
-        >
-          <div className="flex items-center justify-between">
-            <h3
-              className={`text-lg font-semibold ${editingMatchId ? 'text-yellow-500' : isDarkMode ? 'text-white' : 'text-team-blue'}`}
-            >
-              {editingMatchId
-                ? `Editing Match: Match ${(sessionData.matches?.findIndex(m => m.id === editingMatchId) ?? 0) + 1}`
-                : `Current Match: Match ${(sessionData.matches?.length || 0) + 1}`}
-            </h3>
-            {!deleteConfirm ? (
-              <button
-                onClick={() => setDeleteConfirm(true)}
-                className={`p-2 rounded transition-all ${
-                  isDarkMode
-                    ? 'text-team-white-60 hover:bg-team-dark hover:text-red-400'
-                    : 'text-team-blue-40 hover:bg-gray-100 hover:text-red-500'
-                }`}
-                title="Reset current match scores"
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    // Reset only current match scoring fields, not the entire session
-                    updateSessionData({
-                      finalScore: 0,
-                      autonomousScore: 0,
-                      teleOpScore: 0,
-                      endGameScore: 0,
-                      autonLeave: 0,
-                      autonClassifiedArtifact: 0,
-                      autonOverflowArtifact: 0,
-                      autonMotif: 0,
-                      autonBallsMissed: 0,
-                      teleClassifiedArtifact: 0,
-                      teleOverflowArtifact: 0,
-                      teleMotif: 0,
-                      teleBallsMissed: 0,
-                      robot1Park: 'none',
-                      robot2Park: 'none',
-                      cycleTimes: [],
-                    });
-                    resetTimer();
-                    setHasStarted(false);
-                    setIsTimerRunning(false);
-                    setHasTransitionedToTeleOp(false);
-                    setDeleteConfirm(false);
-                    toast.success('Current match scores reset');
-                  }}
-                  className="p-2 rounded bg-green-500 hover:bg-green-600 text-white transition-all"
-                  title="Confirm reset"
-                >
-                  <Check className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm(false)}
-                  className="p-2 rounded bg-red-500 hover:bg-red-600 text-white transition-all"
-                  title="Cancel reset"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="text-center">
-            <div className="text-team-blue text-4xl lg:text-5xl font-semibold leading-tight lg:leading-9">
-              {formatTime(timer)}
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-6 lg:gap-9 w-full justify-center">
-            <DataCard
-              value={(sessionData.finalScore ?? 0).toString()}
-              label="Final Score"
-            />
-            <DataCard
-              value={isCalculatingConsistency ? '...' : `${consistency}%`}
-              label="Consistency"
-            />
-          </div>
-        </div>
-
-        {/* Session Limit Warning */}
-        {sessionLimitReached && (
-          <div
-            className={`w-full px-4 py-3 rounded-lg border-2 ${isDarkMode ? 'bg-red-900/20 border-red-500 text-red-400' : 'bg-red-50 border-red-500 text-red-800'}`}
-          >
-            <p className="text-sm font-semibold">⚠️ Session Limit Reached</p>
-            <p className="text-xs mt-1">
-              You cannot save new sessions. Please delete old sessions from the
-              Sessions page.
-            </p>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-4 w-full sm:w-60">
+    <div className="flex flex-col gap-8">
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-3 w-full">
           {!sessionData.isSessionCompleted && (
             <>
               {showTeleOpTransition ? (
-                <div className="space-y-3">
+                <>
                   <button
                     onClick={handleContinueToTeleOp}
-                    className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-team-blue/90 transition-colors`}
+                    className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-team-blue ${isDarkMode ? 'text-[#191919]' : 'text-[#FEFEFE]'} text-sm font-medium hover:bg-team-blue/90 transition-colors`}
                   >
                     Continue into TeleOp
                   </button>
                   <button
                     onClick={handleSkipTeleOp}
-                    className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
+                    className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
                   >
                     Skip / End Autonomous Only
                   </button>
-                </div>
+                </>
               ) : (
                 <>
                   {editingMatchId ? (
-                    /* Show Save and Return buttons when editing a saved match */
-                    <div className="space-y-3">
+                    <>
                       <button
                         onClick={() => {
                           saveEditedMatch();
                           toast.success('Match changes saved!');
                         }}
-                        className="w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 text-[#FEFEFE] text-base leading-6 font-semibold hover:bg-green-700 transition-colors"
+                        className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border border-green-600 bg-green-600 text-[#FEFEFE] text-sm font-semibold hover:bg-green-700 transition-colors"
                       >
                         Save Changes
                       </button>
                       <button
                         onClick={returnToCurrentMatch}
-                        className="w-full px-2.5 py-2.5 rounded-2xl border-2 border-yellow-500 bg-yellow-400 text-[#191919] text-base leading-6 font-semibold hover:bg-yellow-300 transition-colors"
+                        className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border-2 border-yellow-500 bg-yellow-400 text-[#191919] text-sm font-semibold hover:bg-yellow-300 transition-colors"
                       >
                         Return to Current Match
                       </button>
-                    </div>
+                    </>
                   ) : !hasStarted ? (
                     <button
                       onClick={() => {
                         setHasStarted(true);
                       }}
-                      className="w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 text-white text-base leading-6 font-normal hover:bg-green-700 transition-colors"
+                      className="flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-green-600 bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
                     >
                       Start New Match
                     </button>
@@ -635,17 +407,17 @@ export const LivePreview = () => {
                     <>
                       <button
                         onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className={`w-full px-2.5 py-2.5 rounded-2xl border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} ${isDarkMode ? 'text-[#FEFEFE]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
+                        className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} text-[#FEFEFE] text-sm font-medium ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
                       >
                         {isTimerRunning
-                          ? 'Stop / Pause Match'
+                          ? 'Stop / Pause'
                           : timer === 0
                             ? 'Start Timer'
-                            : 'Resume Match'}
+                            : 'Resume'}
                       </button>
                       <button
                         onClick={handleSaveMatch}
-                        className={`w-full px-2.5 py-2.5 rounded-2xl border border-green-600 bg-green-600 ${isDarkMode ? 'text-[#FEFEFE]' : 'text-[#FEFEFE]'} text-base leading-6 font-normal hover:bg-green-700 transition-colors`}
+                        className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border border-green-600 bg-green-600 text-[#FEFEFE] text-sm font-medium hover:bg-green-700 transition-colors"
                       >
                         Save Match
                       </button>
@@ -657,7 +429,7 @@ export const LivePreview = () => {
               <button
                 onClick={handleCompleteSession}
                 disabled={loading || sessionLimitReached}
-                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
+                className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
               >
                 {loading
                   ? 'Saving...'
@@ -670,10 +442,9 @@ export const LivePreview = () => {
                 <button
                   onClick={() => {
                     setCancelConfirm(true);
-                    // Pause the timer when showing cancellation confirmation
                     if (isTimerRunning) setIsTimerRunning(false);
                   }}
-                  className={`w-full px-2.5 py-2.5 rounded-2xl border border-red-500 bg-transparent text-red-500 text-base leading-6 font-normal transition-colors ${isDarkMode ? 'hover:bg-red-500/10' : 'hover:bg-red-500 hover:text-[#FEFEFE]'}`}
+                  className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border border-red-500 bg-transparent text-red-500 text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-red-500/10' : 'hover:bg-red-500 hover:text-[#FEFEFE]'}`}
                 >
                   Cancel Session
                 </button>
@@ -693,7 +464,6 @@ export const LivePreview = () => {
                   <button
                     onClick={() => {
                       setCancelConfirm(false);
-                      // Resume timer if they decide to keep the session and timer was running
                       if (hasStarted) setIsTimerRunning(true);
                     }}
                     className="p-2 rounded bg-red-500 hover:bg-red-600 text-white transition-all"
@@ -711,20 +481,19 @@ export const LivePreview = () => {
               <button
                 onClick={handleViewAnalysis}
                 disabled={loading}
-                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-base leading-6 font-normal text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-sm font-medium text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {loading ? 'Loading...' : 'View Full Analysis Report'}
               </button>
 
               <button
                 onClick={handleNewSession}
-                className={`w-full px-2.5 py-2.5 rounded-2xl border border-team-blue bg-transparent text-team-blue text-base leading-6 font-normal transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
+                className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
               >
                 New Session
               </button>
             </>
           )}
-        </div>
       </div>
     </div>
   );

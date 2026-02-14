@@ -111,18 +111,18 @@ const MetricField = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+    <div className="flex flex-col gap-1.5 w-full">
       <div className="flex items-center justify-between">
         <label
-          className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+          className={`text-sm leading-5 ${isDarkMode ? 'text-white' : 'text-black'}`}
         >
           {label}
         </label>
-        <div className="w-6 h-6 flex items-center justify-center">
+        <div className="w-5 h-5 flex items-center justify-center">
           {hasDropdown && (
             <button
               onClick={onDropdownClick}
-              className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
+              className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${
                 isSelected
                   ? 'text-team-blue border border-gray-400'
                   : isDarkMode
@@ -130,13 +130,13 @@ const MetricField = ({
                     : 'text-black hover:text-team-blue'
               }`}
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       </div>
       <div
-        className={`flex justify-between items-center px-2.5 py-2.5 rounded border border-team-blue-40 h-[48px] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+        className={`flex justify-between items-center px-2.5 py-2 rounded border border-team-blue-40 h-[44px] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <NumberInput
           value={value}
@@ -552,7 +552,7 @@ export const PerformanceMetrics = () => {
       }, [editable, value, onChange]);
 
       return (
-        <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+        <div className="flex flex-col gap-2 w-full">
           <div className="flex items-center justify-between min-h-[24px]">
             <label
               className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
@@ -622,7 +622,7 @@ export const PerformanceMetrics = () => {
     const { isDarkMode } = useTheme();
 
     return (
-      <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+      <div className="flex flex-col gap-2 w-full">
         <div className="flex items-center justify-between min-h-[24px]">
           <label
             className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
@@ -744,6 +744,7 @@ export const PerformanceMetrics = () => {
                     {cycleTimerStartTime !== null && (
                       <div
                         className={`text-2xl flex flex-row ${isDarkMode ? 'text-white' : 'text-black'}`}
+                        style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}
                       >
                         <div style={{ paddingTop: '6px' }}>
                           {Math.floor(cycleTimerElapsed / 60)}
@@ -758,7 +759,7 @@ export const PerformanceMetrics = () => {
                 </div>
 
                 {(sessionData.cycleTimes?.length ?? 0) > 0 && (
-                  <div className="flex flex-col gap-2 w-full sm:max-w-[296px]">
+                  <div className="flex flex-col gap-2 w-full">
                     <button
                       onClick={() =>
                         setIsCycleTimesLogExpanded(!isCycleTimesLogExpanded)
@@ -831,7 +832,7 @@ export const PerformanceMetrics = () => {
                     e.currentTarget.blur();
                     setRobot1Park('partial');
                   }}
-                  className={`flex-1 py-3 text-base font-medium transition-colors border-l border-r border-team-blue-40 ${
+                  className={`flex-1 py-3 text-base font-medium transition-colors ${
                     robot1Park === 'partial'
                       ? isDarkMode
                         ? 'bg-team-blue text-black'
@@ -893,7 +894,7 @@ export const PerformanceMetrics = () => {
                     e.currentTarget.blur();
                     setRobot2Park('partial');
                   }}
-                  className={`flex-1 py-3 text-base font-medium transition-colors border-l border-r border-team-blue-40 ${
+                  className={`flex-1 py-3 text-base font-medium transition-colors ${
                     robot2Park === 'partial'
                       ? isDarkMode
                         ? 'bg-team-blue text-black'
@@ -951,82 +952,84 @@ export const PerformanceMetrics = () => {
         </div>
       )}
 
-      <div className="flex gap-10">
-        <div className="flex-1 flex flex-col justify-between">
-          <div>
-            <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-8">
-              Performance Metrics
-            </h2>
-            <div className="space-y-8">
-              <MetricField
-                label="Final Score"
-                value={sessionData.finalScore ?? 0}
-                onChange={value => updateSessionData({ finalScore: value })}
-                hasDropdown={false}
-                editable={isEditable}
-                showArrows={false}
-              />
-              {sessionData.matchType !== 'TeleOp' && (
-                <MetricField
-                  label="Autonomous Score"
-                  value={sessionData.autonomousScore ?? 0}
-                  onChange={value =>
-                    updateSessionData({ autonomousScore: value })
-                  }
-                  onDropdownClick={() => toggleSection('Autonomous Score')}
-                  editable={isEditable}
-                  showArrows={false}
-                  isSelected={expandedSection === 'Autonomous Score'}
-                />
+      <div className="flex flex-col gap-6">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6">
+          Performance Metrics
+        </h2>
+
+        {/* Score fields in a responsive grid row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <MetricField
+            label="Final Score"
+            value={sessionData.finalScore ?? 0}
+            onChange={value => updateSessionData({ finalScore: value })}
+            hasDropdown={false}
+            editable={isEditable}
+            showArrows={false}
+          />
+          {sessionData.matchType !== 'TeleOp' && (
+            <MetricField
+              label="Autonomous"
+              value={sessionData.autonomousScore ?? 0}
+              onChange={value =>
+                updateSessionData({ autonomousScore: value })
+              }
+              onDropdownClick={() => toggleSection('Autonomous Score')}
+              editable={isEditable}
+              showArrows={false}
+              isSelected={expandedSection === 'Autonomous Score'}
+            />
+          )}
+          {sessionData.matchType !== 'Autonomous' && (
+            <MetricField
+              label="TeleOp"
+              value={sessionData.teleOpScore ?? 0}
+              onChange={value => updateSessionData({ teleOpScore: value })}
+              onDropdownClick={() => toggleSection('TeleOp Score')}
+              editable={isEditable}
+              showArrows={false}
+              isSelected={expandedSection === 'TeleOp Score'}
+            />
+          )}
+          <MetricField
+            label="End Game"
+            value={sessionData.endGameScore ?? 0}
+            onChange={value => updateSessionData({ endGameScore: value })}
+            onDropdownClick={() => toggleSection('End Game Score')}
+            editable={isEditable}
+            showArrows={false}
+            isSelected={expandedSection === 'End Game Score'}
+          />
+        </div>
+
+        {/* Breakdown section expands below */}
+        {expandedSection && (
+          <div className="pt-2">
+            <h3 className="text-team-blue text-lg font-semibold leading-6 mb-4">
+              {getSectionTitle()}
+            </h3>
+            <div>
+              {useMemo(
+                () => getBreakdownFields(),
+                [
+                  expandedSection,
+                  autonClassifiedArtifact,
+                  autonOverflowArtifact,
+                  autonMotif,
+                  autonBallsMissed,
+                  autonomousLeave,
+                  teleClassifiedArtifact,
+                  teleOverflowArtifact,
+                  teleMotif,
+                  teleBallsMissed,
+                  robot1Park,
+                  robot2Park,
+                  isTimerRunning,
+                ]
               )}
-              {sessionData.matchType !== 'Autonomous' && (
-                <MetricField
-                  label="TeleOp Score"
-                  value={sessionData.teleOpScore ?? 0}
-                  onChange={value => updateSessionData({ teleOpScore: value })}
-                  onDropdownClick={() => toggleSection('TeleOp Score')}
-                  editable={isEditable}
-                  showArrows={false}
-                  isSelected={expandedSection === 'TeleOp Score'}
-                />
-              )}
-              <MetricField
-                label="End Game Score"
-                value={sessionData.endGameScore ?? 0}
-                onChange={value => updateSessionData({ endGameScore: value })}
-                onDropdownClick={() => toggleSection('End Game Score')}
-                editable={isEditable}
-                showArrows={false}
-                isSelected={expandedSection === 'End Game Score'}
-              />
             </div>
           </div>
-        </div>
-        <div className="flex-1">
-          <h2 className="text-team-blue text-2xl font-semibold leading-6 mb-6 min-h-[32px]">
-            {getSectionTitle()}
-          </h2>
-          <div className="min-h-[200px]">
-            {useMemo(
-              () => getBreakdownFields(),
-              [
-                expandedSection,
-                autonClassifiedArtifact,
-                autonOverflowArtifact,
-                autonMotif,
-                autonBallsMissed,
-                autonomousLeave,
-                teleClassifiedArtifact,
-                teleOverflowArtifact,
-                teleMotif,
-                teleBallsMissed,
-                robot1Park,
-                robot2Park,
-                isTimerRunning,
-              ]
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </>
   );
