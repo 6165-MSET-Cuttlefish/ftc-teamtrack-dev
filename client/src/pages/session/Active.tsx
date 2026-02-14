@@ -33,7 +33,7 @@ const ActiveSessionContent = () => {
               
               {/* Large Match Timer - Single Line */}
               <div className="flex flex-col items-center">
-                <div className={`text-7xl sm:text-8xl font-light tracking-widest leading-none ${isDarkMode ? 'text-white' : 'text-black'}`} style={{ fontFamily: 'monospace', letterSpacing: '0.15em' }}>
+                <div className={`text-7xl sm:text-8xl font-bold tracking-widest leading-none ${isDarkMode ? 'text-white' : 'text-black'}`} style={{ fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.15em' }}>
                   {formatTime(sessionTimer)}
                 </div>
               </div>

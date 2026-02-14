@@ -2,7 +2,7 @@ import { useSession, useTheme } from '@/contexts';
 import { useState, useEffect } from 'react';
 
 export const ScoringUI = () => {
-  const { updateSessionData } = useSession();
+  const { updateSessionData, sessionData } = useSession();
   const { isDarkMode } = useTheme();
   const [scores, setScores] = useState({
     1: 0,
@@ -53,15 +53,18 @@ export const ScoringUI = () => {
     }, 200);
   };
 
+  // Determine score label based on match type
+  const scoreLabel = sessionData.matchType === 'Autonomous' ? 'AUTON Score:' : 'TELEOP Score:';
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6">
+      <div className="flex items-start justify-between">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6 w-16">
           Scoring
         </h2>
         <div className="flex items-center gap-2">
           <span className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-            TELEOP / AUTON Score:
+            {scoreLabel}
           </span>
           <span className="text-2xl font-bold text-team-blue">
             {totalScore}
