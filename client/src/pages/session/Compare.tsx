@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
-import { formatDate } from '@/lib/utils';
+import { formatDate, isAbortError } from '@/lib/utils';
 import { ROUTES } from '@/constants';
 import type { Session, Match } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,7 @@ const Compare = () => {
           }
         }
       } catch (error) {
+        if (isAbortError(error)) return;
         const { logger } = await import('@/lib/logger');
         logger.error('Error loading sessions', error);
         toast.error('Failed to load sessions');
@@ -121,7 +122,7 @@ const Compare = () => {
         });
         setAllMatches(matches);
       } catch (error) {
-        if (!isMounted) return;
+        if (!isMounted || isAbortError(error)) return;
         const { logger } = await import('@/lib/logger');
         logger.error('Error loading sessions', error);
         toast.error('Failed to load some sessions');

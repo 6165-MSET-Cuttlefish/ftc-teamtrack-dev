@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES, APP_CONFIG } from '@/constants';
+import { isAbortError } from '@/lib/utils';
 import type { Session, ChartDataPoint } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -68,6 +69,7 @@ const Charts = () => {
         const userSessions = await firebaseService.getUserSessions(user.uid);
         setSessions(userSessions);
       } catch (error) {
+        if (isAbortError(error)) return;
         const { logger } = await import('@/lib/logger');
         logger.error('Error loading sessions', error);
         toast.error('Failed to load sessions');

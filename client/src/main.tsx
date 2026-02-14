@@ -7,10 +7,11 @@ import { isAbortError } from '@/lib/utils';
 const originalConsoleError = console.error;
 console.error = function (...args: unknown[]) {
   // Only suppress abort errors, not all errors
-  if (isAbortError(args[0])) return;
+  if (args.some(arg => isAbortError(arg))) return;
+
   // Also suppress specific Firebase HMR warnings
   const message = String(args[0] || '');
-  if (message.includes('ResizeObserver loop') || 
+  if (message.includes('ResizeObserver loop') ||
       message.includes('A component is changing an uncontrolled input')) {
     return;
   }
@@ -20,7 +21,7 @@ console.error = function (...args: unknown[]) {
 const originalConsoleWarn = console.warn;
 console.warn = function (...args: unknown[]) {
   // Only suppress abort-related warnings
-  if (isAbortError(args[0])) return;
+  if (args.some(arg => isAbortError(arg))) return;
   originalConsoleWarn.apply(console, args);
 };
 

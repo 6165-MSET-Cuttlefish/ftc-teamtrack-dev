@@ -78,25 +78,43 @@ export function getInitials(name: string): string {
 export function isAbortError(error: unknown): boolean {
   if (!error) return false;
 
-  if (typeof error === 'object' && error !== null) {
-    const err = error as { name?: string; code?: string; message?: string; stack?: string };
-    
-    // Check error name
-    if (err.name === 'AbortError' || err.code === 'ERR_ABORTED') {
-      return true;
-    }
+  // Handle various error formats
+  const err = error as {
+    name?: string;
+    code?: string;
+    message?: string;
+    stack?: string;
+    reason?: unknown;
+  };
 
-    // Check error message for common patterns
-    const message = String(err.message || '').toLowerCase();
-    if (message.includes('aborted') || message.includes('signal abort') || message.includes('signal')) {
-      return true;
-    }
+  // Check if it's a PromiseRejectionEvent or similar
+  const actualError = err.reason || error;
+  const errorObj = typeof actualError === 'object' && actualError !== null ? (actualError as any) : {};
 
-    // Check stack trace for Firebase Firestore internals
-    const stack = String(err.stack || '').toLowerCase();
-    if (stack.includes('firestore') && stack.includes('stream')) {
-      return true;
-    }
+  const name = String(errorObj.name || '').toLowerCase();
+  const code = String(errorObj.code || '').toLowerCase();
+  const message = String(errorObj.message || error || '').toLowerCase();
+  const stack = String(errorObj.stack || '').toLowerCase();
+
+  // Common AbortError identifiers
+  if (name === 'aborterror' || code === 'err_aborted' || code === '20' || name === 'cancelederror') {
+    return true;
+  }
+
+  // Specific message patterns for Firestore/Fetch aborts
+  if (
+    message.includes('aborted') ||
+    message.includes('signal abort') ||
+    message.includes('signal is aborted') ||
+    message.includes('request was aborted') ||
+    message.includes('user aborted')
+  ) {
+    return true;
+  }
+
+  // Check stack trace for Firebase Firestore internal stream closure
+  if (stack.includes('firestore') && (stack.includes('stream') || stack.includes('abort'))) {
+    return true;
   }
 
   return false;

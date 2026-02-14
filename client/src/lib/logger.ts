@@ -1,3 +1,5 @@
+import { isAbortError } from './utils';
+
 /**
  * Centralized logging utility for the application
  * Allows for easier debugging and future integration with analytics/error reporting
@@ -61,6 +63,9 @@ export const logger = {
    * Log warnings
    */
   warn: (message: string, context?: Record<string, unknown>) => {
+    // Suppress abort errors from logs
+    if (isAbortError(message) || isAbortError(context)) return;
+
     const entry: LogEntry = {
       level: 'warn',
       message,
@@ -75,6 +80,9 @@ export const logger = {
    * Log errors - primary method for error logging
    */
   error: (message: string, error?: unknown, context?: Record<string, unknown>) => {
+    // Suppress abort errors from logs to avoid cluttering error tracking
+    if (isAbortError(error) || isAbortError(message)) return;
+
     const errorContext: Record<string, unknown> = {
       ...context,
       errorMessage: error instanceof Error ? error.message : String(error),

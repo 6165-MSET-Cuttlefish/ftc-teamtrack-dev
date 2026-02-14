@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
-import { formatDate } from '@/lib/utils';
+import { formatDate, isAbortError } from '@/lib/utils';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -404,6 +404,7 @@ const Sessions = () => {
         setSessions(userSessions);
         setFilteredSessions(userSessions);
       } catch (error) {
+        if (isAbortError(error)) return;
         const { logger } = await import('@/lib/logger');
         logger.error('Error loading sessions', error);
         toast.error('Failed to load sessions');
