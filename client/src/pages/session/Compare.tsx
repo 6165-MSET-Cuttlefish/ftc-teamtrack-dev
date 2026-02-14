@@ -151,28 +151,35 @@ const Compare = () => {
   };
 
   const getMetrics = (): ComparisonMetric[] => {
+    const avg = (s: Session, key: keyof Match) => {
+      const matches = s.matches || [];
+      if (matches.length === 0) return 0;
+      const total = matches.reduce((sum, m) => sum + (Number(m[key]) || 0), 0);
+      return Math.round(total / matches.length);
+    };
+
     return [
       {
-        label: 'Final Score',
-        values: selectedSessionsData.map(s => s.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)),
+        label: 'Avg Final Score',
+        values: selectedSessionsData.map(s => avg(s, 'finalScore')),
         sessionIds: selectedSessionIds,
         icon: <Trophy className="w-5 h-5" />,
       },
       {
-        label: 'Autonomous Score',
-        values: selectedSessionsData.map(s => s.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0)),
+        label: 'Avg Autonomous Score',
+        values: selectedSessionsData.map(s => avg(s, 'autonomousScore')),
         sessionIds: selectedSessionIds,
         icon: <Target className="w-5 h-5" />,
       },
       {
-        label: 'TeleOp Score',
-        values: selectedSessionsData.map(s => s.matches.reduce((sum, m) => sum + (m.teleOpScore || 0), 0)),
+        label: 'Avg TeleOp Score',
+        values: selectedSessionsData.map(s => avg(s, 'teleOpScore')),
         sessionIds: selectedSessionIds,
         icon: <Zap className="w-5 h-5" />,
       },
       {
-        label: 'End Game Score',
-        values: selectedSessionsData.map(s => s.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0)),
+        label: 'Avg End Game Score',
+        values: selectedSessionsData.map(s => avg(s, 'endGameScore')),
         sessionIds: selectedSessionIds,
         icon: <Clock className="w-5 h-5" />,
       },

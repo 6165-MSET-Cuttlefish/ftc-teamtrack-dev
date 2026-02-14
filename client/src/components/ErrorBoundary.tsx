@@ -53,7 +53,7 @@ class ErrorBoundary extends Component<Props, State> {
                 An unexpected error occurred. Please try refreshing the page or
                 contact support if the problem persists.
               </AlertDescription>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <details className="mt-4 p-2 bg-gray-100 rounded text-xs">
                   <summary className="cursor-pointer">Error Details</summary>
                   <pre className="mt-2 overflow-auto">

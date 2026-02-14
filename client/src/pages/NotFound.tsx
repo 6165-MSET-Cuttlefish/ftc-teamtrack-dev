@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import { useTheme } from '@/contexts';
+import { ROUTES } from '@/constants';
 
 const NotFound = () => {
   const { isDarkMode } = useTheme();
@@ -18,12 +20,12 @@ const NotFound = () => {
         >
           Oops! Page not found
         </p>
-        <a
-          href="/"
+        <Link
+          to={ROUTES.SESSIONS}
           className={`${isDarkMode ? 'text-team-white-60' : 'text-blue-500'} underline`}
         >
           Return to Home
-        </a>
+        </Link>
       </div>
     </div>
   );
