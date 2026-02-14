@@ -161,6 +161,35 @@ const Charts = () => {
           (sum, m) => sum + (m.endGameScore || 0),
           0
         );
+        return {
+          name: formatChartDate(session.createdAt),
+          sessionNumber: index + 1,
+          'Final Score': finalScore,
+          Autonomous: autonomousScore,
+          TeleOp: teleOpScore,
+          'End Game': endGameScore,
+        };
+      });
+  };
+
+  // Balls Missed Trend Data
+  const getBallsMissedTrendData = (): ChartDataPoint[] => {
+    const filteredSessions = getFilteredSessions();
+    if (filteredSessions.length === 0) return [];
+
+    return filteredSessions
+      .sort((a, b) => {
+        const dateA =
+          typeof a.createdAt === 'string'
+            ? new Date(a.createdAt)
+            : new Date((a.createdAt as { seconds: number }).seconds * 1000);
+        const dateB =
+          typeof b.createdAt === 'string'
+            ? new Date(b.createdAt)
+            : new Date((b.createdAt as { seconds: number }).seconds * 1000);
+        return dateA.getTime() - dateB.getTime();
+      })
+      .map((session, index) => {
         const ballsMissed = session.matches.reduce(
           (sum, m) =>
             sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
@@ -169,10 +198,6 @@ const Charts = () => {
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
-          'Final Score': finalScore,
-          Autonomous: autonomousScore,
-          TeleOp: teleOpScore,
-          'End Game': endGameScore,
           'Balls Missed': ballsMissed,
         };
       });
@@ -447,6 +472,7 @@ const Charts = () => {
   };
 
   const scoreTrendData = getScoreTrendData();
+  const ballsMissedTrendData = getBallsMissedTrendData();
   const cycleTimeData = getCycleTimeData();
   const recentTrendData = getRecentTrendData();
   const consistencyOverTimeData = getConsistencyOverTimeData();
@@ -896,7 +922,7 @@ const Charts = () => {
                     />
                     <Area
                       type="monotone"
-                      dataKey="Teleop"
+                      dataKey="TeleOp"
                       stroke={COLORS.warning}
                       strokeWidth={2}
                       fillOpacity={1}
@@ -1053,7 +1079,7 @@ const Charts = () => {
             <CardContent>
               <div className="w-full overflow-x-auto">
                 <ResponsiveContainer width="100%" height={240} minWidth={300}>
-                  <BarChart data={scoreTrendData}>
+                  <LineChart data={ballsMissedTrendData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
@@ -1069,13 +1095,16 @@ const Charts = () => {
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: '14px' }} />
-                    <Bar
+                    <Line
+                      type="monotone"
                       dataKey="Balls Missed"
-                      fill={COLORS.danger}
-                      radius={[6, 6, 0, 0]}
+                      stroke="#f59e0b"
+                      strokeWidth={3}
+                      dot={{ fill: '#f59e0b', r: 5 }}
+                      activeDot={{ r: 8 }}
                       animationDuration={1500}
                     />
-                  </BarChart>
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>

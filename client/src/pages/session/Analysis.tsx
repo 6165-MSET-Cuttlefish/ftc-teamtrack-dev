@@ -316,6 +316,12 @@ const MatchAnalysis = ({
     },
   ];
 
+  const sessionTrendData = allMatches.map((m, idx) => ({
+    name: `Match ${idx + 1}`,
+    'Balls Missed': (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
+    isCurrent: idx === matchIndex,
+  }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -431,6 +437,51 @@ const MatchAnalysis = ({
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* Missed Balls Trend (Session) */}
+      <div
+        className={`w-full px-6 py-6 rounded-lg border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-white'}`}
+      >
+        <h3
+          className={`text-lg font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+        >
+          Balls Missed Trend (Session)
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={sessionTrendData}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+            />
+            <XAxis
+              dataKey="name"
+              stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis
+              stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+              tick={{ fontSize: 12 }}
+            />
+            <Tooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
+            <Line
+              type="monotone"
+              dataKey="Balls Missed"
+              stroke="#f59e0b"
+              strokeWidth={3}
+              dot={(props: any) => {
+                const { cx, cy, payload } = props;
+                if (payload.isCurrent) {
+                  return (
+                    <circle key={`dot-${payload.name}`} cx={cx} cy={cy} r={6} fill="#f59e0b" stroke="white" strokeWidth={2} />
+                  );
+                }
+                return <circle key={`dot-${payload.name}`} cx={cx} cy={cy} r={4} fill="#f59e0b" />;
+              }}
+              activeDot={{ r: 8 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Scoring Breakdown Table */}
       <div
@@ -1215,6 +1266,34 @@ const MatchComparisonView = ({
                   {comparison.endgameDiff}
                 </td>
               </tr>
+              {/* Balls Missed */}
+              <tr
+                className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
+              >
+                <td
+                  className={`py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Balls Missed
+                </td>
+                <td
+                  className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                >
+                  {(matches[matchAIndex].autonBallsMissed || 0) +
+                    (matches[matchAIndex].teleBallsMissed || 0)}
+                </td>
+                <td
+                  className={`text-center py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                >
+                  {(matches[matchBIndex].autonBallsMissed || 0) +
+                    (matches[matchBIndex].teleBallsMissed || 0)}
+                </td>
+                <td
+                  className={`text-center py-3 px-4 font-medium ${(comparison as any).missedDiff <= 0 ? 'text-green-500' : 'text-red-500'}`}
+                >
+                  {(comparison as any).missedDiff > 0 ? '+' : ''}
+                  {(comparison as any).missedDiff}
+                </td>
+              </tr>
               {/* Classified Artifacts (Autonomous) */}
               <tr
                 className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
@@ -1718,7 +1797,6 @@ const AnalysisContent = () => {
   // Load session data from Firebase or location state
   useEffect(() => {
     let mounted = true;
-    let abortController: AbortController | null = null;
 
     const loadSessionData = async () => {
       setLoading(true);
@@ -1742,7 +1820,6 @@ const AnalysisContent = () => {
       const sessionId = searchParams.get('sessionId');
       if (sessionId) {
         try {
-          abortController = new AbortController();
           const session = await firebaseService.getSession(sessionId);
 
           if (mounted && session) {
@@ -1839,9 +1916,6 @@ const AnalysisContent = () => {
 
     return () => {
       mounted = false;
-      if (abortController) {
-        abortController.abort();
-      }
     };
   }, [searchParams, location.state, user?.uid]);
 
