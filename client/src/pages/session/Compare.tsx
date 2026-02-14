@@ -54,6 +54,7 @@ const Compare = () => {
   const [selectedSessionsData, setSelectedSessionsData] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDetailedBreakdownOpen, setIsDetailedBreakdownOpen] = useState(false);
+  const [isMatchBreakdownOpen, setIsMatchBreakdownOpen] = useState(false);
   
   // Match comparison state
   const [comparisonMode, setComparisonMode] = useState<'sessions' | 'matches'>('sessions');
@@ -790,35 +791,114 @@ const Compare = () => {
 
               {selectedMatches.length > 0 && (
                 <>
-                  {/* Match Metrics Comparison */}
+                  {/* Match Score Comparison Table */}
                   <Card
                     className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
                   >
                     <CardHeader>
                       <CardTitle
-                        className={`text-lg flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                        className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       >
-                        <Trophy className="w-5 h-5 text-team-blue" />
                         Score Comparison
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {selectedMatches.map((match) => (
-                          <div
-                            key={match.id}
-                            className={`p-4 rounded-lg ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-gray-50 border border-gray-200'}`}
-                          >
-                            <div
-                              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
                             >
-                              {match.sessionName} - Match {match.matchNumber}
-                            </div>
-                            <div className="text-3xl font-bold text-team-blue mt-2">
-                              {match.finalScore || 0}
-                            </div>
-                          </div>
-                        ))}
+                              <th
+                                className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              >
+                                Score Type
+                              </th>
+                              {selectedMatches.map(match => (
+                                <th
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                >
+                                  {match.sessionName} - Match {match.matchNumber}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                            >
+                              <td
+                                className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                <Trophy className="w-4 h-4 text-team-blue" />
+                                Final Score
+                              </td>
+                              {selectedMatches.map(match => (
+                                <td
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 font-bold text-2xl text-team-blue`}
+                                >
+                                  {match.finalScore || 0}
+                                </td>
+                              ))}
+                            </tr>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                            >
+                              <td
+                                className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                <Target className="w-4 h-4 text-team-blue" />
+                                Autonomous Score
+                              </td>
+                              {selectedMatches.map(match => (
+                                <td
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                >
+                                  {match.autonomousScore || 0}
+                                </td>
+                              ))}
+                            </tr>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                            >
+                              <td
+                                className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                <Zap className="w-4 h-4 text-team-blue" />
+                                TeleOp Score
+                              </td>
+                              {selectedMatches.map(match => (
+                                <td
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                >
+                                  {match.teleOpScore || 0}
+                                </td>
+                              ))}
+                            </tr>
+                            <tr
+                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+                            >
+                              <td
+                                className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              >
+                                <Clock className="w-4 h-4 text-team-blue" />
+                                End Game Score
+                              </td>
+                              {selectedMatches.map(match => (
+                                <td
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                >
+                                  {match.endGameScore || 0}
+                                </td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </CardContent>
                   </Card>
@@ -827,13 +907,20 @@ const Compare = () => {
                   <Card
                     className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
                   >
-                    <CardHeader>
+                    <CardHeader
+                      onClick={() => setIsMatchBreakdownOpen(!isMatchBreakdownOpen)}
+                      className="cursor-pointer hover:bg-opacity-80 transition-all"
+                    >
                       <CardTitle
-                        className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                        className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       >
-                        Detailed Match Breakdown
+                        <span>Detailed Match Breakdown</span>
+                        <ChevronDown
+                          className={`w-5 h-5 transition-transform duration-200 ${isMatchBreakdownOpen ? 'rotate-180' : ''}`}
+                        />
                       </CardTitle>
                     </CardHeader>
+                    {isMatchBreakdownOpen && (
                     <CardContent>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -927,6 +1014,7 @@ const Compare = () => {
                         </table>
                       </div>
                     </CardContent>
+                    )}
                   </Card>
                 </>
               )}
