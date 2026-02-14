@@ -33,7 +33,6 @@ import {
 import { toast } from 'sonner';
 import {
   Bar,
-  BarChart,
   XAxis,
   YAxis,
   CartesianGrid,

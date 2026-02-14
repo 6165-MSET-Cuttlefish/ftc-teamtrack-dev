@@ -1011,6 +1011,7 @@ export const PerformanceMetrics = () => {
             <div>
               {useMemo(
                 () => getBreakdownFields(),
+                // eslint-disable-next-line react-hooks/exhaustive-deps
                 [
                   expandedSection,
                   autonClassifiedArtifact,
@@ -1025,6 +1026,8 @@ export const PerformanceMetrics = () => {
                   robot1Park,
                   robot2Park,
                   isTimerRunning,
+                  isEditable,
+                  isDarkMode,
                 ]
               )}
             </div>

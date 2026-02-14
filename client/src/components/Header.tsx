@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
 import { STORAGE_KEYS, UI_TIMING, ROUTES } from '@/constants';
 import { getInitials } from '@/lib/utils';
@@ -100,8 +100,8 @@ const NavigationMenu = () => {
   const { user, logout } = useAuth();
   const { sessionData } = useSession();
   const navigate = useNavigate();
-  const location = window.location.pathname;
-  const isOnActivePage = location.includes('/active');
+  const location = useLocation();
+  const isOnActivePage = location.pathname.includes('/active');
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
   const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
 

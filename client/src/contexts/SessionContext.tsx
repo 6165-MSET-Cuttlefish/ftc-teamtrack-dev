@@ -114,9 +114,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   // Load timer state from storage - but only if we actually loaded session data
   const storedTimerState = (() => {
-    const stored = loadSessionFromStorage();
     // Only use timer state if session wasn't completed
-    if (stored && !stored.isSessionCompleted) {
+    if (sessionData && !sessionData.isSessionCompleted) {
       return loadTimerStateFromStorage();
     }
     return null;
