@@ -14,6 +14,7 @@ interface ThemeContextType {
   isHoneycombMode: boolean;
   themeMode: ThemeMode;
   toggleTheme: () => void;
+  setTheme: (mode: ThemeMode) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -71,8 +72,13 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const setTheme = (mode: ThemeMode) => {
+    setThemeMode(mode);
+    localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(mode));
+  };
+
   return (
-    <ThemeContext.Provider value={{ isDarkMode, isHoneycombMode, themeMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDarkMode, isHoneycombMode, themeMode, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

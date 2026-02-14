@@ -119,7 +119,7 @@ export const LivePreview = () => {
     // Don't auto-start timer or change section
   };
 
-  const handleViewAnalysis = async () => {
+  const handleViewAnalysis = () => {
     navigate(ROUTES.ANALYSIS);
   };
 

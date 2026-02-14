@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
 import { STORAGE_KEYS, UI_TIMING, ROUTES } from '@/constants';
 import { getInitials } from '@/lib/utils';
@@ -96,12 +96,12 @@ const TeamTrackLogo = () => {
 };
 
 const NavigationMenu = () => {
-  const { isDarkMode, themeMode, toggleTheme } = useTheme();
+  const { isDarkMode, themeMode, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const { sessionData } = useSession();
   const navigate = useNavigate();
-  const location = window.location.pathname;
-  const isOnActivePage = location.includes('/active');
+  const location = useLocation();
+  const isOnActivePage = location.pathname.includes('/active');
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
   const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
 
@@ -228,20 +228,42 @@ const NavigationMenu = () => {
         <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
-      {/* Theme toggle button */}
-      <button
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
-      >
-        {themeMode === 'dark' ? (
-          <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
-        ) : themeMode === 'light' ? (
-          <Hexagon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-        ) : (
-          <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
-        )}
-      </button>
+      {/* Theme dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            aria-label="Select theme"
+            className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
+          >
+            {themeMode === 'dark' ? (
+              <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+            ) : themeMode === 'light' ? (
+              <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+            ) : (
+              <Hexagon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[140px]">
+          <DropdownMenuLabel>Theme</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setTheme('dark')} className="flex items-center gap-2 cursor-pointer">
+            <Moon className="w-4 h-4" />
+            <span>Dark</span>
+            {themeMode === 'dark' && <span className="ml-auto text-xs">✓</span>}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTheme('light')} className="flex items-center gap-2 cursor-pointer">
+            <Sun className="w-4 h-4" />
+            <span>Light</span>
+            {themeMode === 'light' && <span className="ml-auto text-xs">✓</span>}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTheme('honeycomb')} className="flex items-center gap-2 cursor-pointer">
+            <Hexagon className="w-4 h-4" />
+            <span>Honeycomb</span>
+            {themeMode === 'honeycomb' && <span className="ml-auto text-xs">✓</span>}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* Keybind Tutorial Modal */}
       {showKeybindTutorial && (

@@ -8,6 +8,7 @@ import { ROUTES } from '@/constants';
 
 const Active = lazy(() => import('./pages/session/Active'));
 const Analysis = lazy(() => import('./pages/session/Analysis'));
+const EditSession = lazy(() => import('./pages/session/EditSession'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
@@ -62,6 +63,14 @@ const App = () => (
                         element={
                           <ProtectedRoute>
                             <Analysis />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path={ROUTES.EDIT_SESSION}
+                        element={
+                          <ProtectedRoute>
+                            <EditSession />
                           </ProtectedRoute>
                         }
                       />

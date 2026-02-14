@@ -41,7 +41,7 @@ const ActiveSessionContent = () => {
               {/* Timer Info Below */}
               <div className="flex items-center justify-center gap-8 sm:gap-12">
                 <div className={`text-xs sm:text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-                  TELEOP
+                  {sessionData.matchType || 'Full Game'}
                 </div>
                 <div className={`text-xs sm:text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
                   Session Timer: {formatTime(sessionTimer)}
