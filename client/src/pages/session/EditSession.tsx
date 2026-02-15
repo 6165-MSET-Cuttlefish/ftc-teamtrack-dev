@@ -159,7 +159,7 @@ const EditSession = () => {
   if (loading) {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
-        <div className="max-w-4xl mx-auto px-4 py-8 flex items-center justify-center">
+        <div className="max-w-[1152px] mx-auto px-4 py-8 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
         </div>
       </div>
@@ -169,7 +169,7 @@ const EditSession = () => {
   if (!session) {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="max-w-[1152px] mx-auto px-4 py-8">
           <Button
             onClick={() => navigate(ROUTES.SESSIONS)}
             variant="outline"
@@ -206,7 +206,7 @@ const EditSession = () => {
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} page-transition`}
     >
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-[1152px] mx-auto px-4 py-8">
         <Button
           onClick={() => navigate(ROUTES.SESSIONS)}
           variant="outline"

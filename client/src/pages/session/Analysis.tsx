@@ -1601,7 +1601,7 @@ const AnalysisContent = () => {
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[840px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
+      <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="space-y-2">
           <h1 className="text-team-blue text-3xl sm:text-4xl font-bold leading-tight">

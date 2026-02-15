@@ -428,7 +428,7 @@ const Charts = () => {
       <div
         className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+        <div className="max-w-[1152px] mx-auto px-4 sm:px-8 py-8">
           <Button
             variant="ghost"
             onClick={() => navigate(ROUTES.SESSIONS)}
@@ -482,7 +482,7 @@ const Charts = () => {
     <div
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <Button
