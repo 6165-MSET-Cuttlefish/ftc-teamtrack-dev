@@ -75,11 +75,11 @@ export const ScoringUI = () => {
       <div className="space-y-4">
         {shotTypes.map(shot => {
           return (
-            <div key={shot.id} className="flex items-center gap-4 w-full">
-              {/* Shot Label on Left */}
-              <div className="flex-shrink-0 w-16">
+            <div key={shot.id} className="flex items-stretch gap-4 w-full">
+              {/* Shot Label on Left - centered vertically */}
+              <div className="flex items-center justify-center flex-shrink-0 min-w-[80px]">
                 <div
-                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+                  className={`text-sm font-medium text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
                 >
                   {shot.id} {shot.id === 1 ? 'ball' : 'balls'}
                 </div>
@@ -139,17 +139,17 @@ export const ScoringUI = () => {
                             : 'border-gray-300 bg-white hover:border-gray-400'
                       }`}
                     >
-                      {/* Circles representing ball count - solid filled */}
+                      {/* Circles representing ball count - outline only */}
                       <div className="flex items-center gap-2">
                         {Array.from({ length: ballCount }).map((_, i) => (
                           <div
                             key={i}
                             className={`w-5 h-5 rounded-full border-2 ${
                               isFlashing
-                                ? 'bg-green-500 border-green-500'
+                                ? 'border-green-500'
                                 : isDarkMode
-                                  ? 'bg-white border-white'
-                                  : 'bg-black border-black'
+                                  ? 'border-white'
+                                  : 'border-black'
                             }`}
                           />
                         ))}

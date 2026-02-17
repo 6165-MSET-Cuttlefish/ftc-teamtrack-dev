@@ -3,11 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { useFirebase } from '@/hooks';
 import { GAME_TIMING, ROUTES } from '@/constants';
-import { Check, X } from 'lucide-react';
+import { Check, X, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Match } from '@/types';
 
-export const LivePreview = () => {
+interface LivePreviewProps {
+  onOpenSessionSetup?: () => void;
+}
+
+export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
   const {
     sessionData,
     completeSession,
@@ -355,148 +359,148 @@ export const LivePreview = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-4 w-full">
-          {!sessionData.isSessionCompleted && (
-            <>
-              {showTeleopTransition ? (
-                <>
-                  <button
-                    onClick={handleContinueToTeleop}
-                    className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${
-                      isDarkMode ? 'text-black' : 'text-white'
-                    }`}
-                  >
-                    Continue into Teleop
-                  </button>
-                  <button
-                    onClick={handleSkipTeleop}
-                    className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
-                  >
-                    Skip / End Autonomous Only
-                  </button>
-                </>
-              ) : (
-                <>
-                  {editingMatchId ? (
-                    <>
-                      <button
-                        onClick={() => {
-                          saveEditedMatch();
-                          toast.success('Match changes saved!');
-                        }}
-                        className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border border-green-600 bg-green-600 text-[#FEFEFE] text-sm font-semibold hover:bg-green-700 transition-colors"
-                      >
-                        Save Changes
-                      </button>
-                      <button
-                        onClick={returnToCurrentMatch}
-                        className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border-2 border-yellow-500 bg-yellow-400 text-[#191919] text-sm font-semibold hover:bg-yellow-300 transition-colors"
-                      >
-                        Return to Current Match
-                      </button>
-                    </>
-                  ) : !hasStarted ? (
-                    <button
-                      onClick={() => {
-                        setHasStarted(true);
-                      }}
-                      className="flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-green-600 bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
-                    >
-                      Start New Match
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border ${isTimerRunning ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'} text-[#FEFEFE] text-sm font-medium ${isTimerRunning ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}
-                      >
-                        {isTimerRunning
-                          ? 'Stop / Pause'
-                          : timer === 0
-                            ? 'Start Timer'
-                            : 'Resume'}
-                      </button>
-                      <button
-                        onClick={handleSaveMatch}
-                        className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border border-green-600 bg-green-600 text-[#FEFEFE] text-sm font-medium hover:bg-green-700 transition-colors"
-                      >
-                        Save Match
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
+      {/* New Streamlined Action Buttons */}
+      {!sessionData.isSessionCompleted ? (
+        <div className="flex items-center gap-3 w-full">
+          {/* Light Blue + New Match Button */}
+          {!showTeleopTransition && !editingMatchId && (
+            <button
+              onClick={!hasStarted ? () => setHasStarted(true) : handleSaveMatch}
+              className="flex-1 px-6 py-3 rounded-2xl border-2 border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue text-lg font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <span className="text-2xl font-bold">+</span>
+              {!hasStarted ? 'New Match' : 'Save Match'}
+            </button>
+          )}
 
+          {/* Teleop Transition Buttons */}
+          {showTeleopTransition && (
+            <>
               <button
-                onClick={handleCompleteSession}
-                disabled={loading || sessionLimitReached}
-                className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
+                onClick={handleContinueToTeleop}
+                className="flex-1 px-6 py-4 rounded-2xl bg-team-blue hover:bg-team-blue/90 text-white text-lg font-bold transition-colors"
               >
-                {loading
+                Continue into Teleop
+              </button>
+              <button
+                onClick={handleSkipTeleop}
+                className={`flex-1 px-6 py-4 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-white'}`}
+              >
+                Skip / End Autonomous Only
+              </button>
+            </>
+          )}
+
+          {/* Editing Match Buttons */}
+          {editingMatchId && (
+            <>
+              <button
+                onClick={() => {
+                  saveEditedMatch();
+                  toast.success('Match changes saved!');
+                }}
+                className="flex-1 px-6 py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white text-lg font-bold transition-colors"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={returnToCurrentMatch}
+                className="flex-1 px-6 py-4 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-black text-lg font-bold transition-colors"
+              >
+                Return to Current Match
+              </button>
+            </>
+          )}
+
+          {/* Icon Buttons on the Right */}
+          <div className="flex items-center gap-3">
+            {/* Settings/Gear Icon - Opens Session Setup */}
+            <button
+              onClick={onOpenSessionSetup}
+              className={`p-4 rounded-2xl border-2 border-team-blue-40 transition-colors ${
+                isDarkMode
+                  ? 'bg-team-dark hover:bg-[#2a2a2a]'
+                  : 'bg-white hover:bg-gray-50'
+              }`}
+              title="Edit Session Setup"
+            >
+              <Settings className={`h-6 w-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+            </button>
+
+            {/* Complete Session - Check Icon with faded green */}
+            <button
+              onClick={handleCompleteSession}
+              disabled={loading || sessionLimitReached}
+              className="p-4 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                loading
                   ? 'Saving...'
                   : sessionLimitReached
                     ? 'Session Limit Reached'
-                    : 'Complete Session'}
-              </button>
+                    : 'Complete Session'
+              }
+            >
+              <Check className="h-6 w-6 text-green-500" />
+            </button>
 
-              {!cancelConfirm ? (
+            {/* Cancel Session - X Icon with faded red */}
+            {!cancelConfirm ? (
+              <button
+                onClick={() => {
+                  setCancelConfirm(true);
+                  if (isTimerRunning) setIsTimerRunning(false);
+                }}
+                className="p-4 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 transition-colors"
+                title="Cancel Session"
+              >
+                <X className="h-6 w-6 text-red-500" />
+              </button>
+            ) : (
+              <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    setCancelConfirm(true);
-                    if (isTimerRunning) setIsTimerRunning(false);
+                    handleNewSession();
+                    setCancelConfirm(false);
+                    toast.success('Session cancelled');
                   }}
-                  className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-lg border border-red-500 bg-transparent text-red-500 text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-red-500/10' : 'hover:bg-red-500 hover:text-[#FEFEFE]'}`}
+                  className="p-3 rounded-xl bg-green-500 hover:bg-green-600 transition-colors"
+                  title="Confirm cancel"
                 >
-                  Cancel Session
+                  <Check className="h-5 w-5 text-white" />
                 </button>
-              ) : (
-                <div className="flex gap-2 justify-center">
-                  <button
-                    onClick={() => {
-                      handleNewSession();
-                      setCancelConfirm(false);
-                      toast.success('Session cancelled');
-                    }}
-                    className="p-2 rounded bg-green-500 hover:bg-green-600 text-white transition-all"
-                    title="Confirm cancel"
-                  >
-                    <Check className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCancelConfirm(false);
-                      if (hasStarted) setIsTimerRunning(true);
-                    }}
-                    className="p-2 rounded bg-red-500 hover:bg-red-600 text-white transition-all"
-                    title="Keep session"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+                <button
+                  onClick={() => {
+                    setCancelConfirm(false);
+                    if (hasStarted) setIsTimerRunning(true);
+                  }}
+                  className="p-3 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
+                  title="Keep session"
+                >
+                  <X className="h-5 w-5 text-white" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Completed Session Buttons */
+        <div className="flex flex-wrap gap-4 w-full">
+          <button
+            onClick={handleViewAnalysis}
+            disabled={loading}
+            className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-sm font-medium text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {loading ? 'Loading...' : 'View Full Analysis Report'}
+          </button>
 
-          {sessionData.isSessionCompleted && (
-            <>
-              <button
-                onClick={handleViewAnalysis}
-                disabled={loading}
-                className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-sm font-medium text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {loading ? 'Loading...' : 'View Full Analysis Report'}
-              </button>
-
-              <button
-                onClick={handleNewSession}
-                className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
-              >
-                New Session
-              </button>
-            </>
-          )}
-      </div>
+          <button
+            onClick={handleNewSession}
+            className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
+          >
+            New Session
+          </button>
+        </div>
+      )}
     </div>
   );
 };

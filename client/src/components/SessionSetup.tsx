@@ -1,6 +1,7 @@
 import { useSession, useTheme } from '@/contexts';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Button } from './ui/button';
 import {
   Select,
   SelectTrigger,
@@ -9,66 +10,11 @@ import {
   SelectValue,
 } from './ui/select';
 
-interface FormFieldProps {
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: 'text' | 'number' | 'decimal';
-  id?: string;
-  disabled?: boolean;
+interface SessionSetupProps {
+  onSave?: () => void;
 }
 
-const FormField = ({
-  label,
-  placeholder,
-  value,
-  onChange,
-  type = 'text',
-  id,
-  disabled = false,
-}: FormFieldProps) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (type === 'number') {
-      const numericValue = e.target.value.replace(/[^0-9]/g, '');
-      onChange(numericValue);
-    } else if (type === 'decimal') {
-      const decimalValue = e.target.value.replace(/[^0-9.]/g, '');
-      const parts = decimalValue.split('.');
-      if (parts.length > 2) {
-        onChange(`${parts[0]}.${parts.slice(1).join('')}`);
-      } else {
-        onChange(decimalValue);
-      }
-    } else {
-      onChange(e.target.value);
-    }
-  };
-
-  const fieldId = id || label.toLowerCase().replace(/\s+/g, '-');
-
-  return (
-    <div className="flex flex-col gap-2 w-full">
-      <Label
-        htmlFor={fieldId}
-        className="text-xs sm:text-sm leading-5 font-medium"
-      >
-        {label}
-      </Label>
-      <Input
-        id={fieldId}
-        type="text"
-        value={value}
-        onChange={handleChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        className="h-10 px-3 py-2 rounded-lg text-sm font-normal leading-6 border border-team-blue-40 shadow-sm transition-all duration-200 focus:outline-none focus:border-team-blue focus:ring-2 focus:ring-team-blue/20 hover:border-team-blue/60 placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-      />
-    </div>
-  );
-};
-
-export const SessionSetup = () => {
+export const SessionSetup = ({ onSave }: SessionSetupProps) => {
   const { sessionData, updateSessionData } = useSession();
   const { isDarkMode } = useTheme();
 
@@ -76,40 +22,95 @@ export const SessionSetup = () => {
     updateSessionData({ sessionName: value });
   const setMatchType = (value: string) =>
     updateSessionData({ matchType: value });
+  const setSelectedFeature = (value: string) =>
+    updateSessionData({ selectedFeature: value });
+
+  const handleSave = () => {
+    onSave?.();
+  };
 
   return (
     <div className="space-y-6">
-      <h2 className="text-team-blue text-2xl font-semibold leading-6">
-        Session Setup
-      </h2>
-
-      {/* Session Name and Match Type on same line */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-        <FormField
-          label="Session Name"
-          placeholder="ex. practice"
+      {/* Session Name */}
+      <div className="space-y-2">
+        <Label className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          Session Name
+        </Label>
+        <Input
+          type="text"
           value={sessionData.sessionName}
-          onChange={setSessionName}
+          onChange={(e) => setSessionName(e.target.value)}
+          placeholder="Sunday Afternoon"
+          className={`h-14 px-4 text-lg rounded-xl border-2 border-team-blue-40 transition-all duration-200 focus:ring-2 focus:ring-team-blue/20 ${
+            isDarkMode
+              ? 'bg-team-dark text-white placeholder:text-gray-500'
+              : 'bg-white text-black placeholder:text-gray-400'
+          }`}
         />
-        <div className="flex flex-col gap-2 w-full">
-          <Label className="text-xs sm:text-sm leading-5 font-medium">
+      </div>
+
+      {/* Match Type and Features */}
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             Match Type
           </Label>
-          <Select value={sessionData.matchType} onValueChange={setMatchType}>
-            <SelectTrigger
-              className={`w-full h-10 text-sm font-normal px-3 py-2 rounded-lg border shadow-sm transition-all duration-200 hover:border-team-blue/60 ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue-40'}`}
-            >
-              <SelectValue placeholder="Select match type" />
-            </SelectTrigger>
-            <SelectContent
-              className={`${isDarkMode ? 'bg-[#191919]' : 'bg-white'} border-team-blue-40`}
-            >
-              <SelectItem value="Full Game">Full Game</SelectItem>
-              <SelectItem value="Autonomous">Autonomous</SelectItem>
-              <SelectItem value="Teleop">Teleop</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
+            isDarkMode
+              ? 'bg-team-dark text-white'
+              : 'bg-white text-black'
+          }`}>
+            <Select value={sessionData.matchType} onValueChange={setMatchType}>
+              <SelectTrigger className="border-0 p-0 h-auto focus:ring-0 bg-transparent">
+                <SelectValue placeholder="Full Game" />
+              </SelectTrigger>
+              <SelectContent
+                className={`${isDarkMode ? 'bg-[#2a2a2a] border-gray-700' : 'bg-white border-gray-200'}`}
+              >
+                <SelectItem value="Full Game">Full Game</SelectItem>
+                <SelectItem value="Autonomous">Autonomous</SelectItem>
+                <SelectItem value="Teleop">Teleop</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        <div className="space-y-2">
+          <Label className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Features
+          </Label>
+          <div className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
+            isDarkMode
+              ? 'bg-team-dark text-white'
+              : 'bg-white text-black'
+          }`}>
+            <Select value={sessionData.selectedFeature || 'none'} onValueChange={setSelectedFeature}>
+              <SelectTrigger className="border-0 p-0 h-auto focus:ring-0 bg-transparent">
+                <SelectValue placeholder="Select Feature" />
+              </SelectTrigger>
+              <SelectContent
+                className={`${isDarkMode ? 'bg-[#2a2a2a] border-gray-700' : 'bg-white border-gray-200'}`}
+              >
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="cycle-times">Cycle Times</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSave}
+          className={`px-8 py-3 rounded-xl font-semibold transition-colors duration-200 ${
+            isDarkMode
+              ? 'bg-team-blue hover:bg-team-blue/90 text-black'
+              : 'bg-team-blue hover:bg-team-blue/90 text-white'
+          }`}
+        >
+          Save
+        </Button>
       </div>
     </div>
   );
