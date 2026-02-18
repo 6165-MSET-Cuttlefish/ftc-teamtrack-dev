@@ -8,6 +8,12 @@ export interface FirebaseTimestamp {
 /** Union type for timestamp values from Firebase */
 export type TimestampValue = Timestamp | FirebaseTimestamp | string | Date;
 
+/** Individual shot record with balls shot and balls made */
+export interface ShotEntry {
+  ballsShot: number;
+  ballsMade: number;
+}
+
 export interface ScoringFields {
   finalScore: number;
   autonomousScore: number;
@@ -36,6 +42,10 @@ export interface ScoringFields {
   /** Robot 2 parking status */
   robot2Park: 'none' | 'partial' | 'full';
   cycleTimes: number[];
+  /** Individual shot records for Autonomous phase */
+  autonShots?: ShotEntry[];
+  /** Individual shot records for TeleOp phase */
+  teleopShots?: ShotEntry[];
 }
 
 export interface Match {
@@ -60,6 +70,8 @@ export interface Match {
   robot1Park?: 'none' | 'partial' | 'full';
   robot2Park?: 'none' | 'partial' | 'full';
   cycleTimes?: number[];
+  autonShots?: ShotEntry[];
+  teleopShots?: ShotEntry[];
 }
 
 /**

@@ -189,6 +189,8 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
       robot1Park: sessionData.robot1Park,
       robot2Park: sessionData.robot2Park,
       cycleTimes: [...(sessionData.cycleTimes || [])],
+      autonShots: [...(sessionData.autonShots || [])],
+      teleopShots: [...(sessionData.teleopShots || [])],
       createdAt: new Date().toISOString(),
     };
 
@@ -213,6 +215,8 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
       robot1Park: 'none',
       robot2Park: 'none',
       cycleTimes: [],
+      autonShots: [],
+      teleopShots: [],
     });
 
     // Reset match timer and tracking states

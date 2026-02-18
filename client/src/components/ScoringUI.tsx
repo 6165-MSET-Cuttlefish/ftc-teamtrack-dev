@@ -1,15 +1,9 @@
 import { useSession, useTheme } from '@/contexts';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export const ScoringUI = () => {
-  const { updateSessionData, sessionData } = useSession();
+  const { updateSessionData, sessionData, hasTransitionedToTeleop } = useSession();
   const { isDarkMode } = useTheme();
-  const [scores, setScores] = useState({
-    1: 0,
-    2: 0,
-    3: 0,
-  });
-  const [totalScore, setTotalScore] = useState(0);
   const [flashingButton, setFlashingButton] = useState<string | null>(null);
 
   // Shot types with ball counts
@@ -19,13 +13,6 @@ export const ScoringUI = () => {
     { id: 3, balls: 3 },
   ];
 
-  // Calculate total score: each ball made counts as 1 point
-  // The score is just the sum of balls made from each shot type
-  useEffect(() => {
-    const score = scores[1] + scores[2] + scores[3];
-    setTotalScore(score);
-  }, [scores]);
-
   const handleBallSelect = (shotId: number, ballsMade: number) => {
     // Create unique button identifier
     const buttonId = `${shotId}-${ballsMade}`;
@@ -33,19 +20,17 @@ export const ScoringUI = () => {
     // Flash the button
     setFlashingButton(buttonId);
     
-    // Increment the score (accumulate, don't replace)
-    const newScores = {
-      ...scores,
-      [shotId]: scores[shotId as keyof typeof scores] + ballsMade,
-    };
-    setScores(newScores);
-
-    // Update session data with accumulated scoring information
-    updateSessionData({
-      autonClassifiedArtifact: newScores[1],
-      autonOverflowArtifact: newScores[2],
-      autonMotif: newScores[3],
-    });
+    // Record shot in the appropriate phase array
+    const isAuton = sessionData.matchType === 'Autonomous' || 
+      (sessionData.matchType === 'Full Game' && !hasTransitionedToTeleop);
+    const shotEntry = { ballsShot: shotId, ballsMade };
+    if (isAuton) {
+      const currentAutonShots = sessionData.autonShots || [];
+      updateSessionData({ autonShots: [...currentAutonShots, shotEntry] });
+    } else {
+      const currentTeleopShots = sessionData.teleopShots || [];
+      updateSessionData({ teleopShots: [...currentTeleopShots, shotEntry] });
+    }
 
     // Clear flash after animation
     setTimeout(() => {
@@ -53,8 +38,11 @@ export const ScoringUI = () => {
     }, 200);
   };
 
-  // Determine score label based on match type
-  const scoreLabel = sessionData.matchType === 'Autonomous' ? 'AUTON Score:' : 'TELEOP Score:';
+  // Determine score label and display the synced score from sessionData
+  const isAuton = sessionData.matchType === 'Autonomous' || 
+    (sessionData.matchType === 'Full Game' && !hasTransitionedToTeleop);
+  const scoreLabel = isAuton ? 'AUTON Score:' : 'TELEOP Score:';
+  const displayScore = isAuton ? sessionData.autonomousScore ?? 0 : sessionData.teleopScore ?? 0;
 
   return (
     <div className="space-y-6">
@@ -67,7 +55,7 @@ export const ScoringUI = () => {
             {scoreLabel}
           </span>
           <span className="text-2xl font-bold text-team-blue">
-            {totalScore}
+            {displayScore}
           </span>
         </div>
       </div>

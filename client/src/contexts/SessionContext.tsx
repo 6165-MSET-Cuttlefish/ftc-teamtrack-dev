@@ -72,6 +72,8 @@ const createInitialSessionData = (
   selectedFeature: 'Cycle Times',
   notes: '',
   cycleTimes: [],
+  autonShots: [],
+  teleopShots: [],
   matches: [],
 });
 

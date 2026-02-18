@@ -3,6 +3,7 @@ export type {
   Match,
   CreateSessionData,
   ScoringFields,
+  ShotEntry,
   FirebaseTimestamp,
   TimestampValue,
   User,

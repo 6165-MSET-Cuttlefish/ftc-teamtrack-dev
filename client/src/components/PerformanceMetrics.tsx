@@ -8,209 +8,367 @@ import React, {
 } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { ChevronUp, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { ChevronRight, Clock, Plus, Trash2 } from 'lucide-react';
+import type { ShotEntry } from '../types';
 
-// Reusable number input that allows easy typing (allows empty during edit, commits on blur/Enter)
-const NumberInput: React.FC<{
+// ─── Constants ──────────────────────────────────────────────────────────
+const POINTS_PER_MADE = 1;
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+/** Migrate legacy number[] shots to ShotEntry[] */
+const migrateShotsArray = (
+  raw: ShotEntry[] | number[] | undefined
+): ShotEntry[] => {
+  if (!raw || raw.length === 0) return [];
+  if (typeof raw[0] === 'number') {
+    return (raw as number[]).map((made) => ({
+      ballsShot: made,
+      ballsMade: made,
+    }));
+  }
+  return raw as ShotEntry[];
+};
+
+const sumField = (shots: ShotEntry[], field: 'ballsShot' | 'ballsMade') =>
+  shots.reduce((s, e) => s + e[field], 0);
+
+const totalPoints = (shots: ShotEntry[]) =>
+  shots.reduce((s, e) => s + e.ballsMade * POINTS_PER_MADE, 0);
+
+// ─── Inline number input for table cells ────────────────────────────────
+const CellInput: React.FC<{
   value: number;
   onChange: (v: number) => void;
-  placeholder?: string;
+  max?: number;
   className?: string;
   readOnly?: boolean;
-}> = memo(({ value, onChange, placeholder, className, readOnly = false }) => {
-  const [local, setLocal] = useState<string>(
-    value !== undefined && value !== null ? String(value) : ''
-  );
-  const [isFocused, setIsFocused] = useState(false);
-  const prevValueRef = useRef(value);
+}> = memo(({ value, onChange, max, className, readOnly = false }) => {
+  const [local, setLocal] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+  const prevVal = useRef(value);
 
   useEffect(() => {
-    // Only update local state if the input is not focused AND the value has actually changed
-    if (!isFocused && prevValueRef.current !== value) {
-      const asString =
-        value !== undefined && value !== null ? String(value) : '';
-      setLocal(asString);
-      prevValueRef.current = value;
+    if (!focused && prevVal.current !== value) {
+      setLocal(String(value));
+      prevVal.current = value;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, isFocused]);
+  }, [value, focused]);
 
   const commit = () => {
-    const numeric = local.trim() === '' ? 0 : parseInt(local, 10) || 0;
-    if (numeric !== value) {
-      onChange(numeric);
-    }
-    setLocal(String(numeric));
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = e.target.value;
-    if (next === '' || /^[0-9]+$/.test(next)) {
-      setLocal(next);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      (e.target as HTMLInputElement).blur();
-    }
+    let n = local.trim() === '' ? 0 : parseInt(local, 10) || 0;
+    if (n < 0) n = 0;
+    if (max !== undefined && n > max) n = max;
+    if (n !== value) onChange(n);
+    setLocal(String(n));
   };
 
   return (
     <input
       type="text"
+      inputMode="numeric"
       value={local}
-      onChange={handleChange}
-      onFocus={() => setIsFocused(true)}
+      readOnly={readOnly}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v === '' || /^\d+$/.test(v)) setLocal(v);
+      }}
+      onFocus={() => setFocused(true)}
       onBlur={() => {
-        setIsFocused(false);
+        setFocused(false);
         commit();
       }}
-      onKeyDown={handleKeyDown}
-      placeholder={placeholder}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+      }}
       className={className}
-      readOnly={readOnly}
     />
   );
 });
+CellInput.displayName = 'CellInput';
 
-NumberInput.displayName = 'NumberInput';
-
-const MetricField = ({
-  label,
-  value,
-  onChange,
-  hasDropdown = true,
-  onDropdownClick,
-  editable = true,
-  showArrows = true,
-  isSelected = false,
-}: {
+// ─── Shot Log Table ─────────────────────────────────────────────────────
+const ShotLogTable: React.FC<{
   label: string;
-  value: number;
-  onChange: (value: number) => void;
-  hasDropdown?: boolean;
-  onDropdownClick?: () => void;
-  editable?: boolean;
-  showArrows?: boolean;
-  isSelected?: boolean;
-}) => {
-  const { isDarkMode } = useTheme();
+  shots: ShotEntry[];
+  onUpdate: (index: number, field: 'ballsShot' | 'ballsMade', value: number) => void;
+  onAdd: () => void;
+  onDelete: (index: number) => void;
+  editable: boolean;
+  isDarkMode: boolean;
+  bonusPoints?: number;
+  bonusLabel?: string;
+}> = memo(
+  ({
+    label,
+    shots,
+    onUpdate,
+    onAdd,
+    onDelete,
+    editable,
+    isDarkMode,
+    bonusPoints = 0,
+    bonusLabel,
+  }) => {
+    const shotsTotal = totalPoints(shots);
+    const sectionTotal = shotsTotal + bonusPoints;
 
-  const handleIncrement = () => {
-    onChange(value + 1);
-  };
+    let running = 0;
 
-  const handleDecrement = () => {
-    onChange(Math.max(0, value - 1));
-  };
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h3
+            className={`text-sm font-semibold uppercase tracking-wider ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}
+          >
+            {label}
+          </h3>
+          <span className="text-team-blue font-bold text-lg">{sectionTotal} pts</span>
+        </div>
 
-  const handleArrowClick = (e: React.MouseEvent, action: () => void) => {
-    e.preventDefault();
-    action();
-  };
-
-  return (
-    <div className="flex flex-col gap-1.5 w-full">
-      <div className="flex items-center justify-between">
-        <label
-          className={`text-sm leading-5 ${isDarkMode ? 'text-white' : 'text-black'}`}
+        {/* Table */}
+        <div
+          className={`rounded-lg border overflow-hidden ${
+            isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
+          }`}
         >
-          {label}
-        </label>
-        <div className="w-5 h-5 flex items-center justify-center">
-          {hasDropdown && (
-            <button
-              onClick={onDropdownClick}
-              className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${
-                isSelected
-                  ? 'text-team-blue border border-gray-400'
-                  : isDarkMode
-                    ? 'text-white hover:text-team-blue'
-                    : 'text-black hover:text-team-blue'
+          {/* Header */}
+          <div
+            className={`grid grid-cols-[40px_1fr_1fr_70px_70px_36px] text-xs font-semibold uppercase tracking-wide ${
+              isDarkMode
+                ? 'bg-team-dark-20 text-gray-400'
+                : 'bg-gray-50 text-gray-500'
+            }`}
+          >
+            <div className="px-2 py-2 text-center">#</div>
+            <div className="px-2 py-2 text-center">Shot</div>
+            <div className="px-2 py-2 text-center">Made</div>
+            <div className="px-2 py-2 text-center">Pts</div>
+            <div className="px-2 py-2 text-center">Total</div>
+            <div className="px-2 py-2" />
+          </div>
+
+          {/* Rows */}
+          {shots.length === 0 ? (
+            <div
+              className={`px-4 py-6 text-center text-sm ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-400'
               }`}
             >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+              No shots recorded yet
+            </div>
+          ) : (
+            shots.map((shot, i) => {
+              const pts = shot.ballsMade * POINTS_PER_MADE;
+              running += pts;
+              const rowRunning = running;
+              return (
+                <div
+                  key={i}
+                  className={`grid grid-cols-[40px_1fr_1fr_70px_70px_36px] items-center border-t ${
+                    isDarkMode
+                      ? 'border-white/5 even:bg-white/[0.02]'
+                      : 'border-gray-100 even:bg-gray-50/50'
+                  }`}
+                >
+                  <div
+                    className={`px-2 py-2 text-center text-xs font-medium ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                    }`}
+                  >
+                    {i + 1}
+                  </div>
+                  <div className="px-1 py-1.5 flex justify-center">
+                    <CellInput
+                      value={shot.ballsShot}
+                      onChange={(v) => onUpdate(i, 'ballsShot', v)}
+                      max={10}
+                      readOnly={!editable}
+                      className={`w-14 h-9 text-center text-sm font-medium rounded border transition-colors ${
+                        isDarkMode
+                          ? 'bg-team-dark border-team-blue-40 text-white focus:ring-1 focus:ring-team-blue/30'
+                          : 'bg-white border-gray-200 text-black focus:ring-1 focus:ring-team-blue/30'
+                      } focus:outline-none`}
+                    />
+                  </div>
+                  <div className="px-1 py-1.5 flex justify-center">
+                    <CellInput
+                      value={shot.ballsMade}
+                      onChange={(v) => {
+                        const clamped = Math.min(v, shot.ballsShot);
+                        onUpdate(i, 'ballsMade', clamped);
+                      }}
+                      max={shot.ballsShot}
+                      readOnly={!editable}
+                      className={`w-14 h-9 text-center text-sm font-medium rounded border transition-colors ${
+                        isDarkMode
+                          ? 'bg-team-dark border-team-blue-40 text-white focus:ring-1 focus:ring-team-blue/30'
+                          : 'bg-white border-gray-200 text-black focus:ring-1 focus:ring-team-blue/30'
+                      } focus:outline-none`}
+                    />
+                  </div>
+                  <div
+                    className={`px-2 py-2 text-center text-sm font-semibold ${
+                      isDarkMode ? 'text-white' : 'text-black'
+                    }`}
+                  >
+                    {pts}
+                  </div>
+                  <div className="px-2 py-2 text-center text-sm font-medium text-team-blue">
+                    {rowRunning}
+                  </div>
+                  <div className="px-1 py-1.5 flex justify-center">
+                    {editable && (
+                      <button
+                        onClick={() => onDelete(i)}
+                        className={`p-1 rounded transition-colors ${
+                          isDarkMode
+                            ? 'text-gray-600 hover:text-red-400'
+                            : 'text-gray-300 hover:text-red-500'
+                        }`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {/* Footer totals */}
+          {shots.length > 0 && (
+            <div
+              className={`grid grid-cols-[40px_1fr_1fr_70px_70px_36px] items-center border-t-2 ${
+                isDarkMode
+                  ? 'border-team-blue-40 bg-team-dark-20'
+                  : 'border-gray-200 bg-gray-50'
+              }`}
+            >
+              <div className="px-2 py-2" />
+              <div
+                className={`px-2 py-2 text-center text-xs font-bold ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              >
+                {sumField(shots, 'ballsShot')}
+              </div>
+              <div
+                className={`px-2 py-2 text-center text-xs font-bold ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              >
+                {sumField(shots, 'ballsMade')}
+              </div>
+              <div
+                className={`px-2 py-2 text-center text-xs font-bold ${
+                  isDarkMode ? 'text-white' : 'text-black'
+                }`}
+              >
+                {shotsTotal}
+              </div>
+              <div className="px-2 py-2" />
+              <div className="px-2 py-2" />
+            </div>
           )}
         </div>
-      </div>
-      <div
-        className={`flex justify-between items-center px-2.5 py-2 rounded border border-team-blue-40 h-[44px] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-      >
-        <NumberInput
-          value={value}
-          onChange={onChange}
-          placeholder="0"
-          readOnly={!editable}
-          className={`flex-1 bg-transparent text-base font-light leading-6 focus:outline-none placeholder:text-team-white-40 ${isDarkMode ? 'text-white' : 'text-black'}`}
-        />
-        {showArrows && (
-          <div className="flex flex-col gap-0.5 p-0.5 rounded bg-team-white-10">
-            <button
-              onMouseDown={e => handleArrowClick(e, handleIncrement)}
-              className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-            >
-              <ChevronUp className="w-2.5 h-2.5 text-team-white-40" />
-            </button>
-            <button
-              onMouseDown={e => handleArrowClick(e, handleDecrement)}
-              className="flex items-center justify-center hover:bg-team-white-20 rounded transition-colors"
-            >
-              <ChevronDown className="w-2.5 h-2.5 text-team-white-40" />
-            </button>
+
+        {/* Bonus line */}
+        {bonusLabel && bonusPoints > 0 && (
+          <div
+            className={`flex items-center justify-between text-xs px-1 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}
+          >
+            <span>+ {bonusLabel}</span>
+            <span className="font-semibold">+{bonusPoints} pts</span>
           </div>
         )}
-      </div>
-    </div>
-  );
-};
 
+        {/* Add Shot button */}
+        {editable && (
+          <button
+            onClick={onAdd}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed text-sm font-medium transition-colors ${
+              isDarkMode
+                ? 'border-team-blue-40 text-gray-400 hover:text-team-blue hover:border-team-blue'
+                : 'border-gray-300 text-gray-400 hover:text-team-blue hover:border-team-blue'
+            }`}
+          >
+            <Plus className="w-4 h-4" />
+            Add Shot
+          </button>
+        )}
+      </div>
+    );
+  }
+);
+ShotLogTable.displayName = 'ShotLogTable';
+
+// ─── Score Tab Card ─────────────────────────────────────────────────────
+const ScoreCard: React.FC<{
+  label: string;
+  value: number;
+  selected?: boolean;
+  highlight?: boolean;
+  isDarkMode: boolean;
+  onClick?: () => void;
+}> = ({ label, value, selected = false, highlight = false, isDarkMode, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`flex flex-col items-center justify-center rounded-lg border px-3 py-3 transition-all cursor-pointer ${
+      selected
+        ? 'border-team-blue ring-2 ring-team-blue/30 bg-team-blue/10'
+        : highlight
+          ? 'border-team-blue bg-team-blue/5 hover:bg-team-blue/10'
+          : isDarkMode
+            ? 'border-team-blue-40 bg-team-dark hover:bg-team-dark-20'
+            : 'border-gray-200 bg-white hover:bg-gray-50'
+    }`}
+  >
+    <span
+      className={`text-xs font-medium uppercase tracking-wide ${
+        isDarkMode ? 'text-gray-400' : 'text-gray-500'
+      }`}
+    >
+      {label}
+    </span>
+    <span
+      className={`text-2xl font-bold ${
+        selected || highlight ? 'text-team-blue' : isDarkMode ? 'text-white' : 'text-black'
+      }`}
+    >
+      {value}
+    </span>
+  </button>
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════════════
 export const PerformanceMetrics = () => {
   const {
     sessionData,
     updateSessionData,
     expandedSection,
-    setExpandedSection,
-    isTimerRunning,
     editingMatchId,
     hasStarted,
   } = useSession();
   const { isDarkMode } = useTheme();
 
-  // Allow editing when a match has started (even if paused/transitioning) OR when editing a saved match
   const isEditable = hasStarted || editingMatchId !== null;
-
-  // Use a ref to track if we're currently updating scores to prevent circular updates
   const isUpdatingRef = useRef(false);
 
-  // Local state for scoring metrics - needed for controlled input behavior
-  // Initialize from sessionData to restore values when navigating back to the page
-  const [autonClassifiedArtifact, setAutonClassifiedArtifact] = useState(
-    sessionData.autonClassifiedArtifact || 0
-  );
-  const [autonOverflowArtifact, setAutonOverflowArtifact] = useState(
-    sessionData.autonOverflowArtifact || 0
-  );
-  const [autonMotif, setAutonMotif] = useState(sessionData.autonMotif || 0);
-  const [autonBallsMissed, setAutonBallsMissed] = useState(
-    sessionData.autonBallsMissed || 0
-  );
+  // ── Tab state ─────────────────────────────────────────────────────
+  const [selectedTab, setSelectedTab] = useState<'final' | 'autonomous' | 'teleop' | 'endgame'>('final');
+
+  // ── Local scoring state ───────────────────────────────────────────
   const [autonomousLeave, setAutonomousLeave] = useState(
     sessionData.autonLeave || 0
   );
-
-  const [teleClassifiedArtifact, setTeleClassifiedArtifact] = useState(
-    sessionData.teleClassifiedArtifact || 0
-  );
-  const [teleOverflowArtifact, setTeleOverflowArtifact] = useState(
-    sessionData.teleOverflowArtifact || 0
-  );
-  const [teleMotif, setTeleMotif] = useState(sessionData.teleMotif || 0);
-  const [teleBallsMissed, setTeleBallsMissed] = useState(
-    sessionData.teleBallsMissed || 0
-  );
-
   const [robot1Park, setRobot1Park] = useState<'none' | 'partial' | 'full'>(
     sessionData.robot1Park || 'none'
   );
@@ -218,162 +376,144 @@ export const PerformanceMetrics = () => {
     sessionData.robot2Park || 'none'
   );
 
-  // Memoize the score update function to prevent infinite loops
+  // ── Shot logs — derived directly from sessionData so ScoringUI writes
+  //   are immediately visible without needing local state sync.
+  const autonShots = useMemo(
+    () => migrateShotsArray(sessionData.autonShots),
+    [sessionData.autonShots]
+  );
+  const teleopShots = useMemo(
+    () => migrateShotsArray(sessionData.teleopShots),
+    [sessionData.teleopShots]
+  );
+
+  // ── Shot log mutators ─────────────────────────────────────────────
+  const updateAutonShot = useCallback(
+    (index: number, field: 'ballsShot' | 'ballsMade', value: number) => {
+      const current = migrateShotsArray(sessionData.autonShots);
+      const next = [...current];
+      next[index] = { ...next[index], [field]: value };
+      if (field === 'ballsShot' && next[index].ballsMade > value) {
+        next[index].ballsMade = value;
+      }
+      updateSessionData({ autonShots: next });
+    },
+    [sessionData.autonShots, updateSessionData]
+  );
+
+  const updateTeleopShot = useCallback(
+    (index: number, field: 'ballsShot' | 'ballsMade', value: number) => {
+      const current = migrateShotsArray(sessionData.teleopShots);
+      const next = [...current];
+      next[index] = { ...next[index], [field]: value };
+      if (field === 'ballsShot' && next[index].ballsMade > value) {
+        next[index].ballsMade = value;
+      }
+      updateSessionData({ teleopShots: next });
+    },
+    [sessionData.teleopShots, updateSessionData]
+  );
+
+  const addAutonShot = useCallback(() => {
+    const current = migrateShotsArray(sessionData.autonShots);
+    updateSessionData({ autonShots: [...current, { ballsShot: 0, ballsMade: 0 }] });
+  }, [sessionData.autonShots, updateSessionData]);
+
+  const addTeleopShot = useCallback(() => {
+    const current = migrateShotsArray(sessionData.teleopShots);
+    updateSessionData({ teleopShots: [...current, { ballsShot: 0, ballsMade: 0 }] });
+  }, [sessionData.teleopShots, updateSessionData]);
+
+  const deleteAutonShot = useCallback(
+    (index: number) => {
+      const current = migrateShotsArray(sessionData.autonShots);
+      updateSessionData({ autonShots: current.filter((_, i) => i !== index) });
+    },
+    [sessionData.autonShots, updateSessionData]
+  );
+
+  const deleteTeleopShot = useCallback(
+    (index: number) => {
+      const current = migrateShotsArray(sessionData.teleopShots);
+      updateSessionData({ teleopShots: current.filter((_, i) => i !== index) });
+    },
+    [sessionData.teleopShots, updateSessionData]
+  );
+
+  // ── Computed scores ───────────────────────────────────────────────
+  const autonShotsScore = useMemo(() => totalPoints(autonShots), [autonShots]);
+  const teleopShotsScore = useMemo(() => totalPoints(teleopShots), [teleopShots]);
+  const autonLeaveBonus = autonomousLeave * 3;
+
+  const autonomousScore = autonShotsScore + autonLeaveBonus;
+  const teleopScore = teleopShotsScore;
+
+  let endGameScore = 0;
+  const r1 = robot1Park === 'partial' ? 5 : robot1Park === 'full' ? 10 : 0;
+  const r2 = robot2Park === 'partial' ? 5 : robot2Park === 'full' ? 10 : 0;
+  if (robot1Park === 'full' && robot2Park === 'full') {
+    endGameScore = 30;
+  } else {
+    endGameScore = r1 + r2;
+  }
+
+  const finalScore = autonomousScore + teleopScore + endGameScore;
+
+  // ── Push computed scores to session data ──────────────────────────
   const updateScores = useCallback(() => {
-    const autonomousScore =
-      autonClassifiedArtifact * 3 +
-      autonOverflowArtifact * 1 +
-      autonMotif * 2 +
-      autonomousLeave * 3;
-
-    const teleopScore =
-      teleClassifiedArtifact * 3 + teleOverflowArtifact * 1 + teleMotif * 2;
-
-    // Calculate endgame score based on parking
-    let endGameScore = 0;
-    const robot1Score =
-      robot1Park === 'partial' ? 5 : robot1Park === 'full' ? 10 : 0;
-    const robot2Score =
-      robot2Park === 'partial' ? 5 : robot2Park === 'full' ? 10 : 0;
-
-    // Special case: two full parks = 30 points total
-    if (robot1Park === 'full' && robot2Park === 'full') {
-      endGameScore = 30;
-    } else {
-      endGameScore = robot1Score + robot2Score;
-    }
-
-    const finalScore = autonomousScore + teleopScore + endGameScore;
-
     isUpdatingRef.current = true;
     updateSessionData({
       autonomousScore,
       teleopScore,
       endGameScore,
       finalScore,
-      autonClassifiedArtifact,
-      autonOverflowArtifact,
-      autonMotif,
-      autonBallsMissed,
       autonLeave: autonomousLeave,
-      teleClassifiedArtifact,
-      teleOverflowArtifact,
-      teleMotif,
-      teleBallsMissed,
+      autonClassifiedArtifact: sumField(autonShots, 'ballsMade'),
+      autonBallsMissed:
+        sumField(autonShots, 'ballsShot') - sumField(autonShots, 'ballsMade'),
+      teleClassifiedArtifact: sumField(teleopShots, 'ballsMade'),
+      teleBallsMissed:
+        sumField(teleopShots, 'ballsShot') - sumField(teleopShots, 'ballsMade'),
       robot1Park,
       robot2Park,
     });
-    // Reset the flag after a short delay to allow the context update to complete
     setTimeout(() => {
       isUpdatingRef.current = false;
     }, 0);
   }, [
-    autonClassifiedArtifact,
-    autonOverflowArtifact,
-    autonMotif,
-    autonBallsMissed,
+    autonomousScore,
+    teleopScore,
+    endGameScore,
+    finalScore,
     autonomousLeave,
-    teleClassifiedArtifact,
-    teleOverflowArtifact,
-    teleMotif,
-    teleBallsMissed,
+    autonShots,
+    teleopShots,
     robot1Park,
     robot2Park,
     updateSessionData,
   ]);
 
-  // Cycle time tracking
+  useEffect(() => {
+    const t = setTimeout(updateScores, 200);
+    return () => clearTimeout(t);
+  }, [updateScores]);
+
+  // ── Cycle times ───────────────────────────────────────────────────
   const [cycleTimerStartTime, setCycleTimerStartTime] = useState<number | null>(
     null
   );
   const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
   const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
-  // Sync local state with sessionData when:
-  // 1. Session scores are reset to 0 (after match save) - detected by TRANSITION to all zeros
-  // 2. Starting to edit a saved match (editingMatchId changes to a non-null value)
-  // This prevents syncing during active editing while allowing restoration of saved scores
-  const prevEditingMatchIdRef = useRef<string | null>(null);
-  const prevSessionDataRef = useRef(sessionData);
-
-  useEffect(() => {
-    if (isUpdatingRef.current) {
-      return;
-    }
-
-    // Check if we just started editing a match (editingMatchId changed from null to something)
-    const justStartedEditing =
-      editingMatchId !== null &&
-      prevEditingMatchIdRef.current !== editingMatchId;
-
-    // Check if sessionData just TRANSITIONED to all zeros (after match save/reset)
-    // This is detected by comparing previous sessionData (which had values) to current (all zeros)
-    const prevHadValues =
-      prevSessionDataRef.current.autonClassifiedArtifact ||
-      prevSessionDataRef.current.autonOverflowArtifact ||
-      prevSessionDataRef.current.autonMotif ||
-      prevSessionDataRef.current.autonBallsMissed ||
-      prevSessionDataRef.current.autonLeave ||
-      prevSessionDataRef.current.teleClassifiedArtifact ||
-      prevSessionDataRef.current.teleOverflowArtifact ||
-      prevSessionDataRef.current.teleMotif ||
-      prevSessionDataRef.current.teleBallsMissed;
-
-    const currentAllZero =
-      !sessionData.autonClassifiedArtifact &&
-      !sessionData.autonOverflowArtifact &&
-      !sessionData.autonMotif &&
-      !sessionData.autonBallsMissed &&
-      !sessionData.autonLeave &&
-      !sessionData.teleClassifiedArtifact &&
-      !sessionData.teleOverflowArtifact &&
-      !sessionData.teleMotif &&
-      !sessionData.teleBallsMissed;
-
-    const justResetToZeros = prevHadValues && currentAllZero;
-
-    // Sync if: sessionData just transitioned to zeros (match saved), OR starting edit
-    const shouldSyncFromSessionData = justResetToZeros || justStartedEditing;
-
-    if (shouldSyncFromSessionData) {
-      setAutonClassifiedArtifact(sessionData.autonClassifiedArtifact || 0);
-      setAutonOverflowArtifact(sessionData.autonOverflowArtifact || 0);
-      setAutonMotif(sessionData.autonMotif || 0);
-      setAutonBallsMissed(sessionData.autonBallsMissed || 0);
-      setAutonomousLeave(sessionData.autonLeave || 0);
-      setTeleClassifiedArtifact(sessionData.teleClassifiedArtifact || 0);
-      setTeleOverflowArtifact(sessionData.teleOverflowArtifact || 0);
-      setTeleMotif(sessionData.teleMotif || 0);
-      setTeleBallsMissed(sessionData.teleBallsMissed || 0);
-      setRobot1Park(sessionData.robot1Park || 'none');
-      setRobot2Park(sessionData.robot2Park || 'none');
-    }
-
-    // Update refs to track current state for next comparison
-    prevEditingMatchIdRef.current = editingMatchId;
-    prevSessionDataRef.current = sessionData;
-  }, [sessionData, editingMatchId]);
-
-  // Popup state for keyboard shortcuts
-  const [showPopup, setShowPopup] = useState(false);
-  const [popupNumber, setPopupNumber] = useState<string>('');
-  const [madeCount, setMadeCount] = useState<number | null>(null);
-
-  const toggleSection = (metricType: string) =>
-    setExpandedSection(expandedSection === metricType ? null : metricType);
-
-  // Cycle time effect - updates elapsed time every second
   useEffect(() => {
     let interval: NodeJS.Timeout;
-
     if (cycleTimerStartTime !== null && !sessionData.isSessionCompleted) {
       interval = setInterval(() => {
-        const now = Date.now();
-        const elapsed = Math.floor((now - cycleTimerStartTime) / 1000);
-        setCycleTimerElapsed(elapsed);
+        setCycleTimerElapsed(
+          Math.floor((Date.now() - cycleTimerStartTime) / 1000)
+        );
       }, 100);
     }
-
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -381,14 +521,12 @@ export const PerformanceMetrics = () => {
 
   const recordCycleTime = useCallback(() => {
     if (cycleTimerStartTime === null) {
-      // Start the cycle timer
       setCycleTimerStartTime(Date.now());
     } else {
-      // Record the time and reset
       updateSessionData({
         cycleTimes: [...(sessionData.cycleTimes ?? []), cycleTimerElapsed],
       });
-      setCycleTimerStartTime(Date.now()); // Restart for next cycle
+      setCycleTimerStartTime(Date.now());
       setCycleTimerElapsed(0);
     }
   }, [
@@ -398,104 +536,101 @@ export const PerformanceMetrics = () => {
     updateSessionData,
   ]);
 
-  // Keyboard event listener for 1, 2, 3 keys
+  // ── Sync local state on reset / edit ──────────────────────────────
+  const prevEditingMatchIdRef = useRef<string | null>(null);
+  const prevSessionDataRef = useRef(sessionData);
+
+  useEffect(() => {
+    if (isUpdatingRef.current) return;
+
+    const justStartedEditing =
+      editingMatchId !== null &&
+      prevEditingMatchIdRef.current !== editingMatchId;
+
+    const prevHadValues =
+      prevSessionDataRef.current.autonClassifiedArtifact ||
+      prevSessionDataRef.current.autonLeave ||
+      prevSessionDataRef.current.teleClassifiedArtifact;
+
+    const currentAllZero =
+      !sessionData.autonClassifiedArtifact &&
+      !sessionData.autonLeave &&
+      !sessionData.teleClassifiedArtifact;
+
+    const justResetToZeros = prevHadValues && currentAllZero;
+
+    if (justResetToZeros || justStartedEditing) {
+      setAutonomousLeave(sessionData.autonLeave || 0);
+      setRobot1Park(sessionData.robot1Park || 'none');
+      setRobot2Park(sessionData.robot2Park || 'none');
+      // autonShots / teleopShots are derived from sessionData — no local sync needed
+    }
+
+    prevEditingMatchIdRef.current = editingMatchId;
+    prevSessionDataRef.current = sessionData;
+  }, [sessionData, editingMatchId]);
+
+  // ── Keyboard shortcut popup ───────────────────────────────────────
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupNumber, setPopupNumber] = useState<string>('');
+  const [madeCount, setMadeCount] = useState<number | null>(null);
+
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      // Only trigger if not typing in an input field
       if (
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement
-      ) {
+      )
         return;
-      }
-
-      // Only allow keybinds when match has started
-      if (!hasStarted) {
-        return;
-      }
+      if (!hasStarted) return;
 
       if (['1', '2', '3'].includes(event.key)) {
         if (!showPopup) {
-          // First press - open popup with shot type
           setPopupNumber(event.key);
           setMadeCount(null);
           setShowPopup(true);
         } else {
-          // Second press - set the made count with validation
-          const pressedNumber = parseInt(event.key);
-          const shotType = parseInt(popupNumber);
-
-          // For shot 1: only accept 1
-          // For shot 2: only accept 1 or 2
-          // For shot 3: accept 1, 2, or 3
-          if (pressedNumber <= shotType) {
-            setMadeCount(pressedNumber);
-          }
+          const pressed = parseInt(event.key);
+          if (pressed <= parseInt(popupNumber)) setMadeCount(pressed);
         }
       }
 
-      // Handle Enter key to confirm and add to appropriate score
       if (event.key === 'Enter' && showPopup && madeCount !== null) {
         event.preventDefault();
         event.stopPropagation();
 
-        // Auto-detect which section to update based on match type
-        const matchType = sessionData.matchType;
-        let isTeleopScore = false;
         const shotType = parseInt(popupNumber);
-        const missed = shotType - madeCount;
+        const isTeleOp =
+          expandedSection === 'TeleOp Score' ||
+          (sessionData.matchType === 'TeleOp' &&
+            expandedSection !== 'Autonomous Score');
 
-        if (!expandedSection || expandedSection === 'Autonomous Score') {
-          // Default to autonomous if no section expanded or if autonomous is expanded
-          if (matchType !== 'Teleop') {
-            setAutonClassifiedArtifact(prev => prev + madeCount);
-            if (missed > 0) setAutonBallsMissed(prev => prev + missed);
-          } else {
-            setTeleClassifiedArtifact(prev => prev + madeCount);
-            if (missed > 0) setTeleBallsMissed(prev => prev + missed);
-            isTeleopScore = true;
-          }
-        } else if (expandedSection === 'Teleop Score') {
-          setTeleClassifiedArtifact(prev => prev + madeCount);
-          if (missed > 0) setTeleBallsMissed(prev => prev + missed);
-          isTeleopScore = true;
+        const entry: ShotEntry = { ballsShot: shotType, ballsMade: madeCount };
+
+        if (isTeleOp) {
+          const nextTeleop = [...migrateShotsArray(sessionData.teleopShots), entry];
+          updateSessionData({ teleopShots: nextTeleop });
+          if (sessionData.selectedFeature === 'Cycle Times') recordCycleTime();
         } else {
-          // If Endgame or other section is expanded, use match type to determine
-          if (matchType === 'Autonomous') {
-            setAutonClassifiedArtifact(prev => prev + madeCount);
-            if (missed > 0) setAutonBallsMissed(prev => prev + missed);
-          } else {
-            setTeleClassifiedArtifact(prev => prev + madeCount);
-            if (missed > 0) setTeleBallsMissed(prev => prev + missed);
-            isTeleopScore = true;
-          }
+          const nextAuton = [...migrateShotsArray(sessionData.autonShots), entry];
+          updateSessionData({ autonShots: nextAuton });
         }
 
-        // If updating Teleop score and Cycle Times is enabled, record cycle time
-        if (isTeleopScore && sessionData.selectedFeature === 'Cycle Times') {
-          recordCycleTime();
-        }
-
-        // Close popup after confirming
         setShowPopup(false);
         setMadeCount(null);
         return;
       }
 
-      // Close popup on Escape key
       if (event.key === 'Escape' && showPopup) {
         event.preventDefault();
         event.stopPropagation();
         setShowPopup(false);
         setMadeCount(null);
-        return;
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
-    return () => {
-      window.removeEventListener('keydown', handleKeyPress);
-    };
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, [
     showPopup,
     popupNumber,
@@ -505,263 +640,237 @@ export const PerformanceMetrics = () => {
     sessionData.selectedFeature,
     recordCycleTime,
     hasStarted,
+    updateSessionData,
   ]);
 
-  useEffect(() => {
-    // Debounce the score updates - only update after 300ms of no changes
-    const timer = setTimeout(() => {
-      updateScores();
-    }, 300);
+  // ── Render ────────────────────────────────────────────────────────
+  const showAuton = sessionData.matchType !== 'TeleOp';
+  const showTeleop = sessionData.matchType !== 'Autonomous';
 
-    return () => clearTimeout(timer);
-  }, [
-    autonClassifiedArtifact,
-    autonOverflowArtifact,
-    autonMotif,
-    autonBallsMissed,
-    autonomousLeave,
-    teleClassifiedArtifact,
-    teleOverflowArtifact,
-    teleMotif,
-    teleBallsMissed,
-    robot1Park,
-    robot2Park,
-    updateScores,
-  ]);
-
-  const InlineBreakdownField = memo(
-    ({
-      label,
-      value,
-      onChange,
-      editable = true,
-    }: {
-      label: string;
-      value: number;
-      onChange: (value: number) => void;
-      editable?: boolean;
-    }) => {
-      const { isDarkMode } = useTheme();
-
-      const handleIncrement = useCallback(() => {
-        if (editable) onChange(value + 1);
-      }, [editable, value, onChange]);
-
-      const handleDecrement = useCallback(() => {
-        if (editable) onChange(Math.max(0, value - 1));
-      }, [editable, value, onChange]);
-
-      return (
-        <div className="flex flex-col gap-2 w-full">
-          <div className="flex items-center justify-between min-h-[24px]">
-            <label
-              className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-            >
-              {label}
-            </label>
-          </div>
-          <div className={`flex justify-between items-center gap-2 h-[48px]`}>
-            <button
-              onClick={handleIncrement}
-              disabled={!editable}
-              className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors ${
-                editable
-                  ? 'hover:bg-team-blue-40 cursor-pointer'
-                  : 'opacity-50 cursor-not-allowed'
-              } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-            >
-              <ChevronUp
-                className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-              />
-            </button>
-            <div
-              className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center ${
-                isDarkMode
-                  ? 'bg-team-dark text-white'
-                  : 'bg-[#FEFEFE] text-black'
-              }`}
-            >
-              <NumberInput
-                value={value}
-                onChange={onChange}
-                placeholder="0"
-                readOnly={!editable}
-                className={`w-full h-full bg-transparent text-2xl font-semibold text-center focus:outline-none ${isDarkMode ? 'text-white' : 'text-black'}`}
-              />
-            </div>
-            <button
-              onClick={handleDecrement}
-              disabled={!editable}
-              className={`flex-1 h-full rounded border border-team-blue-40 flex items-center justify-center transition-colors ${
-                editable
-                  ? 'hover:bg-team-blue-40 cursor-pointer'
-                  : 'opacity-50 cursor-not-allowed'
-              } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-            >
-              <ChevronDown
-                className={`w-6 h-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-              />
-            </button>
-          </div>
-        </div>
-      );
-    }
-  );
-
-  InlineBreakdownField.displayName = 'InlineBreakdownField';
-
-  const CheckboxField = ({
-    label,
-    checked,
-    onChange,
-  }: {
-    label: string;
-    checked: boolean;
-    onChange: (checked: boolean) => void;
-  }) => {
-    const { isDarkMode } = useTheme();
-
-    return (
-      <div className="flex flex-col gap-2 w-full">
-        <div className="flex items-center justify-between min-h-[24px]">
-          <label
-            className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+  return (
+    <>
+      {/* Keyboard shortcut popup */}
+      {showPopup && (
+        <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
+          <div
+            className={`${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-600 text-white'} rounded-lg shadow-2xl p-12 text-center`}
           >
-            {label}
-          </label>
+            <div className="text-6xl font-bold mb-4">shot {popupNumber}</div>
+            <div className="text-4xl mb-4">
+              {madeCount !== null ? `${madeCount} made` : '__ made'}
+            </div>
+            <div className="text-sm mb-2 text-white/80">
+              press enter to confirm
+            </div>
+            <div className="text-sm text-white/80">press esc to exit</div>
+          </div>
         </div>
-        <div className="flex items-center justify-center h-[48px]">
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={e => onChange(e.target.checked)}
-            className="w-8 h-8 rounded-full border-2 border-team-blue cursor-pointer accent-team-blue"
+      )}
+
+      <div className="flex flex-col gap-6">
+        <h2 className="text-team-blue text-2xl font-semibold leading-6">
+          Performance Metrics
+        </h2>
+
+        {/* ── Score Summary Cards (clickable tabs) ──────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <ScoreCard
+            label="Final"
+            value={finalScore}
+            selected={selectedTab === 'final'}
+            isDarkMode={isDarkMode}
+            onClick={() => setSelectedTab('final')}
+          />
+          {showAuton && (
+            <ScoreCard
+              label="Autonomous"
+              value={autonomousScore}
+              isDarkMode={isDarkMode}
+              selected={selectedTab === 'autonomous'}
+              onClick={() => setSelectedTab('autonomous')}
+            />
+          )}
+          {showTeleop && (
+            <ScoreCard
+              label="TeleOp"
+              value={teleopScore}
+              isDarkMode={isDarkMode}
+              selected={selectedTab === 'teleop'}
+              onClick={() => setSelectedTab('teleop')}
+            />
+          )}
+          <ScoreCard
+            label="End Game"
+            value={endGameScore}
+            isDarkMode={isDarkMode}
+            selected={selectedTab === 'endgame'}
+            onClick={() => setSelectedTab('endgame')}
           />
         </div>
-      </div>
-    );
-  };
 
-  const ButtonGroupField = ({
-    label,
-    value,
-    onChange,
-    options,
-  }: {
-    label: string;
-    value: number;
-    onChange: (value: number) => void;
-    options: number[];
-  }) => {
-    const { isDarkMode } = useTheme();
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {/* Tab Content                                                */}
+        {/* ═══════════════════════════════════════════════════════════ */}
 
-    return (
-      <div className="flex flex-col gap-2 w-full">
-        <label
-          className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-        >
-          {label}
-        </label>
-        <div className="flex gap-2">
-          {options.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onChange(option)}
-              className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
-                value === option
-                  ? 'bg-team-blue border-team-blue text-black'
-                  : isDarkMode
-                    ? 'bg-team-dark border-team-blue-40 text-white hover:bg-team-blue/20'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+        {/* ── FINAL tab: summary table ──────────────────────────── */}
+        {selectedTab === 'final' && (
+          <div
+            className={`rounded-lg border overflow-hidden ${
+              isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
+            }`}
+          >
+            {/* header */}
+            <div
+              className={`grid grid-cols-[1fr_70px_70px_80px] text-xs font-semibold uppercase tracking-wide ${
+                isDarkMode
+                  ? 'bg-team-dark-20 text-gray-400'
+                  : 'bg-gray-50 text-gray-500'
               }`}
             >
-              {option}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  };
+              <div className="px-3 py-2">Phase</div>
+              <div className="px-2 py-2 text-center">Shot</div>
+              <div className="px-2 py-2 text-center">Made</div>
+              <div className="px-2 py-2 text-center">Points</div>
+            </div>
 
-  const getSectionTitle = () => {
-    switch (expandedSection) {
-      case 'Autonomous Score':
-        return 'Autonomous Score';
-      case 'Teleop Score':
-        return 'Teleop Score';
-      case 'Endgame Score':
-        return 'Endgame Score';
-      default:
-        return '';
-    }
-  };
+            {/* Autonomous row */}
+            {showAuton && (
+              <div
+                className={`grid grid-cols-[1fr_70px_70px_80px] items-center border-t ${
+                  isDarkMode ? 'border-white/5' : 'border-gray-100'
+                }`}
+              >
+                <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  Autonomous{autonomousLeave > 0 ? ' (incl. leave +3)' : ''}
+                </div>
+                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {sumField(autonShots, 'ballsShot')}
+                </div>
+                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {sumField(autonShots, 'ballsMade')}
+                </div>
+                <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
+                  {autonomousScore}
+                </div>
+              </div>
+            )}
 
-  const getBreakdownFields = () => {
-    if (!expandedSection) return null;
-    switch (expandedSection) {
-      case 'Autonomous Score':
-        return (
-          <div className="space-y-8">
-            <InlineBreakdownField
-              label="Classified Artifact (3 pts each)"
-              value={autonClassifiedArtifact}
-              onChange={setAutonClassifiedArtifact}
+            {/* TeleOp row */}
+            {showTeleop && (
+              <div
+                className={`grid grid-cols-[1fr_70px_70px_80px] items-center border-t ${
+                  isDarkMode ? 'border-white/5' : 'border-gray-100'
+                }`}
+              >
+                <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  TeleOp
+                </div>
+                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {sumField(teleopShots, 'ballsShot')}
+                </div>
+                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {sumField(teleopShots, 'ballsMade')}
+                </div>
+                <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
+                  {teleopScore}
+                </div>
+              </div>
+            )}
+
+            {/* End Game row */}
+            <div
+              className={`grid grid-cols-[1fr_70px_70px_80px] items-center border-t ${
+                isDarkMode ? 'border-white/5' : 'border-gray-100'
+              }`}
+            >
+              <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                End Game
+              </div>
+              <div className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {robot1Park !== 'none' || robot2Park !== 'none'
+                  ? [robot1Park !== 'none' ? `R1 ${robot1Park}` : '', robot2Park !== 'none' ? `R2 ${robot2Park}` : ''].filter(Boolean).join(', ')
+                  : '—'}
+              </div>
+              <div className="px-2 py-3 text-center text-sm" />
+              <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
+                {endGameScore}
+              </div>
+            </div>
+
+            {/* Total footer */}
+            <div
+              className={`grid grid-cols-[1fr_70px_70px_80px] items-center border-t-2 ${
+                isDarkMode
+                  ? 'border-team-blue-40 bg-team-dark-20'
+                  : 'border-gray-200 bg-gray-50'
+              }`}
+            >
+              <div className={`px-3 py-3 text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                Total
+              </div>
+              <div className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                {sumField(autonShots, 'ballsShot') + sumField(teleopShots, 'ballsShot')}
+              </div>
+              <div className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                {sumField(autonShots, 'ballsMade') + sumField(teleopShots, 'ballsMade')}
+              </div>
+              <div className="px-2 py-3 text-center text-sm font-extrabold text-team-blue">
+                {finalScore}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── AUTONOMOUS tab ─────────────────────────────────────── */}
+        {selectedTab === 'autonomous' && showAuton && (
+          <div className="flex flex-col gap-3">
+            <label
+              className={`flex items-center gap-2 cursor-pointer select-none text-sm ${
+                isDarkMode ? 'text-white' : 'text-black'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={autonomousLeave > 0}
+                onChange={(e) => {
+                  const v = e.target.checked ? 1 : 0;
+                  setAutonomousLeave(v);
+                }}
+                disabled={!isEditable}
+                className="accent-team-blue w-4 h-4"
+              />
+              Autonomous Leave
+              <span className="text-xs text-gray-400">(+3 pts)</span>
+            </label>
+
+            <ShotLogTable
+              label="Autonomous Shots"
+              shots={autonShots}
+              onUpdate={updateAutonShot}
+              onAdd={addAutonShot}
+              onDelete={deleteAutonShot}
               editable={isEditable}
-            />
-            <InlineBreakdownField
-              label="Overflow Artifact (1 pt each)"
-              value={autonOverflowArtifact}
-              onChange={setAutonOverflowArtifact}
-              editable={isEditable}
-            />
-            <InlineBreakdownField
-              label="Motif (2 pts each)"
-              value={autonMotif}
-              onChange={setAutonMotif}
-              editable={isEditable}
-            />
-            <InlineBreakdownField
-              label="Balls Missed"
-              value={autonBallsMissed}
-              onChange={setAutonBallsMissed}
-              editable={isEditable}
-            />
-            <ButtonGroupField
-              label="Leave (3 pts each)"
-              value={autonomousLeave}
-              onChange={setAutonomousLeave}
-              options={[0, 1, 2]}
+              isDarkMode={isDarkMode}
+              bonusPoints={autonLeaveBonus}
+              bonusLabel={autonomousLeave > 0 ? 'Leave Bonus' : undefined}
             />
           </div>
-        );
-      case 'Teleop Score':
-        return (
-          <div className="space-y-8">
-            <InlineBreakdownField
-              label="Classified Artifact (3 pts each)"
-              value={teleClassifiedArtifact}
-              onChange={setTeleClassifiedArtifact}
+        )}
+
+        {/* ── TELEOP tab ─────────────────────────────────────────── */}
+        {selectedTab === 'teleop' && showTeleop && (
+          <div className="flex flex-col gap-4">
+            <ShotLogTable
+              label="TeleOp Shots"
+              shots={teleopShots}
+              onUpdate={updateTeleopShot}
+              onAdd={addTeleopShot}
+              onDelete={deleteTeleopShot}
               editable={isEditable}
+              isDarkMode={isDarkMode}
             />
-            <InlineBreakdownField
-              label="Overflow Artifact (1 pt each)"
-              value={teleOverflowArtifact}
-              onChange={setTeleOverflowArtifact}
-              editable={isEditable}
-            />
-            <InlineBreakdownField
-              label="Motif (2 pts each)"
-              value={teleMotif}
-              onChange={setTeleMotif}
-              editable={isEditable}
-            />
-            <InlineBreakdownField
-              label="Balls Missed"
-              value={teleBallsMissed}
-              onChange={setTeleBallsMissed}
-              editable={isEditable}
-            />
+
+            {/* Cycle Times */}
             {sessionData.selectedFeature === 'Cycle Times' && (
               <div className="space-y-4">
                 <div className="flex flex-col gap-2 w-full">
@@ -787,7 +896,10 @@ export const PerformanceMetrics = () => {
                     {cycleTimerStartTime !== null && (
                       <div
                         className={`text-2xl flex flex-row ${isDarkMode ? 'text-white' : 'text-black'}`}
-                        style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}
+                        style={{
+                          fontFamily: 'monospace',
+                          letterSpacing: '0.1em',
+                        }}
                       >
                         <div style={{ paddingTop: '6px' }}>
                           {Math.floor(cycleTimerElapsed / 60)}
@@ -826,7 +938,7 @@ export const PerformanceMetrics = () => {
                             return (
                               <div
                                 key={index}
-                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue-40 text-black'}`}
+                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue-40 text-white'}`}
                               >
                                 {index + 1}. {minutes}:
                                 {seconds.toString().padStart(2, '0')}
@@ -841,238 +953,130 @@ export const PerformanceMetrics = () => {
               </div>
             )}
           </div>
-        );
-      case 'Endgame Score':
-        return (
-          <div className="space-y-6">
-            {/* Robot 1 Parking */}
-            <div className="flex flex-col gap-2">
-              <label
-                className={`text-base leading-6 font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
-              >
-                Robot 1:
-              </label>
-              <div className="flex gap-0 rounded-lg overflow-hidden border border-team-blue-40">
-                <button
-                  onClick={e => {
-                    e.currentTarget.blur();
-                    setRobot1Park('none');
-                  }}
-                  className={`flex-1 py-3 text-base font-medium transition-colors ${
-                    robot1Park === 'none'
-                      ? isDarkMode
-                        ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-[#FEFEFE]'
-                      : isDarkMode
-                        ? 'bg-team-dark text-white hover:bg-team-dark-20'
-                        : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
-                  }`}
-                >
-                  None
-                </button>
-                <button
-                  onClick={e => {
-                    e.currentTarget.blur();
-                    setRobot1Park('partial');
-                  }}
-                  className={`flex-1 py-3 text-base font-medium transition-colors ${
-                    robot1Park === 'partial'
-                      ? isDarkMode
-                        ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-white'
-                      : isDarkMode
-                        ? 'bg-team-dark text-white hover:bg-team-dark-20'
-                        : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
-                  }`}
-                >
-                  PARTIAL
-                </button>
-                <button
-                  onClick={e => {
-                    e.currentTarget.blur();
-                    setRobot1Park('full');
-                  }}
-                  className={`flex-1 py-3 text-base font-medium transition-colors ${
-                    robot1Park === 'full'
-                      ? isDarkMode
-                        ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-[#FEFEFE]'
-                      : isDarkMode
-                        ? 'bg-team-dark text-white hover:bg-team-dark-20'
-                        : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
-                  }`}
-                >
-                  FULL
-                </button>
-              </div>
-            </div>
+        )}
 
-            {/* Robot 2 Parking */}
-            <div className="flex flex-col gap-2">
-              <label
-                className={`text-base leading-6 font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
-              >
-                Robot 2:
-              </label>
-              <div className="flex gap-0 rounded-lg overflow-hidden border border-team-blue-40">
-                <button
-                  onClick={e => {
-                    e.currentTarget.blur();
-                    setRobot2Park('none');
-                  }}
-                  className={`flex-1 py-3 text-base font-medium transition-colors ${
-                    robot2Park === 'none'
-                      ? isDarkMode
-                        ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-[#FEFEFE]'
-                      : isDarkMode
-                        ? 'bg-team-dark text-white hover:bg-team-dark-20'
-                        : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
-                  }`}
-                >
-                  None
-                </button>
-                <button
-                  onClick={e => {
-                    e.currentTarget.blur();
-                    setRobot2Park('partial');
-                  }}
-                  className={`flex-1 py-3 text-base font-medium transition-colors ${
-                    robot2Park === 'partial'
-                      ? isDarkMode
-                        ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-[#FEFEFE]'
-                      : isDarkMode
-                        ? 'bg-team-dark text-white hover:bg-team-dark-20'
-                        : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
-                  }`}
-                >
-                  PARTIAL
-                </button>
-                <button
-                  onClick={e => {
-                    e.currentTarget.blur();
-                    setRobot2Park('full');
-                  }}
-                  className={`flex-1 py-3 text-base font-medium transition-colors ${
-                    robot2Park === 'full'
-                      ? isDarkMode
-                        ? 'bg-team-blue text-black'
-                        : 'bg-team-blue text-[#FEFEFE]'
-                      : isDarkMode
-                        ? 'bg-team-dark text-white hover:bg-team-dark-20'
-                        : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
-                  }`}
-                >
-                  FULL
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <>
-      {/* Keyboard shortcut popup */}
-      {showPopup && (
-        <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
-          <div
-            className={`${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-600 text-white'} rounded-lg shadow-2xl p-12 text-center`}
-          >
-            <div className="text-6xl font-bold mb-4">shot {popupNumber}</div>
-            <div className="text-4xl mb-4">
-              {madeCount !== null ? `${madeCount} made` : '__ made'}
-            </div>
-            <div className="text-sm mb-2 text-white/80">
-              press enter to confirm
-            </div>
-            <div className="text-sm text-white/80">press esc to exit</div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-6">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6">
-          Performance Metrics
-        </h2>
-
-        {/* Score fields in a responsive grid row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <MetricField
-            label="Final Score"
-            value={sessionData.finalScore ?? 0}
-            onChange={value => updateSessionData({ finalScore: value })}
-            hasDropdown={false}
-            editable={isEditable}
-            showArrows={false}
-          />
-          {sessionData.matchType !== 'Teleop' && (
-            <MetricField
-              label="Autonomous"
-              value={sessionData.autonomousScore ?? 0}
-              onChange={value =>
-                updateSessionData({ autonomousScore: value })
-              }
-              onDropdownClick={() => toggleSection('Autonomous Score')}
-              editable={isEditable}
-              showArrows={false}
-              isSelected={expandedSection === 'Autonomous Score'}
-            />
-          )}
-          {sessionData.matchType !== 'Autonomous' && (
-            <MetricField
-              label="Teleop"
-              value={sessionData.teleopScore ?? 0}
-              onChange={value => updateSessionData({ teleopScore: value })}
-              onDropdownClick={() => toggleSection('Teleop Score')}
-              editable={isEditable}
-              showArrows={false}
-              isSelected={expandedSection === 'Teleop Score'}
-            />
-          )}
-          <MetricField
-            label="Endgame"
-            value={sessionData.endGameScore ?? 0}
-            onChange={value => updateSessionData({ endGameScore: value })}
-            onDropdownClick={() => toggleSection('Endgame Score')}
-            editable={isEditable}
-            showArrows={false}
-            isSelected={expandedSection === 'Endgame Score'}
-          />
-        </div>
-
-        {/* Breakdown section expands below */}
-        {expandedSection && (
-          <div className="pt-2">
-            <h3 className="text-team-blue text-lg font-semibold leading-6 mb-4">
-              {getSectionTitle()}
+        {/* ── END GAME tab ───────────────────────────────────────── */}
+        {selectedTab === 'endgame' && (
+          <div className="flex flex-col gap-3">
+            <h3
+              className={`text-sm font-semibold uppercase tracking-wider ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}
+            >
+              End Game
             </h3>
-            <div>
-              {useMemo(
-                () => getBreakdownFields(),
-                // eslint-disable-next-line react-hooks/exhaustive-deps
-                [
-                  expandedSection,
-                  autonClassifiedArtifact,
-                  autonOverflowArtifact,
-                  autonMotif,
-                  autonBallsMissed,
-                  autonomousLeave,
-                  teleClassifiedArtifact,
-                  teleOverflowArtifact,
-                  teleMotif,
-                  teleBallsMissed,
-                  robot1Park,
-                  robot2Park,
-                  isTimerRunning,
-                  isEditable,
-                  isDarkMode,
-                ]
-              )}
+
+            {/* End Game summary table */}
+            <div
+              className={`rounded-lg border overflow-hidden ${
+                isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
+              }`}
+            >
+              {/* Header */}
+              <div
+                className={`grid grid-cols-[1fr_1fr_80px] text-xs font-semibold uppercase tracking-wide ${
+                  isDarkMode
+                    ? 'bg-team-dark-20 text-gray-400'
+                    : 'bg-gray-50 text-gray-500'
+                }`}
+              >
+                <div className="px-3 py-2">Robot</div>
+                <div className="px-2 py-2 text-center">Park Status</div>
+                <div className="px-2 py-2 text-center">Points</div>
+              </div>
+
+              {/* Robot 1 */}
+              <div
+                className={`grid grid-cols-[1fr_1fr_80px] items-center border-t ${
+                  isDarkMode ? 'border-white/5' : 'border-gray-100'
+                }`}
+              >
+                <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  Robot 1
+                </div>
+                <div className="px-2 py-2">
+                  <div className="flex gap-0 rounded-lg overflow-hidden border border-team-blue-40">
+                    {(['none', 'partial', 'full'] as const).map((val) => (
+                      <button
+                        key={val}
+                        onClick={(e) => {
+                          e.currentTarget.blur();
+                          setRobot1Park(val);
+                        }}
+                        className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                          robot1Park === val
+                            ? isDarkMode
+                              ? 'bg-team-blue text-black'
+                              : 'bg-team-blue text-white'
+                            : isDarkMode
+                              ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                              : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                        }`}
+                      >
+                        {val === 'none' ? 'None' : val === 'partial' ? 'Partial' : 'Full'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
+                  {robot1Park === 'partial' ? 5 : robot1Park === 'full' ? (robot2Park === 'full' ? 15 : 10) : 0}
+                </div>
+              </div>
+
+              {/* Robot 2 */}
+              <div
+                className={`grid grid-cols-[1fr_1fr_80px] items-center border-t ${
+                  isDarkMode ? 'border-white/5' : 'border-gray-100'
+                }`}
+              >
+                <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  Robot 2
+                </div>
+                <div className="px-2 py-2">
+                  <div className="flex gap-0 rounded-lg overflow-hidden border border-team-blue-40">
+                    {(['none', 'partial', 'full'] as const).map((val) => (
+                      <button
+                        key={val}
+                        onClick={(e) => {
+                          e.currentTarget.blur();
+                          setRobot2Park(val);
+                        }}
+                        className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                          robot2Park === val
+                            ? isDarkMode
+                              ? 'bg-team-blue text-black'
+                              : 'bg-team-blue text-white'
+                            : isDarkMode
+                              ? 'bg-team-dark text-white hover:bg-team-dark-20'
+                              : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
+                        }`}
+                      >
+                        {val === 'none' ? 'None' : val === 'partial' ? 'Partial' : 'Full'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
+                  {robot2Park === 'partial' ? 5 : robot2Park === 'full' ? (robot1Park === 'full' ? 15 : 10) : 0}
+                </div>
+              </div>
+
+              {/* Total footer */}
+              <div
+                className={`grid grid-cols-[1fr_1fr_80px] items-center border-t-2 ${
+                  isDarkMode
+                    ? 'border-team-blue-40 bg-team-dark-20'
+                    : 'border-gray-200 bg-gray-50'
+                }`}
+              >
+                <div className={`px-3 py-3 text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  Total
+                </div>
+                <div className="px-2 py-3" />
+                <div className="px-2 py-3 text-center text-sm font-extrabold text-team-blue">
+                  {endGameScore}
+                </div>
+              </div>
             </div>
           </div>
         )}
