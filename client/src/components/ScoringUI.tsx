@@ -9,6 +9,7 @@ export const ScoringUI = () => {
   const lastShotTimeRef = useRef<number | null>(null);
 
   // Shot types with ball counts
+  // Note: controller_pickup = 5 seconds, prepare = 3 seconds, total = 8 seconds between auton and teleop
   const shotTypes = [
     { id: 1, balls: 1 },
     { id: 2, balls: 2 },
@@ -33,9 +34,10 @@ export const ScoringUI = () => {
     // Determine phase by timer position:
     // Full Game: auton = timer > 120, teleop = timer <= 120
     // Anything scored after the 2-minute mark (≤120s remaining) goes to teleop
+    // Scoring during controller_pickup and prepare phases (8 second transition) counts as autonomous
     const isAutonPhase =
       sessionData.matchType === 'Autonomous' ||
-      (sessionData.matchType === 'Full Game' && (matchPhase === 'auton'));
+      (sessionData.matchType === 'Full Game' && (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare'));
 
     const shotEntry = { ballsShot: shotId, ballsMade, cycleTime };
     if (isAutonPhase) {
@@ -55,7 +57,7 @@ export const ScoringUI = () => {
   // Determine score label and display the synced score from sessionData
   const isAutonPhase =
     sessionData.matchType === 'Autonomous' ||
-    (sessionData.matchType === 'Full Game' && matchPhase === 'auton');
+    (sessionData.matchType === 'Full Game' && (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare'));
   const scoreLabel = isAutonPhase ? 'AUTON Score:' : 'TELEOP Score:';
   const displayScore = isAutonPhase ? sessionData.autonomousScore ?? 0 : sessionData.teleopScore ?? 0;
 

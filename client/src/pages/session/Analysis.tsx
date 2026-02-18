@@ -573,6 +573,7 @@ const SummaryTab = ({
                 stroke={isDarkMode ? '#ffffff' : '#B0E5FE'}
                 strokeWidth={3}
                 dot={{ fill: isDarkMode ? '#ffffff' : '#B0E5FE', r: 5 }}
+                strokeDasharray="5 5"
                 connectNulls={false}
               />
               <Line
