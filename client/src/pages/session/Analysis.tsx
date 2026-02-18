@@ -30,6 +30,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -66,11 +67,13 @@ const ChartTooltip = ({
   payload,
   label,
   isDarkMode,
+  unit,
 }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; color: string }>;
   label?: string;
   isDarkMode?: boolean;
+  unit?: string;
 }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -108,7 +111,9 @@ const ChartTooltip = ({
             </div>
             <span className="text-xs font-bold" style={{ color: entry.color }}>
               {typeof entry.value === 'number'
-                ? entry.value.toFixed(1)
+                ? unit
+                  ? `${Math.round(entry.value)}${unit}`
+                  : entry.value.toFixed(1)
                 : entry.value}
             </span>
           </div>
@@ -339,6 +344,23 @@ const SummaryTab = ({
     'Endgame': m.endGameScore || 0,
   }));
 
+  const accuracyData = matches.map((m, i) => {
+    const autonMade = (m.autonShots || []).reduce((s, e) => s + e.ballsMade, 0);
+    const autonShot = (m.autonShots || []).reduce((s, e) => s + e.ballsShot, 0);
+    const teleMade = (m.teleopShots || []).reduce((s, e) => s + e.ballsMade, 0);
+    const teleShot = (m.teleopShots || []).reduce((s, e) => s + e.ballsShot, 0);
+    const totalMade = autonMade + teleMade;
+    const totalShot = autonShot + teleShot;
+    return {
+      name: `M${i + 1}`,
+      Overall: totalShot > 0 ? Math.round((totalMade / totalShot) * 100) : null,
+      Autonomous: autonShot > 0 ? Math.round((autonMade / autonShot) * 100) : null,
+      Teleop: teleShot > 0 ? Math.round((teleMade / teleShot) * 100) : null,
+    };
+  });
+
+  const hasAnyAccuracyData = accuracyData.some((d) => d.Overall !== null);
+
   const totalAvg = stats.avgAuto + stats.avgTele + stats.avgEndgame;
 
   return (
@@ -512,6 +534,66 @@ const SummaryTab = ({
                 activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
             </BarChart>
+          </ResponsiveContainer>
+        </Section>
+      )}
+
+      {/* Accuracy Trend */}
+      {hasAnyAccuracyData && (
+        <Section title="Shooting Accuracy" isDarkMode={isDarkMode}>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={accuracyData}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+              />
+              <XAxis
+                dataKey="name"
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                tick={{ fontSize: 12 }}
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+              />
+              <Tooltip
+                content={<ChartTooltip isDarkMode={isDarkMode} unit="%" />}
+              />
+              <Legend wrapperStyle={{ fontSize: '13px' }} />
+              <ReferenceLine
+                y={100}
+                stroke={isDarkMode ? '#ffffff20' : '#00000015'}
+                strokeDasharray="4 4"
+              />
+              <Line
+                type="monotone"
+                dataKey="Overall"
+                stroke={isDarkMode ? '#ffffff' : '#B0E5FE'}
+                strokeWidth={3}
+                dot={{ fill: isDarkMode ? '#ffffff' : '#B0E5FE', r: 5 }}
+                connectNulls={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="Autonomous"
+                stroke={CHART_COLORS.auto}
+                strokeWidth={2}
+                dot={{ fill: CHART_COLORS.auto, r: 3 }}
+                strokeDasharray="5 5"
+                connectNulls={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="Teleop"
+                stroke={CHART_COLORS.tele}
+                strokeWidth={2}
+                dot={{ fill: CHART_COLORS.tele, r: 3 }}
+                strokeDasharray="5 5"
+                connectNulls={false}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </Section>
       )}

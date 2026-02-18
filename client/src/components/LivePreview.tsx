@@ -416,7 +416,6 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
                   : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
               }`}
             >
-              <span className="text-2xl font-bold">+</span>
               {!matchActive ? 'Start Match' : 'Save Match'}
             </button>
           )}

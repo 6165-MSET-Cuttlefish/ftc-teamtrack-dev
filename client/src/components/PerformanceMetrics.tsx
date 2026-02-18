@@ -36,6 +36,9 @@ const sumField = (shots: ShotEntry[], field: 'ballsShot' | 'ballsMade') =>
 const totalPoints = (shots: ShotEntry[]) =>
   shots.reduce((s, e) => s + e.ballsMade * POINTS_PER_MADE, 0);
 
+const calcAccuracy = (made: number, shot: number): string =>
+  shot > 0 ? `${Math.round((made / shot) * 100)}%` : '—';
+
 /** Format seconds as M:SS */
 const formatCycleTime = (seconds: number): string => {
   if (seconds < 60) {
@@ -770,7 +773,7 @@ export const PerformanceMetrics = () => {
           >
             {/* header */}
             <div
-              className={`grid grid-cols-[1fr_70px_70px_80px] text-xs font-semibold uppercase tracking-wide ${
+              className={`grid grid-cols-[1fr_60px_60px_65px_80px] text-xs font-semibold uppercase tracking-wide ${
                 isDarkMode
                   ? 'bg-team-dark-20 text-gray-400'
                   : 'bg-gray-50 text-gray-500'
@@ -779,13 +782,14 @@ export const PerformanceMetrics = () => {
               <div className="px-3 py-2">Phase</div>
               <div className="px-2 py-2 text-center">Shot</div>
               <div className="px-2 py-2 text-center">Made</div>
+              <div className="px-2 py-2 text-center">Acc</div>
               <div className="px-2 py-2 text-center">Points</div>
             </div>
 
             {/* Autonomous row */}
             {showAuton && (
               <div
-                className={`grid grid-cols-[1fr_70px_70px_80px] items-center border-t ${
+                className={`grid grid-cols-[1fr_60px_60px_65px_80px] items-center border-t ${
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
@@ -798,6 +802,9 @@ export const PerformanceMetrics = () => {
                 <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   {sumField(autonShots, 'ballsMade')}
                 </div>
+                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {calcAccuracy(sumField(autonShots, 'ballsMade'), sumField(autonShots, 'ballsShot'))}
+                </div>
                 <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                   {autonomousScore}
                 </div>
@@ -807,7 +814,7 @@ export const PerformanceMetrics = () => {
             {/* TeleOp row */}
             {showTeleop && (
               <div
-                className={`grid grid-cols-[1fr_70px_70px_80px] items-center border-t ${
+                className={`grid grid-cols-[1fr_60px_60px_65px_80px] items-center border-t ${
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
@@ -820,6 +827,9 @@ export const PerformanceMetrics = () => {
                 <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   {sumField(teleopShots, 'ballsMade')}
                 </div>
+                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {calcAccuracy(sumField(teleopShots, 'ballsMade'), sumField(teleopShots, 'ballsShot'))}
+                </div>
                 <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                   {teleopScore}
                 </div>
@@ -828,7 +838,7 @@ export const PerformanceMetrics = () => {
 
             {/* End Game row */}
             <div
-              className={`grid grid-cols-[1fr_70px_70px_80px] items-center border-t ${
+              className={`grid grid-cols-[1fr_60px_60px_65px_80px] items-center border-t ${
                 isDarkMode ? 'border-white/5' : 'border-gray-100'
               }`}
             >
@@ -841,6 +851,7 @@ export const PerformanceMetrics = () => {
                   : '—'}
               </div>
               <div className="px-2 py-3 text-center text-sm" />
+              <div className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>—</div>
               <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                 {endGameScore}
               </div>
@@ -848,7 +859,7 @@ export const PerformanceMetrics = () => {
 
             {/* Total footer */}
             <div
-              className={`grid grid-cols-[1fr_70px_70px_80px] items-center border-t-2 ${
+              className={`grid grid-cols-[1fr_60px_60px_65px_80px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
@@ -862,6 +873,12 @@ export const PerformanceMetrics = () => {
               </div>
               <div className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 {sumField(autonShots, 'ballsMade') + sumField(teleopShots, 'ballsMade')}
+              </div>
+              <div className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                {calcAccuracy(
+                  sumField(autonShots, 'ballsMade') + sumField(teleopShots, 'ballsMade'),
+                  sumField(autonShots, 'ballsShot') + sumField(teleopShots, 'ballsShot'),
+                )}
               </div>
               <div className="px-2 py-3 text-center text-sm font-extrabold text-team-blue">
                 {finalScore}
