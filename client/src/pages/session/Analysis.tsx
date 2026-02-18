@@ -337,13 +337,6 @@ const SummaryTab = ({
     'Teleop Missed': m.teleBallsMissed || 0,
   }));
 
-  const compositionData = matches.map((m, i) => ({
-    name: `M${i + 1}`,
-    Autonomous: m.autonomousScore || 0,
-    Teleop: m.teleopScore || 0,
-    'Endgame': m.endGameScore || 0,
-  }));
-
   const accuracyData = matches.map((m, i) => {
     const autonMade = (m.autonShots || []).reduce((s, e) => s + e.ballsMade, 0);
     const autonShot = (m.autonShots || []).reduce((s, e) => s + e.ballsShot, 0);
@@ -360,6 +353,21 @@ const SummaryTab = ({
   });
 
   const hasAnyAccuracyData = accuracyData.some((d) => d.Overall !== null);
+
+  // Build cycle time data - flatten all cycle times from all matches with sequential numbering
+  const cycleTimeData: Array<{ name: string; time: number }> = [];
+  let shotCounter = 1;
+  matches.forEach((m) => {
+    if (m.cycleTimes && m.cycleTimes.length > 0) {
+      m.cycleTimes.forEach((ct) => {
+        cycleTimeData.push({
+          name: `Shot ${shotCounter}`,
+          time: ct,
+        });
+        shotCounter++;
+      });
+    }
+  });
 
   const totalAvg = stats.avgAuto + stats.avgTele + stats.avgEndgame;
 
@@ -404,9 +412,9 @@ const SummaryTab = ({
         </div>
       </Section>
 
-      {/* Score Trend */}
+      {/* Scoring Consistency */}
       {matches.length >= 2 && (
-        <Section title="Score Trend" isDarkMode={isDarkMode}>
+        <Section title="Scoring Consistency" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={trendData}>
               <CartesianGrid
@@ -448,52 +456,6 @@ const SummaryTab = ({
                 strokeDasharray="5 5"
               />
             </LineChart>
-          </ResponsiveContainer>
-        </Section>
-      )}
-
-      {/* Score Composition */}
-      {matches.length >= 2 && (
-        <Section title="Score Composition by Match" isDarkMode={isDarkMode}>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={compositionData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-              />
-              <XAxis
-                dataKey="name"
-                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis
-                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                tick={{ fontSize: 12 }}
-              />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
-              <Legend wrapperStyle={{ fontSize: '13px' }} />
-              <Bar
-                dataKey="Autonomous"
-                stackId="a"
-                fill={CHART_COLORS.auto}
-                radius={[0, 0, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
-              />
-              <Bar
-                dataKey="Teleop"
-                stackId="a"
-                fill={CHART_COLORS.tele}
-                radius={[0, 0, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
-              />
-              <Bar
-                dataKey="Endgame"
-                stackId="a"
-                fill={CHART_COLORS.endgame}
-                radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
-              />
-            </BarChart>
           </ResponsiveContainer>
         </Section>
       )}
@@ -592,6 +554,45 @@ const SummaryTab = ({
                 strokeWidth={2}
                 dot={{ fill: CHART_COLORS.tele, r: 3 }}
                 strokeDasharray="5 5"
+                connectNulls={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Section>
+      )}
+
+      {/* Cycle Times */}
+      {cycleTimeData.length > 0 && (
+        <Section title="Cycle Times" isDarkMode={isDarkMode}>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={cycleTimeData}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+              />
+              <XAxis
+                dataKey="name"
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                tick={{ fontSize: 12 }}
+                interval={Math.max(0, Math.floor(cycleTimeData.length / 8) - 1)}
+              />
+              <YAxis
+                stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                tick={{ fontSize: 12 }}
+                tickFormatter={(v) => `${v.toFixed(1)}s`}
+              />
+              <Tooltip
+                content={<ChartTooltip isDarkMode={isDarkMode} unit="s" />}
+                formatter={(value: number) => value.toFixed(2)}
+              />
+              <Legend wrapperStyle={{ fontSize: '13px' }} />
+              <Line
+                type="monotone"
+                dataKey="time"
+                name="Cycle Time"
+                stroke={CHART_COLORS.purple}
+                strokeWidth={2}
+                dot={{ fill: CHART_COLORS.purple, r: 4 }}
                 connectNulls={false}
               />
             </LineChart>
