@@ -11,6 +11,8 @@ import { APP_CONFIG } from '@/constants';
 
 const ActiveSessionContent = () => {
   const [showSessionSetup, setShowSessionSetup] = useState(true);
+  const [isSessionSetupSaved, setIsSessionSetupSaved] = useState(false);
+  const [shouldFlashSetup, setShouldFlashSetup] = useState(false);
 
   useEffect(() => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
@@ -69,7 +71,11 @@ const ActiveSessionContent = () => {
           </div>
 
           {/* Live Preview (controls, buttons, scores) */}
-          <LivePreview onOpenSessionSetup={() => setShowSessionSetup(!showSessionSetup)} />
+          <LivePreview 
+            onOpenSessionSetup={() => setShowSessionSetup(!showSessionSetup)}
+            onTryStartWithoutSetup={() => { setShouldFlashSetup(true); setShowSessionSetup(true); }}
+            isSessionSetupSaved={isSessionSetupSaved}
+          />
 
           {/* Separator Line */}
           <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
@@ -77,12 +83,15 @@ const ActiveSessionContent = () => {
           {/* Session Setup - Toggle visibility with settings icon */}
           {showSessionSetup && (
             <>
-              <h2 className={`text-lg sm:text-xl font-bold flex items-center gap-2 text-team-blue`}>
-                Session Settings
-                <span className="text-xs font-semibold text-red-500">Fill out before starting match</span>
-              </h2>
-              
-              <SessionSetup onSave={() => setShowSessionSetup(false)} />
+              <SessionSetup 
+                onSave={() => {
+                  setShowSessionSetup(false);
+                  setIsSessionSetupSaved(true);
+                  setShouldFlashSetup(false);
+                }}
+                shouldFlash={shouldFlashSetup}
+                isUnsaved={!isSessionSetupSaved}
+              />
 
               {/* Separator Line */}
               <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />

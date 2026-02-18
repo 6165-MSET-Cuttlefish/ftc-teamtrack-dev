@@ -626,7 +626,7 @@ export const PerformanceMetrics = () => {
         return;
       if (!hasStarted) return;
 
-      if (['1', '2', '3'].includes(event.key)) {
+      if (['0', '1', '2', '3'].includes(event.key)) {
         if (!showPopup) {
           setPopupNumber(event.key);
           setMadeCount(null);

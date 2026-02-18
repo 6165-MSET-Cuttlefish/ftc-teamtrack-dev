@@ -9,9 +9,11 @@ import type { Match } from '@/types';
 
 interface LivePreviewProps {
   onOpenSessionSetup?: () => void;
+  onTryStartWithoutSetup?: () => void;
+  isSessionSetupSaved?: boolean;
 }
 
-export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
+export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSessionSetupSaved = false }: LivePreviewProps) => {
   const {
     sessionData,
     completeSession,
@@ -407,7 +409,15 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
           {/* Save Match / Start Match Button */}
           {!showTeleopTransition && !editingMatchId && (
             <button
-              onClick={!matchActive ? () => { setHasStarted(true); setMatchActive(true); setIsTimerRunning(true); } : handleSaveMatch}
+              onClick={!matchActive ? () => { 
+                if (!isSessionSetupSaved) {
+                  onTryStartWithoutSetup?.();
+                  return;
+                }
+                setHasStarted(true); 
+                setMatchActive(true); 
+                setIsTimerRunning(true); 
+              } : handleSaveMatch}
               disabled={!matchActive && !sessionData.sessionName?.trim()}
               title={!matchActive && !sessionData.sessionName?.trim() ? 'Complete session setup (Session Name) before starting' : ''}
               className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
