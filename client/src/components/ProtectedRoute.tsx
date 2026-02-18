@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isGuest } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -19,7 +19,8 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user) {
+  // Allow both authenticated users and guests
+  if (!user && !isGuest) {
     // Redirect to login page with return url
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
   }

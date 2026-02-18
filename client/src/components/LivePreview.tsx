@@ -426,13 +426,13 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
             <>
               <button
                 onClick={handleContinueToTeleop}
-                className="flex-1 px-6 py-4 rounded-2xl bg-team-blue hover:bg-team-blue/90 text-white text-lg font-bold transition-colors"
+                className={`flex-1 px-6 py-4 rounded-2xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-lg font-bold transition-colors`}
               >
                 Continue into Teleop
               </button>
               <button
                 onClick={handleSkipTeleop}
-                className={`flex-1 px-6 py-4 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-white'}`}
+                className={`flex-1 px-6 py-4 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-black'}`}
               >
                 Skip / End Autonomous Only
               </button>

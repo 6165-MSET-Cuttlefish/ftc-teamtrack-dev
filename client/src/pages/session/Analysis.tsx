@@ -620,7 +620,7 @@ const MatchDetailTab = ({
                 i === selectedIdx
                   ? isDarkMode
                     ? 'bg-team-blue text-black shadow-md'
-                    : 'bg-team-blue text-white shadow-md'
+                    : 'bg-team-blue text-black shadow-md'
                   : isDarkMode
                     ? 'bg-team-dark text-team-white-60 hover:bg-team-blue/20'
                     : 'bg-gray-100 text-gray-600 hover:bg-team-blue/10'
@@ -1769,7 +1769,7 @@ const AnalysisContent = () => {
             className={`w-full sm:w-56 px-5 py-2.5 rounded-xl border border-team-blue text-team-blue text-sm font-medium text-center transition-colors ${
               isDarkMode
                 ? 'hover:bg-team-blue hover:text-black'
-                : 'hover:bg-team-blue hover:text-white'
+                : 'hover:bg-team-blue hover:text-black'
             }`}
           >
             Back to Sessions

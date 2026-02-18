@@ -106,7 +106,7 @@ export const SessionSetup = ({ onSave }: SessionSetupProps) => {
           className={`px-8 py-3 rounded-xl font-semibold transition-colors duration-200 ${
             isDarkMode
               ? 'bg-team-blue hover:bg-team-blue/90 text-black'
-              : 'bg-team-blue hover:bg-team-blue/90 text-white'
+              : 'bg-team-blue hover:bg-team-blue/90 text-black'
           }`}
         >
           Save

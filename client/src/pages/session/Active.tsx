@@ -34,11 +34,21 @@ const ActiveSessionContent = () => {
     >
       {/* Single Column Content - All Scrollable */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10">
-        <div className="space-y-6">
-          {/* Session Title - Always visible */}
-          <h1 className="text-center text-2xl sm:text-4xl md:text-5xl lg:text-6xl text-team-blue font-semibold">
-            {sessionData.sessionName || 'Active Practice Session'}
-          </h1>
+        <div className="space-y-4 sm:space-y-6">
+          {/* Start Match Button - Before timer section */}
+          {!hasStarted && (
+            <div className="flex flex-col items-center gap-4">
+              <h1 className="text-center text-2xl sm:text-4xl md:text-5xl lg:text-6xl text-team-blue font-semibold">
+                {sessionData.sessionName || 'Active Practice Session'}
+              </h1>
+              <button
+                onClick={() => setHasStarted(true)}
+                className={`px-8 py-4 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-lg font-bold rounded-2xl transition-colors`}
+              >
+                Start Match
+              </button>
+            </div>
+          )}
 
           {/* Timer Section at Top - Scrolls with Page */}
           {hasStarted && (

@@ -50,6 +50,8 @@ let firebaseAuth: Auth | null = null; // the auth instance if available
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isGuest: boolean;
+  guestId: string | null;
   signup: (
     email: string,
     password: string,
@@ -59,6 +61,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  continueAsGuest: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,11 +74,16 @@ export const useAuth = () => {
   return context;
 };
 
+const GUEST_ID_KEY = 'teamtrack-guest-id';
+const GUEST_MODE_KEY = 'teamtrack-guest-mode';
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
+  const [guestId, setGuestId] = useState<string | null>(null);
 
   // Helper to lazy-initialize Firebase auth and auth module
   const ensureAuth = async () => {
@@ -139,6 +147,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const logout = async () => {
     const { authInstance, authModule } = await ensureAuth();
+    
+    // Handle guest logout
+    if (isGuest) {
+      localStorage.removeItem(GUEST_MODE_KEY);
+      setIsGuest(false);
+      setGuestId(null);
+      setUser(null);
+      return;
+    }
+    
     if (!authInstance || !authModule || !authModule.signOut) return;
     await authModule.signOut(authInstance);
   };
@@ -172,10 +190,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     await authModule.signInWithPopup(authInstance, provider);
   };
 
+  const continueAsGuest = () => {
+    // Generate a unique guest ID if not already set
+    let guestUserId = localStorage.getItem(GUEST_ID_KEY);
+    
+    if (!guestUserId) {
+      guestUserId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem(GUEST_ID_KEY, guestUserId);
+    }
+    
+    localStorage.setItem(GUEST_MODE_KEY, 'true');
+    setIsGuest(true);
+    setGuestId(guestUserId);
+    setLoading(false);
+  };
+
   useEffect(() => {
     let unsubscribe: () => void = () => {};
 
     (async () => {
+      // Check for guest mode in localStorage
+      const guestMode = localStorage.getItem(GUEST_MODE_KEY);
+      const storedGuestId = localStorage.getItem(GUEST_ID_KEY);
+      
+      if (guestMode === 'true' && storedGuestId) {
+        setIsGuest(true);
+        setGuestId(storedGuestId);
+      }
+
+      // Always set up Firebase auth listener (even for guests)
+      // This ensures that if a guest signs in, the auth state updates properly
       const { authInstance, authModule } = await ensureAuth();
       if (authInstance && authModule && authModule.onAuthStateChanged) {
         unsubscribe = authModule.onAuthStateChanged(
@@ -189,6 +233,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 photoURL: u.photoURL,
               };
               setUser(user);
+              // Clear guest mode if user logs in
+              localStorage.removeItem(GUEST_MODE_KEY);
+              setIsGuest(false);
+              setGuestId(null);
             } else {
               setUser(null);
             }
@@ -209,11 +257,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const value: AuthContextType = {
     user,
     loading,
+    isGuest,
+    guestId,
     signup,
     login,
     logout,
     resetPassword,
     loginWithGoogle,
+    continueAsGuest,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

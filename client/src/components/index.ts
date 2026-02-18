@@ -7,3 +7,6 @@ export { PerformanceMetrics } from './PerformanceMetrics';
 export { ProtectedRoute } from './ProtectedRoute';
 export { SessionSetup } from './SessionSetup';
 export { ScoringUI } from './ScoringUI';
+export { GuestPrompt } from './GuestPrompt';
+export { ShareButton } from './ShareButton';
+export { HomeRedirect } from './HomeRedirect';

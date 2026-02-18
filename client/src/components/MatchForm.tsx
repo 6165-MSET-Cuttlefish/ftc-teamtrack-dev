@@ -356,7 +356,7 @@ export const MatchForm = ({
                         formData.autonLeave === value
                           ? isDarkMode
                             ? 'bg-team-blue border-team-blue text-black'
-                            : 'bg-team-blue border-team-blue text-white'
+                            : 'bg-team-blue border-team-blue text-black'
                           : isDarkMode
                             ? 'bg-team-dark border-team-blue-40 text-white hover:bg-team-blue/20'
                             : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'

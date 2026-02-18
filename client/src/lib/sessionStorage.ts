@@ -171,10 +171,28 @@ export const clearSessionFromStorage = (): void => {
 
 /**
  * Check if there's an active session in storage
+ * A session is only considered "active" if it has been started or has meaningful data
  */
 export const hasActiveSession = (): boolean => {
   try {
-    return localStorage.getItem(SESSION_DATA) !== null;
+    const sessionDataStr = localStorage.getItem(SESSION_DATA);
+    if (!sessionDataStr) return false;
+
+    const sessionData = JSON.parse(sessionDataStr);
+    
+    // Check if the session has actually been started or has meaningful content
+    // A session is active if:
+    // 1. It has a session name (user has configured it)
+    // 2. It has matches recorded
+    // 3. It has any scoring data (not all zeros)
+    const hasName = sessionData.sessionName && sessionData.sessionName.trim() !== '';
+    const hasMatches = sessionData.matches && sessionData.matches.length > 0;
+    const hasScoring = 
+      (sessionData.finalScore && sessionData.finalScore > 0) ||
+      (sessionData.autonomousScore && sessionData.autonomousScore > 0) ||
+      (sessionData.teleopScore && sessionData.teleopScore > 0);
+    
+    return hasName || hasMatches || hasScoring;
   } catch (error) {
     console.error('Failed to check for active session:', error);
     return false;

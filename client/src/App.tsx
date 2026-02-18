@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, ThemeProvider, SessionProvider } from '@/contexts';
-import { ErrorBoundary, Header, ProtectedRoute } from '@/components';
+import { ErrorBoundary, Header, ProtectedRoute, GuestPrompt, HomeRedirect } from '@/components';
 import { ROUTES } from '@/constants';
 
 const Active = lazy(() => import('./pages/session/Active'));
@@ -16,6 +16,7 @@ const Profile = lazy(() => import('./pages/dashboard/Profile'));
 const Sessions = lazy(() => import('./pages/session/Sessions'));
 const Compare = lazy(() => import('./pages/session/Compare'));
 const Charts = lazy(() => import('./pages/session/Charts'));
+const SharedSession = lazy(() => import('./pages/session/SharedSession'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
@@ -45,10 +46,20 @@ const App = () => (
                         element={<ForgotPassword />}
                       />
 
+                      {/* Public Shared Session Route */}
+                      <Route
+                        path={ROUTES.SHARED_SESSION}
+                        element={<SharedSession />}
+                      />
+
                       {/* Protected Routes */}
                       <Route
                         path={ROUTES.HOME}
-                        element={<Navigate to={ROUTES.SESSIONS} replace />}
+                        element={
+                          <ProtectedRoute>
+                            <HomeRedirect />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.ACTIVE}
@@ -113,6 +124,7 @@ const App = () => (
                   </Suspense>
                 </main>
               </div>
+              <GuestPrompt />
               <Sonner />
             </BrowserRouter>
           </SessionProvider>

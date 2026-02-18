@@ -987,7 +987,7 @@ export const PerformanceMetrics = () => {
                             return (
                               <div
                                 key={index}
-                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue-40 text-white'}`}
+                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue-40 text-black'}`}
                               >
                                 {index + 1}. {minutes}:
                                 {seconds.toString().padStart(2, '0')}
@@ -1056,7 +1056,7 @@ export const PerformanceMetrics = () => {
                           robot1Park === val
                             ? isDarkMode
                               ? 'bg-team-blue text-black'
-                              : 'bg-team-blue text-white'
+                              : 'bg-team-blue text-black'
                             : isDarkMode
                               ? 'bg-team-dark text-white hover:bg-team-dark-20'
                               : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
@@ -1094,7 +1094,7 @@ export const PerformanceMetrics = () => {
                           robot2Park === val
                             ? isDarkMode
                               ? 'bg-team-blue text-black'
-                              : 'bg-team-blue text-white'
+                              : 'bg-team-blue text-black'
                             : isDarkMode
                               ? 'bg-team-dark text-white hover:bg-team-dark-20'
                               : 'bg-[#FEFEFE] text-black hover:bg-gray-100'

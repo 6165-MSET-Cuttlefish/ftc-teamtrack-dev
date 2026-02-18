@@ -1,0 +1,124 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth, useTheme } from '@/contexts';
+import { Button } from './ui/button';
+import { X, UserPlus } from 'lucide-react';
+import { ROUTES } from '@/constants';
+
+const PROMPT_DISMISSED_KEY = 'teamtrack-guest-prompt-dismissed';
+const PROMPT_LAST_SHOWN_KEY = 'teamtrack-guest-prompt-last-shown';
+const PROMPT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Show once per day
+
+export const GuestPrompt = () => {
+  const { isGuest } = useAuth();
+  const { isDarkMode } = useTheme();
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (!isGuest) {
+      setIsVisible(false);
+      return;
+    }
+
+    // Check if prompt was permanently dismissed
+    const dismissed = localStorage.getItem(PROMPT_DISMISSED_KEY);
+    if (dismissed === 'true') {
+      return;
+    }
+
+    // Check when prompt was last shown
+    const lastShown = localStorage.getItem(PROMPT_LAST_SHOWN_KEY);
+    const now = Date.now();
+
+    if (!lastShown || now - parseInt(lastShown) > PROMPT_INTERVAL_MS) {
+      setIsVisible(true);
+      localStorage.setItem(PROMPT_LAST_SHOWN_KEY, now.toString());
+    }
+  }, [isGuest]);
+
+  const handleDismiss = () => {
+    setIsVisible(false);
+    localStorage.setItem(PROMPT_LAST_SHOWN_KEY, Date.now().toString());
+  };
+
+  const handlePermanentDismiss = () => {
+    setIsVisible(false);
+    localStorage.setItem(PROMPT_DISMISSED_KEY, 'true');
+  };
+
+  if (!isVisible || !isGuest) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`fixed bottom-4 right-4 max-w-md rounded-lg shadow-2xl border-2 p-4 z-50 animate-slide-up ${
+        isDarkMode
+          ? 'bg-gradient-to-br from-team-dark via-team-dark-20 to-team-dark border-team-blue-40'
+          : 'bg-gradient-to-br from-white to-blue-50 border-blue-200'
+      }`}
+    >
+      <button
+        onClick={handleDismiss}
+        className={`absolute top-2 right-2 p-1 rounded hover:bg-opacity-20 ${
+          isDarkMode ? 'hover:bg-white' : 'hover:bg-gray-900'
+        }`}
+        aria-label="Dismiss"
+      >
+        <X
+          className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+        />
+      </button>
+
+      <div className="flex items-start gap-3 mb-3">
+        <div
+          className={`p-2 rounded-lg ${
+            isDarkMode ? 'bg-team-blue-20' : 'bg-blue-100'
+          }`}
+        >
+          <UserPlus className="h-5 w-5 text-team-blue" />
+        </div>
+        <div>
+          <h3
+            className={`font-semibold text-base mb-1 ${
+              isDarkMode ? 'text-team-white' : 'text-gray-900'
+            }`}
+          >
+            Save Your Progress!
+          </h3>
+          <p
+            className={`text-sm ${
+              isDarkMode ? 'text-team-white-60' : 'text-gray-600'
+            }`}
+          >
+            Create an account to sync your sessions across devices and never
+            lose your data.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-2 ml-11">
+        <Link to={ROUTES.SIGNUP} className="flex-1">
+          <Button
+            className={`w-full bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+            size="sm"
+          >
+            Sign Up
+          </Button>
+        </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handlePermanentDismiss}
+          className={
+            isDarkMode
+              ? 'text-team-white-60 hover:text-team-white'
+              : 'text-gray-600 hover:text-gray-900'
+          }
+        >
+          Don't ask again
+        </Button>
+      </div>
+    </div>
+  );
+};

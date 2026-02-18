@@ -381,7 +381,7 @@ const NavigationMenu = () => {
               className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
                 isDarkMode
                   ? 'hover:bg-team-blue/80 text-black'
-                  : 'hover:bg-team-blue/90 text-white'
+                  : 'hover:bg-team-blue/90 text-black'
               }`}
             >
               Got it!
@@ -513,7 +513,7 @@ const NavigationMenu = () => {
               className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
                 isDarkMode
                   ? 'hover:bg-team-blue/80 text-black'
-                  : 'hover:bg-team-blue/90 text-white'
+                  : 'hover:bg-team-blue/90 text-black'
               }`}
             >
               Got it!

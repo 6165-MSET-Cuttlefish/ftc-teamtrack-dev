@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate, isAbortError } from '@/lib/utils';
+import { generateShareableLink, copyToClipboard } from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ import {
   Download,
   TrendingUp,
   Hash,
+  Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,6 +47,7 @@ interface SessionCardProps {
   onView: () => void;
   onNameChange: (newName: string) => void;
   onDelete: () => void;
+  onShare: () => void;
   isDeleting?: boolean;
 }
 
@@ -53,6 +56,7 @@ const SessionCard = ({
   onView,
   onNameChange,
   onDelete,
+  onShare,
   isDeleting = false,
 }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
@@ -191,6 +195,18 @@ const SessionCard = ({
                   <div className="h-4 w-4 border-2 border-team-blue border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onShare();
+                      }}
+                      className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                      } hover:text-team-blue`}
+                      title="Share session"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </button>
                     <button
                       onClick={handleEditClick}
                       className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
@@ -381,7 +397,7 @@ const LoadingCard = () => {
 };
 
 const Sessions = () => {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
   const { resetSession, hasActiveSession } = useSession();
   const navigate = useNavigate();
@@ -398,6 +414,12 @@ const Sessions = () => {
 
   useEffect(() => {
     const loadSessions = async () => {
+      // Guests don't have sessions stored in Firebase
+      if (isGuest) {
+        setLoading(false);
+        return;
+      }
+
       if (!user?.uid) return;
 
       setLoading(true);
@@ -416,7 +438,7 @@ const Sessions = () => {
     };
 
     loadSessions();
-  }, [user?.uid]);
+  }, [user?.uid, isGuest]);
 
   useEffect(() => {
     let filtered = sessions;
@@ -504,6 +526,18 @@ const Sessions = () => {
       toast.error('Failed to delete session');
     } finally {
       setDeletingSessionId(null);
+    }
+  };
+
+  const handleShareSession = async (session: Session) => {
+    try {
+      const shareLink = generateShareableLink(session);
+      await copyToClipboard(shareLink);
+      toast.success('Share link copied to clipboard!');
+    } catch (error) {
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error sharing session', error);
+      toast.error('Failed to generate share link');
     }
   };
 
@@ -817,9 +851,11 @@ const Sessions = () => {
             >
               {searchTerm
                 ? 'Try adjusting your search terms'
-                : 'Start tracking your practice sessions to see them here'}
+                : isGuest
+                  ? 'Create an account to save your practice sessions'
+                  : 'Start tracking your practice sessions to see them here'}
             </p>
-            {!searchTerm && (
+            {!searchTerm && !isGuest && (
               <Button
                 onClick={() => {
                   resetSession();
@@ -836,6 +872,29 @@ const Sessions = () => {
                 Create Your First Session
               </Button>
             )}
+            {!searchTerm && isGuest && (
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <Button
+                  onClick={() => navigate('/signup')}
+                  className={`bg-team-blue hover:bg-team-blue/90 ${
+                    isDarkMode ? 'text-black' : 'text-white'
+                  }`}
+                >
+                  Sign Up to Save Sessions
+                </Button>
+                <Button
+                  onClick={() => navigate('/active')}
+                  variant="outline"
+                  className={
+                    isDarkMode
+                      ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
+                      : 'border-gray-300'
+                  }
+                >
+                  Start Practice Session
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -847,6 +906,7 @@ const Sessions = () => {
                 onNameChange={newName =>
                   handleUpdateSessionName(session.id, newName)
                 }
+                onShare={() => handleShareSession(session)}
                 onDelete={() => handleDeleteSession(session.id)}
                 isDeleting={deletingSessionId === session.id}
               />

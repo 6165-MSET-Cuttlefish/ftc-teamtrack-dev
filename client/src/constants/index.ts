@@ -18,6 +18,7 @@ export const ROUTES = {
   CHARTS: '/charts',
   PROFILE: '/profile',
   EDIT_SESSION: '/edit-session',
+  SHARED_SESSION: '/shared/preview',
 } as const;
 
 /**
