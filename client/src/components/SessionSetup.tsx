@@ -56,22 +56,27 @@ export const SessionSetup = ({ onSave, shouldFlash = false, isUnsaved = false }:
           0%, 100% { background-color: rgb(239,68,68); transform: scale(1); }
           50% { background-color: rgb(185,28,28); transform: scale(1.04); }
         }
-        .red-glow-border {
-          animation: redGlow 1.4s ease-in-out infinite;
+        .session-setup-unsaved {
+          border: 2px solid rgb(239,68,68) !important;
+          background-color: rgba(239,68,68,0.06) !important;
+          animation: redGlow 1.4s ease-in-out infinite !important;
         }
-        .save-pulse {
-          animation: savePulse 0.7s ease-in-out infinite;
+        .session-setup-saved {
+          border: 2px solid rgba(59,130,246,0.4) !important;
+          background-color: transparent !important;
+        }
+        .save-btn-red {
           background-color: rgb(239,68,68) !important;
+          color: white !important;
+          animation: savePulse 0.7s ease-in-out infinite !important;
+        }
+        .save-btn-blue {
+          background-color: rgb(66, 133, 244) !important;
           color: white !important;
         }
       `}</style>
       <div
-        className={`rounded-2xl p-6 space-y-6 ${isUnsaved ? 'red-glow-border' : ''}`}
-        style={{
-          border: `2px solid ${isUnsaved ? 'rgb(239,68,68)' : 'rgba(59,130,246,0.4)'}`,
-          backgroundColor: isUnsaved ? 'rgba(239,68,68,0.06)' : 'transparent',
-          transition: 'background-color 0.3s, border-color 0.3s',
-        }}
+        className={`rounded-2xl p-6 space-y-6 transition-all duration-300 ${isUnsaved ? 'session-setup-unsaved' : 'session-setup-saved'}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -96,7 +101,7 @@ export const SessionSetup = ({ onSave, shouldFlash = false, isUnsaved = false }:
             value={sessionData.sessionName}
             onChange={(e) => setSessionName(e.target.value)}
             placeholder="Sunday Afternoon"
-            className={`h-14 px-4 text-lg rounded-xl border-2 transition-all duration-200 focus:ring-2 focus:ring-team-blue/20 ${
+            className={`h-14 px-4 rounded-xl border-2 transition-all duration-200 focus:ring-2 focus:ring-team-blue/20 ${
               isUnsaved && !hasName
                 ? 'border-red-400'
                 : 'border-team-blue-40'
@@ -166,13 +171,7 @@ export const SessionSetup = ({ onSave, shouldFlash = false, isUnsaved = false }:
           <Button
             onClick={handleSave}
             disabled={!hasName}
-            className={`px-8 py-3 rounded-xl font-semibold transition-none disabled:cursor-not-allowed ${
-              isUnsaved
-                ? 'save-pulse disabled:save-pulse'
-                : isDarkMode
-                  ? 'bg-team-blue hover:bg-team-blue/90 text-black'
-                  : 'bg-team-blue hover:bg-team-blue/90 text-black'
-            }`}
+            className={`px-8 py-3 rounded-xl font-semibold transition-none disabled:opacity-50 disabled:cursor-not-allowed ${isUnsaved ? 'save-btn-red' : 'save-btn-blue'}`}
           >
             {!hasName && isUnsaved ? 'Enter a name to save' : 'Save'}
           </Button>
