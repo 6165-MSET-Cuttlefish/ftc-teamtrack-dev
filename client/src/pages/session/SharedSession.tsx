@@ -441,7 +441,7 @@ const SummaryTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
+              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="Autonomous"
@@ -490,7 +490,7 @@ const SummaryTab = ({
                 tick={{ fontSize: 12 }}
                 allowDecimals={false}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
+              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="Auto Missed"
@@ -934,7 +934,7 @@ const MatchDetailTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
+              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="This Match"
@@ -1194,7 +1194,7 @@ const CompareTab = ({
               stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
               tick={{ fontSize: 12 }}
             />
-            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
+            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
             <Legend wrapperStyle={{ fontSize: '13px' }} />
             <Bar
               dataKey="Autonomous"

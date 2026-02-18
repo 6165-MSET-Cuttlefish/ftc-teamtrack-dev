@@ -36,6 +36,7 @@ type FirebaseAuthModule = {
     user: FirebaseUser,
     profile: { displayName?: string; photoURL?: string }
   ) => Promise<void>;
+  updateEmail?: (user: FirebaseUser, email: string) => Promise<void>;
   sendPasswordResetEmail?: (auth: Auth, email: string) => Promise<void>;
   GoogleAuthProvider?: new () => FirebaseGoogleAuthProvider;
   signInWithPopup?: (
@@ -62,6 +63,8 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   continueAsGuest: () => void;
+  updateDisplayName: (displayName: string) => Promise<void>;
+  updateUserEmail: (newEmail: string, currentPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -175,6 +178,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     await authModule.sendPasswordResetEmail(authInstance, email);
   };
 
+  const updateDisplayName = async (displayName: string) => {
+    const { authInstance, authModule } = await ensureAuth();
+    if (!authInstance || !authModule?.updateProfile) {
+      throw new Error('Update service unavailable.');
+    }
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) throw new Error('No authenticated user.');
+    await authModule.updateProfile(currentUser, { displayName });
+    setUser((prev) => prev ? { ...prev, displayName } : prev);
+  };
+
+  const updateUserEmail = async (newEmail: string, currentPassword: string) => {
+    const { authInstance } = await ensureAuth();
+    if (!authInstance) throw new Error('Authentication service unavailable.');
+    const currentUser = authInstance.currentUser;
+    if (!currentUser || !currentUser.email) throw new Error('No authenticated user.');
+    const rawModule = await import('firebase/auth');
+    const credential = rawModule.EmailAuthProvider.credential(currentUser.email, currentPassword);
+    await rawModule.reauthenticateWithCredential(currentUser, credential);
+    await rawModule.updateEmail(currentUser, newEmail);
+    setUser((prev) => prev ? { ...prev, email: newEmail } : prev);
+  };
+
   const loginWithGoogle = async () => {
     const { authInstance, authModule } = await ensureAuth();
     
@@ -265,6 +291,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     resetPassword,
     loginWithGoogle,
     continueAsGuest,
+    updateDisplayName,
+    updateUserEmail,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

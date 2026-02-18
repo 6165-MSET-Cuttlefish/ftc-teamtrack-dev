@@ -54,6 +54,9 @@ interface SessionContextType {
   startEditingMatch: (match: Match) => void;
   returnToCurrentMatch: () => void;
   saveEditedMatch: () => void;
+  /** Whether the current match has been explicitly started (resets between matches) */
+  matchActive: boolean;
+  setMatchActive: (active: boolean) => void;
 }
 
 const createInitialSessionData = (
@@ -156,6 +159,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [currentMatchData, setCurrentMatchData] =
     useState<Partial<SessionFormData> | null>(null);
+
+  // Whether the current match has been explicitly started
+  const [matchActive, setMatchActive] = useState<boolean>(false);
 
   // Match timer effect — counts DOWN during 'auton' and 'teleop' phases
   useEffect(() => {
@@ -436,6 +442,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setSessionTimer(0);
     setIsTimerRunning(false);
     setHasStarted(false);
+    setMatchActive(false);
     setHasTransitionedToTeleop(false);
     setShowTeleopTransition(false);
     // Clear from storage immediately to prevent race conditions with persistence effect
@@ -473,6 +480,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     startEditingMatch,
     returnToCurrentMatch,
     saveEditedMatch,
+    matchActive,
+    setMatchActive,
   };
 
   return (

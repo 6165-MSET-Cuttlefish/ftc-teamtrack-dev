@@ -12,10 +12,6 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Trophy,
-  Target,
-  Timer,
-  AlertTriangle,
   BarChart3,
   ArrowRightLeft,
   LayoutList,
@@ -452,7 +448,7 @@ const SummaryTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
+              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="Autonomous"
@@ -501,7 +497,7 @@ const SummaryTab = ({
                 tick={{ fontSize: 12 }}
                 allowDecimals={false}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
+              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="Auto Missed"
@@ -989,7 +985,7 @@ const MatchDetailTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
+              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="This Match"
@@ -1249,7 +1245,7 @@ const CompareTab = ({
               stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
               tick={{ fontSize: 12 }}
             />
-            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
+            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
             <Legend wrapperStyle={{ fontSize: '13px' }} />
             <Bar
               dataKey="Autonomous"
@@ -1623,38 +1619,23 @@ const AnalysisContent = () => {
 
         {/* ── Hero stats ──────────────────────────────────────────── */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
             <StatCard
               label="Avg Score"
               value={stats.avgScore}
               sublabel={`${stats.totalMatches} matches`}
-              icon={Trophy}
               isDarkMode={isDarkMode}
             />
             <StatCard
               label="Best"
               value={stats.maxScore}
               sublabel={`Match ${sessionMatches[stats.bestMatch]?.matchNumber ?? ''}`}
-              icon={Target}
               isDarkMode={isDarkMode}
             />
             <StatCard
               label="Worst"
               value={stats.minScore}
               sublabel={`Match ${sessionMatches[stats.worstMatch]?.matchNumber ?? ''}`}
-              icon={TrendingDown}
-              isDarkMode={isDarkMode}
-            />
-            <StatCard
-              label="Avg Missed"
-              value={stats.avgMissed}
-              icon={AlertTriangle}
-              isDarkMode={isDarkMode}
-            />
-            <StatCard
-              label="Consistency"
-              value={`${stats.consistency}%`}
-              icon={Timer}
               isDarkMode={isDarkMode}
             />
           </div>

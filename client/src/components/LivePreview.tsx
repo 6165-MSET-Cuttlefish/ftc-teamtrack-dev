@@ -37,6 +37,8 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
     returnToCurrentMatch,
     saveEditedMatch,
     startEditingMatch,
+    matchActive,
+    setMatchActive,
   } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -47,8 +49,6 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
   const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
-  // Tracks whether the current match has been explicitly started (resets between matches)
-  const [matchActive, setMatchActive] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork =
@@ -410,7 +410,7 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
               onClick={!matchActive ? () => { setHasStarted(true); setMatchActive(true); setIsTimerRunning(true); } : handleSaveMatch}
               disabled={!matchActive && !sessionData.sessionName?.trim()}
               title={!matchActive && !sessionData.sessionName?.trim() ? 'Complete session setup (Session Name) before starting' : ''}
-              className={`flex-1 px-6 py-4 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                 !matchActive 
                   ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
                   : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
@@ -426,13 +426,13 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
             <>
               <button
                 onClick={handleContinueToTeleop}
-                className={`flex-1 px-6 py-4 rounded-2xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-lg font-bold transition-colors`}
+                className={`flex-1 px-6 py-4 h-16 rounded-2xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-lg font-bold transition-colors flex items-center justify-center`}
               >
                 Continue into Teleop
               </button>
               <button
                 onClick={handleSkipTeleop}
-                className={`flex-1 px-6 py-4 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-black'}`}
+                className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-black'}`}
               >
                 Skip / End Autonomous Only
               </button>
@@ -447,92 +447,89 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
                   saveEditedMatch();
                   toast.success('Match changes saved!');
                 }}
-                className="px-4 py-4 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors"
+                className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
               >
                 Save Changes
               </button>
               <button
                 onClick={returnToCurrentMatch}
-                className="px-4 py-4 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors"
+                className="px-4 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
               >
                 Return to Current Match
               </button>
             </>
           )}
 
-          {/* Icon Buttons on the Right */}
-          <div className="flex items-center gap-3">
-            {/* Settings/Gear Icon - Opens Session Setup */}
-            <button
-              onClick={onOpenSessionSetup}
-              className={`p-4 rounded-2xl border-2 border-team-blue-40 transition-colors ${
-                isDarkMode
-                  ? 'bg-team-dark hover:bg-[#2a2a2a]'
-                  : 'bg-white hover:bg-gray-50'
-              }`}
-              title="Edit Session Setup"
-            >
-              <Settings className={`h-6 w-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
-            </button>
+          {/* Settings/Gear Icon - Opens Session Setup */}
+          <button
+            onClick={onOpenSessionSetup}
+            className={`py-4 px-6 h-16 rounded-2xl border-2 border-team-blue-40 transition-colors flex items-center justify-center ${
+              isDarkMode
+                ? 'bg-team-dark hover:bg-[#2a2a2a]'
+                : 'bg-white hover:bg-gray-50'
+            }`}
+            title="Edit Session Setup"
+          >
+            <Settings className={`h-6 w-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+          </button>
 
-            {/* Complete Session Button */}
-            <button
-              onClick={handleCompleteSession}
-              disabled={loading || sessionLimitReached}
-              className="px-4 py-4 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                loading
-                  ? 'Saving...'
-                  : sessionLimitReached
-                    ? 'Session Limit Reached'
-                    : 'Complete Session'
-              }
-            >
-              {loading ? 'Saving...' : 'Complete Session'}
-            </button>
+          {/* Complete Session Button */}
+          <button
+            onClick={handleCompleteSession}
+            disabled={loading || sessionLimitReached}
+              className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            title={
+              loading
+                ? 'Saving...'
+                : sessionLimitReached
+                  ? 'Session Limit Reached'
+                  : 'Complete Session'
+            }
+          >
+            {loading ? 'Saving...' : 'Complete Session'}
+          </button>
 
-            {/* Cancel Session Button */}
-            {!cancelConfirm ? (
+          {/* Cancel Session Button */}
+          {!cancelConfirm ? (
+            <button
+              onClick={() => {
+                setCancelConfirm(true);
+                if (isTimerRunning) setIsTimerRunning(false);
+              }}
+              className="px-4 py-4 h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
+              title="Cancel Session"
+            >
+              Cancel Session
+            </button>
+          ) : (
+            <div className="flex gap-2">
               <button
                 onClick={() => {
-                  setCancelConfirm(true);
-                  if (isTimerRunning) setIsTimerRunning(false);
+                  handleNewSession();
+                  setCancelConfirm(false);
+                  toast.success('Session cancelled');
                 }}
-                className="px-4 py-4 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors"
-                title="Cancel Session"
+                className="py-4 px-4 rounded-xl bg-green-500 hover:bg-green-600 transition-colors"
+                title="Confirm cancel"
               >
-                Cancel Session
+                <Check className="h-5 w-5 text-white" />
               </button>
-            ) : (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    handleNewSession();
-                    setCancelConfirm(false);
-                    toast.success('Session cancelled');
-                  }}
-                  className="p-3 rounded-xl bg-green-500 hover:bg-green-600 transition-colors"
-                  title="Confirm cancel"
-                >
-                  <Check className="h-5 w-5 text-white" />
-                </button>
-                <button
-                  onClick={() => {
+              <button
+                onClick={() => {
                     setCancelConfirm(false);
                     if (hasStarted) setIsTimerRunning(true);
                   }}
-                  className="p-3 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
+                  className="py-4 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
                   title="Keep session"
                 >
                   <X className="h-5 w-5 text-white" />
                 </button>
               </div>
             )}
-          </div>
         </div>
 
         {/* Match Control Buttons */}
-        {!editingMatchId && (
+        {!editingMatchId && matchActive && (
           <div className="flex items-center gap-3">
             {/* Pause/Resume controls - only when match is active */}
             {matchActive && isTimerRunning && (
