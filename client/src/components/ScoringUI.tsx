@@ -90,7 +90,7 @@ export const ScoringUI = () => {
                   onClick={() => handleBallSelect(shot.id, 0)}
                   className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
                     flashingButton === `${shot.id}-0`
-                      ? 'border-green-500 bg-green-500/20'
+                      ? 'border-yellow-500 bg-yellow-500/20'
                       : isDarkMode
                         ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40'
                         : 'border-gray-300 bg-white hover:border-gray-400'
@@ -103,7 +103,7 @@ export const ScoringUI = () => {
                         key={i}
                         className={`w-5 h-5 rounded-full border-2 border-dashed ${
                           flashingButton === `${shot.id}-0`
-                            ? 'border-green-500'
+                            ? 'border-yellow-500'
                             : isDarkMode
                               ? 'border-white'
                               : 'border-black'
@@ -113,7 +113,7 @@ export const ScoringUI = () => {
                   </div>
                   <span className={`text-xs mt-1 ${
                     flashingButton === `${shot.id}-0`
-                      ? 'text-green-500'
+                      ? 'text-yellow-500'
                       : isDarkMode ? 'text-team-white-60' : 'text-gray-500'
                   }`}>
                     scored

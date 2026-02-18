@@ -12,7 +12,7 @@ import { ChevronRight, Clock, Plus, Trash2 } from 'lucide-react';
 import type { ShotEntry } from '../types';
 
 // ─── Constants ──────────────────────────────────────────────────────────
-const POINTS_PER_MADE = 1;
+const POINTS_PER_MADE = 3;
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
