@@ -5,6 +5,7 @@ import {
   Notes,
   LivePreview,
   PerformanceMetrics,
+  ActiveTutorial,
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
 import { APP_CONFIG } from '@/constants';
@@ -35,8 +36,11 @@ const ActiveSessionContent = () => {
       {/* Single Column Content - All Scrollable */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10">
         <div className="space-y-4 sm:space-y-6">
+          {/* Interactive Tutorial */}
+          <ActiveTutorial />
+
           {/* Timer Section at Top - Scrolls with Page */}
-          <div className="space-y-4">
+          <div className="space-y-4" data-tutorial="timer">
             
             {/* Session Name */}
             <div className="flex flex-col items-center">
@@ -71,11 +75,13 @@ const ActiveSessionContent = () => {
           </div>
 
           {/* Live Preview (controls, buttons, scores) */}
+          <div data-tutorial="controls">
           <LivePreview 
             onOpenSessionSetup={() => setShowSessionSetup(!showSessionSetup)}
             onTryStartWithoutSetup={() => { setShouldFlashSetup(true); setShowSessionSetup(true); }}
             isSessionSetupSaved={isSessionSetupSaved}
           />
+          </div>
 
           {/* Separator Line */}
           <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
@@ -83,6 +89,7 @@ const ActiveSessionContent = () => {
           {/* Session Setup - Toggle visibility with settings icon */}
           {showSessionSetup && (
             <>
+              <div data-tutorial="session-setup">
               <SessionSetup 
                 onSave={() => {
                   setShowSessionSetup(false);
@@ -92,6 +99,7 @@ const ActiveSessionContent = () => {
                 shouldFlash={shouldFlashSetup}
                 isUnsaved={!isSessionSetupSaved}
               />
+              </div>
 
               {/* Separator Line */}
               <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
@@ -99,19 +107,25 @@ const ActiveSessionContent = () => {
           )}
 
           {/* Scoring UI */}
+          <div data-tutorial="scoring">
           <ScoringUI />
+          </div>
 
           {/* Separator Line */}
           <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
 
           {/* Performance Metrics */}
+          <div data-tutorial="metrics">
           <PerformanceMetrics />
+          </div>
 
           {/* Separator Line */}
           <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
 
           {/* Notes */}
+          <div data-tutorial="notes">
           <Notes />
+          </div>
         </div>
       </div>
     </div>
