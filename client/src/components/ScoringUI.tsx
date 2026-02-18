@@ -1,10 +1,12 @@
 import { useSession, useTheme } from '@/contexts';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 export const ScoringUI = () => {
   const { updateSessionData, sessionData, hasTransitionedToTeleop } = useSession();
   const { isDarkMode } = useTheme();
   const [flashingButton, setFlashingButton] = useState<string | null>(null);
+  // Timestamp of the last scoring action, used to compute cycle time in seconds
+  const lastShotTimeRef = useRef<number | null>(null);
 
   // Shot types with ball counts
   const shotTypes = [
@@ -19,11 +21,19 @@ export const ScoringUI = () => {
     
     // Flash the button
     setFlashingButton(buttonId);
+
+    // Compute cycle time (seconds since last shot); null for the very first shot
+    const now = Date.now();
+    const cycleTime =
+      lastShotTimeRef.current !== null
+        ? Math.round((now - lastShotTimeRef.current) / 1000)
+        : undefined;
+    lastShotTimeRef.current = now;
     
     // Record shot in the appropriate phase array
     const isAuton = sessionData.matchType === 'Autonomous' || 
       (sessionData.matchType === 'Full Game' && !hasTransitionedToTeleop);
-    const shotEntry = { ballsShot: shotId, ballsMade };
+    const shotEntry = { ballsShot: shotId, ballsMade, cycleTime };
     if (isAuton) {
       const currentAutonShots = sessionData.autonShots || [];
       updateSessionData({ autonShots: [...currentAutonShots, shotEntry] });

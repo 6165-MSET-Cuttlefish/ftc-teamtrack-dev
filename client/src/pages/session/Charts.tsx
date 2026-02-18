@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useTheme } from '@/contexts';
+import { useAuth, useTheme, useSession } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import { isAbortError } from '@/lib/utils';
@@ -49,6 +49,7 @@ import {
 const Charts = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
+  const { hasActiveSession } = useSession();
   const navigate = useNavigate();
 
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -455,7 +456,9 @@ const Charts = () => {
                 </p>
                 <Button
                   onClick={() => navigate(ROUTES.ACTIVE)}
-                  className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
+                  disabled={hasActiveSession}
+                  title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
+                  className={`bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
                 >
                   Start New Session
                 </Button>

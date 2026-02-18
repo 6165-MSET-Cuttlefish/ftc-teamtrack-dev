@@ -19,11 +19,14 @@ import {
 } from '@/lib/sessionStorage';
 import type { Match } from '@/types';
 
+export type MatchPhase = 'auton' | 'controller_pickup' | 'prepare' | 'teleop' | 'ended';
+
 interface SessionContextType {
   sessionData: SessionFormData;
   updateSessionData: (updates: Partial<SessionFormData>) => void;
   completeSession: (timerValue: string) => void;
   resetSession: () => void;
+  /** Match timer counts DOWN from 150 → 0 */
   timer: number;
   sessionTimer: number;
   setSessionTimer: (timer: number) => void;
@@ -31,6 +34,12 @@ interface SessionContextType {
   setIsTimerRunning: (running: boolean) => void;
   resetTimer: () => void;
   formatTime: (seconds: number) => string;
+  /** Current FTC match phase */
+  matchPhase: MatchPhase;
+  setMatchPhase: (phase: MatchPhase) => void;
+  /** Countdown for controller_pickup (5→0) and prepare (3→0) phases */
+  phaseTimer: number;
+  setPhaseTimer: (timer: number) => void;
   expandedSection: string | null;
   setExpandedSection: (section: string | null) => void;
   hasActiveSession: boolean;
@@ -104,10 +113,14 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return null;
   })();
 
-  // Match timer (per-match timer)
+  // Match timer counts DOWN from FULL_GAME_DURATION_SECONDS (150) to 0
   const [timer, setTimer] = useState<number>(
-    () => storedTimerState?.matchTimer ?? 0
+    () => storedTimerState?.matchTimer ?? 150
   );
+
+  // Phase management for FTC timing sequence
+  const [matchPhase, setMatchPhase] = useState<MatchPhase>('auton');
+  const [phaseTimer, setPhaseTimer] = useState<number>(0);
 
   // Session timer (overall session time)
   const [sessionTimer, setSessionTimer] = useState<number>(
@@ -144,20 +157,60 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [currentMatchData, setCurrentMatchData] =
     useState<Partial<SessionFormData> | null>(null);
 
-  // Match timer effect - runs for the current match
+  // Match timer effect — counts DOWN during 'auton' and 'teleop' phases
   useEffect(() => {
     if (!isTimerRunning || sessionData.isSessionCompleted) {
       return;
     }
+    if (matchPhase !== 'auton' && matchPhase !== 'teleop') {
+      return;
+    }
 
     const interval = setInterval(() => {
-      setTimer(prev => prev + 1);
+      setTimer(prev => {
+        if (prev <= 0) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => {
       clearInterval(interval);
     };
-  }, [isTimerRunning, sessionData.isSessionCompleted]);
+  }, [isTimerRunning, matchPhase, sessionData.isSessionCompleted]);
+
+  // Phase timer effect — counts DOWN during transition phases
+  useEffect(() => {
+    if (matchPhase !== 'controller_pickup' && matchPhase !== 'prepare') {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setPhaseTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          // Advance to next phase
+          if (matchPhase === 'controller_pickup') {
+            setMatchPhase('prepare');
+            setPhaseTimer(3);
+          } else {
+            // prepare → teleop: resume main timer
+            setMatchPhase('teleop');
+            setPhaseTimer(0);
+            setIsTimerRunning(true);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [matchPhase]);
 
   // Session timer effect - runs for the entire session
   useEffect(() => {
@@ -240,7 +293,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const resetTimer = useCallback(() => {
-    setTimer(0);
+    setTimer(150);
+    setMatchPhase('auton');
+    setPhaseTimer(0);
   }, []);
 
   const startEditingMatch = useCallback(
@@ -263,6 +318,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         robot1Park: sessionData.robot1Park,
         robot2Park: sessionData.robot2Park,
         cycleTimes: sessionData.cycleTimes,
+        autonShots: sessionData.autonShots,
+        teleopShots: sessionData.teleopShots,
       });
 
       // Load match data into form
@@ -284,6 +341,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         robot1Park: match.robot1Park || 'none',
         robot2Park: match.robot2Park || 'none',
         cycleTimes: match.cycleTimes || [],
+        autonShots: match.autonShots || [],
+        teleopShots: match.teleopShots || [],
       }));
 
       setEditingMatchId(match.id);
@@ -325,6 +384,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
               robot1Park: prev.robot1Park,
               robot2Park: prev.robot2Park,
               cycleTimes: prev.cycleTimes,
+              autonShots: prev.autonShots,
+              teleopShots: prev.teleopShots,
             }
           : match
       );
@@ -369,7 +430,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const resetSession = useCallback(() => {
     const newSessionData = createInitialSessionData(user?.displayName);
     setSessionData(newSessionData);
-    setTimer(0);
+    setTimer(150);
+    setMatchPhase('auton');
+    setPhaseTimer(0);
     setSessionTimer(0);
     setIsTimerRunning(false);
     setHasStarted(false);
@@ -392,6 +455,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setIsTimerRunning,
     resetTimer,
     formatTime: formatTimeUtil,
+    matchPhase,
+    setMatchPhase,
+    phaseTimer,
+    setPhaseTimer,
     expandedSection,
     setExpandedSection,
     hasActiveSession: hasActiveSessionLocal,

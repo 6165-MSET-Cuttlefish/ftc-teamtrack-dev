@@ -36,6 +36,13 @@ const sumField = (shots: ShotEntry[], field: 'ballsShot' | 'ballsMade') =>
 const totalPoints = (shots: ShotEntry[]) =>
   shots.reduce((s, e) => s + e.ballsMade * POINTS_PER_MADE, 0);
 
+/** Format seconds as M:SS */
+const formatCycleTime = (seconds: number): string => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
 // ─── Inline number input for table cells ────────────────────────────────
 const CellInput: React.FC<{
   value: number;
@@ -113,6 +120,11 @@ const ShotLogTable: React.FC<{
     const shotsTotal = totalPoints(shots);
     const sectionTotal = shotsTotal + bonusPoints;
 
+    // Precompute min/max cycle times for color coding
+    const cycleTimes = shots.map((s) => s.cycleTime).filter((t): t is number => t !== undefined);
+    const minCycle = cycleTimes.length > 0 ? Math.min(...cycleTimes) : null;
+    const maxCycle = cycleTimes.length > 0 ? Math.max(...cycleTimes) : null;
+
     let running = 0;
 
     return (
@@ -136,7 +148,7 @@ const ShotLogTable: React.FC<{
         >
           {/* Header */}
           <div
-            className={`grid grid-cols-[40px_1fr_1fr_70px_70px_36px] text-xs font-semibold uppercase tracking-wide ${
+            className={`grid grid-cols-[40px_1fr_1fr_70px_70px_70px_36px] text-xs font-semibold uppercase tracking-wide ${
               isDarkMode
                 ? 'bg-team-dark-20 text-gray-400'
                 : 'bg-gray-50 text-gray-500'
@@ -147,6 +159,7 @@ const ShotLogTable: React.FC<{
             <div className="px-2 py-2 text-center">Made</div>
             <div className="px-2 py-2 text-center">Pts</div>
             <div className="px-2 py-2 text-center">Total</div>
+            <div className="px-2 py-2 text-center">Cycle</div>
             <div className="px-2 py-2" />
           </div>
 
@@ -164,10 +177,20 @@ const ShotLogTable: React.FC<{
               const pts = shot.ballsMade * POINTS_PER_MADE;
               running += pts;
               const rowRunning = running;
+              const ct = shot.cycleTime;
+              const isMin = ct !== undefined && minCycle !== null && ct === minCycle && cycleTimes.length > 1;
+              const isMax = ct !== undefined && maxCycle !== null && ct === maxCycle && cycleTimes.length > 1;
+              const cycleClass = isMin
+                ? 'text-green-500 font-semibold'
+                : isMax
+                  ? 'text-red-500 font-semibold'
+                  : isDarkMode
+                    ? 'text-gray-400'
+                    : 'text-gray-500';
               return (
                 <div
                   key={i}
-                  className={`grid grid-cols-[40px_1fr_1fr_70px_70px_36px] items-center border-t ${
+                  className={`grid grid-cols-[40px_1fr_1fr_70px_70px_70px_36px] items-center border-t ${
                     isDarkMode
                       ? 'border-white/5 even:bg-white/[0.02]'
                       : 'border-gray-100 even:bg-gray-50/50'
@@ -219,6 +242,9 @@ const ShotLogTable: React.FC<{
                   <div className="px-2 py-2 text-center text-sm font-medium text-team-blue">
                     {rowRunning}
                   </div>
+                  <div className={`px-2 py-2 text-center text-xs ${cycleClass}`}>
+                    {ct !== undefined ? formatCycleTime(ct) : '—'}
+                  </div>
                   <div className="px-1 py-1.5 flex justify-center">
                     {editable && (
                       <button
@@ -241,7 +267,7 @@ const ShotLogTable: React.FC<{
           {/* Footer totals */}
           {shots.length > 0 && (
             <div
-              className={`grid grid-cols-[40px_1fr_1fr_70px_70px_36px] items-center border-t-2 ${
+              className={`grid grid-cols-[40px_1fr_1fr_70px_70px_70px_36px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
@@ -269,6 +295,7 @@ const ShotLogTable: React.FC<{
               >
                 {shotsTotal}
               </div>
+              <div className="px-2 py-2" />
               <div className="px-2 py-2" />
               <div className="px-2 py-2" />
             </div>

@@ -12,6 +12,8 @@ export type TimestampValue = Timestamp | FirebaseTimestamp | string | Date;
 export interface ShotEntry {
   ballsShot: number;
   ballsMade: number;
+  /** Elapsed seconds since the previous scoring action (cycle time) */
+  cycleTime?: number;
 }
 
 export interface ScoringFields {

@@ -175,7 +175,7 @@ const NavigationMenu = () => {
           <button
             onClick={() => navigate('/active')}
             aria-label="Active practice session"
-            className={`relative px-4 py-1.5 rounded-full flex items-center gap-2 transition-colors ${isDarkMode ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' : 'bg-green-500/10 hover:bg-green-500/20 text-green-600'}`}
+            className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'}`}
           >
             <span className="text-sm font-semibold">Active Session</span>
             <div className="relative w-2 h-2">

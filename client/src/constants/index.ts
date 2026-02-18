@@ -53,6 +53,12 @@ export const GAME_TIMING = {
   AUTONOMOUS_DURATION_SECONDS: 30,
   TELEOP_DURATION_SECONDS: 120,
   FULL_GAME_DURATION_SECONDS: 150,
+  /** Remaining seconds when autonomous ends and controller pickup begins */
+  AUTON_END_REMAINING: 120,
+  /** Duration of the controller pickup phase (yellow) */
+  CONTROLLER_PICKUP_SECONDS: 5,
+  /** Duration of the prepare phase */
+  PREPARE_SECONDS: 3,
   MAX_THEORETICAL_SCORE: 150,
 } as const;
 
