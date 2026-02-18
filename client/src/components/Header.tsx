@@ -21,6 +21,7 @@ import {
   Keyboard,
   HelpCircle,
   Hexagon,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -86,7 +87,7 @@ const TeamTrackLogo = () => {
           />
         </svg>
         <span
-          className={`font-montserrat italic text-[0.625rem] sm:text-xs leading-6 relative -top-.5 hidden sm:inline ${isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
+          className={`font-montserrat italic text-sm leading-6 relative -top-.5 hidden sm:inline ${isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
         >
           TeamTrack
         </span>
@@ -598,12 +599,25 @@ const NavigationMenu = () => {
 
 export const Header = () => {
   const { isDarkMode } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isOnSessionsPage = location.pathname === '/sessions';
+  
   return (
     <header
       className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4 md:gap-6">
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
+          {!isOnSessionsPage && (
+            <button
+              onClick={() => navigate('/sessions')}
+              aria-label="Back to sessions"
+              className={`p-1.5 sm:p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+            >
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          )}
           <TeamTrackLogo />
         </div>
 
