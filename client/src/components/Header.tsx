@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import { TUTORIAL_RESTART_EVENT } from './ActiveTutorial';
 
 const TeamTrackLogo = () => {
   const { isDarkMode, isHoneycombMode } = useTheme();
@@ -508,9 +509,25 @@ const NavigationMenu = () => {
               </div>
             </div>
 
+            {isOnActivePage && (
+              <button
+                onClick={() => {
+                  handleCloseFeaturesTutorial();
+                  setTimeout(() => window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT)), 100);
+                }}
+                className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors border ${
+                  isDarkMode
+                    ? 'border-team-blue text-team-blue hover:bg-team-blue/10'
+                    : 'border-team-blue text-team-blue hover:bg-team-blue/10'
+                }`}
+              >
+                Replay Page Tour
+              </button>
+            )}
+
             <button
               onClick={handleCloseFeaturesTutorial}
-              className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
+              className={`${isOnActivePage ? 'mt-3' : 'mt-6'} w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
                 isDarkMode
                   ? 'hover:bg-team-blue/80 text-black'
                   : 'hover:bg-team-blue/90 text-black'

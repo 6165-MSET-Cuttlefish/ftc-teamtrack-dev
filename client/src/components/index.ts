@@ -10,3 +10,4 @@ export { ScoringUI } from './ScoringUI';
 export { GuestPrompt } from './GuestPrompt';
 export { ShareButton } from './ShareButton';
 export { HomeRedirect } from './HomeRedirect';
+export { ActiveTutorial, TUTORIAL_STORAGE_KEY, TUTORIAL_RESTART_EVENT } from './ActiveTutorial';

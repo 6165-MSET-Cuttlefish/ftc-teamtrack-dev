@@ -5,6 +5,7 @@ import {
   Notes,
   LivePreview,
   PerformanceMetrics,
+  ActiveTutorial,
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
 import { APP_CONFIG } from '@/constants';
@@ -35,6 +36,9 @@ const ActiveSessionContent = () => {
       {/* Single Column Content - All Scrollable */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10">
         <div className="space-y-4 sm:space-y-6">
+          {/* Interactive Tutorial */}
+          <ActiveTutorial />
+
           {/* Timer Section at Top - Scrolls with Page */}
           <div className="space-y-4">
             
