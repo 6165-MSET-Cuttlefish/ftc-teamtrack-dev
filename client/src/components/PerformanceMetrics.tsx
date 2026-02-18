@@ -38,9 +38,12 @@ const totalPoints = (shots: ShotEntry[]) =>
 
 /** Format seconds as M:SS */
 const formatCycleTime = (seconds: number): string => {
+  if (seconds < 60) {
+    return `${seconds.toFixed(2)}s`;
+  }
   const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  const s = (seconds % 60).toFixed(2);
+  return `${m}:${s.padStart(5, '0')}`;
 };
 
 // ─── Inline number input for table cells ────────────────────────────────
@@ -148,7 +151,7 @@ const ShotLogTable: React.FC<{
         >
           {/* Header */}
           <div
-            className={`grid grid-cols-[40px_1fr_1fr_70px_70px_70px_36px] text-xs font-semibold uppercase tracking-wide ${
+            className={`grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_36px] text-xs font-semibold uppercase tracking-wide ${
               isDarkMode
                 ? 'bg-team-dark-20 text-gray-400'
                 : 'bg-gray-50 text-gray-500'
@@ -190,7 +193,7 @@ const ShotLogTable: React.FC<{
               return (
                 <div
                   key={i}
-                  className={`grid grid-cols-[40px_1fr_1fr_70px_70px_70px_36px] items-center border-t ${
+                  className={`grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_36px] items-center border-t ${
                     isDarkMode
                       ? 'border-white/5 even:bg-white/[0.02]'
                       : 'border-gray-100 even:bg-gray-50/50'
@@ -267,7 +270,7 @@ const ShotLogTable: React.FC<{
           {/* Footer totals */}
           {shots.length > 0 && (
             <div
-              className={`grid grid-cols-[40px_1fr_1fr_70px_70px_70px_36px] items-center border-t-2 ${
+              className={`grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_36px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
@@ -380,14 +383,16 @@ export const PerformanceMetrics = () => {
   const {
     sessionData,
     updateSessionData,
-    expandedSection,
     editingMatchId,
     hasStarted,
+    matchPhase,
   } = useSession();
   const { isDarkMode } = useTheme();
 
   const isEditable = hasStarted || editingMatchId !== null;
   const isUpdatingRef = useRef(false);
+  // Track last shot timestamp for cycle time calculation in keybinds
+  const lastShotTimeRef = useRef<number | null>(null);
 
   // ── Tab state ─────────────────────────────────────────────────────
   const [selectedTab, setSelectedTab] = useState<'final' | 'autonomous' | 'teleop' | 'endgame'>('final');
@@ -597,6 +602,13 @@ export const PerformanceMetrics = () => {
     prevSessionDataRef.current = sessionData;
   }, [sessionData, editingMatchId]);
 
+  // ── Auto-switch to teleop tab when phase transitions ──────────────
+  useEffect(() => {
+    if (matchPhase === 'teleop' && selectedTab === 'autonomous') {
+      setSelectedTab('teleop');
+    }
+  }, [matchPhase, selectedTab]);
+
   // ── Keyboard shortcut popup ───────────────────────────────────────
   const [showPopup, setShowPopup] = useState(false);
   const [popupNumber, setPopupNumber] = useState<string>('');
@@ -627,20 +639,28 @@ export const PerformanceMetrics = () => {
         event.stopPropagation();
 
         const shotType = parseInt(popupNumber);
-        const isTeleOp =
-          expandedSection === 'TeleOp Score' ||
-          (sessionData.matchType === 'TeleOp' &&
-            expandedSection !== 'Autonomous Score');
+        // Use matchPhase to determine if we're in auton or teleop (same logic as ScoringUI)
+        const isAutonPhase =
+          sessionData.matchType === 'Autonomous' ||
+          (sessionData.matchType === 'Full Game' && matchPhase === 'auton');
 
-        const entry: ShotEntry = { ballsShot: shotType, ballsMade: madeCount };
+        // Compute cycle time in seconds with 2 decimal precision (same as ScoringUI)
+        const now = Date.now();
+        const cycleTime =
+          lastShotTimeRef.current !== null
+            ? parseFloat(((now - lastShotTimeRef.current) / 1000).toFixed(2))
+            : undefined;
+        lastShotTimeRef.current = now;
 
-        if (isTeleOp) {
+        const entry: ShotEntry = { ballsShot: shotType, ballsMade: madeCount, cycleTime };
+
+        if (isAutonPhase) {
+          const nextAuton = [...migrateShotsArray(sessionData.autonShots), entry];
+          updateSessionData({ autonShots: nextAuton });
+        } else {
           const nextTeleop = [...migrateShotsArray(sessionData.teleopShots), entry];
           updateSessionData({ teleopShots: nextTeleop });
           if (sessionData.selectedFeature === 'Cycle Times') recordCycleTime();
-        } else {
-          const nextAuton = [...migrateShotsArray(sessionData.autonShots), entry];
-          updateSessionData({ autonShots: nextAuton });
         }
 
         setShowPopup(false);
@@ -662,11 +682,13 @@ export const PerformanceMetrics = () => {
     showPopup,
     popupNumber,
     madeCount,
-    expandedSection,
     sessionData.matchType,
     sessionData.selectedFeature,
+    sessionData.autonShots,
+    sessionData.teleopShots,
     recordCycleTime,
     hasStarted,
+    matchPhase,
     updateSessionData,
   ]);
 

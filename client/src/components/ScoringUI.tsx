@@ -2,7 +2,7 @@ import { useSession, useTheme } from '@/contexts';
 import { useState, useRef } from 'react';
 
 export const ScoringUI = () => {
-  const { updateSessionData, sessionData, hasTransitionedToTeleop } = useSession();
+  const { updateSessionData, sessionData, matchPhase } = useSession();
   const { isDarkMode } = useTheme();
   const [flashingButton, setFlashingButton] = useState<string | null>(null);
   // Timestamp of the last scoring action, used to compute cycle time in seconds
@@ -22,19 +22,23 @@ export const ScoringUI = () => {
     // Flash the button
     setFlashingButton(buttonId);
 
-    // Compute cycle time (seconds since last shot); null for the very first shot
+    // Compute cycle time in seconds with 2 decimal precision
     const now = Date.now();
     const cycleTime =
       lastShotTimeRef.current !== null
-        ? Math.round((now - lastShotTimeRef.current) / 1000)
+        ? parseFloat(((now - lastShotTimeRef.current) / 1000).toFixed(2))
         : undefined;
     lastShotTimeRef.current = now;
     
-    // Record shot in the appropriate phase array
-    const isAuton = sessionData.matchType === 'Autonomous' || 
-      (sessionData.matchType === 'Full Game' && !hasTransitionedToTeleop);
+    // Determine phase by timer position:
+    // Full Game: auton = timer > 120, teleop = timer <= 120
+    // Anything scored after the 2-minute mark (≤120s remaining) goes to teleop
+    const isAutonPhase =
+      sessionData.matchType === 'Autonomous' ||
+      (sessionData.matchType === 'Full Game' && (matchPhase === 'auton'));
+
     const shotEntry = { ballsShot: shotId, ballsMade, cycleTime };
-    if (isAuton) {
+    if (isAutonPhase) {
       const currentAutonShots = sessionData.autonShots || [];
       updateSessionData({ autonShots: [...currentAutonShots, shotEntry] });
     } else {
@@ -49,10 +53,11 @@ export const ScoringUI = () => {
   };
 
   // Determine score label and display the synced score from sessionData
-  const isAuton = sessionData.matchType === 'Autonomous' || 
-    (sessionData.matchType === 'Full Game' && !hasTransitionedToTeleop);
-  const scoreLabel = isAuton ? 'AUTON Score:' : 'TELEOP Score:';
-  const displayScore = isAuton ? sessionData.autonomousScore ?? 0 : sessionData.teleopScore ?? 0;
+  const isAutonPhase =
+    sessionData.matchType === 'Autonomous' ||
+    (sessionData.matchType === 'Full Game' && matchPhase === 'auton');
+  const scoreLabel = isAutonPhase ? 'AUTON Score:' : 'TELEOP Score:';
+  const displayScore = isAutonPhase ? sessionData.autonomousScore ?? 0 : sessionData.teleopScore ?? 0;
 
   return (
     <div className="space-y-6">

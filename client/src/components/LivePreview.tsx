@@ -47,6 +47,8 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
   const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
+  // Tracks whether the current match has been explicitly started (resets between matches)
+  const [matchActive, setMatchActive] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork =
@@ -230,7 +232,7 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
     // Reset match timer and tracking states (but keep session running)
     resetTimer();
     // Keep hasStarted=true to maintain continuous sessionTimer
-    // setHasStarted(false);
+    setMatchActive(false);
     setIsTimerRunning(false);
     setHasTransitionedToTeleop(false);
 
@@ -386,6 +388,7 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
     });
     resetTimer();
     setHasStarted(false);
+    setMatchActive(false);
     setIsTimerRunning(false);
     setHasTransitionedToTeleop(false);
     setCancelMatchConfirm(false);
@@ -400,24 +403,21 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
       {/* New Streamlined Action Buttons */}
       {!sessionData.isSessionCompleted ? (
         <>
-        {/* Current Match Indicator */}
-        {!editingMatchId && hasStarted && (
-          <div className={`text-sm font-medium px-3 py-1.5 rounded-xl w-fit ${
-            isDarkMode ? 'bg-team-blue/20 text-team-blue' : 'bg-team-blue/10 text-team-blue'
-          }`}>
-            Match {currentMatchNumber} in progress
-          </div>
-        )}
-
         <div className="flex items-center gap-3 w-full">
-          {/* Light Blue + New Match Button */}
+          {/* Save Match / Start Match Button */}
           {!showTeleopTransition && !editingMatchId && (
             <button
-              onClick={!hasStarted ? () => setHasStarted(true) : handleSaveMatch}
-              className="flex-1 px-6 py-3 rounded-2xl border-2 border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue text-lg font-bold transition-colors flex items-center justify-center gap-2"
+              onClick={!matchActive ? () => { setHasStarted(true); setMatchActive(true); setIsTimerRunning(true); } : handleSaveMatch}
+              disabled={!matchActive && !sessionData.sessionName?.trim()}
+              title={!matchActive && !sessionData.sessionName?.trim() ? 'Complete session setup (Session Name) before starting' : ''}
+              className={`flex-1 px-6 py-4 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                !matchActive 
+                  ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
+                  : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
+              }`}
             >
               <span className="text-2xl font-bold">+</span>
-              {!hasStarted ? 'New Match' : 'Save Match'}
+              {!matchActive ? 'Start Match' : 'Save Match'}
             </button>
           )}
 
@@ -447,13 +447,13 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
                   saveEditedMatch();
                   toast.success('Match changes saved!');
                 }}
-                className="flex-1 px-6 py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white text-lg font-bold transition-colors"
+                className="px-4 py-4 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors"
               >
                 Save Changes
               </button>
               <button
                 onClick={returnToCurrentMatch}
-                className="flex-1 px-6 py-4 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-black text-lg font-bold transition-colors"
+                className="px-4 py-4 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors"
               >
                 Return to Current Match
               </button>
@@ -475,11 +475,11 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
               <Settings className={`h-6 w-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
             </button>
 
-            {/* Complete Session - Check Icon with faded green */}
+            {/* Complete Session Button */}
             <button
               onClick={handleCompleteSession}
               disabled={loading || sessionLimitReached}
-              className="p-4 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-4 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
                 loading
                   ? 'Saving...'
@@ -488,20 +488,20 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
                     : 'Complete Session'
               }
             >
-              <Check className="h-6 w-6 text-green-500" />
+              {loading ? 'Saving...' : 'Complete Session'}
             </button>
 
-            {/* Cancel Session - X Icon with faded red */}
+            {/* Cancel Session Button */}
             {!cancelConfirm ? (
               <button
                 onClick={() => {
                   setCancelConfirm(true);
                   if (isTimerRunning) setIsTimerRunning(false);
                 }}
-                className="p-4 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 transition-colors"
+                className="px-4 py-4 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors"
                 title="Cancel Session"
               >
-                <X className="h-6 w-6 text-red-500" />
+                Cancel Session
               </button>
             ) : (
               <div className="flex gap-2">
@@ -533,17 +533,9 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
 
         {/* Match Control Buttons */}
         {!editingMatchId && (
-          <div className="flex items-center gap-2">
-            {/* Start/Pause/Resume controls */}
-            {!hasStarted ? (
-              <button
-                onClick={() => setHasStarted(true)}
-                className="px-4 py-2 rounded-xl bg-team-blue hover:bg-team-blue/90 text-white text-sm font-semibold transition-colors flex items-center gap-2"
-              >
-                <span>▶</span>
-                Start Match
-              </button>
-            ) : isTimerRunning ? (
+          <div className="flex items-center gap-3">
+            {/* Pause/Resume controls - only when match is active */}
+            {matchActive && isTimerRunning && (
               <button
                 onClick={() => setIsTimerRunning(false)}
                 className="px-4 py-2 rounded-xl border-2 border-yellow-500/40 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 text-sm font-semibold transition-colors flex items-center gap-2"
@@ -551,7 +543,8 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
                 <span>⏸</span>
                 Pause Match
               </button>
-            ) : (matchPhase === 'auton' || matchPhase === 'teleop') ? (
+            )}
+            {matchActive && !isTimerRunning && (matchPhase === 'auton' || matchPhase === 'teleop') && (
               <button
                 onClick={() => setIsTimerRunning(true)}
                 className="px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center gap-2"
@@ -559,10 +552,10 @@ export const LivePreview = ({ onOpenSessionSetup }: LivePreviewProps) => {
                 <span>▶</span>
                 Resume Match
               </button>
-            ) : null}
+            )}
 
             {/* Cancel Current Match Button */}
-            {hasStarted && (
+            {matchActive && (
               <>
                 {!cancelMatchConfirm ? (
                   <button

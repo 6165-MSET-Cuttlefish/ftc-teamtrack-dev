@@ -49,7 +49,7 @@ const TeamTrackLogo = () => {
           viewBox="0 0 8 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="w-1.5 h-4 sm:w-[0.65rem] sm:h-[1.625rem]"
+          className="w-[0.421875rem] h-[1.125rem] sm:w-[0.73125rem] sm:h-[1.828125rem]"
           role="img"
           aria-label="TeamTrack logo icon"
         >
@@ -87,7 +87,7 @@ const TeamTrackLogo = () => {
           />
         </svg>
         <span
-          className={`font-montserrat italic text-sm leading-6 relative -top-.5 hidden sm:inline ${isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
+          className={`font-montserrat italic text-[0.984rem] leading-6 relative -top-.5 hidden sm:inline ${isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
         >
           TeamTrack
         </span>
