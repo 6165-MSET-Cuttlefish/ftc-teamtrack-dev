@@ -18,7 +18,7 @@ const ActiveSessionContent = () => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
   }, []);
   const { isDarkMode } = useTheme();
-  const { sessionData, timer, sessionTimer, formatTime, hasStarted, setHasStarted, matchPhase, isTimerRunning, phaseTimer, matchActive } = useSession();
+  const { sessionData, timer, sessionTimer, formatTime, matchPhase, isTimerRunning, phaseTimer, matchActive } = useSession();
 
   // Determine timer color based on phase
   const getTimerColor = () => {

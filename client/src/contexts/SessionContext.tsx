@@ -6,7 +6,6 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
-import { useAuth } from './AuthContext';
 import { formatTime as formatTimeUtil } from '@/lib/utils';
 import {
   saveSessionToStorage,
@@ -59,9 +58,7 @@ interface SessionContextType {
   setMatchActive: (active: boolean) => void;
 }
 
-const createInitialSessionData = (
-  displayName?: string | null
-): SessionFormData => ({
+const createInitialSessionData = (): SessionFormData => ({
   sessionName: '',
   sessionDuration: '',
   matchType: 'Full Game',
@@ -92,8 +89,6 @@ const createInitialSessionData = (
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
-
   // Try to load from storage first, otherwise create new
   // Only load session if it's fresh or from the same user session
   // Note: Don't use user.displayName here as it may not be available yet during initial load
@@ -122,7 +117,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   );
 
   // Phase management for FTC timing sequence
-  const [matchPhase, setMatchPhase] = useState<MatchPhase>('auton');
+  const [matchPhase, setMatchPhase] = useState<MatchPhase>(
+    () => (storedTimerState?.matchPhase as MatchPhase) ?? 'auton'
+  );
   const [phaseTimer, setPhaseTimer] = useState<number>(0);
 
   // Session timer (overall session time)
@@ -268,6 +265,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       showTeleopTransition,
       sessionStartTime: 0,
       matchStartTime: 0,
+      matchPhase,
     };
 
     saveSessionToStorage(sessionData, timerState);
@@ -280,6 +278,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     hasStarted,
     hasTransitionedToTeleop,
     showTeleopTransition,
+    matchPhase,
   ]);
 
   const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {
@@ -434,7 +433,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, [editingMatchId, currentMatchData]);
 
   const resetSession = useCallback(() => {
-    const newSessionData = createInitialSessionData(user?.displayName);
+    const newSessionData = createInitialSessionData();
     setSessionData(newSessionData);
     setTimer(150);
     setMatchPhase('auton');
@@ -448,7 +447,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     // Clear from storage immediately to prevent race conditions with persistence effect
     clearSessionFromStorage();
     setHasActiveSessionLocal(false);
-  }, [user?.displayName]);
+  }, []);
 
   const value: SessionContextType = {
     sessionData,

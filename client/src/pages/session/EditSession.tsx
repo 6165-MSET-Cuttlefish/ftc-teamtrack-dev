@@ -416,7 +416,7 @@ const EditSession = () => {
                             }`}
                           >
                             <Trophy className="h-4 w-4" />
-                            Match {index + 1}
+                            Match {match.matchNumber || index + 1}
                           </div>
                           <p
                             className={`text-sm font-medium ${

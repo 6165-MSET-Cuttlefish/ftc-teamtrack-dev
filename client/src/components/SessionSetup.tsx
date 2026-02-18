@@ -159,7 +159,7 @@ export const SessionSetup = ({ onSave, shouldFlash = false, isUnsaved = false }:
                   className={`${isDarkMode ? 'bg-[#2a2a2a] border-gray-700' : 'bg-white border-gray-200'}`}
                 >
                   <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="cycle-times">Cycle Times</SelectItem>
+                  <SelectItem value="Cycle Times">Cycle Times</SelectItem>
                 </SelectContent>
               </Select>
             </div>

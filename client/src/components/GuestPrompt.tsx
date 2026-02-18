@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { Button } from './ui/button';
 import { X, UserPlus } from 'lucide-react';
@@ -9,10 +9,17 @@ const PROMPT_DISMISSED_KEY = 'teamtrack-guest-prompt-dismissed';
 const PROMPT_LAST_SHOWN_KEY = 'teamtrack-guest-prompt-last-shown';
 const PROMPT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Show once per day
 
+// Routes where the guest prompt should not appear
+const AUTH_ROUTES = [ROUTES.LOGIN, ROUTES.SIGNUP, ROUTES.FORGOT_PASSWORD];
+
 export const GuestPrompt = () => {
   const { isGuest } = useAuth();
   const { isDarkMode } = useTheme();
+  const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
+
+  // Hide on auth pages where user is already trying to sign up/log in
+  const isOnAuthPage = (AUTH_ROUTES as readonly string[]).includes(location.pathname);
 
   useEffect(() => {
     if (!isGuest) {
@@ -46,7 +53,7 @@ export const GuestPrompt = () => {
     localStorage.setItem(PROMPT_DISMISSED_KEY, 'true');
   };
 
-  if (!isVisible || !isGuest) {
+  if (!isVisible || !isGuest || isOnAuthPage) {
     return null;
   }
 

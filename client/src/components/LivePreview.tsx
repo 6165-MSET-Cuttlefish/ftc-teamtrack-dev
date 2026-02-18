@@ -30,7 +30,6 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
     setHasStarted,
     showTeleopTransition,
     setShowTeleopTransition,
-    hasTransitionedToTeleop,
     setHasTransitionedToTeleop,
     matchPhase,
     setMatchPhase,
@@ -396,9 +395,6 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
     setCancelMatchConfirm(false);
     toast.success('Current match discarded');
   };
-
-  // Get the current match number for the in-progress match
-  const currentMatchNumber = (sessionData.matches || []).length + 1;
 
   return (
     <div className="flex flex-col gap-8">

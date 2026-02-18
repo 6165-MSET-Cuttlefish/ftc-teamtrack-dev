@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -1314,7 +1314,6 @@ type TabId = typeof TABS[number]['id'];
  * Session data is loaded from URL parameters
  */
 const SharedSession = () => {
-  const { sessionId } = useParams<{ sessionId: string }>();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const [session, setSession] = useState<Partial<Session> | null>(null);
@@ -1348,7 +1347,7 @@ const SharedSession = () => {
     };
 
     loadSharedSession();
-  }, [sessionId]);
+  }, []);
 
   // Calculate session statistics
   const stats = useMemo(() => {

@@ -30,13 +30,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface ComparisonMetric {
-  label: string;
-  values: (number | string)[];
-  sessionIds: string[];
-  icon: React.ReactNode;
-}
-
 interface CompareMatch extends Match {
   sessionId: string;
   sessionName: string;
@@ -153,42 +146,6 @@ const Compare = () => {
     setSelectedSessionIds(selectedSessionIds.filter(id => id !== sessionId));
   };
 
-  const getMetrics = (): ComparisonMetric[] => {
-    const avg = (s: Session, key: keyof Match) => {
-      const matches = s.matches || [];
-      if (matches.length === 0) return 0;
-      const total = matches.reduce((sum, m) => sum + (Number(m[key]) || 0), 0);
-      return Math.round(total / matches.length);
-    };
-
-    return [
-      {
-        label: 'Avg Final Score',
-        values: selectedSessionsData.map(s => avg(s, 'finalScore')),
-        sessionIds: selectedSessionIds,
-        icon: <Trophy className="w-5 h-5" />,
-      },
-      {
-        label: 'Avg Autonomous Score',
-        values: selectedSessionsData.map(s => avg(s, 'autonomousScore')),
-        sessionIds: selectedSessionIds,
-        icon: <Target className="w-5 h-5" />,
-      },
-      {
-        label: 'Avg Teleop Score',
-        values: selectedSessionsData.map(s => avg(s, 'teleopScore')),
-        sessionIds: selectedSessionIds,
-        icon: <Zap className="w-5 h-5" />,
-      },
-      {
-        label: 'Avg Endgame Score',
-        values: selectedSessionsData.map(s => avg(s, 'endGameScore')),
-        sessionIds: selectedSessionIds,
-        icon: <Clock className="w-5 h-5" />,
-      },
-    ];
-  };
-
   if (loading) {
     return (
       <div
@@ -280,8 +237,8 @@ const Compare = () => {
                         className={`${isDarkMode ? 'text-white focus:bg-team-blue-40' : ''}`}
                       >
                         {session.sessionName || 'Unnamed Session'} -{' '}
-                        {formatDate(session.createdAt)} - Score:{' '}
-                        {session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)}
+                        {formatDate(session.createdAt)} - Avg Score:{' '}
+                        {Math.round(session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) / (session.matches.length || 1))}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -365,14 +322,14 @@ const Compare = () => {
                             className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
                             <Trophy className="w-4 h-4 text-team-blue" />
-                            Final Score
+                            Avg Final Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 font-bold text-2xl text-team-blue`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)}
+                              {Math.round(session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) / (session.matches.length || 1))}
                             </td>
                           ))}
                         </tr>
@@ -383,14 +340,14 @@ const Compare = () => {
                             className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
                             <Target className="w-4 h-4 text-team-blue" />
-                            Autonomous Score
+                            Avg Autonomous Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0)}
+                              {Math.round(session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / (session.matches.length || 1))}
                             </td>
                           ))}
                         </tr>
@@ -401,14 +358,14 @@ const Compare = () => {
                             className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
                             <Zap className="w-4 h-4 text-team-blue" />
-                            Teleop Score
+                            Avg Teleop Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0)}
+                              {Math.round(session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0) / (session.matches.length || 1))}
                             </td>
                           ))}
                         </tr>
@@ -419,14 +376,14 @@ const Compare = () => {
                             className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
                             <Clock className="w-4 h-4 text-team-blue" />
-                            Endgame Score
+                            Avg Endgame Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0)}
+                              {Math.round(session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / (session.matches.length || 1))}
                             </td>
                           ))}
                         </tr>
@@ -483,14 +440,14 @@ const Compare = () => {
                           <td
                             className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
-                            Final Score
+                            Avg Final Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 font-medium text-team-blue`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)}
+                              {Math.round(session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) / (session.matches.length || 1))}
                             </td>
                           ))}
                         </tr>
@@ -500,14 +457,14 @@ const Compare = () => {
                           <td
                             className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
-                            Autonomous Score
+                            Avg Autonomous Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0)}
+                              {Math.round(session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0) / (session.matches.length || 1))}
                             </td>
                           ))}
                         </tr>
@@ -524,7 +481,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {String(session.autonClassifiedArtifact || 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.autonClassifiedArtifact || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -541,7 +498,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {String(session.autonOverflowArtifact || 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.autonOverflowArtifact || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -558,7 +515,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {String(session.autonMotif || 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.autonMotif || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -575,7 +532,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {String(session.autonLeave || 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.autonLeave || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -585,14 +542,14 @@ const Compare = () => {
                           <td
                             className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
-                            Teleop Score
+                            Avg Teleop Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0)}
+                              {Math.round(session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0) / (session.matches.length || 1))}
                             </td>
                           ))}
                         </tr>
@@ -609,7 +566,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {String(session.teleClassifiedArtifact || 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -626,7 +583,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {String(session.teleOverflowArtifact || 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -643,7 +600,7 @@ const Compare = () => {
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {String(session.teleMotif || 0)}
+                              {session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0)}
                             </td>
                           ))}
                         </tr>
@@ -653,14 +610,14 @@ const Compare = () => {
                           <td
                             className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           >
-                            Endgame Score
+                            Avg Endgame Score
                           </td>
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0)}
+                              {Math.round(session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / (session.matches.length || 1))}
                             </td>
                           ))}
                         </tr>
@@ -670,16 +627,20 @@ const Compare = () => {
                           <td
                             className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                           >
-                            ↳ Hang Time
+                            ↳ Parking Summary
                           </td>
-                          {selectedSessionsData.map(session => (
+                          {selectedSessionsData.map(session => {
+                            const fullCount = session.matches.filter(m => m.robot1Park === 'full' || m.robot2Park === 'full').length;
+                            const partialCount = session.matches.filter(m => m.robot1Park === 'partial' || m.robot2Park === 'partial').length;
+                            return (
                             <td
                               key={session.id}
                               className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
-                              {session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) / Math.max(session.matches.length, 1)}
+                              {fullCount > 0 ? `${fullCount} full` : ''}{fullCount > 0 && partialCount > 0 ? ', ' : ''}{partialCount > 0 ? `${partialCount} partial` : ''}{fullCount === 0 && partialCount === 0 ? 'None' : ''}
                             </td>
-                          ))}
+                            );
+                          })}
                         </tr>
                         <tr>
                           <td

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, ThemeProvider, SessionProvider } from '@/contexts';
@@ -28,8 +28,8 @@ const LoadingFallback = () => (
 
 const App = () => (
   <TooltipProvider>
-    <ErrorBoundary>
-      <ThemeProvider>
+    <ThemeProvider>
+      <ErrorBoundary>
         <AuthProvider>
           <SessionProvider>
             <BrowserRouter>
@@ -129,8 +129,8 @@ const App = () => (
             </BrowserRouter>
           </SessionProvider>
         </AuthProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </ThemeProvider>
   </TooltipProvider>
 );
 
