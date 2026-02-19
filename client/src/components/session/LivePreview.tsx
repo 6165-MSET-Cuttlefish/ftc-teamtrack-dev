@@ -253,12 +253,6 @@ export const LivePreview = ({
   };
 
   const handleCompleteSession = async () => {
-    // Validate user is authenticated
-    if (!user?.uid) {
-      toast.error('You must be logged in to save sessions');
-      return;
-    }
-
     // Validate that at least one match has been saved
     if (!sessionData.matches || sessionData.matches.length === 0) {
       toast.error(
@@ -281,16 +275,23 @@ export const LivePreview = ({
       return;
     }
 
-    // Check session limit
-    const { firebaseService } = await import('@/services/firebaseService');
-    const userSessions = await firebaseService.getUserSessions(user.uid);
-    const { SESSION_LIMITS } = await import('@/constants');
+    // Check session limit for authenticated users
+    let userSessions: { sessionName?: string }[] = [];
+    if (user?.uid) {
+      const { firebaseService } = await import('@/services/firebaseService');
+      userSessions = await firebaseService.getUserSessions(user.uid);
+      const { SESSION_LIMITS } = await import('@/constants');
 
-    if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
-      toast.error(
-        `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`
-      );
-      return;
+      if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
+        toast.error(
+          `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`
+        );
+        return;
+      }
+    } else {
+      // Guest: load sessions from localStorage for naming
+      const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+      userSessions = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
     }
 
     // Use sessionTimer for total session duration, not match timer
@@ -320,8 +321,8 @@ export const LivePreview = ({
       matchType: sessionData.matchType || 'Full Game',
       sessionDuration: totalSessionTime,
 
-      userId: user.uid, // Always set from validated user
-      userEmail: user.email || '',
+      userId: user?.uid || localStorage.getItem('teamtrack-guest-id') || 'guest',
+      userEmail: user?.email || '',
       ...(team ? { teamId: team.id } : {}),
 
       // Don't save individual scoring fields - deprecated
@@ -349,13 +350,31 @@ export const LivePreview = ({
     };
 
     try {
-      const result = await createSession(sessionToSave);
-      if (result && result.id) {
-        toast.success('Session saved successfully!');
-        // Session saved - sessionLimitReached will be checked on next action
+      if (user?.uid) {
+        // Authenticated user: save to Firebase
+        const result = await createSession(sessionToSave);
+        if (result && result.id) {
+          toast.success('Session saved successfully!');
+        } else {
+          toast.error('Failed to save session. Please try again.');
+        }
       } else {
-        toast.error('Failed to save session. Please try again.');
+        // Guest user: save session to localStorage
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const existing = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const guestSession = {
+          ...sessionToSave,
+          id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          createdAt: new Date().toISOString(),
+        };
+        existing.unshift(guestSession);
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(existing));
+        toast.success('Session saved locally!');
       }
+
+      // Mark that user has completed a session (drives landing page redirect)
+      const { markSessionCompleted } = await import('@/components/auth/HomeRedirect');
+      markSessionCompleted();
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error saving session', error);

@@ -286,12 +286,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               setGuestId(null);
             } else {
               setUser(null);
+              // Auto-enter guest mode so the app is usable without signing in
+              if (!guestMode) {
+                let autoGuestId = localStorage.getItem(GUEST_ID_KEY);
+                if (!autoGuestId) {
+                  autoGuestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                  localStorage.setItem(GUEST_ID_KEY, autoGuestId);
+                }
+                localStorage.setItem(GUEST_MODE_KEY, 'true');
+                setIsGuest(true);
+                setGuestId(autoGuestId);
+              }
             }
             setLoading(false);
           }
         );
       } else {
         setUser(null);
+        // Auto-enter guest mode when Firebase is unavailable
+        if (!guestMode) {
+          let autoGuestId = localStorage.getItem(GUEST_ID_KEY);
+          if (!autoGuestId) {
+            autoGuestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            localStorage.setItem(GUEST_ID_KEY, autoGuestId);
+          }
+          localStorage.setItem(GUEST_MODE_KEY, 'true');
+          setIsGuest(true);
+          setGuestId(autoGuestId);
+        }
         setLoading(false);
       }
     })();

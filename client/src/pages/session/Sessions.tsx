@@ -427,8 +427,17 @@ const Sessions = () => {
   }, []);
 
   const loadPersonalSessions = useCallback(async () => {
-    // Guests don't have sessions stored in Firebase
+    // Guests: load sessions from localStorage
     if (isGuest) {
+      const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+      try {
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        setSessions(stored);
+        setFilteredSessions(stored);
+      } catch {
+        setSessions([]);
+        setFilteredSessions([]);
+      }
       setLoading(false);
       return;
     }
@@ -451,12 +460,12 @@ const Sessions = () => {
   }, [user?.uid, isGuest]);
 
   const loadSessions = useCallback(async () => {
-    if (!user?.uid) return;
+    if (!user?.uid && !isGuest) return;
     if (!team) {
       await loadPersonalSessions();
     }
     // Team sessions are handled by the real-time listener below
-  }, [user?.uid, team, loadPersonalSessions]);
+  }, [user?.uid, isGuest, team, loadPersonalSessions]);
 
   // Real-time sync for team sessions
   useEffect(() => {
@@ -559,23 +568,34 @@ const Sessions = () => {
         )
       );
 
-      // Then update Firebase to persist changes
-      const success = await firebaseService.updateSession(sessionId, {
-        sessionName: newName,
-      });
-
-      if (!success) {
-        // Revert on failure using stored original name
-        setSessions(prevSessions =>
-          prevSessions.map(session =>
-            session.id === sessionId
-              ? { ...session, sessionName: originalName || newName }
-              : session
-          )
+      if (isGuest) {
+        // Guest: update in localStorage
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const updated = stored.map((s: Session) =>
+          s.id === sessionId ? { ...s, sessionName: newName } : s
         );
-        toast.error('Failed to update session name');
-      } else {
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
         toast.success('Session name updated');
+      } else {
+        // Then update Firebase to persist changes
+        const success = await firebaseService.updateSession(sessionId, {
+          sessionName: newName,
+        });
+
+        if (!success) {
+          // Revert on failure using stored original name
+          setSessions(prevSessions =>
+            prevSessions.map(session =>
+              session.id === sessionId
+                ? { ...session, sessionName: originalName || newName }
+                : session
+            )
+          );
+          toast.error('Failed to update session name');
+        } else {
+          toast.success('Session name updated');
+        }
       }
     } catch (error) {
       const { logger } = await import('@/lib/logger');
@@ -595,7 +615,15 @@ const Sessions = () => {
   const handleDeleteSession = async (sessionId: string) => {
     try {
       setDeletingSessionId(sessionId);
-      await firebaseService.deleteSession(sessionId);
+      if (isGuest) {
+        // Guest: delete from localStorage
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const updated = stored.filter((s: Session) => s.id !== sessionId);
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
+      } else {
+        await firebaseService.deleteSession(sessionId);
+      }
       setSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
       setFilteredSessions(prevSessions =>
         prevSessions.filter(s => s.id !== sessionId)
@@ -977,11 +1005,9 @@ const Sessions = () => {
             >
               {searchTerm
                 ? 'Try adjusting your search terms'
-                : isGuest
-                  ? 'Create an account to save your practice sessions'
-                  : 'Start tracking your practice sessions to see them here'}
+                : 'Start tracking your practice sessions to see them here'}
             </p>
-            {!searchTerm && !isGuest && (
+            {!searchTerm && (
               <Button
                 onClick={() => {
                   resetSession();
@@ -1001,29 +1027,6 @@ const Sessions = () => {
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Session
               </Button>
-            )}
-            {!searchTerm && isGuest && (
-              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                <Button
-                  onClick={() => navigate('/signup')}
-                  className={`bg-team-blue hover:bg-team-blue/90 ${
-                    isDarkMode ? 'text-black' : 'text-white'
-                  }`}
-                >
-                  Sign Up to Save Sessions
-                </Button>
-                <Button
-                  onClick={() => navigate('/active')}
-                  variant="outline"
-                  className={
-                    isDarkMode
-                      ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
-                      : 'border-gray-300'
-                  }
-                >
-                  Start Practice Session
-                </Button>
-              </div>
             )}
           </div>
         ) : (

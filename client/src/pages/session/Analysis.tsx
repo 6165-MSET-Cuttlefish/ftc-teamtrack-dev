@@ -1512,7 +1512,17 @@ const AnalysisContent = () => {
       const sessionId = searchParams.get('sessionId');
       if (sessionId) {
         try {
-          const session = await firebaseService.getSession(sessionId);
+          let session = null;
+          // Check localStorage first for guest sessions
+          if (sessionId.startsWith('guest_')) {
+            const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+            const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+            session = stored.find((s: { id: string }) => s.id === sessionId) || null;
+          }
+          // Fall back to Firebase
+          if (!session) {
+            session = await firebaseService.getSession(sessionId);
+          }
           if (mounted && session) {
             const sum = (fn: (m: Match) => number) =>
               session.matches.reduce((s, m) => s + fn(m), 0);
@@ -1581,9 +1591,19 @@ const AnalysisContent = () => {
     setIsUpdating(true);
     try {
       const updatedMatches = sessionData.matches.filter(m => m.id !== matchId);
-      await firebaseService.updateSession(sessionId, {
-        matches: updatedMatches,
-      });
+
+      if (sessionId.startsWith('guest_')) {
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const updated = stored.map((s: { id: string; matches?: Match[] }) =>
+          s.id === sessionId ? { ...s, matches: updatedMatches } : s
+        );
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
+      } else {
+        await firebaseService.updateSession(sessionId, {
+          matches: updatedMatches,
+        });
+      }
 
       setLocalSessionData({
         ...sessionData,
@@ -1643,9 +1663,18 @@ const AnalysisContent = () => {
         updatedMatches = [...currentMatches, newMatch];
       }
 
-      await firebaseService.updateSession(sessionId, {
-        matches: updatedMatches,
-      });
+      if (sessionId.startsWith('guest_')) {
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const updated = stored.map((s: { id: string; matches?: Match[] }) =>
+          s.id === sessionId ? { ...s, matches: updatedMatches } : s
+        );
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
+      } else {
+        await firebaseService.updateSession(sessionId, {
+          matches: updatedMatches,
+        });
+      }
 
       setLocalSessionData({
         ...sessionData,
