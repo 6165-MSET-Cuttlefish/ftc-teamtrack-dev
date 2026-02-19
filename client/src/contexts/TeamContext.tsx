@@ -19,6 +19,8 @@ interface TeamContextType {
   leaveTeam: () => Promise<void>;
   refreshTeam: () => Promise<void>;
   regenerateInviteCode: () => Promise<string | null>;
+  transferOwnership: (newOwnerId: string) => Promise<boolean>;
+  updateMemberDisplayName: (newDisplayName: string) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -131,6 +133,19 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     if (!user) return;
 
     try {
+      // If we already know the team ID, do a direct document read (avoids stale cache)
+      if (team?.id) {
+        const freshTeam = await teamService.getTeam(team.id);
+        if (freshTeam && freshTeam.members.some(m => m.userId === user.uid)) {
+          setTeam(freshTeam);
+        } else {
+          // User was removed from this team or team was deleted
+          setTeam(null);
+        }
+        return;
+      }
+
+      // No known team — query for user's teams
       const teams = await teamService.getUserTeams(user.uid);
       if (teams.length > 0) {
         setTeam(teams[0]);
@@ -156,6 +171,30 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const transferOwnership = async (newOwnerId: string): Promise<boolean> => {
+    if (!user || !team) return false;
+    try {
+      const success = await teamService.transferOwnership(team.id, user.uid, newOwnerId);
+      if (success) {
+        await refreshTeam();
+      }
+      return success;
+    } catch (error) {
+      logger.error('Error transferring ownership:', error);
+      throw error;
+    }
+  };
+
+  const updateMemberDisplayName = async (newDisplayName: string): Promise<void> => {
+    if (!user || !team) return;
+    try {
+      await teamService.updateMemberDisplayName(team.id, user.uid, newDisplayName);
+      await refreshTeam();
+    } catch (error) {
+      logger.error('Error updating member display name:', error);
+    }
+  };
+
   return (
     <TeamContext.Provider
       value={{
@@ -166,6 +205,8 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         leaveTeam,
         refreshTeam,
         regenerateInviteCode,
+        transferOwnership,
+        updateMemberDisplayName,
       }}
     >
       {children}

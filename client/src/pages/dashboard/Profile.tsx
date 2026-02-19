@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth, useTheme } from '@/contexts';
+import { useAuth, useTheme, useTeam } from '@/contexts';
 import { getInitials } from '@/lib/utils';
 import { UI_TIMING } from '@/constants';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { User, Mail, Shield, Edit2, X, Check } from 'lucide-react';
 const Profile = () => {
   const { user, logout, updateDisplayName, updateUserEmail } = useAuth();
   const { isDarkMode } = useTheme();
+  const { updateMemberDisplayName } = useTeam();
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -69,6 +70,8 @@ const Profile = () => {
     try {
       setNameLoading(true);
       await updateDisplayName(nameValue.trim());
+      // Also update display name in team member list
+      await updateMemberDisplayName(nameValue.trim());
       setEditingName(false);
       showMessage('Display name updated.', 'success');
     } catch (err) {
