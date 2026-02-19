@@ -38,8 +38,12 @@ export default tseslint.config(
     },
   },
   {
-    // Disable react-refresh warnings for UI components and context files
-    files: ['**/components/ui/**/*.{ts,tsx}', '**/contexts/**/*.{ts,tsx}'],
+    // Disable react-refresh warnings for UI components, context files, and mixed-export tab modules
+    files: [
+      '**/components/ui/**/*.{ts,tsx}',
+      '**/contexts/**/*.{ts,tsx}',
+      '**/pages/session/AnalysisTabs.tsx',
+    ],
     rules: {
       'react-refresh/only-export-components': 'off',
     },

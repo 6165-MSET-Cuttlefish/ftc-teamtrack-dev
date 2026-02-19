@@ -394,7 +394,7 @@ export const LivePreview = ({
       }
 
       // Mark that user has completed a session (drives landing page redirect)
-      const { markSessionCompleted } = await import('@/components/auth/HomeRedirect');
+      const { markSessionCompleted } = await import('@/lib/sessionStorage');
       markSessionCompleted();
     } catch (error) {
       const { logger } = await import('@/lib/logger');

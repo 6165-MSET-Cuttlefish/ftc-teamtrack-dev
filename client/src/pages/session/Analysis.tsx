@@ -135,7 +135,7 @@ const AnalysisContent = () => {
     return () => {
       mounted = false;
     };
-  }, [searchParams, location.state, user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, location.state, user?.uid]);
 
   // ── Copy share link ───────────────────────────────────────────────────
 

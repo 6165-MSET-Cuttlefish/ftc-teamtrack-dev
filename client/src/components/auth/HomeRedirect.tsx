@@ -1,16 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts';
 import { ROUTES } from '@/constants';
-
-const HAS_COMPLETED_SESSION_KEY = 'teamtrack-has-completed-session';
-
-/** Check if the user has ever completed a session */
-export const hasCompletedASession = (): boolean =>
-  localStorage.getItem(HAS_COMPLETED_SESSION_KEY) === 'true';
-
-/** Mark that the user has completed at least one session */
-export const markSessionCompleted = (): void =>
-  localStorage.setItem(HAS_COMPLETED_SESSION_KEY, 'true');
+import { hasCompletedASession } from '@/lib';
 
 /**
  * Smart redirect for home route

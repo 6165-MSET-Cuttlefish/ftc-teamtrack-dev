@@ -82,7 +82,7 @@ const SharedSession = () => {
   }, []);
 
   const sessionMatches: Match[] = session?.matches ?? [];
-  const stats = useMemo(() => computeStats(sessionMatches), [sessionMatches]);
+  const stats = useMemo(() => computeStats(session?.matches ?? []), [session]);
 
   // ── Loading ─────────────────────────────────────────────────────────────────
 

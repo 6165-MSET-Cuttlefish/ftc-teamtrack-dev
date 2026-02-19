@@ -7,6 +7,16 @@
 import type { Match, ScoringFields } from '@/types';
 import { logger } from './logger';
 
+const HAS_COMPLETED_SESSION_KEY = 'teamtrack-has-completed-session';
+
+/** Check if the user has ever completed a session */
+export const hasCompletedASession = (): boolean =>
+  localStorage.getItem(HAS_COMPLETED_SESSION_KEY) === 'true';
+
+/** Mark that the user has completed at least one session */
+export const markSessionCompleted = (): void =>
+  localStorage.setItem(HAS_COMPLETED_SESSION_KEY, 'true');
+
 const SESSION_DATA = 'teamtrack-session-data';
 const SESSION_TIMER = 'teamtrack-session-timer';
 const MATCH_TIMER = 'teamtrack-match-timer';
