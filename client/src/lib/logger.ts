@@ -19,13 +19,7 @@ const logBuffer: LogEntry[] = [];
 const MAX_LOG_ENTRIES = 100;
 
 // Check if running in development mode
-const isDevelopment = (): boolean => {
-  try {
-    return typeof window !== 'undefined' && ((window as unknown as Record<string, unknown>).__DEV__ as boolean) !== false;
-  } catch {
-    return true; // Default to true for safety
-  }
-};
+const isDevelopment = (): boolean => import.meta.env.DEV;
 
 function addToBuffer(entry: LogEntry) {
   logBuffer.push(entry);
@@ -34,7 +28,11 @@ function addToBuffer(entry: LogEntry) {
   }
 }
 
-function formatLog(level: LogLevel, message: string, context?: Record<string, unknown>): string {
+function formatLog(
+  level: LogLevel,
+  message: string,
+  context?: Record<string, unknown>
+): string {
   const timestamp = new Date().toISOString();
   let output = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
   if (context && Object.keys(context).length > 0) {
@@ -79,7 +77,11 @@ export const logger = {
   /**
    * Log errors - primary method for error logging
    */
-  error: (message: string, error?: unknown, context?: Record<string, unknown>) => {
+  error: (
+    message: string,
+    error?: unknown,
+    context?: Record<string, unknown>
+  ) => {
     // Suppress abort errors from logs to avoid cluttering error tracking
     if (isAbortError(error) || isAbortError(message)) return;
 
@@ -115,19 +117,5 @@ export const logger = {
       // eslint-disable-next-line no-console
       console.debug(formatLog('debug', message, context));
     }
-  },
-
-  /**
-   * Get recent logs for debugging
-   */
-  getRecentLogs: (count: number = 20): LogEntry[] => {
-    return logBuffer.slice(Math.max(0, logBuffer.length - count));
-  },
-
-  /**
-   * Clear log buffer
-   */
-  clear: () => {
-    logBuffer.length = 0;
   },
 };

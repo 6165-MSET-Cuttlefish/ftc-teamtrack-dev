@@ -88,6 +88,7 @@ export interface Session {
   id: string;
   userId: string;
   userEmail?: string;
+  teamId?: string;
   sessionName: string;
   matchType?: string;
   sessionDuration?: string;
@@ -95,7 +96,6 @@ export interface Session {
   selectedFeature?: string;
   notes?: string;
   matches: Match[];
-  [key: string]: unknown;
 }
 
 /** Session data for creating new sessions (without id and createdAt) */

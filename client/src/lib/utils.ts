@@ -23,7 +23,10 @@ export function toDate(timestamp: TimestampValue | unknown): Date {
       return new Date(ts.seconds * 1000 + ts.nanoseconds / 1000000);
     }
     // Handle Firestore Timestamp with toDate method
-    if ('toDate' in ts && typeof (ts as { toDate: () => Date }).toDate === 'function') {
+    if (
+      'toDate' in ts &&
+      typeof (ts as { toDate: () => Date }).toDate === 'function'
+    ) {
       return (ts as { toDate: () => Date }).toDate();
     }
   }
@@ -39,7 +42,7 @@ export function formatDate(
   if (!timestamp) return 'Unknown date';
 
   const date = toDate(timestamp);
-  
+
   const defaultOptions: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'short',
@@ -67,7 +70,7 @@ export function getInitials(name: string): string {
     .toUpperCase();
 }
 
-/** 
+/**
  * Check if error is a Firebase Firestore AbortError
  * These commonly occur during:
  * - Hot Module Replacement (HMR) in development
@@ -89,7 +92,10 @@ export function isAbortError(error: unknown): boolean {
 
   // Check if it's a PromiseRejectionEvent or similar
   const actualError = err.reason || error;
-  const errorObj = typeof actualError === 'object' && actualError !== null ? (actualError as any) : {};
+  const errorObj =
+    typeof actualError === 'object' && actualError !== null
+      ? (actualError as Record<string, unknown>)
+      : {};
 
   const name = String(errorObj.name || '').toLowerCase();
   const code = String(errorObj.code || '').toLowerCase();
@@ -97,7 +103,12 @@ export function isAbortError(error: unknown): boolean {
   const stack = String(errorObj.stack || '').toLowerCase();
 
   // Common AbortError identifiers
-  if (name === 'aborterror' || code === 'err_aborted' || code === '20' || name === 'cancelederror') {
+  if (
+    name === 'aborterror' ||
+    code === 'err_aborted' ||
+    code === '20' ||
+    name === 'cancelederror'
+  ) {
     return true;
   }
 
@@ -113,26 +124,14 @@ export function isAbortError(error: unknown): boolean {
   }
 
   // Check stack trace for Firebase Firestore internal stream closure
-  if (stack.includes('firestore') && (stack.includes('stream') || stack.includes('abort'))) {
+  if (
+    stack.includes('firestore') &&
+    (stack.includes('stream') || stack.includes('abort'))
+  ) {
     return true;
   }
 
   return false;
-}
-
-/** Safely handle async operations with abort error suppression */
-export async function safeAsync<T>(
-  operation: () => Promise<T>,
-  fallback: T
-): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    if (isAbortError(error)) {
-      return fallback;
-    }
-    throw error;
-  }
 }
 
 /** Get human-readable error message from unknown error type */
@@ -143,16 +142,4 @@ export function getErrorMessage(error: unknown): string {
     return String((error as { message: unknown }).message);
   }
   return 'An unexpected error occurred';
-}
-
-/** Calculate percentage change between two values */
-export function calculatePercentChange(current: number, baseline: number): number {
-  if (baseline === 0) return current > 0 ? 100 : 0;
-  return ((current - baseline) / baseline) * 100;
-}
-
-/** Calculate average of an array of numbers */
-export function average(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((sum, val) => sum + val, 0) / values.length;
 }

@@ -1,27 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts';
 import type { Match } from '@/types';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select';
+} from '../ui/select';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
-import { 
-  Plus,
-  Pencil,
-} from 'lucide-react';
+} from '../ui/dialog';
+import { Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MatchFormProps {
@@ -59,7 +56,7 @@ export const MatchForm = ({
   const handleInputChange = (field: string, value: number | string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: typeof value === 'string' ? value : value,
+      [field]: value,
     }));
   };
 
@@ -108,13 +105,13 @@ export const MatchForm = ({
 
   // Calculate scores automatically
   useEffect(() => {
-    const autonomousScore = 
+    const autonomousScore =
       (formData.autonClassifiedArtifact || 0) * 3 +
       (formData.autonOverflowArtifact || 0) * 1 +
       (formData.autonMotif || 0) * 2 +
       (formData.autonLeave || 0) * 3;
 
-    const teleopScore = 
+    const teleopScore =
       (formData.teleClassifiedArtifact || 0) * 3 +
       (formData.teleOverflowArtifact || 0) * 1 +
       (formData.teleMotif || 0) * 2;
@@ -122,9 +119,17 @@ export const MatchForm = ({
     // Calculate endgame score based on parking
     let endGameScore = 0;
     const robot1Score =
-      formData.robot1Park === 'partial' ? 5 : formData.robot1Park === 'full' ? 10 : 0;
+      formData.robot1Park === 'partial'
+        ? 5
+        : formData.robot1Park === 'full'
+          ? 10
+          : 0;
     const robot2Score =
-      formData.robot2Park === 'partial' ? 5 : formData.robot2Park === 'full' ? 10 : 0;
+      formData.robot2Park === 'partial'
+        ? 5
+        : formData.robot2Park === 'full'
+          ? 10
+          : 0;
 
     // Special case: two full parks = 30 points total
     if (formData.robot1Park === 'full' && formData.robot2Park === 'full') {
@@ -184,13 +189,13 @@ export const MatchForm = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className={`max-w-2xl max-h-[90vh] overflow-y-auto border-2 ${
-          isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-team-blue-40'
+          isDarkMode
+            ? 'bg-team-dark border-team-blue-40'
+            : 'bg-white border-team-blue-40'
         }`}
       >
         <DialogHeader className={isDarkMode ? 'border-team-blue-40' : ''}>
-          <DialogTitle
-            className={isDarkMode ? 'text-white' : 'text-team-blue'}
-          >
+          <DialogTitle className={isDarkMode ? 'text-white' : 'text-team-blue'}>
             {initialMatch ? (
               <>
                 <Pencil className="h-5 w-5" />
@@ -204,9 +209,7 @@ export const MatchForm = ({
             )}
           </DialogTitle>
           <DialogDescription
-            className={
-              isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-            }
+            className={isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}
           >
             {initialMatch
               ? 'Update the match details below'
@@ -217,35 +220,44 @@ export const MatchForm = ({
         <div className="space-y-6 px-6 py-6">
           {/* Match Type */}
           <div className="space-y-2">
-              <Label htmlFor="matchType" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
-                Match Type
-              </Label>
-              <Select
-                value={formData.matchType || 'Full Game'}
-                onValueChange={value =>
-                  handleInputChange('matchType', value)
+            <Label
+              htmlFor="matchType"
+              className={isDarkMode ? 'text-white' : 'text-gray-700'}
+            >
+              Match Type
+            </Label>
+            <Select
+              value={formData.matchType || 'Full Game'}
+              onValueChange={value => handleInputChange('matchType', value)}
+            >
+              <SelectTrigger
+                id="matchType"
+                disabled={isLoading}
+                className={
+                  isDarkMode
+                    ? 'bg-team-dark border border-team-blue-40 text-white'
+                    : 'bg-white border border-team-blue-40'
                 }
               >
-                <SelectTrigger
-                  id="matchType"
-                  disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent
-                  className={isDarkMode ? 'bg-team-dark border-team-blue-40' : ''}
-                >
-                  <SelectItem value="Full Game">Full Game</SelectItem>
-                  <SelectItem value="Autonomous">Autonomous</SelectItem>
-                  <SelectItem value="Teleop">Teleop</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                className={isDarkMode ? 'bg-team-dark border-team-blue-40' : ''}
+              >
+                <SelectItem value="Full Game">Full Game</SelectItem>
+                <SelectItem value="Autonomous">Autonomous</SelectItem>
+                <SelectItem value="Teleop">Teleop</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Scores */}
-          <div className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}>
-            <h4 className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+          <div
+            className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
+          >
+            <h4
+              className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
               Scores
             </h4>
             <div className="grid grid-cols-2 gap-4">
@@ -253,7 +265,9 @@ export const MatchForm = ({
                 <Label className={isDarkMode ? 'text-white' : 'text-gray-700'}>
                   Final Score
                 </Label>
-                <div className={`p-3 rounded-lg border font-bold text-xl text-center ${isDarkMode ? 'bg-team-dark/50 border-team-blue-40 text-white' : 'bg-gray-100 border-team-blue-40 text-gray-900'}`}>
+                <div
+                  className={`p-3 rounded-lg border font-bold text-xl text-center ${isDarkMode ? 'bg-team-dark/50 border-team-blue-40 text-white' : 'bg-gray-100 border-team-blue-40 text-gray-900'}`}
+                >
                   {formData.finalScore || 0}
                 </div>
               </div>
@@ -261,7 +275,9 @@ export const MatchForm = ({
                 <Label className={isDarkMode ? 'text-white' : 'text-gray-700'}>
                   Autonomous Score
                 </Label>
-                <div className={`p-3 rounded-lg border font-semibold text-lg text-center ${isDarkMode ? 'bg-team-dark/50 border-team-blue-40 text-white' : 'bg-gray-100 border-team-blue-40 text-gray-900'}`}>
+                <div
+                  className={`p-3 rounded-lg border font-semibold text-lg text-center ${isDarkMode ? 'bg-team-dark/50 border-team-blue-40 text-white' : 'bg-gray-100 border-team-blue-40 text-gray-900'}`}
+                >
                   {formData.autonomousScore || 0}
                 </div>
               </div>
@@ -269,7 +285,9 @@ export const MatchForm = ({
                 <Label className={isDarkMode ? 'text-white' : 'text-gray-700'}>
                   Teleop Score
                 </Label>
-                <div className={`p-3 rounded-lg border font-semibold text-lg text-center ${isDarkMode ? 'bg-team-dark/50 border-team-blue-40 text-white' : 'bg-gray-100 border-team-blue-40 text-gray-900'}`}>
+                <div
+                  className={`p-3 rounded-lg border font-semibold text-lg text-center ${isDarkMode ? 'bg-team-dark/50 border-team-blue-40 text-white' : 'bg-gray-100 border-team-blue-40 text-gray-900'}`}
+                >
                   {formData.teleopScore || 0}
                 </div>
               </div>
@@ -277,7 +295,9 @@ export const MatchForm = ({
                 <Label className={isDarkMode ? 'text-white' : 'text-gray-700'}>
                   Endgame Score
                 </Label>
-                <div className={`p-3 rounded-lg border font-semibold text-lg text-center ${isDarkMode ? 'bg-team-dark/50 border-team-blue-40 text-white' : 'bg-gray-100 border-team-blue-40 text-gray-900'}`}>
+                <div
+                  className={`p-3 rounded-lg border font-semibold text-lg text-center ${isDarkMode ? 'bg-team-dark/50 border-team-blue-40 text-white' : 'bg-gray-100 border-team-blue-40 text-gray-900'}`}
+                >
                   {formData.endGameScore || 0}
                 </div>
               </div>
@@ -285,13 +305,20 @@ export const MatchForm = ({
           </div>
 
           {/* Autonomous Details */}
-          <div className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}>
-            <h4 className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+          <div
+            className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
+          >
+            <h4
+              className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
               Autonomous
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="autonClassifiedArtifact" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="autonClassifiedArtifact"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Classified Artifacts
                 </Label>
                 <Input
@@ -305,11 +332,18 @@ export const MatchForm = ({
                     )
                   }
                   disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                  className={
+                    isDarkMode
+                      ? 'bg-team-dark border border-team-blue-40 text-white'
+                      : 'bg-white border border-team-blue-40'
+                  }
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="autonOverflowArtifact" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="autonOverflowArtifact"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Overflow Artifacts
                 </Label>
                 <Input
@@ -323,11 +357,18 @@ export const MatchForm = ({
                     )
                   }
                   disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                  className={
+                    isDarkMode
+                      ? 'bg-team-dark border border-team-blue-40 text-white'
+                      : 'bg-white border border-team-blue-40'
+                  }
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="autonMotif" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="autonMotif"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Motifs
                 </Label>
                 <Input
@@ -338,7 +379,11 @@ export const MatchForm = ({
                     handleNumericInputChange('autonMotif', e.target.value)
                   }
                   disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                  className={
+                    isDarkMode
+                      ? 'bg-team-dark border border-team-blue-40 text-white'
+                      : 'bg-white border border-team-blue-40'
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -346,7 +391,7 @@ export const MatchForm = ({
                   Leave
                 </Label>
                 <div className="flex gap-2">
-                  {[0, 1, 2].map((value) => (
+                  {[0, 1, 2].map(value => (
                     <button
                       key={value}
                       type="button"
@@ -368,7 +413,10 @@ export const MatchForm = ({
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="autonBallsMissed" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="autonBallsMissed"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Balls Missed
                 </Label>
                 <Input
@@ -379,20 +427,31 @@ export const MatchForm = ({
                     handleNumericInputChange('autonBallsMissed', e.target.value)
                   }
                   disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                  className={
+                    isDarkMode
+                      ? 'bg-team-dark border border-team-blue-40 text-white'
+                      : 'bg-white border border-team-blue-40'
+                  }
                 />
               </div>
             </div>
           </div>
 
           {/* Teleop Details */}
-          <div className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}>
-            <h4 className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+          <div
+            className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
+          >
+            <h4
+              className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
               Teleop
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="teleClassifiedArtifact" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="teleClassifiedArtifact"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Classified Artifacts
                 </Label>
                 <Input
@@ -406,11 +465,18 @@ export const MatchForm = ({
                     )
                   }
                   disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                  className={
+                    isDarkMode
+                      ? 'bg-team-dark border border-team-blue-40 text-white'
+                      : 'bg-white border border-team-blue-40'
+                  }
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="teleOverflowArtifact" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="teleOverflowArtifact"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Overflow Artifacts
                 </Label>
                 <Input
@@ -424,11 +490,18 @@ export const MatchForm = ({
                     )
                   }
                   disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                  className={
+                    isDarkMode
+                      ? 'bg-team-dark border border-team-blue-40 text-white'
+                      : 'bg-white border border-team-blue-40'
+                  }
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="teleMotif" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="teleMotif"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Motifs
                 </Label>
                 <Input
@@ -439,11 +512,18 @@ export const MatchForm = ({
                     handleNumericInputChange('teleMotif', e.target.value)
                   }
                   disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                  className={
+                    isDarkMode
+                      ? 'bg-team-dark border border-team-blue-40 text-white'
+                      : 'bg-white border border-team-blue-40'
+                  }
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="teleBallsMissed" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="teleBallsMissed"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Balls Missed
                 </Label>
                 <Input
@@ -454,20 +534,31 @@ export const MatchForm = ({
                     handleNumericInputChange('teleBallsMissed', e.target.value)
                   }
                   disabled={isLoading}
-                  className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                  className={
+                    isDarkMode
+                      ? 'bg-team-dark border border-team-blue-40 text-white'
+                      : 'bg-white border border-team-blue-40'
+                  }
                 />
               </div>
             </div>
           </div>
 
           {/* Endgame */}
-          <div className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}>
-            <h4 className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+          <div
+            className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
+          >
+            <h4
+              className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
               Endgame
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="robot1Park" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="robot1Park"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Robot 1 Parking
                 </Label>
                 <Select
@@ -479,12 +570,18 @@ export const MatchForm = ({
                   <SelectTrigger
                     id="robot1Park"
                     disabled={isLoading}
-                    className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                    className={
+                      isDarkMode
+                        ? 'bg-team-dark border border-team-blue-40 text-white'
+                        : 'bg-white border border-team-blue-40'
+                    }
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent
-                    className={isDarkMode ? 'bg-team-dark border-team-blue-40' : ''}
+                    className={
+                      isDarkMode ? 'bg-team-dark border-team-blue-40' : ''
+                    }
                   >
                     <SelectItem value="none">None</SelectItem>
                     <SelectItem value="partial">Partial</SelectItem>
@@ -493,7 +590,10 @@ export const MatchForm = ({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="robot2Park" className={isDarkMode ? 'text-white' : 'text-gray-700'}>
+                <Label
+                  htmlFor="robot2Park"
+                  className={isDarkMode ? 'text-white' : 'text-gray-700'}
+                >
                   Robot 2 Parking
                 </Label>
                 <Select
@@ -505,12 +605,18 @@ export const MatchForm = ({
                   <SelectTrigger
                     id="robot2Park"
                     disabled={isLoading}
-                    className={isDarkMode ? 'bg-team-dark border border-team-blue-40 text-white' : 'bg-white border border-team-blue-40'}
+                    className={
+                      isDarkMode
+                        ? 'bg-team-dark border border-team-blue-40 text-white'
+                        : 'bg-white border border-team-blue-40'
+                    }
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent
-                    className={isDarkMode ? 'bg-team-dark border-team-blue-40' : ''}
+                    className={
+                      isDarkMode ? 'bg-team-dark border-team-blue-40' : ''
+                    }
                   >
                     <SelectItem value="none">None</SelectItem>
                     <SelectItem value="partial">Partial</SelectItem>
@@ -522,7 +628,9 @@ export const MatchForm = ({
           </div>
         </div>
 
-        <div className={`border-t px-6 py-4 flex gap-3 justify-end ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-gray-50'}`}>
+        <div
+          className={`border-t px-6 py-4 flex gap-3 justify-end ${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue-40 bg-gray-50'}`}
+        >
           <Button
             variant="outline"
             onClick={onClose}
@@ -531,8 +639,8 @@ export const MatchForm = ({
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleSave} 
+          <Button
+            onClick={handleSave}
             disabled={isLoading}
             className={`min-w-[120px] bg-team-blue hover:bg-team-blue/90 flex items-center gap-2 ${
               isDarkMode ? 'text-black' : 'text-white'
@@ -543,8 +651,10 @@ export const MatchForm = ({
                 <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Saving...
               </>
+            ) : initialMatch ? (
+              'Update Match'
             ) : (
-              initialMatch ? 'Update Match' : 'Add Match'
+              'Add Match'
             )}
           </Button>
         </div>

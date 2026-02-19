@@ -1,18 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useSession, useTheme } from '@/contexts';
+import { useAuth, useSession, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
+import TeamManager from '@/components/TeamManager';
 import { formatDate, isAbortError } from '@/lib/utils';
 import { generateShareableLink, copyToClipboard } from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Tooltip,
@@ -70,7 +66,8 @@ const SessionCard = ({
   // Check if title is truncated
   useEffect(() => {
     if (titleRef.current && !isEditing) {
-      const isTruncated = titleRef.current.scrollHeight > titleRef.current.clientHeight;
+      const isTruncated =
+        titleRef.current.scrollHeight > titleRef.current.clientHeight;
       setIsTitleTruncated(isTruncated);
     } else {
       setIsTitleTruncated(false);
@@ -80,7 +77,10 @@ const SessionCard = ({
   // Reset delete confirmation after timeout
   useEffect(() => {
     if (deleteConfirm) {
-      const timeout = setTimeout(() => setDeleteConfirm(false), UI_TIMING.DELETE_CONFIRM_TIMEOUT);
+      const timeout = setTimeout(
+        () => setDeleteConfirm(false),
+        UI_TIMING.DELETE_CONFIRM_TIMEOUT
+      );
       return () => clearTimeout(timeout);
     }
   }, [deleteConfirm]);
@@ -129,19 +129,30 @@ const SessionCard = ({
     const scores = matches
       .map(match => match.finalScore || 0)
       .filter(score => score > 0);
-    
+
     if (scores.length === 0) {
-      return { highestScore: 0, averageScore: 0, totalScore: 0, matchCount: matches.length };
+      return {
+        highestScore: 0,
+        averageScore: 0,
+        totalScore: 0,
+        matchCount: matches.length,
+      };
     }
 
     const totalScore = scores.reduce((a, b) => a + b, 0);
     const highestScore = Math.max(...scores);
     const averageScore = Math.round(totalScore / scores.length);
-    
-    return { highestScore, averageScore, totalScore, matchCount: matches.length };
+
+    return {
+      highestScore,
+      averageScore,
+      totalScore,
+      matchCount: matches.length,
+    };
   };
 
-  const { highestScore, averageScore, totalScore, matchCount } = getSessionScores();
+  const { highestScore, averageScore, totalScore, matchCount } =
+    getSessionScores();
 
   const cardContent = (
     <Card
@@ -196,7 +207,7 @@ const SessionCard = ({
                 ) : (
                   <>
                     <button
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         onShare();
                       }}
@@ -245,7 +256,9 @@ const SessionCard = ({
                         <button
                           onClick={handleDeleteCancel}
                           className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                            isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                            isDarkMode
+                              ? 'text-team-white-60'
+                              : 'text-team-blue-40'
                           }`}
                           title="Cancel delete"
                         >
@@ -355,9 +368,7 @@ const SessionCard = ({
   if (isTitleTruncated) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>
-          {cardContent}
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{cardContent}</TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs break-words">
           {session.sessionName || 'Untitled Session'}
         </TooltipContent>
@@ -400,45 +411,107 @@ const Sessions = () => {
   const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
   const { resetSession, hasActiveSession } = useSession();
+  const { team } = useTeam();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     document.title = `Sessions - ${APP_CONFIG.name}`;
   }, []);
 
-  useEffect(() => {
-    const loadSessions = async () => {
-      // Guests don't have sessions stored in Firebase
-      if (isGuest) {
-        setLoading(false);
-        return;
-      }
+  const loadPersonalSessions = useCallback(async () => {
+    // Guests don't have sessions stored in Firebase
+    if (isGuest) {
+      setLoading(false);
+      return;
+    }
 
-      if (!user?.uid) return;
+    if (!user?.uid) return;
 
-      setLoading(true);
-      try {
-        const userSessions = await firebaseService.getUserSessions(user.uid);
-        setSessions(userSessions);
-        setFilteredSessions(userSessions);
-      } catch (error) {
-        if (isAbortError(error)) return;
-        const { logger } = await import('@/lib/logger');
-        logger.error('Error loading sessions', error);
-        toast.error('Failed to load sessions');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSessions();
+    setLoading(true);
+    try {
+      const fetchedSessions = await firebaseService.getUserSessions(user.uid);
+      setSessions(fetchedSessions);
+      setFilteredSessions(fetchedSessions);
+    } catch (error) {
+      if (isAbortError(error)) return;
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error loading sessions', error);
+      toast.error('Failed to load sessions');
+    } finally {
+      setLoading(false);
+    }
   }, [user?.uid, isGuest]);
+
+  const loadSessions = useCallback(async () => {
+    if (!user?.uid) return;
+    if (!team) {
+      await loadPersonalSessions();
+    }
+    // Team sessions are handled by the real-time listener below
+  }, [user?.uid, team, loadPersonalSessions]);
+
+  // Real-time sync for team sessions
+  useEffect(() => {
+    if (!team) return;
+
+    setLoading(true);
+    let unsubscribe: (() => void) | undefined;
+    let subscribed = false;
+
+    firebaseService
+      .subscribeTeamSessions(
+        team.id,
+        (teamSessions) => {
+          subscribed = true;
+          setSessions(teamSessions);
+          setFilteredSessions(teamSessions);
+          setLoading(false);
+        },
+        async (error) => {
+          console.error('Team sessions listener error:', error);
+          // Show the actual Firestore error (often a missing index link)
+          const errorMessage = error?.message || 'Unknown error';
+          if (errorMessage.includes('index')) {
+            toast.error('Firestore needs a composite index for team sessions. Check the browser console for the creation link.', { duration: 10000 });
+          } else {
+            toast.error(`Team sync error: ${errorMessage}`);
+          }
+          // Fallback to one-time fetch so the page still works
+          if (!subscribed) {
+            try {
+              const fetched = await firebaseService.getTeamSessions(team.id);
+              setSessions(fetched);
+              setFilteredSessions(fetched);
+            } catch {
+              // already toasted
+            }
+          }
+          setLoading(false);
+        }
+      )
+      .then((unsub) => {
+        unsubscribe = unsub;
+      });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [team]);
+
+  // Load personal sessions (non-team)
+  useEffect(() => {
+    if (!team) {
+      loadPersonalSessions();
+    }
+  }, [team, loadPersonalSessions]);
 
   useEffect(() => {
     let filtered = sessions;
@@ -447,7 +520,9 @@ const Sessions = () => {
     if (searchTerm.trim()) {
       filtered = filtered.filter(
         session =>
-          session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          session.sessionName
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -455,7 +530,8 @@ const Sessions = () => {
     // Filter by match type
     if (selectedMatchType !== 'all') {
       filtered = filtered.filter(
-        session => session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
+        session =>
+          session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
       );
     }
 
@@ -466,10 +542,13 @@ const Sessions = () => {
     navigate(`/analysis?sessionId=${sessionId}`);
   };
 
-  const handleUpdateSessionName = async (sessionId: string, newName: string) => {
+  const handleUpdateSessionName = async (
+    sessionId: string,
+    newName: string
+  ) => {
     // Store original name before optimistic update for potential revert
     const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
-    
+
     try {
       // Update local state optimistically for instant feedback
       setSessions(prevSessions =>
@@ -479,10 +558,12 @@ const Sessions = () => {
             : session
         )
       );
-      
+
       // Then update Firebase to persist changes
-      const success = await firebaseService.updateSession(sessionId, { sessionName: newName });
-      
+      const success = await firebaseService.updateSession(sessionId, {
+        sessionName: newName,
+      });
+
       if (!success) {
         // Revert on failure using stored original name
         setSessions(prevSessions =>
@@ -567,17 +648,50 @@ const Sessions = () => {
 
     // Convert sessions to CSV rows with proper escaping
     const rows = sessions.map(session => {
-      const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-      const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
-      const teleopScore = session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0);
-      const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
-      const autonClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.autonClassifiedArtifact || 0), 0);
-      const autonOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.autonOverflowArtifact || 0), 0);
-      const autonMotif = session.matches.reduce((sum, m) => sum + (m.autonMotif || 0), 0);
-      const autonLeave = session.matches.reduce((sum, m) => sum + (m.autonLeave || 0), 0);
-      const teleClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0);
-      const teleOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0);
-      const teleMotif = session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0);
+      const finalScore = session.matches.reduce(
+        (sum, m) => sum + (m.finalScore || 0),
+        0
+      );
+      const autonomousScore = session.matches.reduce(
+        (sum, m) => sum + (m.autonomousScore || 0),
+        0
+      );
+      const teleopScore = session.matches.reduce(
+        (sum, m) => sum + (m.teleopScore || 0),
+        0
+      );
+      const endGameScore = session.matches.reduce(
+        (sum, m) => sum + (m.endGameScore || 0),
+        0
+      );
+      const autonClassifiedArtifact = session.matches.reduce(
+        (sum, m) => sum + (m.autonClassifiedArtifact || 0),
+        0
+      );
+      const autonOverflowArtifact = session.matches.reduce(
+        (sum, m) => sum + (m.autonOverflowArtifact || 0),
+        0
+      );
+      const autonMotif = session.matches.reduce(
+        (sum, m) => sum + (m.autonMotif || 0),
+        0
+      );
+      const autonLeave = session.matches.reduce(
+        (sum, m) => sum + (m.autonLeave || 0),
+        0
+      );
+      const teleClassifiedArtifact = session.matches.reduce(
+        (sum, m) => sum + (m.teleClassifiedArtifact || 0),
+        0
+      );
+      const teleOverflowArtifact = session.matches.reduce(
+        (sum, m) => sum + (m.teleOverflowArtifact || 0),
+        0
+      );
+      const teleMotif = session.matches.reduce(
+        (sum, m) => sum + (m.teleMotif || 0),
+        0
+      );
 
       return [
         `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
@@ -629,12 +743,13 @@ const Sessions = () => {
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 md:py-8 lg:py-12">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
-            <div>
+            <div className="flex flex-col gap-2">
               <h1
                 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
-                My Sessions
+                {team ? team.name : 'My Sessions'}
               </h1>
+              <TeamManager onTeamChange={() => loadSessions()} />
             </div>
             <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
               <Button
@@ -644,7 +759,11 @@ const Sessions = () => {
                   navigate(ROUTES.ACTIVE);
                 }}
                 disabled={hasActiveSession}
-                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
+                title={
+                  hasActiveSession
+                    ? 'Complete or cancel the active session first'
+                    : undefined
+                }
                 className={`bg-team-blue hover:bg-team-blue/90 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDarkMode ? '!text-black' : '!text-white'
                 }`}
@@ -734,11 +853,16 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {(() => {
-                    const allScores = sessions.flatMap(s => 
-                      (s.matches || []).map(m => m.finalScore || 0)
-                    ).filter(score => score > 0);
-                    return allScores.length > 0 
-                      ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) 
+                    const allScores = sessions
+                      .flatMap(s =>
+                        (s.matches || []).map(m => m.finalScore || 0)
+                      )
+                      .filter(score => score > 0);
+                    return allScores.length > 0
+                      ? Math.round(
+                          allScores.reduce((a, b) => a + b, 0) /
+                            allScores.length
+                        )
                       : 0;
                   })()}
                 </div>
@@ -753,7 +877,7 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {(() => {
-                    const allScores = sessions.flatMap(s => 
+                    const allScores = sessions.flatMap(s =>
                       (s.matches || []).map(m => m.finalScore || 0)
                     );
                     return allScores.length > 0 ? Math.max(...allScores) : 0;
@@ -769,9 +893,10 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {
-                    sessions.reduce((total, s) => total + (s.matches?.length || 0), 0)
-                  }
+                  {sessions.reduce(
+                    (total, s) => total + (s.matches?.length || 0),
+                    0
+                  )}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
@@ -864,7 +989,11 @@ const Sessions = () => {
                   navigate('/active');
                 }}
                 disabled={hasActiveSession}
-                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
+                title={
+                  hasActiveSession
+                    ? 'Complete or cancel the active session first'
+                    : undefined
+                }
                 className={`bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDarkMode ? 'text-black' : 'text-white'
                 }`}

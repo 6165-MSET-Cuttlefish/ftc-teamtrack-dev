@@ -19,7 +19,16 @@ const ActiveSessionContent = () => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
   }, []);
   const { isDarkMode } = useTheme();
-  const { sessionData, timer, sessionTimer, formatTime, matchPhase, isTimerRunning, phaseTimer, matchActive } = useSession();
+  const {
+    sessionData,
+    timer,
+    sessionTimer,
+    formatTime,
+    matchPhase,
+    isTimerRunning,
+    phaseTimer,
+    matchActive,
+  } = useSession();
 
   // Determine timer color based on phase
   const getTimerColor = () => {
@@ -40,31 +49,55 @@ const ActiveSessionContent = () => {
           <ActiveTutorial />
 
           {/* Timer Section at Top - Scrolls with Page */}
-          <div className="space-y-4" style={{ padding: '15px' }} data-tutorial="timer">
-            
+          <div
+            className="space-y-4"
+            style={{ padding: '15px' }}
+            data-tutorial="timer"
+          >
             {/* Session Name */}
             <div className="flex flex-col items-center">
               <h1 className="text-center text-2xl sm:text-4xl md:text-5xl font-semibold text-team-blue">
                 {sessionData.sessionName?.trim() || 'Active Practice Session'}
               </h1>
             </div>
-            
+
             {/* Large Match Timer - Single Line */}
             <div className="flex flex-col items-center">
-              <div className={`text-7xl sm:text-8xl font-bold tracking-wider leading-none transition-colors ${getTimerColor()}`} style={{ fontFamily: '"Righteous", sans-serif', letterSpacing: '0.05em', fontWeight: 400 }}>
-                {(matchPhase === 'controller_pickup' || matchPhase === 'prepare') ? formatTime(phaseTimer) : formatTime(timer)}
+              <div
+                className={`text-7xl sm:text-8xl font-bold tracking-wider leading-none transition-colors ${getTimerColor()}`}
+                style={{
+                  fontFamily: '"Righteous", sans-serif',
+                  letterSpacing: '0.05em',
+                  fontWeight: 400,
+                }}
+              >
+                {matchPhase === 'controller_pickup' || matchPhase === 'prepare'
+                  ? formatTime(phaseTimer)
+                  : formatTime(timer)}
               </div>
             </div>
-            
+
             {/* Timer Info Below */}
             <div className="flex items-center justify-center gap-4 sm:gap-6">
-              <div className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {matchPhase === 'controller_pickup' ? 'Controller Pickup' : matchPhase === 'prepare' ? 'Prepare' : matchPhase === 'teleop' && timer <= 20 ? 'End Game' : sessionData.matchType || 'Full Game'}
+              <div
+                className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
+                {matchPhase === 'controller_pickup'
+                  ? 'Controller Pickup'
+                  : matchPhase === 'prepare'
+                    ? 'Prepare'
+                    : matchPhase === 'teleop' && timer <= 20
+                      ? 'End Game'
+                      : sessionData.matchType || 'Full Game'}
               </div>
-              <div className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              <div
+                className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+              >
                 Session Timer: {formatTime(sessionTimer)}
               </div>
-              <div className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <div
+                className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
                 {!matchActive
                   ? `Match ${(sessionData.matches?.length || 0) + 1} Not Started`
                   : isTimerRunning
@@ -76,55 +109,66 @@ const ActiveSessionContent = () => {
 
           {/* Live Preview (controls, buttons, scores) */}
           <div data-tutorial="controls" style={{ padding: '15px' }}>
-          <LivePreview 
-            onOpenSessionSetup={() => setShowSessionSetup(!showSessionSetup)}
-            onTryStartWithoutSetup={() => { setShouldFlashSetup(true); setShowSessionSetup(true); }}
-            isSessionSetupSaved={isSessionSetupSaved}
-          />
+            <LivePreview
+              onOpenSessionSetup={() => setShowSessionSetup(!showSessionSetup)}
+              onTryStartWithoutSetup={() => {
+                setShouldFlashSetup(true);
+                setShowSessionSetup(true);
+              }}
+              isSessionSetupSaved={isSessionSetupSaved}
+            />
           </div>
 
           {/* Separator Line */}
-          <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
+          <div
+            className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
+          />
 
           {/* Session Setup - Toggle visibility with settings icon */}
           {showSessionSetup && (
             <>
               <div data-tutorial="session-setup" style={{ padding: '15px' }}>
-              <SessionSetup 
-                onSave={() => {
-                  setShowSessionSetup(false);
-                  setIsSessionSetupSaved(true);
-                  setShouldFlashSetup(false);
-                }}
-                shouldFlash={shouldFlashSetup}
-                isUnsaved={!isSessionSetupSaved}
-              />
+                <SessionSetup
+                  onSave={() => {
+                    setShowSessionSetup(false);
+                    setIsSessionSetupSaved(true);
+                    setShouldFlashSetup(false);
+                  }}
+                  shouldFlash={shouldFlashSetup}
+                  isUnsaved={!isSessionSetupSaved}
+                />
               </div>
 
               {/* Separator Line */}
-              <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
+              <div
+                className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
+              />
             </>
           )}
 
           {/* Scoring UI */}
           <div data-tutorial="scoring" style={{ padding: '15px' }}>
-          <ScoringUI />
+            <ScoringUI />
           </div>
 
           {/* Separator Line */}
-          <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
+          <div
+            className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
+          />
 
           {/* Performance Metrics */}
           <div data-tutorial="metrics" style={{ padding: '15px' }}>
-          <PerformanceMetrics />
+            <PerformanceMetrics />
           </div>
 
           {/* Separator Line */}
-          <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
+          <div
+            className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
+          />
 
           {/* Notes */}
           <div data-tutorial="notes" style={{ padding: '15px' }}>
-          <Notes />
+            <Notes />
           </div>
         </div>
       </div>

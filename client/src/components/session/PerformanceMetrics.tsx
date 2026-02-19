@@ -6,10 +6,9 @@ import React, {
   memo,
   useMemo,
 } from 'react';
-import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useSession, useTheme } from '@/contexts';
 import { ChevronRight, Clock, Plus, Trash2 } from 'lucide-react';
-import type { ShotEntry } from '../types';
+import type { ShotEntry } from '@/types';
 
 // ─── Constants ──────────────────────────────────────────────────────────
 const POINTS_PER_MADE = 3;
@@ -22,7 +21,7 @@ const migrateShotsArray = (
 ): ShotEntry[] => {
   if (!raw || raw.length === 0) return [];
   if (typeof raw[0] === 'number') {
-    return (raw as number[]).map((made) => ({
+    return (raw as number[]).map(made => ({
       ballsShot: made,
       ballsMade: made,
     }));
@@ -82,7 +81,7 @@ const CellInput: React.FC<{
       inputMode="numeric"
       value={local}
       readOnly={readOnly}
-      onChange={(e) => {
+      onChange={e => {
         const v = e.target.value;
         if (v === '' || /^\d+$/.test(v)) setLocal(v);
       }}
@@ -91,7 +90,7 @@ const CellInput: React.FC<{
         setFocused(false);
         commit();
       }}
-      onKeyDown={(e) => {
+      onKeyDown={e => {
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
       }}
       className={className}
@@ -104,7 +103,11 @@ CellInput.displayName = 'CellInput';
 const ShotLogTable: React.FC<{
   label: string;
   shots: ShotEntry[];
-  onUpdate: (index: number, field: 'ballsShot' | 'ballsMade', value: number) => void;
+  onUpdate: (
+    index: number,
+    field: 'ballsShot' | 'ballsMade',
+    value: number
+  ) => void;
   onAdd: () => void;
   onDelete: (index: number) => void;
   editable: boolean;
@@ -127,7 +130,9 @@ const ShotLogTable: React.FC<{
     const sectionTotal = shotsTotal + bonusPoints;
 
     // Precompute min/max cycle times for color coding
-    const cycleTimes = shots.map((s) => s.cycleTime).filter((t): t is number => t !== undefined);
+    const cycleTimes = shots
+      .map(s => s.cycleTime)
+      .filter((t): t is number => t !== undefined);
     const minCycle = cycleTimes.length > 0 ? Math.min(...cycleTimes) : null;
     const maxCycle = cycleTimes.length > 0 ? Math.max(...cycleTimes) : null;
 
@@ -143,7 +148,9 @@ const ShotLogTable: React.FC<{
           >
             {label}
           </h3>
-          <span className="text-team-blue font-bold text-lg">{sectionTotal} pts</span>
+          <span className="text-team-blue font-bold text-lg">
+            {sectionTotal} pts
+          </span>
         </div>
 
         {/* Table */}
@@ -184,8 +191,16 @@ const ShotLogTable: React.FC<{
               running += pts;
               const rowRunning = running;
               const ct = shot.cycleTime;
-              const isMin = ct !== undefined && minCycle !== null && ct === minCycle && cycleTimes.length > 1;
-              const isMax = ct !== undefined && maxCycle !== null && ct === maxCycle && cycleTimes.length > 1;
+              const isMin =
+                ct !== undefined &&
+                minCycle !== null &&
+                ct === minCycle &&
+                cycleTimes.length > 1;
+              const isMax =
+                ct !== undefined &&
+                maxCycle !== null &&
+                ct === maxCycle &&
+                cycleTimes.length > 1;
               const cycleClass = isMin
                 ? 'text-green-500 font-semibold'
                 : isMax
@@ -212,7 +227,7 @@ const ShotLogTable: React.FC<{
                   <div className="px-1 py-1.5 flex justify-center">
                     <CellInput
                       value={shot.ballsShot}
-                      onChange={(v) => onUpdate(i, 'ballsShot', v)}
+                      onChange={v => onUpdate(i, 'ballsShot', v)}
                       max={10}
                       readOnly={!editable}
                       className={`w-14 h-9 text-center text-sm font-medium rounded border transition-colors ${
@@ -225,7 +240,7 @@ const ShotLogTable: React.FC<{
                   <div className="px-1 py-1.5 flex justify-center">
                     <CellInput
                       value={shot.ballsMade}
-                      onChange={(v) => {
+                      onChange={v => {
                         const clamped = Math.min(v, shot.ballsShot);
                         onUpdate(i, 'ballsMade', clamped);
                       }}
@@ -248,7 +263,9 @@ const ShotLogTable: React.FC<{
                   <div className="px-2 py-2 text-center text-sm font-medium text-team-blue">
                     {rowRunning}
                   </div>
-                  <div className={`px-2 py-2 text-center text-xs ${cycleClass}`}>
+                  <div
+                    className={`px-2 py-2 text-center text-xs ${cycleClass}`}
+                  >
                     {ct !== undefined ? formatCycleTime(ct) : '—'}
                   </div>
                   <div className="px-1 py-1.5 flex justify-center">
@@ -348,7 +365,14 @@ const ScoreCard: React.FC<{
   highlight?: boolean;
   isDarkMode: boolean;
   onClick?: () => void;
-}> = ({ label, value, selected = false, highlight = false, isDarkMode, onClick }) => (
+}> = ({
+  label,
+  value,
+  selected = false,
+  highlight = false,
+  isDarkMode,
+  onClick,
+}) => (
   <button
     type="button"
     onClick={onClick}
@@ -371,7 +395,11 @@ const ScoreCard: React.FC<{
     </span>
     <span
       className={`text-2xl font-bold ${
-        selected || highlight ? 'text-team-blue' : isDarkMode ? 'text-white' : 'text-black'
+        selected || highlight
+          ? 'text-team-blue'
+          : isDarkMode
+            ? 'text-white'
+            : 'text-black'
       }`}
     >
       {value}
@@ -398,7 +426,9 @@ export const PerformanceMetrics = () => {
   const lastShotTimeRef = useRef<number | null>(null);
 
   // ── Tab state ─────────────────────────────────────────────────────
-  const [selectedTab, setSelectedTab] = useState<'final' | 'autonomous' | 'teleop' | 'endgame'>('final');
+  const [selectedTab, setSelectedTab] = useState<
+    'final' | 'autonomous' | 'teleop' | 'endgame'
+  >('final');
 
   // ── Local scoring state ───────────────────────────────────────────
   const [autonomousLeave, setAutonomousLeave] = useState(
@@ -451,12 +481,16 @@ export const PerformanceMetrics = () => {
 
   const addAutonShot = useCallback(() => {
     const current = migrateShotsArray(sessionData.autonShots);
-    updateSessionData({ autonShots: [...current, { ballsShot: 0, ballsMade: 0 }] });
+    updateSessionData({
+      autonShots: [...current, { ballsShot: 0, ballsMade: 0 }],
+    });
   }, [sessionData.autonShots, updateSessionData]);
 
   const addTeleopShot = useCallback(() => {
     const current = migrateShotsArray(sessionData.teleopShots);
-    updateSessionData({ teleopShots: [...current, { ballsShot: 0, ballsMade: 0 }] });
+    updateSessionData({
+      teleopShots: [...current, { ballsShot: 0, ballsMade: 0 }],
+    });
   }, [sessionData.teleopShots, updateSessionData]);
 
   const deleteAutonShot = useCallback(
@@ -477,7 +511,10 @@ export const PerformanceMetrics = () => {
 
   // ── Computed scores ───────────────────────────────────────────────
   const autonShotsScore = useMemo(() => totalPoints(autonShots), [autonShots]);
-  const teleopShotsScore = useMemo(() => totalPoints(teleopShots), [teleopShots]);
+  const teleopShotsScore = useMemo(
+    () => totalPoints(teleopShots),
+    [teleopShots]
+  );
   const autonLeaveBonus = autonomousLeave * 3;
 
   const autonomousScore = autonShotsScore + autonLeaveBonus;
@@ -646,7 +683,10 @@ export const PerformanceMetrics = () => {
         // controller_pickup and prepare phases are part of the auton→teleop transition, so count as autonomous
         const isAutonPhase =
           sessionData.matchType === 'Autonomous' ||
-          (sessionData.matchType === 'Full Game' && (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare'));
+          (sessionData.matchType === 'Full Game' &&
+            (matchPhase === 'auton' ||
+              matchPhase === 'controller_pickup' ||
+              matchPhase === 'prepare'));
 
         // Compute cycle time in seconds with 2 decimal precision (same as ScoringUI)
         const now = Date.now();
@@ -656,13 +696,23 @@ export const PerformanceMetrics = () => {
             : undefined;
         lastShotTimeRef.current = now;
 
-        const entry: ShotEntry = { ballsShot: shotType, ballsMade: madeCount, cycleTime };
+        const entry: ShotEntry = {
+          ballsShot: shotType,
+          ballsMade: madeCount,
+          cycleTime,
+        };
 
         if (isAutonPhase) {
-          const nextAuton = [...migrateShotsArray(sessionData.autonShots), entry];
+          const nextAuton = [
+            ...migrateShotsArray(sessionData.autonShots),
+            entry,
+          ];
           updateSessionData({ autonShots: nextAuton });
         } else {
-          const nextTeleop = [...migrateShotsArray(sessionData.teleopShots), entry];
+          const nextTeleop = [
+            ...migrateShotsArray(sessionData.teleopShots),
+            entry,
+          ];
           updateSessionData({ teleopShots: nextTeleop });
           if (sessionData.selectedFeature === 'Cycle Times') recordCycleTime();
         }
@@ -794,17 +844,28 @@ export const PerformanceMetrics = () => {
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
-                <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <div
+                  className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                >
                   Autonomous{autonomousLeave > 0 ? ' (incl. leave +3)' : ''}
                 </div>
-                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <div
+                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                >
                   {sumField(autonShots, 'ballsShot')}
                 </div>
-                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <div
+                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                >
                   {sumField(autonShots, 'ballsMade')}
                 </div>
-                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {calcAccuracy(sumField(autonShots, 'ballsMade'), sumField(autonShots, 'ballsShot'))}
+                <div
+                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                >
+                  {calcAccuracy(
+                    sumField(autonShots, 'ballsMade'),
+                    sumField(autonShots, 'ballsShot')
+                  )}
                 </div>
                 <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                   {autonomousScore}
@@ -819,17 +880,28 @@ export const PerformanceMetrics = () => {
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
-                <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <div
+                  className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                >
                   TeleOp
                 </div>
-                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <div
+                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                >
                   {sumField(teleopShots, 'ballsShot')}
                 </div>
-                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <div
+                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                >
                   {sumField(teleopShots, 'ballsMade')}
                 </div>
-                <div className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {calcAccuracy(sumField(teleopShots, 'ballsMade'), sumField(teleopShots, 'ballsShot'))}
+                <div
+                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                >
+                  {calcAccuracy(
+                    sumField(teleopShots, 'ballsMade'),
+                    sumField(teleopShots, 'ballsShot')
+                  )}
                 </div>
                 <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                   {teleopScore}
@@ -843,16 +915,29 @@ export const PerformanceMetrics = () => {
                 isDarkMode ? 'border-white/5' : 'border-gray-100'
               }`}
             >
-              <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <div
+                className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+              >
                 End Game
               </div>
-              <div className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <div
+                className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
                 {robot1Park !== 'none' || robot2Park !== 'none'
-                  ? [robot1Park !== 'none' ? `R1 ${robot1Park}` : '', robot2Park !== 'none' ? `R2 ${robot2Park}` : ''].filter(Boolean).join(', ')
+                  ? [
+                      robot1Park !== 'none' ? `R1 ${robot1Park}` : '',
+                      robot2Park !== 'none' ? `R2 ${robot2Park}` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(', ')
                   : '—'}
               </div>
               <div className="px-2 py-3 text-center text-sm" />
-              <div className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>—</div>
+              <div
+                className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+              >
+                —
+              </div>
               <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                 {endGameScore}
               </div>
@@ -866,19 +951,31 @@ export const PerformanceMetrics = () => {
                   : 'border-gray-200 bg-gray-50'
               }`}
             >
-              <div className={`px-3 py-3 text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <div
+                className={`px-3 py-3 text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}
+              >
                 Total
               </div>
-              <div className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                {sumField(autonShots, 'ballsShot') + sumField(teleopShots, 'ballsShot')}
+              <div
+                className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                {sumField(autonShots, 'ballsShot') +
+                  sumField(teleopShots, 'ballsShot')}
               </div>
-              <div className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                {sumField(autonShots, 'ballsMade') + sumField(teleopShots, 'ballsMade')}
+              <div
+                className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                {sumField(autonShots, 'ballsMade') +
+                  sumField(teleopShots, 'ballsMade')}
               </div>
-              <div className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <div
+                className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              >
                 {calcAccuracy(
-                  sumField(autonShots, 'ballsMade') + sumField(teleopShots, 'ballsMade'),
-                  sumField(autonShots, 'ballsShot') + sumField(teleopShots, 'ballsShot'),
+                  sumField(autonShots, 'ballsMade') +
+                    sumField(teleopShots, 'ballsMade'),
+                  sumField(autonShots, 'ballsShot') +
+                    sumField(teleopShots, 'ballsShot')
                 )}
               </div>
               <div className="px-2 py-3 text-center text-sm font-extrabold text-team-blue">
@@ -899,7 +996,7 @@ export const PerformanceMetrics = () => {
               <input
                 type="checkbox"
                 checked={autonomousLeave > 0}
-                onChange={(e) => {
+                onChange={e => {
                   const v = e.target.checked ? 1 : 0;
                   setAutonomousLeave(v);
                 }}
@@ -1058,15 +1155,17 @@ export const PerformanceMetrics = () => {
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
-                <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <div
+                  className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                >
                   Robot 1
                 </div>
                 <div className="px-2 py-2">
                   <div className="flex gap-0 rounded-lg overflow-hidden border border-team-blue-40">
-                    {(['none', 'partial', 'full'] as const).map((val) => (
+                    {(['none', 'partial', 'full'] as const).map(val => (
                       <button
                         key={val}
-                        onClick={(e) => {
+                        onClick={e => {
                           e.currentTarget.blur();
                           setRobot1Park(val);
                         }}
@@ -1080,13 +1179,23 @@ export const PerformanceMetrics = () => {
                               : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
                         }`}
                       >
-                        {val === 'none' ? 'None' : val === 'partial' ? 'Partial' : 'Full'}
+                        {val === 'none'
+                          ? 'None'
+                          : val === 'partial'
+                            ? 'Partial'
+                            : 'Full'}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
-                  {robot1Park === 'partial' ? 5 : robot1Park === 'full' ? (robot2Park === 'full' ? 15 : 10) : 0}
+                  {robot1Park === 'partial'
+                    ? 5
+                    : robot1Park === 'full'
+                      ? robot2Park === 'full'
+                        ? 15
+                        : 10
+                      : 0}
                 </div>
               </div>
 
@@ -1096,15 +1205,17 @@ export const PerformanceMetrics = () => {
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
-                <div className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <div
+                  className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                >
                   Robot 2
                 </div>
                 <div className="px-2 py-2">
                   <div className="flex gap-0 rounded-lg overflow-hidden border border-team-blue-40">
-                    {(['none', 'partial', 'full'] as const).map((val) => (
+                    {(['none', 'partial', 'full'] as const).map(val => (
                       <button
                         key={val}
-                        onClick={(e) => {
+                        onClick={e => {
                           e.currentTarget.blur();
                           setRobot2Park(val);
                         }}
@@ -1118,13 +1229,23 @@ export const PerformanceMetrics = () => {
                               : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
                         }`}
                       >
-                        {val === 'none' ? 'None' : val === 'partial' ? 'Partial' : 'Full'}
+                        {val === 'none'
+                          ? 'None'
+                          : val === 'partial'
+                            ? 'Partial'
+                            : 'Full'}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
-                  {robot2Park === 'partial' ? 5 : robot2Park === 'full' ? (robot1Park === 'full' ? 15 : 10) : 0}
+                  {robot2Park === 'partial'
+                    ? 5
+                    : robot2Park === 'full'
+                      ? robot1Park === 'full'
+                        ? 15
+                        : 10
+                      : 0}
                 </div>
               </div>
 
@@ -1136,7 +1257,9 @@ export const PerformanceMetrics = () => {
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
-                <div className={`px-3 py-3 text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <div
+                  className={`px-3 py-3 text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}
+                >
                   Total
                 </div>
                 <div className="px-2 py-3" />

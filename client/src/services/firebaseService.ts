@@ -10,8 +10,10 @@ import {
   where,
   orderBy,
   limit,
+  onSnapshot,
   Timestamp,
   type Firestore,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import getFirebase from '@/lib/firebase';
 import { isAbortError } from '@/lib/utils';
@@ -32,12 +34,12 @@ class FirebaseService {
     if (!firebase?.db) {
       throw new Error('Firebase not initialized');
     }
-    
+
     this.dbInstance = firebase.db;
     return this.dbInstance;
   }
 
-  /** 
+  /**
    * Safely execute a database operation with abort error handling
    * @param operation - The async operation to execute
    * @param fallback - Value to return on error (if not throwing)
@@ -66,12 +68,16 @@ class FirebaseService {
   }
 
   /** Create a new session */
-  async createSession(sessionData: CreateSessionData): Promise<SessionData | null> {
+  async createSession(
+    sessionData: CreateSessionData
+  ): Promise<SessionData | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
+        // Strip undefined values — Firestore rejects them
+        const clean = JSON.parse(JSON.stringify(sessionData));
         const newSession = {
-          ...sessionData,
+          ...clean,
           createdAt: Timestamp.now(),
         };
         const docRef = await addDoc(collection(db, 'sessions'), newSession);
@@ -112,6 +118,69 @@ class FirebaseService {
     );
   }
 
+  /** Get all sessions for a specific team */
+  async getTeamSessions(teamId: string): Promise<SessionData[]> {
+    return this.safeExecute(
+      async () => {
+        const db = await this.getDB();
+        const q = query(
+          collection(db, 'sessions'),
+          where('teamId', '==', teamId),
+          orderBy('createdAt', 'desc'),
+          limit(SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5) // Allow more for teams
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: data.userId || '',
+            sessionName: data.sessionName || 'Untitled Session',
+            createdAt: data.createdAt,
+            ...data,
+          } as SessionData;
+        });
+      },
+      [],
+      'Error fetching team sessions:'
+    );
+  }
+
+  /** Subscribe to real-time team session updates */
+  async subscribeTeamSessions(
+    teamId: string,
+    onUpdate: (sessions: SessionData[]) => void,
+    onError?: (error: Error) => void
+  ): Promise<Unsubscribe> {
+    const db = await this.getDB();
+    const q = query(
+      collection(db, 'sessions'),
+      where('teamId', '==', teamId),
+      orderBy('createdAt', 'desc'),
+      limit(SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5)
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const sessions = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: data.userId || '',
+            sessionName: data.sessionName || 'Untitled Session',
+            createdAt: data.createdAt,
+            ...data,
+          } as SessionData;
+        });
+        onUpdate(sessions);
+      },
+      (error) => {
+        console.error('Error in team sessions listener:', error);
+        onError?.(error);
+      }
+    );
+  }
+
   /** Get a single session by ID */
   async getSession(sessionId: string): Promise<SessionData | null> {
     return this.safeExecute(
@@ -119,9 +188,9 @@ class FirebaseService {
         const db = await this.getDB();
         const docRef = doc(db, 'sessions', sessionId);
         const docSnap = await getDoc(docRef);
-        
+
         if (!docSnap.exists()) return null;
-        
+
         return { id: docSnap.id, ...docSnap.data() } as SessionData;
       },
       null,
@@ -137,7 +206,7 @@ class FirebaseService {
         const q = query(
           collection(db, 'sessions'),
           orderBy('createdAt', 'desc'),
-          limit(100)
+          limit(SESSION_LIMITS.ALL_SESSIONS_QUERY_LIMIT)
         );
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => {
@@ -165,7 +234,7 @@ class FirebaseService {
       async () => {
         const db = await this.getDB();
         const docRef = doc(db, 'sessions', sessionId);
-        await updateDoc(docRef, updates);
+        await updateDoc(docRef, updates as Record<string, unknown>);
         return true;
       },
       false,
@@ -187,6 +256,22 @@ class FirebaseService {
       'Error deleting session:',
       true // Throw errors for deletes
     );
+  }
+
+  /** Import sessions to a team by setting their teamId */
+  async importSessionsToTeam(sessionIds: string[], teamId: string): Promise<number> {
+    const db = await this.getDB();
+    let updated = 0;
+    for (const sessionId of sessionIds) {
+      try {
+        const docRef = doc(db, 'sessions', sessionId);
+        await updateDoc(docRef, { teamId });
+        updated++;
+      } catch (error) {
+        console.error(`Failed to import session ${sessionId}:`, error);
+      }
+    }
+    return updated;
   }
 }
 

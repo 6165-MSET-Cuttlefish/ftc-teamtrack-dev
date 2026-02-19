@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth, useTheme } from '@/contexts';
 import { getInitials } from '@/lib/utils';
+import { UI_TIMING } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -20,7 +21,10 @@ const Profile = () => {
   const { isDarkMode } = useTheme();
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: 'success' | 'error';
+  } | null>(null);
 
   // Name editing
   const [editingName, setEditingName] = useState(false);
@@ -35,7 +39,7 @@ const Profile = () => {
 
   const showMessage = (text: string, type: 'success' | 'error') => {
     setMessage({ text, type });
-    setTimeout(() => setMessage(null), 4000);
+    setTimeout(() => setMessage(null), UI_TIMING.MESSAGE_DISPLAY_TIMEOUT);
   };
 
   const handleLogout = async () => {
@@ -43,7 +47,7 @@ const Profile = () => {
       setLoading(true);
       await logout();
     } catch {
-      // Handle logout error silently
+      // Logout errors are non-critical — user is already navigating away
     } finally {
       setLoading(false);
     }
@@ -68,7 +72,10 @@ const Profile = () => {
       setEditingName(false);
       showMessage('Display name updated.', 'success');
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : 'Failed to update name.', 'error');
+      showMessage(
+        err instanceof Error ? err.message : 'Failed to update name.',
+        'error'
+      );
     } finally {
       setNameLoading(false);
     }
@@ -95,14 +102,16 @@ const Profile = () => {
       setEditingEmail(false);
       showMessage('Email updated successfully.', 'success');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to update email.';
-      const friendly = msg.includes('wrong-password') || msg.includes('invalid-credential')
-        ? 'Incorrect password. Please try again.'
-        : msg.includes('email-already-in-use')
-          ? 'That email is already in use by another account.'
-          : msg.includes('invalid-email')
-            ? 'Please enter a valid email address.'
-            : msg;
+      const msg =
+        err instanceof Error ? err.message : 'Failed to update email.';
+      const friendly =
+        msg.includes('wrong-password') || msg.includes('invalid-credential')
+          ? 'Incorrect password. Please try again.'
+          : msg.includes('email-already-in-use')
+            ? 'That email is already in use by another account.'
+            : msg.includes('invalid-email')
+              ? 'Please enter a valid email address.'
+              : msg;
       showMessage(friendly, 'error');
     } finally {
       setEmailLoading(false);
@@ -132,24 +141,47 @@ const Profile = () => {
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
-                <AvatarFallback className={`bg-team-blue text-xl ${isDarkMode ? '!text-black' : '!text-white'}`}>
+                <AvatarImage
+                  src={user.photoURL || ''}
+                  alt={user.displayName || ''}
+                />
+                <AvatarFallback
+                  className={`bg-team-blue text-xl ${isDarkMode ? '!text-black' : '!text-white'}`}
+                >
                   {getInitials(user.displayName || user.email || 'User')}
                 </AvatarFallback>
               </Avatar>
             </div>
-            <CardTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+            <CardTitle
+              className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
               {user.displayName || 'User Profile'}
             </CardTitle>
-            <CardDescription className={isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}>
+            <CardDescription
+              className={
+                isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+              }
+            >
               Manage your account settings
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
             {message && (
-              <Alert className={message.type === 'error' ? 'border-red-500/50 bg-red-500/10' : 'border-emerald-500/50 bg-emerald-500/10'}>
-                <AlertDescription className={message.type === 'error' ? 'text-red-500' : 'text-emerald-600'}>
+              <Alert
+                className={
+                  message.type === 'error'
+                    ? 'border-red-500/50 bg-red-500/10'
+                    : 'border-emerald-500/50 bg-emerald-500/10'
+                }
+              >
+                <AlertDescription
+                  className={
+                    message.type === 'error'
+                      ? 'text-red-500'
+                      : 'text-emerald-600'
+                  }
+                >
                   {message.text}
                 </AlertDescription>
               </Alert>
@@ -157,9 +189,13 @@ const Profile = () => {
 
             {/* Display Name */}
             <div className="flex items-start gap-3">
-              <User className={`h-5 w-5 mt-1 shrink-0 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
+              <User
+                className={`h-5 w-5 mt-1 shrink-0 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              />
               <div className="flex-1 min-w-0">
-                <Label className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+                <Label
+                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                >
                   Display Name
                 </Label>
                 {editingName ? (
@@ -167,8 +203,11 @@ const Profile = () => {
                     <input
                       className={inputBase}
                       value={nameValue}
-                      onChange={(e) => setNameValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') cancelEditName(); }}
+                      onChange={e => setNameValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveName();
+                        if (e.key === 'Escape') cancelEditName();
+                      }}
                       autoFocus
                       placeholder="Display name"
                     />
@@ -188,7 +227,9 @@ const Profile = () => {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 mt-0.5">
-                    <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+                    <p
+                      className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                    >
                       {user.displayName || 'Not set'}
                     </p>
                     <button
@@ -202,13 +243,19 @@ const Profile = () => {
               </div>
             </div>
 
-            <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
+            <Separator
+              className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'}
+            />
 
             {/* Email */}
             <div className="flex items-start gap-3">
-              <Mail className={`h-5 w-5 mt-1 shrink-0 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
+              <Mail
+                className={`h-5 w-5 mt-1 shrink-0 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              />
               <div className="flex-1 min-w-0">
-                <Label className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+                <Label
+                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                >
                   Email Address
                 </Label>
                 {editingEmail ? (
@@ -217,7 +264,7 @@ const Profile = () => {
                       className={inputBase}
                       type="email"
                       value={emailValue}
-                      onChange={(e) => setEmailValue(e.target.value)}
+                      onChange={e => setEmailValue(e.target.value)}
                       placeholder="New email address"
                       autoFocus
                     />
@@ -225,14 +272,19 @@ const Profile = () => {
                       className={inputBase}
                       type="password"
                       value={passwordValue}
-                      onChange={(e) => setPasswordValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') saveEmail(); if (e.key === 'Escape') cancelEditEmail(); }}
+                      onChange={e => setPasswordValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveEmail();
+                        if (e.key === 'Escape') cancelEditEmail();
+                      }}
                       placeholder="Current password to confirm"
                     />
                     <div className="flex gap-2 pt-1">
                       <button
                         onClick={saveEmail}
-                        disabled={emailLoading || !emailValue.trim() || !passwordValue}
+                        disabled={
+                          emailLoading || !emailValue.trim() || !passwordValue
+                        }
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-team-blue/20 text-team-blue hover:bg-team-blue/30 disabled:opacity-40 transition-colors text-sm font-medium"
                       >
                         <Check size={14} />
@@ -249,7 +301,9 @@ const Profile = () => {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 mt-0.5">
-                    <p className={`text-sm truncate ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+                    <p
+                      className={`text-sm truncate ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                    >
                       {user.email}
                     </p>
                     <button
@@ -263,22 +317,32 @@ const Profile = () => {
               </div>
             </div>
 
-            <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
+            <Separator
+              className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'}
+            />
 
             {/* Account Provider */}
             <div className="flex items-center gap-3">
-              <Shield className={`h-5 w-5 shrink-0 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`} />
+              <Shield
+                className={`h-5 w-5 shrink-0 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              />
               <div>
-                <Label className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}>
+                <Label
+                  className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                >
                   Account Provider
                 </Label>
-                <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+                <p
+                  className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                >
                   Email &amp; Password
                 </p>
               </div>
             </div>
 
-            <Separator className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'} />
+            <Separator
+              className={isDarkMode ? 'bg-team-blue-40' : 'bg-gray-200'}
+            />
 
             <Button
               variant="destructive"

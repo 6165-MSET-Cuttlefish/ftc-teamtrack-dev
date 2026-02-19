@@ -1,4 +1,5 @@
 import type { Session } from '@/types';
+import { logger } from './logger';
 
 /**
  * Generate a shareable link for a session
@@ -40,12 +41,12 @@ export const generateShareableLink = (session: Session): string => {
 
     // Encode the data to base64
     const encodedData = btoa(JSON.stringify(shareData));
-    
+
     // Generate the full URL
     const baseUrl = window.location.origin;
     return `${baseUrl}/shared/preview?data=${encodedData}`;
   } catch (error) {
-    console.error('Error generating shareable link:', error);
+    logger.error('Error generating shareable link', error);
     throw new Error('Failed to generate shareable link');
   }
 };
@@ -66,11 +67,11 @@ export const copyToClipboard = async (text: string): Promise<void> => {
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
-    
+
     try {
       document.execCommand('copy');
       textArea.remove();
-    } catch (error) {
+    } catch {
       textArea.remove();
       throw new Error('Failed to copy to clipboard');
     }

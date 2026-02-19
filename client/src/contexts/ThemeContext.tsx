@@ -33,7 +33,10 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         const parsed = JSON.parse(saved);
         if (parsed === true) return 'dark';
         if (parsed === false) return 'light';
-        if (typeof parsed === 'string' && ['dark', 'light', 'honeycomb', 'deepsea'].includes(parsed)) {
+        if (
+          typeof parsed === 'string' &&
+          ['dark', 'light', 'honeycomb', 'deepsea'].includes(parsed)
+        ) {
           return parsed as ThemeMode;
         }
       } catch {
@@ -71,7 +74,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       else if (prev === 'light') next = 'honeycomb';
       else if (prev === 'honeycomb') next = 'deepsea';
       else next = 'dark';
-      
+
       localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(next));
       return next;
     });
@@ -83,7 +86,16 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, isHoneycombMode, isDeepSeaMode, themeMode, toggleTheme, setTheme }}>
+    <ThemeContext.Provider
+      value={{
+        isDarkMode,
+        isHoneycombMode,
+        isDeepSeaMode,
+        themeMode,
+        toggleTheme,
+        setTheme,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
