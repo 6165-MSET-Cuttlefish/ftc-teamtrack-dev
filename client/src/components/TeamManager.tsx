@@ -55,6 +55,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
@@ -79,11 +80,13 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       setLoadingPersonal(true);
       try {
         const sessions = await firebaseService.getUserSessions(user.uid);
-        // Filter to only sessions without a teamId (personal sessions)
-        const personal = sessions.filter(s => !s.teamId);
-        setPersonalSessions(personal);
+        const targetTeamId = pendingTeamId || team?.id;
+        // Show all sessions that aren't already in the target team
+        // This includes personal sessions AND sessions from old teams the user left
+        const importable = sessions.filter(s => s.teamId !== targetTeamId);
+        setPersonalSessions(importable);
         // Pre-select all by default
-        setSelectedSessionIds(new Set(personal.map(s => s.id)));
+        setSelectedSessionIds(new Set(importable.map(s => s.id)));
       } catch {
         toast.error('Failed to load your sessions');
       } finally {
@@ -92,7 +95,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     };
 
     loadPersonalSessions();
-  }, [showImportDialog, user?.uid]);
+  }, [showImportDialog, user?.uid, pendingTeamId, team?.id]);
 
   const toggleSession = (id: string) => {
     setSelectedSessionIds(prev => {
@@ -332,20 +335,43 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               </span>
             </button>
 
-            {/* Invite button */}
+            {/* Invite / Copy link button */}
             <button
               onClick={async () => {
-                await refreshTeam();
-                setShowTeamInfo(true);
+                if (!team?.inviteCode) return;
+                const inviteUrl = `${window.location.origin}/join/${team.inviteCode}`;
+                try {
+                  await navigator.clipboard.writeText(inviteUrl);
+                } catch {
+                  try {
+                    await navigator.clipboard.writeText(team.inviteCode);
+                  } catch {
+                    toast.error('Failed to copy');
+                    return;
+                  }
+                }
+                setInviteCopied(true);
+                setTimeout(() => setInviteCopied(false), 2000);
               }}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] sm:min-h-[44px] ${
-                isDarkMode
-                  ? 'border-team-blue-40 hover:border-team-blue text-team-blue'
-                  : 'border-gray-200 hover:border-team-blue text-team-blue'
+                inviteCopied
+                  ? 'border-green-500 text-green-500'
+                  : isDarkMode
+                    ? 'border-team-blue-40 hover:border-team-blue text-team-blue'
+                    : 'border-gray-200 hover:border-team-blue text-team-blue'
               }`}
             >
-              <Link2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Invite</span>
+              {inviteCopied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  <span className="hidden sm:inline">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Link2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Invite</span>
+                </>
+              )}
             </button>
           </>
         ) : (
@@ -459,7 +485,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               Join a Team
             </DialogTitle>
             <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              Enter the invite code shared by a team member.
+              Enter the invite code or link shared by a team member.
               {team && ' You will leave your current team.'}
             </DialogDescription>
           </DialogHeader>
@@ -471,18 +497,26 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                   isDarkMode ? 'text-team-white-60' : 'text-gray-700'
                 }`}
               >
-                Invite Code
+                Invite Code / Link
               </label>
               <Input
                 value={inviteCode}
-                onChange={e => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="e.g., ABC12345"
+                onChange={e => {
+                  let val = e.target.value;
+                  // If user pastes a join link, extract just the code
+                  const joinMatch = val.match(/\/join\/([A-Za-z0-9]+)/);
+                  if (joinMatch) {
+                    val = joinMatch[1];
+                  }
+                  setInviteCode(val.toUpperCase());
+                }}
+                placeholder="Code or invite link"
                 className={`h-12 rounded-xl text-center text-lg font-mono tracking-widest ${
                   isDarkMode
                     ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
                     : 'bg-gray-50 border-gray-200 text-team-blue placeholder-gray-400'
                 }`}
-                maxLength={8}
+                maxLength={64}
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleJoinTeam();
                 }}
