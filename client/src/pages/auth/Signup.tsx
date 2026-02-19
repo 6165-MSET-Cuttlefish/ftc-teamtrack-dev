@@ -200,11 +200,15 @@ const Signup = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   className={`absolute right-4 top-3.5 h-5 w-5 transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
                 >
                   {showPassword ? <EyeOff /> : <Eye />}
                 </button>
               </div>
+              <p className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}>
+                Must be at least 6 characters
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -233,6 +237,7 @@ const Signup = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   className={`absolute right-4 top-3.5 h-5 w-5 transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
                 >
                   {showConfirmPassword ? <EyeOff /> : <Eye />}

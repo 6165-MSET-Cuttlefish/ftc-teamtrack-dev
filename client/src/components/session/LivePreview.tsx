@@ -55,6 +55,7 @@ export const LivePreview = ({
   const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
+  const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork =
@@ -157,20 +158,22 @@ export const LivePreview = ({
       sessionData.matches.length > 0 &&
       !sessionData.isSessionCompleted
     ) {
-      if (
-        !window.confirm(
-          'You have unsaved matches. Starting a new session will discard them. Continue?'
-        )
-      ) {
-        return;
-      }
+      setNewSessionConfirm(true);
+      return;
     }
 
     // Reset all session state (including sessionTimer)
     resetSession();
     // Clear any UI state for confirmations
     setCancelConfirm(false);
+    setNewSessionConfirm(false);
     // Stay on the current page to start a new session
+  };
+
+  const handleConfirmNewSession = () => {
+    resetSession();
+    setCancelConfirm(false);
+    setNewSessionConfirm(false);
   };
 
   const handleSaveMatch = () => {
@@ -253,12 +256,6 @@ export const LivePreview = ({
   };
 
   const handleCompleteSession = async () => {
-    // Validate user is authenticated
-    if (!user?.uid) {
-      toast.error('You must be logged in to save sessions');
-      return;
-    }
-
     // Validate that at least one match has been saved
     if (!sessionData.matches || sessionData.matches.length === 0) {
       toast.error(
@@ -281,22 +278,37 @@ export const LivePreview = ({
       return;
     }
 
-    // Check session limit
-    const { firebaseService } = await import('@/services/firebaseService');
-    const userSessions = await firebaseService.getUserSessions(user.uid);
-    const { SESSION_LIMITS } = await import('@/constants');
+    // Check session limit for authenticated users
+    let userSessions: { sessionName?: string }[] = [];
+    if (user?.uid) {
+      const { firebaseService } = await import('@/services/firebaseService');
+      const { SESSION_LIMITS } = await import('@/constants');
 
-    if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
-      toast.error(
-        `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`
-      );
-      return;
+      // Use team-aware limit check (consistent with mount check)
+      const sessions = team
+        ? await firebaseService.getTeamSessions(team.id)
+        : await firebaseService.getUserSessions(user.uid);
+      userSessions = sessions;
+
+      const sessionLimit = team
+        ? SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5
+        : SESSION_LIMITS.MAX_SESSIONS_PER_USER;
+
+      if (sessions.length >= sessionLimit) {
+        toast.error(
+          `You've reached the maximum of ${sessionLimit} sessions. Please delete old sessions before creating new ones.`
+        );
+        return;
+      }
+    } else {
+      // Guest: load sessions from localStorage for naming
+      const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+      userSessions = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
     }
 
     // Use sessionTimer for total session duration, not match timer
     const totalSessionTime = formatTime(sessionTimer);
     setIsTimerRunning(false);
-    completeSession(totalSessionTime);
 
     // Generate a unique session name if not provided
     let finalSessionName = sessionData.sessionName?.trim();
@@ -320,8 +332,8 @@ export const LivePreview = ({
       matchType: sessionData.matchType || 'Full Game',
       sessionDuration: totalSessionTime,
 
-      userId: user.uid, // Always set from validated user
-      userEmail: user.email || '',
+      userId: user?.uid || localStorage.getItem('teamtrack-guest-id') || 'guest',
+      userEmail: user?.email || '',
       ...(team ? { teamId: team.id } : {}),
 
       // Don't save individual scoring fields - deprecated
@@ -349,17 +361,41 @@ export const LivePreview = ({
     };
 
     try {
-      const result = await createSession(sessionToSave);
-      if (result && result.id) {
-        toast.success('Session saved successfully!');
-        // Session saved - sessionLimitReached will be checked on next action
+      if (user?.uid) {
+        // Authenticated user: save to Firebase
+        const result = await createSession(sessionToSave);
+        if (result && result.id) {
+          // Only mark session complete after successful save
+          completeSession(totalSessionTime);
+          toast.success('Session saved successfully!');
+        } else {
+          toast.error('Failed to save session. Please try again.');
+          setIsTimerRunning(false); // Keep timer stopped but don't clear data
+          return;
+        }
       } else {
-        toast.error('Failed to save session. Please try again.');
+        // Guest user: save session to localStorage
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const existing = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const guestSession = {
+          ...sessionToSave,
+          id: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+          createdAt: new Date().toISOString(),
+        };
+        existing.unshift(guestSession);
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(existing));
+        // Only mark session complete after successful save
+        completeSession(totalSessionTime);
+        toast.success('Session saved locally!');
       }
+
+      // Mark that user has completed a session (drives landing page redirect)
+      const { markSessionCompleted } = await import('@/components/auth/HomeRedirect');
+      markSessionCompleted();
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error saving session', error);
-      toast.error('An error occurred while saving the session.');
+      toast.error('An error occurred while saving the session. Your data is preserved — please try again.');
     }
   };
 
@@ -537,8 +573,8 @@ export const LivePreview = ({
                     setCancelConfirm(false);
                     toast.success('Session cancelled');
                   }}
-                  className="py-4 px-4 rounded-xl bg-green-500 hover:bg-green-600 transition-colors"
-                  title="Confirm cancel"
+                  className="py-4 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
+                  title="Confirm cancel — discard session"
                 >
                   <Check className="h-5 w-5 text-white" />
                 </button>
@@ -547,7 +583,7 @@ export const LivePreview = ({
                     setCancelConfirm(false);
                     if (hasStarted) setIsTimerRunning(true);
                   }}
-                  className="py-4 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
+                  className="py-4 px-4 rounded-xl bg-gray-500 hover:bg-gray-600 transition-colors"
                   title="Keep session"
                 >
                   <X className="h-5 w-5 text-white" />
@@ -750,6 +786,23 @@ export const LivePreview = ({
           >
             New Session
           </button>
+          {newSessionConfirm && (
+            <div className={`flex-1 min-w-[240px] flex items-center gap-2 px-4 py-2.5 rounded-lg border ${isDarkMode ? 'border-red-500/40 bg-red-500/10' : 'border-red-300 bg-red-50'}`}>
+              <span className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>Discard unsaved matches?</span>
+              <button
+                onClick={handleConfirmNewSession}
+                className="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors"
+              >
+                Yes, Discard
+              </button>
+              <button
+                onClick={() => setNewSessionConfirm(false)}
+                className={`px-3 py-1 rounded border text-xs font-bold transition-colors ${isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

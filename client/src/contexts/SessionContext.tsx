@@ -110,14 +110,14 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return createInitialSessionData();
   });
 
-  // Load timer state from storage - but only if we actually loaded session data
-  const storedTimerState = (() => {
-    // Only use timer state if session wasn't completed
-    if (sessionData && !sessionData.isSessionCompleted) {
+  // Load timer state from storage once on mount — only if session is active
+  const [storedTimerState] = useState<SessionTimerState | null>(() => {
+    const stored = loadSessionFromStorage();
+    if (stored && !stored.isSessionCompleted) {
       return loadTimerStateFromStorage();
     }
     return null;
-  })();
+  });
 
   // Match timer counts DOWN from FULL_GAME_DURATION_SECONDS (150) to 0
   const [timer, setTimer] = useState<number>(
@@ -444,6 +444,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         robot1Park: 'none',
         robot2Park: 'none',
         cycleTimes: [],
+        autonShots: [],
+        teleopShots: [],
       };
     });
 

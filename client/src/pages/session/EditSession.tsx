@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
@@ -23,7 +23,7 @@ import {
 import { toast } from 'sonner';
 
 const EditSession = () => {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -35,6 +35,7 @@ const EditSession = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | undefined>();
   const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = `Edit Session - ${APP_CONFIG.name}`;
@@ -113,6 +114,8 @@ const EditSession = () => {
       toast.success(
         editingMatch ? 'Match updated successfully' : 'Match added successfully'
       );
+      setIsFormOpen(false);
+      setEditingMatch(undefined);
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error saving match', error);
@@ -122,8 +125,21 @@ const EditSession = () => {
     }
   };
 
+  const handleDeleteClick = (matchId: string) => {
+    if (confirmDeleteId === matchId) {
+      // Second click = confirm
+      handleDeleteMatch(matchId);
+    } else {
+      // First click = arm confirmation
+      setConfirmDeleteId(matchId);
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => setConfirmDeleteId(prev => prev === matchId ? null : prev), 5000);
+    }
+  };
+
   const handleDeleteMatch = async (matchId: string) => {
     if (!session) return;
+    setConfirmDeleteId(null);
 
     try {
       setDeletingMatchId(matchId);
@@ -147,6 +163,11 @@ const EditSession = () => {
       setDeletingMatchId(null);
     }
   };
+
+  // Guests cannot edit sessions
+  if (!user?.uid || isGuest) {
+    return <Navigate to={ROUTES.SESSIONS} replace />;
+  }
 
   if (loading) {
     return (
@@ -490,19 +511,23 @@ const EditSession = () => {
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteMatch(match.id)}
+                          onClick={() => handleDeleteClick(match.id)}
                           disabled={deletingMatchId === match.id}
                           className={`p-3 rounded-lg transition-all transform hover:scale-110 ${
                             deletingMatchId === match.id
                               ? 'opacity-50 cursor-not-allowed'
-                              : isDarkMode
-                                ? 'text-team-white-60 hover:bg-red-500/20 hover:text-red-400'
-                                : 'text-team-blue-40 hover:bg-red-500/10 hover:text-red-500'
+                              : confirmDeleteId === match.id
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : isDarkMode
+                                  ? 'text-team-white-60 hover:bg-red-500/20 hover:text-red-400'
+                                  : 'text-team-blue-40 hover:bg-red-500/10 hover:text-red-500'
                           }`}
-                          title="Delete match"
+                          title={confirmDeleteId === match.id ? 'Click again to confirm delete' : 'Delete match'}
                         >
                           {deletingMatchId === match.id ? (
                             <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : confirmDeleteId === match.id ? (
+                            <span className="text-xs font-bold px-1">Confirm?</span>
                           ) : (
                             <Trash2 className="h-5 w-5" />
                           )}

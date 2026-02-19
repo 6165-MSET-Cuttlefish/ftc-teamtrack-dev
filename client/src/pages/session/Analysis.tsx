@@ -625,6 +625,7 @@ const MatchDetailTab = ({
   onAdd: () => void;
 }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Reset selected index if it's out of bounds after matches change
   useEffect(() => {
@@ -632,6 +633,22 @@ const MatchDetailTab = ({
       setSelectedIdx(Math.max(0, matches.length - 1));
     }
   }, [matches.length, selectedIdx]);
+
+  // Auto-dismiss delete confirmation after 5 seconds
+  useEffect(() => {
+    if (!confirmDeleteId) return;
+    const timer = setTimeout(() => setConfirmDeleteId(null), 5000);
+    return () => clearTimeout(timer);
+  }, [confirmDeleteId]);
+
+  const handleDeleteClick = (matchId: string) => {
+    if (confirmDeleteId === matchId) {
+      onDelete(matchId);
+      setConfirmDeleteId(null);
+    } else {
+      setConfirmDeleteId(matchId);
+    }
+  };
 
   const match = matches[selectedIdx];
   if (!match) return null;
@@ -785,15 +802,17 @@ const MatchDetailTab = ({
             Edit Match
           </button>
           <button
-            onClick={() => match.id && onDelete(match.id)}
+            onClick={() => match.id && handleDeleteClick(match.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              isDarkMode
-                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                : 'bg-red-50 text-red-600 hover:bg-red-100'
+              confirmDeleteId === match.id
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : isDarkMode
+                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                  : 'bg-red-50 text-red-600 hover:bg-red-100'
             }`}
           >
             <Trash2 size={16} />
-            Delete Match
+            {confirmDeleteId === match.id ? 'Click to Confirm' : 'Delete Match'}
           </button>
         </div>
       </div>
@@ -1512,10 +1531,20 @@ const AnalysisContent = () => {
       const sessionId = searchParams.get('sessionId');
       if (sessionId) {
         try {
-          const session = await firebaseService.getSession(sessionId);
+          let session = null;
+          // Check localStorage first for guest sessions
+          if (sessionId.startsWith('guest_')) {
+            const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+            const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+            session = stored.find((s: { id: string }) => s.id === sessionId) || null;
+          }
+          // Fall back to Firebase
+          if (!session) {
+            session = await firebaseService.getSession(sessionId);
+          }
           if (mounted && session) {
             const sum = (fn: (m: Match) => number) =>
-              session.matches.reduce((s, m) => s + fn(m), 0);
+              session.matches.reduce((s: number, m: Match) => s + fn(m), 0);
 
             setLocalSessionData({
               sessionName: session.sessionName || '',
@@ -1538,7 +1567,7 @@ const AnalysisContent = () => {
               robot1Park: 'none',
               robot2Park: 'none',
               selectedFeature: session.selectedFeature || '',
-              cycleTimes: session.matches.flatMap(m => m.cycleTimes || []),
+              cycleTimes: session.matches.flatMap((m: Match) => m.cycleTimes || []),
               notes: session.notes || '',
               matches: session.matches || [],
             });
@@ -1576,14 +1605,22 @@ const AnalysisContent = () => {
     const sessionId = searchParams.get('sessionId');
     if (!sessionId || !sessionData.matches) return;
 
-    if (!confirm('Are you sure you want to delete this match?')) return;
-
     setIsUpdating(true);
     try {
       const updatedMatches = sessionData.matches.filter(m => m.id !== matchId);
-      await firebaseService.updateSession(sessionId, {
-        matches: updatedMatches,
-      });
+
+      if (sessionId.startsWith('guest_')) {
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const updated = stored.map((s: { id: string; matches?: Match[] }) =>
+          s.id === sessionId ? { ...s, matches: updatedMatches } : s
+        );
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
+      } else {
+        await firebaseService.updateSession(sessionId, {
+          matches: updatedMatches,
+        });
+      }
 
       setLocalSessionData({
         ...sessionData,
@@ -1643,9 +1680,18 @@ const AnalysisContent = () => {
         updatedMatches = [...currentMatches, newMatch];
       }
 
-      await firebaseService.updateSession(sessionId, {
-        matches: updatedMatches,
-      });
+      if (sessionId.startsWith('guest_')) {
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const updated = stored.map((s: { id: string; matches?: Match[] }) =>
+          s.id === sessionId ? { ...s, matches: updatedMatches } : s
+        );
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
+      } else {
+        await firebaseService.updateSession(sessionId, {
+          matches: updatedMatches,
+        });
+      }
 
       setLocalSessionData({
         ...sessionData,
@@ -1673,8 +1719,9 @@ const AnalysisContent = () => {
       <div
         className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
-        <div className="text-team-blue text-xl animate-pulse">
-          Loading session...
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
+          <p className="text-sm text-team-blue">Loading session...</p>
         </div>
       </div>
     );

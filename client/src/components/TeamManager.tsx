@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTeam, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
@@ -33,7 +33,7 @@ interface TeamManagerProps {
 
 const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const { isDarkMode } = useTheme();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const {
     team,
     createTeam,
@@ -54,6 +54,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [regenerating, setRegenerating] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const leaveConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Import sessions state
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -62,6 +63,15 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [importing, setImporting] = useState(false);
   const [loadingPersonal, setLoadingPersonal] = useState(false);
   const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
+
+  // Clean up leaveConfirm timer on unmount
+  useEffect(() => {
+    return () => {
+      if (leaveConfirmTimerRef.current) {
+        clearTimeout(leaveConfirmTimerRef.current);
+      }
+    };
+  }, []);
 
   // Load personal sessions when import dialog opens
   useEffect(() => {
@@ -188,9 +198,21 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   };
 
   const handleLeaveTeam = async () => {
+    // Prevent the owner from leaving without transferring ownership
+    if (team && user) {
+      const currentMember = team.members.find(m => m.userId === user.uid);
+      if (currentMember?.role === 'owner') {
+        toast.error('As the team owner, you must transfer ownership or delete the team before leaving.');
+        return;
+      }
+    }
+
     if (!leaveConfirm) {
       setLeaveConfirm(true);
-      setTimeout(() => setLeaveConfirm(false), 5000);
+      if (leaveConfirmTimerRef.current) {
+        clearTimeout(leaveConfirmTimerRef.current);
+      }
+      leaveConfirmTimerRef.current = setTimeout(() => setLeaveConfirm(false), 5000);
       return;
     }
 
@@ -242,6 +264,16 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       setRegenerating(false);
     }
   };
+
+  // Guest users cannot manage teams
+  if (isGuest || !user) {
+    return (
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${isDarkMode ? 'border-team-blue-40 text-team-white-60' : 'border-gray-200 text-gray-500'}`}>
+        <Users className="h-4 w-4" />
+        <span>Sign in to create or join a team</span>
+      </div>
+    );
+  }
 
   return (
     <>

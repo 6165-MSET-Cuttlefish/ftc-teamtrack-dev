@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useTeam, useTheme } from '@/contexts';
 import { ROUTES } from '@/constants';
@@ -11,6 +11,7 @@ const JoinTeam = () => {
   const { joinTeam } = useTeam();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const hasAttemptedJoin = useRef(false);
 
   const [status, setStatus] = useState<'loading' | 'joining' | 'success' | 'error'>('loading');
   const [teamName, setTeamName] = useState('');
@@ -37,6 +38,10 @@ const JoinTeam = () => {
       setErrorMessage('No invite code provided');
       return;
     }
+
+    // Prevent duplicate join attempts from re-renders
+    if (hasAttemptedJoin.current) return;
+    hasAttemptedJoin.current = true;
 
     const doJoin = async () => {
       setStatus('joining');

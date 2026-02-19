@@ -102,7 +102,7 @@ const TeamTrackLogo = () => {
 
 const NavigationMenu = () => {
   const { isDarkMode, themeMode, setTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, isGuest } = useAuth();
   const { sessionData } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
@@ -121,7 +121,7 @@ const NavigationMenu = () => {
 
   // Check if this is the user's first time and show tutorials
   useEffect(() => {
-    if (user) {
+    if (user || isGuest) {
       const hasSeenTutorials = localStorage.getItem(
         STORAGE_KEYS.TUTORIALS_SEEN
       );
@@ -130,7 +130,7 @@ const NavigationMenu = () => {
         setShowKeybindTutorial(true);
       }
     }
-  }, [user]);
+  }, [user, isGuest]);
 
   const handleLogout = async () => {
     try {
@@ -175,8 +175,7 @@ const NavigationMenu = () => {
       }`}
     >
       {/* Active / New Session Button */}
-      {user &&
-        !isOnActivePage &&
+      {!isOnActivePage &&
         (hasActiveSession ? (
           <button
             onClick={() => navigate('/active')}
@@ -202,18 +201,17 @@ const NavigationMenu = () => {
         ))}
 
       {/* My Sessions button */}
-      {user && (
-        <button
-          onClick={() => navigate('/sessions')}
-          className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            isDarkMode
-              ? 'hover:bg-team-white-10 text-white'
-              : 'hover:bg-gray-100 text-black'
-          }`}
-        >
-          My Sessions
-        </button>
-      )}
+      <button
+        onClick={() => navigate('/sessions')}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+          isDarkMode
+            ? 'hover:bg-team-white-10 text-white'
+            : 'hover:bg-gray-100 text-black'
+        }`}
+      >
+        <span className="hidden sm:inline">My Sessions</span>
+        <BarChart3 className="w-4 h-4 sm:hidden" />
+      </button>
 
       {/* Keybinds Tutorial button */}
       <button
