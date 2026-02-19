@@ -11,6 +11,16 @@ import {
 import { useTheme, useSession } from '@/contexts';
 import { APP_CONFIG } from '@/constants';
 
+/** Thin divider that adapts to the current theme */
+const Divider = ({ className = '' }: { className?: string }) => {
+  const { isDarkMode } = useTheme();
+  return (
+    <div
+      className={`h-px mx-4 ${isDarkMode ? 'bg-gray-700/60' : 'bg-gray-200'} ${className}`}
+    />
+  );
+};
+
 const ActiveSessionContent = () => {
   const [showSessionSetup, setShowSessionSetup] = useState(true);
   const [isSessionSetupSaved, setIsSessionSetupSaved] = useState(false);
@@ -60,8 +70,7 @@ const ActiveSessionContent = () => {
 
           {/* Timer Section at Top - Scrolls with Page */}
           <div
-            className="space-y-4"
-            style={{ padding: '15px' }}
+            className="space-y-4 px-4"
             data-tutorial="timer"
           >
             {/* Session Name */}
@@ -74,11 +83,9 @@ const ActiveSessionContent = () => {
             {/* Large Match Timer - Single Line */}
             <div className="flex flex-col items-center">
               <div
-                className={`text-7xl sm:text-8xl font-bold tracking-wider leading-none transition-colors ${getTimerColor()}`}
+                className={`text-7xl sm:text-8xl tracking-wider leading-none transition-colors font-righteous ${getTimerColor()}`}
                 style={{
-                  fontFamily: '"Righteous", sans-serif',
                   letterSpacing: '0.05em',
-                  fontWeight: 400,
                 }}
               >
                 {matchPhase === 'controller_pickup' || matchPhase === 'prepare'
@@ -88,7 +95,7 @@ const ActiveSessionContent = () => {
             </div>
 
             {/* Timer Info Below */}
-            <div className="flex items-center justify-center gap-4 sm:gap-6">
+            <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
               <div
                 className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
@@ -103,7 +110,7 @@ const ActiveSessionContent = () => {
               <div
                 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
               >
-                Session Timer: {formatTime(sessionTimer)}
+                Session: {formatTime(sessionTimer)}
               </div>
               <div
                 className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
@@ -118,7 +125,7 @@ const ActiveSessionContent = () => {
           </div>
 
           {/* Live Preview (controls, buttons, scores) */}
-          <div data-tutorial="controls" style={{ padding: '15px' }}>
+          <div data-tutorial="controls" className="px-4">
             <LivePreview
               onOpenSessionSetup={() => setShowSessionSetup(!showSessionSetup)}
               onTryStartWithoutSetup={() => {
@@ -129,15 +136,12 @@ const ActiveSessionContent = () => {
             />
           </div>
 
-          {/* Separator Line */}
-          <div
-            className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
-          />
+          <Divider />
 
           {/* Session Setup - Toggle visibility with settings icon */}
           {showSessionSetup && (
             <>
-              <div data-tutorial="session-setup" style={{ padding: '15px' }}>
+              <div data-tutorial="session-setup" className="px-4">
                 <SessionSetup
                   onSave={() => {
                     setShowSessionSetup(false);
@@ -149,40 +153,31 @@ const ActiveSessionContent = () => {
                 />
               </div>
 
-              {/* Separator Line */}
-              <div
-                className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
-              />
+              <Divider />
             </>
           )}
 
           {/* Gate Visual */}
-          <div style={{ padding: '15px 15px 0' }}>
+          <div className="px-4">
             <GateVisual />
           </div>
 
           {/* Scoring UI */}
-          <div data-tutorial="scoring" style={{ padding: '15px' }}>
+          <div data-tutorial="scoring" className="px-4">
             <ScoringUI />
           </div>
 
-          {/* Separator Line */}
-          <div
-            className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
-          />
+          <Divider />
 
           {/* Performance Metrics */}
-          <div data-tutorial="metrics" style={{ padding: '15px' }}>
+          <div data-tutorial="metrics" className="px-4">
             <PerformanceMetrics />
           </div>
 
-          {/* Separator Line */}
-          <div
-            className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
-          />
+          <Divider />
 
           {/* Session Notes */}
-          <div data-tutorial="notes" style={{ padding: '15px' }}>
+          <div data-tutorial="notes" className="px-4">
             <Notes />
           </div>
         </div>

@@ -895,19 +895,19 @@ const Sessions = () => {
         )}
 
         <div className="mb-6">
-          <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1 relative">
               <Search
-                className={`absolute left-2 sm:left-3 md:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                className={`absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
               />
               <Input
                 placeholder="Search sessions..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className={`pl-8 sm:pl-10 md:pl-12 h-9 sm:h-10 md:h-12 text-xs sm:text-sm md:text-base rounded-xl shadow-md transition-all duration-300 focus:shadow-lg ${
+                className={`pl-10 md:pl-12 h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm transition-all duration-200 focus:shadow-md ${
                   isDarkMode
                     ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue'
-                    : 'bg-white border-gray-200 text-team-blue placeholder-gray-400 focus:border-team-blue'
+                    : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-team-blue'
                 }`}
               />
             </div>
@@ -916,16 +916,16 @@ const Sessions = () => {
               onValueChange={setSelectedMatchType}
             >
               <SelectTrigger
-                className={`w-full sm:w-auto h-9 sm:h-10 md:h-12 text-xs sm:text-sm md:text-base rounded-xl shadow-md border ${
+                className={`w-full sm:w-[180px] h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm border ${
                   isDarkMode
                     ? 'bg-team-dark border-team-blue-40 text-white'
-                    : 'bg-white border-gray-300 text-team-blue'
+                    : 'bg-white border-gray-200 text-gray-900'
                 }`}
               >
                 <SelectValue placeholder="All Match Types" />
               </SelectTrigger>
               <SelectContent
-                className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-300'}`}
+                className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
               >
                 <SelectItem value="all">All Match Types</SelectItem>
                 <SelectItem value="full game">Full Game</SelectItem>
