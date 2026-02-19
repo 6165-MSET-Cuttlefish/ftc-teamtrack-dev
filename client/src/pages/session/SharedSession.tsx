@@ -1368,8 +1368,8 @@ const SharedSession = () => {
         const encodedData = urlParams.get('data');
 
         if (encodedData) {
-          // Session data is embedded in the URL
-          const decodedData = JSON.parse(atob(encodedData));
+          // Session data is embedded in the URL (Unicode-safe decode)
+          const decodedData = JSON.parse(decodeURIComponent(escape(atob(encodedData))));
           setSession(decodedData);
         } else {
           setError('No session data found in the link.');

@@ -39,8 +39,9 @@ export const generateShareableLink = (session: Session): string => {
       })),
     };
 
-    // Encode the data to base64
-    const encodedData = btoa(JSON.stringify(shareData));
+    // Encode the data to base64 (Unicode-safe)
+    const jsonStr = JSON.stringify(shareData);
+    const encodedData = btoa(unescape(encodeURIComponent(jsonStr)));
 
     // Generate the full URL
     const baseUrl = window.location.origin;

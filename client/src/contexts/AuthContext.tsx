@@ -278,6 +278,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 email: u.email,
                 displayName: u.displayName,
                 photoURL: u.photoURL,
+                providerId: u.providerData?.[0]?.providerId || 'password',
               };
               setUser(user);
               // Clear guest mode if user logs in

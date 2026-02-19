@@ -113,6 +113,8 @@ const EditSession = () => {
       toast.success(
         editingMatch ? 'Match updated successfully' : 'Match added successfully'
       );
+      setIsFormOpen(false);
+      setEditingMatch(undefined);
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error saving match', error);

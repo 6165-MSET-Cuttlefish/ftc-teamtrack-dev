@@ -663,7 +663,7 @@ export const PerformanceMetrics = () => {
         return;
       if (!hasStarted) return;
 
-      if (['0', '1', '2', '3'].includes(event.key)) {
+      if (['1', '2', '3'].includes(event.key)) {
         if (!showPopup) {
           setPopupNumber(event.key);
           setMadeCount(null);
@@ -747,7 +747,7 @@ export const PerformanceMetrics = () => {
   ]);
 
   // ── Render ────────────────────────────────────────────────────────
-  const showAuton = sessionData.matchType !== 'TeleOp';
+  const showAuton = sessionData.matchType !== 'Teleop';
   const showTeleop = sessionData.matchType !== 'Autonomous';
 
   return (

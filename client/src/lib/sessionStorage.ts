@@ -40,6 +40,7 @@ export interface MatchState {
   hasStarted: boolean;
   hasTransitionedToTeleop: boolean;
   showTeleopTransition: boolean;
+  matchPhase?: 'auton' | 'controller_pickup' | 'prepare' | 'teleop' | 'ended';
 }
 
 /**
@@ -214,7 +215,12 @@ export const hasActiveSession = (): boolean => {
  */
 export const saveMatchStateToStorage = (state: MatchState): void => {
   try {
-    localStorage.setItem(MATCH_STATE, JSON.stringify(state));
+    localStorage.setItem(MATCH_STATE, JSON.stringify({
+      hasStarted: state.hasStarted,
+      hasTransitionedToTeleop: state.hasTransitionedToTeleop,
+      showTeleopTransition: state.showTeleopTransition,
+      matchPhase: state.matchPhase ?? 'auton',
+    }));
   } catch (error) {
     logger.error('Failed to save match state to storage:', error);
   }

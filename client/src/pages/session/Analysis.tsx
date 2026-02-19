@@ -1525,7 +1525,7 @@ const AnalysisContent = () => {
           }
           if (mounted && session) {
             const sum = (fn: (m: Match) => number) =>
-              session.matches.reduce((s, m) => s + fn(m), 0);
+              session.matches.reduce((s: number, m: Match) => s + fn(m), 0);
 
             setLocalSessionData({
               sessionName: session.sessionName || '',
@@ -1548,7 +1548,7 @@ const AnalysisContent = () => {
               robot1Park: 'none',
               robot2Park: 'none',
               selectedFeature: session.selectedFeature || '',
-              cycleTimes: session.matches.flatMap(m => m.cycleTimes || []),
+              cycleTimes: session.matches.flatMap((m: Match) => m.cycleTimes || []),
               notes: session.notes || '',
               matches: session.matches || [],
             });

@@ -309,6 +309,7 @@ const Profile = () => {
                     <button
                       onClick={startEditEmail}
                       className={`p-1 rounded transition-colors opacity-60 hover:opacity-100 shrink-0 ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-gray-100'}`}
+                      style={{ display: user.providerId === 'password' || !user.providerId ? 'inline-flex' : 'none' }}
                     >
                       <Edit2 size={13} className="text-team-blue" />
                     </button>
@@ -335,7 +336,11 @@ const Profile = () => {
                 <p
                   className={`text-sm ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
                 >
-                  Email &amp; Password
+                  {user.providerId === 'google.com'
+                    ? 'Google'
+                    : user.providerId === 'github.com'
+                      ? 'GitHub'
+                      : 'Email & Password'}
                 </p>
               </div>
             </div>

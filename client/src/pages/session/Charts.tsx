@@ -542,12 +542,12 @@ const Charts = () => {
                             ? 'Teleop'
                             : 'Endgame';
 
-                      const autoPercent = ((autoAvg / avgScore) * 100).toFixed(
+                      const autoPercent = avgScore > 0 ? ((autoAvg / avgScore) * 100).toFixed(
                         0
-                      );
-                      const telePercent = ((teleAvg / avgScore) * 100).toFixed(
+                      ) : '0';
+                      const telePercent = avgScore > 0 ? ((teleAvg / avgScore) * 100).toFixed(
                         0
-                      );
+                      ) : '0';
 
                       const mean = avgScore;
                       const variance =

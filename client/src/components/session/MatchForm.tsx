@@ -51,6 +51,8 @@ export const MatchForm = ({
     robot1Park: initialMatch?.robot1Park || 'none',
     robot2Park: initialMatch?.robot2Park || 'none',
     cycleTimes: initialMatch?.cycleTimes || [],
+    autonShots: initialMatch?.autonShots || [],
+    teleopShots: initialMatch?.teleopShots || [],
   });
 
   const handleInputChange = (field: string, value: number | string) => {
@@ -61,7 +63,7 @@ export const MatchForm = ({
   };
 
   const handleNumericInputChange = (field: string, value: string) => {
-    const numValue = parseInt(value) || 0;
+    const numValue = Math.max(0, parseInt(value) || 0);
     handleInputChange(field, numValue);
   };
 
@@ -82,6 +84,8 @@ export const MatchForm = ({
         robot1Park: initialMatch.robot1Park || 'none',
         robot2Park: initialMatch.robot2Park || 'none',
         cycleTimes: initialMatch.cycleTimes || [],
+        autonShots: initialMatch.autonShots || [],
+        teleopShots: initialMatch.teleopShots || [],
       });
     } else if (isOpen) {
       // Reset form when opening for a new match
@@ -99,6 +103,8 @@ export const MatchForm = ({
         robot1Park: 'none',
         robot2Park: 'none',
         cycleTimes: [],
+        autonShots: [],
+        teleopShots: [],
       });
     }
   }, [initialMatch, isOpen]);

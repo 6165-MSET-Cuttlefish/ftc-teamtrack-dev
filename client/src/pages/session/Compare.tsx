@@ -517,18 +517,18 @@ const Compare = () => {
                             <td
                               className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              ↳ Classified Artifact
+                              ↳ Avg Classified Artifact
                             </td>
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
                                 className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {session.matches.reduce(
+                                {(session.matches.reduce(
                                   (sum, m) =>
                                     sum + (m.autonClassifiedArtifact || 0),
                                   0
-                                )}
+                                ) / (session.matches.length || 1)).toFixed(1)}
                               </td>
                             ))}
                           </tr>
@@ -538,18 +538,18 @@ const Compare = () => {
                             <td
                               className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              ↳ Overflow Artifact
+                              ↳ Avg Overflow Artifact
                             </td>
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
                                 className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {session.matches.reduce(
+                                {(session.matches.reduce(
                                   (sum, m) =>
                                     sum + (m.autonOverflowArtifact || 0),
                                   0
-                                )}
+                                ) / (session.matches.length || 1)).toFixed(1)}
                               </td>
                             ))}
                           </tr>
@@ -559,17 +559,17 @@ const Compare = () => {
                             <td
                               className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              ↳ Motif
+                              ↳ Avg Motif
                             </td>
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
                                 className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {session.matches.reduce(
+                                {(session.matches.reduce(
                                   (sum, m) => sum + (m.autonMotif || 0),
                                   0
-                                )}
+                                ) / (session.matches.length || 1)).toFixed(1)}
                               </td>
                             ))}
                           </tr>
@@ -579,17 +579,17 @@ const Compare = () => {
                             <td
                               className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              ↳ Leave
+                              ↳ Avg Leave
                             </td>
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
                                 className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {session.matches.reduce(
+                                {(session.matches.reduce(
                                   (sum, m) => sum + (m.autonLeave || 0),
                                   0
-                                )}
+                                ) / (session.matches.length || 1)).toFixed(1)}
                               </td>
                             ))}
                           </tr>
@@ -621,18 +621,18 @@ const Compare = () => {
                             <td
                               className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              ↳ Classified Artifact
+                              ↳ Avg Classified Artifact
                             </td>
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
                                 className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {session.matches.reduce(
+                                {(session.matches.reduce(
                                   (sum, m) =>
                                     sum + (m.teleClassifiedArtifact || 0),
                                   0
-                                )}
+                                ) / (session.matches.length || 1)).toFixed(1)}
                               </td>
                             ))}
                           </tr>
@@ -642,18 +642,18 @@ const Compare = () => {
                             <td
                               className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              ↳ Overflow Artifact
+                              ↳ Avg Overflow Artifact
                             </td>
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
                                 className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {session.matches.reduce(
+                                {(session.matches.reduce(
                                   (sum, m) =>
                                     sum + (m.teleOverflowArtifact || 0),
                                   0
-                                )}
+                                ) / (session.matches.length || 1)).toFixed(1)}
                               </td>
                             ))}
                           </tr>
@@ -663,17 +663,17 @@ const Compare = () => {
                             <td
                               className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              ↳ Motif
+                              ↳ Avg Motif
                             </td>
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
                                 className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {session.matches.reduce(
+                                {(session.matches.reduce(
                                   (sum, m) => sum + (m.teleMotif || 0),
                                   0
-                                )}
+                                ) / (session.matches.length || 1)).toFixed(1)}
                               </td>
                             ))}
                           </tr>

@@ -279,12 +279,21 @@ export const LivePreview = ({
     let userSessions: { sessionName?: string }[] = [];
     if (user?.uid) {
       const { firebaseService } = await import('@/services/firebaseService');
-      userSessions = await firebaseService.getUserSessions(user.uid);
       const { SESSION_LIMITS } = await import('@/constants');
 
-      if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
+      // Use team-aware limit check (consistent with mount check)
+      const sessions = team
+        ? await firebaseService.getTeamSessions(team.id)
+        : await firebaseService.getUserSessions(user.uid);
+      userSessions = sessions;
+
+      const sessionLimit = team
+        ? SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5
+        : SESSION_LIMITS.MAX_SESSIONS_PER_USER;
+
+      if (sessions.length >= sessionLimit) {
         toast.error(
-          `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`
+          `You've reached the maximum of ${sessionLimit} sessions. Please delete old sessions before creating new ones.`
         );
         return;
       }
@@ -297,7 +306,6 @@ export const LivePreview = ({
     // Use sessionTimer for total session duration, not match timer
     const totalSessionTime = formatTime(sessionTimer);
     setIsTimerRunning(false);
-    completeSession(totalSessionTime);
 
     // Generate a unique session name if not provided
     let finalSessionName = sessionData.sessionName?.trim();
@@ -354,9 +362,13 @@ export const LivePreview = ({
         // Authenticated user: save to Firebase
         const result = await createSession(sessionToSave);
         if (result && result.id) {
+          // Only mark session complete after successful save
+          completeSession(totalSessionTime);
           toast.success('Session saved successfully!');
         } else {
           toast.error('Failed to save session. Please try again.');
+          setIsTimerRunning(false); // Keep timer stopped but don't clear data
+          return;
         }
       } else {
         // Guest user: save session to localStorage
@@ -364,11 +376,13 @@ export const LivePreview = ({
         const existing = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
         const guestSession = {
           ...sessionToSave,
-          id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
           createdAt: new Date().toISOString(),
         };
         existing.unshift(guestSession);
         localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(existing));
+        // Only mark session complete after successful save
+        completeSession(totalSessionTime);
         toast.success('Session saved locally!');
       }
 
@@ -378,7 +392,7 @@ export const LivePreview = ({
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error saving session', error);
-      toast.error('An error occurred while saving the session.');
+      toast.error('An error occurred while saving the session. Your data is preserved — please try again.');
     }
   };
 

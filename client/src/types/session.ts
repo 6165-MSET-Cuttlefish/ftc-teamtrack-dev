@@ -106,6 +106,8 @@ export interface User {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  /** Primary auth provider ID (e.g. 'password', 'google.com') */
+  providerId?: string;
 }
 
 export interface ChartDataPoint {
