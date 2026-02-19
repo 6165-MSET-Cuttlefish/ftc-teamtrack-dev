@@ -17,6 +17,15 @@ const ActiveSessionContent = () => {
 
   useEffect(() => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
+    
+    // Listen for tutorial event to open session setup
+    const handleOpenSetup = () => {
+      setShowSessionSetup(true);
+    };
+    window.addEventListener('teamtrack-tutorial-open-session-setup', handleOpenSetup);
+    return () => {
+      window.removeEventListener('teamtrack-tutorial-open-session-setup', handleOpenSetup);
+    };
   }, []);
   const { isDarkMode } = useTheme();
   const {

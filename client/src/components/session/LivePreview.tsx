@@ -111,8 +111,11 @@ export const LivePreview = ({
     checkSessionLimit();
   }, [user?.uid, sessionData.isSessionCompleted, team]);
 
-  // FTC phase transition: autonomous → controller pickup
+  // FTC phase transition: autonomous → controller pickup (only for Full Game)
+  // For Autonomous mode: no transition, timer just counts down to 0
+  // For Teleop mode: starts in teleop phase, no transition needed
   useEffect(() => {
+    // Only transition for Full Game mode
     if (
       sessionData.matchType === 'Full Game' &&
       timer === GAME_TIMING.AUTON_END_REMAINING && // 120 seconds remaining = end of autonomous
@@ -463,6 +466,12 @@ export const LivePreview = ({
                         }
                         setHasStarted(true);
                         setMatchActive(true);
+                        // Set the correct initial phase and start the timer
+                        if (sessionData.matchType === 'Teleop') {
+                          setMatchPhase('teleop');
+                        } else {
+                          setMatchPhase('auton');
+                        }
                         setIsTimerRunning(true);
                       }
                     : handleSaveMatch

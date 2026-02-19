@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useTheme, useAuth } from '@/contexts';
+import { useTheme, useAuth, useSession } from '@/contexts';
 import { Settings } from 'lucide-react';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 export const TUTORIAL_STORAGE_KEY = 'teamtrack-tutorial-v1-seen';
 export const TUTORIAL_RESTART_EVENT = 'teamtrack-restart-tutorial';
+export const TUTORIAL_OPEN_SESSION_SETUP_EVENT = 'teamtrack-tutorial-open-session-setup';
 
 // ─── Visual previews ───────────────────────────────────────────────────────
 
@@ -673,6 +674,7 @@ function dropElement(el: HTMLElement) {
 export const ActiveTutorial = () => {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
+  const { resetSession } = useSession();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const prevElRef = useRef<HTMLElement | null>(null);
@@ -712,6 +714,36 @@ export const ActiveTutorial = () => {
     }
     if (!targetAttr) return;
 
+    // Special handling: if targeting session-setup and it's not in DOM,
+    // send event to open it
+    if (targetAttr === 'session-setup') {
+      const el = document.querySelector<HTMLElement>(
+        `[data-tutorial="${targetAttr}"]`
+      );
+      if (!el) {
+        // Panel is closed, emit event to open it
+        window.dispatchEvent(
+          new CustomEvent(TUTORIAL_OPEN_SESSION_SETUP_EVENT)
+        );
+        // Re-query after a small delay to give React time to render
+        setTimeout(() => {
+          const newEl = document.querySelector<HTMLElement>(
+            `[data-tutorial="${targetAttr}"]`
+          );
+          if (newEl) {
+            liftElement(newEl);
+            prevElRef.current = newEl;
+            const rect = newEl.getBoundingClientRect();
+            const viewH = window.innerHeight;
+            if (rect.top < 80 || rect.bottom > viewH - 80) {
+              newEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        }, 50);
+        return;
+      }
+    }
+
     const el = document.querySelector<HTMLElement>(
       `[data-tutorial="${targetAttr}"]`
     );
@@ -750,11 +782,16 @@ export const ActiveTutorial = () => {
   const dismiss = useCallback(() => {
     setVisible(false);
     clearHighlight();
+    // Reset all session data
+    resetSession();
+    // Scroll back to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Mark tutorial as seen for this user
     const tutorialKey = user?.uid
       ? `${TUTORIAL_STORAGE_KEY}-${user.uid}`
       : TUTORIAL_STORAGE_KEY;
     localStorage.setItem(tutorialKey, 'true');
-  }, [user, clearHighlight]);
+  }, [user, clearHighlight, resetSession]);
 
   const next = useCallback(() => {
     if (step >= STEPS.length - 1) dismiss();
