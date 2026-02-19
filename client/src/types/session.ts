@@ -95,7 +95,6 @@ export interface Session {
   selectedFeature?: string;
   notes?: string;
   matches: Match[];
-  [key: string]: unknown;
 }
 
 /** Session data for creating new sessions (without id and createdAt) */

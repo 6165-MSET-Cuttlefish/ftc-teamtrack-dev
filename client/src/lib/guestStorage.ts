@@ -54,7 +54,7 @@ export const getCookie = (name: string): string | null => {
 
   for (let cookie of cookies) {
     cookie = cookie.trim();
-    if (cookie.startsWith(cookieName + '=')) {
+    if (cookie.startsWith(`${cookieName}=`)) {
       return decodeURIComponent(cookie.substring(cookieName.length + 1));
     }
   }
@@ -75,15 +75,15 @@ export const deleteCookie = (name: string, path: string = '/'): void => {
  */
 export const saveGuestSessionData = (
   sessionId: string,
-  data: Record<string, any>
+  data: Record<string, unknown>
 ): void => {
   try {
     const jsonData = JSON.stringify(data);
-    
+
     // Cookies have a size limit (~4KB), so for simplicity we'll use localStorage
     // as the primary storage and cookies as a flag
     localStorage.setItem(`${COOKIE_PREFIX}session_${sessionId}`, jsonData);
-    
+
     // Set a cookie to indicate this guest has data
     setCookie('has_data', 'true');
   } catch (error) {
@@ -96,12 +96,14 @@ export const saveGuestSessionData = (
  */
 export const loadGuestSessionData = (
   sessionId: string
-): Record<string, any> | null => {
+): Record<string, unknown> | null => {
   try {
     const hasData = getCookie('has_data');
     if (!hasData) return null;
 
-    const jsonData = localStorage.getItem(`${COOKIE_PREFIX}session_${sessionId}`);
+    const jsonData = localStorage.getItem(
+      `${COOKIE_PREFIX}session_${sessionId}`
+    );
     if (!jsonData) return null;
 
     return JSON.parse(jsonData);

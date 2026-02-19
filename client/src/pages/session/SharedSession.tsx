@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Loader2, 
-  ArrowLeft, 
-  Trophy, 
-  Target, 
-  TrendingDown, 
-  Minus, 
+import {
+  Loader2,
+  ArrowLeft,
+  Trophy,
+  Target,
+  TrendingDown,
+  Minus,
   BarChart3,
   AlertTriangle,
   Timer,
@@ -247,7 +247,7 @@ interface SessionStats {
 
 const computeStats = (matches: Match[]): SessionStats | null => {
   if (matches.length === 0) return null;
-  const scores = matches.map((m) => m.finalScore || 0);
+  const scores = matches.map(m => m.finalScore || 0);
   const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
   const maxScore = Math.max(...scores);
   const minScore = Math.min(...scores);
@@ -263,7 +263,7 @@ const computeStats = (matches: Match[]): SessionStats | null => {
   const avgMissed =
     matches.reduce(
       (s, m) => s + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
-      0,
+      0
     ) / matches.length;
 
   const variance =
@@ -316,7 +316,7 @@ const SummaryTab = ({
     'Final Score': m.finalScore || 0,
     Autonomous: m.autonomousScore || 0,
     Teleop: m.teleopScore || 0,
-    'Endgame': m.endGameScore || 0,
+    Endgame: m.endGameScore || 0,
   }));
 
   const missedData = matches.map((m, i) => ({
@@ -329,7 +329,7 @@ const SummaryTab = ({
     name: `M${i + 1}`,
     Autonomous: m.autonomousScore || 0,
     Teleop: m.teleopScore || 0,
-    'Endgame': m.endGameScore || 0,
+    Endgame: m.endGameScore || 0,
   }));
 
   const totalAvg = stats.avgAuto + stats.avgTele + stats.avgEndgame;
@@ -441,28 +441,40 @@ const SummaryTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
+              <Tooltip
+                content={<ChartTooltip isDarkMode={isDarkMode} />}
+                cursor={{ fill: 'transparent' }}
+              />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="Autonomous"
                 stackId="a"
                 fill={CHART_COLORS.auto}
                 radius={[0, 0, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
               <Bar
                 dataKey="Teleop"
                 stackId="a"
                 fill={CHART_COLORS.tele}
                 radius={[0, 0, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
               <Bar
                 dataKey="Endgame"
                 stackId="a"
                 fill={CHART_COLORS.endgame}
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -471,7 +483,7 @@ const SummaryTab = ({
 
       {/* Missed Balls */}
       {matches.some(
-        (m) => (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0) > 0,
+        m => (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0) > 0
       ) && (
         <Section title="Balls Missed" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={240}>
@@ -490,19 +502,28 @@ const SummaryTab = ({
                 tick={{ fontSize: 12 }}
                 allowDecimals={false}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
+              <Tooltip
+                content={<ChartTooltip isDarkMode={isDarkMode} />}
+                cursor={{ fill: 'transparent' }}
+              />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="Auto Missed"
                 fill={CHART_COLORS.missed}
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
               <Bar
                 dataKey="Teleop Missed"
                 fill="#f97316"
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -524,13 +545,13 @@ const MatchDetailTab = ({
   isDarkMode: boolean;
 }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
-  
+
   useEffect(() => {
     if (matches.length > 0 && selectedIdx >= matches.length) {
       setSelectedIdx(Math.max(0, matches.length - 1));
     }
   }, [matches.length, selectedIdx]);
-  
+
   const match = matches[selectedIdx];
   if (!match) return null;
 
@@ -636,8 +657,7 @@ const MatchDetailTab = ({
           <p
             className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
           >
-            Match {match.matchNumber} &middot;{' '}
-            {match.matchType || 'Full Game'}
+            Match {match.matchNumber} &middot; {match.matchType || 'Full Game'}
           </p>
           <p className="text-5xl font-bold text-team-blue mt-2">{totalScore}</p>
           <p
@@ -662,7 +682,7 @@ const MatchDetailTab = ({
 
       {/* Phase scores */}
       <div className="grid grid-cols-3 gap-4">
-        {breakdownRows.map((row) => (
+        {breakdownRows.map(row => (
           <div
             key={row.phase}
             className={`rounded-xl border p-4 text-center ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
@@ -699,7 +719,7 @@ const MatchDetailTab = ({
                   'Missed',
                   'Extra',
                   'Total',
-                ].map((h) => (
+                ].map(h => (
                   <th
                     key={h}
                     className={`py-3 px-3 font-semibold text-xs uppercase tracking-wide ${
@@ -712,7 +732,7 @@ const MatchDetailTab = ({
               </tr>
             </thead>
             <tbody>
-              {breakdownRows.map((row) => (
+              {breakdownRows.map(row => (
                 <tr
                   key={row.phase}
                   className={`border-b last:border-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-100'}`}
@@ -834,7 +854,7 @@ const MatchDetailTab = ({
                 <span className="text-lg font-bold text-team-blue">
                   {fmtTime(
                     match.cycleTimes.reduce((a, b) => a + b, 0) /
-                      match.cycleTimes.length,
+                      match.cycleTimes.length
                   )}
                 </span>
               </div>
@@ -886,10 +906,7 @@ const MatchDetailTab = ({
 
       {/* Vs Session Average Chart */}
       {matches.length > 1 && (
-        <Section
-          title="This Match vs Session Average"
-          isDarkMode={isDarkMode}
-        >
+        <Section title="This Match vs Session Average" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart
               data={[
@@ -897,10 +914,8 @@ const MatchDetailTab = ({
                   name: 'Autonomous',
                   'This Match': match.autonomousScore || 0,
                   'Session Avg': Math.round(
-                    matches.reduce(
-                      (s, m) => s + (m.autonomousScore || 0),
-                      0,
-                    ) / matches.length,
+                    matches.reduce((s, m) => s + (m.autonomousScore || 0), 0) /
+                      matches.length
                   ),
                 },
                 {
@@ -908,7 +923,7 @@ const MatchDetailTab = ({
                   'This Match': match.teleopScore || 0,
                   'Session Avg': Math.round(
                     matches.reduce((s, m) => s + (m.teleopScore || 0), 0) /
-                      matches.length,
+                      matches.length
                   ),
                 },
                 {
@@ -916,7 +931,7 @@ const MatchDetailTab = ({
                   'This Match': match.endGameScore || 0,
                   'Session Avg': Math.round(
                     matches.reduce((s, m) => s + (m.endGameScore || 0), 0) /
-                      matches.length,
+                      matches.length
                   ),
                 },
               ]}
@@ -934,19 +949,28 @@ const MatchDetailTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
+              <Tooltip
+                content={<ChartTooltip isDarkMode={isDarkMode} />}
+                cursor={{ fill: 'transparent' }}
+              />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="This Match"
                 fill={CHART_COLORS.primary}
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
               <Bar
                 dataKey="Session Avg"
                 fill={CHART_COLORS.secondary}
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -1089,13 +1113,13 @@ const CompareTab = ({
       name: `Match ${mA.matchNumber}`,
       Autonomous: mA.autonomousScore || 0,
       Teleop: mA.teleopScore || 0,
-      'Endgame': mA.endGameScore || 0,
+      Endgame: mA.endGameScore || 0,
     },
     {
       name: `Match ${mB.matchNumber}`,
       Autonomous: mB.autonomousScore || 0,
       Teleop: mB.teleopScore || 0,
-      'Endgame': mB.endGameScore || 0,
+      Endgame: mB.endGameScore || 0,
     },
   ];
 
@@ -1115,7 +1139,7 @@ const CompareTab = ({
           </label>
           <select
             value={idxA}
-            onChange={(e) => setIdxA(Number(e.target.value))}
+            onChange={e => setIdxA(Number(e.target.value))}
             className={`w-full px-4 py-2.5 rounded-lg border text-sm font-medium ${
               isDarkMode
                 ? 'bg-team-dark border-team-blue-40 text-white'
@@ -1137,7 +1161,7 @@ const CompareTab = ({
           </label>
           <select
             value={idxB}
-            onChange={(e) => setIdxB(Number(e.target.value))}
+            onChange={e => setIdxB(Number(e.target.value))}
             className={`w-full px-4 py-2.5 rounded-lg border text-sm font-medium ${
               isDarkMode
                 ? 'bg-team-dark border-team-blue-40 text-white'
@@ -1194,26 +1218,38 @@ const CompareTab = ({
               stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
               tick={{ fontSize: 12 }}
             />
-            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
+            <Tooltip
+              content={<ChartTooltip isDarkMode={isDarkMode} />}
+              cursor={{ fill: 'transparent' }}
+            />
             <Legend wrapperStyle={{ fontSize: '13px' }} />
             <Bar
               dataKey="Autonomous"
               stackId="s"
               fill={CHART_COLORS.auto}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              activeBar={{
+                stroke: isDarkMode ? '#fff' : '#000',
+                strokeWidth: 2,
+              }}
             />
             <Bar
               dataKey="Teleop"
               stackId="s"
               fill={CHART_COLORS.tele}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              activeBar={{
+                stroke: isDarkMode ? '#fff' : '#000',
+                strokeWidth: 2,
+              }}
             />
             <Bar
               dataKey="Endgame"
               stackId="s"
               fill={CHART_COLORS.endgame}
               radius={[4, 4, 0, 0]}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              activeBar={{
+                stroke: isDarkMode ? '#fff' : '#000',
+                strokeWidth: 2,
+              }}
             />
           </BarChart>
         </ResponsiveContainer>
@@ -1250,7 +1286,7 @@ const CompareTab = ({
               </tr>
             </thead>
             <tbody>
-              {metrics.map((row) => {
+              {metrics.map(row => {
                 const diff = row.b - row.a;
                 const isGood = row.higherIsBetter ? diff >= 0 : diff <= 0;
                 return (
@@ -1307,7 +1343,7 @@ const TABS = [
   { id: 'compare', label: 'Compare', icon: ArrowRightLeft },
 ] as const;
 
-type TabId = typeof TABS[number]['id'];
+type TabId = (typeof TABS)[number]['id'];
 
 /**
  * SharedSession page - displays full session analysis without requiring authentication
@@ -1339,8 +1375,11 @@ const SharedSession = () => {
           setError('No session data found in the link.');
         }
       } catch (err) {
-        console.error('Error loading shared session:', err);
-        setError('Failed to load session data. The link may be invalid or expired.');
+        const { logger } = await import('@/lib/logger');
+        logger.error('Error loading shared session', err);
+        setError(
+          'Failed to load session data. The link may be invalid or expired.'
+        );
       } finally {
         setLoading(false);
       }
@@ -1427,9 +1466,7 @@ const SharedSession = () => {
             className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
           >
             {session.matchType && <span>{session.matchType}</span>}
-            {session.sessionDuration && (
-              <span>{session.sessionDuration}</span>
-            )}
+            {session.sessionDuration && <span>{session.sessionDuration}</span>}
             <span>
               {sessionMatches.length} match
               {sessionMatches.length !== 1 ? 'es' : ''}
@@ -1503,7 +1540,7 @@ const SharedSession = () => {
             <div
               className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'}`}
             >
-              {TABS.map((tab) => {
+              {TABS.map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
@@ -1543,10 +1580,7 @@ const SharedSession = () => {
                 />
               )}
               {activeTab === 'compare' && (
-                <CompareTab
-                  matches={sessionMatches}
-                  isDarkMode={isDarkMode}
-                />
+                <CompareTab matches={sessionMatches} isDarkMode={isDarkMode} />
               )}
             </div>
           </>
@@ -1587,21 +1621,23 @@ const SharedSession = () => {
                 Want to track your own sessions?
               </h3>
               <p
-                className={
-                  isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-                }
+                className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
               >
-                Create a free account to start tracking and analyzing your team's
-                performance.
+                Create a free account to start tracking and analyzing your
+                team's performance.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
                 <Link to="/signup">
-                  <Button className={`w-full sm:w-56 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}>
+                  <Button
+                    className={`w-full sm:w-56 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+                  >
                     Sign Up Free
                   </Button>
                 </Link>
                 <Link to="/login">
-                  <Button variant="outline" className="w-full sm:w-56">Sign In</Button>
+                  <Button variant="outline" className="w-full sm:w-56">
+                    Sign In
+                  </Button>
                 </Link>
               </div>
             </div>

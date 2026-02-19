@@ -1,4 +1,8 @@
-export { ActiveTutorial, TUTORIAL_STORAGE_KEY, TUTORIAL_RESTART_EVENT } from './ActiveTutorial';
+export {
+  ActiveTutorial,
+  TUTORIAL_STORAGE_KEY,
+  TUTORIAL_RESTART_EVENT,
+} from './ActiveTutorial';
 export { LivePreview } from './LivePreview';
 export { MatchForm } from './MatchForm';
 export { Notes } from './Notes';

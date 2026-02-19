@@ -66,6 +66,8 @@ export const GAME_TIMING = {
 export const SESSION_LIMITS = {
   MAX_SESSIONS_PER_USER: 50,
   MAX_CYCLE_TIMES: 100,
+  /** Maximum sessions to fetch in admin/comparison queries */
+  ALL_SESSIONS_QUERY_LIMIT: 100,
 } as const;
 
 /**
@@ -80,6 +82,8 @@ export const UI_TIMING = {
   SHORT_DELAY: 1000,
   // Session limit check timeout
   SESSION_LIMIT_CHECK_DELAY: 2000,
+  // Message auto-dismiss timeout
+  MESSAGE_DISPLAY_TIMEOUT: 4000,
 } as const;
 
 /**

@@ -6,9 +6,7 @@ export {
   formatTime,
   getInitials,
   isAbortError,
-  safeAsync,
-  calculatePercentChange,
-  average,
+  getErrorMessage,
 } from './utils';
 export {
   saveSessionToStorage,
@@ -21,16 +19,4 @@ export {
   type SessionTimerState,
   type MatchState,
 } from './sessionStorage';
-export {
-  setCookie,
-  getCookie,
-  deleteCookie,
-  saveGuestSessionData,
-  loadGuestSessionData,
-  clearGuestSessionData,
-  listGuestSessions,
-} from './guestStorage';
-export {
-  generateShareableLink,
-  copyToClipboard,
-} from './shareUtils';
+export { generateShareableLink, copyToClipboard } from './shareUtils';

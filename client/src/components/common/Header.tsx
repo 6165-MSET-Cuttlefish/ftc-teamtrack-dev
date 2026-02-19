@@ -172,7 +172,8 @@ const NavigationMenu = () => {
       }`}
     >
       {/* Active / New Session Button */}
-      {user && !isOnActivePage &&
+      {user &&
+        !isOnActivePage &&
         (hasActiveSession ? (
           <button
             onClick={() => navigate('/active')}
@@ -248,20 +249,33 @@ const NavigationMenu = () => {
         <DropdownMenuContent align="end" className="min-w-[140px]">
           <DropdownMenuLabel>Theme</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setTheme('dark')} className="flex items-center gap-2 cursor-pointer">
+          <DropdownMenuItem
+            onClick={() => setTheme('dark')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <Moon className="w-4 h-4" />
             <span>Dark</span>
             {themeMode === 'dark' && <span className="ml-auto text-xs">✓</span>}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme('light')} className="flex items-center gap-2 cursor-pointer">
+          <DropdownMenuItem
+            onClick={() => setTheme('light')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <Sun className="w-4 h-4" />
             <span>Light</span>
-            {themeMode === 'light' && <span className="ml-auto text-xs">✓</span>}
+            {themeMode === 'light' && (
+              <span className="ml-auto text-xs">✓</span>
+            )}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme('honeycomb')} className="flex items-center gap-2 cursor-pointer">
+          <DropdownMenuItem
+            onClick={() => setTheme('honeycomb')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <Hexagon className="w-4 h-4" />
             <span>Honeycomb</span>
-            {themeMode === 'honeycomb' && <span className="ml-auto text-xs">✓</span>}
+            {themeMode === 'honeycomb' && (
+              <span className="ml-auto text-xs">✓</span>
+            )}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -513,7 +527,11 @@ const NavigationMenu = () => {
               <button
                 onClick={() => {
                   handleCloseFeaturesTutorial();
-                  setTimeout(() => window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT)), 100);
+                  setTimeout(
+                    () =>
+                      window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT)),
+                    100
+                  );
                 }}
                 className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors border ${
                   isDarkMode
@@ -619,7 +637,7 @@ export const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isOnSessionsPage = location.pathname === '/sessions';
-  
+
   return (
     <header
       className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}

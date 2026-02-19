@@ -46,17 +46,9 @@ const fmtTime = (s: number) => {
 const diffStr = (val: number) => (val > 0 ? `+${val}` : `${val}`);
 
 /** Trend icon based on positive/negative/zero */
-const TrendIcon = ({
-  value,
-  size = 16,
-}: {
-  value: number;
-  size?: number;
-}) => {
-  if (value > 0)
-    return <TrendingUp size={size} className="text-emerald-500" />;
-  if (value < 0)
-    return <TrendingDown size={size} className="text-red-500" />;
+const TrendIcon = ({ value, size = 16 }: { value: number; size?: number }) => {
+  if (value > 0) return <TrendingUp size={size} className="text-emerald-500" />;
+  if (value < 0) return <TrendingDown size={size} className="text-red-500" />;
   return <Minus size={size} className="text-gray-400" />;
 };
 
@@ -259,7 +251,7 @@ interface SessionStats {
 
 const computeStats = (matches: Match[]): SessionStats | null => {
   if (matches.length === 0) return null;
-  const scores = matches.map((m) => m.finalScore || 0);
+  const scores = matches.map(m => m.finalScore || 0);
   const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
   const maxScore = Math.max(...scores);
   const minScore = Math.min(...scores);
@@ -275,7 +267,7 @@ const computeStats = (matches: Match[]): SessionStats | null => {
   const avgMissed =
     matches.reduce(
       (s, m) => s + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
-      0,
+      0
     ) / matches.length;
 
   const variance =
@@ -328,7 +320,7 @@ const SummaryTab = ({
     'Final Score': m.finalScore || 0,
     Autonomous: m.autonomousScore || 0,
     Teleop: m.teleopScore || 0,
-    'Endgame': m.endGameScore || 0,
+    Endgame: m.endGameScore || 0,
   }));
 
   const missedData = matches.map((m, i) => ({
@@ -347,19 +339,20 @@ const SummaryTab = ({
     return {
       name: `M${i + 1}`,
       Overall: totalShot > 0 ? Math.round((totalMade / totalShot) * 100) : null,
-      Autonomous: autonShot > 0 ? Math.round((autonMade / autonShot) * 100) : null,
+      Autonomous:
+        autonShot > 0 ? Math.round((autonMade / autonShot) * 100) : null,
       Teleop: teleShot > 0 ? Math.round((teleMade / teleShot) * 100) : null,
     };
   });
 
-  const hasAnyAccuracyData = accuracyData.some((d) => d.Overall !== null);
+  const hasAnyAccuracyData = accuracyData.some(d => d.Overall !== null);
 
   // Build cycle time data - flatten all cycle times from all matches with sequential numbering
   const cycleTimeData: Array<{ name: string; time: number }> = [];
   let shotCounter = 1;
-  matches.forEach((m) => {
+  matches.forEach(m => {
     if (m.cycleTimes && m.cycleTimes.length > 0) {
-      m.cycleTimes.forEach((ct) => {
+      m.cycleTimes.forEach(ct => {
         cycleTimeData.push({
           name: `Shot ${shotCounter}`,
           time: ct,
@@ -462,7 +455,7 @@ const SummaryTab = ({
 
       {/* Missed Balls */}
       {matches.some(
-        (m) => (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0) > 0,
+        m => (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0) > 0
       ) && (
         <Section title="Balls Missed" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={240}>
@@ -481,19 +474,28 @@ const SummaryTab = ({
                 tick={{ fontSize: 12 }}
                 allowDecimals={false}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
+              <Tooltip
+                content={<ChartTooltip isDarkMode={isDarkMode} />}
+                cursor={{ fill: 'transparent' }}
+              />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="Auto Missed"
                 fill={CHART_COLORS.missed}
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
               <Bar
                 dataKey="Teleop Missed"
                 fill="#f97316"
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -518,7 +520,7 @@ const SummaryTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
                 domain={[0, 100]}
-                tickFormatter={(v) => `${v}%`}
+                tickFormatter={v => `${v}%`}
               />
               <Tooltip
                 content={<ChartTooltip isDarkMode={isDarkMode} unit="%" />}
@@ -579,11 +581,13 @@ const SummaryTab = ({
               <YAxis
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
-                tickFormatter={(v) => `${v.toFixed(1)}s`}
+                tickFormatter={v => `${v.toFixed(1)}s`}
               />
               <Tooltip
                 content={<ChartTooltip isDarkMode={isDarkMode} unit="s" />}
-                formatter={(value: number) => value.toFixed(2)}
+                formatter={value =>
+                  typeof value === 'number' ? value.toFixed(2) : String(value)
+                }
               />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Line
@@ -621,14 +625,14 @@ const MatchDetailTab = ({
   onAdd: () => void;
 }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
-  
+
   // Reset selected index if it's out of bounds after matches change
   useEffect(() => {
     if (matches.length > 0 && selectedIdx >= matches.length) {
       setSelectedIdx(Math.max(0, matches.length - 1));
     }
   }, [matches.length, selectedIdx]);
-  
+
   const match = matches[selectedIdx];
   if (!match) return null;
 
@@ -745,8 +749,7 @@ const MatchDetailTab = ({
           <p
             className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
           >
-            Match {match.matchNumber} &middot;{' '}
-            {match.matchType || 'Full Game'}
+            Match {match.matchNumber} &middot; {match.matchType || 'Full Game'}
           </p>
           <p className="text-5xl font-bold text-team-blue mt-2">{totalScore}</p>
           <p
@@ -767,7 +770,7 @@ const MatchDetailTab = ({
             </div>
           )}
         </div>
-        
+
         {/* Edit and Delete buttons */}
         <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-team-blue-40">
           <button
@@ -797,7 +800,7 @@ const MatchDetailTab = ({
 
       {/* Phase scores */}
       <div className="grid grid-cols-3 gap-4">
-        {breakdownRows.map((row) => (
+        {breakdownRows.map(row => (
           <div
             key={row.phase}
             className={`rounded-xl border p-4 text-center ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
@@ -834,7 +837,7 @@ const MatchDetailTab = ({
                   'Missed',
                   'Extra',
                   'Total',
-                ].map((h) => (
+                ].map(h => (
                   <th
                     key={h}
                     className={`py-3 px-3 font-semibold text-xs uppercase tracking-wide ${
@@ -847,7 +850,7 @@ const MatchDetailTab = ({
               </tr>
             </thead>
             <tbody>
-              {breakdownRows.map((row) => (
+              {breakdownRows.map(row => (
                 <tr
                   key={row.phase}
                   className={`border-b last:border-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-100'}`}
@@ -969,7 +972,7 @@ const MatchDetailTab = ({
                 <span className="text-lg font-bold text-team-blue">
                   {fmtTime(
                     match.cycleTimes.reduce((a, b) => a + b, 0) /
-                      match.cycleTimes.length,
+                      match.cycleTimes.length
                   )}
                 </span>
               </div>
@@ -1021,10 +1024,7 @@ const MatchDetailTab = ({
 
       {/* Vs Session Average Chart */}
       {matches.length > 1 && (
-        <Section
-          title="This Match vs Session Average"
-          isDarkMode={isDarkMode}
-        >
+        <Section title="This Match vs Session Average" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart
               data={[
@@ -1032,10 +1032,8 @@ const MatchDetailTab = ({
                   name: 'Autonomous',
                   'This Match': match.autonomousScore || 0,
                   'Session Avg': Math.round(
-                    matches.reduce(
-                      (s, m) => s + (m.autonomousScore || 0),
-                      0,
-                    ) / matches.length,
+                    matches.reduce((s, m) => s + (m.autonomousScore || 0), 0) /
+                      matches.length
                   ),
                 },
                 {
@@ -1043,7 +1041,7 @@ const MatchDetailTab = ({
                   'This Match': match.teleopScore || 0,
                   'Session Avg': Math.round(
                     matches.reduce((s, m) => s + (m.teleopScore || 0), 0) /
-                      matches.length,
+                      matches.length
                   ),
                 },
                 {
@@ -1051,7 +1049,7 @@ const MatchDetailTab = ({
                   'This Match': match.endGameScore || 0,
                   'Session Avg': Math.round(
                     matches.reduce((s, m) => s + (m.endGameScore || 0), 0) /
-                      matches.length,
+                      matches.length
                   ),
                 },
               ]}
@@ -1069,19 +1067,28 @@ const MatchDetailTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
+              <Tooltip
+                content={<ChartTooltip isDarkMode={isDarkMode} />}
+                cursor={{ fill: 'transparent' }}
+              />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="This Match"
                 fill={CHART_COLORS.primary}
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
               <Bar
                 dataKey="Session Avg"
                 fill={CHART_COLORS.secondary}
                 radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                activeBar={{
+                  stroke: isDarkMode ? '#fff' : '#000',
+                  strokeWidth: 2,
+                }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -1224,13 +1231,13 @@ const CompareTab = ({
       name: `Match ${mA.matchNumber}`,
       Autonomous: mA.autonomousScore || 0,
       Teleop: mA.teleopScore || 0,
-      'Endgame': mA.endGameScore || 0,
+      Endgame: mA.endGameScore || 0,
     },
     {
       name: `Match ${mB.matchNumber}`,
       Autonomous: mB.autonomousScore || 0,
       Teleop: mB.teleopScore || 0,
-      'Endgame': mB.endGameScore || 0,
+      Endgame: mB.endGameScore || 0,
     },
   ];
 
@@ -1250,7 +1257,7 @@ const CompareTab = ({
           </label>
           <select
             value={idxA}
-            onChange={(e) => setIdxA(Number(e.target.value))}
+            onChange={e => setIdxA(Number(e.target.value))}
             className={`w-full px-4 py-2.5 rounded-lg border text-sm font-medium ${
               isDarkMode
                 ? 'bg-team-dark border-team-blue-40 text-white'
@@ -1272,7 +1279,7 @@ const CompareTab = ({
           </label>
           <select
             value={idxB}
-            onChange={(e) => setIdxB(Number(e.target.value))}
+            onChange={e => setIdxB(Number(e.target.value))}
             className={`w-full px-4 py-2.5 rounded-lg border text-sm font-medium ${
               isDarkMode
                 ? 'bg-team-dark border-team-blue-40 text-white'
@@ -1329,26 +1336,38 @@ const CompareTab = ({
               stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
               tick={{ fontSize: 12 }}
             />
-            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} cursor={{ fill: 'transparent' }} />
+            <Tooltip
+              content={<ChartTooltip isDarkMode={isDarkMode} />}
+              cursor={{ fill: 'transparent' }}
+            />
             <Legend wrapperStyle={{ fontSize: '13px' }} />
             <Bar
               dataKey="Autonomous"
               stackId="s"
               fill={CHART_COLORS.auto}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              activeBar={{
+                stroke: isDarkMode ? '#fff' : '#000',
+                strokeWidth: 2,
+              }}
             />
             <Bar
               dataKey="Teleop"
               stackId="s"
               fill={CHART_COLORS.tele}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              activeBar={{
+                stroke: isDarkMode ? '#fff' : '#000',
+                strokeWidth: 2,
+              }}
             />
             <Bar
               dataKey="Endgame"
               stackId="s"
               fill={CHART_COLORS.endgame}
               radius={[4, 4, 0, 0]}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              activeBar={{
+                stroke: isDarkMode ? '#fff' : '#000',
+                strokeWidth: 2,
+              }}
             />
           </BarChart>
         </ResponsiveContainer>
@@ -1385,7 +1404,7 @@ const CompareTab = ({
               </tr>
             </thead>
             <tbody>
-              {metrics.map((row) => {
+              {metrics.map(row => {
                 const diff = row.b - row.a;
                 const isGood = row.higherIsBetter ? diff >= 0 : diff <= 0;
                 return (
@@ -1464,7 +1483,7 @@ const AnalysisContent = () => {
 
   const sessionMatches = useMemo(
     () => sessionData?.matches ?? [],
-    [sessionData?.matches],
+    [sessionData?.matches]
   );
 
   const stats = useMemo(() => computeStats(sessionMatches), [sessionMatches]);
@@ -1479,13 +1498,11 @@ const AnalysisContent = () => {
 
       // Check location state first (temporary sessions)
       const stateData = location.state as {
-        sessionData?: Record<string, unknown>;
+        sessionData?: typeof contextSessionData;
       } | null;
       if (stateData?.sessionData) {
         if (mounted) {
-          setLocalSessionData(
-            stateData.sessionData as unknown as typeof contextSessionData,
-          );
+          setLocalSessionData(stateData.sessionData);
           setLoading(false);
         }
         return;
@@ -1504,32 +1521,24 @@ const AnalysisContent = () => {
               sessionName: session.sessionName || '',
               sessionDuration: session.sessionDuration || '',
               matchType: session.matchType || '',
-              finalScore: sum((m) => m.finalScore || 0),
-              autonomousScore: sum((m) => m.autonomousScore || 0),
-              teleopScore: sum((m) => m.teleopScore || 0),
-              endGameScore: sum((m) => m.endGameScore || 0),
+              finalScore: sum(m => m.finalScore || 0),
+              autonomousScore: sum(m => m.autonomousScore || 0),
+              teleopScore: sum(m => m.teleopScore || 0),
+              endGameScore: sum(m => m.endGameScore || 0),
               isSessionCompleted: true,
-              autonClassifiedArtifact: sum(
-                (m) => m.autonClassifiedArtifact || 0,
-              ),
-              autonOverflowArtifact: sum(
-                (m) => m.autonOverflowArtifact || 0,
-              ),
-              autonMotif: sum((m) => m.autonMotif || 0),
-              autonLeave: sum((m) => m.autonLeave || 0),
-              teleClassifiedArtifact: sum(
-                (m) => m.teleClassifiedArtifact || 0,
-              ),
-              teleOverflowArtifact: sum(
-                (m) => m.teleOverflowArtifact || 0,
-              ),
-              teleMotif: sum((m) => m.teleMotif || 0),
-              teleBallsMissed: sum((m) => m.teleBallsMissed || 0),
-              autonBallsMissed: sum((m) => m.autonBallsMissed || 0),
+              autonClassifiedArtifact: sum(m => m.autonClassifiedArtifact || 0),
+              autonOverflowArtifact: sum(m => m.autonOverflowArtifact || 0),
+              autonMotif: sum(m => m.autonMotif || 0),
+              autonLeave: sum(m => m.autonLeave || 0),
+              teleClassifiedArtifact: sum(m => m.teleClassifiedArtifact || 0),
+              teleOverflowArtifact: sum(m => m.teleOverflowArtifact || 0),
+              teleMotif: sum(m => m.teleMotif || 0),
+              teleBallsMissed: sum(m => m.teleBallsMissed || 0),
+              autonBallsMissed: sum(m => m.autonBallsMissed || 0),
               robot1Park: 'none',
               robot2Park: 'none',
               selectedFeature: session.selectedFeature || '',
-              cycleTimes: session.matches.flatMap((m) => m.cycleTimes || []),
+              cycleTimes: session.matches.flatMap(m => m.cycleTimes || []),
               notes: session.notes || '',
               matches: session.matches || [],
             });
@@ -1571,9 +1580,7 @@ const AnalysisContent = () => {
 
     setIsUpdating(true);
     try {
-      const updatedMatches = sessionData.matches.filter(
-        (m) => m.id !== matchId,
-      );
+      const updatedMatches = sessionData.matches.filter(m => m.id !== matchId);
       await firebaseService.updateSession(sessionId, {
         matches: updatedMatches,
       });
@@ -1607,8 +1614,8 @@ const AnalysisContent = () => {
 
       if (editingMatch) {
         // Update existing match
-        updatedMatches = currentMatches.map((m) =>
-          m.id === editingMatch.id ? { ...m, ...matchData } : m,
+        updatedMatches = currentMatches.map(m =>
+          m.id === editingMatch.id ? { ...m, ...matchData } : m
         );
       } else {
         // Add new match
@@ -1646,9 +1653,7 @@ const AnalysisContent = () => {
       });
 
       toast.success(
-        editingMatch
-          ? 'Match updated successfully'
-          : 'Match added successfully',
+        editingMatch ? 'Match updated successfully' : 'Match added successfully'
       );
       setIsMatchFormOpen(false);
       setEditingMatch(null);
@@ -1749,7 +1754,7 @@ const AnalysisContent = () => {
             <div
               className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'}`}
             >
-              {TABS.map((tab) => {
+              {TABS.map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
@@ -1792,10 +1797,7 @@ const AnalysisContent = () => {
                 />
               )}
               {activeTab === 'compare' && (
-                <CompareTab
-                  matches={sessionMatches}
-                  isDarkMode={isDarkMode}
-                />
+                <CompareTab matches={sessionMatches} isDarkMode={isDarkMode} />
               )}
             </div>
           </>

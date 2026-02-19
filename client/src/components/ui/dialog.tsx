@@ -6,7 +6,11 @@ interface DialogProps {
   children?: ReactNode;
 }
 
-export const Dialog = ({ open = false, onOpenChange, children }: DialogProps) => {
+export const Dialog = ({
+  open = false,
+  onOpenChange,
+  children,
+}: DialogProps) => {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -45,7 +49,7 @@ export const DialogContent = ({
   <div
     {...props}
     className={`rounded-2xl shadow-2xl max-w-lg w-full animate-in zoom-in-95 duration-200 ${className || ''}`}
-    onClick={(e) => e.stopPropagation()}
+    onClick={e => e.stopPropagation()}
   >
     {children}
   </div>
@@ -66,7 +70,10 @@ export const DialogTitle = ({
   className = '',
   ...props
 }: HTMLAttributes<HTMLHeadingElement>) => (
-  <h2 {...props} className={`text-xl font-bold flex items-center gap-2 ${className}`}>
+  <h2
+    {...props}
+    className={`text-xl font-bold flex items-center gap-2 ${className}`}
+  >
     {children}
   </h2>
 );

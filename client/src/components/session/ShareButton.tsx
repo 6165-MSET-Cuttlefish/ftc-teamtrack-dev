@@ -37,7 +37,7 @@ export const ShareButton = ({
       const link = generateShareableLink(session);
       setShareLink(link);
       setIsOpen(true);
-    } catch (error) {
+    } catch {
       toast.error('Failed to generate share link');
     }
   };
@@ -47,11 +47,11 @@ export const ShareButton = ({
       await copyToClipboard(shareLink);
       setCopied(true);
       toast.success('Link copied to clipboard!');
-      
+
       setTimeout(() => {
         setCopied(false);
       }, 2000);
-    } catch (error) {
+    } catch {
       toast.error('Failed to copy link');
     }
   };
@@ -67,7 +67,7 @@ export const ShareButton = ({
         <Share2 className="mr-2 h-4 w-4" />
         Share
       </Button>
-      
+
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent
           className={
@@ -89,7 +89,7 @@ export const ShareButton = ({
               account required to view.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="flex gap-2">
               <Input
@@ -129,8 +129,8 @@ export const ShareButton = ({
                   : 'bg-blue-50 text-gray-600'
               }`}
             >
-              💡 <strong>Tip:</strong> Anyone with this link can view the session
-              analysis, even without an account.
+              💡 <strong>Tip:</strong> Anyone with this link can view the
+              session analysis, even without an account.
             </div>
           </div>
         </DialogContent>

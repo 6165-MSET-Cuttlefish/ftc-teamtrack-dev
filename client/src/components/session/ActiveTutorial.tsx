@@ -9,7 +9,13 @@ export const TUTORIAL_RESTART_EVENT = 'teamtrack-restart-tutorial';
 
 // ─── Visual previews ───────────────────────────────────────────────────────
 
-const PreviewBox = ({ children, dark }: { children: React.ReactNode; dark: boolean }) => (
+const PreviewBox = ({
+  children,
+  dark,
+}: {
+  children: React.ReactNode;
+  dark: boolean;
+}) => (
   <div
     className="rounded-xl p-4 mt-4 mb-1 border"
     style={{
@@ -33,7 +39,7 @@ const SettingsPreview = ({ dark }: { dark: boolean }) => {
   useEffect(() => {
     if (phase === 'typing') {
       if (charIdx < fullText.length) {
-        const t = setTimeout(() => setCharIdx((i) => i + 1), 80);
+        const t = setTimeout(() => setCharIdx(i => i + 1), 80);
         return () => clearTimeout(t);
       }
       const t = setTimeout(() => setPhase('save'), 500);
@@ -44,21 +50,29 @@ const SettingsPreview = ({ dark }: { dark: boolean }) => {
       return () => clearTimeout(t);
     }
     // pause → restart
-    const t = setTimeout(() => { setCharIdx(0); setPhase('typing'); }, 800);
+    const t = setTimeout(() => {
+      setCharIdx(0);
+      setPhase('typing');
+    }, 800);
     return () => clearTimeout(t);
   }, [phase, charIdx]);
 
   return (
     <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-3">Session Settings</div>
+      <div className="text-team-blue font-semibold text-sm mb-3">
+        Session Settings
+      </div>
       <div className="space-y-2">
         <div>
-          <div className="text-xs mb-1" style={{ color: labelCol }}>Session Name *</div>
+          <div className="text-xs mb-1" style={{ color: labelCol }}>
+            Session Name *
+          </div>
           <div
             className="rounded-lg px-3 py-2 text-xs border flex items-center"
             style={{
               backgroundColor: inputBg,
-              borderColor: phase === 'typing' ? 'rgb(var(--team-blue))' : borderCol,
+              borderColor:
+                phase === 'typing' ? 'rgb(var(--team-blue))' : borderCol,
               color: dark ? '#fff' : '#000',
               transition: 'border-color 0.2s',
             }}
@@ -67,19 +81,44 @@ const SettingsPreview = ({ dark }: { dark: boolean }) => {
             {phase === 'typing' && (
               <span
                 className="inline-block w-[2px] h-3.5 ml-[1px]"
-                style={{ backgroundColor: 'rgb(var(--team-blue))', animation: 'ttCursorBlink 0.8s step-end infinite' }}
+                style={{
+                  backgroundColor: 'rgb(var(--team-blue))',
+                  animation: 'ttCursorBlink 0.8s step-end infinite',
+                }}
               />
             )}
           </div>
         </div>
         <div className="flex gap-2">
           <div className="flex-1">
-            <div className="text-xs mb-1" style={{ color: labelCol }}>Match Type</div>
-            <div className="rounded-lg px-3 py-2 text-xs border" style={{ backgroundColor: inputBg, borderColor: borderCol, color: dark ? '#fff' : '#000' }}>Full Game</div>
+            <div className="text-xs mb-1" style={{ color: labelCol }}>
+              Match Type
+            </div>
+            <div
+              className="rounded-lg px-3 py-2 text-xs border"
+              style={{
+                backgroundColor: inputBg,
+                borderColor: borderCol,
+                color: dark ? '#fff' : '#000',
+              }}
+            >
+              Full Game
+            </div>
           </div>
           <div className="flex-1">
-            <div className="text-xs mb-1" style={{ color: labelCol }}>Features</div>
-            <div className="rounded-lg px-3 py-2 text-xs border" style={{ backgroundColor: inputBg, borderColor: borderCol, color: dark ? '#fff' : '#000' }}>Cycle Times ✓</div>
+            <div className="text-xs mb-1" style={{ color: labelCol }}>
+              Features
+            </div>
+            <div
+              className="rounded-lg px-3 py-2 text-xs border"
+              style={{
+                backgroundColor: inputBg,
+                borderColor: borderCol,
+                color: dark ? '#fff' : '#000',
+              }}
+            >
+              Cycle Times ✓
+            </div>
           </div>
         </div>
         <button
@@ -87,7 +126,10 @@ const SettingsPreview = ({ dark }: { dark: boolean }) => {
           style={{
             backgroundColor: 'rgb(var(--team-blue))',
             color: dark ? '#000' : '#fff',
-            boxShadow: phase === 'save' ? '0 0 20px rgb(var(--team-blue) / 0.6)' : 'none',
+            boxShadow:
+              phase === 'save'
+                ? '0 0 20px rgb(var(--team-blue) / 0.6)'
+                : 'none',
             transform: phase === 'save' ? 'scale(1.04)' : 'scale(1)',
             transition: 'box-shadow 0.3s, transform 0.3s',
           }}
@@ -104,7 +146,10 @@ const TimerPreview = ({ dark }: { dark: boolean }) => {
   const [seconds, setSeconds] = useState(150);
 
   useEffect(() => {
-    const id = setInterval(() => setSeconds((s) => (s <= 145 ? 150 : s - 1)), 1000);
+    const id = setInterval(
+      () => setSeconds(s => (s <= 145 ? 150 : s - 1)),
+      1000
+    );
     return () => clearInterval(id);
   }, []);
 
@@ -126,9 +171,30 @@ const TimerPreview = ({ dark }: { dark: boolean }) => {
           {display}
         </div>
         <div className="flex items-center gap-4 mt-2">
-          <span className="text-xs font-semibold uppercase" style={{ color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)' }}>Full Game</span>
-          <span className="text-xs font-semibold" style={{ color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Session: 0:00</span>
-          <span className="text-xs font-semibold uppercase" style={{ color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)' }}>Match 1</span>
+          <span
+            className="text-xs font-semibold uppercase"
+            style={{
+              color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
+            }}
+          >
+            Full Game
+          </span>
+          <span
+            className="text-xs font-semibold"
+            style={{
+              color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+            }}
+          >
+            Session: 0:00
+          </span>
+          <span
+            className="text-xs font-semibold uppercase"
+            style={{
+              color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
+            }}
+          >
+            Match 1
+          </span>
         </div>
       </div>
     </PreviewBox>
@@ -141,7 +207,10 @@ const ControlsPreview = ({ dark }: { dark: boolean }) => {
   const [seqIdx, setSeqIdx] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setSeqIdx((i) => (i + 1) % CTRL_SEQUENCE.length), 1200);
+    const id = setInterval(
+      () => setSeqIdx(i => (i + 1) % CTRL_SEQUENCE.length),
+      1200
+    );
     return () => clearInterval(id);
   }, []);
 
@@ -170,7 +239,10 @@ const ControlsPreview = ({ dark }: { dark: boolean }) => {
             ...glow(1, 'rgb(var(--team-blue) / 0.5)'),
           }}
         >
-          <Settings className="h-4 w-4" style={{ color: dark ? '#fff' : '#000' }} />
+          <Settings
+            className="h-4 w-4"
+            style={{ color: dark ? '#fff' : '#000' }}
+          />
         </div>
         <div
           className="px-3 py-2.5 rounded-xl border-2 border-green-500/40 bg-green-500/15 text-green-500 text-xs font-bold text-center whitespace-nowrap"
@@ -190,22 +262,30 @@ const ControlsPreview = ({ dark }: { dark: boolean }) => {
 };
 
 // ── Animated Scoring: highlights cells in sequence ──────────────────────
-const SCORE_SEQUENCE: [number, number][] = [[0, 1], [1, 2], [2, 3]]; // (row, col)
+const SCORE_SEQUENCE: [number, number][] = [
+  [0, 1],
+  [1, 2],
+  [2, 3],
+]; // (row, col)
 const ScoringPreview = ({ dark }: { dark: boolean }) => {
   const borderCol = dark ? 'rgb(var(--team-blue) / 0.4)' : 'rgba(0,0,0,0.15)';
   const circleBorder = dark ? '#fff' : '#000';
   const [seqIdx, setSeqIdx] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setSeqIdx((i) => (i + 1) % SCORE_SEQUENCE.length), 1800);
+    const id = setInterval(
+      () => setSeqIdx(i => (i + 1) % SCORE_SEQUENCE.length),
+      1800
+    );
     return () => clearInterval(id);
   }, []);
 
   const [hRow, hCol] = SCORE_SEQUENCE[seqIdx];
 
   const cellBorder = (r: number, c: number) => ({
-    borderColor: (r === hRow && c === hCol) ? 'rgb(34,197,94)' : borderCol,
-    backgroundColor: (r === hRow && c === hCol) ? 'rgba(34,197,94,0.2)' : 'transparent',
+    borderColor: r === hRow && c === hCol ? 'rgb(34,197,94)' : borderCol,
+    backgroundColor:
+      r === hRow && c === hCol ? 'rgba(34,197,94,0.2)' : 'transparent',
     transition: 'border-color 0.3s, background-color 0.3s',
   });
 
@@ -213,19 +293,68 @@ const ScoringPreview = ({ dark }: { dark: boolean }) => {
     <PreviewBox dark={dark}>
       <div className="flex items-center justify-between mb-3">
         <span className="text-team-blue font-semibold text-sm">Scoring</span>
-        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>AUTON Score: <span className="text-team-blue font-bold">0</span></span>
+        <span
+          className="text-xs"
+          style={{ color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}
+        >
+          AUTON Score: <span className="text-team-blue font-bold">0</span>
+        </span>
       </div>
       {[1, 2, 3].map((balls, rowIdx) => (
         <div key={balls} className="flex items-center gap-2 mb-2">
-          <span className="text-xs w-12 text-center" style={{ color: dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}>{balls} {balls === 1 ? 'ball' : 'balls'}</span>
-          <div className="flex-1 flex flex-col items-center justify-center rounded-lg border py-2" style={cellBorder(rowIdx, 0)}>
-            <div className="flex gap-1">{Array.from({ length: balls }).map((_, i) => (<div key={i} className="w-3.5 h-3.5 rounded-full border-2 border-dashed" style={{ borderColor: circleBorder }} />))}</div>
-            <span className="text-[9px] mt-0.5" style={{ color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }}>scored</span>
+          <span
+            className="text-xs w-12 text-center"
+            style={{
+              color: dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)',
+            }}
+          >
+            {balls} {balls === 1 ? 'ball' : 'balls'}
+          </span>
+          <div
+            className="flex-1 flex flex-col items-center justify-center rounded-lg border py-2"
+            style={cellBorder(rowIdx, 0)}
+          >
+            <div className="flex gap-1">
+              {Array.from({ length: balls }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-3.5 h-3.5 rounded-full border-2 border-dashed"
+                  style={{ borderColor: circleBorder }}
+                />
+              ))}
+            </div>
+            <span
+              className="text-[9px] mt-0.5"
+              style={{
+                color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
+              }}
+            >
+              scored
+            </span>
           </div>
           {Array.from({ length: balls }).map((_, idx) => (
-            <div key={idx} className="flex-1 flex flex-col items-center justify-center rounded-lg border py-2" style={cellBorder(rowIdx, idx + 1)}>
-              <div className="flex gap-1">{Array.from({ length: idx + 1 }).map((_, j) => (<div key={j} className="w-3.5 h-3.5 rounded-full border-2" style={{ borderColor: circleBorder }} />))}</div>
-              <span className="text-[9px] mt-0.5" style={{ color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }}>scored</span>
+            <div
+              key={idx}
+              className="flex-1 flex flex-col items-center justify-center rounded-lg border py-2"
+              style={cellBorder(rowIdx, idx + 1)}
+            >
+              <div className="flex gap-1">
+                {Array.from({ length: idx + 1 }).map((_, j) => (
+                  <div
+                    key={j}
+                    className="w-3.5 h-3.5 rounded-full border-2"
+                    style={{ borderColor: circleBorder }}
+                  />
+                ))}
+              </div>
+              <span
+                className="text-[9px] mt-0.5"
+                style={{
+                  color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
+                }}
+              >
+                scored
+              </span>
             </div>
           ))}
         </div>
@@ -242,13 +371,17 @@ const KeybindsPreview = ({ dark }: { dark: boolean }) => {
 
   useEffect(() => {
     const delays = [1200, 1200, 1200, 800];
-    const t = setTimeout(() => setAnimStep((s) => (s + 1) % 4), delays[animStep]);
+    const t = setTimeout(() => setAnimStep(s => (s + 1) % 4), delays[animStep]);
     return () => clearTimeout(t);
   }, [animStep]);
 
   const kbd = (isActive: boolean, pad?: string): React.CSSProperties => ({
-    backgroundColor: isActive ? 'rgb(var(--team-blue))' : (dark ? '#333' : '#e5e5e5'),
-    color: isActive ? (dark ? '#000' : '#fff') : (dark ? '#fff' : '#000'),
+    backgroundColor: isActive
+      ? 'rgb(var(--team-blue))'
+      : dark
+        ? '#333'
+        : '#e5e5e5',
+    color: isActive ? (dark ? '#000' : '#fff') : dark ? '#fff' : '#000',
     borderRadius: 6,
     padding: pad || '2px 10px',
     fontFamily: 'monospace',
@@ -267,22 +400,54 @@ const KeybindsPreview = ({ dark }: { dark: boolean }) => {
           <span style={kbd(false)}>1</span>
           <span style={kbd(animStep === 0)}>2</span>
           <span style={kbd(false)}>3</span>
-          <span className="text-xs" style={{ color: arrowCol }}>→</span>
-          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>balls shot</span>
+          <span className="text-xs" style={{ color: arrowCol }}>
+            →
+          </span>
+          <span
+            className="text-xs"
+            style={{
+              color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+            }}
+          >
+            balls shot
+          </span>
         </div>
         <div className="flex items-center justify-center gap-2 flex-wrap">
           <span style={kbd(false)}>0</span>
           <span style={kbd(animStep === 1)}>1</span>
           <span style={kbd(false)}>2</span>
           <span style={kbd(false)}>3</span>
-          <span className="text-xs" style={{ color: arrowCol }}>→</span>
-          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>balls made</span>
+          <span className="text-xs" style={{ color: arrowCol }}>
+            →
+          </span>
+          <span
+            className="text-xs"
+            style={{
+              color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+            }}
+          >
+            balls made
+          </span>
         </div>
         <div className="flex items-center justify-center gap-3">
           <span style={kbd(animStep === 2, '2px 14px')}>Enter</span>
-          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }}>confirm</span>
+          <span
+            className="text-xs"
+            style={{
+              color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
+            }}
+          >
+            confirm
+          </span>
           <span style={kbd(false, '2px 12px')}>Esc</span>
-          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }}>cancel</span>
+          <span
+            className="text-xs"
+            style={{
+              color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
+            }}
+          >
+            cancel
+          </span>
         </div>
       </div>
     </PreviewBox>
@@ -300,10 +465,14 @@ const METRICS_TABS = ['Final', 'Autonomous', 'Teleop', 'Endgame'];
 
 const MetricsPreview = ({ dark }: { dark: boolean }) => {
   const [activeTab, setActiveTab] = useState(0);
-  const [displayVals, setDisplayVals] = useState({ score: 0, accuracy: 0, shots: 0 });
+  const [displayVals, setDisplayVals] = useState({
+    score: 0,
+    accuracy: 0,
+    shots: 0,
+  });
 
   useEffect(() => {
-    const id = setInterval(() => setActiveTab((t) => (t + 1) % 4), 3000);
+    const id = setInterval(() => setActiveTab(t => (t + 1) % 4), 3000);
     return () => clearInterval(id);
   }, []);
 
@@ -327,15 +496,29 @@ const MetricsPreview = ({ dark }: { dark: boolean }) => {
 
   return (
     <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-2">Performance Metrics</div>
+      <div className="text-team-blue font-semibold text-sm mb-2">
+        Performance Metrics
+      </div>
       <div className="flex gap-1 mb-3">
         {METRICS_TABS.map((tab, i) => (
           <div
             key={tab}
             className="px-3 py-1.5 rounded-lg text-xs font-medium text-center"
             style={{
-              backgroundColor: i === activeTab ? 'rgb(var(--team-blue))' : (dark ? '#2a2a2a' : '#eee'),
-              color: i === activeTab ? (dark ? '#000' : '#fff') : (dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'),
+              backgroundColor:
+                i === activeTab
+                  ? 'rgb(var(--team-blue))'
+                  : dark
+                    ? '#2a2a2a'
+                    : '#eee',
+              color:
+                i === activeTab
+                  ? dark
+                    ? '#000'
+                    : '#fff'
+                  : dark
+                    ? 'rgba(255,255,255,0.5)'
+                    : 'rgba(0,0,0,0.5)',
               transition: 'all 0.3s',
             }}
           >
@@ -348,10 +531,26 @@ const MetricsPreview = ({ dark }: { dark: boolean }) => {
           { label: 'Total Score', val: displayVals.score },
           { label: 'Accuracy', val: `${displayVals.accuracy}%` },
           { label: 'Shots', val: displayVals.shots },
-        ].map((item) => (
-          <div key={item.label} className="rounded-lg p-2 text-center" style={{ backgroundColor: dark ? '#191919' : '#fff' }}>
-            <div className="text-team-blue text-lg font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>{item.val}</div>
-            <div className="text-[10px]" style={{ color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)' }}>{item.label}</div>
+        ].map(item => (
+          <div
+            key={item.label}
+            className="rounded-lg p-2 text-center"
+            style={{ backgroundColor: dark ? '#191919' : '#fff' }}
+          >
+            <div
+              className="text-team-blue text-lg font-bold"
+              style={{ fontVariantNumeric: 'tabular-nums' }}
+            >
+              {item.val}
+            </div>
+            <div
+              className="text-[10px]"
+              style={{
+                color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
+              }}
+            >
+              {item.label}
+            </div>
           </div>
         ))}
       </div>
@@ -366,7 +565,7 @@ const NotesPreview = ({ dark }: { dark: boolean }) => {
 
   useEffect(() => {
     if (charIdx < NOTES_TEXT.length) {
-      const t = setTimeout(() => setCharIdx((i) => i + 1), 55);
+      const t = setTimeout(() => setCharIdx(i => i + 1), 55);
       return () => clearTimeout(t);
     }
     const t = setTimeout(() => setCharIdx(0), 2000);
@@ -388,7 +587,10 @@ const NotesPreview = ({ dark }: { dark: boolean }) => {
         <span>{NOTES_TEXT.slice(0, charIdx)}</span>
         <span
           className="inline-block w-[2px] h-3 ml-[1px] align-middle"
-          style={{ backgroundColor: 'rgb(var(--team-blue))', animation: 'ttCursorBlink 0.8s step-end infinite' }}
+          style={{
+            backgroundColor: 'rgb(var(--team-blue))',
+            animation: 'ttCursorBlink 0.8s step-end infinite',
+          }}
         />
       </div>
     </PreviewBox>
@@ -405,15 +607,60 @@ interface StepDef {
 }
 
 const STEPS: StepDef[] = [
-  { title: 'Welcome to TeamTrack!', body: 'This walkthrough shows you how the Active Practice Session works. Replay anytime from the help button (?) in the top-right.', target: null, preview: null },
-  { title: 'Session Settings', body: 'Enter a session name, pick your match type, and toggle features. Press Save before starting — the panel turns red until you do.', target: 'session-setup', preview: (d) => <SettingsPreview dark={d} /> },
-  { title: 'Match Timer', body: 'Counts down from 2:30 in a full game. Transitions: Autonomous → Controller Pickup (5 s) → Prepare (3 s) → Teleop. Last 20 s = End Game.', target: 'timer', preview: (d) => <TimerPreview dark={d} /> },
-  { title: 'Match Controls', body: 'Start Match begins the countdown. Save Match records it. Gear opens settings. Complete and Cancel manage the session.', target: 'controls', preview: (d) => <ControlsPreview dark={d} /> },
-  { title: 'Scoring Grid', body: 'Each row = 1, 2, or 3 balls shot. Tap how many scored — dashed circles = missed, solid = scored. Each made ball = 3 pts.', target: 'scoring', preview: (d) => <ScoringPreview dark={d} /> },
-  { title: 'Keyboard Shortcuts', body: 'Press 1–3 for balls shot, then 0–N for balls made, Enter to confirm, Escape to cancel. Only active during a match.', target: 'scoring', preview: (d) => <KeybindsPreview dark={d} /> },
-  { title: 'Performance Metrics', body: 'Switch tabs for Autonomous, Teleop, and Endgame. Track shot logs, robot parking, accuracy, and the live final score.', target: 'metrics', preview: (d) => <MetricsPreview dark={d} /> },
-  { title: 'Notes', body: 'Jot down observations — strategies, mistakes, or anything to review later in analysis.', target: 'notes', preview: (d) => <NotesPreview dark={d} /> },
-  { title: "You're All Set!", body: 'Save your session settings, start your first match, and let TeamTrack handle the rest. Good luck at your next competition!', target: null, preview: null },
+  {
+    title: 'Welcome to TeamTrack!',
+    body: 'This walkthrough shows you how the Active Practice Session works. Replay anytime from the help button (?) in the top-right.',
+    target: null,
+    preview: null,
+  },
+  {
+    title: 'Session Settings',
+    body: 'Enter a session name, pick your match type, and toggle features. Press Save before starting — the panel turns red until you do.',
+    target: 'session-setup',
+    preview: d => <SettingsPreview dark={d} />,
+  },
+  {
+    title: 'Match Timer',
+    body: 'Counts down from 2:30 in a full game. Transitions: Autonomous → Controller Pickup (5 s) → Prepare (3 s) → Teleop. Last 20 s = End Game.',
+    target: 'timer',
+    preview: d => <TimerPreview dark={d} />,
+  },
+  {
+    title: 'Match Controls',
+    body: 'Start Match begins the countdown. Save Match records it. Gear opens settings. Complete and Cancel manage the session.',
+    target: 'controls',
+    preview: d => <ControlsPreview dark={d} />,
+  },
+  {
+    title: 'Scoring Grid',
+    body: 'Each row = 1, 2, or 3 balls shot. Tap how many scored — dashed circles = missed, solid = scored. Each made ball = 3 pts.',
+    target: 'scoring',
+    preview: d => <ScoringPreview dark={d} />,
+  },
+  {
+    title: 'Keyboard Shortcuts',
+    body: 'Press 1–3 for balls shot, then 0–N for balls made, Enter to confirm, Escape to cancel. Only active during a match.',
+    target: 'scoring',
+    preview: d => <KeybindsPreview dark={d} />,
+  },
+  {
+    title: 'Performance Metrics',
+    body: 'Switch tabs for Autonomous, Teleop, and Endgame. Track shot logs, robot parking, accuracy, and the live final score.',
+    target: 'metrics',
+    preview: d => <MetricsPreview dark={d} />,
+  },
+  {
+    title: 'Notes',
+    body: 'Jot down observations — strategies, mistakes, or anything to review later in analysis.',
+    target: 'notes',
+    preview: d => <NotesPreview dark={d} />,
+  },
+  {
+    title: "You're All Set!",
+    body: 'Save your session settings, start your first match, and let TeamTrack handle the rest. Good luck at your next competition!',
+    target: null,
+    preview: null,
+  },
 ];
 
 // ─── Highlight management ───────────────────────────────────────────────────
@@ -437,11 +684,14 @@ function liftElement(el: HTMLElement) {
   el.style.position = 'relative';
   el.style.zIndex = '9999';
   el.style.borderRadius = '16px';
-  el.style.boxShadow = '0 0 0 4px rgb(var(--team-blue) / 0.35), 0 0 60px rgb(var(--team-blue) / 0.15)';
+  el.style.boxShadow =
+    '0 0 0 4px rgb(var(--team-blue) / 0.35), 0 0 60px rgb(var(--team-blue) / 0.15)';
 }
 
 function dropElement(el: HTMLElement) {
-  const orig = (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY] as Record<string, string> | undefined;
+  const orig = (el as unknown as Record<string, unknown>)[
+    ORIGINAL_STYLES_KEY
+  ] as Record<string, string> | undefined;
   if (orig) {
     el.style.position = orig.position ?? '';
     el.style.zIndex = orig.zIndex ?? '';
@@ -470,7 +720,10 @@ export const ActiveTutorial = () => {
 
   // Listen for restart
   useEffect(() => {
-    const handle = () => { setStep(0); setVisible(true); };
+    const handle = () => {
+      setStep(0);
+      setVisible(true);
+    };
     window.addEventListener(TUTORIAL_RESTART_EVENT, handle);
     return () => window.removeEventListener(TUTORIAL_RESTART_EVENT, handle);
   }, []);
@@ -484,7 +737,9 @@ export const ActiveTutorial = () => {
     }
     if (!targetAttr) return;
 
-    const el = document.querySelector<HTMLElement>(`[data-tutorial="${targetAttr}"]`);
+    const el = document.querySelector<HTMLElement>(
+      `[data-tutorial="${targetAttr}"]`
+    );
     if (!el) return;
 
     liftElement(el);
@@ -525,20 +780,32 @@ export const ActiveTutorial = () => {
 
   const next = useCallback(() => {
     if (step >= STEPS.length - 1) dismiss();
-    else setStep((s) => s + 1);
+    else setStep(s => s + 1);
   }, [step, dismiss]);
 
   const prev = useCallback(() => {
-    if (step > 0) setStep((s) => s - 1);
+    if (step > 0) setStep(s => s - 1);
   }, [step]);
 
-  // Keyboard capture  
+  // Keyboard capture
   useEffect(() => {
     if (!visible) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); dismiss(); }
-      if (e.key === 'ArrowRight' || e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); next(); }
-      if (e.key === 'ArrowLeft') { e.stopPropagation(); e.preventDefault(); prev(); }
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        e.preventDefault();
+        dismiss();
+      }
+      if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        e.stopPropagation();
+        e.preventDefault();
+        next();
+      }
+      if (e.key === 'ArrowLeft') {
+        e.stopPropagation();
+        e.preventDefault();
+        prev();
+      }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
@@ -596,32 +863,40 @@ export const ActiveTutorial = () => {
       {/* Tutorial card */}
       <div
         key={step}
-        className={hasTarget ? 'fixed z-[10000] tt-card-slide' : 'fixed z-[10000] tt-card-center'}
-        style={hasTarget ? {
-          bottom: 24,
-          right: 24,
-          width: 'min(400px, calc(100vw - 48px))',
-          maxHeight: '80vh',
-          overflowY: 'auto',
-          backgroundColor: bg,
-          border: `2px solid ${teamBlue50}`,
-          color: text,
-          borderRadius: 20,
-          padding: '22px 22px 18px',
-        } : {
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 'min(420px, 90vw)',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          backgroundColor: bg,
-          border: `2px solid ${teamBlue50}`,
-          color: text,
-          borderRadius: 20,
-          padding: '24px 24px 20px',
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className={
+          hasTarget
+            ? 'fixed z-[10000] tt-card-slide'
+            : 'fixed z-[10000] tt-card-center'
+        }
+        style={
+          hasTarget
+            ? {
+                bottom: 24,
+                right: 24,
+                width: 'min(400px, calc(100vw - 48px))',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+                backgroundColor: bg,
+                border: `2px solid ${teamBlue50}`,
+                color: text,
+                borderRadius: 20,
+                padding: '22px 22px 18px',
+              }
+            : {
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 'min(420px, 90vw)',
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                backgroundColor: bg,
+                border: `2px solid ${teamBlue50}`,
+                color: text,
+                borderRadius: 20,
+                padding: '24px 24px 20px',
+              }
+        }
+        onClick={e => e.stopPropagation()}
       >
         {/* Progress bar */}
         <div
@@ -634,7 +909,10 @@ export const ActiveTutorial = () => {
         />
 
         {/* Step counter */}
-        <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: teamBlue }}>
+        <div
+          className="text-xs font-semibold uppercase tracking-widest mb-2"
+          style={{ color: teamBlue }}
+        >
           {step + 1} / {STEPS.length}
         </div>
 
@@ -665,7 +943,11 @@ export const ActiveTutorial = () => {
               <button
                 onClick={prev}
                 className="px-4 py-2 text-sm font-semibold rounded-xl transition-colors"
-                style={{ border: `1px solid ${teamBlue50}`, color: teamBlue, backgroundColor: 'transparent' }}
+                style={{
+                  border: `1px solid ${teamBlue50}`,
+                  color: teamBlue,
+                  backgroundColor: 'transparent',
+                }}
               >
                 Back
               </button>
@@ -673,7 +955,10 @@ export const ActiveTutorial = () => {
             <button
               onClick={next}
               className="px-5 py-2 text-sm font-bold rounded-xl"
-              style={{ backgroundColor: teamBlue, color: isDarkMode ? '#000' : '#fff' }}
+              style={{
+                backgroundColor: teamBlue,
+                color: isDarkMode ? '#000' : '#fff',
+              }}
             >
               {isLast ? 'Get Started' : 'Next'}
             </button>
@@ -681,7 +966,10 @@ export const ActiveTutorial = () => {
         </div>
 
         {/* Keyboard hint */}
-        <div className="mt-2.5 text-center text-xs opacity-30" style={{ color: text }}>
+        <div
+          className="mt-2.5 text-center text-xs opacity-30"
+          style={{ color: text }}
+        >
           ← → or Enter to navigate · Esc to skip
         </div>
       </div>

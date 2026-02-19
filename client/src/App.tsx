@@ -3,7 +3,13 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, ThemeProvider, SessionProvider } from '@/contexts';
-import { ErrorBoundary, Header, ProtectedRoute, GuestPrompt, HomeRedirect } from '@/components';
+import {
+  ErrorBoundary,
+  Header,
+  ProtectedRoute,
+  GuestPrompt,
+  HomeRedirect,
+} from '@/components';
 import { ROUTES } from '@/constants';
 
 const Active = lazy(() => import('./pages/session/Active'));

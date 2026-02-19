@@ -5,6 +5,7 @@
  */
 
 import type { Match, ScoringFields } from '@/types';
+import { logger } from './logger';
 
 const SESSION_DATA = 'teamtrack-session-data';
 const SESSION_TIMER = 'teamtrack-session-timer';
@@ -93,7 +94,7 @@ export const saveSessionToStorage = (
       timerState.matchStartTime.toString()
     );
   } catch (error) {
-    console.error('Failed to save session to storage:', error);
+    logger.error('Failed to save session to storage:', error);
   }
 };
 
@@ -106,7 +107,7 @@ export const loadSessionFromStorage = (): SessionFormData | null => {
     const stored = localStorage.getItem(SESSION_DATA);
     return stored ? JSON.parse(stored) : null;
   } catch (error) {
-    console.error('Failed to load session from storage:', error);
+    logger.error('Failed to load session from storage:', error);
     return null;
   }
 };
@@ -135,8 +136,12 @@ export const loadTimerStateFromStorage = (): SessionTimerState | null => {
     // Calculate elapsed time based on how long the storage has been sitting
     // BUT only if the timer was actually running - if it was paused, don't add elapsed time
     const now = Date.now();
-    const sessionElapsed = sessionData.isRunning ? Math.floor((now - sessionData.timestamp) / 1000) : 0;
-    const matchElapsed = matchData.isRunning ? Math.floor((now - matchData.timestamp) / 1000) : 0;
+    const sessionElapsed = sessionData.isRunning
+      ? Math.floor((now - sessionData.timestamp) / 1000)
+      : 0;
+    const matchElapsed = matchData.isRunning
+      ? Math.floor((now - matchData.timestamp) / 1000)
+      : 0;
 
     return {
       sessionTimer: sessionData.value + sessionElapsed,
@@ -150,7 +155,7 @@ export const loadTimerStateFromStorage = (): SessionTimerState | null => {
       matchPhase: matchState.matchPhase ?? 'auton',
     };
   } catch (error) {
-    console.error('Failed to load timer state from storage:', error);
+    logger.error('Failed to load timer state from storage:', error);
     return null;
   }
 };
@@ -168,7 +173,7 @@ export const clearSessionFromStorage = (): void => {
     localStorage.removeItem(MATCH_START_TIME);
     localStorage.removeItem(MATCH_STATE);
   } catch (error) {
-    console.error('Failed to clear session from storage:', error);
+    logger.error('Failed to clear session from storage:', error);
   }
 };
 
@@ -182,22 +187,23 @@ export const hasActiveSession = (): boolean => {
     if (!sessionDataStr) return false;
 
     const sessionData = JSON.parse(sessionDataStr);
-    
+
     // Check if the session has actually been started or has meaningful content
     // A session is active if:
     // 1. It has a session name (user has configured it)
     // 2. It has matches recorded
     // 3. It has any scoring data (not all zeros)
-    const hasName = sessionData.sessionName && sessionData.sessionName.trim() !== '';
+    const hasName =
+      sessionData.sessionName && sessionData.sessionName.trim() !== '';
     const hasMatches = sessionData.matches && sessionData.matches.length > 0;
-    const hasScoring = 
+    const hasScoring =
       (sessionData.finalScore && sessionData.finalScore > 0) ||
       (sessionData.autonomousScore && sessionData.autonomousScore > 0) ||
       (sessionData.teleopScore && sessionData.teleopScore > 0);
-    
+
     return hasName || hasMatches || hasScoring;
   } catch (error) {
-    console.error('Failed to check for active session:', error);
+    logger.error('Failed to check for active session:', error);
     return false;
   }
 };
@@ -210,6 +216,6 @@ export const saveMatchStateToStorage = (state: MatchState): void => {
   try {
     localStorage.setItem(MATCH_STATE, JSON.stringify(state));
   } catch (error) {
-    console.error('Failed to save match state to storage:', error);
+    logger.error('Failed to save match state to storage:', error);
   }
 };

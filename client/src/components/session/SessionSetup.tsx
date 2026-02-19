@@ -18,7 +18,11 @@ interface SessionSetupProps {
   isUnsaved?: boolean;
 }
 
-export const SessionSetup = ({ onSave, shouldFlash = false, isUnsaved = false }: SessionSetupProps) => {
+export const SessionSetup = ({
+  onSave,
+  shouldFlash = false,
+  isUnsaved = false,
+}: SessionSetupProps) => {
   const { sessionData, updateSessionData } = useSession();
   const { isDarkMode } = useTheme();
   const [isFlashing, setIsFlashing] = useState(shouldFlash);
@@ -80,31 +84,34 @@ export const SessionSetup = ({ onSave, shouldFlash = false, isUnsaved = false }:
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-team-blue">
-            Session Settings
-          </h3>
+          <h3 className="text-lg font-bold text-team-blue">Session Settings</h3>
           {isUnsaved && (
             <div className="flex items-center gap-1.5 text-red-500">
-              <AlertTriangle size={16} className={isFlashing ? 'flash-animate' : ''} />
-              <span className="text-xs font-semibold uppercase tracking-wide">Setup required</span>
+              <AlertTriangle
+                size={16}
+                className={isFlashing ? 'flash-animate' : ''}
+              />
+              <span className="text-xs font-semibold uppercase tracking-wide">
+                Setup required
+              </span>
             </div>
           )}
         </div>
 
         {/* Session Name */}
         <div className="space-y-2">
-          <Label className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <Label
+            className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+          >
             Session Name <span className="text-red-500">*</span>
           </Label>
           <Input
             type="text"
             value={sessionData.sessionName}
-            onChange={(e) => setSessionName(e.target.value)}
+            onChange={e => setSessionName(e.target.value)}
             placeholder="Sunday Afternoon"
             className={`h-14 px-4 rounded-xl border-2 transition-all duration-200 focus:ring-2 focus:ring-team-blue/20 ${
-              isUnsaved && !hasName
-                ? 'border-red-400'
-                : 'border-team-blue-40'
+              isUnsaved && !hasName ? 'border-red-400' : 'border-team-blue-40'
             } ${
               isDarkMode
                 ? 'bg-team-dark text-white placeholder:text-gray-500'
@@ -112,22 +119,29 @@ export const SessionSetup = ({ onSave, shouldFlash = false, isUnsaved = false }:
             }`}
           />
           {isUnsaved && !hasName && (
-            <p className="text-xs text-red-400 font-medium">Session name is required</p>
+            <p className="text-xs text-red-400 font-medium">
+              Session name is required
+            </p>
           )}
         </div>
 
         {/* Match Type and Features */}
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <Label
+              className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            >
               Match Type
             </Label>
-            <div className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
-              isDarkMode
-                ? 'bg-team-dark text-white'
-                : 'bg-white text-black'
-            }`}>
-              <Select value={sessionData.matchType} onValueChange={setMatchType}>
+            <div
+              className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
+                isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
+              }`}
+            >
+              <Select
+                value={sessionData.matchType}
+                onValueChange={setMatchType}
+              >
                 <SelectTrigger className="border-0 p-0 h-auto focus:ring-0 bg-transparent">
                   <SelectValue placeholder="Full Game" />
                 </SelectTrigger>
@@ -143,15 +157,20 @@ export const SessionSetup = ({ onSave, shouldFlash = false, isUnsaved = false }:
           </div>
 
           <div className="space-y-2">
-            <Label className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <Label
+              className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            >
               Features
             </Label>
-            <div className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
-              isDarkMode
-                ? 'bg-team-dark text-white'
-                : 'bg-white text-black'
-            }`}>
-              <Select value={sessionData.selectedFeature || 'none'} onValueChange={setSelectedFeature}>
+            <div
+              className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
+                isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
+              }`}
+            >
+              <Select
+                value={sessionData.selectedFeature || 'none'}
+                onValueChange={setSelectedFeature}
+              >
                 <SelectTrigger className="border-0 p-0 h-auto focus:ring-0 bg-transparent">
                   <SelectValue placeholder="Select Feature" />
                 </SelectTrigger>

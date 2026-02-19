@@ -7,12 +7,7 @@ import { generateShareableLink, copyToClipboard } from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Tooltip,
@@ -70,7 +65,8 @@ const SessionCard = ({
   // Check if title is truncated
   useEffect(() => {
     if (titleRef.current && !isEditing) {
-      const isTruncated = titleRef.current.scrollHeight > titleRef.current.clientHeight;
+      const isTruncated =
+        titleRef.current.scrollHeight > titleRef.current.clientHeight;
       setIsTitleTruncated(isTruncated);
     } else {
       setIsTitleTruncated(false);
@@ -80,7 +76,10 @@ const SessionCard = ({
   // Reset delete confirmation after timeout
   useEffect(() => {
     if (deleteConfirm) {
-      const timeout = setTimeout(() => setDeleteConfirm(false), UI_TIMING.DELETE_CONFIRM_TIMEOUT);
+      const timeout = setTimeout(
+        () => setDeleteConfirm(false),
+        UI_TIMING.DELETE_CONFIRM_TIMEOUT
+      );
       return () => clearTimeout(timeout);
     }
   }, [deleteConfirm]);
@@ -129,19 +128,30 @@ const SessionCard = ({
     const scores = matches
       .map(match => match.finalScore || 0)
       .filter(score => score > 0);
-    
+
     if (scores.length === 0) {
-      return { highestScore: 0, averageScore: 0, totalScore: 0, matchCount: matches.length };
+      return {
+        highestScore: 0,
+        averageScore: 0,
+        totalScore: 0,
+        matchCount: matches.length,
+      };
     }
 
     const totalScore = scores.reduce((a, b) => a + b, 0);
     const highestScore = Math.max(...scores);
     const averageScore = Math.round(totalScore / scores.length);
-    
-    return { highestScore, averageScore, totalScore, matchCount: matches.length };
+
+    return {
+      highestScore,
+      averageScore,
+      totalScore,
+      matchCount: matches.length,
+    };
   };
 
-  const { highestScore, averageScore, totalScore, matchCount } = getSessionScores();
+  const { highestScore, averageScore, totalScore, matchCount } =
+    getSessionScores();
 
   const cardContent = (
     <Card
@@ -196,7 +206,7 @@ const SessionCard = ({
                 ) : (
                   <>
                     <button
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         onShare();
                       }}
@@ -245,7 +255,9 @@ const SessionCard = ({
                         <button
                           onClick={handleDeleteCancel}
                           className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                            isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                            isDarkMode
+                              ? 'text-team-white-60'
+                              : 'text-team-blue-40'
                           }`}
                           title="Cancel delete"
                         >
@@ -355,9 +367,7 @@ const SessionCard = ({
   if (isTitleTruncated) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>
-          {cardContent}
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{cardContent}</TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs break-words">
           {session.sessionName || 'Untitled Session'}
         </TooltipContent>
@@ -406,7 +416,9 @@ const Sessions = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     document.title = `Sessions - ${APP_CONFIG.name}`;
@@ -447,7 +459,9 @@ const Sessions = () => {
     if (searchTerm.trim()) {
       filtered = filtered.filter(
         session =>
-          session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          session.sessionName
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -455,7 +469,8 @@ const Sessions = () => {
     // Filter by match type
     if (selectedMatchType !== 'all') {
       filtered = filtered.filter(
-        session => session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
+        session =>
+          session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
       );
     }
 
@@ -466,10 +481,13 @@ const Sessions = () => {
     navigate(`/analysis?sessionId=${sessionId}`);
   };
 
-  const handleUpdateSessionName = async (sessionId: string, newName: string) => {
+  const handleUpdateSessionName = async (
+    sessionId: string,
+    newName: string
+  ) => {
     // Store original name before optimistic update for potential revert
     const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
-    
+
     try {
       // Update local state optimistically for instant feedback
       setSessions(prevSessions =>
@@ -479,10 +497,12 @@ const Sessions = () => {
             : session
         )
       );
-      
+
       // Then update Firebase to persist changes
-      const success = await firebaseService.updateSession(sessionId, { sessionName: newName });
-      
+      const success = await firebaseService.updateSession(sessionId, {
+        sessionName: newName,
+      });
+
       if (!success) {
         // Revert on failure using stored original name
         setSessions(prevSessions =>
@@ -567,17 +587,50 @@ const Sessions = () => {
 
     // Convert sessions to CSV rows with proper escaping
     const rows = sessions.map(session => {
-      const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-      const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
-      const teleopScore = session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0);
-      const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
-      const autonClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.autonClassifiedArtifact || 0), 0);
-      const autonOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.autonOverflowArtifact || 0), 0);
-      const autonMotif = session.matches.reduce((sum, m) => sum + (m.autonMotif || 0), 0);
-      const autonLeave = session.matches.reduce((sum, m) => sum + (m.autonLeave || 0), 0);
-      const teleClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0);
-      const teleOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0);
-      const teleMotif = session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0);
+      const finalScore = session.matches.reduce(
+        (sum, m) => sum + (m.finalScore || 0),
+        0
+      );
+      const autonomousScore = session.matches.reduce(
+        (sum, m) => sum + (m.autonomousScore || 0),
+        0
+      );
+      const teleopScore = session.matches.reduce(
+        (sum, m) => sum + (m.teleopScore || 0),
+        0
+      );
+      const endGameScore = session.matches.reduce(
+        (sum, m) => sum + (m.endGameScore || 0),
+        0
+      );
+      const autonClassifiedArtifact = session.matches.reduce(
+        (sum, m) => sum + (m.autonClassifiedArtifact || 0),
+        0
+      );
+      const autonOverflowArtifact = session.matches.reduce(
+        (sum, m) => sum + (m.autonOverflowArtifact || 0),
+        0
+      );
+      const autonMotif = session.matches.reduce(
+        (sum, m) => sum + (m.autonMotif || 0),
+        0
+      );
+      const autonLeave = session.matches.reduce(
+        (sum, m) => sum + (m.autonLeave || 0),
+        0
+      );
+      const teleClassifiedArtifact = session.matches.reduce(
+        (sum, m) => sum + (m.teleClassifiedArtifact || 0),
+        0
+      );
+      const teleOverflowArtifact = session.matches.reduce(
+        (sum, m) => sum + (m.teleOverflowArtifact || 0),
+        0
+      );
+      const teleMotif = session.matches.reduce(
+        (sum, m) => sum + (m.teleMotif || 0),
+        0
+      );
 
       return [
         `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
@@ -644,7 +697,11 @@ const Sessions = () => {
                   navigate(ROUTES.ACTIVE);
                 }}
                 disabled={hasActiveSession}
-                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
+                title={
+                  hasActiveSession
+                    ? 'Complete or cancel the active session first'
+                    : undefined
+                }
                 className={`bg-team-blue hover:bg-team-blue/90 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDarkMode ? '!text-black' : '!text-white'
                 }`}
@@ -734,11 +791,16 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {(() => {
-                    const allScores = sessions.flatMap(s => 
-                      (s.matches || []).map(m => m.finalScore || 0)
-                    ).filter(score => score > 0);
-                    return allScores.length > 0 
-                      ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) 
+                    const allScores = sessions
+                      .flatMap(s =>
+                        (s.matches || []).map(m => m.finalScore || 0)
+                      )
+                      .filter(score => score > 0);
+                    return allScores.length > 0
+                      ? Math.round(
+                          allScores.reduce((a, b) => a + b, 0) /
+                            allScores.length
+                        )
                       : 0;
                   })()}
                 </div>
@@ -753,7 +815,7 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {(() => {
-                    const allScores = sessions.flatMap(s => 
+                    const allScores = sessions.flatMap(s =>
                       (s.matches || []).map(m => m.finalScore || 0)
                     );
                     return allScores.length > 0 ? Math.max(...allScores) : 0;
@@ -769,9 +831,10 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {
-                    sessions.reduce((total, s) => total + (s.matches?.length || 0), 0)
-                  }
+                  {sessions.reduce(
+                    (total, s) => total + (s.matches?.length || 0),
+                    0
+                  )}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
@@ -864,7 +927,11 @@ const Sessions = () => {
                   navigate('/active');
                 }}
                 disabled={hasActiveSession}
-                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
+                title={
+                  hasActiveSession
+                    ? 'Complete or cancel the active session first'
+                    : undefined
+                }
                 className={`bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDarkMode ? 'text-black' : 'text-white'
                 }`}

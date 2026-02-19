@@ -32,12 +32,12 @@ class FirebaseService {
     if (!firebase?.db) {
       throw new Error('Firebase not initialized');
     }
-    
+
     this.dbInstance = firebase.db;
     return this.dbInstance;
   }
 
-  /** 
+  /**
    * Safely execute a database operation with abort error handling
    * @param operation - The async operation to execute
    * @param fallback - Value to return on error (if not throwing)
@@ -66,7 +66,9 @@ class FirebaseService {
   }
 
   /** Create a new session */
-  async createSession(sessionData: CreateSessionData): Promise<SessionData | null> {
+  async createSession(
+    sessionData: CreateSessionData
+  ): Promise<SessionData | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -119,9 +121,9 @@ class FirebaseService {
         const db = await this.getDB();
         const docRef = doc(db, 'sessions', sessionId);
         const docSnap = await getDoc(docRef);
-        
+
         if (!docSnap.exists()) return null;
-        
+
         return { id: docSnap.id, ...docSnap.data() } as SessionData;
       },
       null,
@@ -137,7 +139,7 @@ class FirebaseService {
         const q = query(
           collection(db, 'sessions'),
           orderBy('createdAt', 'desc'),
-          limit(100)
+          limit(SESSION_LIMITS.ALL_SESSIONS_QUERY_LIMIT)
         );
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => {
@@ -165,7 +167,7 @@ class FirebaseService {
       async () => {
         const db = await this.getDB();
         const docRef = doc(db, 'sessions', sessionId);
-        await updateDoc(docRef, updates);
+        await updateDoc(docRef, updates as Record<string, unknown>);
         return true;
       },
       false,

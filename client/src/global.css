@@ -122,9 +122,9 @@
   .honeycomb {
     /* Gold accent color for honeycomb theme */
     --team-blue: 218 165 32; /* #DAA520 - goldenrod */
-    --honeycomb-gold: #DAA520;
-    --honeycomb-gold-light: #FFD700;
-    --honeycomb-gold-dark: #B8860B;
+    --honeycomb-gold: #daa520;
+    --honeycomb-gold-light: #ffd700;
+    --honeycomb-gold-dark: #b8860b;
     --honeycomb-bg: #0a0a0a;
   }
 }
@@ -146,7 +146,7 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    
+
     /* Mobile touch optimizations */
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -178,7 +178,10 @@
   }
 
   /* Allow text selection only on interactive elements */
-  p, span, a, div {
+  p,
+  span,
+  a,
+  div {
     -webkit-user-select: text;
     user-select: text;
   }
@@ -213,7 +216,8 @@
   /* Mobile optimizations */
   @media (max-width: 640px) {
     /* Increase touch target size for mobile */
-    button, a {
+    button,
+    a {
       min-height: 44px;
       min-width: 44px;
       display: inline-flex;
@@ -221,7 +225,9 @@
       justify-content: center;
     }
 
-    input, textarea, select {
+    input,
+    textarea,
+    select {
       font-size: 16px;
       min-height: 44px;
     }
@@ -269,7 +275,8 @@
 
   /* Pulse animation for interactive elements */
   @keyframes pulse-subtle {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 1;
     }
     50% {
@@ -346,7 +353,7 @@
   pointer-events: none;
   z-index: -1;
   background-color: #0a0a0a;
-  
+
   /* SVG honeycomb pattern - proper interlocking hexagons */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23daa520' fill-opacity='0.15'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   background-size: 60px 105px;
@@ -362,7 +369,11 @@
   bottom: 0;
   pointer-events: none;
   z-index: -1;
-  background: radial-gradient(ellipse at center, rgba(218, 165, 32, 0.08) 0%, transparent 70%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(218, 165, 32, 0.08) 0%,
+    transparent 70%
+  );
 }
 
 /* Make page backgrounds transparent in honeycomb mode so the pattern shows through */
@@ -389,15 +400,15 @@
 
 /* Honeycomb theme accent colors */
 .honeycomb .text-team-blue {
-  color: #DAA520 !important;
+  color: #daa520 !important;
 }
 
 .honeycomb .bg-team-blue {
-  background-color: #DAA520 !important;
+  background-color: #daa520 !important;
 }
 
 .honeycomb .border-team-blue {
-  border-color: #DAA520 !important;
+  border-color: #daa520 !important;
 }
 
 .honeycomb .border-team-blue-40 {
@@ -430,7 +441,7 @@
   pointer-events: none;
   z-index: -1;
   background-color: #f8f8f8;
-  
+
   /* SVG swirl/wave pattern in purple */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%239370db' fill-opacity='0.15'%3E%3Cpath opacity='.5' d='M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z'/%3E%3Cpath d='M6 5V0H5v5H0v1h5v94h1V6h94V5H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   background-size: 100px 100px;
@@ -448,9 +459,21 @@
   z-index: -1;
   background: 
     /* Multiple circular gradients to create swirl effect */
-    radial-gradient(ellipse 80% 50% at 20% 30%, rgba(147, 112, 219, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 80% at 80% 70%, rgba(147, 112, 219, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 70% 60% at 50% 50%, rgba(147, 112, 219, 0.04) 0%, transparent 60%);
+    radial-gradient(
+      ellipse 80% 50% at 20% 30%,
+      rgba(147, 112, 219, 0.08) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 60% 80% at 80% 70%,
+      rgba(147, 112, 219, 0.06) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 70% 60% at 50% 50%,
+      rgba(147, 112, 219, 0.04) 0%,
+      transparent 60%
+    );
 }
 
 /* Make page backgrounds show pattern for zen mode */
@@ -476,15 +499,15 @@
 
 /* Zen theme accent colors - purple */
 .zen .text-team-blue {
-  color: #9370DB !important;
+  color: #9370db !important;
 }
 
 .zen .bg-team-blue {
-  background-color: #9370DB !important;
+  background-color: #9370db !important;
 }
 
 .zen .border-team-blue {
-  border-color: #9370DB !important;
+  border-color: #9370db !important;
 }
 
 .zen .border-team-blue-40 {

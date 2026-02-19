@@ -91,9 +91,7 @@ const EditSession = () => {
       if (editingMatch?.id) {
         // Update existing match
         updatedMatches = (session.matches || []).map(m =>
-          m.id === editingMatch.id
-            ? { ...m, ...matchData }
-            : m
+          m.id === editingMatch.id ? { ...m, ...matchData } : m
         );
       } else {
         // Add new match
@@ -110,14 +108,10 @@ const EditSession = () => {
         matches: updatedMatches,
       });
 
-      setSession(prev =>
-        prev ? { ...prev, matches: updatedMatches } : null
-      );
+      setSession(prev => (prev ? { ...prev, matches: updatedMatches } : null));
 
       toast.success(
-        editingMatch
-          ? 'Match updated successfully'
-          : 'Match added successfully'
+        editingMatch ? 'Match updated successfully' : 'Match added successfully'
       );
     } catch (error) {
       const { logger } = await import('@/lib/logger');
@@ -142,9 +136,7 @@ const EditSession = () => {
         matches: updatedMatches,
       });
 
-      setSession(prev =>
-        prev ? { ...prev, matches: updatedMatches } : null
-      );
+      setSession(prev => (prev ? { ...prev, matches: updatedMatches } : null));
 
       toast.success('Match deleted successfully');
     } catch (error) {
@@ -158,7 +150,9 @@ const EditSession = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
+      <div
+        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      >
         <div className="max-w-[1152px] mx-auto px-4 py-8 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
         </div>
@@ -168,7 +162,9 @@ const EditSession = () => {
 
   if (!session) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
+      <div
+        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      >
         <div className="max-w-[1152px] mx-auto px-4 py-8">
           <Button
             onClick={() => navigate(ROUTES.SESSIONS)}
@@ -180,10 +176,16 @@ const EditSession = () => {
           </Button>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-            <h2 className={`text-2xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+            <h2
+              className={`text-2xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
               Session Not Found
             </h2>
-            <p className={isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}>
+            <p
+              className={
+                isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+              }
+            >
               The session you're trying to edit could not be found.
             </p>
           </div>
@@ -228,7 +230,9 @@ const EditSession = () => {
             <div className="absolute top-0 right-0 w-64 h-64 bg-team-blue/5 rounded-full blur-3xl -z-10" />
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <CardTitle className={`text-3xl mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}>
+                <CardTitle
+                  className={`text-3xl mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                >
                   {session.sessionName || 'Untitled Session'}
                 </CardTitle>
                 <div className="flex items-center gap-4 flex-wrap">
@@ -252,12 +256,14 @@ const EditSession = () => {
               </div>
               <div
                 className={`px-6 py-4 rounded-xl border-2 backdrop-blur-sm ${
-                  isDarkMode 
-                    ? 'bg-team-blue/10 border-team-blue/40' 
+                  isDarkMode
+                    ? 'bg-team-blue/10 border-team-blue/40'
                     : 'bg-team-blue/10 border-team-blue/30'
                 }`}
               >
-                <p className="text-sm text-team-blue-40 mb-1 font-medium">Match Type</p>
+                <p className="text-sm text-team-blue-40 mb-1 font-medium">
+                  Match Type
+                </p>
                 <p className="font-bold text-team-blue text-lg">
                   {session.matchType || 'Full Game'}
                 </p>
@@ -279,8 +285,12 @@ const EditSession = () => {
               <div className="absolute top-0 right-0 w-20 h-20 bg-team-blue/10 rounded-full blur-2xl" />
               <div className="flex items-center justify-between relative z-10">
                 <div>
-                  <p className="text-sm text-team-blue-40 font-medium">Total Matches</p>
-                  <p className="text-4xl font-bold text-team-blue mt-1">{matches.length}</p>
+                  <p className="text-sm text-team-blue-40 font-medium">
+                    Total Matches
+                  </p>
+                  <p className="text-4xl font-bold text-team-blue mt-1">
+                    {matches.length}
+                  </p>
                 </div>
                 <Trophy className="h-10 w-10 text-team-blue/30" />
               </div>
@@ -297,8 +307,12 @@ const EditSession = () => {
             <CardContent className="pt-6 relative">
               <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full blur-2xl" />
               <div className="relative z-10">
-                <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">Total Score</p>
-                <p className="text-4xl font-bold text-purple-600 dark:text-purple-400 mt-1">{totalScore}</p>
+                <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+                  Total Score
+                </p>
+                <p className="text-4xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                  {totalScore}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -313,8 +327,12 @@ const EditSession = () => {
             <CardContent className="pt-6 relative">
               <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full blur-2xl" />
               <div className="relative z-10">
-                <p className="text-sm text-green-600 dark:text-green-400 font-medium">Average Score</p>
-                <p className="text-4xl font-bold text-green-600 dark:text-green-400 mt-1">{averageScore}</p>
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                  Average Score
+                </p>
+                <p className="text-4xl font-bold text-green-600 dark:text-green-400 mt-1">
+                  {averageScore}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -329,7 +347,9 @@ const EditSession = () => {
             <CardContent className="pt-6 relative">
               <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full blur-2xl" />
               <div className="relative z-10">
-                <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">Best Score</p>
+                <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                  Best Score
+                </p>
                 <p className="text-4xl font-bold text-orange-600 dark:text-orange-400 mt-1">
                   {matches.length > 0
                     ? Math.max(...matches.map(m => m.finalScore || 0))
@@ -351,8 +371,8 @@ const EditSession = () => {
               <TrendingUp className="h-7 w-7 text-team-blue" />
               Matches
             </h2>
-            <Button 
-              onClick={handleAddMatch} 
+            <Button
+              onClick={handleAddMatch}
               className="bg-gradient-to-r from-team-blue to-team-blue/80 hover:from-team-blue/90 hover:to-team-blue/70 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -370,15 +390,19 @@ const EditSession = () => {
             >
               <CardContent className="py-16 text-center">
                 <div className="flex flex-col items-center gap-4">
-                  <div className={`p-6 rounded-full ${
-                    isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'
-                  }`}>
+                  <div
+                    className={`p-6 rounded-full ${
+                      isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'
+                    }`}
+                  >
                     <Sparkles className="h-12 w-12 text-team-blue" />
                   </div>
                   <div>
-                    <h3 className={`text-lg font-semibold mb-2 ${
-                      isDarkMode ? 'text-white' : 'text-team-blue'
-                    }`}>
+                    <h3
+                      className={`text-lg font-semibold mb-2 ${
+                        isDarkMode ? 'text-white' : 'text-team-blue'
+                      }`}
+                    >
                       No matches yet
                     </h3>
                     <p
@@ -420,7 +444,9 @@ const EditSession = () => {
                           </div>
                           <p
                             className={`text-sm font-medium ${
-                              isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                              isDarkMode
+                                ? 'text-team-white-60'
+                                : 'text-team-blue-40'
                             }`}
                           >
                             {match.matchType || 'Full Game'}

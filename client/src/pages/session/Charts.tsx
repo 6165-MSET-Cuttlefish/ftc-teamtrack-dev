@@ -110,32 +110,32 @@ const Charts = () => {
     if (filteredSessions.length === 0) return [];
 
     return filteredSessions
-      .sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime())
+      .sort(
+        (a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime()
+      )
       .map((session, index) => {
         const matchCount = session.matches.length || 1;
-        const finalScore = session.matches.reduce(
-          (sum, m) => sum + (m.finalScore || 0),
-          0
-        ) / matchCount;
-        const autonomousScore = session.matches.reduce(
-          (sum, m) => sum + (m.autonomousScore || 0),
-          0
-        ) / matchCount;
-        const teleopScore = session.matches.reduce(
-          (sum, m) => sum + (m.teleopScore || 0),
-          0
-        ) / matchCount;
-        const endGameScore = session.matches.reduce(
-          (sum, m) => sum + (m.endGameScore || 0),
-          0
-        ) / matchCount;
+        const finalScore =
+          session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) /
+          matchCount;
+        const autonomousScore =
+          session.matches.reduce(
+            (sum, m) => sum + (m.autonomousScore || 0),
+            0
+          ) / matchCount;
+        const teleopScore =
+          session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0) /
+          matchCount;
+        const endGameScore =
+          session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) /
+          matchCount;
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
           'Final Score': Math.round(finalScore),
           Autonomous: Math.round(autonomousScore),
           Teleop: Math.round(teleopScore),
-          'Endgame': Math.round(endGameScore),
+          Endgame: Math.round(endGameScore),
         };
       });
   };
@@ -146,14 +146,17 @@ const Charts = () => {
     if (filteredSessions.length === 0) return [];
 
     return filteredSessions
-      .sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime())
+      .sort(
+        (a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime()
+      )
       .map((session, index) => {
         const matchCount = session.matches.length || 1;
-        const ballsMissed = session.matches.reduce(
-          (sum, m) =>
-            sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
-          0
-        ) / matchCount;
+        const ballsMissed =
+          session.matches.reduce(
+            (sum, m) =>
+              sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
+            0
+          ) / matchCount;
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
@@ -219,7 +222,9 @@ const Charts = () => {
   // Recent Performance Trend (Last 10 sessions)
   const getRecentTrendData = (): ChartDataPoint[] => {
     const allSessions = getFilteredSessions();
-    const sorted = [...allSessions].sort((a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime());
+    const sorted = [...allSessions].sort(
+      (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime()
+    );
 
     const recent = sorted.slice(0, 10).reverse();
 
@@ -229,10 +234,8 @@ const Charts = () => {
       const movingAvg =
         recent
           .slice(Math.max(0, index - 2), index + 1)
-          .reduce(
-            (sum, s) => sum + getSessionScore(s),
-            0
-          ) / Math.min(3, index + 1);
+          .reduce((sum, s) => sum + getSessionScore(s), 0) /
+        Math.min(3, index + 1);
 
       return {
         name: `#${recent.length - index}`,
@@ -247,7 +250,9 @@ const Charts = () => {
     const allSessions = getFilteredSessions();
     if (allSessions.length < 3) return [];
 
-    const sorted = [...allSessions].sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime());
+    const sorted = [...allSessions].sort(
+      (a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime()
+    );
 
     return sorted.slice(2).map((session, index) => {
       const windowSessions = sorted.slice(Math.max(0, index), index + 3);
@@ -384,7 +389,11 @@ const Charts = () => {
                 <Button
                   onClick={() => navigate(ROUTES.ACTIVE)}
                   disabled={hasActiveSession}
-                  title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
+                  title={
+                    hasActiveSession
+                      ? 'Complete or cancel the active session first'
+                      : undefined
+                  }
                   className={`bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
                 >
                   Start New Session
@@ -400,7 +409,10 @@ const Charts = () => {
   // Helper function to get average match score for a session
   const getSessionScore = (session: Session): number => {
     const matchCount = session.matches.length || 1;
-    return Math.round(session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) / matchCount);
+    return Math.round(
+      session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) /
+        matchCount
+    );
   };
 
   const scoreTrendData = getScoreTrendData();
@@ -673,7 +685,11 @@ const Charts = () => {
                         </>
                       );
                     }
-                    const sorted = [...getFilteredSessions()].sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime());
+                    const sorted = [...getFilteredSessions()].sort(
+                      (a, b) =>
+                        toDate(a.createdAt).getTime() -
+                        toDate(b.createdAt).getTime()
+                    );
                     const firstHalf = sorted.slice(
                       0,
                       Math.floor(sorted.length / 2)
@@ -893,7 +909,10 @@ const Charts = () => {
                         opacity={1}
                         radius={[6, 6, 0, 0]}
                         animationDuration={1000}
-                        activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                        activeBar={{
+                          stroke: isDarkMode ? '#fff' : '#000',
+                          strokeWidth: 2,
+                        }}
                       />
                       <Line
                         type="monotone"

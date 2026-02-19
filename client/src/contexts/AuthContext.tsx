@@ -103,7 +103,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       firebaseAuth = firebase.auth;
       return { authInstance: firebaseAuth, authModule: firebaseAuthModule };
     } catch (err) {
-      const errorContext = err instanceof Error ? { message: err.message } : undefined;
+      const errorContext =
+        err instanceof Error ? { message: err.message } : undefined;
       logger.warn('Firebase auth module not available', errorContext);
       return { authInstance: null, authModule: null };
     }
@@ -115,15 +116,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     displayName: string
   ) => {
     const { authInstance, authModule } = await ensureAuth();
-    
+
     if (!authInstance) {
-      throw new Error('Authentication service unavailable. Please refresh the page.');
+      throw new Error(
+        'Authentication service unavailable. Please refresh the page.'
+      );
     }
-    
+
     if (!authModule?.createUserWithEmailAndPassword) {
-      throw new Error('Sign-up service unavailable. Please check your internet connection.');
+      throw new Error(
+        'Sign-up service unavailable. Please check your internet connection.'
+      );
     }
-    
+
     const userCredential = await authModule.createUserWithEmailAndPassword(
       authInstance,
       email,
@@ -136,21 +141,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const login = async (email: string, password: string) => {
     const { authInstance, authModule } = await ensureAuth();
-    
+
     if (!authInstance) {
-      throw new Error('Authentication service unavailable. Please refresh the page.');
+      throw new Error(
+        'Authentication service unavailable. Please refresh the page.'
+      );
     }
-    
+
     if (!authModule?.signInWithEmailAndPassword) {
-      throw new Error('Sign-in service unavailable. Please check your internet connection.');
+      throw new Error(
+        'Sign-in service unavailable. Please check your internet connection.'
+      );
     }
-    
+
     await authModule.signInWithEmailAndPassword(authInstance, email, password);
   };
 
   const logout = async () => {
     const { authInstance, authModule } = await ensureAuth();
-    
+
     // Handle guest logout
     if (isGuest) {
       localStorage.removeItem(GUEST_MODE_KEY);
@@ -159,22 +168,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       setUser(null);
       return;
     }
-    
+
     if (!authInstance || !authModule || !authModule.signOut) return;
     await authModule.signOut(authInstance);
   };
 
   const resetPassword = async (email: string) => {
     const { authInstance, authModule } = await ensureAuth();
-    
+
     if (!authInstance) {
-      throw new Error('Authentication service unavailable. Please refresh the page.');
+      throw new Error(
+        'Authentication service unavailable. Please refresh the page.'
+      );
     }
-    
+
     if (!authModule?.sendPasswordResetEmail) {
-      throw new Error('Password reset service unavailable. Please check your internet connection.');
+      throw new Error(
+        'Password reset service unavailable. Please check your internet connection.'
+      );
     }
-    
+
     await authModule.sendPasswordResetEmail(authInstance, email);
   };
 
@@ -186,32 +199,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const currentUser = authInstance.currentUser;
     if (!currentUser) throw new Error('No authenticated user.');
     await authModule.updateProfile(currentUser, { displayName });
-    setUser((prev) => prev ? { ...prev, displayName } : prev);
+    setUser(prev => (prev ? { ...prev, displayName } : prev));
   };
 
   const updateUserEmail = async (newEmail: string, currentPassword: string) => {
     const { authInstance } = await ensureAuth();
     if (!authInstance) throw new Error('Authentication service unavailable.');
     const currentUser = authInstance.currentUser;
-    if (!currentUser || !currentUser.email) throw new Error('No authenticated user.');
+    if (!currentUser || !currentUser.email)
+      throw new Error('No authenticated user.');
     const rawModule = await import('firebase/auth');
-    const credential = rawModule.EmailAuthProvider.credential(currentUser.email, currentPassword);
+    const credential = rawModule.EmailAuthProvider.credential(
+      currentUser.email,
+      currentPassword
+    );
     await rawModule.reauthenticateWithCredential(currentUser, credential);
     await rawModule.updateEmail(currentUser, newEmail);
-    setUser((prev) => prev ? { ...prev, email: newEmail } : prev);
+    setUser(prev => (prev ? { ...prev, email: newEmail } : prev));
   };
 
   const loginWithGoogle = async () => {
     const { authInstance, authModule } = await ensureAuth();
-    
+
     if (!authInstance) {
-      throw new Error('Authentication service unavailable. Please refresh the page.');
+      throw new Error(
+        'Authentication service unavailable. Please refresh the page.'
+      );
     }
-    
+
     if (!authModule?.signInWithPopup || !authModule?.GoogleAuthProvider) {
-      throw new Error('Google Sign-In unavailable. Please check your internet connection.');
+      throw new Error(
+        'Google Sign-In unavailable. Please check your internet connection.'
+      );
     }
-    
+
     const provider = new authModule.GoogleAuthProvider();
     await authModule.signInWithPopup(authInstance, provider);
   };
@@ -219,12 +240,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const continueAsGuest = () => {
     // Generate a unique guest ID if not already set
     let guestUserId = localStorage.getItem(GUEST_ID_KEY);
-    
+
     if (!guestUserId) {
       guestUserId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem(GUEST_ID_KEY, guestUserId);
     }
-    
+
     localStorage.setItem(GUEST_MODE_KEY, 'true');
     setIsGuest(true);
     setGuestId(guestUserId);
@@ -238,7 +259,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       // Check for guest mode in localStorage
       const guestMode = localStorage.getItem(GUEST_MODE_KEY);
       const storedGuestId = localStorage.getItem(GUEST_ID_KEY);
-      
+
       if (guestMode === 'true' && storedGuestId) {
         setIsGuest(true);
         setGuestId(storedGuestId);

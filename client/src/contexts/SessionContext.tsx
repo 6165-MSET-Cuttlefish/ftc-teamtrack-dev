@@ -18,7 +18,12 @@ import {
 } from '@/lib/sessionStorage';
 import type { Match } from '@/types';
 
-export type MatchPhase = 'auton' | 'controller_pickup' | 'prepare' | 'teleop' | 'ended';
+export type MatchPhase =
+  | 'auton'
+  | 'controller_pickup'
+  | 'prepare'
+  | 'teleop'
+  | 'ended';
 
 interface SessionContextType {
   sessionData: SessionFormData;
@@ -245,8 +250,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     // Save if there's session data OR if timers are active
     const hasSessionData =
-      sessionData.sessionName ||
-      sessionData.matches.length > 0;
+      sessionData.sessionName || sessionData.matches.length > 0;
     const hasActiveTimers =
       isTimerRunning || hasStarted || sessionTimer > 0 || timer > 0;
 

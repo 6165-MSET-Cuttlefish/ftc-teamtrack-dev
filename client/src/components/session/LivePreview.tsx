@@ -13,7 +13,11 @@ interface LivePreviewProps {
   isSessionSetupSaved?: boolean;
 }
 
-export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSessionSetupSaved = false }: LivePreviewProps) => {
+export const LivePreview = ({
+  onOpenSessionSetup,
+  onTryStartWithoutSetup,
+  isSessionSetupSaved = false,
+}: LivePreviewProps) => {
   const {
     sessionData,
     completeSession,
@@ -290,7 +294,7 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
     let finalSessionName = sessionData.sessionName?.trim();
     if (!finalSessionName) {
       // Find the next available number for "Untitled Session #X"
-      const untitledSessions = userSessions.filter(s => 
+      const untitledSessions = userSessions.filter(s =>
         s.sessionName?.startsWith('Untitled Session #')
       );
       const numbers = untitledSessions
@@ -353,7 +357,7 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
   // Delete a saved match from the matches array
   const handleDeleteMatch = (matchId: string) => {
     const updatedMatches = (sessionData.matches || []).filter(
-      (m) => m.id !== matchId
+      m => m.id !== matchId
     );
     // Renumber matches
     const renumbered = updatedMatches.map((m, i) => ({
@@ -401,126 +405,136 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
       {/* New Streamlined Action Buttons */}
       {!sessionData.isSessionCompleted ? (
         <>
-        <div className="flex items-center gap-3 w-full">
-          {/* Save Match / Start Match Button */}
-          {!showTeleopTransition && !editingMatchId && (
-            <button
-              onClick={!matchActive ? () => { 
-                if (!isSessionSetupSaved) {
-                  onTryStartWithoutSetup?.();
-                  return;
+          <div className="flex items-center gap-3 w-full">
+            {/* Save Match / Start Match Button */}
+            {!showTeleopTransition && !editingMatchId && (
+              <button
+                onClick={
+                  !matchActive
+                    ? () => {
+                        if (!isSessionSetupSaved) {
+                          onTryStartWithoutSetup?.();
+                          return;
+                        }
+                        setHasStarted(true);
+                        setMatchActive(true);
+                        setIsTimerRunning(true);
+                      }
+                    : handleSaveMatch
                 }
-                setHasStarted(true); 
-                setMatchActive(true); 
-                setIsTimerRunning(true); 
-              } : handleSaveMatch}
-              disabled={!matchActive && !sessionData.sessionName?.trim()}
-              title={!matchActive && !sessionData.sessionName?.trim() ? 'Complete session setup (Session Name) before starting' : ''}
-              className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                !matchActive 
-                  ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
-                  : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
-              }`}
-            >
-              {!matchActive ? 'Start Match' : 'Save Match'}
-            </button>
-          )}
-
-          {/* Teleop Transition Buttons */}
-          {showTeleopTransition && (
-            <>
-              <button
-                onClick={handleContinueToTeleop}
-                className={`flex-1 px-6 py-4 h-16 rounded-2xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-lg font-bold transition-colors flex items-center justify-center`}
+                disabled={!matchActive && !sessionData.sessionName?.trim()}
+                title={
+                  !matchActive && !sessionData.sessionName?.trim()
+                    ? 'Complete session setup (Session Name) before starting'
+                    : ''
+                }
+                className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  !matchActive
+                    ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
+                    : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
+                }`}
               >
-                Continue into Teleop
+                {!matchActive ? 'Start Match' : 'Save Match'}
               </button>
-              <button
-                onClick={handleSkipTeleop}
-                className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-black'}`}
-              >
-                Skip / End Autonomous Only
-              </button>
-            </>
-          )}
+            )}
 
-          {/* Editing Match Buttons */}
-          {editingMatchId && (
-            <>
-              <button
-                onClick={() => {
-                  saveEditedMatch();
-                  toast.success('Match changes saved!');
-                }}
-                className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
-              >
-                Save Changes
-              </button>
-              <button
-                onClick={returnToCurrentMatch}
-                className="px-4 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
-              >
-                Return to Current Match
-              </button>
-            </>
-          )}
+            {/* Teleop Transition Buttons */}
+            {showTeleopTransition && (
+              <>
+                <button
+                  onClick={handleContinueToTeleop}
+                  className={`flex-1 px-6 py-4 h-16 rounded-2xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-lg font-bold transition-colors flex items-center justify-center`}
+                >
+                  Continue into Teleop
+                </button>
+                <button
+                  onClick={handleSkipTeleop}
+                  className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-black'}`}
+                >
+                  Skip / End Autonomous Only
+                </button>
+              </>
+            )}
 
-          {/* Settings/Gear Icon - Opens Session Setup */}
-          <button
-            onClick={onOpenSessionSetup}
-            className={`py-4 px-6 h-16 rounded-2xl border-2 border-team-blue-40 transition-colors flex items-center justify-center ${
-              isDarkMode
-                ? 'bg-team-dark hover:bg-[#2a2a2a]'
-                : 'bg-white hover:bg-gray-50'
-            }`}
-            title="Edit Session Setup"
-          >
-            <Settings className={`h-6 w-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
-          </button>
+            {/* Editing Match Buttons */}
+            {editingMatchId && (
+              <>
+                <button
+                  onClick={() => {
+                    saveEditedMatch();
+                    toast.success('Match changes saved!');
+                  }}
+                  className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={returnToCurrentMatch}
+                  className="px-4 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
+                >
+                  Return to Current Match
+                </button>
+              </>
+            )}
 
-          {/* Complete Session Button */}
-          <button
-            onClick={handleCompleteSession}
-            disabled={loading || sessionLimitReached}
-              className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            title={
-              loading
-                ? 'Saving...'
-                : sessionLimitReached
-                  ? 'Session Limit Reached'
-                  : 'Complete Session'
-            }
-          >
-            {loading ? 'Saving...' : 'Complete Session'}
-          </button>
-
-          {/* Cancel Session Button */}
-          {!cancelConfirm ? (
+            {/* Settings/Gear Icon - Opens Session Setup */}
             <button
-              onClick={() => {
-                setCancelConfirm(true);
-                if (isTimerRunning) setIsTimerRunning(false);
-              }}
-              className="px-4 py-4 h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
-              title="Cancel Session"
+              onClick={onOpenSessionSetup}
+              className={`py-4 px-6 h-16 rounded-2xl border-2 border-team-blue-40 transition-colors flex items-center justify-center ${
+                isDarkMode
+                  ? 'bg-team-dark hover:bg-[#2a2a2a]'
+                  : 'bg-white hover:bg-gray-50'
+              }`}
+              title="Edit Session Setup"
             >
-              Cancel Session
+              <Settings
+                className={`h-6 w-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+              />
             </button>
-          ) : (
-            <div className="flex gap-2">
+
+            {/* Complete Session Button */}
+            <button
+              onClick={handleCompleteSession}
+              disabled={loading || sessionLimitReached}
+              className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              title={
+                loading
+                  ? 'Saving...'
+                  : sessionLimitReached
+                    ? 'Session Limit Reached'
+                    : 'Complete Session'
+              }
+            >
+              {loading ? 'Saving...' : 'Complete Session'}
+            </button>
+
+            {/* Cancel Session Button */}
+            {!cancelConfirm ? (
               <button
                 onClick={() => {
-                  handleNewSession();
-                  setCancelConfirm(false);
-                  toast.success('Session cancelled');
+                  setCancelConfirm(true);
+                  if (isTimerRunning) setIsTimerRunning(false);
                 }}
-                className="py-4 px-4 rounded-xl bg-green-500 hover:bg-green-600 transition-colors"
-                title="Confirm cancel"
+                className="px-4 py-4 h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
+                title="Cancel Session"
               >
-                <Check className="h-5 w-5 text-white" />
+                Cancel Session
               </button>
-              <button
-                onClick={() => {
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    handleNewSession();
+                    setCancelConfirm(false);
+                    toast.success('Session cancelled');
+                  }}
+                  className="py-4 px-4 rounded-xl bg-green-500 hover:bg-green-600 transition-colors"
+                  title="Confirm cancel"
+                >
+                  <Check className="h-5 w-5 text-white" />
+                </button>
+                <button
+                  onClick={() => {
                     setCancelConfirm(false);
                     if (hasStarted) setIsTimerRunning(true);
                   }}
@@ -531,158 +545,184 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
                 </button>
               </div>
             )}
-        </div>
+          </div>
 
-        {/* Match Control Buttons */}
-        {!editingMatchId && matchActive && (
-          <div className="flex items-center gap-3">
-            {/* Pause/Resume controls - only when match is active */}
-            {matchActive && isTimerRunning && (
-              <button
-                onClick={() => setIsTimerRunning(false)}
-                className="px-4 py-2 rounded-xl border-2 border-yellow-500/40 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 text-sm font-semibold transition-colors flex items-center gap-2"
-              >
-                <span>⏸</span>
-                Pause Match
-              </button>
-            )}
-            {matchActive && !isTimerRunning && (matchPhase === 'auton' || matchPhase === 'teleop') && (
-              <button
-                onClick={() => setIsTimerRunning(true)}
-                className="px-4 py-2 rounded-xl border-2 border-team-blue-40 bg-team-blue-10 hover:bg-team-blue-40 text-team-blue text-sm font-semibold transition-colors flex items-center gap-2"
-              >
-                <span>▶</span>
-                Resume Match
-              </button>
-            )}
-
-            {/* Cancel Current Match Button */}
-            {matchActive && (
-              <>
-                {!cancelMatchConfirm ? (
+          {/* Match Control Buttons */}
+          {!editingMatchId && matchActive && (
+            <div className="flex items-center gap-3">
+              {/* Pause/Resume controls - only when match is active */}
+              {matchActive && isTimerRunning && (
+                <button
+                  onClick={() => setIsTimerRunning(false)}
+                  className="px-4 py-2 rounded-xl border-2 border-yellow-500/40 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 text-sm font-semibold transition-colors flex items-center gap-2"
+                >
+                  <span>⏸</span>
+                  Pause Match
+                </button>
+              )}
+              {matchActive &&
+                !isTimerRunning &&
+                (matchPhase === 'auton' || matchPhase === 'teleop') && (
                   <button
-                    onClick={() => setCancelMatchConfirm(true)}
-                    className="px-4 py-2 rounded-xl border-2 border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-semibold transition-colors flex items-center gap-2"
+                    onClick={() => setIsTimerRunning(true)}
+                    className="px-4 py-2 rounded-xl border-2 border-team-blue-40 bg-team-blue-10 hover:bg-team-blue-40 text-team-blue text-sm font-semibold transition-colors flex items-center gap-2"
                   >
-                    <X className="h-4 w-4" />
-                    Cancel Current Match
+                    <span>▶</span>
+                    Resume Match
                   </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Discard this match?
-                    </span>
-                    <button
-                      onClick={handleCancelCurrentMatch}
-                      className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
-                    >
-                      Yes, Discard
-                    </button>
-                    <button
-                      onClick={() => setCancelMatchConfirm(false)}
-                      className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${
-                        isDarkMode
-                          ? 'border-gray-600 text-gray-300 hover:bg-gray-800'
-                          : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      No, Keep
-                    </button>
-                  </div>
                 )}
-              </>
-            )}
-          </div>
-        )}
 
-        {/* Match Log */}
-        {(sessionData.matches || []).length > 0 && (
-          <div className={`rounded-2xl border-2 overflow-hidden ${
-            isDarkMode ? 'border-gray-700 bg-team-dark' : 'border-gray-200 bg-white'
-          }`}>
-            <div className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wider ${
-              isDarkMode ? 'text-gray-400 border-b border-gray-700' : 'text-gray-500 border-b border-gray-200'
-            }`}>
-              Match Log
-            </div>
-            <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
-              {(sessionData.matches || []).map((match) => {
-                const isEditing = editingMatchId === match.id;
-                const isConfirmingDelete = deleteConfirmId === match.id;
-                return (
-                  <div
-                    key={match.id}
-                    className={`flex items-center justify-between px-4 py-3 transition-colors cursor-pointer ${
-                      isEditing
-                        ? 'bg-yellow-400/50'
-                        : isDarkMode
-                          ? 'hover:bg-gray-800'
-                          : 'hover:bg-gray-50'
-                    }`}
-                    onClick={() => {
-                      if (!isEditing && !isConfirmingDelete) {
-                        startEditingMatch(match);
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`text-sm font-bold ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        Match {match.matchNumber}
+              {/* Cancel Current Match Button */}
+              {matchActive && (
+                <>
+                  {!cancelMatchConfirm ? (
+                    <button
+                      onClick={() => setCancelMatchConfirm(true)}
+                      className="px-4 py-2 rounded-xl border-2 border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-semibold transition-colors flex items-center gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Cancel Current Match
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                      >
+                        Discard this match?
                       </span>
-                      <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Score: {match.finalScore ?? 0}
-                      </span>
-                      <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        A:{match.autonomousScore ?? 0} T:{match.teleopScore ?? 0} E:{match.endGameScore ?? 0}
-                      </span>
-                      {isEditing && (
-                        <span className="text-sm font-bold text-yellow-900 bg-yellow-400 px-3 py-1 rounded-full shadow-lg">
-                          Editing
-                        </span>
-                      )}
+                      <button
+                        onClick={handleCancelCurrentMatch}
+                        className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
+                      >
+                        Yes, Discard
+                      </button>
+                      <button
+                        onClick={() => setCancelMatchConfirm(false)}
+                        className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${
+                          isDarkMode
+                            ? 'border-gray-600 text-gray-300 hover:bg-gray-800'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        No, Keep
+                      </button>
                     </div>
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      {!isConfirmingDelete ? (
-                        <button
-                          onClick={() => setDeleteConfirmId(match.id)}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDarkMode
-                              ? 'hover:bg-red-500/20 text-gray-500 hover:text-red-400'
-                              : 'hover:bg-red-50 text-gray-400 hover:text-red-500'
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Match Log */}
+          {(sessionData.matches || []).length > 0 && (
+            <div
+              className={`rounded-2xl border-2 overflow-hidden ${
+                isDarkMode
+                  ? 'border-gray-700 bg-team-dark'
+                  : 'border-gray-200 bg-white'
+              }`}
+            >
+              <div
+                className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wider ${
+                  isDarkMode
+                    ? 'text-gray-400 border-b border-gray-700'
+                    : 'text-gray-500 border-b border-gray-200'
+                }`}
+              >
+                Match Log
+              </div>
+              <div
+                className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}
+              >
+                {(sessionData.matches || []).map(match => {
+                  const isEditing = editingMatchId === match.id;
+                  const isConfirmingDelete = deleteConfirmId === match.id;
+                  return (
+                    <div
+                      key={match.id}
+                      className={`flex items-center justify-between px-4 py-3 transition-colors cursor-pointer ${
+                        isEditing
+                          ? 'bg-yellow-400/50'
+                          : isDarkMode
+                            ? 'hover:bg-gray-800'
+                            : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => {
+                        if (!isEditing && !isConfirmingDelete) {
+                          startEditingMatch(match);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`text-sm font-bold ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
                           }`}
-                          title="Delete match"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-1">
+                          Match {match.matchNumber}
+                        </span>
+                        <span
+                          className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                        >
+                          Score: {match.finalScore ?? 0}
+                        </span>
+                        <span
+                          className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                        >
+                          A:{match.autonomousScore ?? 0} T:
+                          {match.teleopScore ?? 0} E:{match.endGameScore ?? 0}
+                        </span>
+                        {isEditing && (
+                          <span className="text-sm font-bold text-yellow-900 bg-yellow-400 px-3 py-1 rounded-full shadow-lg">
+                            Editing
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className="flex items-center gap-1"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {!isConfirmingDelete ? (
                           <button
-                            onClick={() => handleDeleteMatch(match.id)}
-                            className="p-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors"
-                            title="Confirm delete"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
+                            onClick={() => setDeleteConfirmId(match.id)}
                             className={`p-1.5 rounded-lg transition-colors ${
-                              isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-black'
+                              isDarkMode
+                                ? 'hover:bg-red-500/20 text-gray-500 hover:text-red-400'
+                                : 'hover:bg-red-50 text-gray-400 hover:text-red-500'
                             }`}
-                            title="Cancel delete"
+                            title="Delete match"
                           >
-                            <X className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDeleteMatch(match.id)}
+                              className="p-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors"
+                              title="Confirm delete"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(null)}
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                isDarkMode
+                                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                                  : 'bg-gray-200 hover:bg-gray-300 text-black'
+                              }`}
+                              title="Cancel delete"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </>
       ) : (
         /* Completed Session Buttons */

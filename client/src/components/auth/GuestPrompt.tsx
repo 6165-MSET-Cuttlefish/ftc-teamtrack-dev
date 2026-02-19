@@ -19,7 +19,9 @@ export const GuestPrompt = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   // Hide on auth pages where user is already trying to sign up/log in
-  const isOnAuthPage = (AUTH_ROUTES as readonly string[]).includes(location.pathname);
+  const isOnAuthPage = (AUTH_ROUTES as readonly string[]).includes(
+    location.pathname
+  );
 
   useEffect(() => {
     if (!isGuest) {

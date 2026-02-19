@@ -19,7 +19,7 @@ export const ScoringUI = () => {
   const handleBallSelect = (shotId: number, ballsMade: number) => {
     // Create unique button identifier
     const buttonId = `${shotId}-${ballsMade}`;
-    
+
     // Flash the button
     setFlashingButton(buttonId);
 
@@ -30,14 +30,17 @@ export const ScoringUI = () => {
         ? parseFloat(((now - lastShotTimeRef.current) / 1000).toFixed(2))
         : undefined;
     lastShotTimeRef.current = now;
-    
+
     // Determine phase by timer position:
     // Full Game: auton = timer > 120, teleop = timer <= 120
     // Anything scored after the 2-minute mark (≤120s remaining) goes to teleop
     // Scoring during controller_pickup and prepare phases (8 second transition) counts as autonomous
     const isAutonPhase =
       sessionData.matchType === 'Autonomous' ||
-      (sessionData.matchType === 'Full Game' && (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare'));
+      (sessionData.matchType === 'Full Game' &&
+        (matchPhase === 'auton' ||
+          matchPhase === 'controller_pickup' ||
+          matchPhase === 'prepare'));
 
     const shotEntry = { ballsShot: shotId, ballsMade, cycleTime };
     if (isAutonPhase) {
@@ -57,9 +60,14 @@ export const ScoringUI = () => {
   // Determine score label and display the synced score from sessionData
   const isAutonPhase =
     sessionData.matchType === 'Autonomous' ||
-    (sessionData.matchType === 'Full Game' && (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare'));
+    (sessionData.matchType === 'Full Game' &&
+      (matchPhase === 'auton' ||
+        matchPhase === 'controller_pickup' ||
+        matchPhase === 'prepare'));
   const scoreLabel = isAutonPhase ? 'AUTON Score:' : 'TELEOP Score:';
-  const displayScore = isAutonPhase ? sessionData.autonomousScore ?? 0 : sessionData.teleopScore ?? 0;
+  const displayScore = isAutonPhase
+    ? (sessionData.autonomousScore ?? 0)
+    : (sessionData.teleopScore ?? 0);
 
   return (
     <div className="space-y-6">
@@ -68,7 +76,9 @@ export const ScoringUI = () => {
           Scoring
         </h2>
         <div className="flex items-center gap-2">
-          <span className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+          <span
+            className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+          >
             {scoreLabel}
           </span>
           <span className="text-2xl font-bold text-team-blue">
@@ -118,11 +128,15 @@ export const ScoringUI = () => {
                       />
                     ))}
                   </div>
-                  <span className={`text-xs mt-1 ${
-                    flashingButton === `${shot.id}-0`
-                      ? 'text-yellow-500'
-                      : isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                  }`}>
+                  <span
+                    className={`text-xs mt-1 ${
+                      flashingButton === `${shot.id}-0`
+                        ? 'text-yellow-500'
+                        : isDarkMode
+                          ? 'text-team-white-60'
+                          : 'text-gray-500'
+                    }`}
+                  >
                     scored
                   </span>
                 </button>
@@ -130,7 +144,8 @@ export const ScoringUI = () => {
                 {/* Ball options */}
                 {Array.from({ length: shot.balls }).map((_, index) => {
                   const ballCount = index + 1;
-                  const isFlashing = flashingButton === `${shot.id}-${ballCount}`;
+                  const isFlashing =
+                    flashingButton === `${shot.id}-${ballCount}`;
 
                   return (
                     <button
@@ -159,11 +174,15 @@ export const ScoringUI = () => {
                           />
                         ))}
                       </div>
-                      <span className={`text-xs mt-1 ${
-                        isFlashing
-                          ? 'text-green-500' 
-                          : isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                      }`}>
+                      <span
+                        className={`text-xs mt-1 ${
+                          isFlashing
+                            ? 'text-green-500'
+                            : isDarkMode
+                              ? 'text-team-white-60'
+                              : 'text-gray-500'
+                        }`}
+                      >
                         scored
                       </span>
                     </button>
