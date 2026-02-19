@@ -565,6 +565,139 @@ const NotesPreview = ({ dark }: { dark: boolean }) => {
   );
 };
 
+// ── Animated Gate Preview: G to open → select balls → Enter ─────────────────
+const GATE_CAPACITY_PREVIEW = 9;
+const GATE_BALL_COUNT = 5; // Balls loaded for demo
+const GatePreview = ({ dark }: { dark: boolean }) => {
+  // phase: 'closed' | 'opening' | 'select' | 'confirm' | 'done'
+  const [phase, setPhase] = useState<'closed' | 'open' | 'select' | 'confirm' | 'done'>('closed');
+  const [selectedCount, setSelectedCount] = useState(0);
+
+  useEffect(() => {
+    const sequence: [typeof phase, number][] = [
+      ['closed', 1200],
+      ['open', 900],
+      ['select', 900],
+      ['confirm', 900],
+      ['done', 1200],
+    ];
+    let idx = 0;
+    let t: ReturnType<typeof setTimeout>;
+    const advance = () => {
+      const [p, delay] = sequence[idx];
+      setPhase(p);
+      setSelectedCount(p === 'select' || p === 'confirm' ? 2 : 0);
+      idx = (idx + 1) % sequence.length;
+      t = setTimeout(advance, delay);
+    };
+    t = setTimeout(advance, 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  const arrowCol = dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
+  const kbd = (active: boolean): React.CSSProperties => ({
+    backgroundColor: active ? 'rgb(var(--team-blue))' : dark ? '#333' : '#e5e5e5',
+    color: active ? (dark ? '#000' : '#fff') : dark ? '#fff' : '#000',
+    borderRadius: 6,
+    padding: '2px 10px',
+    fontFamily: 'monospace',
+    fontSize: 13,
+    fontWeight: 600,
+    display: 'inline-block',
+    transform: active ? 'scale(1.12) translateY(-1px)' : 'scale(1)',
+    boxShadow: active ? '0 0 14px rgb(var(--team-blue) / 0.6)' : 'none',
+    transition: 'all 0.25s',
+  });
+
+  return (
+    <PreviewBox dark={dark}>
+      {/* Mini gate visualization */}
+      <div className="flex items-center justify-center gap-1 mb-3">
+        {Array.from({ length: GATE_CAPACITY_PREVIEW }).map((_, i) => {
+          let color: string;
+          if (phase === 'open' || phase === 'select' || phase === 'confirm') {
+            // open mode: purple for selected (remaining), empty for rest
+            color =
+              i < selectedCount
+                ? dark
+                  ? 'bg-purple-500 border-purple-400'
+                  : 'bg-purple-400 border-purple-500'
+                : dark
+                  ? 'bg-gray-800 border-gray-600'
+                  : 'bg-gray-200 border-gray-300';
+          } else {
+            // closed mode (and done): show GATE_BALL_COUNT filled balls
+            const count = phase === 'done' ? selectedCount : GATE_BALL_COUNT;
+            if (i < count) {
+              color =
+                i % 2 === 0
+                  ? dark
+                    ? 'bg-purple-500 border-purple-400'
+                    : 'bg-purple-400 border-purple-500'
+                  : dark
+                    ? 'bg-emerald-500 border-emerald-400'
+                    : 'bg-emerald-400 border-emerald-500';
+            } else {
+              color = dark
+                ? 'bg-gray-800 border-gray-600'
+                : 'bg-gray-200 border-gray-300';
+            }
+          }
+          return (
+            <div
+              key={i}
+              className={`w-6 h-6 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${color}`}
+            >
+              {((phase !== 'open' && phase !== 'select' && phase !== 'confirm' && i < (phase === 'done' ? selectedCount : GATE_BALL_COUNT)) ||
+                ((phase === 'open' || phase === 'select' || phase === 'confirm') && i < selectedCount)) && (
+                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Keybind sequence */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-center gap-2">
+          <span style={kbd(phase === 'closed')}>G</span>
+          <span className="text-xs" style={{ color: arrowCol }}>→</span>
+          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>
+            open gate
+          </span>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <span style={kbd(phase === 'open')}>1</span>
+          <span style={kbd(false)}>—</span>
+          <span style={kbd(false)}>9</span>
+          <span className="text-xs" style={{ color: arrowCol }}>→</span>
+          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>
+            balls remaining
+          </span>
+        </div>
+        <div className="flex items-center justify-center gap-3">
+          <span style={kbd(phase === 'select')}>Enter</span>
+          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }}>
+            confirm
+          </span>
+          <span style={kbd(false)}>Esc</span>
+          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }}>
+            cancel
+          </span>
+        </div>
+      </div>
+
+      {/* Status label */}
+      <div className="mt-2 text-center text-xs" style={{ color: 'rgb(var(--team-blue))' }}>
+        {phase === 'closed' && `Gate loaded: ${GATE_BALL_COUNT} balls`}
+        {(phase === 'open' || phase === 'select') && 'Gate open — select how many stayed'}
+        {phase === 'confirm' && `${selectedCount} balls stayed · ${GATE_BALL_COUNT - selectedCount} released`}
+        {phase === 'done' && `Gate updated: ${selectedCount} balls remaining`}
+      </div>
+    </PreviewBox>
+  );
+};
+
 // ─── Step data ──────────────────────────────────────────────────────────────
 
 interface StepDef {
@@ -610,6 +743,12 @@ const STEPS: StepDef[] = [
     body: 'Press 1–3 for balls shot, then 0–N for balls made, Enter to confirm, Escape to cancel. Only active during a match.',
     target: 'scoring',
     preview: d => <KeybindsPreview dark={d} />,
+  },
+  {
+    title: 'Gate Release',
+    body: 'Press G to open the gate, then 1–9 to set how many balls stayed inside, then Enter to confirm. Press Escape at any time to cancel.',
+    target: 'gate',
+    preview: d => <GatePreview dark={d} />,
   },
   {
     title: 'Performance Metrics',

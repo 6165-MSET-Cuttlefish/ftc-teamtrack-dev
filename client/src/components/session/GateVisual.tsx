@@ -146,7 +146,7 @@ export const GateVisual = () => {
             <p
               className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             >
-              Click balls or press 0-9 to set how many stayed ({addBackCount}{' '}
+              Click balls or press 1–9 to set how many stayed, Enter to confirm ({addBackCount}{' '}
               remaining)
             </p>
             <div className="flex items-center gap-2">
@@ -154,7 +154,8 @@ export const GateVisual = () => {
                 onClick={handleConfirmGateOpen}
                 className="px-4 py-1.5 rounded-lg bg-team-blue text-sm font-semibold transition-colors hover:opacity-90 text-black"
               >
-                Confirm ({gateBallCount - addBackCount} released)
+                Confirm ({gateBallCount - addBackCount} released){' '}
+                <span className="font-mono opacity-60 text-xs">[↵]</span>
               </button>
               <button
                 onClick={handleCancelGateOpen}
@@ -164,7 +165,8 @@ export const GateVisual = () => {
                     : 'border-gray-300 text-gray-600 hover:bg-gray-100'
                 }`}
               >
-                Cancel
+                Cancel{' '}
+                <span className="font-mono opacity-60 text-xs">[Esc]</span>
               </button>
             </div>
           </div>
@@ -182,7 +184,8 @@ export const GateVisual = () => {
               : 'bg-white text-gray-700 hover:bg-gray-50'
           }`}
         >
-          Open Gate (Release All {gateBallCount} Balls)
+          Open Gate (Release All {gateBallCount} Balls){' '}
+          <span className="font-mono opacity-50 text-xs">[G]</span>
         </button>
       )}
     </div>
