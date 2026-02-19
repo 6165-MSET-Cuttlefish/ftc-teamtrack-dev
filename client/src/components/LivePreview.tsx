@@ -553,7 +553,7 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
             {matchActive && !isTimerRunning && (matchPhase === 'auton' || matchPhase === 'teleop') && (
               <button
                 onClick={() => setIsTimerRunning(true)}
-                className="px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                className="px-4 py-2 rounded-xl border-2 border-team-blue-40 bg-team-blue-10 hover:bg-team-blue-40 text-team-blue text-sm font-semibold transition-colors flex items-center gap-2"
               >
                 <span>▶</span>
                 Resume Match
