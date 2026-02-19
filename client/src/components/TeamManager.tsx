@@ -55,6 +55,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
@@ -79,11 +80,13 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       setLoadingPersonal(true);
       try {
         const sessions = await firebaseService.getUserSessions(user.uid);
-        // Filter to only sessions without a teamId (personal sessions)
-        const personal = sessions.filter(s => !s.teamId);
-        setPersonalSessions(personal);
+        const targetTeamId = pendingTeamId || team?.id;
+        // Show all sessions that aren't already in the target team
+        // This includes personal sessions AND sessions from old teams the user left
+        const importable = sessions.filter(s => s.teamId !== targetTeamId);
+        setPersonalSessions(importable);
         // Pre-select all by default
-        setSelectedSessionIds(new Set(personal.map(s => s.id)));
+        setSelectedSessionIds(new Set(importable.map(s => s.id)));
       } catch {
         toast.error('Failed to load your sessions');
       } finally {
@@ -92,7 +95,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     };
 
     loadPersonalSessions();
-  }, [showImportDialog, user?.uid]);
+  }, [showImportDialog, user?.uid, pendingTeamId, team?.id]);
 
   const toggleSession = (id: string) => {
     setSelectedSessionIds(prev => {
@@ -332,20 +335,43 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               </span>
             </button>
 
-            {/* Invite button */}
+            {/* Invite / Copy link button */}
             <button
               onClick={async () => {
-                await refreshTeam();
-                setShowTeamInfo(true);
+                if (!team?.inviteCode) return;
+                const inviteUrl = `${window.location.origin}/join/${team.inviteCode}`;
+                try {
+                  await navigator.clipboard.writeText(inviteUrl);
+                } catch {
+                  try {
+                    await navigator.clipboard.writeText(team.inviteCode);
+                  } catch {
+                    toast.error('Failed to copy');
+                    return;
+                  }
+                }
+                setInviteCopied(true);
+                setTimeout(() => setInviteCopied(false), 2000);
               }}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] sm:min-h-[44px] ${
-                isDarkMode
-                  ? 'border-team-blue-40 hover:border-team-blue text-team-blue'
-                  : 'border-gray-200 hover:border-team-blue text-team-blue'
+                inviteCopied
+                  ? 'border-green-500 text-green-500'
+                  : isDarkMode
+                    ? 'border-team-blue-40 hover:border-team-blue text-team-blue'
+                    : 'border-gray-200 hover:border-team-blue text-team-blue'
               }`}
             >
-              <Link2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Invite</span>
+              {inviteCopied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  <span className="hidden sm:inline">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Link2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Invite</span>
+                </>
+              )}
             </button>
           </>
         ) : (
