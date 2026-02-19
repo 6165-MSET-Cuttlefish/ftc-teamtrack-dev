@@ -65,6 +65,9 @@ interface AuthContextType {
   continueAsGuest: () => void;
   updateDisplayName: (displayName: string) => Promise<void>;
   updateUserEmail: (newEmail: string, currentPassword: string) => Promise<void>;
+  sendVerificationEmail: () => Promise<void>;
+  updateUserPassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: (currentPassword?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -218,6 +221,57 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setUser(prev => (prev ? { ...prev, email: newEmail } : prev));
   };
 
+  const sendVerificationEmail = async () => {
+    const { authInstance } = await ensureAuth();
+    if (!authInstance) throw new Error('Authentication service unavailable.');
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) throw new Error('No authenticated user.');
+    const rawModule = await import('firebase/auth');
+    await rawModule.sendEmailVerification(currentUser);
+  };
+
+  const updateUserPassword = async (currentPassword: string, newPassword: string) => {
+    const { authInstance } = await ensureAuth();
+    if (!authInstance) throw new Error('Authentication service unavailable.');
+    const currentUser = authInstance.currentUser;
+    if (!currentUser || !currentUser.email)
+      throw new Error('No authenticated user.');
+    const rawModule = await import('firebase/auth');
+    const credential = rawModule.EmailAuthProvider.credential(
+      currentUser.email,
+      currentPassword
+    );
+    await rawModule.reauthenticateWithCredential(currentUser, credential);
+    await rawModule.updatePassword(currentUser, newPassword);
+  };
+
+  const deleteAccount = async (currentPassword?: string) => {
+    const { authInstance } = await ensureAuth();
+    if (!authInstance) throw new Error('Authentication service unavailable.');
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) throw new Error('No authenticated user.');
+
+    const rawModule = await import('firebase/auth');
+    const providerId = currentUser.providerData?.[0]?.providerId;
+
+    // Re-authenticate before deletion
+    if (providerId === 'google.com') {
+      const provider = new rawModule.GoogleAuthProvider();
+      await rawModule.reauthenticateWithPopup(currentUser, provider);
+    } else if (currentPassword && currentUser.email) {
+      const credential = rawModule.EmailAuthProvider.credential(
+        currentUser.email,
+        currentPassword
+      );
+      await rawModule.reauthenticateWithCredential(currentUser, credential);
+    } else {
+      throw new Error('Password is required to delete your account.');
+    }
+
+    await rawModule.deleteUser(currentUser);
+    setUser(null);
+  };
+
   const loginWithGoogle = async () => {
     const { authInstance, authModule } = await ensureAuth();
 
@@ -279,6 +333,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 displayName: u.displayName,
                 photoURL: u.photoURL,
                 providerId: u.providerData?.[0]?.providerId || 'password',
+                emailVerified: u.emailVerified,
               };
               setUser(user);
               // Clear guest mode if user logs in
@@ -337,6 +392,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     continueAsGuest,
     updateDisplayName,
     updateUserEmail,
+    sendVerificationEmail,
+    updateUserPassword,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

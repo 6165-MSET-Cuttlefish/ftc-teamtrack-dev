@@ -108,6 +108,8 @@ export interface User {
   photoURL: string | null;
   /** Primary auth provider ID (e.g. 'password', 'google.com') */
   providerId?: string;
+  /** Whether the user's email address has been verified */
+  emailVerified?: boolean;
 }
 
 export interface ChartDataPoint {
