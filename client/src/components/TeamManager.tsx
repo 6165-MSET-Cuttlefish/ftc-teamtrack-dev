@@ -485,7 +485,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               Join a Team
             </DialogTitle>
             <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              Enter the invite code shared by a team member.
+              Enter the invite code or link shared by a team member.
               {team && ' You will leave your current team.'}
             </DialogDescription>
           </DialogHeader>
@@ -497,18 +497,26 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                   isDarkMode ? 'text-team-white-60' : 'text-gray-700'
                 }`}
               >
-                Invite Code
+                Invite Code / Link
               </label>
               <Input
                 value={inviteCode}
-                onChange={e => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="e.g., ABC12345"
+                onChange={e => {
+                  let val = e.target.value;
+                  // If user pastes a join link, extract just the code
+                  const joinMatch = val.match(/\/join\/([A-Za-z0-9]+)/);
+                  if (joinMatch) {
+                    val = joinMatch[1];
+                  }
+                  setInviteCode(val.toUpperCase());
+                }}
+                placeholder="Code or invite link"
                 className={`h-12 rounded-xl text-center text-lg font-mono tracking-widest ${
                   isDarkMode
                     ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
                     : 'bg-gray-50 border-gray-200 text-team-blue placeholder-gray-400'
                 }`}
-                maxLength={8}
+                maxLength={64}
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleJoinTeam();
                 }}
