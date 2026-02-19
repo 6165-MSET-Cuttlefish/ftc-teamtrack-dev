@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useTheme, useSession } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES, APP_CONFIG } from '@/constants';
-import { isAbortError } from '@/lib/utils';
+import { isAbortError, toDate } from '@/lib/utils';
 import type { Session, ChartDataPoint } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -81,24 +81,11 @@ const Charts = () => {
     loadSessions();
   }, [user?.uid]);
 
-  // Use a custom short date format for charts (different from the imported formatDate)
+  // Use a custom short date format for charts
   const formatChartDate = (timestamp: unknown): string => {
     if (!timestamp) return 'Unknown';
-
-    let date: Date;
-    if (typeof timestamp === 'string') {
-      date = new Date(timestamp);
-    } else if (
-      typeof timestamp === 'object' &&
-      timestamp !== null &&
-      'seconds' in timestamp
-    ) {
-      const ts = timestamp as { seconds: number };
-      date = new Date(ts.seconds * 1000);
-    } else {
-      return 'Unknown';
-    }
-
+    const date = toDate(timestamp);
+    if (isNaN(date.getTime())) return 'Unknown';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
@@ -111,19 +98,7 @@ const Charts = () => {
 
     return sessions.filter(session => {
       if (!session.createdAt) return false;
-
-      let sessionDate: Date;
-      if (typeof session.createdAt === 'string') {
-        sessionDate = new Date(session.createdAt);
-      } else if (
-        typeof session.createdAt === 'object' &&
-        'seconds' in session.createdAt
-      ) {
-        const ts = session.createdAt as { seconds: number };
-        sessionDate = new Date(ts.seconds * 1000);
-      } else {
-        return false;
-      }
+      const sessionDate = toDate(session.createdAt);
 
       return sessionDate >= cutoffDate;
     });
@@ -135,41 +110,32 @@ const Charts = () => {
     if (filteredSessions.length === 0) return [];
 
     return filteredSessions
-      .sort((a, b) => {
-        const dateA =
-          typeof a.createdAt === 'string'
-            ? new Date(a.createdAt)
-            : new Date((a.createdAt as { seconds: number }).seconds * 1000);
-        const dateB =
-          typeof b.createdAt === 'string'
-            ? new Date(b.createdAt)
-            : new Date((b.createdAt as { seconds: number }).seconds * 1000);
-        return dateA.getTime() - dateB.getTime();
-      })
+      .sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime())
       .map((session, index) => {
+        const matchCount = session.matches.length || 1;
         const finalScore = session.matches.reduce(
           (sum, m) => sum + (m.finalScore || 0),
           0
-        );
+        ) / matchCount;
         const autonomousScore = session.matches.reduce(
           (sum, m) => sum + (m.autonomousScore || 0),
           0
-        );
+        ) / matchCount;
         const teleopScore = session.matches.reduce(
           (sum, m) => sum + (m.teleopScore || 0),
           0
-        );
+        ) / matchCount;
         const endGameScore = session.matches.reduce(
           (sum, m) => sum + (m.endGameScore || 0),
           0
-        );
+        ) / matchCount;
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
-          'Final Score': finalScore,
-          Autonomous: autonomousScore,
-          Teleop: teleopScore,
-          'Endgame': endGameScore,
+          'Final Score': Math.round(finalScore),
+          Autonomous: Math.round(autonomousScore),
+          Teleop: Math.round(teleopScore),
+          'Endgame': Math.round(endGameScore),
         };
       });
   };
@@ -180,27 +146,18 @@ const Charts = () => {
     if (filteredSessions.length === 0) return [];
 
     return filteredSessions
-      .sort((a, b) => {
-        const dateA =
-          typeof a.createdAt === 'string'
-            ? new Date(a.createdAt)
-            : new Date((a.createdAt as { seconds: number }).seconds * 1000);
-        const dateB =
-          typeof b.createdAt === 'string'
-            ? new Date(b.createdAt)
-            : new Date((b.createdAt as { seconds: number }).seconds * 1000);
-        return dateA.getTime() - dateB.getTime();
-      })
+      .sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime())
       .map((session, index) => {
+        const matchCount = session.matches.length || 1;
         const ballsMissed = session.matches.reduce(
           (sum, m) =>
             sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
           0
-        );
+        ) / matchCount;
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
-          'Balls Missed': ballsMissed,
+          'Balls Missed': Math.round(ballsMissed * 10) / 10,
         };
       });
   };
@@ -262,33 +219,18 @@ const Charts = () => {
   // Recent Performance Trend (Last 10 sessions)
   const getRecentTrendData = (): ChartDataPoint[] => {
     const allSessions = getFilteredSessions();
-    const sorted = [...allSessions].sort((a, b) => {
-      const dateA =
-        typeof a.createdAt === 'string'
-          ? new Date(a.createdAt)
-          : new Date((a.createdAt as { seconds: number }).seconds * 1000);
-      const dateB =
-        typeof b.createdAt === 'string'
-          ? new Date(b.createdAt)
-          : new Date((b.createdAt as { seconds: number }).seconds * 1000);
-      return dateB.getTime() - dateA.getTime();
-    });
+    const sorted = [...allSessions].sort((a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime());
 
     const recent = sorted.slice(0, 10).reverse();
 
     return recent.map((session, index) => {
-      const sessionScore = session.matches.reduce(
-        (sum, m) => sum + (m.finalScore || 0),
-        0
-      );
+      const sessionScore = getSessionScore(session);
 
       const movingAvg =
         recent
           .slice(Math.max(0, index - 2), index + 1)
           .reduce(
-            (sum, s) =>
-              sum +
-              s.matches.reduce((mSum, m) => mSum + (m.finalScore || 0), 0),
+            (sum, s) => sum + getSessionScore(s),
             0
           ) / Math.min(3, index + 1);
 
@@ -305,23 +247,11 @@ const Charts = () => {
     const allSessions = getFilteredSessions();
     if (allSessions.length < 3) return [];
 
-    const sorted = [...allSessions].sort((a, b) => {
-      const dateA =
-        typeof a.createdAt === 'string'
-          ? new Date(a.createdAt)
-          : new Date((a.createdAt as { seconds: number }).seconds * 1000);
-      const dateB =
-        typeof b.createdAt === 'string'
-          ? new Date(b.createdAt)
-          : new Date((b.createdAt as { seconds: number }).seconds * 1000);
-      return dateA.getTime() - dateB.getTime();
-    });
+    const sorted = [...allSessions].sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime());
 
     return sorted.slice(2).map((session, index) => {
       const windowSessions = sorted.slice(Math.max(0, index), index + 3);
-      const scores = windowSessions.map(s =>
-        s.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0)
-      );
+      const scores = windowSessions.map(s => getSessionScore(s));
       const mean = scores.reduce((sum, s) => sum + s, 0) / scores.length;
       const variance =
         scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) /
@@ -331,10 +261,7 @@ const Charts = () => {
       const consistency =
         mean > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / mean) * 100)) : 0;
 
-      const sessionScore = session.matches.reduce(
-        (sum, m) => sum + (m.finalScore || 0),
-        0
-      );
+      const sessionScore = getSessionScore(session);
 
       return {
         name: formatChartDate(session.createdAt),
@@ -470,9 +397,10 @@ const Charts = () => {
     );
   }
 
-  // Helper function to get session score
+  // Helper function to get average match score for a session
   const getSessionScore = (session: Session): number => {
-    return session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
+    const matchCount = session.matches.length || 1;
+    return Math.round(session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) / matchCount);
   };
 
   const scoreTrendData = getScoreTrendData();
@@ -745,23 +673,7 @@ const Charts = () => {
                         </>
                       );
                     }
-                    const sorted = [...getFilteredSessions()].sort((a, b) => {
-                      const dateA =
-                        typeof a.createdAt === 'string'
-                          ? new Date(a.createdAt)
-                          : new Date(
-                              (a.createdAt as { seconds: number }).seconds *
-                                1000
-                            );
-                      const dateB =
-                        typeof b.createdAt === 'string'
-                          ? new Date(b.createdAt)
-                          : new Date(
-                              (b.createdAt as { seconds: number }).seconds *
-                                1000
-                            );
-                      return dateA.getTime() - dateB.getTime();
-                    });
+                    const sorted = [...getFilteredSessions()].sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime());
                     const firstHalf = sorted.slice(
                       0,
                       Math.floor(sorted.length / 2)

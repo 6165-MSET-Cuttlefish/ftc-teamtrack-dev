@@ -643,9 +643,10 @@ export const PerformanceMetrics = () => {
 
         const shotType = parseInt(popupNumber);
         // Use matchPhase to determine if we're in auton or teleop (same logic as ScoringUI)
+        // controller_pickup and prepare phases are part of the auton→teleop transition, so count as autonomous
         const isAutonPhase =
           sessionData.matchType === 'Autonomous' ||
-          (sessionData.matchType === 'Full Game' && matchPhase === 'auton');
+          (sessionData.matchType === 'Full Game' && (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare'));
 
         // Compute cycle time in seconds with 2 decimal precision (same as ScoringUI)
         const now = Date.now();

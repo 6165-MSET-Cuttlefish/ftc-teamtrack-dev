@@ -32,6 +32,7 @@ export interface SessionTimerState {
   showTeleopTransition: boolean;
   sessionStartTime: number;
   matchStartTime: number;
+  matchPhase?: 'auton' | 'controller_pickup' | 'prepare' | 'teleop' | 'ended';
 }
 
 export interface MatchState {
@@ -78,6 +79,7 @@ export const saveSessionToStorage = (
         hasStarted: timerState.hasStarted,
         hasTransitionedToTeleop: timerState.hasTransitionedToTeleop,
         showTeleopTransition: timerState.showTeleopTransition,
+        matchPhase: timerState.matchPhase ?? 'auton',
       })
     );
 
@@ -145,6 +147,7 @@ export const loadTimerStateFromStorage = (): SessionTimerState | null => {
       showTeleopTransition: matchState.showTeleopTransition ?? false,
       sessionStartTime: parseInt(sessionStartTime || '0', 10),
       matchStartTime: parseInt(matchStartTime || '0', 10),
+      matchPhase: matchState.matchPhase ?? 'auton',
     };
   } catch (error) {
     console.error('Failed to load timer state from storage:', error);
