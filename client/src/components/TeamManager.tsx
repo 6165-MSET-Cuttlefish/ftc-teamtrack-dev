@@ -254,11 +254,15 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
         {team ? (
           <>
             {/* Team badge */}
-            <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium ${
+            <button
+              onClick={() => {
+                refreshTeam();
+                setShowTeamInfo(true);
+              }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
                 isDarkMode
-                  ? 'border-team-blue-40 bg-team-dark-20 text-white'
-                  : 'border-gray-200 bg-white text-team-blue'
+                  ? 'border-team-blue-40 bg-team-dark-20 text-white hover:border-team-blue'
+                  : 'border-gray-200 bg-white text-team-blue hover:border-team-blue'
               }`}
             >
               <Users className="h-4 w-4 text-team-blue" />
@@ -266,7 +270,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               <span className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}>
                 · {team.members.length} member{team.members.length !== 1 ? 's' : ''}
               </span>
-            </div>
+            </button>
 
             {/* Invite button */}
             <button
