@@ -14,7 +14,7 @@ const AUTH_ROUTES = [ROUTES.LOGIN, ROUTES.SIGNUP, ROUTES.FORGOT_PASSWORD];
 
 export const GuestPrompt = () => {
   const { isGuest } = useAuth();
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, themeMode } = useTheme();
   const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -59,11 +59,20 @@ export const GuestPrompt = () => {
     return null;
   }
 
+  // Use inline style for background to avoid honeycomb/deepsea global CSS making bg-team-dark transparent
+  const bgStyle = isDarkMode
+    ? {
+        backgroundColor:
+          themeMode === 'honeycomb' ? '#0a0a0a' : themeMode === 'deepsea' ? '#0a1628' : '#191919',
+      }
+    : undefined;
+
   return (
     <div
+      style={bgStyle}
       className={`fixed bottom-4 right-4 max-w-md rounded-lg shadow-2xl border-2 p-4 z-50 animate-slide-up ${
         isDarkMode
-          ? 'bg-gradient-to-br from-team-dark via-team-dark-20 to-team-dark border-team-blue-40'
+          ? 'border-team-blue-40'
           : 'bg-gradient-to-br from-white to-blue-50 border-blue-200'
       }`}
     >

@@ -8,7 +8,12 @@ import { generateShareableLink, copyToClipboard } from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Tooltip,
@@ -66,8 +71,7 @@ const SessionCard = ({
   // Check if title is truncated
   useEffect(() => {
     if (titleRef.current && !isEditing) {
-      const isTruncated =
-        titleRef.current.scrollHeight > titleRef.current.clientHeight;
+      const isTruncated = titleRef.current.scrollHeight > titleRef.current.clientHeight;
       setIsTitleTruncated(isTruncated);
     } else {
       setIsTitleTruncated(false);
@@ -77,10 +81,7 @@ const SessionCard = ({
   // Reset delete confirmation after timeout
   useEffect(() => {
     if (deleteConfirm) {
-      const timeout = setTimeout(
-        () => setDeleteConfirm(false),
-        UI_TIMING.DELETE_CONFIRM_TIMEOUT
-      );
+      const timeout = setTimeout(() => setDeleteConfirm(false), UI_TIMING.DELETE_CONFIRM_TIMEOUT);
       return () => clearTimeout(timeout);
     }
   }, [deleteConfirm]);
@@ -129,30 +130,19 @@ const SessionCard = ({
     const scores = matches
       .map(match => match.finalScore || 0)
       .filter(score => score > 0);
-
+    
     if (scores.length === 0) {
-      return {
-        highestScore: 0,
-        averageScore: 0,
-        totalScore: 0,
-        matchCount: matches.length,
-      };
+      return { highestScore: 0, averageScore: 0, totalScore: 0, matchCount: matches.length };
     }
 
     const totalScore = scores.reduce((a, b) => a + b, 0);
     const highestScore = Math.max(...scores);
     const averageScore = Math.round(totalScore / scores.length);
-
-    return {
-      highestScore,
-      averageScore,
-      totalScore,
-      matchCount: matches.length,
-    };
+    
+    return { highestScore, averageScore, totalScore, matchCount: matches.length };
   };
 
-  const { highestScore, averageScore, totalScore, matchCount } =
-    getSessionScores();
+  const { highestScore, averageScore, totalScore, matchCount } = getSessionScores();
 
   const cardContent = (
     <Card
@@ -207,7 +197,7 @@ const SessionCard = ({
                 ) : (
                   <>
                     <button
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         onShare();
                       }}
@@ -256,9 +246,7 @@ const SessionCard = ({
                         <button
                           onClick={handleDeleteCancel}
                           className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                            isDarkMode
-                              ? 'text-team-white-60'
-                              : 'text-team-blue-40'
+                            isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                           }`}
                           title="Cancel delete"
                         >
@@ -368,7 +356,9 @@ const SessionCard = ({
   if (isTitleTruncated) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{cardContent}</TooltipTrigger>
+        <TooltipTrigger asChild>
+          {cardContent}
+        </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs break-words">
           {session.sessionName || 'Untitled Session'}
         </TooltipContent>
@@ -418,26 +408,15 @@ const Sessions = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
-    null
-  );
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = `Sessions - ${APP_CONFIG.name}`;
   }, []);
 
   const loadPersonalSessions = useCallback(async () => {
-    // Guests: load sessions from localStorage
+    // Guests don't have sessions stored in Firebase
     if (isGuest) {
-      const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
-      try {
-        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
-        setSessions(stored);
-        setFilteredSessions(stored);
-      } catch {
-        setSessions([]);
-        setFilteredSessions([]);
-      }
       setLoading(false);
       return;
     }
@@ -460,12 +439,12 @@ const Sessions = () => {
   }, [user?.uid, isGuest]);
 
   const loadSessions = useCallback(async () => {
-    if (!user?.uid && !isGuest) return;
+    if (!user?.uid) return;
     if (!team) {
       await loadPersonalSessions();
     }
     // Team sessions are handled by the real-time listener below
-  }, [user?.uid, isGuest, team, loadPersonalSessions]);
+  }, [user?.uid, team, loadPersonalSessions]);
 
   // Real-time sync for team sessions
   useEffect(() => {
@@ -529,9 +508,7 @@ const Sessions = () => {
     if (searchTerm.trim()) {
       filtered = filtered.filter(
         session =>
-          session.sessionName
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
+          session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -539,8 +516,7 @@ const Sessions = () => {
     // Filter by match type
     if (selectedMatchType !== 'all') {
       filtered = filtered.filter(
-        session =>
-          session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
+        session => session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
       );
     }
 
@@ -551,13 +527,10 @@ const Sessions = () => {
     navigate(`/analysis?sessionId=${sessionId}`);
   };
 
-  const handleUpdateSessionName = async (
-    sessionId: string,
-    newName: string
-  ) => {
+  const handleUpdateSessionName = async (sessionId: string, newName: string) => {
     // Store original name before optimistic update for potential revert
     const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
-
+    
     try {
       // Update local state optimistically for instant feedback
       setSessions(prevSessions =>
@@ -567,35 +540,22 @@ const Sessions = () => {
             : session
         )
       );
-
-      if (isGuest) {
-        // Guest: update in localStorage
-        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
-        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
-        const updated = stored.map((s: Session) =>
-          s.id === sessionId ? { ...s, sessionName: newName } : s
+      
+      // Then update Firebase to persist changes
+      const success = await firebaseService.updateSession(sessionId, { sessionName: newName });
+      
+      if (!success) {
+        // Revert on failure using stored original name
+        setSessions(prevSessions =>
+          prevSessions.map(session =>
+            session.id === sessionId
+              ? { ...session, sessionName: originalName || newName }
+              : session
+          )
         );
-        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
-        toast.success('Session name updated');
+        toast.error('Failed to update session name');
       } else {
-        // Then update Firebase to persist changes
-        const success = await firebaseService.updateSession(sessionId, {
-          sessionName: newName,
-        });
-
-        if (!success) {
-          // Revert on failure using stored original name
-          setSessions(prevSessions =>
-            prevSessions.map(session =>
-              session.id === sessionId
-                ? { ...session, sessionName: originalName || newName }
-                : session
-            )
-          );
-          toast.error('Failed to update session name');
-        } else {
-          toast.success('Session name updated');
-        }
+        toast.success('Session name updated');
       }
     } catch (error) {
       const { logger } = await import('@/lib/logger');
@@ -615,15 +575,7 @@ const Sessions = () => {
   const handleDeleteSession = async (sessionId: string) => {
     try {
       setDeletingSessionId(sessionId);
-      if (isGuest) {
-        // Guest: delete from localStorage
-        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
-        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
-        const updated = stored.filter((s: Session) => s.id !== sessionId);
-        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
-      } else {
-        await firebaseService.deleteSession(sessionId);
-      }
+      await firebaseService.deleteSession(sessionId);
       setSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
       setFilteredSessions(prevSessions =>
         prevSessions.filter(s => s.id !== sessionId)
@@ -676,50 +628,17 @@ const Sessions = () => {
 
     // Convert sessions to CSV rows with proper escaping
     const rows = sessions.map(session => {
-      const finalScore = session.matches.reduce(
-        (sum, m) => sum + (m.finalScore || 0),
-        0
-      );
-      const autonomousScore = session.matches.reduce(
-        (sum, m) => sum + (m.autonomousScore || 0),
-        0
-      );
-      const teleopScore = session.matches.reduce(
-        (sum, m) => sum + (m.teleopScore || 0),
-        0
-      );
-      const endGameScore = session.matches.reduce(
-        (sum, m) => sum + (m.endGameScore || 0),
-        0
-      );
-      const autonClassifiedArtifact = session.matches.reduce(
-        (sum, m) => sum + (m.autonClassifiedArtifact || 0),
-        0
-      );
-      const autonOverflowArtifact = session.matches.reduce(
-        (sum, m) => sum + (m.autonOverflowArtifact || 0),
-        0
-      );
-      const autonMotif = session.matches.reduce(
-        (sum, m) => sum + (m.autonMotif || 0),
-        0
-      );
-      const autonLeave = session.matches.reduce(
-        (sum, m) => sum + (m.autonLeave || 0),
-        0
-      );
-      const teleClassifiedArtifact = session.matches.reduce(
-        (sum, m) => sum + (m.teleClassifiedArtifact || 0),
-        0
-      );
-      const teleOverflowArtifact = session.matches.reduce(
-        (sum, m) => sum + (m.teleOverflowArtifact || 0),
-        0
-      );
-      const teleMotif = session.matches.reduce(
-        (sum, m) => sum + (m.teleMotif || 0),
-        0
-      );
+      const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
+      const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
+      const teleopScore = session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0);
+      const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
+      const autonClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.autonClassifiedArtifact || 0), 0);
+      const autonOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.autonOverflowArtifact || 0), 0);
+      const autonMotif = session.matches.reduce((sum, m) => sum + (m.autonMotif || 0), 0);
+      const autonLeave = session.matches.reduce((sum, m) => sum + (m.autonLeave || 0), 0);
+      const teleClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0);
+      const teleOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0);
+      const teleMotif = session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0);
 
       return [
         `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
@@ -771,13 +690,13 @@ const Sessions = () => {
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 md:py-8 lg:py-12">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <h1
                 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
                 {team ? team.name : 'My Sessions'}
               </h1>
-              <TeamManager onTeamChange={() => loadSessions()} />
+              {!isGuest && <TeamManager onTeamChange={() => loadSessions()} />}
             </div>
             <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
               <Button
@@ -786,11 +705,7 @@ const Sessions = () => {
                   navigate(ROUTES.ACTIVE);
                 }}
                 disabled={hasActiveSession}
-                title={
-                  hasActiveSession
-                    ? 'Complete or cancel the active session first'
-                    : undefined
-                }
+                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
                 className={`bg-team-blue hover:bg-team-blue/90 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDarkMode ? '!text-black' : '!text-white'
                 }`}
@@ -880,16 +795,11 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {(() => {
-                    const allScores = sessions
-                      .flatMap(s =>
-                        (s.matches || []).map(m => m.finalScore || 0)
-                      )
-                      .filter(score => score > 0);
-                    return allScores.length > 0
-                      ? Math.round(
-                          allScores.reduce((a, b) => a + b, 0) /
-                            allScores.length
-                        )
+                    const allScores = sessions.flatMap(s => 
+                      (s.matches || []).map(m => m.finalScore || 0)
+                    ).filter(score => score > 0);
+                    return allScores.length > 0 
+                      ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) 
                       : 0;
                   })()}
                 </div>
@@ -904,7 +814,7 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {(() => {
-                    const allScores = sessions.flatMap(s =>
+                    const allScores = sessions.flatMap(s => 
                       (s.matches || []).map(m => m.finalScore || 0)
                     );
                     return allScores.length > 0 ? Math.max(...allScores) : 0;
@@ -920,10 +830,9 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {sessions.reduce(
-                    (total, s) => total + (s.matches?.length || 0),
-                    0
-                  )}
+                  {
+                    sessions.reduce((total, s) => total + (s.matches?.length || 0), 0)
+                  }
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
@@ -1004,20 +913,18 @@ const Sessions = () => {
             >
               {searchTerm
                 ? 'Try adjusting your search terms'
-                : 'Start tracking your practice sessions to see them here'}
+                : isGuest
+                  ? 'Create an account to save your practice sessions'
+                  : 'Start tracking your practice sessions to see them here'}
             </p>
-            {!searchTerm && (
+            {!searchTerm && !isGuest && (
               <Button
                 onClick={() => {
                   resetSession();
                   navigate('/active');
                 }}
                 disabled={hasActiveSession}
-                title={
-                  hasActiveSession
-                    ? 'Complete or cancel the active session first'
-                    : undefined
-                }
+                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
                 className={`bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDarkMode ? 'text-black' : 'text-white'
                 }`}
@@ -1025,6 +932,29 @@ const Sessions = () => {
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Session
               </Button>
+            )}
+            {!searchTerm && isGuest && (
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <Button
+                  onClick={() => navigate('/signup')}
+                  className={`bg-team-blue hover:bg-team-blue/90 ${
+                    isDarkMode ? 'text-black' : 'text-white'
+                  }`}
+                >
+                  Sign Up to Save Sessions
+                </Button>
+                <Button
+                  onClick={() => navigate('/active')}
+                  variant="outline"
+                  className={
+                    isDarkMode
+                      ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
+                      : 'border-gray-300'
+                  }
+                >
+                  Start Practice Session
+                </Button>
+              </div>
             )}
           </div>
         ) : (

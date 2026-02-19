@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useTeam, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
@@ -23,6 +23,8 @@ import {
   Download,
   CheckSquare,
   Square,
+  ArrowRightLeft,
+  UserMinus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Session } from '@/types';
@@ -33,7 +35,7 @@ interface TeamManagerProps {
 
 const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const { isDarkMode } = useTheme();
-  const { user, isGuest } = useAuth();
+  const { user } = useAuth();
   const {
     team,
     createTeam,
@@ -41,6 +43,8 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     leaveTeam,
     regenerateInviteCode,
     refreshTeam,
+    transferOwnership,
+    kickMember,
   } = useTeam();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -54,7 +58,10 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [regenerating, setRegenerating] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
-  const leaveConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [transferring, setTransferring] = useState<string | null>(null);
+  const [transferConfirm, setTransferConfirm] = useState<string | null>(null);
+  const [kicking, setKicking] = useState<string | null>(null);
+  const [kickConfirm, setKickConfirm] = useState<string | null>(null);
 
   // Import sessions state
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -63,15 +70,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [importing, setImporting] = useState(false);
   const [loadingPersonal, setLoadingPersonal] = useState(false);
   const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
-
-  // Clean up leaveConfirm timer on unmount
-  useEffect(() => {
-    return () => {
-      if (leaveConfirmTimerRef.current) {
-        clearTimeout(leaveConfirmTimerRef.current);
-      }
-    };
-  }, []);
 
   // Load personal sessions when import dialog opens
   useEffect(() => {
@@ -198,21 +196,9 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   };
 
   const handleLeaveTeam = async () => {
-    // Prevent the owner from leaving without transferring ownership
-    if (team && user) {
-      const currentMember = team.members.find(m => m.userId === user.uid);
-      if (currentMember?.role === 'owner') {
-        toast.error('As the team owner, you must transfer ownership or delete the team before leaving.');
-        return;
-      }
-    }
-
     if (!leaveConfirm) {
       setLeaveConfirm(true);
-      if (leaveConfirmTimerRef.current) {
-        clearTimeout(leaveConfirmTimerRef.current);
-      }
-      leaveConfirmTimerRef.current = setTimeout(() => setLeaveConfirm(false), 5000);
+      setTimeout(() => setLeaveConfirm(false), 5000);
       return;
     }
 
@@ -265,15 +251,57 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     }
   };
 
-  // Guest users cannot manage teams
-  if (isGuest || !user) {
-    return (
-      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${isDarkMode ? 'border-team-blue-40 text-team-white-60' : 'border-gray-200 text-gray-500'}`}>
-        <Users className="h-4 w-4" />
-        <span>Sign in to create or join a team</span>
-      </div>
-    );
-  }
+  const handleTransferOwnership = async (newOwnerId: string, memberName: string) => {
+    // First click: show confirmation
+    if (transferConfirm !== newOwnerId) {
+      setTransferConfirm(newOwnerId);
+      setTimeout(() => setTransferConfirm(prev => prev === newOwnerId ? null : prev), 5000);
+      return;
+    }
+
+    // Second click: execute transfer
+    setTransferConfirm(null);
+    setTransferring(newOwnerId);
+    try {
+      const success = await transferOwnership(newOwnerId);
+      if (success) {
+        toast.success(`Ownership transferred to ${memberName}`);
+      } else {
+        toast.error('Failed to transfer ownership');
+      }
+    } catch {
+      toast.error('Failed to transfer ownership');
+    } finally {
+      setTransferring(null);
+    }
+  };
+
+  const handleKickMember = async (targetUserId: string, memberName: string) => {
+    // First click: show confirmation
+    if (kickConfirm !== targetUserId) {
+      setKickConfirm(targetUserId);
+      setTimeout(() => setKickConfirm(prev => prev === targetUserId ? null : prev), 5000);
+      return;
+    }
+
+    // Second click: execute kick
+    setKickConfirm(null);
+    setKicking(targetUserId);
+    try {
+      const success = await kickMember(targetUserId);
+      if (success) {
+        toast.success(`${memberName} has been removed from the team`);
+      } else {
+        toast.error('Failed to remove member');
+      }
+    } catch {
+      toast.error('Failed to remove member');
+    } finally {
+      setKicking(null);
+    }
+  };
+
+  const isOwner = team?.members.some(m => m.userId === user?.uid && m.role === 'owner') ?? false;
 
   return (
     <>
@@ -287,11 +315,11 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           <>
             {/* Team badge */}
             <button
-              onClick={() => {
-                refreshTeam();
+              onClick={async () => {
+                await refreshTeam();
                 setShowTeamInfo(true);
               }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer min-h-[40px] sm:min-h-[44px] ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20 text-white hover:border-team-blue'
                   : 'border-gray-200 bg-white text-team-blue hover:border-team-blue'
@@ -306,11 +334,11 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
 
             {/* Invite button */}
             <button
-              onClick={() => {
-                refreshTeam();
+              onClick={async () => {
+                await refreshTeam();
                 setShowTeamInfo(true);
               }}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] sm:min-h-[44px] ${
                 isDarkMode
                   ? 'border-team-blue-40 hover:border-team-blue text-team-blue'
                   : 'border-gray-200 hover:border-team-blue text-team-blue'
@@ -325,7 +353,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
             {/* No team - show create/join buttons */}
             <button
               onClick={() => setShowCreateDialog(true)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] sm:min-h-[44px] ${
                 isDarkMode
                   ? 'border-team-blue-40 hover:border-team-blue text-team-blue bg-team-dark-20'
                   : 'border-gray-200 hover:border-team-blue text-team-blue bg-white'
@@ -336,7 +364,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
             </button>
             <button
               onClick={() => setShowJoinDialog(true)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] sm:min-h-[44px] ${
                 isDarkMode
                   ? 'border-team-blue-40 hover:border-team-blue text-team-blue bg-team-dark-20'
                   : 'border-gray-200 hover:border-team-blue text-team-blue bg-white'
@@ -495,7 +523,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       {/* Team Info / Invite Dialog */}
       <Dialog open={showTeamInfo} onOpenChange={setShowTeamInfo}>
         <DialogContent
-          className={isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}
+          className={`max-w-md ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
           <DialogHeader className={isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}>
             <DialogTitle className={isDarkMode ? 'text-white' : 'text-team-blue'}>
@@ -507,7 +535,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-6 space-y-6">
+          <div className="p-5 space-y-4">
             {/* Invite Section */}
             <div>
               <label
@@ -598,6 +626,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                   isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
                 }`}
               >
+                <div className="max-h-[260px] overflow-y-auto">
                 {team?.members.map((member, idx) => (
                   <div
                     key={member.userId}
@@ -612,7 +641,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                     }`}
                   >
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                         member.role === 'owner'
                           ? 'bg-team-blue/20 text-team-blue'
                           : isDarkMode
@@ -647,19 +676,72 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                         </div>
                       )}
                     </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        member.role === 'owner'
-                          ? 'bg-team-blue/15 text-team-blue'
-                          : isDarkMode
-                            ? 'bg-team-dark text-team-white-40'
-                            : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {member.role === 'owner' ? 'Owner' : 'Member'}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isOwner && member.userId !== user?.uid && (
+                        <button
+                          onClick={() => handleTransferOwnership(member.userId, member.displayName || member.email)}
+                          disabled={transferring === member.userId}
+                          title="Transfer ownership"
+                          className={`flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
+                            transferConfirm === member.userId
+                              ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 px-2 py-1'
+                              : isDarkMode
+                                ? 'hover:bg-team-dark text-team-white-40 hover:text-team-blue p-1.5'
+                                : 'hover:bg-gray-200 text-gray-400 hover:text-team-blue p-1.5'
+                          } ${transferring === member.userId ? 'opacity-50' : ''}`}
+                        >
+                          {transferring === member.userId ? (
+                            <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : transferConfirm === member.userId ? (
+                            <>
+                              Transfer ownership?
+                              <Check className="h-3.5 w-3.5" />
+                            </>
+                          ) : (
+                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                      {isOwner && member.userId !== user?.uid && (
+                        <button
+                          onClick={() => handleKickMember(member.userId, member.displayName || member.email)}
+                          disabled={kicking === member.userId}
+                          title="Remove member"
+                          className={`flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
+                            kickConfirm === member.userId
+                              ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 px-2 py-1'
+                              : isDarkMode
+                                ? 'hover:bg-team-dark text-team-white-40 hover:text-red-400 p-1.5'
+                                : 'hover:bg-gray-200 text-gray-400 hover:text-red-500 p-1.5'
+                          } ${kicking === member.userId ? 'opacity-50' : ''}`}
+                        >
+                          {kicking === member.userId ? (
+                            <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : kickConfirm === member.userId ? (
+                            <>
+                              Remove?
+                              <Check className="h-3.5 w-3.5" />
+                            </>
+                          ) : (
+                            <UserMinus className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          member.role === 'owner'
+                            ? 'bg-team-blue/15 text-team-blue'
+                            : isDarkMode
+                              ? 'bg-team-dark text-team-white-40'
+                              : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {member.role === 'owner' ? 'Owner' : 'Member'}
+                      </span>
+                    </div>
                   </div>
                 ))}
+                </div>
               </div>
             </div>
 

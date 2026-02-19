@@ -395,26 +395,26 @@
   );
 }
 
-/* Make page backgrounds transparent in honeycomb mode so the pattern shows through */
+/* Make page backgrounds solid in honeycomb mode */
 .honeycomb .bg-team-dark {
-  background-color: transparent !important;
+  background-color: #0a0a0a !important;
 }
 
 .honeycomb .bg-\[\#FEFEFE\] {
-  background-color: transparent !important;
+  background-color: #0a0a0a !important;
 }
 
 .honeycomb .bg-white {
-  background-color: rgba(10, 10, 10, 0.7) !important;
+  background-color: #0f0f0f !important;
 }
 
 .honeycomb .bg-gray-50 {
-  background-color: rgba(10, 10, 10, 0.5) !important;
+  background-color: #111111 !important;
 }
 
-/* Card backgrounds in honeycomb mode - semi-transparent dark */
+/* Card backgrounds in honeycomb mode */
 .honeycomb .bg-team-dark-20 {
-  background-color: rgba(10, 10, 10, 0.8) !important;
+  background-color: #141414 !important;
 }
 
 /* Honeycomb theme accent colors */
@@ -651,26 +651,26 @@
   }
 }
 
-/* Make page backgrounds transparent in deep sea mode so the gradient shows */
+/* Make page backgrounds solid in deep sea mode */
 .deepsea .bg-team-dark {
-  background-color: transparent !important;
+  background-color: #0a1628 !important;
 }
 
 .deepsea .bg-\[\#FEFEFE\] {
-  background-color: transparent !important;
+  background-color: #0a1628 !important;
 }
 
 .deepsea .bg-white {
-  background-color: rgba(10, 22, 40, 0.75) !important;
+  background-color: #0d1b2a !important;
 }
 
 .deepsea .bg-gray-50 {
-  background-color: rgba(10, 22, 40, 0.55) !important;
+  background-color: #0a1628 !important;
 }
 
 /* Card backgrounds in deep sea mode */
 .deepsea .bg-team-dark-20 {
-  background-color: rgba(10, 22, 40, 0.85) !important;
+  background-color: #0d1b2a !important;
 }
 
 /* Deep sea accent colors */

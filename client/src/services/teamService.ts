@@ -233,25 +233,150 @@ class TeamService {
     );
   }
 
+  /** Serialize a Firestore member object into a clean plain object */
+  private cleanMember(m: TeamMember, roleOverride?: 'owner' | 'member'): Record<string, unknown> {
+    return {
+      userId: m.userId,
+      email: m.email,
+      displayName: m.displayName || '',
+      joinedAt: m.joinedAt,
+      role: roleOverride ?? m.role,
+    };
+  }
+
   /** Leave a team (remove user from members array) */
   async leaveTeam(teamId: string, userId: string): Promise<boolean> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
-        const teamDoc = await getDoc(doc(db, 'teams', teamId));
+        const docRef = doc(db, 'teams', teamId);
+        const teamDoc = await getDoc(docRef);
         if (!teamDoc.exists()) return false;
 
         const teamData = teamDoc.data();
-        const updatedMembers = (teamData.members || []).filter(
-          (m: TeamMember) => m.userId !== userId
+        const members: TeamMember[] = teamData.members || [];
+        const leavingMember = members.find((m) => m.userId === userId);
+        const remaining = members.filter((m) => m.userId !== userId);
+
+        // If the owner is leaving, transfer ownership to the oldest member
+        let newOwnerUserId: string | null = null;
+        if (leavingMember?.role === 'owner' && remaining.length > 0) {
+          // Pick the first remaining member (oldest by join time) as new owner
+          // Fallback: just use remaining[0] if timestamp sorting fails
+          try {
+            const sorted = [...remaining].sort((a, b) => {
+              const aTime = a.joinedAt && typeof a.joinedAt === 'object' && 'seconds' in a.joinedAt
+                ? (a.joinedAt as { seconds: number }).seconds
+                : 0;
+              const bTime = b.joinedAt && typeof b.joinedAt === 'object' && 'seconds' in b.joinedAt
+                ? (b.joinedAt as { seconds: number }).seconds
+                : 0;
+              return aTime - bTime;
+            });
+            newOwnerUserId = sorted[0].userId;
+          } catch {
+            newOwnerUserId = remaining[0].userId;
+          }
+        }
+
+        const updatedMembers = remaining.map((m) =>
+          this.cleanMember(m, m.userId === newOwnerUserId ? 'owner' : undefined)
         );
 
-        const docRef = doc(db, 'teams', teamId);
         await updateDoc(docRef, { members: updatedMembers });
         return true;
       },
       false,
       'Error leaving team:',
+      true
+    );
+  }
+
+  /** Transfer ownership to another member */
+  async transferOwnership(teamId: string, currentOwnerId: string, newOwnerId: string): Promise<boolean> {
+    return this.safeExecute(
+      async () => {
+        const db = await this.getDB();
+        const docRef = doc(db, 'teams', teamId);
+        const teamDoc = await getDoc(docRef);
+        if (!teamDoc.exists()) return false;
+
+        const teamData = teamDoc.data();
+        const members: TeamMember[] = teamData.members || [];
+
+        const currentOwner = members.find((m) => m.userId === currentOwnerId);
+        if (!currentOwner || currentOwner.role !== 'owner') return false;
+
+        const updatedMembers = members.map((m) => {
+          if (m.userId === currentOwnerId) return this.cleanMember(m, 'member');
+          if (m.userId === newOwnerId) return this.cleanMember(m, 'owner');
+          return this.cleanMember(m);
+        });
+
+        await updateDoc(docRef, { members: updatedMembers });
+        return true;
+      },
+      false,
+      'Error transferring ownership:',
+      true
+    );
+  }
+
+  /** Kick a member from the team (owner only) */
+  async kickMember(teamId: string, ownerUserId: string, targetUserId: string): Promise<boolean> {
+    return this.safeExecute(
+      async () => {
+        const db = await this.getDB();
+        const docRef = doc(db, 'teams', teamId);
+        const teamDoc = await getDoc(docRef);
+        if (!teamDoc.exists()) return false;
+
+        const teamData = teamDoc.data();
+        const members: TeamMember[] = teamData.members || [];
+
+        // Verify the requester is the owner
+        const owner = members.find((m) => m.userId === ownerUserId);
+        if (!owner || owner.role !== 'owner') return false;
+
+        // Cannot kick yourself
+        if (ownerUserId === targetUserId) return false;
+
+        const updatedMembers = members
+          .filter((m) => m.userId !== targetUserId)
+          .map((m) => this.cleanMember(m));
+
+        await updateDoc(docRef, { members: updatedMembers });
+        return true;
+      },
+      false,
+      'Error kicking member:',
+      true
+    );
+  }
+
+  /** Update a member's display name in the team */
+  async updateMemberDisplayName(teamId: string, userId: string, newDisplayName: string): Promise<boolean> {
+    return this.safeExecute(
+      async () => {
+        const db = await this.getDB();
+        const docRef = doc(db, 'teams', teamId);
+        const teamDoc = await getDoc(docRef);
+        if (!teamDoc.exists()) return false;
+
+        const teamData = teamDoc.data();
+        const members: TeamMember[] = teamData.members || [];
+
+        const updatedMembers = members.map((m) => {
+          const clean = this.cleanMember(m);
+          if (m.userId === userId) clean.displayName = newDisplayName;
+          return clean;
+        });
+
+        await updateDoc(docRef, { members: updatedMembers });
+        return true;
+      },
+      false,
+      'Error updating member display name:',
       true
     );
   }
