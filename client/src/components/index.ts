@@ -1,13 +1,19 @@
-export { default as ErrorBoundary } from './ErrorBoundary';
-export { Header } from './Header';
-export { LivePreview } from './LivePreview';
-export { MatchForm } from './MatchForm';
-export { Notes } from './Notes';
-export { PerformanceMetrics } from './PerformanceMetrics';
-export { ProtectedRoute } from './ProtectedRoute';
-export { SessionSetup } from './SessionSetup';
-export { ScoringUI } from './ScoringUI';
-export { GuestPrompt } from './GuestPrompt';
-export { ShareButton } from './ShareButton';
-export { HomeRedirect } from './HomeRedirect';
-export { ActiveTutorial, TUTORIAL_STORAGE_KEY, TUTORIAL_RESTART_EVENT } from './ActiveTutorial';
+// Auth components
+export { GuestPrompt, HomeRedirect, ProtectedRoute } from './auth';
+
+// Common/shared components
+export { ErrorBoundary, Header } from './common';
+
+// Session feature components
+export {
+  ActiveTutorial,
+  TUTORIAL_STORAGE_KEY,
+  TUTORIAL_RESTART_EVENT,
+  LivePreview,
+  MatchForm,
+  Notes,
+  PerformanceMetrics,
+  ScoringUI,
+  SessionSetup,
+  ShareButton,
+} from './session';

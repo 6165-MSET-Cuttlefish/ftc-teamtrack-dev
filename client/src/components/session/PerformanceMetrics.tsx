@@ -6,10 +6,10 @@ import React, {
   memo,
   useMemo,
 } from 'react';
-import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useSession } from '@/contexts';
+import { useTheme } from '@/contexts';
 import { ChevronRight, Clock, Plus, Trash2 } from 'lucide-react';
-import type { ShotEntry } from '../types';
+import type { ShotEntry } from '@/types';
 
 // ─── Constants ──────────────────────────────────────────────────────────
 const POINTS_PER_MADE = 3;

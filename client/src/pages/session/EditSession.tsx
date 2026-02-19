@@ -5,7 +5,7 @@ import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, Match } from '@/types';
-import { MatchForm } from '@/components/MatchForm';
+import { MatchForm } from '@/components';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {

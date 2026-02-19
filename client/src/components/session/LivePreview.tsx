@@ -77,9 +77,9 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
   useEffect(() => {
     const checkSessionLimit = async () => {
       if (user?.uid && !sessionData.isSessionCompleted) {
-        const { firebaseService } = await import('../services/firebaseService');
+        const { firebaseService } = await import('@/services/firebaseService');
         const userSessions = await firebaseService.getUserSessions(user.uid);
-        const { SESSION_LIMITS } = await import('../constants');
+        const { SESSION_LIMITS } = await import('@/constants');
 
         if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
           setSessionLimitReached(true);
@@ -270,9 +270,9 @@ export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSess
     }
 
     // Check session limit
-    const { firebaseService } = await import('../services/firebaseService');
+    const { firebaseService } = await import('@/services/firebaseService');
     const userSessions = await firebaseService.getUserSessions(user.uid);
-    const { SESSION_LIMITS } = await import('../constants');
+    const { SESSION_LIMITS } = await import('@/constants');
 
     if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
       toast.error(

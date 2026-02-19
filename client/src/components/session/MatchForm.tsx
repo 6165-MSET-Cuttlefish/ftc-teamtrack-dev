@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts';
 import type { Match } from '@/types';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select';
+} from '../ui/select';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
+} from '../ui/dialog';
 import { 
   Plus,
   Pencil,

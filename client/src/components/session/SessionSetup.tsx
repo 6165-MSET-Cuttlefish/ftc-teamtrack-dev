@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSession, useTheme } from '@/contexts';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Button } from './ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Button } from '../ui/button';
 import { AlertTriangle } from 'lucide-react';
 import {
   Select,
@@ -10,7 +10,7 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-} from './ui/select';
+} from '../ui/select';
 
 interface SessionSetupProps {
   onSave?: () => void;

@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
-import { Input } from './ui/input';
+} from '../ui/dialog';
+import { Input } from '../ui/input';
 import { Share2, Check, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateShareableLink, copyToClipboard } from '@/lib/shareUtils';

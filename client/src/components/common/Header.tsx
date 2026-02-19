@@ -2,7 +2,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
 import { STORAGE_KEYS, UI_TIMING, ROUTES } from '@/constants';
 import { getInitials } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,8 +10,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu';
-import { Button } from './ui/button';
+} from '../ui/dropdown-menu';
+import { Button } from '../ui/button';
 import {
   Sun,
   Moon,
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
-import { TUTORIAL_RESTART_EVENT } from './ActiveTutorial';
+import { TUTORIAL_RESTART_EVENT } from '../session/ActiveTutorial';
 
 const TeamTrackLogo = () => {
   const { isDarkMode, isHoneycombMode } = useTheme();

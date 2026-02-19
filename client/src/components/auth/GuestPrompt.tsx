@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 import { X, UserPlus } from 'lucide-react';
 import { ROUTES } from '@/constants';
 
