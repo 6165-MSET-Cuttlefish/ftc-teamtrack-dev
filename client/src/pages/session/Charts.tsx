@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useTheme, useSession } from '@/contexts';
+import { useAuth, useTheme, useSession, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import { isAbortError, toDate } from '@/lib/utils';
@@ -50,6 +50,7 @@ const Charts = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
   const { hasActiveSession } = useSession();
+  const { team } = useTeam();
   const navigate = useNavigate();
 
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -66,7 +67,9 @@ const Charts = () => {
 
       setLoading(true);
       try {
-        const userSessions = await firebaseService.getUserSessions(user.uid);
+        const userSessions = team
+          ? await firebaseService.getTeamSessions(team.id)
+          : await firebaseService.getUserSessions(user.uid);
         setSessions(userSessions);
       } catch (error) {
         if (isAbortError(error)) return;
@@ -79,7 +82,7 @@ const Charts = () => {
     };
 
     loadSessions();
-  }, [user?.uid]);
+  }, [user?.uid, team]);
 
   // Use a custom short date format for charts
   const formatChartDate = (timestamp: unknown): string => {

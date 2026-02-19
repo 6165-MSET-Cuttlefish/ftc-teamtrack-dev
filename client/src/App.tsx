@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { AuthProvider, ThemeProvider, SessionProvider } from '@/contexts';
+import { AuthProvider, ThemeProvider, SessionProvider, TeamProvider } from '@/contexts';
 import { ErrorBoundary, Header, ProtectedRoute, GuestPrompt, HomeRedirect } from '@/components';
 import { ROUTES } from '@/constants';
 
@@ -18,6 +18,7 @@ const Compare = lazy(() => import('./pages/session/Compare'));
 const Charts = lazy(() => import('./pages/session/Charts'));
 const SharedSession = lazy(() => import('./pages/session/SharedSession'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const JoinTeam = lazy(() => import('./pages/JoinTeam'));
 
 // Loading component
 const LoadingFallback = () => (
@@ -31,6 +32,7 @@ const App = () => (
     <ThemeProvider>
       <ErrorBoundary>
         <AuthProvider>
+          <TeamProvider>
           <SessionProvider>
             <BrowserRouter>
               <div className="min-h-screen flex flex-col">
@@ -44,6 +46,14 @@ const App = () => (
                       <Route
                         path={ROUTES.FORGOT_PASSWORD}
                         element={<ForgotPassword />}
+                      />
+                      <Route
+                        path={ROUTES.TEAM_INVITE}
+                        element={
+                          <ProtectedRoute>
+                            <JoinTeam />
+                          </ProtectedRoute>
+                        }
                       />
 
                       {/* Public Shared Session Route */}
@@ -128,6 +138,7 @@ const App = () => (
               <Sonner />
             </BrowserRouter>
           </SessionProvider>
+          </TeamProvider>
         </AuthProvider>
       </ErrorBoundary>
     </ThemeProvider>

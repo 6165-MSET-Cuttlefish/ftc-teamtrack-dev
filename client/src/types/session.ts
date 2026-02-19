@@ -88,6 +88,7 @@ export interface Session {
   id: string;
   userId: string;
   userEmail?: string;
+  teamId?: string;
   sessionName: string;
   matchType?: string;
   sessionDuration?: string;

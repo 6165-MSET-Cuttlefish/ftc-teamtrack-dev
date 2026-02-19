@@ -1,0 +1,174 @@
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from 'react';
+import { useAuth } from './AuthContext';
+import { teamService } from '@/services';
+import type { Team } from '@/types';
+import { logger } from '@/lib/logger';
+
+interface TeamContextType {
+  /** The user's current (and only) team, or null if not in a team */
+  team: Team | null;
+  loading: boolean;
+  createTeam: (name: string) => Promise<Team | null>;
+  joinTeam: (inviteCode: string) => Promise<Team | null>;
+  leaveTeam: () => Promise<void>;
+  refreshTeam: () => Promise<void>;
+  regenerateInviteCode: () => Promise<string | null>;
+}
+
+const TeamContext = createContext<TeamContextType | undefined>(undefined);
+
+export const useTeam = () => {
+  const context = useContext(TeamContext);
+  if (context === undefined) {
+    throw new Error('useTeam must be used within a TeamProvider');
+  }
+  return context;
+};
+
+export const TeamProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const { user } = useAuth();
+  const [team, setTeam] = useState<Team | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load user's team when user changes
+  useEffect(() => {
+    const loadTeam = async () => {
+      if (!user) {
+        setTeam(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const teams = await teamService.getUserTeams(user.uid);
+        // User can only be in one team
+        if (teams.length > 0) {
+          setTeam(teams[0]);
+        } else {
+          setTeam(null);
+        }
+      } catch (error) {
+        logger.error('Error loading team:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTeam();
+  }, [user]);
+
+  const createTeam = async (name: string): Promise<Team | null> => {
+    if (!user) return null;
+
+    try {
+      const newTeam = await teamService.createTeam({
+        name,
+        createdBy: user.uid,
+        createdByEmail: user.email || '',
+        createdByName: user.displayName || undefined,
+      });
+
+      if (newTeam) {
+        setTeam(newTeam);
+      }
+
+      return newTeam;
+    } catch (error) {
+      logger.error('Error creating team:', error);
+      throw error;
+    }
+  };
+
+  const joinTeam = async (inviteCode: string): Promise<Team | null> => {
+    if (!user) return null;
+
+    try {
+      // If already in a team, leave it first
+      if (team) {
+        await teamService.leaveTeam(team.id, user.uid);
+      }
+
+      const newTeam = await teamService.joinTeam(
+        inviteCode,
+        user.uid,
+        user.email || '',
+        user.displayName || undefined
+      );
+
+      if (newTeam) {
+        setTeam(newTeam);
+      }
+
+      return newTeam;
+    } catch (error) {
+      logger.error('Error joining team:', error);
+      throw error;
+    }
+  };
+
+  const leaveTeam = async (): Promise<void> => {
+    if (!user || !team) return;
+
+    try {
+      await teamService.leaveTeam(team.id, user.uid);
+      setTeam(null);
+    } catch (error) {
+      logger.error('Error leaving team:', error);
+      throw error;
+    }
+  };
+
+  const refreshTeam = async (): Promise<void> => {
+    if (!user) return;
+
+    try {
+      const teams = await teamService.getUserTeams(user.uid);
+      if (teams.length > 0) {
+        setTeam(teams[0]);
+      } else {
+        setTeam(null);
+      }
+    } catch (error) {
+      logger.error('Error refreshing team:', error);
+    }
+  };
+
+  const regenerateInviteCode = async (): Promise<string | null> => {
+    if (!team) return null;
+    try {
+      const newCode = await teamService.regenerateInviteCode(team.id);
+      if (newCode) {
+        await refreshTeam();
+      }
+      return newCode;
+    } catch (error) {
+      logger.error('Error regenerating invite code:', error);
+      throw error;
+    }
+  };
+
+  return (
+    <TeamContext.Provider
+      value={{
+        team,
+        loading,
+        createTeam,
+        joinTeam,
+        leaveTeam,
+        refreshTeam,
+        regenerateInviteCode,
+      }}
+    >
+      {children}
+    </TeamContext.Provider>
+  );
+};

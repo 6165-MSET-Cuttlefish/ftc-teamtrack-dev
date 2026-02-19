@@ -19,6 +19,7 @@ export const ROUTES = {
   PROFILE: '/profile',
   EDIT_SESSION: '/edit-session',
   SHARED_SESSION: '/shared/preview',
+  TEAM_INVITE: '/join/:inviteCode',
 } as const;
 
 /**

@@ -10,8 +10,10 @@ import {
   where,
   orderBy,
   limit,
+  onSnapshot,
   Timestamp,
   type Firestore,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import getFirebase from '@/lib/firebase';
 import { isAbortError } from '@/lib/utils';
@@ -70,8 +72,10 @@ class FirebaseService {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
+        // Strip undefined values — Firestore rejects them
+        const clean = JSON.parse(JSON.stringify(sessionData));
         const newSession = {
-          ...sessionData,
+          ...clean,
           createdAt: Timestamp.now(),
         };
         const docRef = await addDoc(collection(db, 'sessions'), newSession);
@@ -109,6 +113,69 @@ class FirebaseService {
       },
       [],
       'Error fetching user sessions:'
+    );
+  }
+
+  /** Get all sessions for a specific team */
+  async getTeamSessions(teamId: string): Promise<SessionData[]> {
+    return this.safeExecute(
+      async () => {
+        const db = await this.getDB();
+        const q = query(
+          collection(db, 'sessions'),
+          where('teamId', '==', teamId),
+          orderBy('createdAt', 'desc'),
+          limit(SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5) // Allow more for teams
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: data.userId || '',
+            sessionName: data.sessionName || 'Untitled Session',
+            createdAt: data.createdAt,
+            ...data,
+          } as SessionData;
+        });
+      },
+      [],
+      'Error fetching team sessions:'
+    );
+  }
+
+  /** Subscribe to real-time team session updates */
+  async subscribeTeamSessions(
+    teamId: string,
+    onUpdate: (sessions: SessionData[]) => void,
+    onError?: (error: Error) => void
+  ): Promise<Unsubscribe> {
+    const db = await this.getDB();
+    const q = query(
+      collection(db, 'sessions'),
+      where('teamId', '==', teamId),
+      orderBy('createdAt', 'desc'),
+      limit(SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5)
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const sessions = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: data.userId || '',
+            sessionName: data.sessionName || 'Untitled Session',
+            createdAt: data.createdAt,
+            ...data,
+          } as SessionData;
+        });
+        onUpdate(sessions);
+      },
+      (error) => {
+        console.error('Error in team sessions listener:', error);
+        onError?.(error);
+      }
     );
   }
 
@@ -187,6 +254,22 @@ class FirebaseService {
       'Error deleting session:',
       true // Throw errors for deletes
     );
+  }
+
+  /** Import sessions to a team by setting their teamId */
+  async importSessionsToTeam(sessionIds: string[], teamId: string): Promise<number> {
+    const db = await this.getDB();
+    let updated = 0;
+    for (const sessionId of sessionIds) {
+      try {
+        const docRef = doc(db, 'sessions', sessionId);
+        await updateDoc(docRef, { teamId });
+        updated++;
+      } catch (error) {
+        console.error(`Failed to import session ${sessionId}:`, error);
+      }
+    }
+    return updated;
   }
 }
 
