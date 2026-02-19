@@ -55,6 +55,7 @@ export const LivePreview = ({
   const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
+  const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork =
@@ -157,20 +158,22 @@ export const LivePreview = ({
       sessionData.matches.length > 0 &&
       !sessionData.isSessionCompleted
     ) {
-      if (
-        !window.confirm(
-          'You have unsaved matches. Starting a new session will discard them. Continue?'
-        )
-      ) {
-        return;
-      }
+      setNewSessionConfirm(true);
+      return;
     }
 
     // Reset all session state (including sessionTimer)
     resetSession();
     // Clear any UI state for confirmations
     setCancelConfirm(false);
+    setNewSessionConfirm(false);
     // Stay on the current page to start a new session
+  };
+
+  const handleConfirmNewSession = () => {
+    resetSession();
+    setCancelConfirm(false);
+    setNewSessionConfirm(false);
   };
 
   const handleSaveMatch = () => {
@@ -570,8 +573,8 @@ export const LivePreview = ({
                     setCancelConfirm(false);
                     toast.success('Session cancelled');
                   }}
-                  className="py-4 px-4 rounded-xl bg-green-500 hover:bg-green-600 transition-colors"
-                  title="Confirm cancel"
+                  className="py-4 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
+                  title="Confirm cancel — discard session"
                 >
                   <Check className="h-5 w-5 text-white" />
                 </button>
@@ -580,7 +583,7 @@ export const LivePreview = ({
                     setCancelConfirm(false);
                     if (hasStarted) setIsTimerRunning(true);
                   }}
-                  className="py-4 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
+                  className="py-4 px-4 rounded-xl bg-gray-500 hover:bg-gray-600 transition-colors"
                   title="Keep session"
                 >
                   <X className="h-5 w-5 text-white" />
@@ -783,6 +786,23 @@ export const LivePreview = ({
           >
             New Session
           </button>
+          {newSessionConfirm && (
+            <div className={`flex-1 min-w-[240px] flex items-center gap-2 px-4 py-2.5 rounded-lg border ${isDarkMode ? 'border-red-500/40 bg-red-500/10' : 'border-red-300 bg-red-50'}`}>
+              <span className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>Discard unsaved matches?</span>
+              <button
+                onClick={handleConfirmNewSession}
+                className="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors"
+              >
+                Yes, Discard
+              </button>
+              <button
+                onClick={() => setNewSessionConfirm(false)}
+                className={`px-3 py-1 rounded border text-xs font-bold transition-colors ${isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -118,7 +118,11 @@ const Profile = () => {
     }
   };
 
-  if (!user) return null;
+  if (!user) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
+    </div>
+  );
 
   const inputBase = `w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-team-blue/50 ${
     isDarkMode

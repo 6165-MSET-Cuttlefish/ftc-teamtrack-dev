@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useSession, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES, APP_CONFIG } from '@/constants';
@@ -47,7 +47,7 @@ import {
 } from 'recharts';
 
 const Charts = () => {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
   const { hasActiveSession } = useSession();
   const { team } = useTeam();
@@ -349,12 +349,20 @@ const Charts = () => {
     return null;
   };
 
+  // Guests cannot access Charts — redirect
+  if (!user?.uid || isGuest) {
+    return <Navigate to={ROUTES.SESSIONS} replace />;
+  }
+
   if (loading) {
     return (
       <div
         className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
-        <div className="text-team-blue text-2xl">Loading charts...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
+          <p className="text-sm text-team-blue">Loading charts...</p>
+        </div>
       </div>
     );
   }

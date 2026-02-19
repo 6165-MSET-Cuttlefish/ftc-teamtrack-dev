@@ -267,7 +267,12 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
 
   // Guest users cannot manage teams
   if (isGuest || !user) {
-    return null;
+    return (
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${isDarkMode ? 'border-team-blue-40 text-team-white-60' : 'border-gray-200 text-gray-500'}`}>
+        <Users className="h-4 w-4" />
+        <span>Sign in to create or join a team</span>
+      </div>
+    );
   }
 
   return (

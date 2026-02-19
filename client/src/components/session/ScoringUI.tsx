@@ -54,7 +54,7 @@ export const ScoringUI = () => {
     // Clear flash after animation
     setTimeout(() => {
       setFlashingButton(null);
-    }, 200);
+    }, 400);
   };
 
   // Determine score label and display the synced score from sessionData
@@ -137,7 +137,7 @@ export const ScoringUI = () => {
                           : 'text-gray-500'
                     }`}
                   >
-                    scored
+                    missed
                   </span>
                 </button>
 

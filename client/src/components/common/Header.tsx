@@ -203,13 +203,14 @@ const NavigationMenu = () => {
       {/* My Sessions button */}
       <button
         onClick={() => navigate('/sessions')}
-        className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
           isDarkMode
             ? 'hover:bg-team-white-10 text-white'
             : 'hover:bg-gray-100 text-black'
         }`}
       >
-        My Sessions
+        <span className="hidden sm:inline">My Sessions</span>
+        <BarChart3 className="w-4 h-4 sm:hidden" />
       </button>
 
       {/* Keybinds Tutorial button */}

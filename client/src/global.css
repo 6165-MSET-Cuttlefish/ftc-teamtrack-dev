@@ -188,11 +188,19 @@
     user-select: none;
   }
 
-  /* Allow text selection only on interactive elements */
+  /* Allow text selection on text content and headings */
   p,
   span,
   a,
-  div {
+  div,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  label,
+  li {
     -webkit-user-select: text;
     user-select: text;
   }

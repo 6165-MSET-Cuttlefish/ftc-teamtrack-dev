@@ -9,7 +9,7 @@ export const Notes = () => {
       <h2 className="text-team-blue text-2xl font-semibold leading-6">Notes</h2>
 
       <div className="flex gap-6">
-        <div className="flex flex-col gap-2 w-full sm:max-w-[519px]">
+        <div className="flex flex-col gap-2 w-full sm:max-w-2xl">
           <label
             className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
           >
