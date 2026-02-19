@@ -166,7 +166,7 @@ const ActiveSessionContent = () => {
             className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
           />
 
-          {/* Notes */}
+          {/* Session Notes */}
           <div data-tutorial="notes" style={{ padding: '15px' }}>
             <Notes />
           </div>

@@ -755,7 +755,6 @@ const Sessions = () => {
               <Button
                 onClick={() => {
                   resetSession();
-                  localStorage.setItem('teamtrack_new_session_created', 'true');
                   navigate(ROUTES.ACTIVE);
                 }}
                 disabled={hasActiveSession}
@@ -985,7 +984,6 @@ const Sessions = () => {
               <Button
                 onClick={() => {
                   resetSession();
-                  localStorage.setItem('teamtrack_new_session_created', 'true');
                   navigate('/active');
                 }}
                 disabled={hasActiveSession}

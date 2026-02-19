@@ -6,6 +6,7 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
+import { useAuth } from './AuthContext';
 import { formatTime as formatTimeUtil } from '@/lib/utils';
 import {
   saveSessionToStorage,
@@ -94,6 +95,7 @@ const createInitialSessionData = (): SessionFormData => ({
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   // Try to load from storage first, otherwise create new
   // Only restore a session if it was genuinely in-progress (user had started it)
   const [sessionData, setSessionData] = useState<SessionFormData>(() => {
@@ -165,6 +167,19 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   // Whether the current match has been explicitly started
   const [matchActive, setMatchActive] = useState<boolean>(false);
+
+  // Clear session data when user logs out
+  useEffect(() => {
+    if (!user) {
+      // User logged out, clear session data so next user doesn't see it
+      setSessionData(createInitialSessionData());
+      setHasStarted(false);
+      setIsTimerRunning(false);
+      setTimer(150);
+      setMatchPhase('auton');
+      clearSessionFromStorage();
+    }
+  }, [user]);
 
   // Match timer effect — counts DOWN during 'auton' and 'teleop' phases
   useEffect(() => {

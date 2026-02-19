@@ -68,6 +68,9 @@ const Signup = () => {
     try {
       setError('');
       setLoading(true);
+      // Clear any old session data from previous accounts before creating new account
+      const { clearSessionFromStorage } = await import('@/lib/sessionStorage');
+      clearSessionFromStorage();
       await signup(formData.email, formData.password, formData.displayName);
       navigate(from, { replace: true });
     } catch (err: unknown) {
@@ -81,6 +84,9 @@ const Signup = () => {
     try {
       setError('');
       setLoading(true);
+      // Clear any old session data from previous accounts before creating new account
+      const { clearSessionFromStorage } = await import('@/lib/sessionStorage');
+      clearSessionFromStorage();
       await loginWithGoogle();
       navigate(from, { replace: true });
     } catch (err: unknown) {

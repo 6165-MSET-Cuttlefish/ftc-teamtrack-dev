@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useTheme } from '@/contexts';
+import { useTheme, useAuth } from '@/contexts';
 import { Settings } from 'lucide-react';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -454,105 +454,72 @@ const KeybindsPreview = ({ dark }: { dark: boolean }) => {
   );
 };
 
-// ── Animated Metrics: tabs switch, numbers count up ─────────────────────
-const METRICS_TAB_VALUES = [
-  { score: 15, accuracy: 67, shots: 8 },
-  { score: 6, accuracy: 100, shots: 2 },
-  { score: 9, accuracy: 50, shots: 6 },
-  { score: 0, accuracy: 0, shots: 0 },
+// ── Shot Table Preview: shows example autonomous shots table ───────────────
+const SAMPLE_SHOTS = [
+  { shot: 3, made: 2 },
+  { shot: 2, made: 2 },
+  { shot: 1, made: 1 },
 ];
-const METRICS_TABS = ['Final', 'Autonomous', 'Teleop', 'Endgame'];
 
 const MetricsPreview = ({ dark }: { dark: boolean }) => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [displayVals, setDisplayVals] = useState({
-    score: 0,
-    accuracy: 0,
-    shots: 0,
-  });
+  const bgTable = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+  const bgHeader = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  const borderCol = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const textDim = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
 
-  useEffect(() => {
-    const id = setInterval(() => setActiveTab(t => (t + 1) % 4), 3000);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const target = METRICS_TAB_VALUES[activeTab];
-    setDisplayVals({ score: 0, accuracy: 0, shots: 0 });
-    const steps = 12;
-    let step = 0;
-    const id = setInterval(() => {
-      step++;
-      const p = step / steps;
-      setDisplayVals({
-        score: Math.round(target.score * p),
-        accuracy: Math.round(target.accuracy * p),
-        shots: Math.round(target.shots * p),
-      });
-      if (step >= steps) clearInterval(id);
-    }, 50);
-    return () => clearInterval(id);
-  }, [activeTab]);
+  let runningTotal = 0;
 
   return (
     <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-2">
-        Performance Metrics
+      <div className="text-team-blue font-semibold text-sm mb-3">
+        Autonomous Shots
       </div>
-      <div className="flex gap-1 mb-3">
-        {METRICS_TABS.map((tab, i) => (
-          <div
-            key={tab}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium text-center"
-            style={{
-              backgroundColor:
-                i === activeTab
-                  ? 'rgb(var(--team-blue))'
-                  : dark
-                    ? '#2a2a2a'
-                    : '#eee',
-              color:
-                i === activeTab
-                  ? dark
-                    ? '#000'
-                    : '#fff'
-                  : dark
-                    ? 'rgba(255,255,255,0.5)'
-                    : 'rgba(0,0,0,0.5)',
-              transition: 'all 0.3s',
-            }}
-          >
-            {tab}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: 'Total Score', val: displayVals.score },
-          { label: 'Accuracy', val: `${displayVals.accuracy}%` },
-          { label: 'Shots', val: displayVals.shots },
-        ].map(item => (
-          <div
-            key={item.label}
-            className="rounded-lg p-2 text-center"
-            style={{ backgroundColor: dark ? '#191919' : '#fff' }}
-          >
+      {/* Mini table */}
+      <div className="rounded border overflow-hidden text-xs" style={{ borderColor: borderCol }}>
+        {/* Header */}
+        <div
+          className="grid grid-cols-5 gap-0 font-semibold"
+          style={{
+            backgroundColor: bgHeader,
+            borderBottom: `1px solid ${borderCol}`,
+          }}
+        >
+          <div className="px-2 py-1.5 text-center">#</div>
+          <div className="px-2 py-1.5 text-center">Shot</div>
+          <div className="px-2 py-1.5 text-center">Made</div>
+          <div className="px-2 py-1.5 text-center">Pts</div>
+          <div className="px-2 py-1.5 text-center">Total</div>
+        </div>
+        {/* Rows */}
+        {SAMPLE_SHOTS.map((row, i) => {
+          const pts = row.made * 3;
+          runningTotal += pts;
+          return (
             <div
-              className="text-team-blue text-lg font-bold"
-              style={{ fontVariantNumeric: 'tabular-nums' }}
-            >
-              {item.val}
-            </div>
-            <div
-              className="text-[10px]"
+              key={i}
+              className="grid grid-cols-5 gap-0 border-t"
               style={{
-                color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
+                backgroundColor: bgTable,
+                borderTopColor: borderCol,
               }}
             >
-              {item.label}
+              <div className="px-2 py-1.5 text-center" style={{ color: textDim }}>
+                {i + 1}
+              </div>
+              <div className="px-2 py-1.5 text-center">{row.shot}</div>
+              <div className="px-2 py-1.5 text-center">{row.made}</div>
+              <div className="px-2 py-1.5 text-center" style={{ color: 'rgb(var(--team-blue))' }}>
+                {pts}
+              </div>
+              <div className="px-2 py-1.5 text-center font-semibold" style={{ color: 'rgb(var(--team-blue))' }}>
+                {runningTotal}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+      </div>
+      <div className="mt-2 text-[10px] flex items-center gap-1" style={{ color: textDim }}>
+        <span>✓ Each made ball = 3 pts</span>
       </div>
     </PreviewBox>
   );
@@ -574,7 +541,7 @@ const NotesPreview = ({ dark }: { dark: boolean }) => {
 
   return (
     <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-2">Notes</div>
+      <div className="text-team-blue font-semibold text-sm mb-2">Session Notes</div>
       <div
         className="rounded-lg border p-2 text-xs"
         style={{
@@ -650,7 +617,7 @@ const STEPS: StepDef[] = [
     preview: d => <MetricsPreview dark={d} />,
   },
   {
-    title: 'Notes',
+    title: 'Session Notes',
     body: 'Jot down observations — strategies, mistakes, or anything to review later in analysis.',
     target: 'notes',
     preview: d => <NotesPreview dark={d} />,
@@ -705,18 +672,26 @@ function dropElement(el: HTMLElement) {
 
 export const ActiveTutorial = () => {
   const { isDarkMode } = useTheme();
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const prevElRef = useRef<HTMLElement | null>(null);
 
-  // Auto-show on first visit
+  // Generate user-specific tutorial key so each account sees tutorial independently
+  const getTutorialKey = () => user?.uid
+    ? `${TUTORIAL_STORAGE_KEY}-${user.uid}`
+    : TUTORIAL_STORAGE_KEY;
+
+  // Auto-show on first visit (per user)
   useEffect(() => {
-    const seen = localStorage.getItem(TUTORIAL_STORAGE_KEY);
+    if (!user) return; // Wait for user to be loaded
+    const tutorialKey = getTutorialKey();
+    const seen = localStorage.getItem(tutorialKey);
     if (!seen) {
       const t = setTimeout(() => setVisible(true), 500);
       return () => clearTimeout(t);
     }
-  }, []);
+  }, [user]);
 
   // Listen for restart
   useEffect(() => {
@@ -775,8 +750,11 @@ export const ActiveTutorial = () => {
   const dismiss = useCallback(() => {
     setVisible(false);
     clearHighlight();
-    localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true');
-  }, [clearHighlight]);
+    const tutorialKey = user?.uid
+      ? `${TUTORIAL_STORAGE_KEY}-${user.uid}`
+      : TUTORIAL_STORAGE_KEY;
+    localStorage.setItem(tutorialKey, 'true');
+  }, [user, clearHighlight]);
 
   const next = useCallback(() => {
     if (step >= STEPS.length - 1) dismiss();
