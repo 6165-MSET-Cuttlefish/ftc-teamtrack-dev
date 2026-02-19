@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth, useTheme } from '@/contexts';
+import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate, isAbortError } from '@/lib/utils';
 import { ROUTES } from '@/constants';
@@ -34,6 +34,7 @@ interface CompareMatch extends Match {
 const Compare = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
+  const { team } = useTeam();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -59,7 +60,9 @@ const Compare = () => {
       if (!user?.uid) return;
 
       try {
-        const userSessions = await firebaseService.getUserSessions(user.uid);
+        const userSessions = team
+          ? await firebaseService.getTeamSessions(team.id)
+          : await firebaseService.getUserSessions(user.uid);
         setSessions(userSessions);
 
         // Pre-select sessions from URL params if available
@@ -83,7 +86,7 @@ const Compare = () => {
     };
 
     loadSessions();
-  }, [user?.uid, searchParams]);
+  }, [user?.uid, searchParams, team]);
 
   // Load selected sessions data with improved error handling
   useEffect(() => {

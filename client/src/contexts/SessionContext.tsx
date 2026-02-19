@@ -95,15 +95,16 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   // Try to load from storage first, otherwise create new
-  // Only load session if it's fresh or from the same user session
-  // Note: Don't use user.displayName here as it may not be available yet during initial load
+  // Only restore a session if it was genuinely in-progress (user had started it)
   const [sessionData, setSessionData] = useState<SessionFormData>(() => {
     const stored = loadSessionFromStorage();
-    // Load stored session only if it's not a completed session from a previous session
-    // or if the user has just logged in fresh
-    if (stored && !stored.isSessionCompleted) {
+    const storedTimer = loadTimerStateFromStorage();
+    // Only restore if: session exists, isn't completed, AND was actually started by the user
+    if (stored && !stored.isSessionCompleted && (storedTimer?.hasStarted || stored.matches?.length > 0)) {
       return stored;
     }
+    // Clear any stale data on fresh load
+    clearSessionFromStorage();
     return createInitialSessionData();
   });
 
@@ -252,7 +253,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const hasSessionData =
       sessionData.sessionName || sessionData.matches.length > 0;
     const hasActiveTimers =
-      isTimerRunning || hasStarted || sessionTimer > 0 || timer > 0;
+      isTimerRunning || hasStarted || sessionTimer > 0;
 
     if (!hasSessionData && !hasActiveTimers) {
       // Nothing to persist - ensure storage is clear

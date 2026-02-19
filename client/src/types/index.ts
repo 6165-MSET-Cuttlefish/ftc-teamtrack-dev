@@ -9,3 +9,9 @@ export type {
   User,
   ChartDataPoint,
 } from './session';
+
+export type {
+  Team,
+  TeamMember,
+  CreateTeamData,
+} from './team';

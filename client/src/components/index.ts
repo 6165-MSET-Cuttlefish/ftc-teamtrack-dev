@@ -17,3 +17,6 @@ export {
   SessionSetup,
   ShareButton,
 } from './session';
+
+// Team components
+export { default as TeamManager } from './TeamManager';

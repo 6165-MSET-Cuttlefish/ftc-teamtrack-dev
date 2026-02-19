@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSession, useTheme, useAuth } from '@/contexts';
+import { useSession, useTheme, useAuth, useTeam } from '@/contexts';
 import { useFirebase } from '@/hooks';
 import { GAME_TIMING, ROUTES } from '@/constants';
 import { Check, X, Settings, Trash2 } from 'lucide-react';
@@ -47,6 +47,7 @@ export const LivePreview = ({
   } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
+  const { team } = useTeam();
   const { createSession, loading } = useFirebase();
   const navigate = useNavigate();
   const [sessionLimitReached, setSessionLimitReached] =
@@ -82,13 +83,20 @@ export const LivePreview = ({
     const checkSessionLimit = async () => {
       if (user?.uid && !sessionData.isSessionCompleted) {
         const { firebaseService } = await import('@/services/firebaseService');
-        const userSessions = await firebaseService.getUserSessions(user.uid);
         const { SESSION_LIMITS } = await import('@/constants');
 
-        if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
+        const sessions = team
+          ? await firebaseService.getTeamSessions(team.id)
+          : await firebaseService.getUserSessions(user.uid);
+
+        const sessionLimit = team
+          ? SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5
+          : SESSION_LIMITS.MAX_SESSIONS_PER_USER;
+
+        if (sessions.length >= sessionLimit) {
           setSessionLimitReached(true);
           toast.error(
-            `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`,
+            `You've reached the maximum of ${sessionLimit} sessions. Please delete old sessions before creating new ones.`,
             {
               duration: 10000,
             }
@@ -100,7 +108,7 @@ export const LivePreview = ({
     };
 
     checkSessionLimit();
-  }, [user?.uid, sessionData.isSessionCompleted]);
+  }, [user?.uid, sessionData.isSessionCompleted, team]);
 
   // FTC phase transition: autonomous → controller pickup
   useEffect(() => {
@@ -314,6 +322,7 @@ export const LivePreview = ({
 
       userId: user.uid, // Always set from validated user
       userEmail: user.email || '',
+      ...(team ? { teamId: team.id } : {}),
 
       // Don't save individual scoring fields - deprecated
       // Data is in matches array

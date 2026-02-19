@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useSession, useTheme } from '@/contexts';
+import { useAuth, useSession, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
+import TeamManager from '@/components/TeamManager';
 import { formatDate, isAbortError } from '@/lib/utils';
 import { generateShareableLink, copyToClipboard } from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
@@ -410,6 +411,7 @@ const Sessions = () => {
   const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
   const { resetSession, hasActiveSession } = useSession();
+  const { team } = useTeam();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
@@ -424,33 +426,92 @@ const Sessions = () => {
     document.title = `Sessions - ${APP_CONFIG.name}`;
   }, []);
 
-  useEffect(() => {
-    const loadSessions = async () => {
-      // Guests don't have sessions stored in Firebase
-      if (isGuest) {
-        setLoading(false);
-        return;
-      }
+  const loadPersonalSessions = useCallback(async () => {
+    // Guests don't have sessions stored in Firebase
+    if (isGuest) {
+      setLoading(false);
+      return;
+    }
 
-      if (!user?.uid) return;
+    if (!user?.uid) return;
 
-      setLoading(true);
-      try {
-        const userSessions = await firebaseService.getUserSessions(user.uid);
-        setSessions(userSessions);
-        setFilteredSessions(userSessions);
-      } catch (error) {
-        if (isAbortError(error)) return;
-        const { logger } = await import('@/lib/logger');
-        logger.error('Error loading sessions', error);
-        toast.error('Failed to load sessions');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSessions();
+    setLoading(true);
+    try {
+      const fetchedSessions = await firebaseService.getUserSessions(user.uid);
+      setSessions(fetchedSessions);
+      setFilteredSessions(fetchedSessions);
+    } catch (error) {
+      if (isAbortError(error)) return;
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error loading sessions', error);
+      toast.error('Failed to load sessions');
+    } finally {
+      setLoading(false);
+    }
   }, [user?.uid, isGuest]);
+
+  const loadSessions = useCallback(async () => {
+    if (!user?.uid) return;
+    if (!team) {
+      await loadPersonalSessions();
+    }
+    // Team sessions are handled by the real-time listener below
+  }, [user?.uid, team, loadPersonalSessions]);
+
+  // Real-time sync for team sessions
+  useEffect(() => {
+    if (!team) return;
+
+    setLoading(true);
+    let unsubscribe: (() => void) | undefined;
+    let subscribed = false;
+
+    firebaseService
+      .subscribeTeamSessions(
+        team.id,
+        (teamSessions) => {
+          subscribed = true;
+          setSessions(teamSessions);
+          setFilteredSessions(teamSessions);
+          setLoading(false);
+        },
+        async (error) => {
+          console.error('Team sessions listener error:', error);
+          // Show the actual Firestore error (often a missing index link)
+          const errorMessage = error?.message || 'Unknown error';
+          if (errorMessage.includes('index')) {
+            toast.error('Firestore needs a composite index for team sessions. Check the browser console for the creation link.', { duration: 10000 });
+          } else {
+            toast.error(`Team sync error: ${errorMessage}`);
+          }
+          // Fallback to one-time fetch so the page still works
+          if (!subscribed) {
+            try {
+              const fetched = await firebaseService.getTeamSessions(team.id);
+              setSessions(fetched);
+              setFilteredSessions(fetched);
+            } catch {
+              // already toasted
+            }
+          }
+          setLoading(false);
+        }
+      )
+      .then((unsub) => {
+        unsubscribe = unsub;
+      });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [team]);
+
+  // Load personal sessions (non-team)
+  useEffect(() => {
+    if (!team) {
+      loadPersonalSessions();
+    }
+  }, [team, loadPersonalSessions]);
 
   useEffect(() => {
     let filtered = sessions;
@@ -682,12 +743,13 @@ const Sessions = () => {
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 md:py-8 lg:py-12">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
-            <div>
+            <div className="flex flex-col gap-2">
               <h1
                 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
-                My Sessions
+                {team ? team.name : 'My Sessions'}
               </h1>
+              <TeamManager onTeamChange={() => loadSessions()} />
             </div>
             <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
               <Button
