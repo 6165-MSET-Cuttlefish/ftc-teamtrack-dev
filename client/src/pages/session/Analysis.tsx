@@ -123,6 +123,7 @@ const StatCard = ({
   sublabel,
   icon: Icon,
   highlight,
+  variant = 'default',
   isDarkMode,
 }: {
   label: string;
@@ -130,47 +131,64 @@ const StatCard = ({
   sublabel?: string;
   icon?: React.ElementType;
   highlight?: boolean;
+  variant?: 'default' | 'success' | 'danger';
   isDarkMode: boolean;
-}) => (
-  <div
-    className={`rounded-xl border p-5 transition-all ${
-      highlight
+}) => {
+  const borderBg =
+    variant === 'success'
+      ? isDarkMode
+        ? 'border-emerald-500/40 bg-emerald-500/10'
+        : 'border-emerald-200 bg-emerald-50'
+      : variant === 'danger'
         ? isDarkMode
-          ? 'border-team-blue bg-team-blue/10'
-          : 'border-team-blue bg-team-blue/5'
-        : isDarkMode
-          ? 'border-team-blue-40 bg-team-dark-20'
-          : 'border-gray-200 bg-white'
-    }`}
-  >
-    <div className="space-y-3">
-      {Icon && (
-        <div
-          className={`inline-flex p-2.5 rounded-lg ${isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'}`}
-        >
-          <Icon size={20} className="text-team-blue" />
-        </div>
-      )}
-      <div>
-        <p
-          className={`text-xs font-medium uppercase tracking-wide ${
-            isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-          }`}
-        >
-          {label}
-        </p>
-        <p className="text-3xl font-bold text-team-blue mt-1">{value}</p>
-        {sublabel && (
-          <p
-            className={`text-xs mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+          ? 'border-red-500/40 bg-red-500/10'
+          : 'border-red-200 bg-red-50'
+        : highlight
+          ? isDarkMode
+            ? 'border-team-blue bg-team-blue/10'
+            : 'border-team-blue bg-team-blue/5'
+          : isDarkMode
+            ? 'border-team-blue-40 bg-team-dark-20'
+            : 'border-gray-200 bg-white';
+
+  const valueColor =
+    variant === 'success'
+      ? 'text-emerald-500'
+      : variant === 'danger'
+        ? 'text-red-500'
+        : 'text-team-blue';
+
+  return (
+    <div className={`rounded-xl border p-5 transition-all ${borderBg}`}>
+      <div className="space-y-3">
+        {Icon && (
+          <div
+            className={`inline-flex p-2.5 rounded-lg ${isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'}`}
           >
-            {sublabel}
-          </p>
+            <Icon size={20} className="text-team-blue" />
+          </div>
         )}
+        <div>
+          <p
+            className={`text-xs font-medium uppercase tracking-wide ${
+              isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+            }`}
+          >
+            {label}
+          </p>
+          <p className={`text-3xl font-bold ${valueColor} mt-1`}>{value}</p>
+          {sublabel && (
+            <p
+              className={`text-xs mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+            >
+              {sublabel}
+            </p>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── Phase bar ──────────────────────────────────────────────────────────────
 
@@ -293,13 +311,13 @@ const computeStats = (matches: Match[]): SessionStats | null => {
 // ─── COLORS ─────────────────────────────────────────────────────────────────
 
 const CHART_COLORS = {
-  auto: '#10b981',
-  tele: '#f59e0b',
-  endgame: '#537788',
-  primary: '#537788',
-  secondary: '#B0E5FE',
-  missed: '#ef4444',
-  purple: '#a855f7',
+  auto: '#10b981',     // emerald  – Autonomous
+  tele: '#f59e0b',     // amber    – Teleop
+  endgame: '#0ea5e9',  // sky blue – Endgame
+  primary: '#537788',  // steel    – Final Score / Overall
+  secondary: '#7ba8ba',// muted steel – Session Avg bars
+  missed: '#ef4444',   // red      – Missed balls
+  purple: '#a855f7',   // purple   – Cycle time
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -323,11 +341,32 @@ const SummaryTab = ({
     Endgame: m.endGameScore || 0,
   }));
 
-  const missedData = matches.map((m, i) => ({
+  const [ballsView, setBallsView] = useState<'shot' | 'made' | 'missed'>('shot');
+
+  const ballsShotData = matches.map((m, i) => {
+    const autonShot = (m.autonShots || []).reduce((s, e) => s + e.ballsShot, 0);
+    const teleShot = (m.teleopShots || []).reduce((s, e) => s + e.ballsShot, 0);
+    return { name: `M${i + 1}`, 'Auto Balls': autonShot, 'Teleop Balls': teleShot };
+  });
+  const ballsMadeData = matches.map((m, i) => {
+    const autonMade = (m.autonShots || []).reduce((s, e) => s + e.ballsMade, 0);
+    const teleMade = (m.teleopShots || []).reduce((s, e) => s + e.ballsMade, 0);
+    return { name: `M${i + 1}`, 'Auto Balls': autonMade, 'Teleop Balls': teleMade };
+  });
+  const ballsMissedData = matches.map((m, i) => ({
     name: `M${i + 1}`,
-    'Auto Missed': m.autonBallsMissed || 0,
-    'Teleop Missed': m.teleBallsMissed || 0,
+    'Auto Balls': m.autonBallsMissed || 0,
+    'Teleop Balls': m.teleBallsMissed || 0,
   }));
+
+  const activeBallsData =
+    ballsView === 'shot' ? ballsShotData
+    : ballsView === 'made' ? ballsMadeData
+    : ballsMissedData;
+
+  const hasAnyBallsData =
+    ballsShotData.some(d => d['Auto Balls'] + d['Teleop Balls'] > 0) ||
+    ballsMissedData.some(d => d['Auto Balls'] + d['Teleop Balls'] > 0);
 
   const accuracyData = matches.map((m, i) => {
     const autonMade = (m.autonShots || []).reduce((s, e) => s + e.ballsMade, 0);
@@ -347,22 +386,49 @@ const SummaryTab = ({
 
   const hasAnyAccuracyData = accuracyData.some(d => d.Overall !== null);
 
-  // Build cycle time data - flatten all cycle times from all matches with sequential numbering
-  const cycleTimeData: Array<{ name: string; time: number }> = [];
-  let shotCounter = 1;
-  matches.forEach(m => {
-    if (m.cycleTimes && m.cycleTimes.length > 0) {
-      m.cycleTimes.forEach(ct => {
-        cycleTimeData.push({
-          name: `Shot ${shotCounter}`,
-          time: ct,
-        });
-        shotCounter++;
-      });
-    }
-  });
+  // Build cycle time data - average cycle time per match
+  const cycleTimeData = matches
+    .map((m, i) => {
+      if (!m.cycleTimes || m.cycleTimes.length === 0) return null;
+      const avg = m.cycleTimes.reduce((a, b) => a + b, 0) / m.cycleTimes.length;
+      return { name: `M${i + 1}`, 'Avg Cycle': avg };
+    })
+    .filter((d): d is { name: string; 'Avg Cycle': number } => d !== null);
 
   const totalAvg = stats.avgAuto + stats.avgTele + stats.avgEndgame;
+
+  // Custom dot renderer – highlight best (green) and worst (red) match
+  const ScoringDot = (props: {
+    cx?: number;
+    cy?: number;
+    index?: number;
+    fill?: string;
+  }) => {
+    const { cx = 0, cy = 0, index = 0, fill = CHART_COLORS.primary } = props;
+    if (index === stats.bestMatch)
+      return (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={6}
+          fill="#10b981"
+          stroke="white"
+          strokeWidth={2}
+        />
+      );
+    if (index === stats.worstMatch)
+      return (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={6}
+          fill="#ef4444"
+          stroke="white"
+          strokeWidth={2}
+        />
+      );
+    return <circle cx={cx} cy={cy} r={5} fill={fill} />;
+  };
 
   return (
     <div className="space-y-6">
@@ -405,9 +471,9 @@ const SummaryTab = ({
         </div>
       </Section>
 
-      {/* Scoring Consistency */}
+      {/* Scoring Trends */}
       {matches.length >= 2 && (
-        <Section title="Scoring Consistency" isDarkMode={isDarkMode}>
+        <Section title="Scoring Trends" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={trendData}>
               <CartesianGrid
@@ -430,7 +496,7 @@ const SummaryTab = ({
                 dataKey="Final Score"
                 stroke={CHART_COLORS.primary}
                 strokeWidth={3}
-                dot={{ fill: CHART_COLORS.primary, r: 5 }}
+                dot={<ScoringDot fill={CHART_COLORS.primary} />}
               />
               <Line
                 type="monotone"
@@ -453,13 +519,42 @@ const SummaryTab = ({
         </Section>
       )}
 
-      {/* Missed Balls */}
-      {matches.some(
-        m => (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0) > 0
-      ) && (
-        <Section title="Balls Missed" isDarkMode={isDarkMode}>
+      {/* Balls toggle */}
+      {hasAnyBallsData && (
+        <Section
+          title={
+            ballsView === 'shot' ? 'Balls Shot' :
+            ballsView === 'made' ? 'Balls Made' :
+            'Balls Missed'
+          }
+          isDarkMode={isDarkMode}
+        >
+          {/* Toggle buttons */}
+          <div
+            className={`flex gap-1 p-1 rounded-lg mb-4 w-fit ${
+              isDarkMode ? 'bg-team-dark' : 'bg-gray-100'
+            }`}
+          >
+            {(['shot', 'made', 'missed'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setBallsView(mode)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize ${
+                  ballsView === mode
+                    ? isDarkMode
+                      ? 'bg-team-blue text-black shadow-sm'
+                      : 'bg-team-blue text-white shadow-sm'
+                    : isDarkMode
+                      ? 'text-team-white-60 hover:text-white'
+                      : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {mode === 'shot' ? 'Balls Shot' : mode === 'made' ? 'Balls Made' : 'Balls Missed'}
+              </button>
+            ))}
+          </div>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={missedData}>
+            <BarChart data={activeBallsData}>
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
@@ -480,22 +575,16 @@ const SummaryTab = ({
               />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
-                dataKey="Auto Missed"
-                fill={CHART_COLORS.missed}
+                dataKey="Auto Balls"
+                fill={ballsView === 'missed' ? CHART_COLORS.missed : CHART_COLORS.auto}
                 radius={[4, 4, 0, 0]}
-                activeBar={{
-                  stroke: isDarkMode ? '#fff' : '#000',
-                  strokeWidth: 2,
-                }}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
               <Bar
-                dataKey="Teleop Missed"
-                fill="#f97316"
+                dataKey="Teleop Balls"
+                fill={ballsView === 'missed' ? '#f97316' : CHART_COLORS.tele}
                 radius={[4, 4, 0, 0]}
-                activeBar={{
-                  stroke: isDarkMode ? '#fff' : '#000',
-                  strokeWidth: 2,
-                }}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -534,9 +623,9 @@ const SummaryTab = ({
               <Line
                 type="monotone"
                 dataKey="Overall"
-                stroke={isDarkMode ? '#ffffff' : '#B0E5FE'}
+                stroke={isDarkMode ? '#e2e8f0' : CHART_COLORS.primary}
                 strokeWidth={3}
-                dot={{ fill: isDarkMode ? '#ffffff' : '#B0E5FE', r: 5 }}
+                dot={{ fill: isDarkMode ? '#e2e8f0' : CHART_COLORS.primary, r: 5 }}
                 strokeDasharray="5 5"
                 connectNulls={false}
               />
@@ -563,9 +652,9 @@ const SummaryTab = ({
         </Section>
       )}
 
-      {/* Cycle Times */}
+      {/* Average Cycle Time */}
       {cycleTimeData.length > 0 && (
-        <Section title="Cycle Times" isDarkMode={isDarkMode}>
+        <Section title="Average Cycle Time" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={cycleTimeData}>
               <CartesianGrid
@@ -575,8 +664,7 @@ const SummaryTab = ({
               <XAxis
                 dataKey="name"
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                tick={{ fontSize: 12 }}
-                interval={Math.max(0, Math.floor(cycleTimeData.length / 8) - 1)}
+                tick={false}
               />
               <YAxis
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
@@ -592,8 +680,8 @@ const SummaryTab = ({
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Line
                 type="monotone"
-                dataKey="time"
-                name="Cycle Time"
+                dataKey="Avg Cycle"
+                name="Avg Cycle Time"
                 stroke={CHART_COLORS.purple}
                 strokeWidth={2}
                 dot={{ fill: CHART_COLORS.purple, r: 4 }}
@@ -721,7 +809,7 @@ const MatchDetailTab = ({
                 i === selectedIdx
                   ? isDarkMode
                     ? 'bg-team-blue text-black shadow-md'
-                    : 'bg-team-blue text-black shadow-md'
+                    : 'bg-team-blue text-white shadow-md'
                   : isDarkMode
                     ? 'bg-team-dark text-team-white-60 hover:bg-team-blue/20'
                     : 'bg-gray-100 text-gray-600 hover:bg-team-blue/10'
@@ -822,7 +910,11 @@ const MatchDetailTab = ({
         {breakdownRows.map(row => (
           <div
             key={row.phase}
-            className={`rounded-xl border p-4 text-center ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
+            className="rounded-xl border p-4 text-center"
+            style={{
+              borderColor: row.color + (isDarkMode ? '66' : '44'),
+              backgroundColor: row.color + (isDarkMode ? '14' : '0d'),
+            }}
           >
             <div
               className="w-3 h-3 rounded-full mx-auto mb-2"
@@ -833,7 +925,7 @@ const MatchDetailTab = ({
             >
               {row.phase}
             </p>
-            <p className="text-2xl font-bold text-team-blue mt-1">
+            <p className="text-2xl font-bold mt-1" style={{ color: row.color }}>
               {row.total}
             </p>
           </div>
@@ -875,9 +967,9 @@ const MatchDetailTab = ({
                   className={`border-b last:border-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-100'}`}
                 >
                   <td className="py-3 px-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <div
-                        className="w-2 h-2 rounded-full"
+                        className="w-1 h-8 rounded-full flex-shrink-0"
                         style={{ backgroundColor: row.color }}
                       />
                       <span
@@ -930,7 +1022,7 @@ const MatchDetailTab = ({
                   >
                     {row.extra !== null ? row.extra : '—'}
                   </td>
-                  <td className="text-center py-3 px-3 font-bold text-team-blue">
+                  <td className="text-center py-3 px-3 font-bold" style={{ color: row.color }}>
                     {row.total}
                   </td>
                 </tr>
@@ -1126,6 +1218,7 @@ interface CompareMetric {
   a: number;
   b: number;
   higherIsBetter: boolean;
+  phase?: 'auto' | 'tele' | 'endgame' | 'overall';
 }
 
 const CompareTab = ({
@@ -1171,78 +1264,18 @@ const CompareTab = ({
   const mB = matches[idxB];
 
   const metrics: CompareMetric[] = [
-    {
-      label: 'Final Score',
-      a: mA.finalScore || 0,
-      b: mB.finalScore || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Autonomous',
-      a: mA.autonomousScore || 0,
-      b: mB.autonomousScore || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Teleop',
-      a: mA.teleopScore || 0,
-      b: mB.teleopScore || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Endgame',
-      a: mA.endGameScore || 0,
-      b: mB.endGameScore || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Classified (Auto)',
-      a: mA.autonClassifiedArtifact || 0,
-      b: mB.autonClassifiedArtifact || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Classified (Teleop)',
-      a: mA.teleClassifiedArtifact || 0,
-      b: mB.teleClassifiedArtifact || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Overflow (Auto)',
-      a: mA.autonOverflowArtifact || 0,
-      b: mB.autonOverflowArtifact || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Overflow (Teleop)',
-      a: mA.teleOverflowArtifact || 0,
-      b: mB.teleOverflowArtifact || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Motifs (Auto)',
-      a: mA.autonMotif || 0,
-      b: mB.autonMotif || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Motifs (Teleop)',
-      a: mA.teleMotif || 0,
-      b: mB.teleMotif || 0,
-      higherIsBetter: true,
-    },
-    {
-      label: 'Balls Missed (Auto)',
-      a: mA.autonBallsMissed || 0,
-      b: mB.autonBallsMissed || 0,
-      higherIsBetter: false,
-    },
-    {
-      label: 'Balls Missed (Teleop)',
-      a: mA.teleBallsMissed || 0,
-      b: mB.teleBallsMissed || 0,
-      higherIsBetter: false,
-    },
+    { label: 'Final Score', a: mA.finalScore || 0, b: mB.finalScore || 0, higherIsBetter: true, phase: 'overall' },
+    { label: 'Autonomous', a: mA.autonomousScore || 0, b: mB.autonomousScore || 0, higherIsBetter: true, phase: 'auto' },
+    { label: 'Teleop', a: mA.teleopScore || 0, b: mB.teleopScore || 0, higherIsBetter: true, phase: 'tele' },
+    { label: 'Endgame', a: mA.endGameScore || 0, b: mB.endGameScore || 0, higherIsBetter: true, phase: 'endgame' },
+    { label: 'Classified (Auto)', a: mA.autonClassifiedArtifact || 0, b: mB.autonClassifiedArtifact || 0, higherIsBetter: true, phase: 'auto' },
+    { label: 'Classified (Teleop)', a: mA.teleClassifiedArtifact || 0, b: mB.teleClassifiedArtifact || 0, higherIsBetter: true, phase: 'tele' },
+    { label: 'Overflow (Auto)', a: mA.autonOverflowArtifact || 0, b: mB.autonOverflowArtifact || 0, higherIsBetter: true, phase: 'auto' },
+    { label: 'Overflow (Teleop)', a: mA.teleOverflowArtifact || 0, b: mB.teleOverflowArtifact || 0, higherIsBetter: true, phase: 'tele' },
+    { label: 'Motifs (Auto)', a: mA.autonMotif || 0, b: mB.autonMotif || 0, higherIsBetter: true, phase: 'auto' },
+    { label: 'Motifs (Teleop)', a: mA.teleMotif || 0, b: mB.teleMotif || 0, higherIsBetter: true, phase: 'tele' },
+    { label: 'Balls Missed (Auto)', a: mA.autonBallsMissed || 0, b: mB.autonBallsMissed || 0, higherIsBetter: false, phase: 'auto' },
+    { label: 'Balls Missed (Teleop)', a: mA.teleBallsMissed || 0, b: mB.teleBallsMissed || 0, higherIsBetter: false, phase: 'tele' },
   ];
 
   const chartData = [
@@ -1392,80 +1425,175 @@ const CompareTab = ({
         </ResponsiveContainer>
       </Section>
 
-      {/* Metrics table */}
-      <Section title="Full Comparison" isDarkMode={isDarkMode}>
-        <div className="overflow-x-auto -mx-2">
-          <table className="w-full text-sm">
-            <thead>
-              <tr
-                className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
-              >
-                <th
-                  className={`text-left py-3 px-3 text-xs uppercase tracking-wide font-semibold ${isDarkMode ? 'text-white' : 'text-gray-700'}`}
-                >
-                  Metric
-                </th>
-                <th
-                  className={`text-center py-3 px-3 text-xs uppercase tracking-wide font-semibold ${isDarkMode ? 'text-white' : 'text-gray-700'}`}
-                >
-                  Match {mA.matchNumber}
-                </th>
-                <th
-                  className={`text-center py-3 px-3 text-xs uppercase tracking-wide font-semibold ${isDarkMode ? 'text-white' : 'text-gray-700'}`}
-                >
-                  Match {mB.matchNumber}
-                </th>
-                <th
-                  className={`text-center py-3 px-3 text-xs uppercase tracking-wide font-semibold ${isDarkMode ? 'text-white' : 'text-gray-700'}`}
-                >
-                  Diff
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.map(row => {
-                const diff = row.b - row.a;
-                const isGood = row.higherIsBetter ? diff >= 0 : diff <= 0;
-                return (
-                  <tr
-                    key={row.label}
-                    className={`border-b last:border-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-100'}`}
-                  >
-                    <td
-                      className={`py-3 px-3 font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                    >
-                      {row.label}
-                    </td>
-                    <td
-                      className={`text-center py-3 px-3 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      {row.a}
-                    </td>
-                    <td
-                      className={`text-center py-3 px-3 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      {row.b}
-                    </td>
-                    <td
-                      className={`text-center py-3 px-3 font-semibold ${
-                        diff === 0
-                          ? isDarkMode
-                            ? 'text-team-white-60'
-                            : 'text-gray-400'
-                          : isGood
-                            ? 'text-emerald-500'
-                            : 'text-red-500'
-                      }`}
-                    >
-                      {diffStr(diff)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Full Comparison */}
+      <div
+        className={`rounded-xl border p-5 space-y-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
+      >
+        <div className="flex items-end justify-between">
+          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Full Comparison
+          </h3>
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-xs font-semibold">
+            <span className={isDarkMode ? 'text-team-white-60' : 'text-gray-400'}>
+              M{mA.matchNumber}
+            </span>
+            <span className={isDarkMode ? 'text-team-white-60' : 'text-gray-400'}>
+              vs
+            </span>
+            <span className={isDarkMode ? 'text-team-white-60' : 'text-gray-400'}>
+              M{mB.matchNumber}
+            </span>
+          </div>
         </div>
-      </Section>
+
+        {(['overall', 'auto', 'tele', 'endgame'] as const).map(phase => {
+          const phaseMetrics = metrics.filter(m => m.phase === phase);
+          if (phaseMetrics.length === 0) return null;
+
+          const phaseConfig = {
+            overall: {
+              label: 'Overall',
+              color: CHART_COLORS.primary,
+              headerBg: isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5',
+              headerText: isDarkMode ? 'text-white' : 'text-gray-700',
+              cardBg: isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50/50',
+            },
+            auto: {
+              label: 'Autonomous',
+              color: CHART_COLORS.auto,
+              headerBg: isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50',
+              headerText: isDarkMode ? 'text-emerald-400' : 'text-emerald-700',
+              cardBg: isDarkMode ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-emerald-100 bg-emerald-50/40',
+            },
+            tele: {
+              label: 'Teleop',
+              color: CHART_COLORS.tele,
+              headerBg: isDarkMode ? 'bg-amber-500/10' : 'bg-amber-50',
+              headerText: isDarkMode ? 'text-amber-300' : 'text-amber-700',
+              cardBg: isDarkMode ? 'border-amber-500/20 bg-amber-500/5' : 'border-amber-100 bg-amber-50/40',
+            },
+            endgame: {
+              label: 'Endgame',
+              color: CHART_COLORS.endgame,
+              headerBg: isDarkMode ? 'bg-team-blue/10' : 'bg-sky-50',
+              headerText: isDarkMode ? 'text-sky-300' : 'text-sky-700',
+              cardBg: isDarkMode ? 'border-sky-500/20 bg-sky-500/5' : 'border-sky-100 bg-sky-50/40',
+            },
+          }[phase];
+
+          return (
+            <div key={phase} className="space-y-1">
+              {/* Phase header pill */}
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${phaseConfig.headerBg} ${phaseConfig.headerText}`}>
+                <div
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: phaseConfig.color }}
+                />
+                {phaseConfig.label}
+              </div>
+
+              {/* Metric rows */}
+              <div className={`rounded-xl border overflow-hidden ${phaseConfig.cardBg}`}>
+                {phaseMetrics.map((row, rowIdx) => {
+                  const diff = row.b - row.a;
+                  const tied = row.a === row.b;
+                  const aWins = !tied && (row.higherIsBetter ? row.a > row.b : row.a < row.b);
+                  const bWins = !tied && (row.higherIsBetter ? row.b > row.a : row.b < row.a);
+                  const maxVal = Math.max(row.a, row.b, 1);
+
+                  return (
+                    <div
+                      key={row.label}
+                      className={`px-4 py-3 ${rowIdx > 0 ? `border-t ${isDarkMode ? 'border-white/5' : 'border-black/5'}` : ''}`}
+                    >
+                      {/* Metric label */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+                          {row.label}
+                        </span>
+                        {/* Diff badge */}
+                        {!tied ? (
+                          <span
+                            className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                              bWins
+                                ? 'bg-emerald-500/15 text-emerald-500'
+                                : 'bg-red-500/15 text-red-500'
+                            }`}
+                          >
+                            {diffStr(diff)}
+                          </span>
+                        ) : (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isDarkMode ? 'bg-white/10 text-team-white-60' : 'bg-gray-100 text-gray-400'}`}>
+                            Tied
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Value comparison bars */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Match A */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[11px] font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`}>
+                              M{mA.matchNumber}
+                            </span>
+                            <span
+                              className={`text-sm font-bold ${
+                                tied
+                                  ? isDarkMode ? 'text-white' : 'text-gray-700'
+                                  : aWins ? 'text-emerald-500' : 'text-red-500'
+                              }`}
+                            >
+                              {row.a}
+                            </span>
+                          </div>
+                          <div className={`h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-white/10' : 'bg-black/8'}`}>
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${Math.round((row.a / maxVal) * 100)}%`,
+                                backgroundColor: tied ? phaseConfig.color : aWins ? '#10b981' : '#ef4444',
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Match B */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[11px] font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`}>
+                              M{mB.matchNumber}
+                            </span>
+                            <span
+                              className={`text-sm font-bold ${
+                                tied
+                                  ? isDarkMode ? 'text-white' : 'text-gray-700'
+                                  : bWins ? 'text-emerald-500' : 'text-red-500'
+                              }`}
+                            >
+                              {row.b}
+                            </span>
+                          </div>
+                          <div className={`h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-white/10' : 'bg-black/8'}`}>
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${Math.round((row.b / maxVal) * 100)}%`,
+                                backgroundColor: tied ? phaseConfig.color : bWins ? '#10b981' : '#ef4444',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -1756,25 +1884,36 @@ const AnalysisContent = () => {
 
         {/* ── Hero stats ──────────────────────────────────────────── */}
         {stats && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
-            <StatCard
-              label="Avg Score"
-              value={stats.avgScore}
-              sublabel={`${stats.totalMatches} matches`}
-              isDarkMode={isDarkMode}
-            />
-            <StatCard
-              label="Best"
-              value={stats.maxScore}
-              sublabel={`Match ${sessionMatches[stats.bestMatch]?.matchNumber ?? ''}`}
-              isDarkMode={isDarkMode}
-            />
-            <StatCard
-              label="Worst"
-              value={stats.minScore}
-              sublabel={`Match ${sessionMatches[stats.worstMatch]?.matchNumber ?? ''}`}
-              isDarkMode={isDarkMode}
-            />
+          <div className="space-y-3">
+            <h2
+              className={`text-lg font-semibold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}
+            >
+              Session Overview
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <StatCard
+                label="Avg Score"
+                value={stats.avgScore}
+                sublabel={`${stats.totalMatches} matches`}
+                isDarkMode={isDarkMode}
+              />
+              <StatCard
+                label="Best Score"
+                value={stats.maxScore}
+                sublabel={`Match ${sessionMatches[stats.bestMatch]?.matchNumber ?? ''}`}
+                variant="success"
+                isDarkMode={isDarkMode}
+              />
+              <StatCard
+                label="Worst Score"
+                value={stats.minScore}
+                sublabel={`Match ${sessionMatches[stats.worstMatch]?.matchNumber ?? ''}`}
+                variant="danger"
+                isDarkMode={isDarkMode}
+              />
+            </div>
           </div>
         )}
 
@@ -1884,7 +2023,7 @@ const AnalysisContent = () => {
             className={`w-full sm:w-56 px-5 py-2.5 rounded-xl border border-team-blue text-team-blue text-sm font-medium text-center transition-colors ${
               isDarkMode
                 ? 'hover:bg-team-blue hover:text-black'
-                : 'hover:bg-team-blue hover:text-black'
+                : 'hover:bg-team-blue hover:text-white'
             }`}
           >
             Back to Sessions
@@ -1895,7 +2034,7 @@ const AnalysisContent = () => {
               isDarkMode ? 'text-black' : 'text-white'
             }`}
           >
-            View Charts
+            View Lifetime Charts
           </Link>
         </div>
       </div>
