@@ -2,55 +2,72 @@ import type { Session } from '@/types';
 import { logger } from './logger';
 
 /**
- * Generate a shareable link for a session
- * Encodes complete session data in the URL for full analysis
+ * Generate a short, safe shareable link for a session.
+ *
+ * Stores the session snapshot in Firestore (`sharedSessions` collection) under a
+ * 7-character base62 short ID and returns `${origin}/shared/preview?id=<shortId>`.
+ *
+ * Falls back to the legacy base64-in-URL approach if the Firestore write fails
+ * (e.g. the user is unauthenticated or rules are not yet deployed).
  */
-export const generateShareableLink = (session: Session): string => {
-  try {
-    // Include complete session data including all matches for full analysis
-    const shareData = {
-      sessionName: session.sessionName,
-      sessionDuration: session.sessionDuration,
-      matchType: session.matchType,
-      selectedFeature: session.selectedFeature,
-      notes: session.notes || '',
-      matches: session.matches.map(match => ({
-        id: match.id,
-        matchNumber: match.matchNumber,
-        matchType: match.matchType,
-        finalScore: match.finalScore,
-        autonomousScore: match.autonomousScore,
-        teleopScore: match.teleopScore,
-        endGameScore: match.endGameScore,
-        autonClassifiedArtifact: match.autonClassifiedArtifact,
-        autonOverflowArtifact: match.autonOverflowArtifact,
-        autonMotif: match.autonMotif,
-        autonLeave: match.autonLeave,
-        autonBallsMissed: match.autonBallsMissed,
-        teleClassifiedArtifact: match.teleClassifiedArtifact,
-        teleOverflowArtifact: match.teleOverflowArtifact,
-        teleMotif: match.teleMotif,
-        teleBallsMissed: match.teleBallsMissed,
-        robot1Park: match.robot1Park,
-        robot2Park: match.robot2Park,
-        cycleTimes: match.cycleTimes,
-        autonShots: match.autonShots,
-        teleopShots: match.teleopShots,
-      })),
-    };
+export const generateShareableLink = async (
+  session: Partial<Session>
+): Promise<string> => {
+  const shareData = {
+    sessionName: session.sessionName,
+    sessionDuration: session.sessionDuration,
+    matchType: session.matchType,
+    selectedFeature: session.selectedFeature,
+    notes: session.notes || '',
+    matches: (session.matches ?? []).map(match => ({
+      id: match.id,
+      matchNumber: match.matchNumber,
+      matchType: match.matchType,
+      finalScore: match.finalScore,
+      autonomousScore: match.autonomousScore,
+      teleopScore: match.teleopScore,
+      endGameScore: match.endGameScore,
+      autonClassifiedArtifact: match.autonClassifiedArtifact,
+      autonOverflowArtifact: match.autonOverflowArtifact,
+      autonMotif: match.autonMotif,
+      autonLeave: match.autonLeave,
+      autonBallsMissed: match.autonBallsMissed,
+      teleClassifiedArtifact: match.teleClassifiedArtifact,
+      teleOverflowArtifact: match.teleOverflowArtifact,
+      teleMotif: match.teleMotif,
+      teleBallsMissed: match.teleBallsMissed,
+      robot1Park: match.robot1Park,
+      robot2Park: match.robot2Park,
+      cycleTimes: match.cycleTimes,
+      autonShots: match.autonShots,
+      teleopShots: match.teleopShots,
+    })),
+  };
 
-    // Encode the data to base64 (Unicode-safe)
+  // ── Try Firestore short link first ────────────────────────────────────
+  try {
+    const { firebaseService } = await import('@/services');
+    const shortId = await firebaseService.createSharedSession(shareData);
+    return `${window.location.origin}/shared/preview?id=${shortId}`;
+  } catch (primaryError) {
+    logger.warn(
+      'Firestore share link failed, falling back to base64 URL',
+      { error: String(primaryError) }
+    );
+  }
+
+  // ── Fallback: base64-encoded URL ──────────────────────────────────────
+  try {
     const jsonStr = JSON.stringify(shareData);
     const encodedData = btoa(unescape(encodeURIComponent(jsonStr)));
-
-    // Generate the full URL
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/shared/preview?data=${encodedData}`;
-  } catch (error) {
-    logger.error('Error generating shareable link', error);
+    return `${window.location.origin}/shared/preview?data=${encodedData}`;
+  } catch (fallbackError) {
+    logger.error('Error generating shareable link (fallback)', { error: String(fallbackError) });
     throw new Error('Failed to generate shareable link');
   }
 };
+
+
 
 /**
  * Copy text to clipboard with fallback for older browsers

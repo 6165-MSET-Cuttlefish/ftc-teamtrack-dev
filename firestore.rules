@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Sessions — only the owning user can read/write
+    match /sessions/{sessionId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Shared session snapshots — anyone can read, any authenticated user can create
+    match /sharedSessions/{shortId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      // No update/delete — snapshots are immutable
+    }
+
+    // Teams — team members can read; owner can write
+    match /teams/{teamId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.ownerId ||
+        request.auth.uid in resource.data.memberIds
+      );
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+    }
+  }
+}

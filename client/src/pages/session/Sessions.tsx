@@ -600,7 +600,7 @@ const Sessions = () => {
 
   const handleShareSession = async (session: Session) => {
     try {
-      const shareLink = generateShareableLink(session);
+      const shareLink = await generateShareableLink(session);
       await copyToClipboard(shareLink);
       toast.success('Share link copied to clipboard!');
     } catch (error) {

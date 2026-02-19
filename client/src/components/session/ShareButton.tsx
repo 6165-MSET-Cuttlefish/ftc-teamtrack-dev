@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { Input } from '../ui/input';
-import { Share2, Check, Copy } from 'lucide-react';
+import { Share2, Check, Copy, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateShareableLink, copyToClipboard } from '@/lib/shareUtils';
 import type { Session } from '@/types';
@@ -30,15 +30,19 @@ export const ShareButton = ({
   const { isDarkMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [shareLink, setShareLink] = useState('');
 
-  const handleGenerateLink = () => {
+  const handleGenerateLink = async () => {
+    setIsGenerating(true);
     try {
-      const link = generateShareableLink(session);
+      const link = await generateShareableLink(session);
       setShareLink(link);
       setIsOpen(true);
-    } catch {
-      toast.error('Failed to generate share link');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to generate share link');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -63,8 +67,13 @@ export const ShareButton = ({
         size={size}
         className={className}
         onClick={handleGenerateLink}
+        disabled={isGenerating}
       >
-        <Share2 className="mr-2 h-4 w-4" />
+        {isGenerating ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Share2 className="mr-2 h-4 w-4" />
+        )}
         Share
       </Button>
 

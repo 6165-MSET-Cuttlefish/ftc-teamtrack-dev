@@ -4,6 +4,7 @@ import {
   getDocs,
   doc,
   getDoc,
+  setDoc,
   deleteDoc,
   updateDoc,
   query,
@@ -255,6 +256,47 @@ class FirebaseService {
       false,
       'Error deleting session:',
       true // Throw errors for deletes
+    );
+  }
+
+  // ── Shared Sessions (public short links) ──────────────────────────────
+
+  /** Generate a random 7-character base62 string suitable for use as a short ID */
+  private generateShortId(): string {
+    const chars =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let id = '';
+    for (let i = 0; i < 7; i++) {
+      id += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return id;
+  }
+
+  /** Store a session snapshot in Firestore and return its short ID */
+  async createSharedSession(shareData: object): Promise<string> {
+    const db = await this.getDB();
+    // Retry up to 3 times in the unlikely event of a collision
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const shortId = this.generateShortId();
+      const ref = doc(db, 'sharedSessions', shortId);
+      await setDoc(ref, { ...JSON.parse(JSON.stringify(shareData)), createdAt: Timestamp.now() });
+      return shortId;
+    }
+    throw new Error('Failed to create shared session after retries');
+  }
+
+  /** Retrieve a shared session snapshot by short ID; returns null if not found */
+  async getSharedSession(shortId: string): Promise<Record<string, unknown> | null> {
+    return this.safeExecute(
+      async () => {
+        const db = await this.getDB();
+        const ref = doc(db, 'sharedSessions', shortId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return null;
+        return snap.data() as Record<string, unknown>;
+      },
+      null,
+      'Error fetching shared session:'
     );
   }
 
