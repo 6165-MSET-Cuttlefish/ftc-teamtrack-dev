@@ -50,6 +50,7 @@ interface SessionCardProps {
   onDelete: () => void;
   onShare: () => void;
   isDeleting?: boolean;
+  ownerName?: string;
 }
 
 const SessionCard = ({
@@ -59,6 +60,7 @@ const SessionCard = ({
   onDelete,
   onShare,
   isDeleting = false,
+  ownerName,
 }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
@@ -268,10 +270,16 @@ const SessionCard = ({
         </div>
 
         <div
-          className={`flex items-center gap-2 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+          className={`flex items-center gap-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
         >
           <Calendar className="h-4 w-4" />
           <span>{formatDate(session.createdAt)}</span>
+          {ownerName && (
+            <>
+              <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>·</span>
+              <span>{ownerName}</span>
+            </>
+          )}
         </div>
       </CardHeader>
 
@@ -279,11 +287,11 @@ const SessionCard = ({
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
           <div className="flex items-center gap-3">
             <Clock
-              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             />
             <div className="flex flex-col">
               <span
-                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
                 Duration
               </span>
@@ -297,11 +305,11 @@ const SessionCard = ({
 
           <div className="flex items-center gap-3">
             <Hash
-              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             />
             <div className="flex flex-col">
               <span
-                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
                 Matches
               </span>
@@ -315,11 +323,11 @@ const SessionCard = ({
 
           <div className="flex items-center gap-3">
             <Trophy
-              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             />
             <div className="flex flex-col">
               <span
-                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
                 Avg Score
               </span>
@@ -333,11 +341,11 @@ const SessionCard = ({
 
           <div className="flex items-center gap-3">
             <TrendingUp
-              className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             />
             <div className="flex flex-col">
               <span
-                className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
                 Total Score
               </span>
@@ -602,16 +610,28 @@ const Sessions = () => {
     }
   };
 
+  /** Helper: get display name for a session's owner from team members */
+  const getSessionOwnerName = (session: Session): string | undefined => {
+    if (!team) return undefined;
+    const member = team.members.find(m => m.userId === session.userId);
+    return member?.displayName || member?.email || session.userEmail || undefined;
+  };
+
   const handleExportCSV = () => {
     if (sessions.length === 0) {
       toast.error('No sessions to export');
       return;
     }
 
-    // Define CSV headers
+    const esc = (val: string) => `"${val.replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+
+    // Per-match export: one row per match with full detail
     const headers = [
       'Session Name',
+      'Session Date',
+      'Session Duration',
       'Match Type',
+      'Match Number',
       'Final Score',
       'Autonomous Score',
       'Teleop Score',
@@ -620,50 +640,80 @@ const Sessions = () => {
       'Auton Overflow Artifact',
       'Auton Motif',
       'Auton Leave',
+      'Auton Balls Missed',
       'Tele Classified Artifact',
       'Tele Overflow Artifact',
       'Tele Motif',
-      'Date',
+      'Tele Balls Missed',
+      'Robot 1 Park',
+      'Robot 2 Park',
+      'Cycle Times',
+      'Auton Shots (Made/Shot)',
+      'Teleop Shots (Made/Shot)',
+      'Notes',
+      'User Email',
     ];
 
-    // Convert sessions to CSV rows with proper escaping
-    const rows = sessions.map(session => {
-      const finalScore = session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0);
-      const autonomousScore = session.matches.reduce((sum, m) => sum + (m.autonomousScore || 0), 0);
-      const teleopScore = session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0);
-      const endGameScore = session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0);
-      const autonClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.autonClassifiedArtifact || 0), 0);
-      const autonOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.autonOverflowArtifact || 0), 0);
-      const autonMotif = session.matches.reduce((sum, m) => sum + (m.autonMotif || 0), 0);
-      const autonLeave = session.matches.reduce((sum, m) => sum + (m.autonLeave || 0), 0);
-      const teleClassifiedArtifact = session.matches.reduce((sum, m) => sum + (m.teleClassifiedArtifact || 0), 0);
-      const teleOverflowArtifact = session.matches.reduce((sum, m) => sum + (m.teleOverflowArtifact || 0), 0);
-      const teleMotif = session.matches.reduce((sum, m) => sum + (m.teleMotif || 0), 0);
+    const rows: string[][] = [];
 
-      return [
-        `"${(session.sessionName || 'Untitled Session').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-        `"${(session.matchType || 'Full Game').replace(/"/g, '""')}"`,
-        finalScore,
-        autonomousScore,
-        teleopScore,
-        endGameScore,
-        autonClassifiedArtifact,
-        autonOverflowArtifact,
-        autonMotif,
-        autonLeave,
-        teleClassifiedArtifact,
-        teleOverflowArtifact,
-        teleMotif,
-        `"${formatDate(session.createdAt)}"`,
-      ];
-    });
+    for (const session of sessions) {
+      const sessionDate = esc(formatDate(session.createdAt));
+      const sessionName = esc(session.sessionName || 'Untitled Session');
+      const sessionDuration = esc(session.sessionDuration || '');
+      const matchType = esc(session.matchType || 'Full Game');
+      const notes = esc(session.notes || '');
+      const email = esc(session.userEmail || '');
 
-    // Combine headers and rows
-    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join(
-      '\n'
-    );
+      if (!session.matches || session.matches.length === 0) {
+        // Session with no matches — still export a row
+        rows.push([
+          sessionName, sessionDate, sessionDuration, matchType,
+          '0', '0', '0', '0', '0',
+          '0', '0', '0', '0', '0',
+          '0', '0', '0', '0',
+          '"none"', '"none"',
+          '""', '""', '""',
+          notes, email,
+        ]);
+      } else {
+        for (const match of session.matches) {
+          const cycleTimes = (match.cycleTimes || []).join('; ');
+          const autonShots = (match.autonShots || []).map(s => `${s.ballsMade}/${s.ballsShot}`).join('; ');
+          const teleopShots = (match.teleopShots || []).map(s => `${s.ballsMade}/${s.ballsShot}`).join('; ');
 
-    // Create blob and download
+          rows.push([
+            sessionName,
+            sessionDate,
+            sessionDuration,
+            esc(match.matchType || session.matchType || 'Full Game'),
+            String(match.matchNumber || 0),
+            String(match.finalScore || 0),
+            String(match.autonomousScore || 0),
+            String(match.teleopScore || 0),
+            String(match.endGameScore || 0),
+            String(match.autonClassifiedArtifact || 0),
+            String(match.autonOverflowArtifact || 0),
+            String(match.autonMotif || 0),
+            String(match.autonLeave || 0),
+            String(match.autonBallsMissed || 0),
+            String(match.teleClassifiedArtifact || 0),
+            String(match.teleOverflowArtifact || 0),
+            String(match.teleMotif || 0),
+            String(match.teleBallsMissed || 0),
+            esc(match.robot1Park || 'none'),
+            esc(match.robot2Park || 'none'),
+            esc(cycleTimes),
+            esc(autonShots),
+            esc(teleopShots),
+            notes,
+            email,
+          ]);
+        }
+      }
+    }
+
+    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -785,7 +835,7 @@ const Sessions = () => {
                   {sessions.length}
                 </div>
                 <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
                 >
                   Total Sessions
                 </div>
@@ -804,7 +854,7 @@ const Sessions = () => {
                   })()}
                 </div>
                 <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
                 >
                   Avg Score
                 </div>
@@ -821,7 +871,7 @@ const Sessions = () => {
                   })()}
                 </div>
                 <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
                 >
                   Best Score
                 </div>
@@ -835,7 +885,7 @@ const Sessions = () => {
                   }
                 </div>
                 <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
                 >
                   Total Matches
                 </div>
@@ -921,7 +971,7 @@ const Sessions = () => {
               <Button
                 onClick={() => {
                   resetSession();
-                  navigate('/active');
+                  navigate(ROUTES.ACTIVE);
                 }}
                 disabled={hasActiveSession}
                 title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
@@ -970,6 +1020,7 @@ const Sessions = () => {
                 onShare={() => handleShareSession(session)}
                 onDelete={() => handleDeleteSession(session.id)}
                 isDeleting={deletingSessionId === session.id}
+                ownerName={getSessionOwnerName(session)}
               />
             ))}
           </div>
