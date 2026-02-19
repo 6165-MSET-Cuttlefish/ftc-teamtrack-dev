@@ -24,6 +24,7 @@ import {
   CheckSquare,
   Square,
   ArrowRightLeft,
+  UserMinus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Session } from '@/types';
@@ -43,6 +44,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     regenerateInviteCode,
     refreshTeam,
     transferOwnership,
+    kickMember,
   } = useTeam();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -58,6 +60,8 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [leaveConfirm, setLeaveConfirm] = useState(false);
   const [transferring, setTransferring] = useState<string | null>(null);
   const [transferConfirm, setTransferConfirm] = useState<string | null>(null);
+  const [kicking, setKicking] = useState<string | null>(null);
+  const [kickConfirm, setKickConfirm] = useState<string | null>(null);
 
   // Import sessions state
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -269,6 +273,31 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       toast.error('Failed to transfer ownership');
     } finally {
       setTransferring(null);
+    }
+  };
+
+  const handleKickMember = async (targetUserId: string, memberName: string) => {
+    // First click: show confirmation
+    if (kickConfirm !== targetUserId) {
+      setKickConfirm(targetUserId);
+      setTimeout(() => setKickConfirm(prev => prev === targetUserId ? null : prev), 5000);
+      return;
+    }
+
+    // Second click: execute kick
+    setKickConfirm(null);
+    setKicking(targetUserId);
+    try {
+      const success = await kickMember(targetUserId);
+      if (success) {
+        toast.success(`${memberName} has been removed from the team`);
+      } else {
+        toast.error('Failed to remove member');
+      }
+    } catch {
+      toast.error('Failed to remove member');
+    } finally {
+      setKicking(null);
     }
   };
 
@@ -670,6 +699,31 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                             </>
                           ) : (
                             <ArrowRightLeft className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                      {isOwner && member.userId !== user?.uid && (
+                        <button
+                          onClick={() => handleKickMember(member.userId, member.displayName || member.email)}
+                          disabled={kicking === member.userId}
+                          title="Remove member"
+                          className={`flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
+                            kickConfirm === member.userId
+                              ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 px-2 py-1'
+                              : isDarkMode
+                                ? 'hover:bg-team-dark text-team-white-40 hover:text-red-400 p-1.5'
+                                : 'hover:bg-gray-200 text-gray-400 hover:text-red-500 p-1.5'
+                          } ${kicking === member.userId ? 'opacity-50' : ''}`}
+                        >
+                          {kicking === member.userId ? (
+                            <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : kickConfirm === member.userId ? (
+                            <>
+                              Remove?
+                              <Check className="h-3.5 w-3.5" />
+                            </>
+                          ) : (
+                            <UserMinus className="h-3.5 w-3.5" />
                           )}
                         </button>
                       )}

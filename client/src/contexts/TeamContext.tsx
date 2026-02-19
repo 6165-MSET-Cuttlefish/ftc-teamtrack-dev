@@ -20,6 +20,7 @@ interface TeamContextType {
   refreshTeam: () => Promise<void>;
   regenerateInviteCode: () => Promise<string | null>;
   transferOwnership: (newOwnerId: string) => Promise<boolean>;
+  kickMember: (targetUserId: string) => Promise<boolean>;
   updateMemberDisplayName: (newDisplayName: string) => Promise<void>;
 }
 
@@ -185,6 +186,20 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const kickMember = async (targetUserId: string): Promise<boolean> => {
+    if (!user || !team) return false;
+    try {
+      const success = await teamService.kickMember(team.id, user.uid, targetUserId);
+      if (success) {
+        await refreshTeam();
+      }
+      return success;
+    } catch (error) {
+      logger.error('Error kicking member:', error);
+      throw error;
+    }
+  };
+
   const updateMemberDisplayName = async (newDisplayName: string): Promise<void> => {
     if (!user || !team) return;
     try {
@@ -206,6 +221,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         refreshTeam,
         regenerateInviteCode,
         transferOwnership,
+        kickMember,
         updateMemberDisplayName,
       }}
     >

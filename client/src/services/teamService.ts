@@ -322,6 +322,38 @@ class TeamService {
     );
   }
 
+  /** Kick a member from the team (owner only) */
+  async kickMember(teamId: string, ownerUserId: string, targetUserId: string): Promise<boolean> {
+    return this.safeExecute(
+      async () => {
+        const db = await this.getDB();
+        const docRef = doc(db, 'teams', teamId);
+        const teamDoc = await getDoc(docRef);
+        if (!teamDoc.exists()) return false;
+
+        const teamData = teamDoc.data();
+        const members: TeamMember[] = teamData.members || [];
+
+        // Verify the requester is the owner
+        const owner = members.find((m) => m.userId === ownerUserId);
+        if (!owner || owner.role !== 'owner') return false;
+
+        // Cannot kick yourself
+        if (ownerUserId === targetUserId) return false;
+
+        const updatedMembers = members
+          .filter((m) => m.userId !== targetUserId)
+          .map((m) => this.cleanMember(m));
+
+        await updateDoc(docRef, { members: updatedMembers });
+        return true;
+      },
+      false,
+      'Error kicking member:',
+      true
+    );
+  }
+
   /** Update a member's display name in the team */
   async updateMemberDisplayName(teamId: string, userId: string, newDisplayName: string): Promise<boolean> {
     return this.safeExecute(
