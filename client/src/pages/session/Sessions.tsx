@@ -696,7 +696,7 @@ const Sessions = () => {
               >
                 {team ? team.name : 'My Sessions'}
               </h1>
-              <TeamManager onTeamChange={() => loadSessions()} />
+              {!isGuest && <TeamManager onTeamChange={() => loadSessions()} />}
             </div>
             <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
               <Button
