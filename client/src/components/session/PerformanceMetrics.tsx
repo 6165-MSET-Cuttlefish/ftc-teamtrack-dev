@@ -713,48 +713,14 @@ export const PerformanceMetrics = () => {
       )
         return;
 
-      // Handle gate add-back mode: 1-9 to set how many balls stay, Enter to confirm, Esc to cancel
+      // Handle gate add-back mode (0-9 sets how many balls stay)
       if (sessionData.gateAddBackMode) {
-        if (/^[1-9]$/.test(event.key)) {
+        if (/^[0-9]$/.test(event.key)) {
           event.preventDefault();
           event.stopPropagation();
           const count = parseInt(event.key);
           updateSessionData({
             gateAddBackCount: sessionData.gateAddBackCount === count ? 0 : count,
-          });
-          return;
-        }
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          event.stopPropagation();
-          updateSessionData({
-            gateBallCount: sessionData.gateAddBackCount ?? 0,
-            gateAddBackMode: false,
-            gateAddBackCount: 0,
-          });
-          return;
-        }
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          event.stopPropagation();
-          updateSessionData({
-            gateAddBackMode: false,
-            gateAddBackCount: 0,
-          });
-          return;
-        }
-        return;
-      }
-
-      // G key: open gate when it has balls and scoring popup is not open
-      if (event.key === 'g' || event.key === 'G') {
-        const gateBallCount = sessionData.gateBallCount ?? 0;
-        if (gateBallCount > 0 && !showPopup) {
-          event.preventDefault();
-          event.stopPropagation();
-          updateSessionData({
-            gateAddBackMode: true,
-            gateAddBackCount: 0,
           });
         }
         return;
@@ -851,7 +817,6 @@ export const PerformanceMetrics = () => {
     sessionData.teleopShots,
     sessionData.gateBallCount,
     sessionData.gateAddBackMode,
-    sessionData.gateAddBackCount,
     recordCycleTime,
     matchActive,
     matchPhase,
