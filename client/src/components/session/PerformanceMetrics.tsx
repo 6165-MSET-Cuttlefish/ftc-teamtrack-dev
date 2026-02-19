@@ -11,7 +11,8 @@ import { ChevronRight, Clock, Plus, Trash2 } from 'lucide-react';
 import type { ShotEntry } from '@/types';
 
 // ─── Constants ──────────────────────────────────────────────────────────
-const POINTS_PER_MADE = 3;
+const POINTS_PER_CLASSIFIED = 3;
+const POINTS_PER_OVERFLOW = 1;
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -24,6 +25,8 @@ const migrateShotsArray = (
     return (raw as number[]).map(made => ({
       ballsShot: made,
       ballsMade: made,
+      classified: made,
+      overflow: 0,
     }));
   }
   return raw as ShotEntry[];
@@ -32,8 +35,19 @@ const migrateShotsArray = (
 const sumField = (shots: ShotEntry[], field: 'ballsShot' | 'ballsMade') =>
   shots.reduce((s, e) => s + e[field], 0);
 
+const sumClassified = (shots: ShotEntry[]) =>
+  shots.reduce((s, e) => s + (e.classified ?? e.ballsMade), 0);
+
+const sumOverflow = (shots: ShotEntry[]) =>
+  shots.reduce((s, e) => s + (e.overflow ?? 0), 0);
+
+/** Points = classified * 3 + overflow * 1 */
 const totalPoints = (shots: ShotEntry[]) =>
-  shots.reduce((s, e) => s + e.ballsMade * POINTS_PER_MADE, 0);
+  shots.reduce((s, e) => {
+    const cls = e.classified ?? e.ballsMade;
+    const ovfl = e.overflow ?? 0;
+    return s + cls * POINTS_PER_CLASSIFIED + ovfl * POINTS_PER_OVERFLOW;
+  }, 0);
 
 const calcAccuracy = (made: number, shot: number): string =>
   shot > 0 ? `${Math.round((made / shot) * 100)}%` : '—';
@@ -161,19 +175,21 @@ const ShotLogTable: React.FC<{
         >
           {/* Header */}
           <div
-            className={`grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_36px] text-xs font-semibold uppercase tracking-wide ${
+            className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_32px] text-xs font-semibold uppercase tracking-wide ${
               isDarkMode
                 ? 'bg-team-dark-20 text-gray-400'
                 : 'bg-gray-50 text-gray-500'
             }`}
           >
-            <div className="px-2 py-2 text-center">#</div>
-            <div className="px-2 py-2 text-center">Shot</div>
-            <div className="px-2 py-2 text-center">Made</div>
-            <div className="px-2 py-2 text-center">Pts</div>
-            <div className="px-2 py-2 text-center">Total</div>
-            <div className="px-2 py-2 text-center">Cycle</div>
-            <div className="px-2 py-2" />
+            <div className="px-1 py-2 text-center">#</div>
+            <div className="px-1 py-2 text-center">Shot</div>
+            <div className="px-1 py-2 text-center">Made</div>
+            <div className="px-1 py-2 text-center">Cls</div>
+            <div className="px-1 py-2 text-center">Ovfl</div>
+            <div className="px-1 py-2 text-center">Pts</div>
+            <div className="px-1 py-2 text-center">Total</div>
+            <div className="px-1 py-2 text-center">Cycle</div>
+            <div className="px-1 py-2" />
           </div>
 
           {/* Rows */}
@@ -187,7 +203,9 @@ const ShotLogTable: React.FC<{
             </div>
           ) : (
             shots.map((shot, i) => {
-              const pts = shot.ballsMade * POINTS_PER_MADE;
+              const cls = shot.classified ?? shot.ballsMade;
+              const ovfl = shot.overflow ?? 0;
+              const pts = cls * POINTS_PER_CLASSIFIED + ovfl * POINTS_PER_OVERFLOW;
               running += pts;
               const rowRunning = running;
               const ct = shot.cycleTime;
@@ -211,14 +229,14 @@ const ShotLogTable: React.FC<{
               return (
                 <div
                   key={i}
-                  className={`grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_36px] items-center border-t ${
+                  className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_32px] items-center border-t ${
                     isDarkMode
                       ? 'border-white/5 even:bg-white/[0.02]'
                       : 'border-gray-100 even:bg-gray-50/50'
                   }`}
                 >
                   <div
-                    className={`px-2 py-2 text-center text-xs font-medium ${
+                    className={`px-1 py-2 text-center text-xs font-medium ${
                       isDarkMode ? 'text-gray-500' : 'text-gray-400'
                     }`}
                   >
@@ -230,7 +248,7 @@ const ShotLogTable: React.FC<{
                       onChange={v => onUpdate(i, 'ballsShot', v)}
                       max={10}
                       readOnly={!editable}
-                      className={`w-14 h-9 text-center text-sm font-medium rounded border transition-colors ${
+                      className={`w-12 h-9 text-center text-sm font-medium rounded border transition-colors ${
                         isDarkMode
                           ? 'bg-team-dark border-team-blue-40 text-white focus:ring-1 focus:ring-team-blue/30'
                           : 'bg-white border-gray-200 text-black focus:ring-1 focus:ring-team-blue/30'
@@ -246,7 +264,7 @@ const ShotLogTable: React.FC<{
                       }}
                       max={shot.ballsShot}
                       readOnly={!editable}
-                      className={`w-14 h-9 text-center text-sm font-medium rounded border transition-colors ${
+                      className={`w-12 h-9 text-center text-sm font-medium rounded border transition-colors ${
                         isDarkMode
                           ? 'bg-team-dark border-team-blue-40 text-white focus:ring-1 focus:ring-team-blue/30'
                           : 'bg-white border-gray-200 text-black focus:ring-1 focus:ring-team-blue/30'
@@ -254,21 +272,35 @@ const ShotLogTable: React.FC<{
                     />
                   </div>
                   <div
-                    className={`px-2 py-2 text-center text-sm font-semibold ${
+                    className={`px-1 py-2 text-center text-xs font-semibold ${
+                      cls > 0 ? 'text-green-500' : isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                    }`}
+                  >
+                    {cls}
+                  </div>
+                  <div
+                    className={`px-1 py-2 text-center text-xs font-semibold ${
+                      ovfl > 0 ? 'text-orange-500' : isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                    }`}
+                  >
+                    {ovfl}
+                  </div>
+                  <div
+                    className={`px-1 py-2 text-center text-sm font-semibold ${
                       isDarkMode ? 'text-white' : 'text-black'
                     }`}
                   >
                     {pts}
                   </div>
-                  <div className="px-2 py-2 text-center text-sm font-medium text-team-blue">
+                  <div className="px-1 py-2 text-center text-sm font-medium text-team-blue">
                     {rowRunning}
                   </div>
                   <div
-                    className={`px-2 py-2 text-center text-xs ${cycleClass}`}
+                    className={`px-1 py-2 text-center text-xs ${cycleClass}`}
                   >
                     {ct !== undefined ? formatCycleTime(ct) : '—'}
                   </div>
-                  <div className="px-1 py-1.5 flex justify-center">
+                  <div className="px-0.5 py-1.5 flex justify-center">
                     {editable && (
                       <button
                         onClick={() => onDelete(i)}
@@ -290,37 +322,47 @@ const ShotLogTable: React.FC<{
           {/* Footer totals */}
           {shots.length > 0 && (
             <div
-              className={`grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_36px] items-center border-t-2 ${
+              className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_32px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
               }`}
             >
-              <div className="px-2 py-2" />
+              <div className="px-1 py-2" />
               <div
-                className={`px-2 py-2 text-center text-xs font-bold ${
+                className={`px-1 py-2 text-center text-xs font-bold ${
                   isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
               >
                 {sumField(shots, 'ballsShot')}
               </div>
               <div
-                className={`px-2 py-2 text-center text-xs font-bold ${
+                className={`px-1 py-2 text-center text-xs font-bold ${
                   isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
               >
                 {sumField(shots, 'ballsMade')}
               </div>
               <div
-                className={`px-2 py-2 text-center text-xs font-bold ${
+                className={`px-1 py-2 text-center text-xs font-bold text-green-500`}
+              >
+                {sumClassified(shots)}
+              </div>
+              <div
+                className={`px-1 py-2 text-center text-xs font-bold text-orange-500`}
+              >
+                {sumOverflow(shots)}
+              </div>
+              <div
+                className={`px-1 py-2 text-center text-xs font-bold ${
                   isDarkMode ? 'text-white' : 'text-black'
                 }`}
               >
                 {shotsTotal}
               </div>
-              <div className="px-2 py-2" />
-              <div className="px-2 py-2" />
-              <div className="px-2 py-2" />
+              <div className="px-1 py-2" />
+              <div className="px-1 py-2" />
+              <div className="px-1 py-2" />
             </div>
           )}
         </div>
@@ -415,12 +457,12 @@ export const PerformanceMetrics = () => {
     sessionData,
     updateSessionData,
     editingMatchId,
-    hasStarted,
+    matchActive,
     matchPhase,
   } = useSession();
   const { isDarkMode } = useTheme();
 
-  const isEditable = hasStarted || editingMatchId !== null;
+  const isEditable = matchActive || editingMatchId !== null;
   const isUpdatingRef = useRef(false);
   // Track last shot timestamp for cycle time calculation in keybinds
   const lastShotTimeRef = useRef<number | null>(null);
@@ -540,10 +582,12 @@ export const PerformanceMetrics = () => {
       endGameScore,
       finalScore,
       autonLeave: autonomousLeave,
-      autonClassifiedArtifact: sumField(autonShots, 'ballsMade'),
+      autonClassifiedArtifact: sumClassified(autonShots),
+      autonOverflowArtifact: sumOverflow(autonShots),
       autonBallsMissed:
         sumField(autonShots, 'ballsShot') - sumField(autonShots, 'ballsMade'),
-      teleClassifiedArtifact: sumField(teleopShots, 'ballsMade'),
+      teleClassifiedArtifact: sumClassified(teleopShots),
+      teleOverflowArtifact: sumOverflow(teleopShots),
       teleBallsMissed:
         sumField(teleopShots, 'ballsShot') - sumField(teleopShots, 'ballsMade'),
       robot1Park,
@@ -668,7 +712,21 @@ export const PerformanceMetrics = () => {
         event.target instanceof HTMLTextAreaElement
       )
         return;
-      if (!hasStarted) return;
+
+      // Handle gate add-back mode (0-9 sets how many balls stay)
+      if (sessionData.gateAddBackMode) {
+        if (/^[0-9]$/.test(event.key)) {
+          event.preventDefault();
+          event.stopPropagation();
+          const count = parseInt(event.key);
+          updateSessionData({
+            gateAddBackCount: sessionData.gateAddBackCount === count ? 0 : count,
+          });
+        }
+        return;
+      }
+
+      if (!matchActive) return;
 
       if (['1', '2', '3'].includes(event.key)) {
         if (!showPopup) {
@@ -703,10 +761,20 @@ export const PerformanceMetrics = () => {
             : undefined;
         lastShotTimeRef.current = now;
 
+        // Gate logic: classify vs overflow based on gate capacity (9)
+        const GATE_CAPACITY = 9;
+        const currentGate = sessionData.gateBallCount ?? 0;
+        const spaceInGate = Math.max(0, GATE_CAPACITY - currentGate);
+        const classified = Math.min(madeCount, spaceInGate);
+        const overflow = madeCount - classified;
+        const newGateCount = currentGate + classified;
+
         const entry: ShotEntry = {
           ballsShot: shotType,
           ballsMade: madeCount,
           cycleTime,
+          classified,
+          overflow,
         };
 
         if (isAutonPhase) {
@@ -714,13 +782,13 @@ export const PerformanceMetrics = () => {
             ...migrateShotsArray(sessionData.autonShots),
             entry,
           ];
-          updateSessionData({ autonShots: nextAuton });
+          updateSessionData({ autonShots: nextAuton, gateBallCount: newGateCount });
         } else {
           const nextTeleop = [
             ...migrateShotsArray(sessionData.teleopShots),
             entry,
           ];
-          updateSessionData({ teleopShots: nextTeleop });
+          updateSessionData({ teleopShots: nextTeleop, gateBallCount: newGateCount });
           if (sessionData.selectedFeature === 'Cycle Times') recordCycleTime();
         }
 
@@ -747,8 +815,10 @@ export const PerformanceMetrics = () => {
     sessionData.selectedFeature,
     sessionData.autonShots,
     sessionData.teleopShots,
+    sessionData.gateBallCount,
+    sessionData.gateAddBackMode,
     recordCycleTime,
-    hasStarted,
+    matchActive,
     matchPhase,
     updateSessionData,
   ]);
@@ -831,7 +901,7 @@ export const PerformanceMetrics = () => {
           >
             {/* header */}
             <div
-              className={`grid grid-cols-[1fr_60px_60px_65px_80px] text-xs font-semibold uppercase tracking-wide ${
+              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] text-xs font-semibold uppercase tracking-wide ${
                 isDarkMode
                   ? 'bg-team-dark-20 text-gray-400'
                   : 'bg-gray-50 text-gray-500'
@@ -840,6 +910,8 @@ export const PerformanceMetrics = () => {
               <div className="px-3 py-2">Phase</div>
               <div className="px-2 py-2 text-center">Shot</div>
               <div className="px-2 py-2 text-center">Made</div>
+              <div className="px-2 py-2 text-center">Cls</div>
+              <div className="px-2 py-2 text-center">Ovfl</div>
               <div className="px-2 py-2 text-center">Acc</div>
               <div className="px-2 py-2 text-center">Points</div>
             </div>
@@ -847,7 +919,7 @@ export const PerformanceMetrics = () => {
             {/* Autonomous row */}
             {showAuton && (
               <div
-                className={`grid grid-cols-[1fr_60px_60px_65px_80px] items-center border-t ${
+                className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] items-center border-t ${
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
@@ -866,6 +938,12 @@ export const PerformanceMetrics = () => {
                 >
                   {sumField(autonShots, 'ballsMade')}
                 </div>
+                <div className="px-2 py-3 text-center text-sm font-semibold text-green-500">
+                  {sumClassified(autonShots)}
+                </div>
+                <div className="px-2 py-3 text-center text-sm font-semibold text-orange-500">
+                  {sumOverflow(autonShots)}
+                </div>
                 <div
                   className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
@@ -883,7 +961,7 @@ export const PerformanceMetrics = () => {
             {/* TeleOp row */}
             {showTeleop && (
               <div
-                className={`grid grid-cols-[1fr_60px_60px_65px_80px] items-center border-t ${
+                className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] items-center border-t ${
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
@@ -902,6 +980,12 @@ export const PerformanceMetrics = () => {
                 >
                   {sumField(teleopShots, 'ballsMade')}
                 </div>
+                <div className="px-2 py-3 text-center text-sm font-semibold text-green-500">
+                  {sumClassified(teleopShots)}
+                </div>
+                <div className="px-2 py-3 text-center text-sm font-semibold text-orange-500">
+                  {sumOverflow(teleopShots)}
+                </div>
                 <div
                   className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
@@ -918,7 +1002,7 @@ export const PerformanceMetrics = () => {
 
             {/* End Game row */}
             <div
-              className={`grid grid-cols-[1fr_60px_60px_65px_80px] items-center border-t ${
+              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] items-center border-t ${
                 isDarkMode ? 'border-white/5' : 'border-gray-100'
               }`}
             >
@@ -940,6 +1024,8 @@ export const PerformanceMetrics = () => {
                   : '—'}
               </div>
               <div className="px-2 py-3 text-center text-sm" />
+              <div className="px-2 py-3 text-center text-sm" />
+              <div className="px-2 py-3 text-center text-sm" />
               <div
                 className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
               >
@@ -952,7 +1038,7 @@ export const PerformanceMetrics = () => {
 
             {/* Total footer */}
             <div
-              className={`grid grid-cols-[1fr_60px_60px_65px_80px] items-center border-t-2 ${
+              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
@@ -974,6 +1060,12 @@ export const PerformanceMetrics = () => {
               >
                 {sumField(autonShots, 'ballsMade') +
                   sumField(teleopShots, 'ballsMade')}
+              </div>
+              <div className="px-2 py-3 text-center text-sm font-bold text-green-500">
+                {sumClassified(autonShots) + sumClassified(teleopShots)}
+              </div>
+              <div className="px-2 py-3 text-center text-sm font-bold text-orange-500">
+                {sumOverflow(autonShots) + sumOverflow(teleopShots)}
               </div>
               <div
                 className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
@@ -1041,88 +1133,7 @@ export const PerformanceMetrics = () => {
               isDarkMode={isDarkMode}
             />
 
-            {/* Cycle Times */}
-            {sessionData.selectedFeature === 'Cycle Times' && (
-              <div className="space-y-4">
-                <div className="flex flex-col gap-2 w-full">
-                  <label
-                    className={`text-base leading-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
-                  >
-                    Cycle Time
-                  </label>
-                  <div
-                    className="flex flex-row items-center"
-                    style={{ gap: '18px' }}
-                  >
-                    <button
-                      onClick={recordCycleTime}
-                      className={`w-12 h-12 rounded-lg border border-team-blue-40 flex items-center justify-center transition-colors flex-shrink-0 ${
-                        isDarkMode
-                          ? 'bg-team-dark text-white hover:bg-team-dark-20'
-                          : 'bg-[#FEFEFE] text-team-blue hover:bg-gray-100'
-                      }`}
-                    >
-                      <Clock className="w-6 h-6" />
-                    </button>
-                    {cycleTimerStartTime !== null && (
-                      <div
-                        className={`text-2xl flex flex-row ${isDarkMode ? 'text-white' : 'text-black'}`}
-                        style={{
-                          fontFamily: 'monospace',
-                          letterSpacing: '0.1em',
-                        }}
-                      >
-                        <div style={{ paddingTop: '6px' }}>
-                          {Math.floor(cycleTimerElapsed / 60)}
-                        </div>
-                        <div style={{ paddingTop: '6px' }}>:</div>
-                        <div style={{ paddingTop: '6px' }}>
-                          {(cycleTimerElapsed % 60).toString().padStart(2, '0')}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
 
-                {(sessionData.cycleTimes?.length ?? 0) > 0 && (
-                  <div className="flex flex-col gap-2 w-full">
-                    <button
-                      onClick={() =>
-                        setIsCycleTimesLogExpanded(!isCycleTimesLogExpanded)
-                      }
-                      className={`text-base leading-6 font-medium flex items-center gap-2 ${isDarkMode ? 'text-white hover:text-team-blue' : 'text-black hover:text-team-blue'} transition-colors`}
-                    >
-                      <ChevronRight
-                        className={`w-4 h-4 transition-transform ${isCycleTimesLogExpanded ? 'rotate-90' : ''}`}
-                      />
-                      Cycle Times Log ({sessionData.cycleTimes.length})
-                    </button>
-                    {isCycleTimesLogExpanded && (
-                      <div
-                        className={`p-2.5 rounded border border-team-blue-40 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-                        style={{ height: '150px', overflowY: 'auto' }}
-                      >
-                        <div className="flex flex-col gap-2">
-                          {sessionData.cycleTimes.map((time, index) => {
-                            const minutes = Math.floor(time / 60);
-                            const seconds = time % 60;
-                            return (
-                              <div
-                                key={index}
-                                className={`px-2.5 py-1.5 rounded text-sm font-medium ${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue-40 text-black'}`}
-                              >
-                                {index + 1}. {minutes}:
-                                {seconds.toString().padStart(2, '0')}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
 

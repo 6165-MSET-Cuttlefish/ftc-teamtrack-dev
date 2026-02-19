@@ -97,6 +97,7 @@ const createInitialSessionData = (): SessionFormData => ({
   teleBallsMissed: 0,
   robot1Park: 'none',
   robot2Park: 'none',
+  gateBallCount: 0,
   selectedFeature: 'Cycle Times',
   notes: '',
   cycleTimes: [],

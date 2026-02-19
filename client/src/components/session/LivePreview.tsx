@@ -243,6 +243,7 @@ export const LivePreview = ({
       teleBallsMissed: 0,
       robot1Park: 'none',
       robot2Park: 'none',
+      gateBallCount: 0,
       cycleTimes: [],
       autonShots: [],
       teleopShots: [],
@@ -435,6 +436,7 @@ export const LivePreview = ({
       teleBallsMissed: 0,
       robot1Park: 'none',
       robot2Park: 'none',
+      gateBallCount: 0,
       cycleTimes: [],
       autonShots: [],
       teleopShots: [],
@@ -686,7 +688,8 @@ export const LivePreview = ({
                 Match Log
               </div>
               <div
-                className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}
+                className={`divide-y overflow-y-auto ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}
+                style={{ maxHeight: '158px' }}
               >
                 {(sessionData.matches || []).map(match => {
                   const isEditing = editingMatchId === match.id;

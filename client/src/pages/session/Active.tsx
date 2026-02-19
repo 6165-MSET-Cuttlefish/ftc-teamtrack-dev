@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   SessionSetup,
   ScoringUI,
+  GateVisual,
   Notes,
   LivePreview,
   PerformanceMetrics,
@@ -154,6 +155,11 @@ const ActiveSessionContent = () => {
               />
             </>
           )}
+
+          {/* Gate Visual */}
+          <div style={{ padding: '15px 15px 0' }}>
+            <GateVisual />
+          </div>
 
           {/* Scoring UI */}
           <div data-tutorial="scoring" style={{ padding: '15px' }}>

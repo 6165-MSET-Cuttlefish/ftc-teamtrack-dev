@@ -14,6 +14,10 @@ export interface ShotEntry {
   ballsMade: number;
   /** Elapsed seconds since the previous scoring action (cycle time) */
   cycleTime?: number;
+  /** Balls classified into the gate (3 pts each) */
+  classified?: number;
+  /** Overflow balls beyond gate capacity (1 pt each) */
+  overflow?: number;
 }
 
 export interface ScoringFields {
@@ -43,6 +47,12 @@ export interface ScoringFields {
   robot1Park: 'none' | 'partial' | 'full';
   /** Robot 2 parking status */
   robot2Park: 'none' | 'partial' | 'full';
+  /** Current number of balls in the gate (0-9) */
+  gateBallCount: number;
+  /** Gate add-back mode active (UI state) */
+  gateAddBackMode?: boolean;
+  /** How many balls to keep when releasing gate (UI state) */
+  gateAddBackCount?: number;
   cycleTimes: number[];
   /** Individual shot records for Autonomous phase */
   autonShots?: ShotEntry[];
@@ -71,6 +81,7 @@ export interface Match {
   teleBallsMissed?: number;
   robot1Park?: 'none' | 'partial' | 'full';
   robot2Park?: 'none' | 'partial' | 'full';
+  gateBallCount?: number;
   cycleTimes?: number[];
   autonShots?: ShotEntry[];
   teleopShots?: ShotEntry[];

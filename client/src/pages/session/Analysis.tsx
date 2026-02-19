@@ -1570,6 +1570,7 @@ const AnalysisContent = () => {
               cycleTimes: session.matches.flatMap((m: Match) => m.cycleTimes || []),
               notes: session.notes || '',
               matches: session.matches || [],
+              gateBallCount: 0,
             });
           }
         } catch (error) {

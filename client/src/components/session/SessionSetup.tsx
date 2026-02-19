@@ -23,8 +23,10 @@ export const SessionSetup = ({
   shouldFlash = false,
   isUnsaved = false,
 }: SessionSetupProps) => {
-  const { sessionData, updateSessionData } = useSession();
-  const { isDarkMode } = useTheme();
+  const { sessionData, updateSessionData, matchActive } = useSession();
+  const { isDarkMode } = useTheme();  // isDarkMode covers dark, honeycomb, deepsea
+  // team-blue CSS var is light on dark themes → black text; dark on light → white text
+  const savedBtnClass = `bg-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`;
   const [isFlashing, setIsFlashing] = useState(shouldFlash);
 
   useEffect(() => {
@@ -52,35 +54,19 @@ export const SessionSetup = ({
   return (
     <>
       <style>{`
-        @keyframes redGlow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6), 0 0 10px rgba(239,68,68,0.2); }
-          50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.2), 0 0 20px rgba(239,68,68,0.35); }
-        }
-        @keyframes savePulse {
-          0%, 100% { background-color: rgb(239,68,68); transform: scale(1); }
-          50% { background-color: rgb(185,28,28); transform: scale(1.04); }
-        }
         .session-setup-unsaved {
           border: 2px solid rgb(239,68,68) !important;
           background-color: rgba(239,68,68,0.06) !important;
-          animation: redGlow 1.4s ease-in-out infinite !important;
         }
         .session-setup-saved {
-          border: 2px solid rgba(59,130,246,0.4) !important;
+          border: 2px solid transparent !important;
           background-color: transparent !important;
-        }
-        .save-btn-red {
-          background-color: rgb(239,68,68) !important;
-          color: white !important;
-          animation: savePulse 0.7s ease-in-out infinite !important;
-        }
-        .save-btn-blue {
-          background-color: rgb(66, 133, 244) !important;
-          color: white !important;
         }
       `}</style>
       <div
-        className={`rounded-2xl p-6 space-y-6 transition-all duration-300 ${isUnsaved ? 'session-setup-unsaved' : 'session-setup-saved'}`}
+        className={`rounded-2xl space-y-6 transition-all duration-300 ${
+          isUnsaved ? 'session-setup-unsaved p-6' : 'session-setup-saved p-0'
+        }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -128,19 +114,29 @@ export const SessionSetup = ({
         {/* Match Type and Features */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label
-              className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            >
-              Match Type
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label
+                className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
+                Match Type
+              </Label>
+              {(
+                <span className={`text-xs italic ${
+                  matchActive ? 'text-gray-500' : 'text-gray-400'
+                }`}>
+                  {matchActive ? 'Locked' : 'Will lock once match starts'}
+                </span>
+              )}
+            </div>
             <div
               className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
                 isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
-              }`}
+              } ${matchActive ? 'opacity-60 cursor-not-allowed' : ''}`}
+              style={matchActive ? { pointerEvents: 'none' } : {}}
             >
               <Select
                 value={sessionData.matchType}
-                onValueChange={setMatchType}
+                onValueChange={matchActive ? () => {} : setMatchType}
               >
                 <SelectTrigger className="border-0 p-0 h-auto focus:ring-0 bg-transparent">
                   <SelectValue placeholder="Full Game" />
@@ -157,19 +153,29 @@ export const SessionSetup = ({
           </div>
 
           <div className="space-y-2">
-            <Label
-              className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            >
-              Features
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label
+                className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
+                Features
+              </Label>
+              {(
+                <span className={`text-xs italic ${
+                  matchActive ? 'text-gray-500' : 'text-gray-400'
+                }`}>
+                  {matchActive ? 'Locked' : 'Will lock once match starts'}
+                </span>
+              )}
+            </div>
             <div
               className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
                 isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
-              }`}
+              } ${matchActive ? 'opacity-60 cursor-not-allowed' : ''}`}
+              style={matchActive ? { pointerEvents: 'none' } : {}}
             >
               <Select
                 value={sessionData.selectedFeature || 'none'}
-                onValueChange={setSelectedFeature}
+                onValueChange={matchActive ? () => {} : setSelectedFeature}
               >
                 <SelectTrigger className="border-0 p-0 h-auto focus:ring-0 bg-transparent">
                   <SelectValue placeholder="Select Feature" />
@@ -190,7 +196,11 @@ export const SessionSetup = ({
           <Button
             onClick={handleSave}
             disabled={!hasName}
-            className={`px-8 py-3 rounded-xl font-semibold transition-none disabled:opacity-50 disabled:cursor-not-allowed ${isUnsaved ? 'save-btn-red' : 'save-btn-blue'}`}
+            className={`px-8 py-3 rounded-xl font-semibold transition-none disabled:opacity-50 disabled:cursor-not-allowed ${
+              isUnsaved
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : savedBtnClass
+            }`}
           >
             {!hasName && isUnsaved ? 'Enter a name to save' : 'Save'}
           </Button>

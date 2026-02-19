@@ -9,6 +9,7 @@ export {
   ActiveTutorial,
   TUTORIAL_STORAGE_KEY,
   TUTORIAL_RESTART_EVENT,
+  GateVisual,
   LivePreview,
   MatchForm,
   Notes,

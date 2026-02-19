@@ -2,7 +2,7 @@ import { useSession, useTheme } from '@/contexts';
 import { useState, useRef } from 'react';
 
 export const ScoringUI = () => {
-  const { updateSessionData, sessionData, matchPhase } = useSession();
+  const { updateSessionData, sessionData, matchPhase, matchActive } = useSession();
   const { isDarkMode } = useTheme();
   const [flashingButton, setFlashingButton] = useState<string | null>(null);
   // Timestamp of the last scoring action, used to compute cycle time in seconds
@@ -18,6 +18,7 @@ export const ScoringUI = () => {
 
   // Check if scoring is allowed based on match type and current phase
   const isScoringAllowed = (): boolean => {
+    if (!matchActive) return false;
     if (sessionData.matchType === 'Autonomous') {
       // Autonomous mode: only allow auton phase scoring
       return (
@@ -64,13 +65,27 @@ export const ScoringUI = () => {
           matchPhase === 'controller_pickup' ||
           matchPhase === 'prepare'));
 
-    const shotEntry = { ballsShot: shotId, ballsMade, cycleTime };
+    // Gate logic: classify vs overflow based on gate capacity (9)
+    const GATE_CAPACITY = 9;
+    const currentGate = sessionData.gateBallCount ?? 0;
+    const spaceInGate = Math.max(0, GATE_CAPACITY - currentGate);
+    const classified = Math.min(ballsMade, spaceInGate);
+    const overflow = ballsMade - classified;
+    const newGateCount = currentGate + classified;
+
+    const shotEntry = { ballsShot: shotId, ballsMade, cycleTime, classified, overflow };
     if (isAutonPhase) {
       const currentAutonShots = sessionData.autonShots || [];
-      updateSessionData({ autonShots: [...currentAutonShots, shotEntry] });
+      updateSessionData({
+        autonShots: [...currentAutonShots, shotEntry],
+        gateBallCount: newGateCount,
+      });
     } else {
       const currentTeleopShots = sessionData.teleopShots || [];
-      updateSessionData({ teleopShots: [...currentTeleopShots, shotEntry] });
+      updateSessionData({
+        teleopShots: [...currentTeleopShots, shotEntry],
+        gateBallCount: newGateCount,
+      });
     }
 
     // Clear flash after animation
