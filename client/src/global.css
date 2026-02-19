@@ -694,3 +694,7 @@
 .deepsea .border-glow:hover {
   box-shadow: 0 0 20px rgba(0, 188, 212, 0.35);
 }
+/* Tutorial: Ensure Select dropdowns render above the tutorial overlay */
+[data-radix-popper-content-wrapper] {
+  z-index: 10000 !important;
+}

@@ -16,7 +16,29 @@ export const ScoringUI = () => {
     { id: 3, balls: 3 },
   ];
 
+  // Check if scoring is allowed based on match type and current phase
+  const isScoringAllowed = (): boolean => {
+    if (sessionData.matchType === 'Autonomous') {
+      // Autonomous mode: only allow auton phase scoring
+      return (
+        matchPhase === 'auton' ||
+        matchPhase === 'controller_pickup' ||
+        matchPhase === 'prepare'
+      );
+    } else if (sessionData.matchType === 'Teleop') {
+      // Teleop mode: only allow teleop phase scoring
+      return matchPhase === 'teleop';
+    }
+    // Full Game: always allow
+    return true;
+  };
+
   const handleBallSelect = (shotId: number, ballsMade: number) => {
+    // Prevent scoring if not allowed in current phase
+    if (!isScoringAllowed()) {
+      return;
+    }
+
     // Create unique button identifier
     const buttonId = `${shotId}-${ballsMade}`;
 
@@ -33,8 +55,8 @@ export const ScoringUI = () => {
 
     // Determine phase by timer position:
     // Full Game: auton = timer > 120, teleop = timer <= 120
-    // Anything scored after the 2-minute mark (≤120s remaining) goes to teleop
-    // Scoring during controller_pickup and prepare phases (8 second transition) counts as autonomous
+    // Autonomous: always auton scoring
+    // Teleop: always teleop scoring
     const isAutonPhase =
       sessionData.matchType === 'Autonomous' ||
       (sessionData.matchType === 'Full Game' &&
@@ -105,12 +127,15 @@ export const ScoringUI = () => {
                 {/* 0 option */}
                 <button
                   onClick={() => handleBallSelect(shot.id, 0)}
+                  disabled={!isScoringAllowed()}
                   className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
-                    flashingButton === `${shot.id}-0`
-                      ? 'border-yellow-500 bg-yellow-500/20'
-                      : isDarkMode
-                        ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
+                    !isScoringAllowed()
+                      ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'
+                      : flashingButton === `${shot.id}-0`
+                        ? 'border-yellow-500 bg-yellow-500/20'
+                        : isDarkMode
+                          ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40 cursor-pointer'
+                          : 'border-gray-300 bg-white hover:border-gray-400 cursor-pointer'
                   }`}
                 >
                   {/* Dotted circles representing shot.balls count */}
@@ -151,12 +176,15 @@ export const ScoringUI = () => {
                     <button
                       key={ballCount}
                       onClick={() => handleBallSelect(shot.id, ballCount)}
+                      disabled={!isScoringAllowed()}
                       className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
-                        isFlashing
-                          ? 'border-green-500 bg-green-500/20'
-                          : isDarkMode
-                            ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40'
-                            : 'border-gray-300 bg-white hover:border-gray-400'
+                        !isScoringAllowed()
+                          ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'
+                          : isFlashing
+                            ? 'border-green-500 bg-green-500/20 cursor-pointer'
+                            : isDarkMode
+                              ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40 cursor-pointer'
+                              : 'border-gray-300 bg-white hover:border-gray-400 cursor-pointer'
                       }`}
                     >
                       {/* Circles representing ball count - outline only */}

@@ -64,6 +64,19 @@ interface SessionContextType {
   setMatchActive: (active: boolean) => void;
 }
 
+// Helper to determine initial timer duration based on match type
+const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
+  switch (matchType) {
+    case 'Autonomous':
+      return 30; // 30 seconds
+    case 'Teleop':
+      return 120; // 2:00 (120 seconds)
+    case 'Full Game':
+    default:
+      return 150; // 2:30 (150 seconds)
+  }
+};
+
 const createInitialSessionData = (): SessionFormData => ({
   sessionName: '',
   sessionDuration: '',
@@ -119,9 +132,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return null;
   });
 
-  // Match timer counts DOWN from FULL_GAME_DURATION_SECONDS (150) to 0
+  // Match timer counts DOWN based on match type
   const [timer, setTimer] = useState<number>(
-    () => storedTimerState?.matchTimer ?? 150
+    () => storedTimerState?.matchTimer ?? getInitialTimerDuration(sessionData.matchType)
   );
 
   // Phase management for FTC timing sequence
@@ -172,14 +185,30 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!user) {
       // User logged out, clear session data so next user doesn't see it
-      setSessionData(createInitialSessionData());
+      const newData = createInitialSessionData();
+      setSessionData(newData);
       setHasStarted(false);
       setIsTimerRunning(false);
-      setTimer(150);
+      setTimer(getInitialTimerDuration(newData.matchType));
       setMatchPhase('auton');
       clearSessionFromStorage();
     }
   }, [user]);
+
+  // Update timer and phase when match type changes (before match starts)
+  useEffect(() => {
+    // Only update if match hasn't been started yet
+    if (!hasStarted && !isTimerRunning) {
+      const newDuration = getInitialTimerDuration(sessionData.matchType);
+      setTimer(newDuration);
+      // Reset phase to the correct initial phase for this match type
+      if (sessionData.matchType === 'Teleop') {
+        setMatchPhase('teleop');
+      } else {
+        setMatchPhase('auton');
+      }
+    }
+  }, [sessionData.matchType, hasStarted, isTimerRunning]);
 
   // Match timer effect — counts DOWN during 'auton' and 'teleop' phases
   useEffect(() => {
@@ -203,7 +232,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       clearInterval(interval);
     };
-  }, [isTimerRunning, matchPhase, sessionData.isSessionCompleted]);
+  }, [isTimerRunning, matchPhase, sessionData.isSessionCompleted, sessionData.matchType]);
 
   // Phase timer effect — counts DOWN during transition phases
   useEffect(() => {
@@ -318,10 +347,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const resetTimer = useCallback(() => {
-    setTimer(150);
-    setMatchPhase('auton');
+    setTimer(getInitialTimerDuration(sessionData.matchType));
+    setMatchPhase(sessionData.matchType === 'Teleop' ? 'teleop' : 'auton');
     setPhaseTimer(0);
-  }, []);
+  }, [sessionData.matchType]);
 
   const startEditingMatch = useCallback(
     (match: Match) => {
@@ -457,7 +486,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const resetSession = useCallback(() => {
     const newSessionData = createInitialSessionData();
     setSessionData(newSessionData);
-    setTimer(150);
+    setTimer(getInitialTimerDuration(newSessionData.matchType));
     setMatchPhase('auton');
     setPhaseTimer(0);
     setSessionTimer(0);

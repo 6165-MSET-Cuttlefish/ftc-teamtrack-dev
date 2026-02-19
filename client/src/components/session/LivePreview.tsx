@@ -111,8 +111,11 @@ export const LivePreview = ({
     checkSessionLimit();
   }, [user?.uid, sessionData.isSessionCompleted, team]);
 
-  // FTC phase transition: autonomous → controller pickup
+  // FTC phase transition: autonomous → controller pickup (only for Full Game)
+  // For Autonomous mode: no transition, timer just counts down to 0
+  // For Teleop mode: starts in teleop phase, no transition needed
   useEffect(() => {
+    // Only transition for Full Game mode
     if (
       sessionData.matchType === 'Full Game' &&
       timer === GAME_TIMING.AUTON_END_REMAINING && // 120 seconds remaining = end of autonomous
@@ -463,6 +466,12 @@ export const LivePreview = ({
                         }
                         setHasStarted(true);
                         setMatchActive(true);
+                        // Set the correct initial phase and start the timer
+                        if (sessionData.matchType === 'Teleop') {
+                          setMatchPhase('teleop');
+                        } else {
+                          setMatchPhase('auton');
+                        }
                         setIsTimerRunning(true);
                       }
                     : handleSaveMatch
@@ -775,14 +784,14 @@ export const LivePreview = ({
           <button
             onClick={handleViewAnalysis}
             disabled={loading}
-            className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-sm font-medium text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`flex-1 min-w-[160px] px-6 py-4 h-16 rounded-2xl border-2 border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue text-lg font-bold transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {loading ? 'Loading...' : 'View Full Analysis Report'}
           </button>
 
           <button
             onClick={handleNewSession}
-            className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
+            className={`flex-1 min-w-[160px] px-6 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center`}
           >
             New Session
           </button>
