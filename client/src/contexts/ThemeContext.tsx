@@ -7,11 +7,12 @@ import {
 } from 'react';
 import { STORAGE_KEYS } from '@/constants';
 
-type ThemeMode = 'dark' | 'light' | 'honeycomb';
+type ThemeMode = 'dark' | 'light' | 'honeycomb' | 'deepsea';
 
 interface ThemeContextType {
   isDarkMode: boolean;
   isHoneycombMode: boolean;
+  isDeepSeaMode: boolean;
   themeMode: ThemeMode;
   toggleTheme: () => void;
   setTheme: (mode: ThemeMode) => void;
@@ -32,7 +33,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         const parsed = JSON.parse(saved);
         if (parsed === true) return 'dark';
         if (parsed === false) return 'light';
-        if (typeof parsed === 'string' && ['dark', 'light', 'honeycomb'].includes(parsed)) {
+        if (typeof parsed === 'string' && ['dark', 'light', 'honeycomb', 'deepsea'].includes(parsed)) {
           return parsed as ThemeMode;
         }
       } catch {
@@ -43,28 +44,32 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   });
 
   // Derived values for backward compatibility
-  const isDarkMode = themeMode === 'dark' || themeMode === 'honeycomb';
+  const isDarkMode = themeMode === 'dark' || themeMode === 'honeycomb' || themeMode === 'deepsea';
   const isHoneycombMode = themeMode === 'honeycomb';
+  const isDeepSeaMode = themeMode === 'deepsea';
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     // Remove all theme classes first
-    document.documentElement.classList.remove('dark', 'honeycomb');
+    document.documentElement.classList.remove('dark', 'honeycomb', 'deepsea');
     // Add appropriate classes
     if (themeMode === 'dark') {
       document.documentElement.classList.add('dark');
     } else if (themeMode === 'honeycomb') {
       document.documentElement.classList.add('dark', 'honeycomb');
+    } else if (themeMode === 'deepsea') {
+      document.documentElement.classList.add('dark', 'deepsea');
     }
     // light mode = no classes
   }, [themeMode]);
 
   const toggleTheme = () => {
     setThemeMode((prev: ThemeMode) => {
-      // Cycle: dark -> light -> honeycomb -> dark
+      // Cycle: dark -> light -> honeycomb -> deepsea -> dark
       let next: ThemeMode;
       if (prev === 'dark') next = 'light';
       else if (prev === 'light') next = 'honeycomb';
+      else if (prev === 'honeycomb') next = 'deepsea';
       else next = 'dark';
       
       localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(next));
@@ -78,7 +83,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, isHoneycombMode, themeMode, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ isDarkMode, isHoneycombMode, isDeepSeaMode, themeMode, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

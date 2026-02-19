@@ -21,6 +21,7 @@ import {
   Keyboard,
   HelpCircle,
   Hexagon,
+  Waves,
   ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,10 +29,12 @@ import { useState, useEffect } from 'react';
 import { TUTORIAL_RESTART_EVENT } from './ActiveTutorial';
 
 const TeamTrackLogo = () => {
-  const { isDarkMode, isHoneycombMode } = useTheme();
+  const { isDarkMode, isHoneycombMode, isDeepSeaMode } = useTheme();
 
   // Determine logo color based on theme
-  const logoColor = isHoneycombMode
+  const logoColor = isDeepSeaMode
+    ? '#00BCD4'
+    : isHoneycombMode
     ? '#DAA520'
     : isDarkMode
       ? '#B0E5FE'
@@ -88,7 +91,7 @@ const TeamTrackLogo = () => {
           />
         </svg>
         <span
-          className={`font-montserrat italic text-[0.984rem] leading-6 relative -top-.5 hidden sm:inline ${isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
+          className={`font-montserrat italic text-[0.984rem] leading-6 relative -top-.5 hidden sm:inline ${isDeepSeaMode ? 'text-[#00BCD4]' : isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
         >
           TeamTrack
         </span>
@@ -240,6 +243,8 @@ const NavigationMenu = () => {
               <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             ) : themeMode === 'light' ? (
               <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+            ) : themeMode === 'deepsea' ? (
+              <Waves className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
             ) : (
               <Hexagon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
             )}
@@ -262,6 +267,11 @@ const NavigationMenu = () => {
             <Hexagon className="w-4 h-4" />
             <span>Honeycomb</span>
             {themeMode === 'honeycomb' && <span className="ml-auto text-xs">✓</span>}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTheme('deepsea')} className="flex items-center gap-2 cursor-pointer">
+            <Waves className="w-4 h-4" />
+            <span>Deep Sea</span>
+            {themeMode === 'deepsea' && <span className="ml-auto text-xs">✓</span>}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

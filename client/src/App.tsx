@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, ThemeProvider, SessionProvider } from '@/contexts';
-import { ErrorBoundary, Header, ProtectedRoute, GuestPrompt, HomeRedirect } from '@/components';
+import { ErrorBoundary, Header, ProtectedRoute, GuestPrompt, HomeRedirect, DeepSeaBubbles } from '@/components';
 import { ROUTES } from '@/constants';
 
 const Active = lazy(() => import('./pages/session/Active'));
@@ -34,6 +34,7 @@ const App = () => (
           <SessionProvider>
             <BrowserRouter>
               <div className="min-h-screen flex flex-col">
+                <DeepSeaBubbles />
                 <Header />
                 <main className="flex-1">
                   <Suspense fallback={<LoadingFallback />}>

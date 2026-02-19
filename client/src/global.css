@@ -127,6 +127,17 @@
     --honeycomb-gold-dark: #B8860B;
     --honeycomb-bg: #0a0a0a;
   }
+
+  /* Deep Sea theme - builds on dark mode */
+  .deepsea {
+    /* Cyan accent color for deep sea theme */
+    --team-blue: 0 188 212; /* #00BCD4 - cyan */
+    --deepsea-accent: #00BCD4;
+    --deepsea-accent-light: #4DD0E1;
+    --deepsea-accent-glow: #00838F;
+    --deepsea-bg: #0a1628;
+    --deepsea-bg-deep: #060f1d;
+  }
 }
 
 @layer base {
@@ -511,4 +522,144 @@
 
 .zen .border-team-white-20 {
   border-color: rgba(147, 112, 219, 0.2) !important;
+}
+
+/* ==================== DEEP SEA THEME ==================== */
+/* Midnight blue background with animated rising bubbles */
+
+.deepsea body {
+  background: #0a1628;
+}
+
+/* Deep sea gradient background */
+.deepsea #root {
+  position: relative;
+}
+
+.deepsea #root::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    #0d1b2a 0%,
+    #0a1628 30%,
+    #071120 60%,
+    #040c18 100%
+  );
+}
+
+/* Subtle ambient water light caustics overlay */
+.deepsea #root::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 90% 40% at 30% 20%, rgba(0, 188, 212, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 70% 80%, rgba(0, 131, 143, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 50% 50%, rgba(0, 188, 212, 0.02) 0%, transparent 70%);
+}
+
+/* Bubble container */
+.deepsea-bubbles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* Individual bubble */
+.deepsea-bubble {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(77, 208, 225, 0.5),
+    rgba(0, 188, 212, 0.2) 50%,
+    rgba(0, 131, 143, 0.08) 100%
+  );
+  border: 1px solid rgba(0, 188, 212, 0.15);
+  animation: deepsea-rise linear infinite;
+  will-change: transform;
+}
+
+@keyframes deepsea-rise {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+  25% {
+    transform: translateY(-25vh) translateX(8px) scale(1.05);
+  }
+  50% {
+    transform: translateY(-50vh) translateX(-6px) scale(1.02);
+  }
+  75% {
+    transform: translateY(-75vh) translateX(4px) scale(0.98);
+  }
+  90% {
+    opacity: inherit;
+  }
+  100% {
+    transform: translateY(-110vh) translateX(-2px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* Make page backgrounds transparent in deep sea mode so the gradient shows */
+.deepsea .bg-team-dark {
+  background-color: transparent !important;
+}
+
+.deepsea .bg-\[\#FEFEFE\] {
+  background-color: transparent !important;
+}
+
+.deepsea .bg-white {
+  background-color: rgba(10, 22, 40, 0.75) !important;
+}
+
+.deepsea .bg-gray-50 {
+  background-color: rgba(10, 22, 40, 0.55) !important;
+}
+
+/* Card backgrounds in deep sea mode */
+.deepsea .bg-team-dark-20 {
+  background-color: rgba(10, 22, 40, 0.85) !important;
+}
+
+/* Deep sea accent colors */
+.deepsea .text-team-blue {
+  color: #00BCD4 !important;
+}
+
+.deepsea .bg-team-blue {
+  background-color: #00BCD4 !important;
+}
+
+.deepsea .border-team-blue {
+  border-color: #00BCD4 !important;
+}
+
+.deepsea .border-team-blue-40 {
+  border-color: rgba(0, 188, 212, 0.4) !important;
+}
+
+/* Cyan glow effect for deep sea theme */
+.deepsea .border-glow:hover {
+  box-shadow: 0 0 20px rgba(0, 188, 212, 0.35);
 }
