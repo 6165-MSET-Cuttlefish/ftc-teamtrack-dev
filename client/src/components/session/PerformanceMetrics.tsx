@@ -642,12 +642,19 @@ export const PerformanceMetrics = () => {
     prevSessionDataRef.current = sessionData;
   }, [sessionData, editingMatchId]);
 
-  // ── Auto-switch to teleop tab when phase transitions ──────────────
+  // ── Auto-switch to teleop tab when phase transitions (once per match) ──
+  // Using a ref so the switch only fires the first time, allowing the user
+  // to navigate back to the Autonomous tab manually afterwards.
+  const autoSwitchedRef = useRef(false);
   useEffect(() => {
-    if (matchPhase === 'teleop' && selectedTab === 'autonomous') {
+    if (matchPhase === 'auton') {
+      autoSwitchedRef.current = false; // reset for next match
+    }
+    if (matchPhase === 'teleop' && !autoSwitchedRef.current) {
+      autoSwitchedRef.current = true;
       setSelectedTab('teleop');
     }
-  }, [matchPhase, selectedTab]);
+  }, [matchPhase]);
 
   // ── Keyboard shortcut popup ───────────────────────────────────────
   const [showPopup, setShowPopup] = useState(false);
