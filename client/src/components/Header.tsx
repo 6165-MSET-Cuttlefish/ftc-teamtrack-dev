@@ -109,6 +109,13 @@ const NavigationMenu = () => {
   const isOnActivePage = location.pathname.includes('/active');
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
 
+  // Listen for external requests to open keybind tutorial (e.g. from ScoringUI)
+  useEffect(() => {
+    const handleOpen = () => setShowKeybindTutorial(true);
+    window.addEventListener('teamtrack-open-keybind-tutorial', handleOpen);
+    return () => window.removeEventListener('teamtrack-open-keybind-tutorial', handleOpen);
+  }, []);
+
   // Check if there's an active session (when session has data or matches, not completed)
   const { hasStarted } = useSession();
   const hasActiveSession =
@@ -363,6 +370,20 @@ const NavigationMenu = () => {
                       Esc
                     </kbd>
                   </div>
+
+                  <div className="flex items-center justify-between mt-3">
+                    <span>Toggle gate:</span>
+                    <kbd
+                      className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                    >
+                      G
+                    </kbd>
+                  </div>
+                  <p
+                    className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  >
+                    Open or close the gate
+                  </p>
                 </div>
               </div>
 

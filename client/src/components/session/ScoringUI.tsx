@@ -1,5 +1,6 @@
 import { useSession, useTheme } from '@/contexts';
 import { useState, useRef } from 'react';
+import { Keyboard } from 'lucide-react';
 
 export const ScoringUI = () => {
   const { updateSessionData, sessionData, matchPhase, matchActive } = useSession();
@@ -109,9 +110,19 @@ export const ScoringUI = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
-        <h2 className="text-team-blue text-2xl font-semibold leading-6 w-16">
-          Scoring
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-team-blue text-2xl font-semibold leading-6">
+            Scoring
+          </h2>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event('teamtrack-open-keybind-tutorial'))}
+            aria-label="Keyboard shortcuts"
+            className={`p-1.5 rounded-full transition-colors translate-y-px ${isDarkMode ? 'hover:bg-team-white-10 text-team-white-60 hover:text-white' : 'hover:bg-gray-100 text-gray-400 hover:text-gray-700'}`}
+          >
+            <Keyboard className="w-6 h-6" />
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           <span
             className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
