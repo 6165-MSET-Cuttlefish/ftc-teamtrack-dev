@@ -24,10 +24,6 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
-  Award,
-  Target,
-  Zap,
-  Activity,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -153,16 +149,33 @@ const Charts = () => {
       )
       .map((session, index) => {
         const matchCount = session.matches.length || 1;
-        const ballsMissed =
-          session.matches.reduce(
-            (sum, m) =>
-              sum + (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0),
-            0
-          ) / matchCount;
+        
+        let totalBallsMissed = 0;
+        let totalBallsMade = 0;
+
+        session.matches.forEach(match => {
+          // Balls missed
+          totalBallsMissed +=
+            (match.autonBallsMissed || 0) + (match.teleBallsMissed || 0);
+          
+          // Balls made = classified artifacts + overflow artifacts
+          totalBallsMade +=
+            (match.autonClassifiedArtifact || 0) +
+            (match.autonOverflowArtifact || 0) +
+            (match.teleClassifiedArtifact || 0) +
+            (match.teleOverflowArtifact || 0);
+        });
+
+        const avgBallsMissed = totalBallsMissed / matchCount;
+        const avgBallsMade = totalBallsMade / matchCount;
+        const avgBallsShot = (totalBallsMissed + totalBallsMade) / matchCount;
+
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
-          'Balls Missed': Math.round(ballsMissed * 10) / 10,
+          'Balls Missed': Math.round(avgBallsMissed * 10) / 10,
+          'Balls Made': Math.round(avgBallsMade * 10) / 10,
+          'Balls Shot': Math.round(avgBallsShot * 10) / 10,
         };
       });
   };
@@ -171,18 +184,27 @@ const Charts = () => {
   const getCycleTimeData = (): ChartDataPoint[] => {
     const filteredSessions = getFilteredSessions();
 
-    // Get sessions that have cycle times
+    // Get sessions that have cycle times from matches or shots
     const sessionsWithCycleTimes = filteredSessions.filter(session => {
       // Check if session has matches with cycle times
       const hasCycleTimes =
         session.matches &&
         session.matches.length > 0 &&
-        session.matches.some(
-          match =>
+        session.matches.some(match => {
+          // Check cycleTimes array or shot entries
+          const hasCycleTimesArray =
             match.cycleTimes &&
             Array.isArray(match.cycleTimes) &&
-            match.cycleTimes.length > 0
-        );
+            match.cycleTimes.length > 0;
+          const hasShots =
+            (match.autonShots &&
+              Array.isArray(match.autonShots) &&
+              match.autonShots.some(s => s.cycleTime !== undefined)) ||
+            (match.teleopShots &&
+              Array.isArray(match.teleopShots) &&
+              match.teleopShots.some(s => s.cycleTime !== undefined));
+          return hasCycleTimesArray || hasShots;
+        });
       return hasCycleTimes;
     });
 
@@ -192,12 +214,29 @@ const Charts = () => {
       // Collect all cycle times from all matches in this session
       const allCycleTimes: number[] = [];
       session.matches.forEach(match => {
+        // First add from cycleTimes array
         if (
           match.cycleTimes &&
           Array.isArray(match.cycleTimes) &&
           match.cycleTimes.length > 0
         ) {
           allCycleTimes.push(...match.cycleTimes);
+        }
+        
+        // Also extract from shot entries
+        if (match.autonShots && Array.isArray(match.autonShots)) {
+          match.autonShots.forEach(shot => {
+            if (shot.cycleTime !== undefined) {
+              allCycleTimes.push(shot.cycleTime);
+            }
+          });
+        }
+        if (match.teleopShots && Array.isArray(match.teleopShots)) {
+          match.teleopShots.forEach(shot => {
+            if (shot.cycleTime !== undefined) {
+              allCycleTimes.push(shot.cycleTime);
+            }
+          });
         }
       });
 
@@ -274,6 +313,105 @@ const Charts = () => {
         name: formatChartDate(session.createdAt),
         Consistency: Math.round(consistency),
         Score: sessionScore,
+      };
+    });
+  };
+
+  // Accuracy Over Time (balls made percentage per session)
+  const getAccuracyOverTimeData = (): ChartDataPoint[] => {
+    const allSessions = getFilteredSessions();
+    const sorted = [...allSessions].sort(
+      (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime()
+    );
+
+    const recent = sorted.slice(0, 10).reverse();
+
+    return recent.map((session, index) => {
+      let totalBallsMissed = 0;
+      let totalBallsMade = 0;
+
+      if (session.matches && session.matches.length > 0) {
+        session.matches.forEach(match => {
+          // Total balls made = classified artifacts + overflow artifacts
+          const ballsMade =
+            (match.autonClassifiedArtifact || 0) +
+            (match.autonOverflowArtifact || 0) +
+            (match.teleClassifiedArtifact || 0) +
+            (match.teleOverflowArtifact || 0);
+          
+          totalBallsMade += ballsMade;
+          totalBallsMissed +=
+            (match.autonBallsMissed || 0) + (match.teleBallsMissed || 0);
+        });
+      }
+
+      // Calculate accuracy as percentage of balls made out of total attempts
+      const totalAttempts = totalBallsMade + totalBallsMissed;
+      const accuracy =
+        totalAttempts > 0
+          ? Math.round((totalBallsMade / totalAttempts) * 100)
+          : 0;
+
+      return {
+        name: `#${recent.length - index}`,
+        Accuracy: accuracy,
+      };
+    });
+  };
+
+  const getAverageCycleTimeData = (): ChartDataPoint[] => {
+    const allSessions = getFilteredSessions();
+    const sorted = [...allSessions].sort(
+      (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime()
+    );
+
+    const recent = sorted.slice(0, 10).reverse();
+
+    return recent.map((session, index) => {
+      let totalCycleTimes: number[] = [];
+
+      if (session.matches && session.matches.length > 0) {
+        session.matches.forEach(match => {
+          // First try to get cycle times from the cycleTimes array
+          if (
+            match.cycleTimes &&
+            Array.isArray(match.cycleTimes) &&
+            match.cycleTimes.length > 0
+          ) {
+            totalCycleTimes.push(...match.cycleTimes);
+          }
+          
+          // Also extract from shot entries for completeness
+          if (match.autonShots && Array.isArray(match.autonShots)) {
+            match.autonShots.forEach(shot => {
+              if (shot.cycleTime !== undefined) {
+                totalCycleTimes.push(shot.cycleTime);
+              }
+            });
+          }
+          if (match.teleopShots && Array.isArray(match.teleopShots)) {
+            match.teleopShots.forEach(shot => {
+              if (shot.cycleTime !== undefined) {
+                totalCycleTimes.push(shot.cycleTime);
+              }
+            });
+          }
+        });
+      }
+
+      const avgCycleTime =
+        totalCycleTimes.length > 0
+          ? parseFloat(
+              (
+                totalCycleTimes.reduce((sum, t) => sum + t, 0) /
+                totalCycleTimes.length
+              ).toFixed(2)
+            )
+          : 0;
+
+      return {
+        name: `#${recent.length - index}`,
+        'Avg Cycle Time': avgCycleTime,
       };
     });
   };
@@ -422,6 +560,7 @@ const Charts = () => {
   const cycleTimeData = getCycleTimeData();
   const recentTrendData = getRecentTrendData();
   const consistencyOverTimeData = getConsistencyOverTimeData();
+  const avgCycleTimeData = getAverageCycleTimeData();
 
   return (
     <div
@@ -435,11 +574,6 @@ const Charts = () => {
               <h1 className="text-team-blue text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2">
                 Performance Charts
               </h1>
-              <p
-                className={`text-xs sm:text-sm md:text-base ml-0 sm:ml-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-              >
-                Visualize your session data and track progress
-              </p>
             </div>
             <div className="flex gap-2 sm:gap-3 flex-shrink-0">
               <Select
@@ -470,11 +604,10 @@ const Charts = () => {
         {/* Key Insights */}
         {getFilteredSessions().length >= 3 && (
           <Card
-            className={`mb-6 sm:mb-8 shadow-lg ${isDarkMode ? 'bg-gradient-to-r from-team-blue/20 to-team-dark border-team-blue-40' : 'bg-gradient-to-r from-blue-50 to-white border-blue-200'}`}
+            className={`mb-6 sm:mb-8 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-r from-blue-50 to-white border-blue-200'}`}
           >
             <CardContent className="pt-4 sm:pt-6">
               <div className="flex items-start gap-3 sm:gap-4">
-                <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-team-blue flex-shrink-0 mt-0 sm:mt-1" />
                 <div className="flex-1 min-w-0">
                   <h3
                     className={`text-base sm:text-lg font-bold mb-2 sm:mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -599,30 +732,29 @@ const Charts = () => {
         )}
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
           <Card
-            className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between mb-2">
-                <div className="text-team-blue text-4xl font-bold">
+            <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
+              <div className="text-center">
+                <div className="text-team-blue text-2xl sm:text-3xl font-bold">
                   {getFilteredSessions().length}
                 </div>
-                <Activity className="w-8 h-8 text-team-blue opacity-60" />
-              </div>
-              <div
-                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-              >
-                Total Sessions
+                <div
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Total Sessions
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card
-            className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between mb-2">
-                <div className="text-team-blue text-4xl font-bold">
+            <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
+              <div className="text-center">
+                <div className="text-team-blue text-2xl sm:text-3xl font-bold">
                   {getFilteredSessions().length > 0
                     ? Math.round(
                         getFilteredSessions().reduce(
@@ -632,101 +764,85 @@ const Charts = () => {
                       )
                     : 0}
                 </div>
-                <Target className="w-8 h-8 text-team-blue opacity-60" />
-              </div>
-              <div
-                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-              >
-                Average Score
+                <div
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Average Score
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card
-            className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between mb-2">
-                <div className="text-team-blue text-4xl font-bold">
+            <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
+              <div className="text-center">
+                <div className="text-team-blue text-2xl sm:text-3xl font-bold">
                   {getFilteredSessions().length > 0
                     ? Math.max(
                         ...getFilteredSessions().map(s => getSessionScore(s))
                       )
                     : 0}
                 </div>
-                <Award className="w-8 h-8 text-team-blue opacity-60" />
-              </div>
-              <div
-                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-              >
-                Best Score
+                <div
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Best Score
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card
-            className={`transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    if (getFilteredSessions().length < 2) {
-                      return (
-                        <>
-                          <Zap className="text-team-blue w-7 h-7" />
-                          <div className="text-team-blue text-4xl font-bold">
-                            —
-                          </div>
-                        </>
-                      );
-                    }
-                    const sorted = [...getFilteredSessions()].sort(
-                      (a, b) =>
-                        toDate(a.createdAt).getTime() -
-                        toDate(b.createdAt).getTime()
-                    );
-                    const firstHalf = sorted.slice(
-                      0,
-                      Math.floor(sorted.length / 2)
-                    );
-                    const secondHalf = sorted.slice(
-                      Math.floor(sorted.length / 2)
-                    );
-                    const firstAvg =
-                      firstHalf.reduce(
-                        (sum, s) => sum + getSessionScore(s),
-                        0
-                      ) / firstHalf.length;
-                    const secondAvg =
-                      secondHalf.reduce(
-                        (sum, s) => sum + getSessionScore(s),
-                        0
-                      ) / secondHalf.length;
-                    const improvement = secondAvg - firstAvg;
-                    const isPositive = improvement > 0;
-
+            <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
+              <div className="text-center">
+                {(() => {
+                  if (getFilteredSessions().length < 2) {
                     return (
-                      <>
-                        {isPositive ? (
-                          <TrendingUp className="text-green-500 w-7 h-7" />
-                        ) : (
-                          <TrendingDown className="text-red-500 w-7 h-7" />
-                        )}
-                        <div
-                          className={`text-4xl font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}
-                        >
-                          {improvement > 0
-                            ? `+${Math.round(improvement)}`
-                            : Math.round(improvement)}
-                        </div>
-                      </>
+                      <div className="text-team-blue text-2xl sm:text-3xl font-bold">
+                        —
+                      </div>
                     );
-                  })()}
+                  }
+                  const sorted = [...getFilteredSessions()].sort(
+                    (a, b) =>
+                      toDate(a.createdAt).getTime() -
+                      toDate(b.createdAt).getTime()
+                  );
+                  const firstHalf = sorted.slice(
+                    0,
+                    Math.floor(sorted.length / 2)
+                  );
+                  const secondHalf = sorted.slice(
+                    Math.floor(sorted.length / 2)
+                  );
+                  const firstAvg =
+                    firstHalf.reduce(
+                      (sum, s) => sum + getSessionScore(s),
+                      0
+                    ) / firstHalf.length;
+                  const secondAvg =
+                    secondHalf.reduce(
+                      (sum, s) => sum + getSessionScore(s),
+                      0
+                    ) / secondHalf.length;
+                  const improvement = secondAvg - firstAvg;
+                  const isPositive = improvement > 0;
+
+                  return (
+                    <div
+                      className={`text-2xl sm:text-3xl font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}
+                    >
+                      {isPositive ? '+' : ''}{Math.round(improvement)}
+                    </div>
+                  );
+                })()}
+                <div
+                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Score Improvement
                 </div>
-              </div>
-              <div
-                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-              >
-                Improvement
               </div>
             </CardContent>
           </Card>
@@ -736,7 +852,7 @@ const Charts = () => {
         <div className="space-y-6 sm:space-y-8">
           {/* Score Trend Line Chart */}
           <Card
-            className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardHeader>
               <CardTitle
@@ -864,7 +980,7 @@ const Charts = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Recent Performance Trend */}
             <Card
-              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
             >
               <CardHeader>
                 <CardTitle
@@ -988,22 +1104,83 @@ const Charts = () => {
                 </CardContent>
               </Card>
             )}
+
+            {/* Accuracy Over Time */}
+            {getAccuracyOverTimeData().length > 0 && (
+              <Card
+                className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
+              >
+                <CardHeader>
+                  <CardTitle
+                    className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    Accuracy Over Time
+                  </CardTitle>
+                  <CardDescription
+                    className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  >
+                    Ball shooting accuracy percentage (Last 10)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="w-full overflow-x-auto">
+                    <ResponsiveContainer
+                      width="100%"
+                      height={220}
+                      minWidth={300}
+                    >
+                      <LineChart data={getAccuracyOverTimeData()}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                        />
+                        <XAxis
+                          dataKey="name"
+                          stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis
+                          stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                          tick={{ fontSize: 12 }}
+                          domain={[0, 100]}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: '14px' }} />
+                        <Line
+                          type="monotone"
+                          dataKey="Accuracy"
+                          stroke={COLORS.warning}
+                          strokeWidth={3}
+                          dot={{
+                            fill: COLORS.warning,
+                            r: 5,
+                            strokeWidth: 2,
+                            stroke: '#fff',
+                          }}
+                          animationDuration={1200}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Balls Missed Trend Chart */}
           <Card
-            className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
             <CardHeader>
               <CardTitle
                 className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
               >
-                Balls Missed Trend
+                Balls Trend
               </CardTitle>
               <CardDescription
                 className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
-                Track total balls missed per session (Autonomous + Teleop)
+                Track balls missed, made, and shot per session
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1028,9 +1205,27 @@ const Charts = () => {
                     <Line
                       type="monotone"
                       dataKey="Balls Missed"
-                      stroke="#f59e0b"
+                      stroke={COLORS.danger}
                       strokeWidth={3}
-                      dot={{ fill: '#f59e0b', r: 5 }}
+                      dot={{ fill: COLORS.danger, r: 5 }}
+                      activeDot={{ r: 8 }}
+                      animationDuration={1500}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="Balls Made"
+                      stroke={COLORS.success}
+                      strokeWidth={3}
+                      dot={{ fill: COLORS.success, r: 5 }}
+                      activeDot={{ r: 8 }}
+                      animationDuration={1500}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="Balls Shot"
+                      stroke={COLORS.warning}
+                      strokeWidth={3}
+                      dot={{ fill: COLORS.warning, r: 5 }}
                       activeDot={{ r: 8 }}
                       animationDuration={1500}
                     />
@@ -1040,10 +1235,73 @@ const Charts = () => {
             </CardContent>
           </Card>
 
+          {/* Average Cycle Time Trend */}
+          {avgCycleTimeData.length > 0 && (
+            <Card
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+            >
+              <CardHeader>
+                <CardTitle
+                  className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                >
+                  Average Cycle Time Trend
+                </CardTitle>
+                <CardDescription
+                  className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                >
+                  Average cycle time per session (last 10)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full overflow-x-auto">
+                  <ResponsiveContainer width="100%" height={240} minWidth={300}>
+                    <LineChart data={avgCycleTimeData}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        tick={{ fontSize: 12 }}
+                        label={{
+                          value: 'Seconds',
+                          angle: -90,
+                          position: 'insideLeft',
+                          style: { fontSize: 12 },
+                        }}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: '14px' }} />
+                      <Line
+                        type="monotone"
+                        dataKey="Avg Cycle Time"
+                        stroke={COLORS.primary}
+                        strokeWidth={3}
+                        dot={{
+                          fill: COLORS.primary,
+                          r: 5,
+                          strokeWidth: 2,
+                          stroke: '#fff',
+                        }}
+                        activeDot={{ r: 8 }}
+                        animationDuration={1500}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Cycle Time Analysis */}
           {cycleTimeData.length > 0 && (
             <Card
-              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
             >
               <CardHeader>
                 <CardTitle

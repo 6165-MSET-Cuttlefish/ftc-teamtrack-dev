@@ -109,13 +109,14 @@ const CellInput: React.FC<{
 });
 CellInput.displayName = 'CellInput';
 
-// ─── Ball Visualization (3 balls: solid for made, dotted for missed) ───────
+// ─── Ball Visualization (dynamic balls: solid for made, dotted for missed) ───────
 const BallVisualization: React.FC<{
   ballsMade: number;
+  ballsShot: number;
   isDarkMode: boolean;
-}> = ({ ballsMade, isDarkMode }) => (
+}> = ({ ballsMade, ballsShot, isDarkMode }) => (
   <div className="flex gap-1 items-center justify-center">
-    {Array.from({ length: 3 }).map((_, i) => (
+    {Array.from({ length: ballsShot }).map((_, i) => (
       <div
         key={i}
         className={`w-3 h-3 rounded-full border-2 ${
@@ -190,12 +191,12 @@ const ShotLogTable: React.FC<{
                 : 'bg-gray-50 text-gray-500'
             }`}
           >
-            <div className="px-2 py-2 text-center">#</div>
-            <div className="px-2 py-2 text-center">Shot</div>
-            <div className="px-2 py-2 text-center">Made</div>
-            <div className="px-2 py-2 text-center">Pts</div>
-            <div className="px-2 py-2 text-center">Total</div>
-            <div className="px-2 py-2 text-center">Ball View</div>
+            <div className="px-2 py-2 text-center" title="Shot number">#</div>
+            <div className="px-2 py-2 text-center cursor-help" title="Number of balls shot">Shot</div>
+            <div className="px-2 py-2 text-center cursor-help" title="Number of balls made">Made</div>
+            <div className="px-2 py-2 text-center cursor-help" title="Points scored">Pts</div>
+            <div className="px-2 py-2 text-center cursor-help" title="Running total points">Total</div>
+            <div className="px-2 py-2 text-center cursor-help" title="Visual representation of balls made vs shot">Ball View</div>
             <div className="px-2 py-2" />
           </div>
 
@@ -279,7 +280,7 @@ const ShotLogTable: React.FC<{
                     {rowRunning}
                   </div>
                   <div className="px-2 py-2 flex justify-center">
-                    <BallVisualization ballsMade={shot.ballsMade} isDarkMode={isDarkMode} />
+                    <BallVisualization ballsMade={shot.ballsMade} ballsShot={shot.ballsShot} isDarkMode={isDarkMode} />
                   </div>
                   <div className="px-1 py-1.5 flex justify-center">
                     {editable && (

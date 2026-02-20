@@ -63,13 +63,23 @@ const countBits = (n: number): number => {
 const calcAccuracy = (made: number, shot: number): string =>
   shot > 0 ? `${Math.round((made / shot) * 100)}%` : '—';
 
-// ─── Ball Visualization (3 balls: solid = made, dotted = missed) ────────
+const calcAvgCycleTime = (shots: ShotEntry[]): string => {
+  const cycleTimes = shots
+    .map(s => s.cycleTime)
+    .filter((t): t is number => t !== undefined);
+  if (cycleTimes.length === 0) return '—';
+  const avg = cycleTimes.reduce((sum, t) => sum + t, 0) / cycleTimes.length;
+  return `${avg.toFixed(2)}s`;
+};
+
+// ─── Ball Visualization (dynamic balls: solid = made, dotted = missed) ────────
 const BallVisualization: React.FC<{
   ballsMade: number;
+  ballsShot: number;
   isDarkMode: boolean;
-}> = ({ ballsMade, isDarkMode }) => (
+}> = ({ ballsMade, ballsShot, isDarkMode }) => (
   <div className="flex gap-1 items-center justify-center">
-    {Array.from({ length: 3 }).map((_, i) => (
+    {Array.from({ length: ballsShot }).map((_, i) => (
       <div
         key={i}
         className={`w-3 h-3 rounded-full border-2 ${
@@ -165,6 +175,15 @@ const ShotLogTable: React.FC<{
     const shotsTotal = totalPoints(shots);
     const sectionTotal = shotsTotal + bonusPoints;
 
+    // Precompute min/max cycle times for color coding
+    const cycleTimes = shots
+      .map(s => s.cycleTime)
+      .filter((t): t is number => t !== undefined);
+    const minCycle =
+      cycleTimes.length > 0 ? Math.min(...cycleTimes) : null;
+    const maxCycle =
+      cycleTimes.length > 0 ? Math.max(...cycleTimes) : null;
+
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -188,19 +207,20 @@ const ShotLogTable: React.FC<{
         >
           {/* Header */}
           <div
-            className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_32px] text-xs font-semibold uppercase tracking-wide ${
+            className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_50px_1fr_32px] text-xs font-semibold uppercase tracking-wide ${
               isDarkMode
                 ? 'bg-team-dark-20 text-gray-400'
                 : 'bg-gray-50 text-gray-500'
             }`}
           >
-            <div className="px-1 py-2 text-center">#</div>
-            <div className="px-1 py-2 text-center">Shot</div>
-            <div className="px-1 py-2 text-center">Made</div>
-            <div className="px-1 py-2 text-center">Cls</div>
-            <div className="px-1 py-2 text-center">Ovfl</div>
-            <div className="px-1 py-2 text-center">Pts</div>
-            <div className="px-1 py-2 text-center">Balls</div>
+            <div className="px-1 py-2 text-center" title="Shot number">#</div>
+            <div className="px-1 py-2 text-center cursor-help" title="Number of balls shot">Shot</div>
+            <div className="px-1 py-2 text-center cursor-help" title="Number of balls made">Made</div>
+            <div className="px-1 py-2 text-center cursor-help" title="Classified artifacts (3 pts each)">Cls</div>
+            <div className="px-1 py-2 text-center cursor-help" title="Overflow artifacts (1 pt each)">Ovfl</div>
+            <div className="px-1 py-2 text-center cursor-help" title="Points scored">Pts</div>
+            <div className="px-1 py-2 text-center cursor-help" title="Time elapsed since last shot (seconds)">Cycle</div>
+            <div className="px-1 py-2 text-center cursor-help" title="Visual representation of balls made vs shot">Balls</div>
             <div className="px-1 py-2" />
           </div>
 
@@ -218,10 +238,31 @@ const ShotLogTable: React.FC<{
               const cls = shot.classified ?? shot.ballsMade;
               const ovfl = shot.overflow ?? 0;
               const pts = cls * POINTS_PER_CLASSIFIED + ovfl * POINTS_PER_OVERFLOW;
+              
+              // Cycle time color coding
+              const ct = shot.cycleTime;
+              const isMin =
+                ct !== undefined &&
+                minCycle !== null &&
+                ct === minCycle &&
+                cycleTimes.length > 1;
+              const isMax =
+                ct !== undefined &&
+                maxCycle !== null &&
+                ct === maxCycle &&
+                cycleTimes.length > 1;
+              const cycleClass = isMin
+                ? 'text-green-500 font-semibold'
+                : isMax
+                  ? 'text-red-500 font-semibold'
+                  : isDarkMode
+                    ? 'text-gray-400'
+                    : 'text-gray-500';
+              
               return (
                 <div
                   key={i}
-                  className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_32px] items-center border-t ${
+                  className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_50px_1fr_32px] items-center border-t ${
                     isDarkMode
                       ? 'border-white/5 even:bg-white/[0.02]'
                       : 'border-gray-100 even:bg-gray-50/50'
@@ -284,8 +325,11 @@ const ShotLogTable: React.FC<{
                   >
                     {pts}
                   </div>
+                  <div className={`px-1 py-2 text-center text-xs font-medium ${cycleClass}`}>
+                    {ct !== undefined ? `${ct.toFixed(2)}s` : '—'}
+                  </div>
                   <div className="px-1 py-2 flex justify-center">
-                    <BallVisualization ballsMade={shot.ballsMade} isDarkMode={isDarkMode} />
+                    <BallVisualization ballsMade={shot.ballsMade} ballsShot={shot.ballsShot} isDarkMode={isDarkMode} />
                   </div>
                   <div className="px-0.5 py-1.5 flex justify-center">
                     {editable && (
@@ -309,7 +353,7 @@ const ShotLogTable: React.FC<{
           {/* Footer totals */}
           {shots.length > 0 && (
             <div
-              className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_32px] items-center border-t-2 ${
+              className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_50px_1fr_32px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
@@ -347,7 +391,14 @@ const ShotLogTable: React.FC<{
               >
                 {shotsTotal}
               </div>
-              <div className="px-1 py-2" />
+              <div
+                className={`px-1 py-2 text-center text-xs font-semibold ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}
+                title="Average cycle time across all shots in this phase"
+              >
+                {calcAvgCycleTime(shots)}
+              </div>
               <div className="px-1 py-2" />
             </div>
           )}
@@ -956,25 +1007,26 @@ export const PerformanceMetrics = () => {
           >
             {/* header */}
             <div
-              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] text-xs font-semibold uppercase tracking-wide ${
+              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] text-xs font-semibold uppercase tracking-wide ${
                 isDarkMode
                   ? 'bg-team-dark-20 text-gray-400'
                   : 'bg-gray-50 text-gray-500'
               }`}
             >
               <div className="px-3 py-2">Phase</div>
-              <div className="px-2 py-2 text-center">Shot</div>
-              <div className="px-2 py-2 text-center">Made</div>
-              <div className="px-2 py-2 text-center">Cls</div>
-              <div className="px-2 py-2 text-center">Ovfl</div>
-              <div className="px-2 py-2 text-center">Acc</div>
-              <div className="px-2 py-2 text-center">Points</div>
+              <div className="px-2 py-2 text-center cursor-help" title="Number of balls shot">Shot</div>
+              <div className="px-2 py-2 text-center cursor-help" title="Number of balls made">Made</div>
+              <div className="px-2 py-2 text-center cursor-help" title="Classified artifacts (3 pts each)">Cls</div>
+              <div className="px-2 py-2 text-center cursor-help" title="Overflow artifacts (1 pt each)">Ovfl</div>
+              <div className="px-2 py-2 text-center cursor-help" title="Accuracy percentage">Acc</div>
+              <div className="px-2 py-2 text-center cursor-help" title="Total points scored">Points</div>
+              <div className="px-2 py-2 text-center cursor-help" title="Average cycle time (seconds)">Cyc</div>
             </div>
 
             {/* Autonomous row */}
             {showAuton && (
               <div
-                className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] items-center border-t ${
+                className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] items-center border-t ${
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
@@ -1010,13 +1062,18 @@ export const PerformanceMetrics = () => {
                 <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                   {autonomousScore}
                 </div>
+                <div
+                  className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                >
+                  {calcAvgCycleTime(autonShots)}
+                </div>
               </div>
             )}
 
             {/* TeleOp row */}
             {showTeleop && (
               <div
-                className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] items-center border-t ${
+                className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] items-center border-t ${
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
@@ -1052,12 +1109,17 @@ export const PerformanceMetrics = () => {
                 <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                   {teleopScore}
                 </div>
+                <div
+                  className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                >
+                  {calcAvgCycleTime(teleopShots)}
+                </div>
               </div>
             )}
 
             {/* End Game row */}
             <div
-              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] items-center border-t ${
+              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] items-center border-t ${
                 isDarkMode ? 'border-white/5' : 'border-gray-100'
               }`}
             >
@@ -1089,11 +1151,12 @@ export const PerformanceMetrics = () => {
               <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
                 {endGameScore}
               </div>
+              <div className="px-2 py-3 text-center text-sm" />
             </div>
 
             {/* Total footer */}
             <div
-              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px] items-center border-t-2 ${
+              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
@@ -1134,6 +1197,11 @@ export const PerformanceMetrics = () => {
               </div>
               <div className="px-2 py-3 text-center text-sm font-extrabold text-team-blue">
                 {finalScore}
+              </div>
+              <div
+                className={`px-2 py-3 text-center text-xs font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+              >
+                {calcAvgCycleTime([...autonShots, ...teleopShots])}
               </div>
             </div>
           </div>

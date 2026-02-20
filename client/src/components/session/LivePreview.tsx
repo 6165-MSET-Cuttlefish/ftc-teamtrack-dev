@@ -220,7 +220,16 @@ export const LivePreview = ({
       teleBallsMissed: sessionData.teleBallsMissed,
       robot1Park: sessionData.robot1Park,
       robot2Park: sessionData.robot2Park,
-      cycleTimes: [...(sessionData.cycleTimes || [])],
+      // Extract cycle times from shots - get all defined cycleTime values
+      cycleTimes: [
+        ...((sessionData.autonShots || [])
+          .map(s => s.cycleTime)
+          .filter((ct): ct is number => ct !== undefined)),
+        ...((sessionData.teleopShots || [])
+          .map(s => s.cycleTime)
+          .filter((ct): ct is number => ct !== undefined)),
+        ...(sessionData.cycleTimes || []),
+      ],
       autonShots: [...(sessionData.autonShots || [])],
       teleopShots: [...(sessionData.teleopShots || [])],
       createdAt: new Date().toISOString(),
