@@ -1,27 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+import { useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate, isAbortError } from '@/lib/utils';
 import { ROUTES } from '@/constants';
 import type { Session, Match } from '@/types';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Trophy,
-  Clock,
-  Target,
-  Zap,
-  X,
-  ChevronDown,
-} from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CompareMatch extends Match {
@@ -34,7 +19,6 @@ const Compare = () => {
   const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
   const { team } = useTeam();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -43,31 +27,106 @@ const Compare = () => {
     []
   );
   const [loading, setLoading] = useState(true);
-  const [isDetailedBreakdownOpen, setIsDetailedBreakdownOpen] = useState(false);
-  const [isMatchBreakdownOpen, setIsMatchBreakdownOpen] = useState(false);
+  const [isDetailedBreakdownOpen, setIsDetailedBreakdownOpen] = useState(true);
+  const [isMatchBreakdownOpen, setIsMatchBreakdownOpen] = useState(true);
 
-  // Match comparison state
   const [comparisonMode, setComparisonMode] = useState<'sessions' | 'matches'>(
     'sessions'
   );
   const [allMatches, setAllMatches] = useState<CompareMatch[]>([]);
   const [selectedMatches, setSelectedMatches] = useState<CompareMatch[]>([]);
 
-  // Load user sessions
+  // --- Helpers ---
+
+  const getCellColor = (
+    value: number,
+    values: number[],
+    higherIsBetter = true
+  ): string => {
+    if (values.length < 2) return '';
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    if (max === min) return '';
+    if (higherIsBetter) {
+      if (value === max) return 'text-green-500';
+      if (value === min) return 'text-red-500';
+    } else {
+      if (value === min) return 'text-green-500';
+      if (value === max) return 'text-red-500';
+    }
+    return '';
+  };
+
+  const getSessionAvgCycleTime = (session: Session): number => {
+    const all = session.matches.flatMap(m => m.cycleTimes || []);
+    return all.length > 0 ? all.reduce((a, b) => a + b, 0) / all.length : 0;
+  };
+
+  const getSessionAccuracy = (session: Session): number => {
+    let totalShot = 0,
+      totalMade = 0;
+    session.matches.forEach(m => {
+      const shots = [...(m.autonShots || []), ...(m.teleopShots || [])];
+      if (shots.length > 0) {
+        shots.forEach(s => {
+          totalShot += s.ballsShot;
+          totalMade += s.ballsMade;
+        });
+      } else {
+        const made =
+          (m.autonClassifiedArtifact || 0) +
+          (m.autonOverflowArtifact || 0) +
+          (m.teleClassifiedArtifact || 0) +
+          (m.teleOverflowArtifact || 0);
+        const missed = (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0);
+        totalMade += made;
+        totalShot += made + missed;
+      }
+    });
+    return totalShot > 0 ? (totalMade / totalShot) * 100 : 0;
+  };
+
+  const getMatchAccuracy = (match: CompareMatch): number => {
+    const shots = [...(match.autonShots || []), ...(match.teleopShots || [])];
+    let totalShot = 0,
+      totalMade = 0;
+    if (shots.length > 0) {
+      shots.forEach(s => {
+        totalShot += s.ballsShot;
+        totalMade += s.ballsMade;
+      });
+    } else {
+      const made =
+        (match.autonClassifiedArtifact || 0) +
+        (match.autonOverflowArtifact || 0) +
+        (match.teleClassifiedArtifact || 0) +
+        (match.teleOverflowArtifact || 0);
+      const missed =
+        (match.autonBallsMissed || 0) + (match.teleBallsMissed || 0);
+      totalMade = made;
+      totalShot = made + missed;
+    }
+    return totalShot > 0 ? (totalMade / totalShot) * 100 : 0;
+  };
+
+  const getMatchAvgCycleTime = (match: CompareMatch): number => {
+    const ct = match.cycleTimes || [];
+    return ct.length > 0 ? ct.reduce((a, b) => a + b, 0) / ct.length : 0;
+  };
+
+  // --- Data loading ---
+
   useEffect(() => {
     const loadSessions = async () => {
       if (!user?.uid) return;
-
       try {
         const userSessions = team
           ? await firebaseService.getTeamSessions(team.id)
           : await firebaseService.getUserSessions(user.uid);
         setSessions(userSessions);
 
-        // Pre-select sessions from URL params if available
         const session1Id = searchParams.get('session1');
         const session2Id = searchParams.get('session2');
-
         if (session1Id) {
           setSelectedSessionIds([session1Id]);
           if (session2Id) {
@@ -83,28 +142,20 @@ const Compare = () => {
         setLoading(false);
       }
     };
-
     loadSessions();
   }, [user?.uid, searchParams, team]);
 
-  // Load selected sessions data with improved error handling
   useEffect(() => {
     let isMounted = true;
-
     const loadSessionsData = async () => {
       try {
-        // Load all sessions in parallel for better performance
         const sessionsData = await Promise.all(
           selectedSessionIds.map(id => firebaseService.getSession(id))
         );
-
         if (!isMounted) return;
-
         setSelectedSessionsData(
           sessionsData.filter(s => s !== null) as Session[]
         );
-
-        // Load all matches from selected sessions
         const matches: CompareMatch[] = [];
         sessionsData.forEach((session, sessionIndex) => {
           if (session) {
@@ -126,31 +177,135 @@ const Compare = () => {
         toast.error('Failed to load some sessions');
       }
     };
-
     if (selectedSessionIds.length > 0) {
       loadSessionsData();
     } else {
       setSelectedSessionsData([]);
       setAllMatches([]);
     }
-
     return () => {
       isMounted = false;
     };
   }, [selectedSessionIds]);
-  const addSession = (sessionId: string) => {
-    if (!selectedSessionIds.includes(sessionId)) {
-      setSelectedSessionIds([...selectedSessionIds, sessionId]);
+
+  const toggleSession = (sessionId: string) => {
+    if (selectedSessionIds.includes(sessionId)) {
+      setSelectedSessionIds(selectedSessionIds.filter(id => id !== sessionId));
     } else {
-      toast.error('Session already selected');
+      setSelectedSessionIds([...selectedSessionIds, sessionId]);
     }
   };
 
-  const removeSession = (sessionId: string) => {
-    setSelectedSessionIds(selectedSessionIds.filter(id => id !== sessionId));
+  // --- Render helpers ---
+
+  const renderSessionRow = (
+    label: string,
+    getValue: (session: Session) => number,
+    opts: {
+      indent?: boolean;
+      higherIsBetter?: boolean;
+      format?: (v: number) => string;
+      highlight?: boolean;
+    } = {}
+  ) => {
+    const {
+      indent = false,
+      higherIsBetter = true,
+      format = v => Math.round(v).toString(),
+      highlight = false,
+    } = opts;
+    const values = selectedSessionsData.map(getValue);
+    return (
+      <tr
+        className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+      >
+        <td
+          className={`py-3 px-4 ${indent ? 'pl-8' : ''} ${
+            indent
+              ? isDarkMode
+                ? 'text-team-white-60'
+                : 'text-gray-600'
+              : isDarkMode
+                ? 'text-white'
+                : 'text-gray-900'
+          }`}
+        >
+          {indent ? `↳ ${label}` : label}
+        </td>
+        {selectedSessionsData.map((session, i) => (
+          <td
+            key={session.id}
+            className={`text-right py-3 px-4 ${highlight ? 'font-bold text-lg' : 'font-medium'} ${
+              getCellColor(values[i], values, higherIsBetter) ||
+              (highlight
+                ? 'text-team-blue'
+                : isDarkMode
+                  ? 'text-white'
+                  : 'text-gray-900')
+            }`}
+          >
+            {format(values[i])}
+          </td>
+        ))}
+      </tr>
+    );
   };
 
-  // Guests cannot access Compare — redirect
+  const renderMatchRow = (
+    label: string,
+    getValue: (match: CompareMatch) => number,
+    opts: {
+      indent?: boolean;
+      higherIsBetter?: boolean;
+      format?: (v: number) => string;
+      highlight?: boolean;
+    } = {}
+  ) => {
+    const {
+      indent = false,
+      higherIsBetter = true,
+      format = v => Math.round(v).toString(),
+      highlight = false,
+    } = opts;
+    const values = selectedMatches.map(getValue);
+    return (
+      <tr
+        className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
+      >
+        <td
+          className={`py-3 px-4 ${indent ? 'pl-8' : ''} ${
+            indent
+              ? isDarkMode
+                ? 'text-team-white-60'
+                : 'text-gray-600'
+              : isDarkMode
+                ? 'text-white'
+                : 'text-gray-900'
+          }`}
+        >
+          {indent ? `↳ ${label}` : label}
+        </td>
+        {selectedMatches.map((match, i) => (
+          <td
+            key={match.id}
+            className={`text-right py-3 px-4 ${highlight ? 'font-bold text-lg' : 'font-medium'} ${
+              getCellColor(values[i], values, higherIsBetter) ||
+              (highlight
+                ? 'text-team-blue'
+                : isDarkMode
+                  ? 'text-white'
+                  : 'text-gray-900')
+            }`}
+          >
+            {format(values[i])}
+          </td>
+        ))}
+      </tr>
+    );
+  };
+
+  // --- Guards ---
+
   if (!user?.uid || isGuest) {
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
@@ -188,20 +343,20 @@ const Compare = () => {
           <div className="flex gap-2">
             <button
               onClick={() => setComparisonMode('sessions')}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+              className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all ${
                 comparisonMode === 'sessions'
-                  ? `${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue text-[#FEFEFE]'}`
-                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900'}`
+                  ? `bg-team-blue shadow-md ${isDarkMode ? 'text-black' : 'text-white'}`
+                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900 hover:border-gray-400'}`
               }`}
             >
               Compare Sessions
             </button>
             <button
               onClick={() => setComparisonMode('matches')}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+              className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all ${
                 comparisonMode === 'matches'
-                  ? `${isDarkMode ? 'bg-team-blue-40 text-black' : 'bg-team-blue text-[#FEFEFE]'}`
-                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900'}`
+                  ? `bg-team-blue shadow-md ${isDarkMode ? 'text-black' : 'text-white'}`
+                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900 hover:border-gray-400'}`
               }`}
               disabled={selectedSessionIds.length === 0}
             >
@@ -210,220 +365,52 @@ const Compare = () => {
           </div>
         </div>
 
-        {/* Session Selector */}
-        <Card
-          className={`mb-8 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-        >
-          <CardHeader>
-            <CardTitle
-              className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-            >
-              Select Sessions to Compare
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Select onValueChange={addSession}>
-                <SelectTrigger
-                  className={`w-full ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
-                >
-                  <SelectValue placeholder="Add session..." />
-                </SelectTrigger>
-                <SelectContent
-                  className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white'}`}
-                >
-                  {sessions
-                    .filter(s => !selectedSessionIds.includes(s.id))
-                    .map(session => (
-                      <SelectItem
-                        key={session.id}
-                        value={session.id}
-                        className={`${isDarkMode ? 'text-white focus:bg-team-blue-40' : ''}`}
-                      >
-                        {session.sessionName || 'Unnamed Session'} -{' '}
-                        {formatDate(session.createdAt)} - Avg Score:{' '}
-                        {Math.round(
-                          session.matches.reduce(
-                            (sum, m) => sum + (m.finalScore || 0),
-                            0
-                          ) / (session.matches.length || 1)
-                        )}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-
-              {selectedSessionIds.length > 0 && (
-                <div className="space-y-2">
-                  <p
-                    className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+        {/* Session Selector — pill grid */}
+        <div className="mb-6">
+          {sessions.length === 0 ? (
+            <p className={`text-sm py-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+              No sessions available
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {sessions.map(session => {
+                const isSelected = selectedSessionIds.includes(session.id);
+                const avgScore = Math.round(
+                  session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) /
+                  (session.matches.length || 1)
+                );
+                return (
+                  <button
+                    key={session.id}
+                    onClick={() => toggleSession(session.id)}
+                    title={`${session.sessionName || 'Unnamed'} · ${formatDate(session.createdAt)}`}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      isSelected
+                        ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
+                        : isDarkMode
+                          ? 'bg-team-dark-20 border-team-blue-40 text-team-white-60 hover:border-team-blue hover:text-white'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:text-gray-900'
+                    }`}
                   >
-                    Selected Sessions ({selectedSessionIds.length})
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedSessionsData.map(session => (
-                      <div
-                        key={session.id}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full ${isDarkMode ? 'bg-team-blue/20 border border-team-blue-40' : 'bg-blue-100 border border-team-blue'}`}
-                      >
-                        <span
-                          className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-                        >
-                          {session.sessionName || 'Unnamed'} -{' '}
-                          {formatDate(session.createdAt)}
-                        </span>
-                        <button
-                          onClick={() => removeSession(session.id)}
-                          className={`p-1 rounded-full hover:bg-red-500/20 transition-colors ${isDarkMode ? 'text-team-white-60 hover:text-red-500' : 'text-gray-600 hover:text-red-500'}`}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    <span className="max-w-[140px] truncate">{session.sessionName || 'Unnamed'}</span>
+                    <span className={`shrink-0 ${
+                      isSelected
+                        ? isDarkMode ? 'text-black/60' : 'text-white/70'
+                        : isDarkMode ? 'text-team-white-60/60' : 'text-gray-400'
+                    }`}>
+                      {session.matches.length}m · {avgScore}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
 
-        {/* Comparison Results */}
+        {/* ====== SESSIONS MODE ====== */}
         {comparisonMode === 'sessions' ? (
           selectedSessionsData.length > 0 ? (
             <div className="space-y-6">
-              {/* Score Metrics Table */}
-              <Card
-                className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-              >
-                <CardHeader>
-                  <CardTitle
-                    className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                  >
-                    Score Comparison
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr
-                          className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
-                        >
-                          <th
-                            className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                          >
-                            Score Type
-                          </th>
-                          {selectedSessionsData.map(session => (
-                            <th
-                              key={session.id}
-                              className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                            >
-                              {session.sessionName || 'Unnamed'}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr
-                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                        >
-                          <td
-                            className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            <Trophy className="w-4 h-4 text-team-blue" />
-                            Avg Final Score
-                          </td>
-                          {selectedSessionsData.map(session => (
-                            <td
-                              key={session.id}
-                              className={`text-right py-3 px-4 font-bold text-2xl text-team-blue`}
-                            >
-                              {Math.round(
-                                session.matches.reduce(
-                                  (sum, m) => sum + (m.finalScore || 0),
-                                  0
-                                ) / (session.matches.length || 1)
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr
-                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                        >
-                          <td
-                            className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            <Target className="w-4 h-4 text-team-blue" />
-                            Avg Autonomous Score
-                          </td>
-                          {selectedSessionsData.map(session => (
-                            <td
-                              key={session.id}
-                              className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              {Math.round(
-                                session.matches.reduce(
-                                  (sum, m) => sum + (m.autonomousScore || 0),
-                                  0
-                                ) / (session.matches.length || 1)
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr
-                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                        >
-                          <td
-                            className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            <Zap className="w-4 h-4 text-team-blue" />
-                            Avg Teleop Score
-                          </td>
-                          {selectedSessionsData.map(session => (
-                            <td
-                              key={session.id}
-                              className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              {Math.round(
-                                session.matches.reduce(
-                                  (sum, m) => sum + (m.teleopScore || 0),
-                                  0
-                                ) / (session.matches.length || 1)
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr
-                          className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                        >
-                          <td
-                            className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            <Clock className="w-4 h-4 text-team-blue" />
-                            Avg Endgame Score
-                          </td>
-                          {selectedSessionsData.map(session => (
-                            <td
-                              key={session.id}
-                              className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              {Math.round(
-                                session.matches.reduce(
-                                  (sum, m) => sum + (m.endGameScore || 0),
-                                  0
-                                ) / (session.matches.length || 1)
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Detailed Table */}
               <Card
                 className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
               >
@@ -466,238 +453,107 @@ const Compare = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              Avg Final Score
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 font-medium text-team-blue`}
-                              >
-                                {Math.round(
-                                  session.matches.reduce(
-                                    (sum, m) => sum + (m.finalScore || 0),
-                                    0
-                                  ) / (session.matches.length || 1)
-                                )}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              Avg Autonomous Score
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {Math.round(
-                                  session.matches.reduce(
-                                    (sum, m) => sum + (m.autonomousScore || 0),
-                                    0
-                                  ) / (session.matches.length || 1)
-                                )}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                            >
-                              ↳ Avg Classified Artifact
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {(session.matches.reduce(
-                                  (sum, m) =>
-                                    sum + (m.autonClassifiedArtifact || 0),
-                                  0
-                                ) / (session.matches.length || 1)).toFixed(1)}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                            >
-                              ↳ Avg Overflow Artifact
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {(session.matches.reduce(
-                                  (sum, m) =>
-                                    sum + (m.autonOverflowArtifact || 0),
-                                  0
-                                ) / (session.matches.length || 1)).toFixed(1)}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                            >
-                              ↳ Avg Motif
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {(session.matches.reduce(
-                                  (sum, m) => sum + (m.autonMotif || 0),
-                                  0
-                                ) / (session.matches.length || 1)).toFixed(1)}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                            >
-                              ↳ Avg Leave
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {(session.matches.reduce(
-                                  (sum, m) => sum + (m.autonLeave || 0),
-                                  0
-                                ) / (session.matches.length || 1)).toFixed(1)}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              Avg Teleop Score
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {Math.round(
-                                  session.matches.reduce(
-                                    (sum, m) => sum + (m.teleopScore || 0),
-                                    0
-                                  ) / (session.matches.length || 1)
-                                )}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                            >
-                              ↳ Avg Classified Artifact
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {(session.matches.reduce(
-                                  (sum, m) =>
-                                    sum + (m.teleClassifiedArtifact || 0),
-                                  0
-                                ) / (session.matches.length || 1)).toFixed(1)}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                            >
-                              ↳ Avg Overflow Artifact
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {(session.matches.reduce(
-                                  (sum, m) =>
-                                    sum + (m.teleOverflowArtifact || 0),
-                                  0
-                                ) / (session.matches.length || 1)).toFixed(1)}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                            >
-                              ↳ Avg Motif
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {(session.matches.reduce(
-                                  (sum, m) => sum + (m.teleMotif || 0),
-                                  0
-                                ) / (session.matches.length || 1)).toFixed(1)}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              Avg Endgame Score
-                            </td>
-                            {selectedSessionsData.map(session => (
-                              <td
-                                key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {Math.round(
-                                  session.matches.reduce(
-                                    (sum, m) => sum + (m.endGameScore || 0),
-                                    0
-                                  ) / (session.matches.length || 1)
-                                )}
-                              </td>
-                            ))}
-                          </tr>
+                          {renderSessionRow(
+                            'Avg Final Score',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) => sum + (m.finalScore || 0),
+                                0
+                              ) / (s.matches.length || 1),
+                            { highlight: true }
+                          )}
+                          {renderSessionRow(
+                            'Avg Autonomous Score',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) => sum + (m.autonomousScore || 0),
+                                0
+                              ) / (s.matches.length || 1)
+                          )}
+                          {renderSessionRow(
+                            'Avg Classified Artifact',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) =>
+                                  sum + (m.autonClassifiedArtifact || 0),
+                                0
+                              ) / (s.matches.length || 1),
+                            { indent: true, format: v => v.toFixed(1) }
+                          )}
+                          {renderSessionRow(
+                            'Avg Overflow Artifact',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) =>
+                                  sum + (m.autonOverflowArtifact || 0),
+                                0
+                              ) / (s.matches.length || 1),
+                            { indent: true, format: v => v.toFixed(1) }
+                          )}
+                          {renderSessionRow(
+                            'Avg Motif',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) => sum + (m.autonMotif || 0),
+                                0
+                              ) / (s.matches.length || 1),
+                            { indent: true, format: v => v.toFixed(1) }
+                          )}
+                          {renderSessionRow(
+                            'Avg Leave',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) => sum + (m.autonLeave || 0),
+                                0
+                              ) / (s.matches.length || 1),
+                            { indent: true, format: v => v.toFixed(1) }
+                          )}
+                          {renderSessionRow(
+                            'Avg Teleop Score',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) => sum + (m.teleopScore || 0),
+                                0
+                              ) / (s.matches.length || 1)
+                          )}
+                          {renderSessionRow(
+                            'Avg Classified Artifact',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) =>
+                                  sum + (m.teleClassifiedArtifact || 0),
+                                0
+                              ) / (s.matches.length || 1),
+                            { indent: true, format: v => v.toFixed(1) }
+                          )}
+                          {renderSessionRow(
+                            'Avg Overflow Artifact',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) =>
+                                  sum + (m.teleOverflowArtifact || 0),
+                                0
+                              ) / (s.matches.length || 1),
+                            { indent: true, format: v => v.toFixed(1) }
+                          )}
+                          {renderSessionRow(
+                            'Avg Motif',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) => sum + (m.teleMotif || 0),
+                                0
+                              ) / (s.matches.length || 1),
+                            { indent: true, format: v => v.toFixed(1) }
+                          )}
+                          {renderSessionRow(
+                            'Avg Endgame Score',
+                            s =>
+                              s.matches.reduce(
+                                (sum, m) => sum + (m.endGameScore || 0),
+                                0
+                              ) / (s.matches.length || 1)
+                          )}
+                          {/* Parking Summary */}
                           <tr
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                           >
@@ -720,7 +576,7 @@ const Compare = () => {
                               return (
                                 <td
                                   key={session.id}
-                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                  className={`text-right py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                                 >
                                   {fullCount > 0 ? `${fullCount} full` : ''}
                                   {fullCount > 0 && partialCount > 0
@@ -736,6 +592,19 @@ const Compare = () => {
                               );
                             })}
                           </tr>
+                          {renderSessionRow(
+                            'Avg Cycle Time',
+                            getSessionAvgCycleTime,
+                            {
+                              higherIsBetter: false,
+                              format: v =>
+                                v > 0 ? `${v.toFixed(1)}s` : 'N/A',
+                            }
+                          )}
+                          {renderSessionRow('Accuracy', getSessionAccuracy, {
+                            format: v =>
+                              v > 0 ? `${v.toFixed(1)}%` : 'N/A',
+                          })}
                           <tr>
                             <td
                               className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -745,7 +614,7 @@ const Compare = () => {
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                className={`text-right py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
                                 {session.matchType || 'N/A'}
                               </td>
@@ -773,76 +642,75 @@ const Compare = () => {
                   <p
                     className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    Choose sessions from the dropdown above to see detailed
+                    Choose sessions from the list above to see detailed
                     comparison
                   </p>
                 </div>
               </CardContent>
             </Card>
           )
-        ) : // Matches comparison mode
+        ) : // ====== MATCHES MODE ======
         allMatches.length > 0 ? (
           <div className="space-y-6">
-            <Card
-              className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-            >
-              <CardHeader>
-                <CardTitle
-                  className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  Select Matches to Compare
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {allMatches.map(match => (
-                    <label
-                      key={match.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all ${
-                        selectedMatches.some(m => m.id === match.id)
-                          ? `${isDarkMode ? 'bg-team-blue/20 border-team-blue-40' : 'bg-blue-50 border-team-blue'}`
-                          : `${isDarkMode ? 'bg-team-dark border-team-blue-40 hover:border-team-blue' : 'bg-white border-gray-200 hover:border-team-blue'}`
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedMatches.some(m => m.id === match.id)}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setSelectedMatches([...selectedMatches, match]);
-                          } else {
-                            setSelectedMatches(
-                              selectedMatches.filter(m => m.id !== match.id)
-                            );
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                      <span
-                        className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                      >
-                        {match.sessionName} - Match {match.matchNumber} (Score:{' '}
-                        {match.finalScore || 0})
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Match Selector — pill grid */}
+            <div className="flex flex-wrap gap-2">
+              {allMatches.map(match => {
+                const isChecked = selectedMatches.some(m => m.id === match.id);
+                return (
+                  <button
+                    key={match.id}
+                    onClick={() => {
+                      if (isChecked) {
+                        setSelectedMatches(selectedMatches.filter(m => m.id !== match.id));
+                      } else {
+                        setSelectedMatches([...selectedMatches, match]);
+                      }
+                    }}
+                    title={`${match.sessionName} · Auto ${match.autonomousScore || 0} / Teleop ${match.teleopScore || 0} / End ${match.endGameScore || 0}`}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      isChecked
+                        ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
+                        : isDarkMode
+                          ? 'bg-team-dark-20 border-team-blue-40 text-team-white-60 hover:border-team-blue hover:text-white'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:text-gray-900'
+                    }`}
+                  >
+                    <span className={`shrink-0 ${
+                      isChecked
+                        ? isDarkMode ? 'text-black/60' : 'text-white/70'
+                        : isDarkMode ? 'text-team-white-60/60' : 'text-gray-400'
+                    }`}>{match.sessionName}</span>
+                    <span>#{match.matchNumber}</span>
+                    <span className={`shrink-0 ${
+                      isChecked
+                        ? isDarkMode ? 'text-black/60' : 'text-white/70'
+                        : isDarkMode ? 'text-team-white-60/60' : 'text-gray-400'
+                    }`}>· {match.finalScore || 0}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {selectedMatches.length > 0 && (
-              <>
-                {/* Match Score Comparison Table */}
-                <Card
-                  className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+              <Card
+                className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+              >
+                <CardHeader
+                  onClick={() =>
+                    setIsMatchBreakdownOpen(!isMatchBreakdownOpen)
+                  }
+                  className="cursor-pointer hover:bg-opacity-80 transition-all"
                 >
-                  <CardHeader>
-                    <CardTitle
-                      className={`text-xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      Score Comparison
-                    </CardTitle>
-                  </CardHeader>
+                  <CardTitle
+                    className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    <span>Detailed Breakdown</span>
+                    <ChevronDown
+                      className={`w-5 h-5 transition-transform duration-200 ${isMatchBreakdownOpen ? 'rotate-180' : ''}`}
+                    />
+                  </CardTitle>
+                </CardHeader>
+                {isMatchBreakdownOpen && (
                   <CardContent>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
@@ -853,34 +721,79 @@ const Compare = () => {
                             <th
                               className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              Score Type
+                              Metric
                             </th>
                             {selectedMatches.map(match => (
                               <th
                                 key={match.id}
                                 className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                               >
-                                {match.sessionName} - Match {match.matchNumber}
+                                {match.sessionName} — M{match.matchNumber}
                               </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
+                          {renderMatchRow(
+                            'Final Score',
+                            m => m.finalScore || 0,
+                            { highlight: true }
+                          )}
+                          {renderMatchRow(
+                            'Autonomous Score',
+                            m => m.autonomousScore || 0
+                          )}
+                          {renderMatchRow(
+                            'Classified Artifact',
+                            m => m.autonClassifiedArtifact || 0,
+                            { indent: true }
+                          )}
+                          {renderMatchRow(
+                            'Overflow Artifact',
+                            m => m.autonOverflowArtifact || 0,
+                            { indent: true }
+                          )}
+                          {renderMatchRow('Motif', m => m.autonMotif || 0, {
+                            indent: true,
+                          })}
+                          {renderMatchRow('Leave', m => m.autonLeave || 0, {
+                            indent: true,
+                          })}
+                          {renderMatchRow(
+                            'Teleop Score',
+                            m => m.teleopScore || 0
+                          )}
+                          {renderMatchRow(
+                            'Classified Artifact',
+                            m => m.teleClassifiedArtifact || 0,
+                            { indent: true }
+                          )}
+                          {renderMatchRow(
+                            'Overflow Artifact',
+                            m => m.teleOverflowArtifact || 0,
+                            { indent: true }
+                          )}
+                          {renderMatchRow('Motif', m => m.teleMotif || 0, {
+                            indent: true,
+                          })}
+                          {renderMatchRow(
+                            'Endgame Score',
+                            m => m.endGameScore || 0
+                          )}
                           <tr
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                           >
                             <td
-                              className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              <Trophy className="w-4 h-4 text-team-blue" />
-                              Final Score
+                              ↳ Robot 1 Park
                             </td>
                             {selectedMatches.map(match => (
                               <td
                                 key={match.id}
-                                className={`text-right py-3 px-4 font-bold text-2xl text-team-blue`}
+                                className={`text-right py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {match.finalScore || 0}
+                                {match.robot1Park || 'none'}
                               </td>
                             ))}
                           </tr>
@@ -888,179 +801,38 @@ const Compare = () => {
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                           >
                             <td
-                              className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              <Target className="w-4 h-4 text-team-blue" />
-                              Autonomous Score
+                              ↳ Robot 2 Park
                             </td>
                             {selectedMatches.map(match => (
                               <td
                                 key={match.id}
-                                className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                className={`text-right py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {match.autonomousScore || 0}
+                                {match.robot2Park || 'none'}
                               </td>
                             ))}
                           </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              <Zap className="w-4 h-4 text-team-blue" />
-                              Teleop Score
-                            </td>
-                            {selectedMatches.map(match => (
-                              <td
-                                key={match.id}
-                                className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {match.teleopScore || 0}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr
-                            className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                          >
-                            <td
-                              className={`py-3 px-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                            >
-                              <Clock className="w-4 h-4 text-team-blue" />
-                              Endgame Score
-                            </td>
-                            {selectedMatches.map(match => (
-                              <td
-                                key={match.id}
-                                className={`text-right py-3 px-4 font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                {match.endGameScore || 0}
-                              </td>
-                            ))}
-                          </tr>
+                          {renderMatchRow(
+                            'Avg Cycle Time',
+                            getMatchAvgCycleTime,
+                            {
+                              higherIsBetter: false,
+                              format: v =>
+                                v > 0 ? `${v.toFixed(1)}s` : 'N/A',
+                            }
+                          )}
+                          {renderMatchRow('Accuracy', getMatchAccuracy, {
+                            format: v =>
+                              v > 0 ? `${v.toFixed(1)}%` : 'N/A',
+                          })}
                         </tbody>
                       </table>
                     </div>
                   </CardContent>
-                </Card>
-
-                {/* Detailed Match Breakdown */}
-                <Card
-                  className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-                >
-                  <CardHeader
-                    onClick={() =>
-                      setIsMatchBreakdownOpen(!isMatchBreakdownOpen)
-                    }
-                    className="cursor-pointer hover:bg-opacity-80 transition-all"
-                  >
-                    <CardTitle
-                      className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      <span>Detailed Match Breakdown</span>
-                      <ChevronDown
-                        className={`w-5 h-5 transition-transform duration-200 ${isMatchBreakdownOpen ? 'rotate-180' : ''}`}
-                      />
-                    </CardTitle>
-                  </CardHeader>
-                  {isMatchBreakdownOpen && (
-                    <CardContent>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr
-                              className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
-                            >
-                              <th
-                                className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                              >
-                                Metric
-                              </th>
-                              {selectedMatches.map(match => (
-                                <th
-                                  key={match.id}
-                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                                >
-                                  {match.sessionName} - Match{' '}
-                                  {match.matchNumber}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr
-                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                            >
-                              <td
-                                className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                Final Score
-                              </td>
-                              {selectedMatches.map(match => (
-                                <td
-                                  key={match.id}
-                                  className={`text-right py-3 px-4 font-medium text-team-blue`}
-                                >
-                                  {match.finalScore || 0}
-                                </td>
-                              ))}
-                            </tr>
-                            <tr
-                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                            >
-                              <td
-                                className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                Autonomous
-                              </td>
-                              {selectedMatches.map(match => (
-                                <td
-                                  key={match.id}
-                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                                >
-                                  {match.autonomousScore || 0}
-                                </td>
-                              ))}
-                            </tr>
-                            <tr
-                              className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
-                            >
-                              <td
-                                className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                Teleop
-                              </td>
-                              {selectedMatches.map(match => (
-                                <td
-                                  key={match.id}
-                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                                >
-                                  {match.teleopScore || 0}
-                                </td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td
-                                className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                              >
-                                Endgame
-                              </td>
-                              {selectedMatches.map(match => (
-                                <td
-                                  key={match.id}
-                                  className={`text-right py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                                >
-                                  {match.endGameScore || 0}
-                                </td>
-                              ))}
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-              </>
+                )}
+              </Card>
             )}
           </div>
         ) : (

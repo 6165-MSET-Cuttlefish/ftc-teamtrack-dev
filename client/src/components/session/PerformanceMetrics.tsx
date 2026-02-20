@@ -1396,7 +1396,7 @@ export const PerformanceMetrics = () => {
                           robot1Park === val
                             ? isDarkMode
                               ? 'bg-team-blue text-black'
-                              : 'bg-team-blue text-black'
+                              : 'bg-team-blue text-white'
                             : isDarkMode
                               ? 'bg-team-dark text-white hover:bg-team-dark-20'
                               : 'bg-[#FEFEFE] text-black hover:bg-gray-100'
@@ -1446,7 +1446,7 @@ export const PerformanceMetrics = () => {
                           robot2Park === val
                             ? isDarkMode
                               ? 'bg-team-blue text-black'
-                              : 'bg-team-blue text-black'
+                              : 'bg-team-blue text-white'
                             : isDarkMode
                               ? 'bg-team-dark text-white hover:bg-team-dark-20'
                               : 'bg-[#FEFEFE] text-black hover:bg-gray-100'

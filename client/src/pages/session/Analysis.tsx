@@ -497,9 +497,7 @@ const AnalysisContent = () => {
             </p>
             <button
               onClick={handleAddMatch}
-              className={`px-6 py-2.5 rounded-xl bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors inline-flex items-center gap-2 ${
-                isDarkMode ? 'text-black' : 'text-white'
-              }`}
+              className={`px-6 py-2.5 rounded-xl bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors inline-flex items-center gap-2 ${isDarkMode ? 'text-black' : 'text-white'}`}
             >
               <Plus size={18} />
               Add First Match
@@ -511,9 +509,7 @@ const AnalysisContent = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <Link
             to="/charts"
-            className={`w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors ${
-              isDarkMode ? 'text-black' : 'text-white'
-            }`}
+            className={`w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             View Lifetime Charts
           </Link>
