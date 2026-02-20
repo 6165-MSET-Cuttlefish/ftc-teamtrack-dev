@@ -62,7 +62,7 @@ const ActiveSessionContent = () => {
     if (matchPhase === 'controller_pickup' || matchPhase === 'prepare') {
       return 'text-yellow-400';
     }
-    return isDarkMode ? 'text-white' : 'text-black';
+    return isDarkMode ? 'text-white' : 'text-team-blue';
   };
 
   return (

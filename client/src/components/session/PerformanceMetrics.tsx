@@ -496,6 +496,8 @@ export const PerformanceMetrics = () => {
     editingMatchId,
     matchActive,
     matchPhase,
+    timer,
+    isTimerRunning,
   } = useSession();
   const { isDarkMode } = useTheme();
 
@@ -665,6 +667,23 @@ export const PerformanceMetrics = () => {
   );
   const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
 
+  // Reset last shot time tracking when:
+  // 1. Match ends (matchPhase === 'ended')
+  // 2. Timer is paused (!isTimerRunning)
+  // 3. Match is not active (!matchActive)
+  // 4. Starting a new match (matchPhase === 'auton' after being inactive)
+  // Also reset the cycle timer display when match ends to prevent carryover to next match
+  useEffect(() => {
+    if (matchPhase === 'ended' || !isTimerRunning || !matchActive || matchPhase === 'auton') {
+      lastShotTimeRef.current = null;
+      // Reset cycle timer state when match ends or transitions to prevent persistence
+      if (matchPhase === 'ended' || matchPhase === 'auton') {
+        setCycleTimerStartTime(null);
+        setCycleTimerElapsed(0);
+      }
+    }
+  }, [matchPhase, isTimerRunning, matchActive]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (cycleTimerStartTime !== null && !sessionData.isSessionCompleted) {
@@ -723,6 +742,7 @@ export const PerformanceMetrics = () => {
       setAutonomousLeave(sessionData.autonLeave || 0);
       setRobot1Park(sessionData.robot1Park || 'none');
       setRobot2Park(sessionData.robot2Park || 'none');
+      lastShotTimeRef.current = null; // Reset cycle time tracking when match is reset or edited
       // autonShots / teleopShots are derived from sessionData — no local sync needed
     }
 
@@ -743,6 +763,24 @@ export const PerformanceMetrics = () => {
       setSelectedTab('teleop');
     }
   }, [matchPhase]);
+
+  // ── Auto-switch to endgame tab when timer reaches <= 20 seconds in Full Game ──
+  // Using a ref so the switch only fires once when entering the last 20 seconds
+  const autoSwitchedToEndgameRef = useRef(false);
+  useEffect(() => {
+    if (matchPhase === 'auton') {
+      autoSwitchedToEndgameRef.current = false; // reset for next match
+    }
+    if (
+      sessionData.matchType === 'Full Game' &&
+      matchPhase === 'teleop' &&
+      timer <= 20 &&
+      !autoSwitchedToEndgameRef.current
+    ) {
+      autoSwitchedToEndgameRef.current = true;
+      setSelectedTab('endgame');
+    }
+  }, [timer, matchPhase, sessionData.matchType]);
 
   // ── Keyboard shortcut popup ───────────────────────────────────────
   const [showPopup, setShowPopup] = useState(false);
@@ -1031,9 +1069,9 @@ export const PerformanceMetrics = () => {
                 }`}
               >
                 <div
-                  className={`px-4 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                  className={`px-4 py-3 text-sm font-medium font-mono ${isDarkMode ? 'text-white' : 'text-black'}`}
                 >
-                  Autonomous{autonomousLeave > 0 ? ' (incl. leave +3)' : ''}
+                  A:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Autonomous{autonomousLeave > 0 ? ' (incl. leave +3)' : ''}
                 </div>
                 <div
                   className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
@@ -1078,9 +1116,9 @@ export const PerformanceMetrics = () => {
                 }`}
               >
                 <div
-                  className={`px-4 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                  className={`px-4 py-3 text-sm font-medium font-mono ${isDarkMode ? 'text-white' : 'text-black'}`}
                 >
-                  TeleOp
+                  T:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TeleOp
                 </div>
                 <div
                   className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
@@ -1124,9 +1162,9 @@ export const PerformanceMetrics = () => {
               }`}
             >
               <div
-                className={`px-4 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                className={`px-4 py-3 text-sm font-medium font-mono ${isDarkMode ? 'text-white' : 'text-black'}`}
               >
-                End Game
+                E:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;End Game
               </div>
               <div
                 className={`px-3 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
@@ -1209,7 +1247,7 @@ export const PerformanceMetrics = () => {
 
         {/* ── AUTONOMOUS tab ─────────────────────────────────────── */}
         {selectedTab === 'autonomous' && showAuton && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-6">
             {/* Leave + Motif row */}
             <div className={`rounded-xl p-3 flex flex-col gap-3 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
               {/* Leave */}
@@ -1289,7 +1327,7 @@ export const PerformanceMetrics = () => {
 
         {/* ── TELEOP tab ─────────────────────────────────────────── */}
         {selectedTab === 'teleop' && showTeleop && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             {/* Teleop Motif */}
             <div className={`rounded-xl p-3 flex items-center justify-between ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
               <div className="flex flex-col gap-1">
@@ -1344,14 +1382,19 @@ export const PerformanceMetrics = () => {
 
         {/* ── END GAME tab ───────────────────────────────────────── */}
         {selectedTab === 'endgame' && (
-          <div className="flex flex-col gap-3">
-            <h3
-              className={`text-sm font-semibold uppercase tracking-wider ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}
-            >
-              End Game
-            </h3>
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h3
+                className={`text-sm font-semibold uppercase tracking-wider ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}
+              >
+                End Game
+              </h3>
+              <span className="text-team-blue font-bold text-lg">
+                {endGameScore} pts
+              </span>
+            </div>
 
             {/* End Game summary table */}
             <div

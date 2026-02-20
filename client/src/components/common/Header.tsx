@@ -462,12 +462,6 @@ const NavigationMenu = () => {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/sessions" className="flex items-center">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                <span>My Sessions</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
               <Link to="/profile" className="flex items-center">
                 <UserCircle className="mr-2 h-4 w-4" />
                 <span>Profile</span>
@@ -507,7 +501,7 @@ const CompactTimer = () => {
       ? 'text-yellow-400'
       : isDarkMode
         ? 'text-white'
-        : 'text-black';
+        : 'text-team-blue';
 
   return (
     <span

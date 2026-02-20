@@ -320,7 +320,7 @@ const SharedSession = () => {
                   <Button
                     className={`w-full sm:w-56 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
                   >
-                    Sign Up Free
+                    Sign Up
                   </Button>
                 </Link>
                 <Link to="/login">

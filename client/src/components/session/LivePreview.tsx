@@ -526,7 +526,7 @@ export const LivePreview = ({
                     : ''
                 }
                 className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  !matchActive
+                  !matchActive && isSessionSetupSaved
                     ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
                     : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
                 }`}
@@ -585,7 +585,7 @@ export const LivePreview = ({
                     setShowUnsavedEditWarning(false);
                     setPendingEditMatch(null);
                   }}
-                  className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
+                  className="flex-1 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
                 >
                   Save Changes
                 </button>
@@ -600,7 +600,7 @@ export const LivePreview = ({
                     setPendingEditMatch(null);
                     setShowUnsavedEditWarning(true);
                   }}
-                  className="px-4 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
+                  className="flex-1 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
                 >
                   Cancel
                 </button>
@@ -609,52 +609,10 @@ export const LivePreview = ({
 
             {/* Unsaved Edit Warning Banner */}
             {showUnsavedEditWarning && (
-              <div className={`rounded-2xl border-2 border-orange-500/60 bg-orange-500/15 px-4 py-3 flex flex-col gap-2`}>
-                <p className={`text-sm font-semibold ${isDarkMode ? 'text-orange-300' : 'text-orange-700'}`}>
-                  ⚠️ You have unsaved changes.{' '}
-                  {pendingEditMatch ? 'Save or discard before switching matches.' : 'Save or discard before returning.'}
+              <div className={`rounded-2xl border-2 border-orange-500/60 bg-orange-500/15 px-4 py-4 h-16 flex items-center`}>
+                <p className={`text-xs font-semibold ${isDarkMode ? 'text-orange-300' : 'text-orange-700'}`}>
+                  You have unsaved changes. Please save or cancel before switching matches.
                 </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      saveEditedMatch();
-                      toast.success('Match changes saved!');
-                      setShowUnsavedEditWarning(false);
-                      if (pendingEditMatch) {
-                        startEditingMatch(pendingEditMatch);
-                        setPendingEditMatch(null);
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 rounded-xl bg-green-500/20 border border-green-500/40 text-green-600 text-sm font-bold hover:bg-green-500/30 transition-colors"
-                  >
-                    Save & Continue
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      returnToCurrentMatch();
-                      setShowUnsavedEditWarning(false);
-                      if (pendingEditMatch) {
-                        startEditingMatch(pendingEditMatch);
-                        setPendingEditMatch(null);
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 rounded-xl bg-red-500/20 border border-red-500/40 text-red-500 text-sm font-bold hover:bg-red-500/30 transition-colors"
-                  >
-                    Discard Changes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowUnsavedEditWarning(false);
-                      setPendingEditMatch(null);
-                    }}
-                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition-colors ${isDarkMode ? 'border-gray-600 text-gray-400 hover:bg-gray-700' : 'border-gray-300 text-gray-500 hover:bg-gray-100'}`}
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
             )}
 
@@ -667,7 +625,7 @@ export const LivePreview = ({
                 }
               }}
               onClick={onOpenSessionSetup}
-              className={`py-4 px-6 h-16 rounded-2xl border-2 border-team-blue-40 transition-colors flex items-center justify-center ${
+              className={`flex-1 py-4 h-16 rounded-2xl border-2 border-team-blue-40 transition-colors flex items-center justify-center ${
                 isDarkMode
                   ? 'bg-team-dark hover:bg-[#2a2a2a]'
                   : 'bg-white hover:bg-gray-50'
@@ -689,7 +647,7 @@ export const LivePreview = ({
               }}
               onClick={handleCompleteSession}
               disabled={loading || sessionLimitReached}
-              className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="flex-1 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               title={
                 loading
                   ? 'Saving...'
@@ -714,7 +672,7 @@ export const LivePreview = ({
                   setCancelConfirm(true);
                   if (isTimerRunning) setIsTimerRunning(false);
                 }}
-                className="px-4 py-4 h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
+                className="flex-1 py-4 h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
                 title="Cancel Session"
               >
                 Cancel Session

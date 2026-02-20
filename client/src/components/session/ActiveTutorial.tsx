@@ -616,6 +616,130 @@ const NotesPreview = ({ dark }: { dark: boolean }) => {
   );
 };
 
+// ── Animated Motif Setup: shows the 3-ball pattern selector ───────────────
+const MotifPreview = ({ dark }: { dark: boolean }) => {
+  const [motifPattern, setMotifPattern] = useState<('purple' | 'green' | 'empty')[]>([
+    'purple',
+    'green',
+    'purple',
+  ]);
+  const [activeSlot, setActiveSlot] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setActiveSlot(s => (s + 1) % 3);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [activeSlot]);
+
+  const getSlotStyle = (
+    color: 'purple' | 'green' | 'empty',
+    isActive: boolean
+  ): React.CSSProperties => {
+    let bgColor = '';
+    let borderColor = '';
+
+    if (color === 'purple') {
+      bgColor = dark ? '#a855f7' : '#c084fc';
+      borderColor = dark ? '#9333ea' : '#a855f7';
+    } else if (color === 'green') {
+      bgColor = dark ? '#10b981' : '#34d399';
+      borderColor = dark ? '#059669' : '#10b981';
+    } else {
+      bgColor = dark ? '#374151' : '#e5e7eb';
+      borderColor = dark ? '#4b5563' : '#d1d5db';
+    }
+
+    return {
+      width: 56,
+      height: 56,
+      backgroundColor: bgColor,
+      borderColor: borderColor,
+      borderWidth: 3,
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      transition: 'all 0.3s',
+      transform: isActive ? 'scale(1.15)' : 'scale(1)',
+      boxShadow: isActive
+        ? `0 0 20px ${color === 'purple' ? '#a855f7' : color === 'green' ? '#10b981' : 'transparent'}`
+        : 'none',
+    };
+  };
+
+  return (
+    <PreviewBox dark={dark}>
+      <div className="flex flex-col gap-4">
+        <div>
+          <div className="text-team-blue font-semibold text-sm mb-2">
+            Set Your Motif Pattern
+          </div>
+          <p
+            className="text-xs"
+            style={{
+              color: dark
+                ? 'rgba(255,255,255,0.6)'
+                : 'rgba(0,0,0,0.6)',
+            }}
+          >
+            Click each ball to choose{' '}
+            <span style={{ color: dark ? '#c084fc' : '#c084fc' }}>
+              purple
+            </span>{' '}
+            or{' '}
+            <span style={{ color: dark ? '#34d399' : '#34d399' }}>
+              green
+            </span>
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-4">
+          {motifPattern.map((color, i) => (
+            <div
+              key={i}
+              style={getSlotStyle(color, activeSlot === i)}
+            >
+              {color !== 'empty' && (
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.6)' }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold border-2"
+            style={{
+              borderColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+              backgroundColor: dark ? '#191919' : '#fff',
+              color: dark ? '#fff' : '#000',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            className="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold"
+            style={{
+              borderColor: 'rgba(34,197,94,0.4)',
+              backgroundColor: 'rgba(34,197,94,0.2)',
+              color: '#22c55e',
+              border: '2px solid',
+            }}
+          >
+            Save{' '}
+            <span style={{ fontSize: '0.8em', marginLeft: '2px' }}>
+              ✓
+            </span>
+          </button>
+        </div>
+      </div>
+    </PreviewBox>
+  );
+};
+
 // ─── Step data ──────────────────────────────────────────────────────────────
 
 interface StepDef {
@@ -649,6 +773,12 @@ const STEPS: StepDef[] = [
     body: 'Start Match begins the countdown. Save Match records it. Gear opens settings. Complete and Cancel manage the session.',
     target: 'controls',
     preview: d => <ControlsPreview dark={d} />,
+  },
+  {
+    title: 'Set Motif Pattern',
+    body: 'When you tap Start Match, a dialog opens. Click each ball to choose purple or green for your 3-ball pattern. This must be set before you can score.',
+    target: null,
+    preview: d => <MotifPreview dark={d} />,
   },
   {
     title: 'Scoring Grid',
