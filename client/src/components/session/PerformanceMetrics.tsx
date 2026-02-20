@@ -1007,63 +1007,63 @@ export const PerformanceMetrics = () => {
           >
             {/* header */}
             <div
-              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] text-xs font-semibold uppercase tracking-wide ${
+              className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] text-xs font-semibold uppercase tracking-wide ${
                 isDarkMode
                   ? 'bg-team-dark-20 text-gray-400'
                   : 'bg-gray-50 text-gray-500'
               }`}
             >
-              <div className="px-3 py-2">Phase</div>
-              <div className="px-2 py-2 text-center cursor-help" title="Number of balls shot">Shot</div>
-              <div className="px-2 py-2 text-center cursor-help" title="Number of balls made">Made</div>
-              <div className="px-2 py-2 text-center cursor-help" title="Classified artifacts (3 pts each)">Cls</div>
-              <div className="px-2 py-2 text-center cursor-help" title="Overflow artifacts (1 pt each)">Ovfl</div>
-              <div className="px-2 py-2 text-center cursor-help" title="Accuracy percentage">Acc</div>
-              <div className="px-2 py-2 text-center cursor-help" title="Total points scored">Points</div>
-              <div className="px-2 py-2 text-center cursor-help" title="Average cycle time (seconds)">Cyc</div>
+              <div className="px-4 py-2">Phase</div>
+              <div className="px-3 py-2 text-center cursor-help" title="Number of balls shot">Shot</div>
+              <div className="px-3 py-2 text-center cursor-help" title="Number of balls made">Made</div>
+              <div className="px-3 py-2 text-center cursor-help" title="Classified artifacts (3 pts each)">Cls</div>
+              <div className="px-3 py-2 text-center cursor-help" title="Overflow artifacts (1 pt each)">Ovfl</div>
+              <div className="px-3 py-2 text-center cursor-help" title="Accuracy percentage">Acc</div>
+              <div className="px-3 py-2 text-center cursor-help" title="Total points scored">Points</div>
+              <div className="px-3 py-2 text-center cursor-help" title="Average cycle time (seconds)">Cyc</div>
             </div>
 
             {/* Autonomous row */}
             {showAuton && (
               <div
-                className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] items-center border-t ${
+                className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t ${
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
                 <div
-                  className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                  className={`px-4 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
                 >
                   Autonomous{autonomousLeave > 0 ? ' (incl. leave +3)' : ''}
                 </div>
                 <div
-                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
                   {sumField(autonShots, 'ballsShot')}
                 </div>
                 <div
-                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
                   {sumField(autonShots, 'ballsMade')}
                 </div>
-                <div className="px-2 py-3 text-center text-sm font-semibold text-green-500">
+                <div className="px-3 py-3 text-center text-sm font-semibold text-green-500">
                   {sumClassified(autonShots)}
                 </div>
-                <div className="px-2 py-3 text-center text-sm font-semibold text-orange-500">
+                <div className="px-3 py-3 text-center text-sm font-semibold text-orange-500">
                   {sumOverflow(autonShots)}
                 </div>
                 <div
-                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
                   {calcAccuracy(
                     sumField(autonShots, 'ballsMade'),
                     sumField(autonShots, 'ballsShot')
                   )}
                 </div>
-                <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
+                <div className="px-3 py-3 text-center text-sm font-bold text-team-blue">
                   {autonomousScore}
                 </div>
                 <div
-                  className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                  className={`px-3 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                 >
                   {calcAvgCycleTime(autonShots)}
                 </div>
@@ -1073,44 +1073,44 @@ export const PerformanceMetrics = () => {
             {/* TeleOp row */}
             {showTeleop && (
               <div
-                className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] items-center border-t ${
+                className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t ${
                   isDarkMode ? 'border-white/5' : 'border-gray-100'
                 }`}
               >
                 <div
-                  className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                  className={`px-4 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
                 >
                   TeleOp
                 </div>
                 <div
-                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
                   {sumField(teleopShots, 'ballsShot')}
                 </div>
                 <div
-                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
                   {sumField(teleopShots, 'ballsMade')}
                 </div>
-                <div className="px-2 py-3 text-center text-sm font-semibold text-green-500">
+                <div className="px-3 py-3 text-center text-sm font-semibold text-green-500">
                   {sumClassified(teleopShots)}
                 </div>
-                <div className="px-2 py-3 text-center text-sm font-semibold text-orange-500">
+                <div className="px-3 py-3 text-center text-sm font-semibold text-orange-500">
                   {sumOverflow(teleopShots)}
                 </div>
                 <div
-                  className={`px-2 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
                   {calcAccuracy(
                     sumField(teleopShots, 'ballsMade'),
                     sumField(teleopShots, 'ballsShot')
                   )}
                 </div>
-                <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
+                <div className="px-3 py-3 text-center text-sm font-bold text-team-blue">
                   {teleopScore}
                 </div>
                 <div
-                  className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                  className={`px-3 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                 >
                   {calcAvgCycleTime(teleopShots)}
                 </div>
@@ -1119,17 +1119,17 @@ export const PerformanceMetrics = () => {
 
             {/* End Game row */}
             <div
-              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] items-center border-t ${
+              className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t ${
                 isDarkMode ? 'border-white/5' : 'border-gray-100'
               }`}
             >
               <div
-                className={`px-3 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
+                className={`px-4 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}
               >
                 End Game
               </div>
               <div
-                className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                className={`px-3 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
                 {robot1Park !== 'none' || robot2Park !== 'none'
                   ? [
@@ -1140,53 +1140,53 @@ export const PerformanceMetrics = () => {
                       .join(', ')
                   : '—'}
               </div>
-              <div className="px-2 py-3 text-center text-sm" />
-              <div className="px-2 py-3 text-center text-sm" />
-              <div className="px-2 py-3 text-center text-sm" />
+              <div className="px-3 py-3 text-center text-sm" />
+              <div className="px-3 py-3 text-center text-sm" />
+              <div className="px-3 py-3 text-center text-sm" />
               <div
-                className={`px-2 py-3 text-center text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                className={`px-3 py-3 text-center text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
               >
                 —
               </div>
-              <div className="px-2 py-3 text-center text-sm font-bold text-team-blue">
+              <div className="px-3 py-3 text-center text-sm font-bold text-team-blue">
                 {endGameScore}
               </div>
-              <div className="px-2 py-3 text-center text-sm" />
+              <div className="px-3 py-3 text-center text-sm" />
             </div>
 
             {/* Total footer */}
             <div
-              className={`grid grid-cols-[1fr_50px_50px_38px_38px_50px_60px_55px] items-center border-t-2 ${
+              className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
               }`}
             >
               <div
-                className={`px-3 py-3 text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}
+                className={`px-4 py-3 text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}
               >
                 Total
               </div>
               <div
-                className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                className={`px-3 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 {sumField(autonShots, 'ballsShot') +
                   sumField(teleopShots, 'ballsShot')}
               </div>
               <div
-                className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                className={`px-3 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 {sumField(autonShots, 'ballsMade') +
                   sumField(teleopShots, 'ballsMade')}
               </div>
-              <div className="px-2 py-3 text-center text-sm font-bold text-green-500">
+              <div className="px-3 py-3 text-center text-sm font-bold text-green-500">
                 {sumClassified(autonShots) + sumClassified(teleopShots)}
               </div>
-              <div className="px-2 py-3 text-center text-sm font-bold text-orange-500">
+              <div className="px-3 py-3 text-center text-sm font-bold text-orange-500">
                 {sumOverflow(autonShots) + sumOverflow(teleopShots)}
               </div>
               <div
-                className={`px-2 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                className={`px-3 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 {calcAccuracy(
                   sumField(autonShots, 'ballsMade') +
@@ -1195,11 +1195,11 @@ export const PerformanceMetrics = () => {
                     sumField(teleopShots, 'ballsShot')
                 )}
               </div>
-              <div className="px-2 py-3 text-center text-sm font-extrabold text-team-blue">
+              <div className="px-3 py-3 text-center text-sm font-extrabold text-team-blue">
                 {finalScore}
               </div>
               <div
-                className={`px-2 py-3 text-center text-xs font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                className={`px-3 py-3 text-center text-xs font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
               >
                 {calcAvgCycleTime([...autonShots, ...teleopShots])}
               </div>

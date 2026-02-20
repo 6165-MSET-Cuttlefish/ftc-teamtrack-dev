@@ -484,6 +484,13 @@ export const LivePreview = ({
             {/* Save Match / Start Match Button */}
             {!showTeleopTransition && !editingMatchId && (
               <button
+                type="button"
+                onKeyDown={(e) => {
+                  // Prevent Enter from triggering the button during keybinds
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
                 onClick={
                   !matchActive
                     ? () => {
@@ -533,12 +540,24 @@ export const LivePreview = ({
             {showTeleopTransition && (
               <>
                 <button
+                  type="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   onClick={handleContinueToTeleop}
                   className={`flex-1 px-6 py-4 h-16 rounded-2xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-lg font-bold transition-colors flex items-center justify-center`}
                 >
                   Continue into Teleop
                 </button>
                 <button
+                  type="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   onClick={handleSkipTeleop}
                   className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-black'}`}
                 >
@@ -551,6 +570,12 @@ export const LivePreview = ({
             {editingMatchId && (
               <>
                 <button
+                  type="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   onClick={() => {
                     saveEditedMatch();
                     toast.success('Match changes saved!');
@@ -560,6 +585,12 @@ export const LivePreview = ({
                   Save Changes
                 </button>
                 <button
+                  type="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   onClick={returnToCurrentMatch}
                   className="px-4 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
                 >
@@ -570,6 +601,12 @@ export const LivePreview = ({
 
             {/* Settings/Gear Icon - Opens Session Setup */}
             <button
+              type="button"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                }
+              }}
               onClick={onOpenSessionSetup}
               className={`py-4 px-6 h-16 rounded-2xl border-2 border-team-blue-40 transition-colors flex items-center justify-center ${
                 isDarkMode
@@ -585,6 +622,12 @@ export const LivePreview = ({
 
             {/* Complete Session Button */}
             <button
+              type="button"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                }
+              }}
               onClick={handleCompleteSession}
               disabled={loading || sessionLimitReached}
               className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -602,6 +645,12 @@ export const LivePreview = ({
             {/* Cancel Session Button */}
             {!cancelConfirm ? (
               <button
+                type="button"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
                 onClick={() => {
                   setCancelConfirm(true);
                   if (isTimerRunning) setIsTimerRunning(false);
@@ -614,6 +663,12 @@ export const LivePreview = ({
             ) : (
               <div className="flex gap-2">
                 <button
+                  type="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   onClick={() => {
                     handleNewSession();
                     setCancelConfirm(false);
@@ -625,6 +680,12 @@ export const LivePreview = ({
                   <Check className="h-5 w-5 text-white" />
                 </button>
                 <button
+                  type="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   onClick={() => {
                     setCancelConfirm(false);
                     if (hasStarted) setIsTimerRunning(true);
@@ -644,6 +705,12 @@ export const LivePreview = ({
               {/* Pause/Resume controls - only when match is active */}
               {matchActive && isTimerRunning && (
                 <button
+                  type="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   onClick={() => setIsTimerRunning(false)}
                   className="px-4 py-2 rounded-xl border-2 border-yellow-500/40 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 text-sm font-semibold transition-colors flex items-center gap-2"
                 >
@@ -655,6 +722,12 @@ export const LivePreview = ({
                 !isTimerRunning &&
                 (matchPhase === 'auton' || matchPhase === 'teleop') && (
                   <button
+                    type="button"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                      }
+                    }}
                     onClick={() => setIsTimerRunning(true)}
                     className="px-4 py-2 rounded-xl border-2 border-team-blue-40 bg-team-blue-10 hover:bg-team-blue-40 text-team-blue text-sm font-semibold transition-colors flex items-center gap-2"
                   >
@@ -668,6 +741,12 @@ export const LivePreview = ({
                 <>
                   {!cancelMatchConfirm ? (
                     <button
+                      type="button"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                        }
+                      }}
                       onClick={() => setCancelMatchConfirm(true)}
                       className="px-4 py-2 rounded-xl border-2 border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-semibold transition-colors flex items-center gap-2"
                     >
@@ -682,12 +761,24 @@ export const LivePreview = ({
                         Discard this match?
                       </span>
                       <button
+                        type="button"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                          }
+                        }}
                         onClick={handleCancelCurrentMatch}
                         className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
                       >
                         Yes, Discard
                       </button>
                       <button
+                        type="button"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                          }
+                        }}
                         onClick={() => setCancelMatchConfirm(false)}
                         className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${
                           isDarkMode

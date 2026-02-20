@@ -124,8 +124,9 @@ const NavigationMenu = () => {
       const userTutorialKey = `${STORAGE_KEYS.TUTORIALS_SEEN}-${user.uid}`;
       const hasSeenTutorials = localStorage.getItem(userTutorialKey);
       if (!hasSeenTutorials) {
-        // Show keybinds tutorial first
-        setShowKeybindTutorial(true);
+        // Don't show keybinds tutorial automatically — user can open it by clicking the button
+        // Just mark that we've offered it
+        localStorage.setItem(userTutorialKey, 'true');
       }
     }
   }, [user]);
