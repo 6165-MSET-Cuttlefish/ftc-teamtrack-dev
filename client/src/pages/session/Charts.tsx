@@ -730,7 +730,7 @@ const Charts = () => {
                 <div
                   className={`text-xs sm:text-sm font-medium mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                 >
-                  Last Session vs. Avg
+                  Last Session vs. Avg (excluding last)
                 </div>
               </div>
             </CardContent>
