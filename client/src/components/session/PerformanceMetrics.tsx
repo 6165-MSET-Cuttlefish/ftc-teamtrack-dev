@@ -779,15 +779,19 @@ export const PerformanceMetrics = () => {
 
       if (!matchActive) return;
 
+      // Handle shot type selection (1, 2, 3 balls shot)
       if (['1', '2', '3'].includes(event.key)) {
         if (!showPopup) {
           setPopupNumber(event.key);
           setMadeCount(null);
           setShowPopup(true);
-        } else {
-          const pressed = parseInt(event.key);
-          if (pressed <= parseInt(popupNumber)) setMadeCount(pressed);
         }
+      }
+
+      // Handle made count selection (0-3 balls made) when popup is open
+      if (showPopup && ['0', '1', '2', '3'].includes(event.key)) {
+        const pressed = parseInt(event.key);
+        if (pressed <= parseInt(popupNumber)) setMadeCount(pressed);
       }
 
       if (event.key === 'Enter' && showPopup && madeCount !== null) {
