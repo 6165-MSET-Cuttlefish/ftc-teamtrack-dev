@@ -59,6 +59,8 @@ export const LivePreview = ({
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
   const [showMotifDialog, setShowMotifDialog] = useState<boolean>(false);
+  const [pendingEditMatch, setPendingEditMatch] = useState<Match | null>(null);
+  const [showUnsavedEditWarning, setShowUnsavedEditWarning] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork =
@@ -579,6 +581,8 @@ export const LivePreview = ({
                   onClick={() => {
                     saveEditedMatch();
                     toast.success('Match changes saved!');
+                    setShowUnsavedEditWarning(false);
+                    setPendingEditMatch(null);
                   }}
                   className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
                 >
@@ -591,12 +595,66 @@ export const LivePreview = ({
                       e.preventDefault();
                     }
                   }}
-                  onClick={returnToCurrentMatch}
+                  onClick={() => {
+                    setPendingEditMatch(null);
+                    setShowUnsavedEditWarning(true);
+                  }}
                   className="px-4 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
                 >
                   Return to Current Match
                 </button>
               </>
+            )}
+
+            {/* Unsaved Edit Warning Banner */}
+            {showUnsavedEditWarning && (
+              <div className={`rounded-2xl border-2 border-orange-500/60 bg-orange-500/15 px-4 py-3 flex flex-col gap-2`}>
+                <p className={`text-sm font-semibold ${isDarkMode ? 'text-orange-300' : 'text-orange-700'}`}>
+                  ⚠️ You have unsaved changes.{' '}
+                  {pendingEditMatch ? 'Save or discard before switching matches.' : 'Save or discard before returning.'}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      saveEditedMatch();
+                      toast.success('Match changes saved!');
+                      setShowUnsavedEditWarning(false);
+                      if (pendingEditMatch) {
+                        startEditingMatch(pendingEditMatch);
+                        setPendingEditMatch(null);
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 rounded-xl bg-green-500/20 border border-green-500/40 text-green-600 text-sm font-bold hover:bg-green-500/30 transition-colors"
+                  >
+                    Save & Continue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      returnToCurrentMatch();
+                      setShowUnsavedEditWarning(false);
+                      if (pendingEditMatch) {
+                        startEditingMatch(pendingEditMatch);
+                        setPendingEditMatch(null);
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 rounded-xl bg-red-500/20 border border-red-500/40 text-red-500 text-sm font-bold hover:bg-red-500/30 transition-colors"
+                  >
+                    Discard Changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUnsavedEditWarning(false);
+                      setPendingEditMatch(null);
+                    }}
+                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition-colors ${isDarkMode ? 'border-gray-600 text-gray-400 hover:bg-gray-700' : 'border-gray-300 text-gray-500 hover:bg-gray-100'}`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Settings/Gear Icon - Opens Session Setup */}
@@ -832,7 +890,13 @@ export const LivePreview = ({
                       }`}
                       onClick={() => {
                         if (!isEditing && !isConfirmingDelete) {
-                          startEditingMatch(match);
+                          if (editingMatchId) {
+                            // Already editing a different match — warn first
+                            setPendingEditMatch(match);
+                            setShowUnsavedEditWarning(true);
+                          } else {
+                            startEditingMatch(match);
+                          }
                         }
                       }}
                     >
