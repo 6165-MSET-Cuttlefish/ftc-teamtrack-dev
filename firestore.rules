@@ -14,10 +14,11 @@ service cloud.firestore {
     }
 
     // Shared session snapshots — anyone can read, any authenticated user can create
+    // Auto-deleted client-side after 7 days; allow delete for cleanup
     match /sharedSessions/{shortId} {
       allow read: if true;
       allow create: if request.auth != null;
-      // No update/delete — snapshots are immutable
+      allow delete: if request.auth != null;
     }
 
     // Teams — any authenticated user can read (needed for invite code lookups and
