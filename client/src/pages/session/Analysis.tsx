@@ -415,11 +415,10 @@ const AnalysisContent = () => {
             >
               Notes
             </h3>
-            <p
-              className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-            >
-              {sessionData.notes}
-            </p>
+            <div
+              className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
+              dangerouslySetInnerHTML={{ __html: sessionData.notes }}
+            />
           </div>
         )}
 
