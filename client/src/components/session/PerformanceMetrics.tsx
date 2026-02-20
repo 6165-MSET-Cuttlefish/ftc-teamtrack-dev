@@ -7,7 +7,7 @@ import React, {
   useMemo,
 } from 'react';
 import { useSession, useTheme } from '@/contexts';
-import { ChevronRight, Clock, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { ShotEntry } from '@/types';
 
 // ─── Constants ──────────────────────────────────────────────────────────
@@ -629,7 +629,6 @@ export const PerformanceMetrics = () => {
     null
   );
   const [cycleTimerElapsed, setCycleTimerElapsed] = useState(0);
-  const [isCycleTimesLogExpanded, setIsCycleTimesLogExpanded] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -891,6 +890,7 @@ export const PerformanceMetrics = () => {
     sessionData.autonShots,
     sessionData.teleopShots,
     sessionData.gateBallCount,
+    sessionData.gateAddBackCount,
     sessionData.gateAddBackMode,
     recordCycleTime,
     matchActive,

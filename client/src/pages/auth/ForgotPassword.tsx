@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, ArrowLeft } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -51,10 +51,12 @@ const ForgotPassword = () => {
       className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-3 sm:px-4 md:px-6 lg:px-8`}
     >
       <Card
-        className={`w-full max-w-md shadow-2xl border-2 transition-all ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+        className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
-          <CardTitle className="text-2xl sm:text-3xl font-bold text-center text-team-blue">
+          <CardTitle
+            className={`text-2xl sm:text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
+          >
             Reset Password
           </CardTitle>
           <CardDescription
@@ -65,7 +67,7 @@ const ForgotPassword = () => {
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4 px-4 sm:px-6">
+        <CardContent className="space-y-6 px-4 sm:px-6">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -80,6 +82,7 @@ const ForgotPassword = () => {
                   : 'bg-green-50 border-green-200 text-green-800'
               }
             >
+              <CheckCircle className="h-4 w-4" />
               <AlertDescription>{message}</AlertDescription>
             </Alert>
           )}
@@ -88,23 +91,23 @@ const ForgotPassword = () => {
             <div className="space-y-2">
               <Label
                 htmlFor="email"
-                className={isDarkMode ? 'text-team-white' : 'text-black'}
+                className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
-                Email
+                Email Address
               </Label>
               <div
-                className={`relative rounded-md ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
+                className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Mail
-                  className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+                  className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="Enter your email address"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className={`pl-10 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-team-white placeholder-team-white-40' : 'bg-gray-50 border-team-blue/60 text-black placeholder-team-blue-40'}`}
+                  className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
               </div>
@@ -112,18 +115,18 @@ const ForgotPassword = () => {
 
             <Button
               type="submit"
-              className={`w-full bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
+              className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
               disabled={loading}
             >
-              {loading ? 'Sending...' : 'Reset Password'}
+              {loading ? 'Sending...' : 'Send Reset Link'}
             </Button>
           </form>
         </CardContent>
 
-        <CardFooter className="flex justify-center">
+        <CardFooter className="flex justify-center pb-6 sm:pb-8">
           <Link
             to="/login"
-            className="flex items-center text-sm text-team-blue hover:underline"
+            className="flex items-center text-sm text-team-blue hover:underline font-medium"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Sign In

@@ -29,8 +29,11 @@ const JoinTeam = lazy(() => import('./pages/JoinTeam'));
 
 // Loading component
 const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
+  <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+    <div className="relative">
+      <div className="animate-spin rounded-full h-10 w-10 border-2 border-team-blue/20 border-t-team-blue"></div>
+    </div>
+    <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
   </div>
 );
 

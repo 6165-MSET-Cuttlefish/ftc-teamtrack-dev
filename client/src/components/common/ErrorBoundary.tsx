@@ -1,6 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, RotateCcw, RefreshCw, Home } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface Props {
@@ -21,12 +20,10 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error details for debugging (removed console statements for production)
     this.setState({
       error,
       errorInfo,
@@ -44,48 +41,75 @@ class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="max-w-md w-full">
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Something went wrong</AlertTitle>
-              <AlertDescription className="mt-2">
-                An unexpected error occurred. Try one of these steps:
-              </AlertDescription>
-              <ul className="mt-2 text-sm list-disc pl-5 space-y-1 text-muted-foreground">
-                <li>Click "Try Again" to re-render the page</li>
-                <li>Refresh the page to start fresh</li>
-                <li>Clear your browser cache if the issue persists</li>
-              </ul>
-              {import.meta.env.DEV && this.state.error && (
-                <details className="mt-4 p-2 bg-gray-100 rounded text-xs">
-                  <summary className="cursor-pointer">Error Details</summary>
-                  <pre className="mt-2 overflow-auto">
-                    {this.state.error.toString()}
-                    {this.state.errorInfo?.componentStack}
-                  </pre>
-                </details>
-              )}
-              <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" onClick={this.handleReset}>
-                  Try Again
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.reload()}
-                >
-                  Refresh Page
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => (window.location.href = '/sessions')}
-                >
-                  Go Home
-                </Button>
-              </div>
-            </Alert>
+        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+          <div className="max-w-md w-full text-center">
+            <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center bg-destructive/10 mb-6">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+            </div>
+
+            <h1 className="text-2xl font-bold text-foreground mb-2">
+              Something went wrong
+            </h1>
+            <p className="text-sm text-muted-foreground mb-6">
+              An unexpected error occurred. Try one of these steps to recover:
+            </p>
+
+            <ul className="text-sm text-left text-muted-foreground mb-6 space-y-2 max-w-xs mx-auto">
+              <li className="flex items-start gap-2">
+                <span className="text-team-blue font-medium mt-px">1.</span>
+                Click "Try Again" to re-render the page
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-team-blue font-medium mt-px">2.</span>
+                Refresh the page to start fresh
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-team-blue font-medium mt-px">3.</span>
+                Clear your browser cache if the issue persists
+              </li>
+            </ul>
+
+            {import.meta.env.DEV && this.state.error && (
+              <details className="mt-4 mb-6 p-3 bg-muted rounded-lg text-xs text-left">
+                <summary className="cursor-pointer font-medium text-muted-foreground">
+                  Error Details (dev only)
+                </summary>
+                <pre className="mt-2 overflow-auto text-destructive whitespace-pre-wrap">
+                  {this.state.error.toString()}
+                  {this.state.errorInfo?.componentStack}
+                </pre>
+              </details>
+            )}
+
+            <div className="flex gap-3 justify-center">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={this.handleReset}
+                className="gap-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Try Again
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.reload()}
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => (window.location.href = '/sessions')}
+                className="gap-2"
+              >
+                <Home className="h-4 w-4" />
+                Home
+              </Button>
+            </div>
           </div>
         </div>
       );

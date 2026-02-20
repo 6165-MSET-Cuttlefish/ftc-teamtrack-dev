@@ -1,18 +1,27 @@
 import { Link } from 'react-router-dom';
 import { useTheme } from '@/contexts';
 import { ROUTES } from '@/constants';
-import { ArrowLeft, Home } from 'lucide-react';
+import { ArrowLeft, Home, Compass } from 'lucide-react';
 
 const NotFound = () => {
   const { isDarkMode } = useTheme();
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center px-4 ${isDarkMode ? 'bg-team-dark' : 'bg-gray-100'}`}
+      className={`min-h-screen flex items-center justify-center px-4 page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="text-center max-w-md">
+        <div className="mb-6 flex justify-center">
+          <div
+            className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
+              isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'
+            }`}
+          >
+            <Compass className="h-10 w-10 text-team-blue animate-pulse-subtle" />
+          </div>
+        </div>
         <h1
-          className={`text-7xl font-bold mb-2 ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}
+          className="text-8xl font-bold mb-3 text-team-blue"
         >
           404
         </h1>
@@ -22,23 +31,23 @@ const NotFound = () => {
           Page not found
         </p>
         <p
-          className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} text-sm mb-8`}
+          className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} text-sm mb-8 max-w-xs mx-auto`}
         >
           The page you're looking for doesn't exist or may have been moved.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             to={ROUTES.SESSIONS}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-team-blue text-white text-sm font-medium hover:bg-team-blue/90 transition-colors"
+            className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-all duration-200 hover:scale-[1.02] shadow-lg hover:shadow-xl ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             <Home className="h-4 w-4" />
             Go to Sessions
           </Link>
           <button
             onClick={() => window.history.back()}
-            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+            className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
               isDarkMode
-                ? 'border-team-blue-40 text-team-white-60 hover:bg-team-blue/10'
+                ? 'border-team-blue-40 text-team-white-60 hover:bg-team-blue/10 hover:text-white'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >

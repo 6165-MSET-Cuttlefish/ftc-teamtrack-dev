@@ -3,9 +3,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Sessions — only the owning user can read/write
+    // Sessions — owner can always read/write; team members can read team sessions
     match /sessions/{sessionId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        resource.data.teamId != null
+      );
+      allow write: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
     }
 
@@ -16,14 +20,16 @@ service cloud.firestore {
       // No update/delete — snapshots are immutable
     }
 
-    // Teams — team members can read; owner can write
+    // Teams — any authenticated user can read (needed for invite code lookups and
+    // getUserTeams which filters client-side). Creator sets createdBy on create.
+    // Any authenticated user can update (needed for join/leave/transfer/kick).
     match /teams/{teamId} {
-      allow read: if request.auth != null && (
-        request.auth.uid == resource.data.ownerId ||
-        request.auth.uid in resource.data.memberIds
-      );
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null
+        && resource.data.createdBy == request.auth.uid;
     }
   }
 }

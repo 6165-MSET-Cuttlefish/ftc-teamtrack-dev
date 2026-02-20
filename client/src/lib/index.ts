@@ -15,6 +15,8 @@ export {
   clearSessionFromStorage,
   hasActiveSession,
   saveMatchStateToStorage,
+  hasCompletedASession,
+  markSessionCompleted,
   type SessionFormData,
   type SessionTimerState,
   type MatchState,

@@ -633,10 +633,10 @@ export const Header = () => {
   
   return (
     <header
-      className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 backdrop-blur-sm ${isDarkMode ? 'border-team-white-20 bg-team-dark/95' : 'border-gray-200 bg-[#FEFEFE]/95'}`}
     >
-      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4 md:gap-6">
-        <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
+      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 min-w-0">
           {!isOnSessionsPage && (
             <button
               onClick={() => navigate('/sessions')}
@@ -649,9 +649,7 @@ export const Header = () => {
           <TeamTrackLogo />
         </div>
 
-        <div className="flex items-center justify-center"></div>
-
-        <div className="flex items-center justify-end gap-1 sm:gap-2 md:gap-4 lg:gap-6 flex-shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-6 flex-shrink-0">
           <NavigationMenu />
         </div>
       </div>

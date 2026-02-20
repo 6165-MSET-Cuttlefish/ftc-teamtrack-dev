@@ -752,9 +752,9 @@ export const ActiveTutorial = () => {
   const prevElRef = useRef<HTMLElement | null>(null);
 
   // Generate user-specific tutorial key so each account sees tutorial independently
-  const getTutorialKey = () => user?.uid
+  const getTutorialKey = useCallback(() => user?.uid
     ? `${TUTORIAL_STORAGE_KEY}-${user.uid}`
-    : TUTORIAL_STORAGE_KEY;
+    : TUTORIAL_STORAGE_KEY, [user]);
 
   // Auto-show on first visit (per user)
   useEffect(() => {
@@ -765,7 +765,7 @@ export const ActiveTutorial = () => {
       const t = setTimeout(() => setVisible(true), 500);
       return () => clearTimeout(t);
     }
-  }, [user]);
+  }, [user, getTutorialKey]);
 
   // Listen for restart
   useEffect(() => {

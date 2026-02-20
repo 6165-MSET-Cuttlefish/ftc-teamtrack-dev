@@ -1,16 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts';
 import { ROUTES } from '@/constants';
-
-const HAS_COMPLETED_SESSION_KEY = 'teamtrack-has-completed-session';
-
-/** Check if the user has ever completed a session */
-export const hasCompletedASession = (): boolean =>
-  localStorage.getItem(HAS_COMPLETED_SESSION_KEY) === 'true';
-
-/** Mark that the user has completed at least one session */
-export const markSessionCompleted = (): void =>
-  localStorage.setItem(HAS_COMPLETED_SESSION_KEY, 'true');
+import { hasCompletedASession } from '@/lib';
 
 /**
  * Smart redirect for home route
@@ -22,8 +13,9 @@ export const HomeRedirect = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-team-blue/20 border-t-team-blue"></div>
+        <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
       </div>
     );
   }
