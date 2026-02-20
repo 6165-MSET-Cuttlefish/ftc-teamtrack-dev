@@ -22,8 +22,15 @@ const Divider = ({ className = '' }: { className?: string }) => {
 };
 
 const ActiveSessionContent = () => {
-  const [showSessionSetup, setShowSessionSetup] = useState(true);
-  const [isSessionSetupSaved, setIsSessionSetupSaved] = useState(false);
+  const { sessionData: initialSessionData } = useSession();
+  const isSessionSetupSavedInit =
+    () => initialSessionData.sessionName?.trim().length > 0;
+  const [showSessionSetup, setShowSessionSetup] = useState(
+    () => !isSessionSetupSavedInit()
+  );
+  const [isSessionSetupSaved, setIsSessionSetupSaved] = useState(
+    isSessionSetupSavedInit
+  );
   const [shouldFlashSetup, setShouldFlashSetup] = useState(false);
 
   useEffect(() => {
@@ -60,10 +67,14 @@ const ActiveSessionContent = () => {
 
   return (
     <div
-      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} relative`}
     >
+      {/* Blur overlay when session setup is unsaved and visible */}
+      {!isSessionSetupSaved && showSessionSetup && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-10 pointer-events-none" />
+      )}
       {/* Single Column Content - All Scrollable */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10 relative">
         <div className="space-y-4 sm:space-y-6">
           {/* Interactive Tutorial */}
           <ActiveTutorial />
@@ -141,7 +152,7 @@ const ActiveSessionContent = () => {
           {/* Session Setup - Toggle visibility with settings icon */}
           {showSessionSetup && (
             <>
-              <div data-tutorial="session-setup" className="px-4 py-4">
+              <div data-tutorial="session-setup" className="px-4 py-4 relative z-50">
                 <SessionSetup
                   onSave={() => {
                     setShowSessionSetup(false);

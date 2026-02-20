@@ -649,7 +649,7 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Session Settings',
-    body: 'Enter a session name, pick your match type, and toggle features. Press Save before starting — the panel turns red until you do.',
+    body: 'Enter a session name and pick your match type. Press Save before starting — the panel turns red until you do.',
     target: 'session-setup',
     preview: d => <SettingsPreview dark={d} />,
   },
