@@ -125,9 +125,7 @@ const NavigationMenu = () => {
         STORAGE_KEYS.TUTORIALS_SEEN
       );
       if (!hasSeenTutorials) {
-        // Don't show keybinds tutorial automatically — user can open it by clicking the button
-        // Just mark that we've offered it
-        localStorage.setItem(STORAGE_KEYS.TUTORIALS_SEEN, 'true');
+        // Don't show keybinds tutorial automatically — the ActiveTutorial handles first-time onboarding
       }
     }
   }, [user, isGuest]);

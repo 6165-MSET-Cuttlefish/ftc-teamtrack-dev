@@ -8,6 +8,16 @@ import type { Session, Match } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface CompareMatch extends Match {
   sessionId: string;
@@ -29,6 +39,12 @@ const Compare = () => {
   const [loading, setLoading] = useState(true);
   const [isDetailedBreakdownOpen, setIsDetailedBreakdownOpen] = useState(true);
   const [isMatchBreakdownOpen, setIsMatchBreakdownOpen] = useState(true);
+  const [scoreChartPhase, setScoreChartPhase] = useState<'total' | 'autonomous' | 'teleop' | 'endgame'>('total');
+  const [isScoreChartOpen, setIsScoreChartOpen] = useState(true);
+  const [isCycleChartOpen, setIsCycleChartOpen] = useState(true);
+  const [matchScoreChartPhase, setMatchScoreChartPhase] = useState<'total' | 'autonomous' | 'teleop' | 'endgame'>('total');
+  const [isMatchScoreChartOpen, setIsMatchScoreChartOpen] = useState(true);
+  const [isMatchCycleChartOpen, setIsMatchCycleChartOpen] = useState(true);
 
   const [comparisonMode, setComparisonMode] = useState<'sessions' | 'matches'>(
     'sessions'
@@ -220,7 +236,7 @@ const Compare = () => {
         className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
       >
         <td
-          className={`py-3 px-4 ${indent ? 'pl-8' : ''} ${
+          className={`py-3 px-4 text-sm ${indent ? 'pl-8' : ''} ${
             indent
               ? isDarkMode
                 ? 'text-team-white-60'
@@ -235,7 +251,7 @@ const Compare = () => {
         {selectedSessionsData.map((session, i) => (
           <td
             key={session.id}
-            className={`text-right py-3 px-4 ${highlight ? 'font-bold text-lg' : 'font-medium'} ${
+            className={`text-right py-3 px-4 text-sm ${highlight ? 'font-bold text-lg' : 'font-medium'} ${
               getCellColor(values[i], values, higherIsBetter) ||
               (highlight
                 ? 'text-team-blue'
@@ -268,12 +284,13 @@ const Compare = () => {
       highlight = false,
     } = opts;
     const values = selectedMatches.map(getValue);
+    const avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
     return (
       <tr
         className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
       >
         <td
-          className={`py-3 px-4 ${indent ? 'pl-8' : ''} ${
+          className={`py-3 px-4 text-sm ${indent ? 'pl-8' : ''} ${
             indent
               ? isDarkMode
                 ? 'text-team-white-60'
@@ -288,7 +305,7 @@ const Compare = () => {
         {selectedMatches.map((match, i) => (
           <td
             key={match.id}
-            className={`text-right py-3 px-4 ${highlight ? 'font-bold text-lg' : 'font-medium'} ${
+            className={`text-right py-3 px-4 text-sm ${highlight ? 'font-bold text-lg' : 'font-medium'} ${
               getCellColor(values[i], values, higherIsBetter) ||
               (highlight
                 ? 'text-team-blue'
@@ -300,6 +317,13 @@ const Compare = () => {
             {format(values[i])}
           </td>
         ))}
+        {selectedMatches.length > 1 && (
+          <td
+            className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}
+          >
+            {format(avg)}
+          </td>
+        )}
       </tr>
     );
   };
@@ -411,6 +435,172 @@ const Compare = () => {
         {comparisonMode === 'sessions' ? (
           selectedSessionsData.length > 0 ? (
             <div className="space-y-6">
+
+              {/* ── Score Trend Chart ─────────────────────────────── */}
+              <Card className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
+                <CardHeader
+                  onClick={() => setIsScoreChartOpen(!isScoreChartOpen)}
+                  className="cursor-pointer hover:bg-opacity-80 transition-all"
+                >
+                  <CardTitle className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <span>Average Score Trend</span>
+                    <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isScoreChartOpen ? 'rotate-180' : ''}`} />
+                  </CardTitle>
+                </CardHeader>
+                {isScoreChartOpen && (
+                  <CardContent>
+                    <p className={`text-xs mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+                      Average score per phase across all matches in each session. Each point = one session.
+                    </p>
+                    {/* Phase toggle */}
+                    <div className="flex flex-wrap gap-2 mb-5">
+                      {(['total', 'autonomous', 'teleop', 'endgame'] as const).map(phase => (
+                        <button
+                          key={phase}
+                          onClick={() => setScoreChartPhase(phase)}
+                          className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                            scoreChartPhase === phase
+                              ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
+                              : isDarkMode
+                                ? 'bg-team-dark border-team-blue-40 text-team-white-60 hover:border-team-blue hover:text-white'
+                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
+                          }`}
+                        >
+                          {phase === 'total' ? 'Total' : phase === 'autonomous' ? 'Autonomous' : phase === 'teleop' ? 'Teleop' : 'Endgame'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Build a single dataset: one point per session */}
+                    {(() => {
+                      const chartData = selectedSessionsData.map((session, idx) => {
+                        const n = session.matches.length || 1;
+                        const avg =
+                          scoreChartPhase === 'total'
+                            ? session.matches.reduce((s, m) => s + (m.finalScore || 0), 0) / n
+                            : scoreChartPhase === 'autonomous'
+                            ? session.matches.reduce((s, m) => s + (m.autonomousScore || 0), 0) / n
+                            : scoreChartPhase === 'teleop'
+                            ? session.matches.reduce((s, m) => s + (m.teleopScore || 0), 0) / n
+                            : session.matches.reduce((s, m) => s + (m.endGameScore || 0), 0) / n;
+                        return {
+                          sessionLabel: session.sessionName || `Session ${idx + 1}`,
+                          score: Math.round(avg * 10) / 10,
+                        };
+                      });
+                      return (
+                        <ResponsiveContainer width="100%" height={280}>
+                          <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} />
+                            <XAxis
+                              dataKey="sessionLabel"
+                              tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                              axisLine={{ stroke: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+                              tickLine={false}
+                              interval={0}
+                              tickFormatter={v => v.length > 12 ? `${v.slice(0, 12)}…` : v}
+                            />
+                            <YAxis
+                              tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={36}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: isDarkMode ? '#1a1a1a' : '#fff',
+                                border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                                borderRadius: 8,
+                                fontSize: 12,
+                              }}
+                            />
+                            <Line
+                              dataKey="score"
+                              name={`Avg ${scoreChartPhase === 'total' ? 'Total' : scoreChartPhase === 'autonomous' ? 'Autonomous' : scoreChartPhase === 'teleop' ? 'Teleop' : 'Endgame'} Score`}
+                              stroke="#3b82f6"
+                              strokeWidth={2.5}
+                              dot={{ r: 5, fill: '#3b82f6', strokeWidth: 0 }}
+                              activeDot={{ r: 7 }}
+                              type="monotone"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* ── Avg Cycle Time Chart ──────────────────────────── */}
+              <Card className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
+                <CardHeader
+                  onClick={() => setIsCycleChartOpen(!isCycleChartOpen)}
+                  className="cursor-pointer hover:bg-opacity-80 transition-all"
+                >
+                  <CardTitle className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <span>Average Cycle Time Trend</span>
+                    <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isCycleChartOpen ? 'rotate-180' : ''}`} />
+                  </CardTitle>
+                </CardHeader>
+                {isCycleChartOpen && (
+                  <CardContent>
+                    <p className={`text-xs mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+                      Average cycle time across all matches in each session. Lower is faster.
+                    </p>
+                    {(() => {
+                      const chartData = selectedSessionsData.map((session, idx) => {
+                        const all = session.matches.flatMap(m => m.cycleTimes || []);
+                        const avg = all.length > 0 ? all.reduce((a, b) => a + b, 0) / all.length : null;
+                        return {
+                          sessionLabel: session.sessionName || `Session ${idx + 1}`,
+                          cycleTime: avg !== null ? Math.round(avg * 10) / 10 : null,
+                        };
+                      }).filter(d => d.cycleTime !== null);
+                      return (
+                        <ResponsiveContainer width="100%" height={280}>
+                          <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} />
+                            <XAxis
+                              dataKey="sessionLabel"
+                              tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                              axisLine={{ stroke: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+                              tickLine={false}
+                              interval={0}
+                              tickFormatter={v => v.length > 12 ? `${v.slice(0, 12)}…` : v}
+                            />
+                            <YAxis
+                              tickFormatter={v => `${v}s`}
+                              tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={40}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: isDarkMode ? '#1a1a1a' : '#fff',
+                                border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                                borderRadius: 8,
+                                fontSize: 12,
+                              }}
+                              formatter={(v) => [`${Number(v).toFixed(1)}s`, 'Avg Cycle Time']}
+                            />
+                            <Line
+                              dataKey="cycleTime"
+                              name="Avg Cycle Time"
+                              stroke="#10b981"
+                              strokeWidth={2.5}
+                              dot={{ r: 5, fill: '#10b981', strokeWidth: 0 }}
+                              activeDot={{ r: 7 }}
+                              type="monotone"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </CardContent>
+                )}
+              </Card>
+
               <Card
                 className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
               >
@@ -423,7 +613,7 @@ const Compare = () => {
                   <CardTitle
                     className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
-                    <span>Detailed Breakdown</span>
+                    <span>Score Breakdown</span>
                     <ChevronDown
                       className={`w-5 h-5 transition-transform duration-200 ${isDetailedBreakdownOpen ? 'rotate-180' : ''}`}
                     />
@@ -438,14 +628,14 @@ const Compare = () => {
                             className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
                           >
                             <th
-                              className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              className={`text-left py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
                               Metric
                             </th>
                             {selectedSessionsData.map(session => (
                               <th
                                 key={session.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                               >
                                 {session.sessionName || 'Unnamed'}
                               </th>
@@ -558,7 +748,7 @@ const Compare = () => {
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                           >
                             <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              className={`py-3 px-4 pl-8 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
                               ↳ Parking Summary
                             </td>
@@ -576,7 +766,7 @@ const Compare = () => {
                               return (
                                 <td
                                   key={session.id}
-                                  className={`text-right py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                  className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                                 >
                                   {fullCount > 0 ? `${fullCount} full` : ''}
                                   {fullCount > 0 && partialCount > 0
@@ -607,14 +797,14 @@ const Compare = () => {
                           })}
                           <tr>
                             <td
-                              className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              className={`py-3 px-4 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
                               Match Type
                             </td>
                             {selectedSessionsData.map(session => (
                               <td
                                 key={session.id}
-                                className={`text-right py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
                                 {session.matchType || 'N/A'}
                               </td>
@@ -652,44 +842,263 @@ const Compare = () => {
         ) : // ====== MATCHES MODE ======
         allMatches.length > 0 ? (
           <div className="space-y-6">
-            {/* Match Selector — pill grid */}
-            <div className="flex flex-wrap gap-2">
-              {allMatches.map(match => {
-                const isChecked = selectedMatches.some(m => m.id === match.id);
+            {/* Match Selector — grouped by session */}
+            <div className="space-y-4">
+              {selectedSessionsData.map((session) => {
+                const sessionMatches = allMatches.filter(
+                  m => m.sessionId === session.id
+                );
                 return (
-                  <button
-                    key={match.id}
-                    onClick={() => {
-                      if (isChecked) {
-                        setSelectedMatches(selectedMatches.filter(m => m.id !== match.id));
-                      } else {
-                        setSelectedMatches([...selectedMatches, match]);
-                      }
-                    }}
-                    title={`${match.sessionName} · Auto ${match.autonomousScore || 0} / Teleop ${match.teleopScore || 0} / End ${match.endGameScore || 0}`}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                      isChecked
-                        ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
-                        : isDarkMode
-                          ? 'bg-team-dark-20 border-team-blue-40 text-team-white-60 hover:border-team-blue hover:text-white'
-                          : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:text-gray-900'
-                    }`}
-                  >
-                    <span className={`shrink-0 ${
-                      isChecked
-                        ? isDarkMode ? 'text-black/60' : 'text-white/70'
-                        : isDarkMode ? 'text-team-white-60/60' : 'text-gray-400'
-                    }`}>{match.sessionName}</span>
-                    <span>#{match.matchNumber}</span>
-                    <span className={`shrink-0 ${
-                      isChecked
-                        ? isDarkMode ? 'text-black/60' : 'text-white/70'
-                        : isDarkMode ? 'text-team-white-60/60' : 'text-gray-400'
-                    }`}>· {match.finalScore || 0}</span>
-                  </button>
+                  <div key={session.id}>
+                    <div
+                      className={`text-xs font-semibold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+                    >
+                      {session.sessionName || 'Unnamed Session'}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {sessionMatches.map(match => {
+                        const isChecked = selectedMatches.some(
+                          m => m.id === match.id
+                        );
+                        return (
+                          <button
+                            key={match.id}
+                            onClick={() => {
+                              if (isChecked) {
+                                setSelectedMatches(
+                                  selectedMatches.filter(m => m.id !== match.id)
+                                );
+                              } else {
+                                setSelectedMatches([
+                                  ...selectedMatches,
+                                  match,
+                                ]);
+                              }
+                            }}
+                            title={`Auto ${match.autonomousScore || 0} / Teleop ${match.teleopScore || 0} / End ${match.endGameScore || 0}`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                              isChecked
+                                ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
+                                : isDarkMode
+                                  ? 'bg-team-dark-20 border-team-blue-40 text-team-white-60 hover:border-team-blue hover:text-white'
+                                  : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:text-gray-900'
+                            }`}
+                          >
+                            <span>Match #{match.matchNumber}</span>
+                            <span
+                              className={`shrink-0 ${
+                                isChecked
+                                  ? isDarkMode
+                                    ? 'text-black/60'
+                                    : 'text-white/70'
+                                  : isDarkMode
+                                    ? 'text-team-white-60/60'
+                                    : 'text-gray-400'
+                              }`}
+                            >
+                              · {match.finalScore || 0}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>
+
+            {selectedMatches.length > 0 && (
+              <>
+              {/* ── Matches: Score Trend Chart ───────────────────── */}
+              <Card className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
+                <CardHeader
+                  onClick={() => setIsMatchScoreChartOpen(!isMatchScoreChartOpen)}
+                  className="cursor-pointer hover:bg-opacity-80 transition-all"
+                >
+                  <CardTitle className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <span>Score Trend by Match</span>
+                    <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isMatchScoreChartOpen ? 'rotate-180' : ''}`} />
+                  </CardTitle>
+                </CardHeader>
+                {isMatchScoreChartOpen && (
+                  <CardContent>
+                    <p className={`text-xs mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+                      Score per phase for each selected match. Toggle phase to compare.
+                    </p>
+                    {/* Phase toggle */}
+                    <div className="flex flex-wrap gap-2 mb-5">
+                      {(['total', 'autonomous', 'teleop', 'endgame'] as const).map(phase => (
+                        <button
+                          key={phase}
+                          onClick={() => setMatchScoreChartPhase(phase)}
+                          className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                            matchScoreChartPhase === phase
+                              ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
+                              : isDarkMode
+                                ? 'bg-team-dark border-team-blue-40 text-team-white-60 hover:border-team-blue hover:text-white'
+                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
+                          }`}
+                        >
+                          {phase === 'total' ? 'Total' : phase === 'autonomous' ? 'Autonomous' : phase === 'teleop' ? 'Teleop' : 'Endgame'}
+                        </button>
+                      ))}
+                    </div>
+                    {(() => {
+                      const sessionColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                      const chartData = selectedMatches.map((match, idx) => {
+                        const score =
+                          matchScoreChartPhase === 'total' ? (match.finalScore || 0)
+                          : matchScoreChartPhase === 'autonomous' ? (match.autonomousScore || 0)
+                          : matchScoreChartPhase === 'teleop' ? (match.teleopScore || 0)
+                          : (match.endGameScore || 0);
+                        return {
+                          matchLabel: `M${match.matchNumber}`,
+                          score,
+                          color: sessionColors[idx % sessionColors.length],
+                        };
+                      });
+                      return (
+                        <ResponsiveContainer width="100%" height={280}>
+                          <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} />
+                            <XAxis
+                              dataKey="matchLabel"
+                              tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                              axisLine={{ stroke: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={36}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: isDarkMode ? '#1a1a1a' : '#fff',
+                                border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                                borderRadius: 8,
+                                fontSize: 12,
+                              }}
+                            />
+                            <Line
+                              dataKey="score"
+                              name={`${matchScoreChartPhase === 'total' ? 'Total' : matchScoreChartPhase === 'autonomous' ? 'Autonomous' : matchScoreChartPhase === 'teleop' ? 'Teleop' : 'Endgame'} Score`}
+                              stroke="#3b82f6"
+                              strokeWidth={2.5}
+                              dot={{ r: 5, fill: '#3b82f6', strokeWidth: 0 }}
+                              activeDot={{ r: 7 }}
+                              type="monotone"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* ── Matches: Cycle Time Chart ────────────────────── */}
+              <Card className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
+                <CardHeader
+                  onClick={() => setIsMatchCycleChartOpen(!isMatchCycleChartOpen)}
+                  className="cursor-pointer hover:bg-opacity-80 transition-all"
+                >
+                  <CardTitle className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <span>Cycle Times per Match</span>
+                    <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isMatchCycleChartOpen ? 'rotate-180' : ''}`} />
+                  </CardTitle>
+                </CardHeader>
+                {isMatchCycleChartOpen && (
+                  <CardContent>
+                    <p className={`text-xs mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+                      Cycle time for each ball scored within a match. Supports up to 3 matches.
+                      {selectedMatches.length > 3 && (
+                        <span className="ml-1 text-amber-500 font-medium">Select 3 or fewer matches to enable this chart.</span>
+                      )}
+                    </p>
+                    {selectedMatches.length > 3 ? (
+                      <div className={`flex items-center justify-center h-32 rounded-lg border-2 border-dashed ${isDarkMode ? 'border-team-blue-40 text-team-white-60' : 'border-gray-200 text-gray-400'} text-sm`}>
+                        Please select 3 or fewer matches to view cycle time chart
+                      </div>
+                    ) : (() => {
+                      const sessionColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                      const maxBalls = Math.max(...selectedMatches.map(m => (m.cycleTimes || []).length), 0);
+                      if (maxBalls === 0) return (
+                        <div className={`flex items-center justify-center h-32 rounded-lg border-2 border-dashed ${isDarkMode ? 'border-team-blue-40 text-team-white-60' : 'border-gray-200 text-gray-400'} text-sm`}>
+                          No cycle time data for selected matches
+                        </div>
+                      );
+                      const chartData = Array.from({ length: maxBalls }, (_, i) => {
+                        const entry: Record<string, number | string> = { ball: `Ball ${i + 1}` };
+                        selectedMatches.forEach((m, idx) => {
+                          const ct = m.cycleTimes || [];
+                          if (ct[i] !== undefined) entry[`match${idx}`] = ct[i];
+                        });
+                        return entry;
+                      });
+                      return (
+                        <ResponsiveContainer width="100%" height={280}>
+                          <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} />
+                            <XAxis
+                              dataKey="ball"
+                              tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                              axisLine={{ stroke: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              tickFormatter={v => `${v}s`}
+                              tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={40}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: isDarkMode ? '#1a1a1a' : '#fff',
+                                border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                                borderRadius: 8,
+                                fontSize: 12,
+                              }}
+                              formatter={(v, name) => {
+                                const idx = parseInt((name as string).replace('match', ''));
+                                const m = selectedMatches[idx];
+                                return [`${Number(v).toFixed(1)}s`, m ? `Match ${m.matchNumber}` : name];
+                              }}
+                            />
+                            <Legend
+                              iconType="circle"
+                              iconSize={8}
+                              wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
+                              formatter={(value) => {
+                                const idx = parseInt((value as string).replace('match', ''));
+                                const m = selectedMatches[idx];
+                                return m ? `Match ${m.matchNumber}${m.sessionName ? ` (${m.sessionName})` : ''}` : value;
+                              }}
+                            />
+                            {selectedMatches.map((_m, idx) => (
+                              <Line
+                                key={`match${idx}`}
+                                dataKey={`match${idx}`}
+                                name={`match${idx}`}
+                                stroke={sessionColors[idx % sessionColors.length]}
+                                strokeWidth={2.5}
+                                dot={{ r: 4, fill: sessionColors[idx % sessionColors.length], strokeWidth: 0 }}
+                                activeDot={{ r: 6 }}
+                                type="monotone"
+                                connectNulls={false}
+                              />
+                            ))}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </CardContent>
+                )}
+              </Card>
+              </>
+            )}
 
             {selectedMatches.length > 0 && (
               <Card
@@ -704,7 +1113,7 @@ const Compare = () => {
                   <CardTitle
                     className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
-                    <span>Detailed Breakdown</span>
+                    <span>Score Breakdown</span>
                     <ChevronDown
                       className={`w-5 h-5 transition-transform duration-200 ${isMatchBreakdownOpen ? 'rotate-180' : ''}`}
                     />
@@ -719,21 +1128,39 @@ const Compare = () => {
                             className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
                           >
                             <th
-                              className={`text-left py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              className={`text-left py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
                               Metric
                             </th>
-                            {selectedMatches.map(match => (
+                            {/* Session header groups */}
+                            {selectedSessionsData.map(session => {
+                              const matchesForSession = selectedMatches.filter(
+                                m => m.sessionId === session.id
+                              );
+                              if (matchesForSession.length === 0) return null;
+                              return matchesForSession.map(match => (
+                                <th
+                                  key={match.id}
+                                  className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                >
+                                  <div className={`text-xs font-normal mb-0.5 ${isDarkMode ? 'text-team-white-60/60' : 'text-gray-400'}`}>
+                                    {session.sessionName || 'Unnamed'}
+                                  </div>
+                                  Match #{match.matchNumber}
+                                </th>
+                              ));
+                            })}
+                            {selectedMatches.length > 1 && (
                               <th
-                                key={match.id}
-                                className={`text-right py-3 px-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}
                               >
-                                {match.sessionName} — M{match.matchNumber}
+                                Avg
                               </th>
-                            ))}
+                            )}
                           </tr>
                         </thead>
                         <tbody>
+                          {/* Final Score */}
                           {renderMatchRow(
                             'Final Score',
                             m => m.finalScore || 0,
@@ -784,35 +1211,37 @@ const Compare = () => {
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                           >
                             <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              className={`py-3 px-4 pl-8 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
                               ↳ Robot 1 Park
                             </td>
                             {selectedMatches.map(match => (
                               <td
                                 key={match.id}
-                                className={`text-right py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
                                 {match.robot1Park || 'none'}
                               </td>
                             ))}
+                            {selectedMatches.length > 1 && <td className="px-4 py-3" />}
                           </tr>
                           <tr
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                           >
                             <td
-                              className={`py-3 px-4 pl-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              className={`py-3 px-4 pl-8 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
                               ↳ Robot 2 Park
                             </td>
                             {selectedMatches.map(match => (
                               <td
                                 key={match.id}
-                                className={`text-right py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
                                 {match.robot2Park || 'none'}
                               </td>
                             ))}
+                            {selectedMatches.length > 1 && <td className="px-4 py-3" />}
                           </tr>
                           {renderMatchRow(
                             'Avg Cycle Time',
