@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertTriangle,
-  ArrowLeft,
   Plus,
   Pencil,
   Trash2,
@@ -187,14 +186,6 @@ const EditSession = () => {
         className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div className="max-w-[1152px] mx-auto px-4 py-8">
-          <Button
-            onClick={() => navigate(ROUTES.SESSIONS)}
-            variant="outline"
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Sessions
-          </Button>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-500" />
             <h2
@@ -230,14 +221,6 @@ const EditSession = () => {
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} page-transition`}
     >
       <div className="max-w-[1152px] mx-auto px-4 py-8">
-        <Button
-          onClick={() => navigate(ROUTES.SESSIONS)}
-          variant="outline"
-          className={`mb-6 transition-all hover:scale-105 ${isDarkMode ? 'border-team-blue-40 hover:border-team-blue' : ''}`}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Sessions
-        </Button>
 
         {/* Session Header */}
         <Card

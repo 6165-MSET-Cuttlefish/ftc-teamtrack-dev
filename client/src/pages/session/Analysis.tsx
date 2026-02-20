@@ -510,16 +510,6 @@ const AnalysisContent = () => {
         {/* ── Actions ─────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <Link
-            to="/sessions"
-            className={`w-full sm:w-56 px-5 py-2.5 rounded-xl border border-team-blue text-team-blue text-sm font-medium text-center transition-colors ${
-              isDarkMode
-                ? 'hover:bg-team-blue hover:text-black'
-                : 'hover:bg-team-blue hover:text-white'
-            }`}
-          >
-            Back to Sessions
-          </Link>
-          <Link
             to="/charts"
             className={`w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors ${
               isDarkMode ? 'text-black' : 'text-white'

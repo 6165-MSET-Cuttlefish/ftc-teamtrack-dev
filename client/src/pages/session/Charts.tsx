@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  ArrowLeft,
   TrendingUp,
   TrendingDown,
   Calendar,
@@ -373,14 +372,6 @@ const Charts = () => {
         className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div className="max-w-[1152px] mx-auto px-4 sm:px-8 py-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(ROUTES.SESSIONS)}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Sessions
-          </Button>
           <Card
             className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
           >
@@ -439,14 +430,6 @@ const Charts = () => {
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(ROUTES.SESSIONS)}
-            className="mb-3 sm:mb-4 p-1 h-auto"
-          >
-            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            <span className="text-xs sm:text-sm">Back</span>
-          </Button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
               <h1 className="text-team-blue text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2">

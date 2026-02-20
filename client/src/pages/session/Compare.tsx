@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  ArrowLeft,
   Trophy,
   Clock,
   Target,
@@ -176,14 +175,6 @@ const Compare = () => {
       <div className="max-w-[1152px] mx-auto px-4 sm:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(ROUTES.SESSIONS)}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Sessions
-          </Button>
           <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold mb-2">
             Comparison
           </h1>
