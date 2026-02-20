@@ -53,6 +53,8 @@ export interface ScoringFields {
   gateAddBackMode?: boolean;
   /** How many balls to keep when releasing gate (UI state) */
   gateAddBackCount?: number;
+  /** 3-ball motif pattern set at match start (purple or green per slot) */
+  motifPattern?: ('purple' | 'green' | 'empty')[];
   cycleTimes: number[];
   /** Individual shot records for Autonomous phase */
   autonShots?: ShotEntry[];
@@ -82,6 +84,7 @@ export interface Match {
   robot1Park?: 'none' | 'partial' | 'full';
   robot2Park?: 'none' | 'partial' | 'full';
   gateBallCount?: number;
+  motifPattern?: ('purple' | 'green' | 'empty')[];
   cycleTimes?: number[];
   autonShots?: ShotEntry[];
   teleopShots?: ShotEntry[];

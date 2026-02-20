@@ -5,7 +5,9 @@ import { useFirebase } from '@/hooks';
 import { GAME_TIMING, ROUTES } from '@/constants';
 import { Check, X, Settings, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { MotifSetupDialog } from './MotifSetupDialog';
 import type { Match } from '@/types';
+import type { ScoringFields } from '@/types';
 
 interface LivePreviewProps {
   onOpenSessionSetup?: () => void;
@@ -56,6 +58,7 @@ export const LivePreview = ({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
+  const [showMotifDialog, setShowMotifDialog] = useState<boolean>(false);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork =
@@ -244,6 +247,7 @@ export const LivePreview = ({
       robot1Park: 'none',
       robot2Park: 'none',
       gateBallCount: 0,
+      motifPattern: ['empty', 'empty', 'empty'],
       cycleTimes: [],
       autonShots: [],
       teleopShots: [],
@@ -257,6 +261,27 @@ export const LivePreview = ({
     setHasTransitionedToTeleop(false);
 
     toast.success(`Match ${updatedMatches.length} saved successfully!`);
+  };
+
+  const handleMotifDialogConfirm = (pattern: ScoringFields['motifPattern']) => {
+    // Pattern is confirmed and all slots are filled
+    // Update session data with the pattern and start the match
+    updateSessionData({ motifPattern: pattern });
+    setShowMotifDialog(false);
+    
+    // Now actually start the match
+    setHasStarted(true);
+    setMatchActive(true);
+    if (sessionData.matchType === 'Teleop') {
+      setMatchPhase('teleop');
+    } else {
+      setMatchPhase('auton');
+    }
+    setIsTimerRunning(true);
+  };
+
+  const handleMotifDialogCancel = () => {
+    setShowMotifDialog(false);
   };
 
   const handleCompleteSession = async () => {
@@ -437,6 +462,7 @@ export const LivePreview = ({
       robot1Park: 'none',
       robot2Park: 'none',
       gateBallCount: 0,
+      motifPattern: ['empty', 'empty', 'empty'],
       cycleTimes: [],
       autonShots: [],
       teleopShots: [],
@@ -466,15 +492,8 @@ export const LivePreview = ({
                           onTryStartWithoutSetup?.();
                           return;
                         }
-                        setHasStarted(true);
-                        setMatchActive(true);
-                        // Set the correct initial phase and start the timer
-                        if (sessionData.matchType === 'Teleop') {
-                          setMatchPhase('teleop');
-                        } else {
-                          setMatchPhase('auton');
-                        }
-                        setIsTimerRunning(true);
+                        // Show motif setup dialog instead of starting immediately
+                        setShowMotifDialog(true);
                       }
                     : handleSaveMatch
                 }
@@ -817,6 +836,14 @@ export const LivePreview = ({
           )}
         </div>
       )}
+
+      {/* Motif Setup Dialog */}
+      <MotifSetupDialog
+        isOpen={showMotifDialog}
+        onConfirm={handleMotifDialogConfirm}
+        onCancel={handleMotifDialogCancel}
+        initialPattern={['empty', 'empty', 'empty']}
+      />
     </div>
   );
 };

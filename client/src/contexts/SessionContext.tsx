@@ -98,6 +98,7 @@ const createInitialSessionData = (): SessionFormData => ({
   robot1Park: 'none',
   robot2Park: 'none',
   gateBallCount: 0,
+  motifPattern: ['empty', 'empty', 'empty'],
   selectedFeature: 'Cycle Times',
   notes: '',
   cycleTimes: [],

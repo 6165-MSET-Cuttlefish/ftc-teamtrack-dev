@@ -157,7 +157,7 @@ const ActiveSessionContent = () => {
           )}
 
           {/* Gate Visual */}
-          <div style={{ padding: '15px 15px 0' }}>
+          <div data-tutorial="gate" style={{ padding: '15px 15px 0' }}>
             <GateVisual />
           </div>
 

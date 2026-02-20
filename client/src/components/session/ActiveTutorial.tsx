@@ -525,7 +525,73 @@ const MetricsPreview = ({ dark }: { dark: boolean }) => {
     </PreviewBox>
   );
 };
+// ── Animated Gate: shows balls being released ───────────────────────────
+const GatePreview = ({ dark }: { dark: boolean }) => {
+  const [released, setReleased] = useState(false);
 
+  useEffect(() => {
+    const t = setTimeout(() => setReleased(!released), 1600);
+    return () => clearTimeout(t);
+  }, [released]);
+
+  const GATE_CAPACITY = 9;
+  const ballsInGate = 6;
+
+  return (
+    <PreviewBox dark={dark}>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="text-team-blue font-semibold text-sm">Gate Mechanic</div>
+        <span className="text-xs font-bold text-white bg-blue-500/40 px-1.5 py-0.5 rounded">
+          G
+        </span>
+      </div>
+      <div className="flex items-center justify-center gap-3 -mx-4 px-4 py-2">
+        {Array.from({ length: GATE_CAPACITY }).map((_, i) => (
+          <div
+            key={i}
+            className="w-6 h-6 rounded-full border-2 transition-all duration-500"
+            style={{
+              backgroundColor:
+                i < (released ? 0 : ballsInGate)
+                  ? i % 2 === 0
+                    ? dark
+                      ? '#a855f7'
+                      : '#c084fc'
+                    : dark
+                      ? '#10b981'
+                      : '#34d399'
+                  : dark
+                    ? '#374151'
+                    : '#e5e7eb',
+              borderColor:
+                i < (released ? 0 : ballsInGate)
+                  ? i % 2 === 0
+                    ? dark
+                      ? '#9333ea'
+                      : '#a855f7'
+                    : dark
+                      ? '#059669'
+                      : '#10b981'
+                  : dark
+                    ? '#4b5563'
+                    : '#d1d5db',
+              transform: released && i < ballsInGate ? 'scale(0) translateY(20px)' : 'scale(1) translateY(0)',
+              opacity: released && i < ballsInGate ? 0 : 1,
+            }}
+          />
+        ))}
+      </div>
+      <div
+        className="text-xs mt-3 text-center"
+        style={{
+          color: dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+        }}
+      >
+        {released ? 'Released!' : `Holding ${ballsInGate} balls`}
+      </div>
+    </PreviewBox>
+  );
+};
 // ── Animated Notes: typewriter effect ───────────────────────────────────
 const NOTES_TEXT = 'Robot intake jammed twice during teleop. Try adjusting...';
 const NotesPreview = ({ dark }: { dark: boolean }) => {
@@ -610,6 +676,12 @@ const STEPS: StepDef[] = [
     body: 'Press 1–3 for balls shot, then 0–N for balls made, Enter to confirm, Escape to cancel. Only active during a match.',
     target: 'scoring',
     preview: d => <KeybindsPreview dark={d} />,
+  },
+  {
+    title: 'Gate Mechanic',
+    body: 'Press G to open the gate and release balls. Press G again to set how many stay (0-9) — or click a ball slot to set the count.',
+    target: 'gate',
+    preview: d => <GatePreview dark={d} />,
   },
   {
     title: 'Performance Metrics',

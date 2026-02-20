@@ -13,6 +13,7 @@ import type { ShotEntry } from '@/types';
 // ─── Constants ──────────────────────────────────────────────────────────
 const POINTS_PER_CLASSIFIED = 3;
 const POINTS_PER_OVERFLOW = 1;
+const GATE_CAPACITY = 9;
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -48,6 +49,16 @@ const totalPoints = (shots: ShotEntry[]) =>
     const ovfl = e.overflow ?? 0;
     return s + cls * POINTS_PER_CLASSIFIED + ovfl * POINTS_PER_OVERFLOW;
   }, 0);
+
+// Count number of set bits in a bitmask
+const countBits = (n: number): number => {
+  let count = 0;
+  while (n > 0) {
+    count += n & 1;
+    n >>= 1;
+  }
+  return count;
+};
 
 const calcAccuracy = (made: number, shot: number): string =>
   shot > 0 ? `${Math.round((made / shot) * 100)}%` : '—';
@@ -150,8 +161,6 @@ const ShotLogTable: React.FC<{
     const minCycle = cycleTimes.length > 0 ? Math.min(...cycleTimes) : null;
     const maxCycle = cycleTimes.length > 0 ? Math.max(...cycleTimes) : null;
 
-    let running = 0;
-
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -175,7 +184,7 @@ const ShotLogTable: React.FC<{
         >
           {/* Header */}
           <div
-            className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_32px] text-xs font-semibold uppercase tracking-wide ${
+            className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_32px] text-xs font-semibold uppercase tracking-wide ${
               isDarkMode
                 ? 'bg-team-dark-20 text-gray-400'
                 : 'bg-gray-50 text-gray-500'
@@ -187,7 +196,6 @@ const ShotLogTable: React.FC<{
             <div className="px-1 py-2 text-center">Cls</div>
             <div className="px-1 py-2 text-center">Ovfl</div>
             <div className="px-1 py-2 text-center">Pts</div>
-            <div className="px-1 py-2 text-center">Total</div>
             <div className="px-1 py-2 text-center">Cycle</div>
             <div className="px-1 py-2" />
           </div>
@@ -206,8 +214,6 @@ const ShotLogTable: React.FC<{
               const cls = shot.classified ?? shot.ballsMade;
               const ovfl = shot.overflow ?? 0;
               const pts = cls * POINTS_PER_CLASSIFIED + ovfl * POINTS_PER_OVERFLOW;
-              running += pts;
-              const rowRunning = running;
               const ct = shot.cycleTime;
               const isMin =
                 ct !== undefined &&
@@ -229,7 +235,7 @@ const ShotLogTable: React.FC<{
               return (
                 <div
                   key={i}
-                  className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_32px] items-center border-t ${
+                  className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_32px] items-center border-t ${
                     isDarkMode
                       ? 'border-white/5 even:bg-white/[0.02]'
                       : 'border-gray-100 even:bg-gray-50/50'
@@ -292,9 +298,6 @@ const ShotLogTable: React.FC<{
                   >
                     {pts}
                   </div>
-                  <div className="px-1 py-2 text-center text-sm font-medium text-team-blue">
-                    {rowRunning}
-                  </div>
                   <div
                     className={`px-1 py-2 text-center text-xs ${cycleClass}`}
                   >
@@ -322,7 +325,7 @@ const ShotLogTable: React.FC<{
           {/* Footer totals */}
           {shots.length > 0 && (
             <div
-              className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_32px] items-center border-t-2 ${
+              className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_1fr_32px] items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
@@ -360,7 +363,6 @@ const ShotLogTable: React.FC<{
               >
                 {shotsTotal}
               </div>
-              <div className="px-1 py-2" />
               <div className="px-1 py-2" />
               <div className="px-1 py-2" />
             </div>
@@ -558,9 +560,11 @@ export const PerformanceMetrics = () => {
     [teleopShots]
   );
   const autonLeaveBonus = autonomousLeave * 3;
+  const autonMotifBonus = countBits(sessionData.autonMotif ?? 0) * 2;
+  const teleMotifBonus = countBits(sessionData.teleMotif ?? 0) * 2;
 
-  const autonomousScore = autonShotsScore + autonLeaveBonus;
-  const teleopScore = teleopShotsScore;
+  const autonomousScore = autonShotsScore + autonLeaveBonus + autonMotifBonus;
+  const teleopScore = teleopShotsScore + teleMotifBonus;
 
   let endGameScore = 0;
   const r1 = robot1Park === 'partial' ? 5 : robot1Park === 'full' ? 10 : 0;
@@ -592,6 +596,9 @@ export const PerformanceMetrics = () => {
         sumField(teleopShots, 'ballsShot') - sumField(teleopShots, 'ballsMade'),
       robot1Park,
       robot2Park,
+      autonMotif: sessionData.autonMotif ?? 0,
+      teleMotif: sessionData.teleMotif ?? 0,
+      motifPattern: sessionData.motifPattern,
     });
     setTimeout(() => {
       isUpdatingRef.current = false;
@@ -606,6 +613,9 @@ export const PerformanceMetrics = () => {
     teleopShots,
     robot1Park,
     robot2Park,
+    sessionData.autonMotif,
+    sessionData.teleMotif,
+    sessionData.motifPattern,
     updateSessionData,
   ]);
 
@@ -713,14 +723,80 @@ export const PerformanceMetrics = () => {
       )
         return;
 
-      // Handle gate add-back mode (0-9 sets how many balls stay)
+      // Handle G keybind for gate
+      if (event.key.toLowerCase() === 'g') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!sessionData.gateAddBackMode) {
+          // First G press: open gate
+          if ((sessionData.gateBallCount ?? 0) > 0) {
+            // Determine if opening gate should clear motifs
+            const isInAutonMotifWindow =
+              matchActive &&
+              sessionData.matchType === 'Full Game' &&
+              (matchPhase === 'controller_pickup' || matchPhase === 'prepare');
+            const isInEarlyTeleop = matchActive && matchPhase === 'teleop';
+            // Opening gate during auto motif window or early teleop → clear autonMotif
+            const clearAuton = isInAutonMotifWindow || isInEarlyTeleop;
+            // Opening gate during teleop (after motif window) → clear teleMotif
+            const clearTele = matchActive && matchPhase === 'teleop';
+            updateSessionData({
+              gateAddBackMode: true,
+              gateAddBackCount: 0,
+              ...(clearAuton && { autonMotif: 0 }),
+              ...(clearTele && { teleMotif: 0 }),
+            });
+          }
+        } else {
+          // Second G press: confirm gate open
+          const addBackCount = sessionData.gateAddBackCount ?? 0;
+          updateSessionData({
+            gateBallCount: addBackCount,
+            gateAddBackMode: false,
+            gateAddBackCount: 0,
+          });
+        }
+        return;
+      }
+
+      // Handle gate add-back mode (0-9 sets how many balls stay; Enter also confirms; Escape cancels)
       if (sessionData.gateAddBackMode) {
-        if (/^[0-9]$/.test(event.key)) {
+        if (event.key === '0') {
+          event.preventDefault();
+          event.stopPropagation();
+          updateSessionData({ gateAddBackCount: 0 });
+          return;
+        }
+        if (/^[1-9]$/.test(event.key)) {
           event.preventDefault();
           event.stopPropagation();
           const count = parseInt(event.key);
+          const maxCount = sessionData.gateBallCount ?? 0;
+          if (count <= maxCount) {
+            // Set directly — no toggle. Only 0 key resets to 0.
+            updateSessionData({
+              gateAddBackCount: count,
+            });
+          }
+          return;
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
           updateSessionData({
-            gateAddBackCount: sessionData.gateAddBackCount === count ? 0 : count,
+            gateAddBackMode: false,
+            gateAddBackCount: 0,
+          });
+          return;
+        }
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          event.stopPropagation();
+          const addBackCount = sessionData.gateAddBackCount ?? 0;
+          updateSessionData({
+            gateBallCount: addBackCount,
+            gateAddBackMode: false,
+            gateAddBackCount: 0,
           });
         }
         return;
@@ -761,8 +837,7 @@ export const PerformanceMetrics = () => {
             : undefined;
         lastShotTimeRef.current = now;
 
-        // Gate logic: classify vs overflow based on gate capacity (9)
-        const GATE_CAPACITY = 9;
+        // Gate logic: classify vs overflow based on gate capacity
         const currentGate = sessionData.gateBallCount ?? 0;
         const spaceInGate = Math.max(0, GATE_CAPACITY - currentGate);
         const classified = Math.min(madeCount, spaceInGate);
@@ -1087,24 +1162,68 @@ export const PerformanceMetrics = () => {
         {/* ── AUTONOMOUS tab ─────────────────────────────────────── */}
         {selectedTab === 'autonomous' && showAuton && (
           <div className="flex flex-col gap-3">
-            <label
-              className={`flex items-center gap-2 cursor-pointer select-none text-sm ${
-                isDarkMode ? 'text-white' : 'text-black'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={autonomousLeave > 0}
-                onChange={e => {
-                  const v = e.target.checked ? 1 : 0;
-                  setAutonomousLeave(v);
-                }}
-                disabled={!isEditable}
-                className="accent-team-blue w-4 h-4"
-              />
-              Autonomous Leave
-              <span className="text-xs text-gray-400">(+3 pts)</span>
-            </label>
+            {/* Leave + Motif row */}
+            <div className={`rounded-xl p-3 flex flex-col gap-3 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
+              {/* Leave */}
+              <label
+                className={`flex items-center gap-2 cursor-pointer select-none text-sm ${
+                  isDarkMode ? 'text-white' : 'text-black'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={autonomousLeave > 0}
+                  onChange={e => {
+                    const v = e.target.checked ? 1 : 0;
+                    setAutonomousLeave(v);
+                  }}
+                  disabled={!isEditable}
+                  className="accent-team-blue w-4 h-4"
+                />
+                Autonomous Leave
+                <span className="text-xs text-gray-400">(+3 pts)</span>
+              </label>
+
+              {/* Autonomous Motif */}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <span className={`text-xs font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Autonomous Motif
+                    <span className="ml-1 text-gray-400 normal-case font-normal">(+2 pts each)</span>
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {(() => {
+                      const mask = sessionData.autonMotif ?? 0;
+                      return Array.from({ length: GATE_CAPACITY }).map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            if (!isEditable) return;
+                            let newMask = mask;
+                            newMask ^= (1 << i);
+                            updateSessionData({ autonMotif: newMask });
+                          }}
+                          disabled={!isEditable}
+                          className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${
+                            isEditable ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+                          } ${
+                            (mask & (1 << i)) ? 'text-amber-400' : isDarkMode ? 'text-gray-600' : 'text-gray-300'
+                          }`}
+                          title={`Toggle auton motif ${i + 1}`}
+                        >
+                          M
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                </div>
+                <span className={`text-sm font-bold ${
+                  (sessionData.autonMotif ?? 0) > 0 ? 'text-amber-400' : isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                }`}>
+                  {countBits(sessionData.autonMotif ?? 0) * 2} pts
+                </span>
+              </div>
+            </div>
 
             <ShotLogTable
               label="Autonomous Shots"
@@ -1123,6 +1242,46 @@ export const PerformanceMetrics = () => {
         {/* ── TELEOP tab ─────────────────────────────────────────── */}
         {selectedTab === 'teleop' && showTeleop && (
           <div className="flex flex-col gap-4">
+            {/* Teleop Motif */}
+            <div className={`rounded-xl p-3 flex items-center justify-between ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
+              <div className="flex flex-col gap-1">
+                <span className={`text-xs font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Teleop Motif
+                  <span className="ml-1 text-gray-400 normal-case font-normal">(+2 pts each)</span>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {(() => {
+                    const mask = sessionData.teleMotif ?? 0;
+                    return Array.from({ length: GATE_CAPACITY }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          if (!isEditable) return;
+                          let newMask = mask;
+                          newMask ^= (1 << i);
+                          updateSessionData({ teleMotif: newMask });
+                        }}
+                        disabled={!isEditable}
+                        className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${
+                          isEditable ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+                        } ${
+                          (mask & (1 << i)) ? 'text-amber-400' : isDarkMode ? 'text-gray-600' : 'text-gray-300'
+                        }`}
+                        title={`Toggle teleop motif ${i + 1}`}
+                      >
+                        M
+                      </button>
+                    ));
+                  })()}
+                </div>
+              </div>
+              <span className={`text-sm font-bold ${
+                (sessionData.teleMotif ?? 0) > 0 ? 'text-amber-400' : isDarkMode ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                {countBits(sessionData.teleMotif ?? 0) * 2} pts
+              </span>
+            </div>
+
             <ShotLogTable
               label="TeleOp Shots"
               shots={teleopShots}
@@ -1132,8 +1291,6 @@ export const PerformanceMetrics = () => {
               editable={isEditable}
               isDarkMode={isDarkMode}
             />
-
-
           </div>
         )}
 
