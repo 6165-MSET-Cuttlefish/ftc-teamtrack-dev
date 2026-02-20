@@ -301,7 +301,7 @@ export const GateVisual = () => {
                 className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
                   addBackCount === 0 && gateBallCount > 0
                     ? 'bg-red-500/20 border border-red-500 text-red-600 hover:bg-red-500/30'
-                    : 'bg-team-blue text-black hover:opacity-90'
+                    : isDarkMode ? 'bg-team-blue text-black hover:opacity-90' : 'bg-team-blue text-white hover:opacity-90'
                 }`}
               >
                 {addBackCount === 0 && gateBallCount > 0

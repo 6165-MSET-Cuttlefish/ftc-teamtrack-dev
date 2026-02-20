@@ -459,9 +459,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               <Button
                 onClick={handleCreateTeam}
                 disabled={creating || !teamName.trim()}
-                className={`flex-1 h-11 rounded-xl bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 ${
-                  isDarkMode ? 'text-black' : 'text-white'
-                }`}
+                className={`flex-1 h-11 rounded-xl bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 {creating ? (
                   <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -539,9 +537,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               <Button
                 onClick={handleJoinTeam}
                 disabled={joining || !inviteCode.trim()}
-                className={`flex-1 h-11 rounded-xl bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 ${
-                  isDarkMode ? 'text-black' : 'text-white'
-                }`}
+                className={`flex-1 h-11 rounded-xl bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 {joining ? (
                   <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -594,9 +590,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 <Button
                   onClick={handleCopyInviteLink}
                   size="sm"
-                  className={`h-11 px-3 rounded-xl bg-team-blue hover:bg-team-blue/90 ${
-                    isDarkMode ? 'text-black' : 'text-white'
-                  }`}
+                  className={`h-11 px-3 rounded-xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
                 >
                   {copied ? (
                     <Check className="h-4 w-4" />
@@ -803,9 +797,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               </Button>
               <Button
                 onClick={() => setShowTeamInfo(false)}
-                className={`flex-1 h-11 rounded-xl bg-team-blue hover:bg-team-blue/90 ${
-                  isDarkMode ? 'text-black' : 'text-white'
-                }`}
+                className={`flex-1 h-11 rounded-xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 Done
               </Button>
@@ -912,9 +904,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 <Button
                   onClick={handleImportSessions}
                   disabled={importing || selectedSessionIds.size === 0}
-                  className={`flex-1 h-11 rounded-xl bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 ${
-                    isDarkMode ? 'text-black' : 'text-white'
-                  }`}
+                  className={`flex-1 h-11 rounded-xl bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 ${isDarkMode ? 'text-black' : 'text-white'}`}
                 >
                   {importing ? (
                     <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

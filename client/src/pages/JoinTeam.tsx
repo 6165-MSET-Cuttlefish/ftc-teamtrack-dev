@@ -114,9 +114,7 @@ const JoinTeam = () => {
             </p>
             <Button
               onClick={() => navigate(ROUTES.SESSIONS)}
-              className={`bg-team-blue hover:bg-team-blue/90 ${
-                isDarkMode ? 'text-black' : 'text-white'
-              }`}
+              className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
             >
               <Users className="h-4 w-4 mr-2" />
               Go to Sessions

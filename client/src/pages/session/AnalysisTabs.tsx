@@ -560,8 +560,8 @@ export const SummaryTab = ({
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize ${
                   ballsView === mode
                     ? isDarkMode
-                      ? 'bg-team-blue text-black shadow-sm'
-                      : 'bg-team-blue text-white shadow-sm'
+                      ? `bg-team-blue text-black shadow-sm`
+                      : `bg-team-blue text-white shadow-sm`
                     : isDarkMode
                       ? 'text-team-white-60 hover:text-white'
                       : 'text-gray-500 hover:text-gray-900'
@@ -828,8 +828,8 @@ export const MatchDetailTab = ({
               className={`w-9 h-9 rounded-lg text-sm font-semibold transition-all ${
                 i === selectedIdx
                   ? isDarkMode
-                    ? 'bg-team-blue text-black shadow-md'
-                    : 'bg-team-blue text-white shadow-md'
+                    ? `bg-team-blue text-black shadow-md`
+                    : `bg-team-blue text-white shadow-md`
                   : isDarkMode
                     ? 'bg-team-dark text-team-white-60 hover:bg-team-blue/20'
                     : 'bg-gray-100 text-gray-600 hover:bg-team-blue/10'

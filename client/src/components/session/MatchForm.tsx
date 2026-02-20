@@ -648,9 +648,7 @@ export const MatchForm = ({
           <Button
             onClick={handleSave}
             disabled={isLoading}
-            className={`min-w-[120px] bg-team-blue hover:bg-team-blue/90 flex items-center gap-2 ${
-              isDarkMode ? 'text-black' : 'text-white'
-            }`}
+            className={`min-w-[120px] bg-team-blue hover:bg-team-blue/90 flex items-center gap-2 ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             {isLoading ? (
               <>

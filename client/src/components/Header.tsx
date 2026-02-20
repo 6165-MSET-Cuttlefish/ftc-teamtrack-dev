@@ -187,9 +187,7 @@ const NavigationMenu = () => {
           <button
             onClick={() => navigate(ROUTES.ACTIVE)}
             aria-label="New session"
-            className={`px-4 py-1.5 rounded-full flex items-center gap-2 transition-all bg-team-blue hover:opacity-90 ${
-              isDarkMode ? 'text-black' : 'text-white'
-            }`}
+            className={`px-4 py-1.5 rounded-full flex items-center gap-2 transition-all bg-team-blue hover:opacity-90 ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             <span className="text-sm font-semibold">New Session</span>
           </button>
@@ -410,9 +408,7 @@ const NavigationMenu = () => {
                   alt={user.displayName || ''}
                 />
                 <AvatarFallback
-                  className={`text-xs bg-team-blue ${
-                    isDarkMode ? 'text-black' : 'text-white'
-                  }`}
+                  className={`text-xs bg-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`}
                 >
                   {getInitials(user.displayName || user.email || 'User')}
                 </AvatarFallback>
