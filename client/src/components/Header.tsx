@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
-import { STORAGE_KEYS, UI_TIMING, ROUTES } from '@/constants';
+import { STORAGE_KEYS, ROUTES } from '@/constants';
 import { getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
@@ -108,7 +108,6 @@ const NavigationMenu = () => {
   const location = useLocation();
   const isOnActivePage = location.pathname.includes('/active');
   const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
-  const [showFeaturesTutorial, setShowFeaturesTutorial] = useState(false);
 
   // Check if there's an active session (when session has data or matches, not completed)
   const { hasStarted } = useSession();
@@ -149,24 +148,20 @@ const NavigationMenu = () => {
 
   const handleCloseKeybindTutorial = () => {
     setShowKeybindTutorial(false);
-    const userTutorialKey = user ? `${STORAGE_KEYS.TUTORIALS_SEEN}-${user.uid}` : STORAGE_KEYS.TUTORIALS_SEEN;
-    const hasSeenTutorials = localStorage.getItem(userTutorialKey);
-    if (!hasSeenTutorials) {
-      // Use requestAnimationFrame for more reliable timing
-      requestAnimationFrame(() => {
-        setTimeout(
-          () => setShowFeaturesTutorial(true),
-          UI_TIMING.TUTORIAL_TRANSITION_DELAY
-        );
-      });
-    }
-  };
-
-  const handleCloseFeaturesTutorial = () => {
-    setShowFeaturesTutorial(false);
     // Mark tutorials as seen (per user)
     const userTutorialKey = user ? `${STORAGE_KEYS.TUTORIALS_SEEN}-${user.uid}` : STORAGE_KEYS.TUTORIALS_SEEN;
     localStorage.setItem(userTutorialKey, 'true');
+  };
+
+  const handleStartInteractiveTutorial = () => {
+    if (isOnActivePage) {
+      // Already on active page, just trigger the tutorial
+      window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT));
+    } else {
+      // Set flag so ActiveTutorial starts after navigation
+      sessionStorage.setItem('teamtrack-start-tutorial', 'true');
+      navigate(ROUTES.ACTIVE);
+    }
   };
 
   return (
@@ -224,10 +219,10 @@ const NavigationMenu = () => {
         <Keyboard className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
-      {/* Session Features Tutorial button */}
+      {/* Interactive Tutorial button */}
       <button
-        onClick={() => setShowFeaturesTutorial(true)}
-        aria-label="Session features tutorial"
+        onClick={handleStartInteractiveTutorial}
+        aria-label="Start interactive tutorial"
         className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
       >
         <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -391,154 +386,6 @@ const NavigationMenu = () => {
             <button
               onClick={handleCloseKeybindTutorial}
               className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
-                isDarkMode
-                  ? 'hover:bg-team-blue/80 text-black'
-                  : 'hover:bg-team-blue/90 text-black'
-              }`}
-            >
-              Got it!
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Session Features Tutorial Modal */}
-      {showFeaturesTutorial && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={handleCloseFeaturesTutorial}
-        >
-          <div
-            className={`relative w-full max-w-2xl p-4 sm:p-6 rounded-lg shadow-lg max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
-            onClick={e => e.stopPropagation()}
-          >
-            <h2 className="text-2xl font-bold mb-4">
-              Session Scoring Features
-            </h2>
-
-            <div className="space-y-6">
-              {/* Overview */}
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Overview</h3>
-                <p
-                  className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Track your robot's performance during FTC matches with
-                  comprehensive scoring across Autonomous, Teleop, and Endgame
-                  periods.
-                </p>
-              </div>
-
-              {/* Cycle Timer Feature */}
-              <div
-                className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
-              >
-                <h3 className="text-lg font-semibold mb-2">
-                  Cycle Timer Feature
-                </h3>
-                <p
-                  className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Available in Teleop section when enabled:
-                </p>
-                <ul
-                  className={`text-sm space-y-1 ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  <li>
-                    <strong>Clock Button:</strong> Click to record cycle times
-                  </li>
-                  <li>
-                    <strong>Timer Display:</strong> Shows current cycle time in
-                    MM:SS format
-                  </li>
-                  <li>
-                    <strong>Cycle Times Log:</strong> View all recorded cycle
-                    times (expandable)
-                  </li>
-                  <li>
-                    <strong>Auto Recording:</strong> Each click saves the time
-                    and starts a new cycle
-                  </li>
-                </ul>
-              </div>
-
-              {/* Input Methods */}
-              <div
-                className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
-              >
-                <h3 className="text-lg font-semibold mb-2">Input Methods</h3>
-                <div className="space-y-2">
-                  <div>
-                    <p
-                      className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}
-                    >
-                      Number Input Fields:
-                    </p>
-                    <ul
-                      className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                    >
-                      <li>• Type directly or use up/down arrows</li>
-                      <li>• Press Enter or click away to save</li>
-                      <li>• Automatically calculates total scores</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <p
-                      className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}
-                    >
-                      Breakdown Controls (when expanded):
-                    </p>
-                    <ul
-                      className={`text-sm ml-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                    >
-                      <li>• Large +/- buttons for quick adjustments</li>
-                      <li>• Center display shows current value</li>
-                      <li>• Can also type directly in the center</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tips */}
-              <div
-                className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
-              >
-                <h3 className="text-lg font-semibold mb-2">Tips</h3>
-                <ul
-                  className={`text-sm space-y-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  <li>
-                    • Scores are calculated automatically as you input values
-                  </li>
-                  <li>• Expand sections to see detailed breakdowns</li>
-                  <li>
-                    • Use keyboard shortcuts (1-3 keys) for faster scoring
-                  </li>
-                  <li>• The total final score updates in real-time</li>
-                  <li>• All data is saved automatically to your session</li>
-                </ul>
-              </div>
-            </div>
-
-            {isOnActivePage && (
-              <button
-                onClick={() => {
-                  handleCloseFeaturesTutorial();
-                  setTimeout(() => window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT)), 100);
-                }}
-                className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors border ${
-                  isDarkMode
-                    ? 'border-team-blue text-team-blue hover:bg-team-blue/10'
-                    : 'border-team-blue text-team-blue hover:bg-team-blue/10'
-                }`}
-              >
-                Replay Page Tour
-              </button>
-            )}
-
-            <button
-              onClick={handleCloseFeaturesTutorial}
-              className={`${isOnActivePage ? 'mt-3' : 'mt-6'} w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
                 isDarkMode
                   ? 'hover:bg-team-blue/80 text-black'
                   : 'hover:bg-team-blue/90 text-black'

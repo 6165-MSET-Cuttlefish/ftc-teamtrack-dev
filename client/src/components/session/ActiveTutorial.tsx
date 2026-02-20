@@ -756,6 +756,19 @@ export const ActiveTutorial = () => {
     ? `${TUTORIAL_STORAGE_KEY}-${user.uid}`
     : TUTORIAL_STORAGE_KEY, [user]);
 
+  // Start tutorial when navigated here via the header button
+  useEffect(() => {
+    const shouldStart = sessionStorage.getItem('teamtrack-start-tutorial');
+    if (shouldStart) {
+      sessionStorage.removeItem('teamtrack-start-tutorial');
+      const t = setTimeout(() => {
+        setStep(0);
+        setVisible(true);
+      }, 500);
+      return () => clearTimeout(t);
+    }
+  }, []); // only on mount — independent of user loading
+
   // Auto-show on first visit (per user)
   useEffect(() => {
     if (!user) return; // Wait for user to be loaded
