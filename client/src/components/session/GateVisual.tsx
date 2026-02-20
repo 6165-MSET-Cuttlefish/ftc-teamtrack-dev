@@ -157,30 +157,35 @@ export const GateVisual = () => {
   };
 
   const getBallColor = (index: number) => {
+    // Empty slot: dim background
+    const emptyClass = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300';
+    // Filled ball (no motif): solid grey
+    const filledClass = isDarkMode ? 'bg-gray-500 border-gray-400' : 'bg-gray-400 border-gray-500';
+
     if (isGateOpen) {
-      if (index < addBackCount) {
-        // Show the ball color based on motif pattern (or alternate)
-        const color = index < 3 ? motifPattern[index] : (index % 2 === 0 ? 'purple' : 'green');
-        if (color !== 'empty') return getMotifColorClass(color);
-        return isDarkMode ? 'bg-purple-500 border-purple-400' : 'bg-purple-400 border-purple-500';
-      }
-      return isDarkMode
-        ? 'bg-gray-800 border-gray-600'
-        : 'bg-gray-200 border-gray-300';
+      if (index < addBackCount) return filledClass;
+      return emptyClass;
     }
 
-    if (index < gateBallCount) {
-      // Use motifPattern for first 3 slots; alternate purple/green for the rest
-      if (index < 3 && motifPattern[index] !== 'empty') {
-        return getMotifColorClass(motifPattern[index]);
-      }
-      return index % 2 === 0
-        ? isDarkMode ? 'bg-purple-500 border-purple-400' : 'bg-purple-400 border-purple-500'
-        : isDarkMode ? 'bg-emerald-500 border-emerald-400' : 'bg-emerald-400 border-emerald-500';
+    // Slot has no ball
+    if (index >= gateBallCount) return emptyClass;
+
+    // Slot has a ball — check if M is scored for this slot
+    const isMotifScored = !!(currentMotifMask & (1 << index));
+    if (!isMotifScored) {
+      return filledClass;
     }
-    return isDarkMode
-      ? 'bg-gray-800 border-gray-600'
-      : 'bg-gray-200 border-gray-300';
+
+    // M is scored: color = motifPattern at the ordinal position among scored M's
+    // Count how many M-scored slots come BEFORE this one (lower indices)
+    let ordinal = 0;
+    for (let j = 0; j < index; j++) {
+      if (currentMotifMask & (1 << j)) ordinal++;
+    }
+    // Cycle through the 3-slot motif pattern
+    const patternIndex = ordinal % motifPattern.length;
+    const color = motifPattern[patternIndex];
+    return getMotifColorClass(color !== 'empty' ? color : 'purple');
   };
 
   return (
@@ -269,10 +274,6 @@ export const GateVisual = () => {
                     : `Slot ${i + 1}`
                 }
               >
-                {((isGateOpen && i < addBackCount) ||
-                  (!isGateOpen && i < gateBallCount)) && (
-                  <div className="w-2 h-2 rounded-full bg-white/60" />
-                )}
               </button>
             </div>
           ))}
