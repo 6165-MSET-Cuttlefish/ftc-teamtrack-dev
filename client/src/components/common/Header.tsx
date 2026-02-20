@@ -158,9 +158,7 @@ const NavigationMenu = () => {
       // Already on active page, just trigger the tutorial
       window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT));
     } else {
-      // Set flag so ActiveTutorial starts after navigation
-      sessionStorage.setItem('teamtrack-start-tutorial', 'true');
-      navigate(ROUTES.ACTIVE);
+      toast.info('You can only access the tutorial on the Active Sessions page!');
     }
   };
 
