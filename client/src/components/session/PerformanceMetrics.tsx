@@ -63,15 +63,26 @@ const countBits = (n: number): number => {
 const calcAccuracy = (made: number, shot: number): string =>
   shot > 0 ? `${Math.round((made / shot) * 100)}%` : '—';
 
-/** Format seconds as M:SS */
-const formatCycleTime = (seconds: number): string => {
-  if (seconds < 60) {
-    return `${seconds.toFixed(2)}s`;
-  }
-  const m = Math.floor(seconds / 60);
-  const s = (seconds % 60).toFixed(2);
-  return `${m}:${s.padStart(5, '0')}`;
-};
+// ─── Ball Visualization (3 balls: solid = made, dotted = missed) ────────
+const BallVisualization: React.FC<{
+  ballsMade: number;
+  isDarkMode: boolean;
+}> = ({ ballsMade, isDarkMode }) => (
+  <div className="flex gap-1 items-center justify-center">
+    {Array.from({ length: 3 }).map((_, i) => (
+      <div
+        key={i}
+        className={`w-3 h-3 rounded-full border-2 ${
+          i < ballsMade
+            ? 'bg-team-blue border-team-blue'
+            : isDarkMode
+              ? 'border-gray-500 bg-transparent border-dashed'
+              : 'border-gray-300 bg-transparent border-dashed'
+        }`}
+      />
+    ))}
+  </div>
+);
 
 // ─── Inline number input for table cells ────────────────────────────────
 const CellInput: React.FC<{
@@ -154,13 +165,6 @@ const ShotLogTable: React.FC<{
     const shotsTotal = totalPoints(shots);
     const sectionTotal = shotsTotal + bonusPoints;
 
-    // Precompute min/max cycle times for color coding
-    const cycleTimes = shots
-      .map(s => s.cycleTime)
-      .filter((t): t is number => t !== undefined);
-    const minCycle = cycleTimes.length > 0 ? Math.min(...cycleTimes) : null;
-    const maxCycle = cycleTimes.length > 0 ? Math.max(...cycleTimes) : null;
-
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -196,7 +200,7 @@ const ShotLogTable: React.FC<{
             <div className="px-1 py-2 text-center">Cls</div>
             <div className="px-1 py-2 text-center">Ovfl</div>
             <div className="px-1 py-2 text-center">Pts</div>
-            <div className="px-1 py-2 text-center">Cycle</div>
+            <div className="px-1 py-2 text-center">Balls</div>
             <div className="px-1 py-2" />
           </div>
 
@@ -214,24 +218,6 @@ const ShotLogTable: React.FC<{
               const cls = shot.classified ?? shot.ballsMade;
               const ovfl = shot.overflow ?? 0;
               const pts = cls * POINTS_PER_CLASSIFIED + ovfl * POINTS_PER_OVERFLOW;
-              const ct = shot.cycleTime;
-              const isMin =
-                ct !== undefined &&
-                minCycle !== null &&
-                ct === minCycle &&
-                cycleTimes.length > 1;
-              const isMax =
-                ct !== undefined &&
-                maxCycle !== null &&
-                ct === maxCycle &&
-                cycleTimes.length > 1;
-              const cycleClass = isMin
-                ? 'text-green-500 font-semibold'
-                : isMax
-                  ? 'text-red-500 font-semibold'
-                  : isDarkMode
-                    ? 'text-gray-400'
-                    : 'text-gray-500';
               return (
                 <div
                   key={i}
@@ -298,10 +284,8 @@ const ShotLogTable: React.FC<{
                   >
                     {pts}
                   </div>
-                  <div
-                    className={`px-1 py-2 text-center text-xs ${cycleClass}`}
-                  >
-                    {ct !== undefined ? formatCycleTime(ct) : '—'}
+                  <div className="px-1 py-2 flex justify-center">
+                    <BallVisualization ballsMade={shot.ballsMade} isDarkMode={isDarkMode} />
                   </div>
                   <div className="px-0.5 py-1.5 flex justify-center">
                     {editable && (
@@ -729,21 +713,13 @@ export const PerformanceMetrics = () => {
         if (!sessionData.gateAddBackMode) {
           // First G press: open gate
           if ((sessionData.gateBallCount ?? 0) > 0) {
-            // Determine if opening gate should clear motifs
-            const isInAutonMotifWindow =
-              matchActive &&
-              sessionData.matchType === 'Full Game' &&
-              (matchPhase === 'controller_pickup' || matchPhase === 'prepare');
-            const isInEarlyTeleop = matchActive && matchPhase === 'teleop';
-            // Opening gate during auto motif window or early teleop → clear autonMotif
-            const clearAuton = isInAutonMotifWindow || isInEarlyTeleop;
-            // Opening gate during teleop (after motif window) → clear teleMotif
-            const clearTele = matchActive && matchPhase === 'teleop';
+            // Opening gate only clears teleMotif if after the 10s teleop motif window
+            // Opening gate during auto/early-teleop does NOT clear already-scored autonMotif
+            const isAfterTeleopWindow = matchActive && matchPhase === 'teleop';
             updateSessionData({
               gateAddBackMode: true,
               gateAddBackCount: 0,
-              ...(clearAuton && { autonMotif: 0 }),
-              ...(clearTele && { teleMotif: 0 }),
+              ...(isAfterTeleopWindow && { teleMotif: 0 }),
             });
           }
         } else {

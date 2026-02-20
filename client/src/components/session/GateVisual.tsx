@@ -28,20 +28,22 @@ export const GateVisual = () => {
   const isGateOpen = sessionData.gateAddBackMode ?? false;
   const addBackCount = sessionData.gateAddBackCount ?? 0;
   const motifPattern: MotifColor[] = sessionData.motifPattern ?? ['empty', 'empty', 'empty'];
-  const autonMotif = sessionData.autonMotif ?? 0;
-  const teleMotif = sessionData.teleMotif ?? 0;
 
   // Track when teleop started so we can show motif buttons for first 10 seconds
   const teleopStartedAtRef = useRef<number | null>(null);
   const [isInTeleopMotifWindow, setIsInTeleopMotifWindow] = useState(false);
+  // Track if gate was opened during the auton motif phase (blocks rest of 10s window)
+  const [gateOpenedDuringAutonWindow, setGateOpenedDuringAutonWindow] = useState(false);
 
   useEffect(() => {
     if (matchPhase === 'teleop' && teleopStartedAtRef.current === null) {
       teleopStartedAtRef.current = Date.now();
+      setGateOpenedDuringAutonWindow(false);
     }
-    if (matchPhase !== 'teleop' && matchPhase !== 'controller_pickup' && matchPhase !== 'prepare') {
+    if (matchPhase !== 'teleop' && matchPhase !== 'controller_pickup' && matchPhase !== 'prepare' && matchPhase !== 'ended') {
       teleopStartedAtRef.current = null;
       setIsInTeleopMotifWindow(false);
+      setGateOpenedDuringAutonWindow(false);
     }
   }, [matchPhase]);
 
@@ -66,12 +68,13 @@ export const GateVisual = () => {
   // First 10 seconds of teleop (still counts as auto motif scoring)
   const isTeleopMotifPhase = matchActive && matchPhase === 'teleop' && isInTeleopMotifWindow;
 
-  // Teleop motif scoring: only after the match has ended (timer done)
-  const isTeleopEndMotifPhase = matchActive && matchPhase === 'ended';
+  // Teleop motif scoring: only after the match has ended (timer done), and only if gate is NOT currently open
+  const isTeleopEndMotifPhase = matchActive && matchPhase === 'ended' && !isGateOpen;
 
-  // Hide auto motif M buttons if gate has been opened during this phase
+  // Hide auto motif M buttons if gate was opened during this phase during the early window
   // (gate open = no balls in gate to form motif pattern)
-  const isGateOpenedDuringAutonMotif = (isAutonMotifPhase || isTeleopMotifPhase) && isGateOpen;
+  // Once gate opens, motif scoring disabled for rest of the 10-second window
+  const isGateOpenedDuringAutonMotif = gateOpenedDuringAutonWindow && (isAutonMotifPhase || isTeleopMotifPhase);
 
   // Show motif M buttons: auto motifs during buffer/first-10s (unless gate opened), teleop motifs only after match ends
   const showMotifButtons =
@@ -88,17 +91,16 @@ export const GateVisual = () => {
   const currentMotifField = (isAutonMotifPhase || isTeleopMotifPhase) ? 'autonMotif' : 'teleMotif';
 
   const handleOpenGate = useCallback(() => {
-    // If gate is opened during auto motif scoring window, clear autonMotif
-    const clearAutonMotif = isAutonMotifPhase || isTeleopMotifPhase;
-    // If gate is opened during active teleop (before timer ends), clear teleMotif
-    const clearTeleMotif = matchActive && matchPhase === 'teleop' && !isInTeleopMotifWindow;
+    // If gate is opened during auto motif scoring window, block further scoring but DON'T clear already-scored autonMotif
+    const isInAutonMotifWindow = isAutonMotifPhase || isTeleopMotifPhase;
+    if (isInAutonMotifWindow) {
+      setGateOpenedDuringAutonWindow(true);
+    }
     updateSessionData({
       gateAddBackMode: true,
       gateAddBackCount: 0,
-      ...(clearAutonMotif && { autonMotif: 0 }),
-      ...(clearTeleMotif && { teleMotif: 0 }),
     });
-  }, [updateSessionData, isAutonMotifPhase, isTeleopMotifPhase, matchActive, matchPhase, isInTeleopMotifWindow]);
+  }, [updateSessionData, isAutonMotifPhase, isTeleopMotifPhase]);
 
   const handleConfirmGateOpen = useCallback(() => {
     updateSessionData({
@@ -118,13 +120,13 @@ export const GateVisual = () => {
   const handleAddBackClick = useCallback(
     (slotIndex: number) => {
       if (!isGateOpen) return;
-      const count = slotIndex + 1;
-      // Set to count directly — no toggle. Only 0 key resets to 0.
+      // Clamp to current gateBallCount - can only keep what you have
+      const count = Math.min(slotIndex + 1, gateBallCount);
       updateSessionData({
         gateAddBackCount: count,
       });
     },
-    [isGateOpen, updateSessionData]
+    [isGateOpen, gateBallCount, updateSessionData]
   );
 
   // Motif M button click - toggle a motif point
@@ -146,13 +148,21 @@ export const GateVisual = () => {
     [updateSessionData]
   );
 
-  // Determine fill colors for gate balls
+  // Determine fill colors for gate balls — uses motifPattern for the first 3 slots
+  const getMotifColorClass = (color: MotifColor) => {
+    if (color === 'purple') return isDarkMode ? 'bg-purple-500 border-purple-400' : 'bg-purple-400 border-purple-500';
+    if (color === 'green') return isDarkMode ? 'bg-emerald-500 border-emerald-400' : 'bg-emerald-400 border-emerald-500';
+    // fallback for empty (shouldn't happen for filled slots)
+    return isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-gray-200 border-gray-300';
+  };
+
   const getBallColor = (index: number) => {
     if (isGateOpen) {
       if (index < addBackCount) {
-        return isDarkMode
-          ? 'bg-purple-500 border-purple-400'
-          : 'bg-purple-400 border-purple-500';
+        // Show the ball color based on motif pattern (or alternate)
+        const color = index < 3 ? motifPattern[index] : (index % 2 === 0 ? 'purple' : 'green');
+        if (color !== 'empty') return getMotifColorClass(color);
+        return isDarkMode ? 'bg-purple-500 border-purple-400' : 'bg-purple-400 border-purple-500';
       }
       return isDarkMode
         ? 'bg-gray-800 border-gray-600'
@@ -160,15 +170,13 @@ export const GateVisual = () => {
     }
 
     if (index < gateBallCount) {
-      if (index < GATE_CAPACITY) {
-        return index % 2 === 0
-          ? isDarkMode
-            ? 'bg-purple-500 border-purple-400'
-            : 'bg-purple-400 border-purple-500'
-          : isDarkMode
-            ? 'bg-emerald-500 border-emerald-400'
-            : 'bg-emerald-400 border-emerald-500';
+      // Use motifPattern for first 3 slots; alternate purple/green for the rest
+      if (index < 3 && motifPattern[index] !== 'empty') {
+        return getMotifColorClass(motifPattern[index]);
       }
+      return index % 2 === 0
+        ? isDarkMode ? 'bg-purple-500 border-purple-400' : 'bg-purple-400 border-purple-500'
+        : isDarkMode ? 'bg-emerald-500 border-emerald-400' : 'bg-emerald-400 border-emerald-500';
     }
     return isDarkMode
       ? 'bg-gray-800 border-gray-600'
@@ -247,13 +255,17 @@ export const GateVisual = () => {
               {/* Ball slot */}
               <button
                 onClick={() => handleAddBackClick(i)}
-                disabled={!isGateOpen}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-200 flex items-center justify-center text-xs font-bold ${getBallColor(i)} ${
-                  isGateOpen ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+                disabled={!isGateOpen || (isGateOpen && i >= gateBallCount)}
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-200 flex items-center justify-center text-xs font-bold ${
+                  isGateOpen && i >= gateBallCount ? 'opacity-40' : ''
+                } ${getBallColor(i)} ${
+                  isGateOpen && i < gateBallCount ? 'cursor-pointer hover:scale-110' : 'cursor-default'
                 }`}
                 title={
                   isGateOpen
-                    ? `Keep ${i + 1} ball${i > 0 ? 's' : ''} in gate`
+                    ? i < gateBallCount
+                      ? `Keep ${i + 1} ball${i > 0 ? 's' : ''} in gate`
+                      : `No ball here`
                     : `Slot ${i + 1}`
                 }
               >
@@ -338,6 +350,23 @@ export const GateVisual = () => {
       >
         <Edit2 className="w-3.5 h-3.5" />
         {motifPattern.every(c => c === 'empty') ? 'Set Motif Pattern' : 'Edit Motif Pattern'}
+        {/* Small 3-ball preview of current motif pattern */}
+        {!motifPattern.every(c => c === 'empty') && (
+          <span className="flex items-center gap-1 ml-1">
+            {motifPattern.map((color, i) => (
+              <span
+                key={i}
+                className={`w-3.5 h-3.5 rounded-full border ${
+                  color === 'purple'
+                    ? isDarkMode ? 'bg-purple-500 border-purple-400' : 'bg-purple-400 border-purple-500'
+                    : color === 'green'
+                      ? isDarkMode ? 'bg-emerald-500 border-emerald-400' : 'bg-emerald-400 border-emerald-500'
+                      : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'
+                }`}
+              />
+            ))}
+          </span>
+        )}
       </button>
 
       {/* Motif Setup Dialog */}

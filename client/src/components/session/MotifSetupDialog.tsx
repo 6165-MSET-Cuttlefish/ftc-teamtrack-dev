@@ -146,7 +146,7 @@ export const MotifSetupDialog = ({
                 : 'border-green-500/20 bg-green-500/10 text-green-600/50 cursor-not-allowed opacity-50'
             }`}
           >
-            Start Match
+            Save Motif
           </button>
         </div>
       </div>

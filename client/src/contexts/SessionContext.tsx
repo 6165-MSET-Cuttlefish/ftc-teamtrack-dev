@@ -225,6 +225,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       setTimer(prev => {
         if (prev <= 0) {
           clearInterval(interval);
+          // Transition to 'ended' when the teleop timer hits 0
+          if (matchPhase === 'teleop') {
+            setMatchPhase('ended');
+          }
           return 0;
         }
         return prev - 1;

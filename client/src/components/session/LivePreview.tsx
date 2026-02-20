@@ -264,20 +264,10 @@ export const LivePreview = ({
   };
 
   const handleMotifDialogConfirm = (pattern: ScoringFields['motifPattern']) => {
-    // Pattern is confirmed and all slots are filled
-    // Update session data with the pattern and start the match
+    // Pattern is confirmed and all slots are filled — just save the pattern
     updateSessionData({ motifPattern: pattern });
     setShowMotifDialog(false);
-    
-    // Now actually start the match
-    setHasStarted(true);
-    setMatchActive(true);
-    if (sessionData.matchType === 'Teleop') {
-      setMatchPhase('teleop');
-    } else {
-      setMatchPhase('auton');
-    }
-    setIsTimerRunning(true);
+    // Match is NOT started here — user clicks "Start Match" after motif is set
   };
 
   const handleMotifDialogCancel = () => {
@@ -492,8 +482,21 @@ export const LivePreview = ({
                           onTryStartWithoutSetup?.();
                           return;
                         }
-                        // Show motif setup dialog instead of starting immediately
-                        setShowMotifDialog(true);
+                        const motifIsSet = sessionData.motifPattern && !sessionData.motifPattern.every((c: string) => c === 'empty');
+                        if (!motifIsSet) {
+                          // Step 1: open motif dialog to set pattern first
+                          setShowMotifDialog(true);
+                        } else {
+                          // Step 2: motif already set, start the match
+                          setHasStarted(true);
+                          setMatchActive(true);
+                          if (sessionData.matchType === 'Teleop') {
+                            setMatchPhase('teleop');
+                          } else {
+                            setMatchPhase('auton');
+                          }
+                          setIsTimerRunning(true);
+                        }
                       }
                     : handleSaveMatch
                 }
@@ -509,7 +512,11 @@ export const LivePreview = ({
                     : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
                 }`}
               >
-                {!matchActive ? 'Start Match' : 'Save Match'}
+                {!matchActive
+                  ? (sessionData.motifPattern && !sessionData.motifPattern.every((c: string) => c === 'empty')
+                    ? 'Start Match'
+                    : 'Set Motif')
+                  : 'Save Match'}
               </button>
             )}
 
@@ -842,7 +849,7 @@ export const LivePreview = ({
         isOpen={showMotifDialog}
         onConfirm={handleMotifDialogConfirm}
         onCancel={handleMotifDialogCancel}
-        initialPattern={['empty', 'empty', 'empty']}
+        initialPattern={sessionData.motifPattern ?? ['empty', 'empty', 'empty']}
       />
     </div>
   );
