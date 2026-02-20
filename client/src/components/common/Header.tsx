@@ -477,17 +477,72 @@ const NavigationMenu = () => {
   );
 };
 
+const CompactTimer = () => {
+  const { isDarkMode } = useTheme();
+  const { timer, formatTime, matchPhase, phaseTimer } = useSession();
+
+  const timerColor =
+    matchPhase === 'controller_pickup' || matchPhase === 'prepare'
+      ? 'text-yellow-400'
+      : isDarkMode
+        ? 'text-white'
+        : 'text-black';
+
+  return (
+    <span
+      className={`text-3xl sm:text-4xl font-righteous tracking-wider leading-none transition-colors ${timerColor}`}
+    >
+      {matchPhase === 'controller_pickup' || matchPhase === 'prepare'
+        ? formatTime(phaseTimer)
+        : formatTime(timer)}
+    </span>
+  );
+};
+
 export const Header = () => {
   const { isDarkMode } = useTheme();
+  const { hasStarted } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
   const isOnSessionsPage = location.pathname === '/sessions';
+  const isOnActivePage = location.pathname.includes('/active');
+  const [timerScrolledPast, setTimerScrolledPast] = useState(false);
+  const [headerEl, setHeaderEl] = useState<HTMLElement | null>(null);
+
+  const showCompactTimer =
+    (isOnActivePage && timerScrolledPast) || (!isOnActivePage && hasStarted);
+
+  useEffect(() => {
+    if (!isOnActivePage) {
+      setTimerScrolledPast(false);
+      return;
+    }
+
+    const check = () => {
+      const timerEl = document.querySelector<HTMLElement>('[data-tutorial="timer"]');
+      if (!timerEl || !headerEl) return;
+      const headerBottom = headerEl.offsetHeight;
+      const timerTop = timerEl.getBoundingClientRect().top;
+      setTimerScrolledPast(timerTop < headerBottom);
+    };
+
+    const timeout = setTimeout(() => {
+      check(); // run immediately after mount
+      window.addEventListener('scroll', check, { passive: true });
+    }, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('scroll', check);
+    };
+  }, [isOnActivePage, location.pathname, headerEl]);
 
   return (
     <header
+      ref={setHeaderEl}
       className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4 md:gap-6">
+      <div className="relative max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_auto] items-center gap-2 sm:gap-4 md:gap-6">
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
           {!isOnSessionsPage && (
             <button
@@ -501,9 +556,16 @@ export const Header = () => {
           <TeamTrackLogo />
         </div>
 
-        <div className="flex items-center justify-center"></div>
+        {/* Absolutely centered so it's always in the middle of the header */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+          {showCompactTimer && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto">
+              <CompactTimer />
+            </div>
+          )}
+        </div>
 
-        <div className="flex items-center justify-end gap-1 sm:gap-2 md:gap-4 lg:gap-6 flex-shrink-0">
+        <div className="flex items-center justify-end gap-1 sm:gap-2 md:gap-4 lg:gap-6 flex-shrink-0 ml-auto">
           <NavigationMenu />
         </div>
       </div>

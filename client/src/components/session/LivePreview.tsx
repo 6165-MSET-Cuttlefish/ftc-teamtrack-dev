@@ -46,6 +46,7 @@ export const LivePreview = ({
     startEditingMatch,
     matchActive,
     setMatchActive,
+    skipToTeleop,
   } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -601,7 +602,7 @@ export const LivePreview = ({
                   }}
                   className="px-4 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
                 >
-                  Return to Current Match
+                  Cancel
                 </button>
               </>
             )}
@@ -793,6 +794,24 @@ export const LivePreview = ({
                     Resume Match
                   </button>
                 )}
+
+              {/* Skip to Teleop Button - Only show during Full Game autonomous phases */}
+              {matchActive && sessionData.matchType === 'Full Game' && 
+               (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare') && (
+                <button
+                  type="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
+                  onClick={skipToTeleop}
+                  className="px-4 py-2 rounded-xl border-2 border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-500 text-sm font-semibold transition-colors flex items-center gap-2"
+                >
+                  <span>⏭</span>
+                  Skip to Teleop
+                </button>
+              )}
 
               {/* Cancel Current Match Button */}
               {matchActive && (

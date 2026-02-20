@@ -62,6 +62,7 @@ interface SessionContextType {
   /** Whether the current match has been explicitly started (resets between matches) */
   matchActive: boolean;
   setMatchActive: (active: boolean) => void;
+  skipToTeleop: () => void;
 }
 
 // Helper to determine initial timer duration based on match type
@@ -506,6 +507,23 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setHasActiveSessionLocal(false);
   }, []);
 
+  const skipToTeleop = useCallback(() => {
+    // Only allow skip to teleop during Full Game mode in autonomous phases
+    if (sessionData.matchType === 'Full Game' && 
+        (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare')) {
+      // Move directly to teleop phase
+      setMatchPhase('teleop');
+      // Set timer to teleop duration (120 seconds)
+      setTimer(120);
+      // Reset phase timer
+      setPhaseTimer(0);
+      // Resume the timer if it's not already running
+      if (!isTimerRunning) {
+        setIsTimerRunning(true);
+      }
+    }
+  }, [sessionData.matchType, matchPhase, isTimerRunning]);
+
   const value: SessionContextType = {
     sessionData,
     updateSessionData,
@@ -538,6 +556,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     saveEditedMatch,
     matchActive,
     setMatchActive,
+    skipToTeleop,
   };
 
   return (
