@@ -64,33 +64,33 @@ const SettingsPreview = ({ dark }: { dark: boolean }) => {
         Session Settings
       </div>
       <div className="space-y-2">
-        <div>
-          <div className="text-xs mb-1" style={{ color: labelCol }}>
-            Session Name *
-          </div>
-          <div
-            className="rounded-lg px-3 py-2 text-xs border flex items-center"
-            style={{
-              backgroundColor: inputBg,
-              borderColor:
-                phase === 'typing' ? 'rgb(var(--team-blue))' : borderCol,
-              color: dark ? '#fff' : '#000',
-              transition: 'border-color 0.2s',
-            }}
-          >
-            <span>{fullText.slice(0, charIdx)}</span>
-            {phase === 'typing' && (
-              <span
-                className="inline-block w-[2px] h-3.5 ml-[1px]"
-                style={{
-                  backgroundColor: 'rgb(var(--team-blue))',
-                  animation: 'ttCursorBlink 0.8s step-end infinite',
-                }}
-              />
-            )}
-          </div>
-        </div>
         <div className="flex gap-2">
+          <div className="flex-1">
+            <div className="text-xs mb-1" style={{ color: labelCol }}>
+              Session Name
+            </div>
+            <div
+              className="rounded-lg px-3 py-2 text-xs border flex items-center"
+              style={{
+                backgroundColor: inputBg,
+                borderColor:
+                  phase === 'typing' ? 'rgb(var(--team-blue))' : borderCol,
+                color: dark ? '#fff' : '#000',
+                transition: 'border-color 0.2s',
+              }}
+            >
+              <span>{fullText.slice(0, charIdx)}</span>
+              {phase === 'typing' && (
+                <span
+                  className="inline-block w-[2px] h-3.5 ml-[1px]"
+                  style={{
+                    backgroundColor: 'rgb(var(--team-blue))',
+                    animation: 'ttCursorBlink 0.8s step-end infinite',
+                  }}
+                />
+              )}
+            </div>
+          </div>
           <div className="flex-1">
             <div className="text-xs mb-1" style={{ color: labelCol }}>
               Match Type
@@ -104,21 +104,6 @@ const SettingsPreview = ({ dark }: { dark: boolean }) => {
               }}
             >
               Full Game
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="text-xs mb-1" style={{ color: labelCol }}>
-              Features
-            </div>
-            <div
-              className="rounded-lg px-3 py-2 text-xs border"
-              style={{
-                backgroundColor: inputBg,
-                borderColor: borderCol,
-                color: dark ? '#fff' : '#000',
-              }}
-            >
-              Cycle Times ✓
             </div>
           </div>
         </div>
