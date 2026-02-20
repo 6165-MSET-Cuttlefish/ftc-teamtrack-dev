@@ -745,16 +745,18 @@ function dropElement(el: HTMLElement) {
 
 export const ActiveTutorial = () => {
   const { isDarkMode } = useTheme();
-  const { user } = useAuth();
+  const { user, isGuest, guestId, loading } = useAuth();
   const { resetSession } = useSession();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const prevElRef = useRef<HTMLElement | null>(null);
 
-  // Generate user-specific tutorial key so each account sees tutorial independently
-  const getTutorialKey = useCallback(() => user?.uid
-    ? `${TUTORIAL_STORAGE_KEY}-${user.uid}`
-    : TUTORIAL_STORAGE_KEY, [user]);
+  // Generate a stable tutorial key for both logged-in users and guests
+  const getTutorialKey = useCallback(() => {
+    if (user?.uid) return `${TUTORIAL_STORAGE_KEY}-${user.uid}`;
+    if (guestId) return `${TUTORIAL_STORAGE_KEY}-guest-${guestId}`;
+    return TUTORIAL_STORAGE_KEY;
+  }, [user, guestId]);
 
   // Start tutorial when navigated here via the header button
   useEffect(() => {
@@ -769,16 +771,19 @@ export const ActiveTutorial = () => {
     }
   }, []); // only on mount — independent of user loading
 
-  // Auto-show on first visit (per user)
+  // Auto-show on first visit — works for both logged-in users AND guests
   useEffect(() => {
-    if (!user) return; // Wait for user to be loaded
+    // Wait until auth has resolved (not still loading)
+    if (loading) return;
+    // Must have some identity (logged-in user OR guest)
+    if (!user && !isGuest) return;
     const tutorialKey = getTutorialKey();
     const seen = localStorage.getItem(tutorialKey);
     if (!seen) {
       const t = setTimeout(() => setVisible(true), 500);
       return () => clearTimeout(t);
     }
-  }, [user, getTutorialKey]);
+  }, [loading, user, isGuest, getTutorialKey]);
 
   // Listen for restart
   useEffect(() => {
@@ -871,12 +876,10 @@ export const ActiveTutorial = () => {
     resetSession();
     // Scroll back to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    // Mark tutorial as seen for this user
-    const tutorialKey = user?.uid
-      ? `${TUTORIAL_STORAGE_KEY}-${user.uid}`
-      : TUTORIAL_STORAGE_KEY;
+    // Mark tutorial as seen for this user/guest
+    const tutorialKey = getTutorialKey();
     localStorage.setItem(tutorialKey, 'true');
-  }, [user, clearHighlight, resetSession]);
+  }, [getTutorialKey, clearHighlight, resetSession]);
 
   const next = useCallback(() => {
     if (step >= STEPS.length - 1) dismiss();

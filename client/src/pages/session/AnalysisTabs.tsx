@@ -326,6 +326,10 @@ export const CHART_COLORS = {
   secondary: '#7ba8ba',// muted steel – Session Avg bars
   missed: '#ef4444',   // red      – Missed balls
   purple: '#a855f7',   // purple   – Cycle time
+  shot: '#3b82f6',     // blue     – Balls Shot
+  made: '#10b981',     // emerald  – Balls Made
+  missedAuto: '#ef4444', // red    – Auto Missed
+  missedTele: '#f97316', // orange – Teleop Missed
 };
 
 // ─── Tab definitions ─────────────────────────────────────────────────────────
@@ -385,6 +389,18 @@ export const SummaryTab = ({
   const hasAnyBallsData =
     ballsShotData.some(d => d['Auto Balls'] + d['Teleop Balls'] > 0) ||
     ballsMissedData.some(d => d['Auto Balls'] + d['Teleop Balls'] > 0);
+
+  // Compute a single fixed Y-axis max across ALL three views so scale is constant
+  const ballsYMax = (() => {
+    const allValues = [
+      ...ballsShotData.flatMap(d => [d['Auto Balls'], d['Teleop Balls']]),
+      ...ballsMadeData.flatMap(d => [d['Auto Balls'], d['Teleop Balls']]),
+      ...ballsMissedData.flatMap(d => [d['Auto Balls'], d['Teleop Balls']]),
+    ];
+    const max = Math.max(0, ...allValues);
+    // Round up to nearest 5 for clean ticks
+    return Math.ceil((max + 1) / 5) * 5;
+  })();
 
   const accuracyData = matches.map((m, i) => {
     const autonMade = (m.autonShots || []).reduce((s, e) => s + e.ballsMade, 0);
@@ -586,6 +602,7 @@ export const SummaryTab = ({
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                 tick={{ fontSize: 12 }}
                 allowDecimals={false}
+                domain={[0, ballsYMax]}
               />
               <Tooltip
                 content={<ChartTooltip isDarkMode={isDarkMode} />}
@@ -594,13 +611,21 @@ export const SummaryTab = ({
               <Legend wrapperStyle={{ fontSize: '13px' }} />
               <Bar
                 dataKey="Auto Balls"
-                fill={ballsView === 'missed' ? CHART_COLORS.missed : CHART_COLORS.auto}
+                fill={
+                  ballsView === 'shot' ? CHART_COLORS.shot
+                  : ballsView === 'made' ? CHART_COLORS.made
+                  : CHART_COLORS.missedAuto
+                }
                 radius={[4, 4, 0, 0]}
                 activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
               <Bar
                 dataKey="Teleop Balls"
-                fill={ballsView === 'missed' ? '#f97316' : CHART_COLORS.tele}
+                fill={
+                  ballsView === 'shot' ? '#93c5fd'   /* light blue for Teleop Shot */
+                  : ballsView === 'made' ? '#6ee7b7'  /* light emerald for Teleop Made */
+                  : CHART_COLORS.missedTele
+                }
                 radius={[4, 4, 0, 0]}
                 activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
               />
@@ -612,6 +637,11 @@ export const SummaryTab = ({
       {/* Accuracy Trend */}
       {hasAnyAccuracyData && (
         <Section title="Shooting Accuracy" isDarkMode={isDarkMode}>
+          {matches.length < 2 && (
+            <p className={`text-xs mb-3 italic ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`}>
+              Need a minimum of 2 matches to show a trend line.
+            </p>
+          )}
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={accuracyData}>
               <CartesianGrid
@@ -638,33 +668,37 @@ export const SummaryTab = ({
                 stroke={isDarkMode ? '#ffffff20' : '#00000015'}
                 strokeDasharray="4 4"
               />
-              <Line
-                type="monotone"
-                dataKey="Overall"
-                stroke={isDarkMode ? '#e2e8f0' : CHART_COLORS.primary}
-                strokeWidth={3}
-                dot={{ fill: isDarkMode ? '#e2e8f0' : CHART_COLORS.primary, r: 5 }}
-                strokeDasharray="5 5"
-                connectNulls={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="Autonomous"
-                stroke={CHART_COLORS.auto}
-                strokeWidth={2}
-                dot={{ fill: CHART_COLORS.auto, r: 3 }}
-                strokeDasharray="5 5"
-                connectNulls={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="Teleop"
-                stroke={CHART_COLORS.tele}
-                strokeWidth={2}
-                dot={{ fill: CHART_COLORS.tele, r: 3 }}
-                strokeDasharray="5 5"
-                connectNulls={false}
-              />
+              {matches.length >= 2 && (
+                <>
+                  <Line
+                    type="monotone"
+                    dataKey="Overall"
+                    stroke={isDarkMode ? '#e2e8f0' : CHART_COLORS.primary}
+                    strokeWidth={3}
+                    dot={{ fill: isDarkMode ? '#e2e8f0' : CHART_COLORS.primary, r: 5 }}
+                    strokeDasharray="5 5"
+                    connectNulls={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Autonomous"
+                    stroke={CHART_COLORS.auto}
+                    strokeWidth={2}
+                    dot={{ fill: CHART_COLORS.auto, r: 3 }}
+                    strokeDasharray="5 5"
+                    connectNulls={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Teleop"
+                    stroke={CHART_COLORS.tele}
+                    strokeWidth={2}
+                    dot={{ fill: CHART_COLORS.tele, r: 3 }}
+                    strokeDasharray="5 5"
+                    connectNulls={false}
+                  />
+                </>
+              )}
             </LineChart>
           </ResponsiveContainer>
         </Section>
@@ -673,6 +707,11 @@ export const SummaryTab = ({
       {/* Average Cycle Time */}
       {cycleTimeData.length > 0 && (
         <Section title="Average Cycle Time" isDarkMode={isDarkMode}>
+          {matches.length < 2 && (
+            <p className={`text-xs mb-3 italic ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`}>
+              Need a minimum of 2 matches to show a trend line.
+            </p>
+          )}
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={cycleTimeData}>
               <CartesianGrid
@@ -696,15 +735,17 @@ export const SummaryTab = ({
                 }
               />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
-              <Line
-                type="monotone"
-                dataKey="Avg Cycle"
-                name="Avg Cycle Time"
-                stroke={CHART_COLORS.purple}
-                strokeWidth={2}
-                dot={{ fill: CHART_COLORS.purple, r: 4 }}
-                connectNulls={false}
-              />
+              {matches.length >= 2 && (
+                <Line
+                  type="monotone"
+                  dataKey="Avg Cycle"
+                  name="Avg Cycle Time"
+                  stroke={CHART_COLORS.purple}
+                  strokeWidth={2}
+                  dot={{ fill: CHART_COLORS.purple, r: 4 }}
+                  connectNulls={false}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </Section>

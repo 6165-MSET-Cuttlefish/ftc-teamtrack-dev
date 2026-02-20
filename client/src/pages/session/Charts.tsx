@@ -286,37 +286,6 @@ const Charts = () => {
     });
   };
 
-  // Consistency Over Time (rolling standard deviation)
-  const getConsistencyOverTimeData = (): ChartDataPoint[] => {
-    const allSessions = getFilteredSessions();
-    if (allSessions.length < 3) return [];
-
-    const sorted = [...allSessions].sort(
-      (a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime()
-    );
-
-    return sorted.slice(2).map((session, index) => {
-      const windowSessions = sorted.slice(Math.max(0, index), index + 3);
-      const scores = windowSessions.map(s => getSessionScore(s));
-      const mean = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-      const variance =
-        scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) /
-        scores.length;
-      const stdDev = Math.sqrt(variance);
-      // Convert to consistency percentage (lower std dev = higher consistency)
-      const consistency =
-        mean > 0 ? Math.max(0, Math.min(100, 100 - (stdDev / mean) * 100)) : 0;
-
-      const sessionScore = getSessionScore(session);
-
-      return {
-        name: formatChartDate(session.createdAt),
-        Consistency: Math.round(consistency),
-        Score: sessionScore,
-      };
-    });
-  };
-
   // Accuracy Over Time (balls made percentage per session)
   const getAccuracyOverTimeData = (): ChartDataPoint[] => {
     const allSessions = getFilteredSessions();
@@ -355,63 +324,6 @@ const Charts = () => {
       return {
         name: `#${recent.length - index}`,
         Accuracy: accuracy,
-      };
-    });
-  };
-
-  const getAverageCycleTimeData = (): ChartDataPoint[] => {
-    const allSessions = getFilteredSessions();
-    const sorted = [...allSessions].sort(
-      (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime()
-    );
-
-    const recent = sorted.slice(0, 10).reverse();
-
-    return recent.map((session, index) => {
-      let totalCycleTimes: number[] = [];
-
-      if (session.matches && session.matches.length > 0) {
-        session.matches.forEach(match => {
-          // First try to get cycle times from the cycleTimes array
-          if (
-            match.cycleTimes &&
-            Array.isArray(match.cycleTimes) &&
-            match.cycleTimes.length > 0
-          ) {
-            totalCycleTimes.push(...match.cycleTimes);
-          }
-          
-          // Also extract from shot entries for completeness
-          if (match.autonShots && Array.isArray(match.autonShots)) {
-            match.autonShots.forEach(shot => {
-              if (shot.cycleTime !== undefined) {
-                totalCycleTimes.push(shot.cycleTime);
-              }
-            });
-          }
-          if (match.teleopShots && Array.isArray(match.teleopShots)) {
-            match.teleopShots.forEach(shot => {
-              if (shot.cycleTime !== undefined) {
-                totalCycleTimes.push(shot.cycleTime);
-              }
-            });
-          }
-        });
-      }
-
-      const avgCycleTime =
-        totalCycleTimes.length > 0
-          ? parseFloat(
-              (
-                totalCycleTimes.reduce((sum, t) => sum + t, 0) /
-                totalCycleTimes.length
-              ).toFixed(2)
-            )
-          : 0;
-
-      return {
-        name: `#${recent.length - index}`,
-        'Avg Cycle Time': avgCycleTime,
       };
     });
   };
@@ -559,8 +471,6 @@ const Charts = () => {
   const ballsMissedTrendData = getBallsMissedTrendData();
   const cycleTimeData = getCycleTimeData();
   const recentTrendData = getRecentTrendData();
-  const consistencyOverTimeData = getConsistencyOverTimeData();
-  const avgCycleTimeData = getAverageCycleTimeData();
 
   return (
     <div
@@ -674,13 +584,7 @@ const Charts = () => {
                       ) : '0';
 
                       const mean = avgScore;
-                      const variance =
-                        allScores.reduce(
-                          (acc, score) => acc + Math.pow(score - mean, 2),
-                          0
-                        ) / count;
-                      const stdDev = Math.sqrt(variance);
-                      const cv = (stdDev / mean) * 100;
+                      void mean; // used for autoPercent/telePercent
 
                       return (
                         <>
@@ -703,17 +607,6 @@ const Charts = () => {
                               Score Distribution:
                             </span>{' '}
                             {autoPercent}% Auto, {telePercent}% Teleop
-                          </div>
-                          <div>
-                            <span className="font-semibold text-team-blue">
-                              Consistency:
-                            </span>{' '}
-                            {cv < 15
-                              ? 'Excellent'
-                              : cv < 25
-                                ? 'Good'
-                                : 'Improving'}{' '}
-                            (±{Math.round(stdDev)} pts)
                           </div>
                           <div>
                             <span className="font-semibold text-team-blue">
@@ -798,50 +691,46 @@ const Charts = () => {
             <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
               <div className="text-center">
                 {(() => {
-                  if (getFilteredSessions().length < 2) {
+                  const sessions = getFilteredSessions();
+                  if (sessions.length < 2) {
                     return (
                       <div className="text-team-blue text-2xl sm:text-3xl font-bold">
                         —
                       </div>
                     );
                   }
-                  const sorted = [...getFilteredSessions()].sort(
+                  const sorted = [...sessions].sort(
                     (a, b) =>
                       toDate(a.createdAt).getTime() -
                       toDate(b.createdAt).getTime()
                   );
-                  const firstHalf = sorted.slice(
-                    0,
-                    Math.floor(sorted.length / 2)
-                  );
-                  const secondHalf = sorted.slice(
-                    Math.floor(sorted.length / 2)
-                  );
-                  const firstAvg =
-                    firstHalf.reduce(
-                      (sum, s) => sum + getSessionScore(s),
-                      0
-                    ) / firstHalf.length;
-                  const secondAvg =
-                    secondHalf.reduce(
-                      (sum, s) => sum + getSessionScore(s),
-                      0
-                    ) / secondHalf.length;
-                  const improvement = secondAvg - firstAvg;
-                  const isPositive = improvement > 0;
+                  // Overall average across all sessions except the most recent
+                  const allButLast = sorted.slice(0, -1);
+                  const overallAvg =
+                    allButLast.reduce((sum, s) => sum + getSessionScore(s), 0) /
+                    allButLast.length;
+                  // Most recent session score
+                  const lastScore = getSessionScore(sorted[sorted.length - 1]);
+                  const diff = lastScore - Math.round(overallAvg);
+                  const isPositive = diff > 0;
 
                   return (
-                    <div
-                      className={`text-2xl sm:text-3xl font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}
-                    >
-                      {isPositive ? '+' : ''}{Math.round(improvement)}
-                    </div>
+                    <>
+                      <div
+                        className={`text-2xl sm:text-3xl font-bold ${isPositive ? 'text-green-500' : diff < 0 ? 'text-red-500' : 'text-team-blue'}`}
+                      >
+                        {isPositive ? '+' : ''}{diff}
+                      </div>
+                      <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-400'}`}>
+                        Last: {lastScore} · Avg: {Math.round(overallAvg)}
+                      </div>
+                    </>
                   );
                 })()}
                 <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  className={`text-xs sm:text-sm font-medium mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                 >
-                  Score Improvement
+                  Last Session vs. Avg
                 </div>
               </div>
             </CardContent>
@@ -1044,67 +933,6 @@ const Charts = () => {
               </CardContent>
             </Card>
 
-            {/* Consistency Over Time */}
-            {consistencyOverTimeData.length > 0 && (
-              <Card
-                className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
-              >
-                <CardHeader>
-                  <CardTitle
-                    className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                  >
-                    Consistency Over Time
-                  </CardTitle>
-                  <CardDescription
-                    className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                  >
-                    Rolling 3-session consistency percentage
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="w-full overflow-x-auto">
-                    <ResponsiveContainer
-                      width="100%"
-                      height={220}
-                      minWidth={300}
-                    >
-                      <LineChart data={consistencyOverTimeData}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                        />
-                        <XAxis
-                          dataKey="name"
-                          stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <YAxis
-                          stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                          tick={{ fontSize: 12 }}
-                          domain={[0, 100]}
-                        />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{ fontSize: '14px' }} />
-                        <Line
-                          type="monotone"
-                          dataKey="Consistency"
-                          stroke={COLORS.purple}
-                          strokeWidth={3}
-                          dot={{
-                            fill: COLORS.purple,
-                            r: 5,
-                            strokeWidth: 2,
-                            stroke: '#fff',
-                          }}
-                          animationDuration={1200}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Accuracy Over Time */}
             {getAccuracyOverTimeData().length > 0 && (
               <Card
@@ -1236,7 +1064,7 @@ const Charts = () => {
           </Card>
 
           {/* Average Cycle Time Trend */}
-          {avgCycleTimeData.length > 0 && (
+          {cycleTimeData.length > 0 && (
             <Card
               className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
             >
@@ -1249,70 +1077,7 @@ const Charts = () => {
                 <CardDescription
                   className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                 >
-                  Average cycle time per session (last 10)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="w-full overflow-x-auto">
-                  <ResponsiveContainer width="100%" height={240} minWidth={300}>
-                    <LineChart data={avgCycleTimeData}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                      />
-                      <XAxis
-                        dataKey="name"
-                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis
-                        stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                        tick={{ fontSize: 12 }}
-                        label={{
-                          value: 'Seconds',
-                          angle: -90,
-                          position: 'insideLeft',
-                          style: { fontSize: 12 },
-                        }}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ fontSize: '14px' }} />
-                      <Line
-                        type="monotone"
-                        dataKey="Avg Cycle Time"
-                        stroke={COLORS.primary}
-                        strokeWidth={3}
-                        dot={{
-                          fill: COLORS.primary,
-                          r: 5,
-                          strokeWidth: 2,
-                          stroke: '#fff',
-                        }}
-                        activeDot={{ r: 8 }}
-                        animationDuration={1500}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Cycle Time Analysis */}
-          {cycleTimeData.length > 0 && (
-            <Card
-              className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
-            >
-              <CardHeader>
-                <CardTitle
-                  className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  Cycle Time Analysis
-                </CardTitle>
-                <CardDescription
-                  className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Average cycle time per session (seconds)
+                  Average, fastest, and slowest cycle time across all sessions (seconds)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1330,13 +1095,13 @@ const Charts = () => {
                       />
                       <YAxis
                         stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                        tick={{ fontSize: 12 }}
                         label={{
                           value: 'Seconds',
                           angle: -90,
                           position: 'insideLeft',
                           style: { fontSize: 12 },
                         }}
-                        tick={{ fontSize: 12 }}
                       />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend wrapperStyle={{ fontSize: '14px' }} />
@@ -1351,6 +1116,7 @@ const Charts = () => {
                           strokeWidth: 2,
                           stroke: '#fff',
                         }}
+                        activeDot={{ r: 8 }}
                         animationDuration={1200}
                       />
                       <Line
