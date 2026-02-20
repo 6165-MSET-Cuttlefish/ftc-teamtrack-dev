@@ -101,7 +101,7 @@ const Signup = () => {
       className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-3 sm:px-4 md:px-6 lg:px-8`}
     >
       <Card
-        className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-gradient-to-br from-team-dark via-team-dark to-team-dark-20 border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+        className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
           <CardTitle
@@ -256,19 +256,14 @@ const Signup = () => {
             </Button>
           </form>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span
-                className={`w-full border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`}
-              />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span
-                className={`${isDarkMode ? 'bg-team-dark text-team-white-40' : 'bg-white text-team-blue-40'} px-2`}
-              >
-                Or continue with
-              </span>
-            </div>
+          <div className="flex items-center gap-4">
+            <div className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`} />
+            <span
+              className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+            >
+              Or continue with
+            </span>
+            <div className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`} />
           </div>
 
           <Button

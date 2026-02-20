@@ -70,7 +70,7 @@ const ActiveSessionContent = () => {
 
           {/* Timer Section at Top - Scrolls with Page */}
           <div
-            className="space-y-4 px-4"
+            className="space-y-4 px-4 py-4"
             data-tutorial="timer"
           >
             {/* Session Name */}
@@ -125,7 +125,7 @@ const ActiveSessionContent = () => {
           </div>
 
           {/* Live Preview (controls, buttons, scores) */}
-          <div data-tutorial="controls" className="px-4">
+          <div data-tutorial="controls" className="px-4 py-4">
             <LivePreview
               onOpenSessionSetup={() => setShowSessionSetup(!showSessionSetup)}
               onTryStartWithoutSetup={() => {
@@ -141,7 +141,7 @@ const ActiveSessionContent = () => {
           {/* Session Setup - Toggle visibility with settings icon */}
           {showSessionSetup && (
             <>
-              <div data-tutorial="session-setup" className="px-4">
+              <div data-tutorial="session-setup" className="px-4 py-4">
                 <SessionSetup
                   onSave={() => {
                     setShowSessionSetup(false);
@@ -158,26 +158,26 @@ const ActiveSessionContent = () => {
           )}
 
           {/* Gate Visual */}
-          <div data-tutorial="gate" className="px-4">
+          <div data-tutorial="gate" className="px-4 py-4">
             <GateVisual />
           </div>
 
           {/* Scoring UI */}
-          <div data-tutorial="scoring" className="px-4">
+          <div data-tutorial="scoring" className="px-4 py-4">
             <ScoringUI />
           </div>
 
           <Divider />
 
           {/* Performance Metrics */}
-          <div data-tutorial="metrics" className="px-4">
+          <div data-tutorial="metrics" className="px-4 py-4">
             <PerformanceMetrics />
           </div>
 
           <Divider />
 
           {/* Session Notes */}
-          <div data-tutorial="notes" className="px-4">
+          <div data-tutorial="notes" className="px-4 py-4">
             <Notes />
           </div>
         </div>
