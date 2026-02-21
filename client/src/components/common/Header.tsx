@@ -516,7 +516,7 @@ const CompactTimer = () => {
 
 export const Header = () => {
   const { isDarkMode } = useTheme();
-  const { hasStarted } = useSession();
+  const { hasStarted, sessionData } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
   const isOnSessionsPage = location.pathname === '/sessions';
@@ -525,7 +525,8 @@ export const Header = () => {
   const [headerEl, setHeaderEl] = useState<HTMLElement | null>(null);
 
   const showCompactTimer =
-    (isOnActivePage && timerScrolledPast) || (!isOnActivePage && hasStarted);
+    !sessionData.isSessionCompleted &&
+    ((isOnActivePage && timerScrolledPast) || (!isOnActivePage && hasStarted));
 
   useEffect(() => {
     if (!isOnActivePage) {

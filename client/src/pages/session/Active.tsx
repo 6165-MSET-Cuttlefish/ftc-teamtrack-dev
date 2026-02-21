@@ -9,6 +9,8 @@ import {
   ActiveTutorial,
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
+import { useMatchAudio } from '@/hooks';
+import { isInAudioIntroPhase } from '@/lib';
 import { APP_CONFIG } from '@/constants';
 
 /** Thin divider that adapts to the current theme */
@@ -33,6 +35,8 @@ const ActiveSessionContent = () => {
   );
   const [shouldFlashSetup, setShouldFlashSetup] = useState(false);
 
+  useMatchAudio(); // Initialize match audio with appropriate events
+
   useEffect(() => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
     
@@ -51,6 +55,7 @@ const ActiveSessionContent = () => {
     timer,
     sessionTimer,
     formatTime,
+    getDisplayTimer,
     matchPhase,
     isTimerRunning,
     phaseTimer,
@@ -88,18 +93,22 @@ const ActiveSessionContent = () => {
             </div>
 
             {/* Large Match Timer - Single Line */}
-            <div className="flex flex-col items-center">
-              <div
-                className={`text-7xl sm:text-8xl tracking-wider leading-none transition-colors font-righteous ${getTimerColor()}`}
-                style={{
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {matchPhase === 'controller_pickup' || matchPhase === 'prepare'
-                  ? formatTime(phaseTimer)
-                  : formatTime(timer)}
+            {!isInAudioIntroPhase(timer) && (
+              <div className="flex flex-col items-center">
+                <div
+                  className={`text-7xl sm:text-8xl tracking-wider leading-none transition-colors font-righteous ${getTimerColor()}`}
+                  style={{
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  {matchPhase === 'controller_pickup' || matchPhase === 'prepare'
+                    ? formatTime(phaseTimer)
+                    : matchPhase === 'auton'
+                      ? formatTime(getDisplayTimer(timer, matchPhase))
+                      : formatTime(timer)}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Timer Info Below */}
             <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
@@ -140,6 +149,11 @@ const ActiveSessionContent = () => {
                 setShowSessionSetup(true);
               }}
               isSessionSetupSaved={isSessionSetupSaved}
+              onSessionReset={() => {
+                setIsSessionSetupSaved(false);
+                setShowSessionSetup(true);
+                setShouldFlashSetup(false);
+              }}
             />
           </div>
 

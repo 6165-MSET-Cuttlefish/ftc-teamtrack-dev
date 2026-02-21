@@ -4,6 +4,8 @@ export {
   toDate,
   formatDate,
   formatTime,
+  getDisplayTimer,
+  isInAudioIntroPhase,
   getInitials,
   isAbortError,
   getErrorMessage,
