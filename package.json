@@ -1,5 +1,5 @@
 {
-  "name": "teamtrack-v2",
+  "name": "teamtrack",
   "private": false,
   "license": "MIT",
   "description": "A web app for FTC (FIRST Tech Challenge) teams to track match performance, analyze scoring trends, and collaborate with teammates in real time.",

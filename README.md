@@ -1,4 +1,4 @@
-# TeamTrack v2
+# TeamTrack
 
 TeamTrack is a scouting and performance tracking app for FTC (FIRST Tech Challenge) teams. You can record scores during practice matches, review trends across sessions, and share results with your team.
 
