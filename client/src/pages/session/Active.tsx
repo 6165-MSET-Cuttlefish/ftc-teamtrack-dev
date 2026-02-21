@@ -147,50 +147,55 @@ const ActiveSessionContent = () => {
             />
           </div>
 
-          <Divider />
-
-          {/* Session Setup - Toggle visibility with settings icon */}
-          {showSessionSetup && (
+          {/* Hide everything below controls when session is completed */}
+          {!sessionData.isSessionCompleted && (
             <>
-              <div data-tutorial="session-setup" className="px-4 py-4 relative z-50">
-                <SessionSetup
-                  onSave={() => {
-                    setShowSessionSetup(false);
-                    setIsSessionSetupSaved(true);
-                    setShouldFlashSetup(false);
-                  }}
-                  shouldFlash={shouldFlashSetup}
-                  isUnsaved={!isSessionSetupSaved}
-                />
+              <Divider />
+
+              {/* Session Setup - Toggle visibility with settings icon */}
+              {showSessionSetup && (
+                <>
+                  <div data-tutorial="session-setup" className="px-4 py-4 relative z-50">
+                    <SessionSetup
+                      onSave={() => {
+                        setShowSessionSetup(false);
+                        setIsSessionSetupSaved(true);
+                        setShouldFlashSetup(false);
+                      }}
+                      shouldFlash={shouldFlashSetup}
+                      isUnsaved={!isSessionSetupSaved}
+                    />
+                  </div>
+
+                  <Divider />
+                </>
+              )}
+
+              {/* Gate Visual */}
+              <div data-tutorial="gate" className="px-4 py-4">
+                <GateVisual />
+              </div>
+
+              {/* Scoring UI */}
+              <div data-tutorial="scoring" className="px-4 py-4">
+                <ScoringUI />
               </div>
 
               <Divider />
+
+              {/* Performance Metrics */}
+              <div data-tutorial="metrics" className="px-4 py-4">
+                <PerformanceMetrics />
+              </div>
+
+              <Divider />
+
+              {/* Session Notes */}
+              <div data-tutorial="notes" className="px-4 py-4">
+                <Notes />
+              </div>
             </>
           )}
-
-          {/* Gate Visual */}
-          <div data-tutorial="gate" className="px-4 py-4">
-            <GateVisual />
-          </div>
-
-          {/* Scoring UI */}
-          <div data-tutorial="scoring" className="px-4 py-4">
-            <ScoringUI />
-          </div>
-
-          <Divider />
-
-          {/* Performance Metrics */}
-          <div data-tutorial="metrics" className="px-4 py-4">
-            <PerformanceMetrics />
-          </div>
-
-          <Divider />
-
-          {/* Session Notes */}
-          <div data-tutorial="notes" className="px-4 py-4">
-            <Notes />
-          </div>
         </div>
       </div>
     </div>
