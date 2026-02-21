@@ -3,9 +3,6 @@ import { firebaseService } from '@/services';
 import { isAbortError } from '@/lib/utils';
 import type { Session, CreateSessionData } from '@/types';
 
-// Re-export SessionData for backwards compatibility
-export type SessionData = Session;
-
 interface UseFirebaseState {
   loading: boolean;
   error: string | null;

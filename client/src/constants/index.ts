@@ -24,22 +24,18 @@ export const ROUTES = {
 
 /**
  * Firebase configuration
- * These are public keys used by the web client (not secrets)
- * Firebase security is enforced through Firestore security rules and authentication
+ * Loaded from environment variables (VITE_FIREBASE_*)
+ * See .env.example for the required variables
  */
-const getFirebaseConfig = () => {
-  return {
-    apiKey: 'AIzaSyA6WhYwzW8quaC9NykmCOAA9tEHc_-KAy8',
-    authDomain: 'teamtrack-572e5.firebaseapp.com',
-    projectId: 'teamtrack-572e5',
-    storageBucket: 'teamtrack-572e5.firebasestorage.app',
-    messagingSenderId: '590917117893',
-    appId: '1:590917117893:web:f14b58885344da4fcf8dac',
-    measurementId: 'G-WTN320D7S5',
-  } as const;
-};
-
-export const FIREBASE_CONFIG = getFirebaseConfig();
+export const FIREBASE_CONFIG = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ?? '',
+} as const;
 
 export const SCORING = {
   AUTON_CLASSIFIED_ARTIFACT: 3,

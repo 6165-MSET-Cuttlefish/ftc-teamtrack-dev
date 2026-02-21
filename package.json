@@ -1,6 +1,13 @@
 {
   "name": "teamtrack-v2",
-  "private": true,
+  "private": false,
+  "license": "MIT",
+  "description": "A web app for FTC (FIRST Tech Challenge) teams to track match performance, analyze scoring trends, and collaborate with teammates in real time.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/TeamTrack-v2-fe.git"
+  },
+  "keywords": ["ftc", "first-tech-challenge", "robotics", "team-management", "performance-tracking", "react", "firebase"],
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -125,18 +125,6 @@ const NavigationMenu = () => {
       sessionData.sessionName?.trim() ||
       (sessionData.matches && sessionData.matches.length > 0));
 
-  // Check if this is the user's first time and show tutorials
-  useEffect(() => {
-    if (user || isGuest) {
-      const hasSeenTutorials = localStorage.getItem(
-        STORAGE_KEYS.TUTORIALS_SEEN
-      );
-      if (!hasSeenTutorials) {
-        // Don't show keybinds tutorial automatically — the ActiveTutorial handles first-time onboarding
-      }
-    }
-  }, [user, isGuest]);
-
   const handleLogout = async () => {
     try {
       // Clear session data from storage before logging out

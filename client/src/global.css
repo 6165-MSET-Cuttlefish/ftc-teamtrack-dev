@@ -1,7 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Righteous:wght@400&display=swap');
 
 @tailwind base;
@@ -55,22 +53,6 @@
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-
     /* Design tokens (light mode defaults) */
     --team-blue: 83 119 136; /* #537788 */
     --team-white: 254 254 254; /* #FEFEFE (slightly off-white) */
@@ -104,14 +86,6 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* Design tokens for dark mode */
     --team-blue: 176 229 254; /* #B0E5FE */
@@ -445,122 +419,6 @@
 /* Gold glow effect for honeycomb theme */
 .honeycomb .border-glow:hover {
   box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
-}
-
-/* ==================== ZEN THEME ==================== */
-/* Purple swirl pattern inspired by zen/meditation aesthetic */
-
-.zen body {
-  background: #f8f8f8;
-}
-
-.zen #root {
-  position: relative;
-}
-
-.zen #root::before {
-  content: '';
-  position: fixed;
-  top: -50px;
-  left: -50px;
-  right: -50px;
-  bottom: -50px;
-  pointer-events: none;
-  z-index: -1;
-  background-color: #f8f8f8;
-
-  /* SVG swirl/wave pattern in purple */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%239370db' fill-opacity='0.15'%3E%3Cpath opacity='.5' d='M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z'/%3E%3Cpath d='M6 5V0H5v5H0v1h5v94h1V6h94V5H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  background-size: 100px 100px;
-}
-
-/* Circular swirl overlay for zen theme */
-.zen #root::after {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: -1;
-  background: 
-    /* Multiple circular gradients to create swirl effect */
-    radial-gradient(
-      ellipse 80% 50% at 20% 30%,
-      rgba(147, 112, 219, 0.08) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 60% 80% at 80% 70%,
-      rgba(147, 112, 219, 0.06) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 70% 60% at 50% 50%,
-      rgba(147, 112, 219, 0.04) 0%,
-      transparent 60%
-    );
-}
-
-/* Make page backgrounds show pattern for zen mode */
-.zen .bg-team-dark {
-  background-color: transparent !important;
-}
-
-.zen .bg-\[\#FEFEFE\] {
-  background-color: transparent !important;
-}
-
-.zen .bg-white {
-  background-color: rgba(248, 248, 248, 0.85) !important;
-}
-
-.zen .bg-gray-50 {
-  background-color: rgba(248, 248, 248, 0.7) !important;
-}
-
-.zen .bg-team-dark-20 {
-  background-color: rgba(248, 248, 248, 0.9) !important;
-}
-
-/* Zen theme accent colors - purple */
-.zen .text-team-blue {
-  color: #9370db !important;
-}
-
-.zen .bg-team-blue {
-  background-color: #9370db !important;
-}
-
-.zen .border-team-blue {
-  border-color: #9370db !important;
-}
-
-.zen .border-team-blue-40 {
-  border-color: rgba(147, 112, 219, 0.4) !important;
-}
-
-/* Purple glow effect for zen theme */
-.zen .border-glow:hover {
-  box-shadow: 0 0 20px rgba(147, 112, 219, 0.4);
-}
-
-/* Zen mode uses light text colors since it's a light background */
-.zen .text-white {
-  color: #1a1a1a !important;
-}
-
-.zen .text-team-white-60 {
-  color: rgba(26, 26, 26, 0.6) !important;
-}
-
-.zen .text-team-white-80 {
-  color: rgba(26, 26, 26, 0.8) !important;
-}
-
-.zen .border-team-white-20 {
-  border-color: rgba(147, 112, 219, 0.2) !important;
 }
 
 /* ==================== DEEP SEA THEME ==================== */

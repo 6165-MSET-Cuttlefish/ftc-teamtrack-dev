@@ -7,8 +7,6 @@ export { ErrorBoundary, Header } from './common';
 // Session feature components
 export {
   ActiveTutorial,
-  TUTORIAL_STORAGE_KEY,
-  TUTORIAL_RESTART_EVENT,
   GateVisual,
   LivePreview,
   MatchForm,
