@@ -270,7 +270,7 @@ const JoinTeam = () => {
             )}
 
             <Button
-              onClick={() => navigate(ROUTES.SESSIONS)}
+              onClick={() => window.location.href = ROUTES.SESSIONS}
               className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
             >
               <Users className="h-4 w-4 mr-2" />
