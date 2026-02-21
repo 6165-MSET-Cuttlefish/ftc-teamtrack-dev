@@ -286,37 +286,19 @@ const SessionCard = ({
       <CardContent className="pt-0 pb-6 px-6">
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
           <div className="flex items-center gap-3">
-            <Clock
+            <TrendingUp
               className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             />
             <div className="flex flex-col">
               <span
                 className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
-                Duration
+                Total Score
               </span>
               <span
                 className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
-                {session.sessionDuration || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Hash
-              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                Matches
-              </span>
-              <span
-                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {matchCount}
+                {totalScore} pts
               </span>
             </div>
           </div>
@@ -340,19 +322,37 @@ const SessionCard = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <TrendingUp
+            <Hash
               className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             />
             <div className="flex flex-col">
               <span
                 className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
-                Total Score
+                Matches
               </span>
               <span
                 className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
-                {totalScore} pts
+                {matchCount}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Clock
+              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            />
+            <div className="flex flex-col">
+              <span
+                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
+                Duration
+              </span>
+              <span
+                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
+                {session.sessionDuration || 'N/A'}
               </span>
             </div>
           </div>
