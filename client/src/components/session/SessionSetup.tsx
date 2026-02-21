@@ -24,8 +24,7 @@ export const SessionSetup = ({
   isUnsaved = false,
 }: SessionSetupProps) => {
   const { sessionData, updateSessionData, matchActive } = useSession();
-  const { isDarkMode } = useTheme();  // isDarkMode covers dark, honeycomb, deepsea
-  // team-blue CSS var is light on dark themes → black text; dark on light → white text
+  const { isDarkMode } = useTheme();
   const savedBtnClass = `bg-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`;
   const [isFlashing, setIsFlashing] = useState(shouldFlash);
 
@@ -84,9 +83,9 @@ export const SessionSetup = ({
 
         {/* Session Name and Match Type */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="space-y-2">
+          <div className="flex flex-col">
             <Label
-              className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              className={`text-sm font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             >
               Session Name
             </Label>
@@ -104,27 +103,18 @@ export const SessionSetup = ({
               }`}
             />
             {isUnsaved && !hasName && (
-              <p className="text-xs text-red-400 font-medium">
+              <p className="text-xs text-red-400 font-medium mt-2">
                 Session name is required
               </p>
             )}
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label
-                className={`text-sm font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                Match Type
-              </Label>
-              {(
-                <span className={`text-xs italic ${
-                  matchActive ? 'text-gray-500' : 'text-gray-400'
-                }`}>
-                  {matchActive ? 'Locked' : 'Will lock once match starts'}
-                </span>
-              )}
-            </div>
+          <div className="flex flex-col">
+            <Label
+              className={`text-sm font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            >
+              Match Type
+            </Label>
             <div
               className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
                 isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
@@ -147,6 +137,11 @@ export const SessionSetup = ({
                 </SelectContent>
               </Select>
             </div>
+            <p className={`text-xs italic mt-2 ${
+              matchActive ? 'text-gray-500' : 'text-gray-400'
+            }`}>
+              {matchActive ? 'Locked' : 'Will lock once match starts'}
+            </p>
           </div>
         </div>
 

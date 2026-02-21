@@ -286,37 +286,19 @@ const SessionCard = ({
       <CardContent className="pt-0 pb-6 px-6">
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
           <div className="flex items-center gap-3">
-            <Clock
+            <TrendingUp
               className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             />
             <div className="flex flex-col">
               <span
                 className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
-                Duration
+                Total Score
               </span>
               <span
                 className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
-                {session.sessionDuration || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Hash
-              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                Matches
-              </span>
-              <span
-                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {matchCount}
+                {totalScore} pts
               </span>
             </div>
           </div>
@@ -340,19 +322,37 @@ const SessionCard = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <TrendingUp
+            <Hash
               className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
             />
             <div className="flex flex-col">
               <span
                 className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
               >
-                Total Score
+                Matches
               </span>
               <span
                 className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
-                {totalScore} pts
+                {matchCount}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Clock
+              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            />
+            <div className="flex flex-col">
+              <span
+                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
+                Duration
+              </span>
+              <span
+                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
+                {session.sessionDuration || 'N/A'}
               </span>
             </div>
           </div>
@@ -749,28 +749,12 @@ const Sessions = () => {
               {!isGuest && <TeamManager onTeamChange={() => loadSessions()} />}
             </div>
             <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
-              <Button
-                onClick={() => {
-                  resetSession();
-                  navigate(ROUTES.ACTIVE);
-                }}
-                disabled={hasActiveSession}
-                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
-                className={`bg-team-blue hover:bg-team-blue/90 px-2 sm:px-3 md:px-4 py-2 text-xs sm:text-sm md:text-base flex items-center gap-1 sm:gap-1.5 flex-1 sm:flex-none min-h-[40px] sm:min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? '!text-black' : '!text-white'}`}
-              >
-                <Plus className="h-3 sm:h-4 w-3 sm:w-4" />
-                <span className="hidden sm:inline">New Session</span>
-                <span className="sm:hidden">New</span>
-              </Button>
               {sessions.length > 0 && (
                 <Button
                   onClick={() => navigate(ROUTES.CHARTS)}
-                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
-                    isDarkMode
-                      ? 'text-team-blue border-team-blue-40'
-                      : 'text-team-blue border-team-blue-40'
+                  className={`bg-team-blue hover:bg-team-blue/90 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
+                    isDarkMode ? '!text-black' : '!text-white'
                   }`}
-                  variant="outline"
                 >
                   <TrendingUp className="h-3 sm:h-4 w-3 sm:w-4" />
                   <span className="hidden sm:inline">Charts</span>

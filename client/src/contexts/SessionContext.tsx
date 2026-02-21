@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
-import { formatTime as formatTimeUtil } from '@/lib/utils';
+import { formatTime as formatTimeUtil, getDisplayTimer as getDisplayTimerUtil } from '@/lib/utils';
 import {
   saveSessionToStorage,
   loadSessionFromStorage,
@@ -39,6 +39,7 @@ interface SessionContextType {
   setIsTimerRunning: (running: boolean) => void;
   resetTimer: () => void;
   formatTime: (seconds: number) => string;
+  getDisplayTimer: (timer: number, phase: string) => number;
   /** Current FTC match phase */
   matchPhase: MatchPhase;
   setMatchPhase: (phase: MatchPhase) => void;
@@ -74,7 +75,7 @@ const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
       return 120; // 2:00 (120 seconds)
     case 'Full Game':
     default:
-      return 150; // 2:30 (150 seconds)
+      return 163; // 2:43 (163 seconds) - 3s buffer + 1.61s intro + 30s auto + 5s pickup + 3s prepare + 120s teleop
   }
 };
 
@@ -502,6 +503,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setMatchActive(false);
     setHasTransitionedToTeleop(false);
     setShowTeleopTransition(false);
+    setEditingMatchId(null);
+    setCurrentMatchData(null);
     // Clear from storage immediately to prevent race conditions with persistence effect
     clearSessionFromStorage();
     setHasActiveSessionLocal(false);
@@ -536,6 +539,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setIsTimerRunning,
     resetTimer,
     formatTime: formatTimeUtil,
+    getDisplayTimer: getDisplayTimerUtil,
     matchPhase,
     setMatchPhase,
     phaseTimer,

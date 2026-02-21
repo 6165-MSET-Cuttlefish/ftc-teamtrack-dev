@@ -21,8 +21,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  TrendingUp,
-  TrendingDown,
   Calendar,
 } from 'lucide-react';
 import { toast } from 'sonner';

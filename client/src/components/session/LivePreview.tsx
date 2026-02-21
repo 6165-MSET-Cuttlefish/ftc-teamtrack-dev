@@ -13,12 +13,14 @@ interface LivePreviewProps {
   onOpenSessionSetup?: () => void;
   onTryStartWithoutSetup?: () => void;
   isSessionSetupSaved?: boolean;
+  onSessionReset?: () => void;
 }
 
 export const LivePreview = ({
   onOpenSessionSetup,
   onTryStartWithoutSetup,
   isSessionSetupSaved = false,
+  onSessionReset,
 }: LivePreviewProps) => {
   const {
     sessionData,
@@ -41,7 +43,6 @@ export const LivePreview = ({
     setMatchPhase,
     setPhaseTimer,
     editingMatchId,
-    returnToCurrentMatch,
     saveEditedMatch,
     startEditingMatch,
     matchActive,
@@ -60,6 +61,7 @@ export const LivePreview = ({
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
   const [showMotifDialog, setShowMotifDialog] = useState<boolean>(false);
+  const [sessionWasCancelled, setSessionWasCancelled] = useState<boolean>(false);
   const [pendingEditMatch, setPendingEditMatch] = useState<Match | null>(null);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] = useState<boolean>(false);
 
@@ -171,18 +173,19 @@ export const LivePreview = ({
       return;
     }
 
-    // Reset all session state (including sessionTimer)
     resetSession();
-    // Clear any UI state for confirmations
+    onSessionReset?.();
     setCancelConfirm(false);
     setNewSessionConfirm(false);
-    // Stay on the current page to start a new session
+    setSessionWasCancelled(false);
   };
 
   const handleConfirmNewSession = () => {
     resetSession();
+    onSessionReset?.();
     setCancelConfirm(false);
     setNewSessionConfirm(false);
+    setSessionWasCancelled(false);
   };
 
   const handleSaveMatch = () => {
@@ -497,7 +500,7 @@ export const LivePreview = ({
                 onClick={
                   !matchActive
                     ? () => {
-                        if (!isSessionSetupSaved) {
+                        if (!isSessionSetupSaved && !sessionData.sessionName?.trim()) {
                           onTryStartWithoutSetup?.();
                           return;
                         }
@@ -515,15 +518,18 @@ export const LivePreview = ({
                             setMatchPhase('auton');
                           }
                           setIsTimerRunning(true);
+                          window.dispatchEvent(new Event('teamtrack-match-started'));
                         }
                       }
                     : handleSaveMatch
                 }
-                disabled={!matchActive && !sessionData.sessionName?.trim()}
+                disabled={!matchActive && (!isSessionSetupSaved || !sessionData.sessionName?.trim())}
                 title={
-                  !matchActive && !sessionData.sessionName?.trim()
-                    ? 'Complete session setup (Session Name) before starting'
-                    : ''
+                  !matchActive && !isSessionSetupSaved
+                    ? 'Save session settings before starting'
+                    : !matchActive && !sessionData.sessionName?.trim()
+                      ? 'Complete session setup (Session Name) before starting'
+                      : ''
                 }
                 className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                   !matchActive && isSessionSetupSaved
@@ -625,39 +631,61 @@ export const LivePreview = ({
                 }
               }}
               onClick={onOpenSessionSetup}
-              className={`flex-1 py-4 h-16 rounded-2xl border-2 border-team-blue-40 transition-colors flex items-center justify-center ${
-                isDarkMode
-                  ? 'bg-team-dark hover:bg-[#2a2a2a]'
-                  : 'bg-white hover:bg-gray-50'
+              className={`w-16 h-16 shrink-0 rounded-2xl border-2 transition-colors flex items-center justify-center ${
+                !isSessionSetupSaved
+                  ? 'border-red-500/60 bg-red-500/20 hover:bg-red-500/30'
+                  : isDarkMode
+                    ? 'border-team-blue-40 bg-team-dark hover:bg-[#2a2a2a]'
+                    : 'border-team-blue-40 bg-white hover:bg-gray-50'
               }`}
               title="Edit Session Setup"
             >
               <Settings
-                className={`h-6 w-6 ${isDarkMode ? 'text-white' : 'text-black'}`}
+                className={`h-5 w-5 ${!isSessionSetupSaved ? 'text-red-500' : isDarkMode ? 'text-white' : 'text-black'}`}
               />
             </button>
 
-            {/* Complete Session Button */}
-            <button
-              type="button"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
+            {/* Complete Session / New Session Button */}
+            {sessionWasCancelled ? (
+              <button
+                type="button"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
+                onClick={() => {
+                  resetSession();
+                  onSessionReset?.();
+                  setSessionWasCancelled(false);
+                }}
+                className="shrink-0 whitespace-nowrap px-5 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
+                title="Start a new session"
+              >
+                New Session
+              </button>
+            ) : (
+              <button
+                type="button"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
+                onClick={handleCompleteSession}
+                disabled={loading || sessionLimitReached}
+                className="shrink-0 whitespace-nowrap px-5 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                title={
+                  loading
+                    ? 'Saving...'
+                    : sessionLimitReached
+                      ? 'Session Limit Reached'
+                      : 'Complete Session'
                 }
-              }}
-              onClick={handleCompleteSession}
-              disabled={loading || sessionLimitReached}
-              className="flex-1 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              title={
-                loading
-                  ? 'Saving...'
-                  : sessionLimitReached
-                    ? 'Session Limit Reached'
-                    : 'Complete Session'
-              }
-            >
-              {loading ? 'Saving...' : 'Complete Session'}
-            </button>
+              >
+                {loading ? 'Saving...' : 'Complete Session'}
+              </button>
+            )}
 
             {/* Cancel Session Button */}
             {!cancelConfirm ? (
@@ -672,7 +700,7 @@ export const LivePreview = ({
                   setCancelConfirm(true);
                   if (isTimerRunning) setIsTimerRunning(false);
                 }}
-                className="flex-1 py-4 h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
+                className="shrink-0 whitespace-nowrap px-5 h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
                 title="Cancel Session"
               >
                 Cancel Session
@@ -687,7 +715,8 @@ export const LivePreview = ({
                     }
                   }}
                   onClick={() => {
-                    handleNewSession();
+                    resetSession();
+                    setSessionWasCancelled(true);
                     setCancelConfirm(false);
                     toast.success('Session cancelled');
                   }}

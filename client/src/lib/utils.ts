@@ -61,6 +61,50 @@ export function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
+/**
+ * Check if we're in the pre-match audio intro phase (1.61s before countdown)
+ * During this phase, the timer should be hidden from the user
+ */
+export function isInAudioIntroPhase(backendTimer: number): boolean {
+  const AUDIO_INTRO_DURATION = 1.61;
+  const fullStart = 163;
+  const countdownBegins = fullStart - AUDIO_INTRO_DURATION; // ~161.39
+  return backendTimer > countdownBegins;
+}
+
+/**
+ * Calculate the user-facing timer display for Full Game matches
+ * Only called when NOT in audio intro phase (intro is hidden from UI)
+ * Shows countdown, autonomous, and other phases with proper formatting
+ */
+export function getDisplayTimer(
+  backendTimer: number,
+  matchPhase: string
+): number {
+  const COUNTDOWN_DURATION = 3;
+  const AUTO_DURATION = 30;
+
+  // Backend timer boundaries (counting DOWN from 163)
+  const autoBegins = 163 - 1.61 - COUNTDOWN_DURATION; // ~158.39
+  const pickupBegins = autoBegins - AUTO_DURATION; // ~128.39
+
+  // Countdown phase (0:03, 0:02, 0:01)
+  if (backendTimer > autoBegins) {
+    const countdownElapsed = (163 - 1.61) - backendTimer;
+    return Math.max(0, COUNTDOWN_DURATION - countdownElapsed);
+  }
+
+  // Autonomous phase (2:30 down to 2:00)
+  if (matchPhase === 'auton' && backendTimer > pickupBegins) {
+    const autoElapsed = autoBegins - backendTimer;
+    // Show 2:30 (150s) counting down to 2:00 (120s)
+    return Math.max(120, 150 - autoElapsed);
+  }
+
+  // Other phases use their own timers (phaseTimer)
+  return backendTimer;
+}
+
 /** Get initials from a name string */
 export function getInitials(name: string): string {
   return name

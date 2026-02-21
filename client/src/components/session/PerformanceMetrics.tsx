@@ -9,6 +9,12 @@ import React, {
 import { useSession, useTheme } from '@/contexts';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ShotEntry } from '@/types';
+import {
+  TUTORIAL_KEYBOARD_SCORE_EVENT,
+  TUTORIAL_GATE_TOGGLED_EVENT,
+  TUTORIAL_GATE_CYCLE_EVENT,
+  TUTORIAL_ENDED_EVENT,
+} from './ActiveTutorial';
 
 // ─── Constants ──────────────────────────────────────────────────────────
 const POINTS_PER_CLASSIFIED = 3;
@@ -505,6 +511,8 @@ export const PerformanceMetrics = () => {
   const isUpdatingRef = useRef(false);
   // Track last shot timestamp for cycle time calculation in keybinds
   const lastShotTimeRef = useRef<number | null>(null);
+  const gateCycleToastTimeRef = useRef<number>(0);
+  const TOAST_COOLDOWN_MS = 2000;
 
   // ── Tab state ─────────────────────────────────────────────────────
   const [selectedTab, setSelectedTab] = useState<
@@ -787,6 +795,16 @@ export const PerformanceMetrics = () => {
   const [popupNumber, setPopupNumber] = useState<string>('');
   const [madeCount, setMadeCount] = useState<number | null>(null);
 
+  // Clear keybind popup when tutorial ends
+  useEffect(() => {
+    const handler = () => {
+      setShowPopup(false);
+      setMadeCount(null);
+    };
+    window.addEventListener(TUTORIAL_ENDED_EVENT, handler);
+    return () => window.removeEventListener(TUTORIAL_ENDED_EVENT, handler);
+  }, []);
+
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (
@@ -799,6 +817,8 @@ export const PerformanceMetrics = () => {
       if (event.key.toLowerCase() === 'g') {
         event.preventDefault();
         event.stopPropagation();
+        // Notify tutorial that gate key was pressed
+        window.dispatchEvent(new CustomEvent(TUTORIAL_GATE_TOGGLED_EVENT));
         if (!sessionData.gateAddBackMode) {
           // First G press: open gate
           if ((sessionData.gateBallCount ?? 0) > 0) {
@@ -862,6 +882,8 @@ export const PerformanceMetrics = () => {
             gateAddBackMode: false,
             gateAddBackCount: 0,
           });
+          // Full gate cycle completed (G → number → Enter)
+          window.dispatchEvent(new CustomEvent(TUTORIAL_GATE_CYCLE_EVENT, { detail: { method: 'keyboard' } }));
         }
         return;
       }
@@ -874,13 +896,19 @@ export const PerformanceMetrics = () => {
           setPopupNumber(event.key);
           setMadeCount(null);
           setShowPopup(true);
+          // Tell ScoringUI to highlight this row
+          window.dispatchEvent(new CustomEvent('teamtrack-keybind-shottype', { detail: { shotType: parseInt(event.key) } }));
         }
       }
 
       // Handle made count selection (0-3 balls made) when popup is open
       if (showPopup && ['0', '1', '2', '3'].includes(event.key)) {
         const pressed = parseInt(event.key);
-        if (pressed <= parseInt(popupNumber)) setMadeCount(pressed);
+        if (pressed <= parseInt(popupNumber)) {
+          setMadeCount(pressed);
+          // Tell ScoringUI to highlight the specific cell
+          window.dispatchEvent(new CustomEvent('teamtrack-keybind-madecount', { detail: { made: pressed, shotType: parseInt(popupNumber) } }));
+        }
       }
 
       if (event.key === 'Enter' && showPopup && madeCount !== null) {
@@ -934,6 +962,12 @@ export const PerformanceMetrics = () => {
           updateSessionData({ teleopShots: nextTeleop, gateBallCount: newGateCount });
           if (sessionData.selectedFeature === 'Cycle Times') recordCycleTime();
         }
+        // Notify tutorial that a shot was confirmed via keyboard
+        window.dispatchEvent(new CustomEvent(TUTORIAL_KEYBOARD_SCORE_EVENT));
+        // Notify ScoringUI to show ping notification
+        window.dispatchEvent(new CustomEvent('teamtrack-shot-scored', {
+          detail: { ballsMade: madeCount, ballsShot: shotType }
+        }));
 
         setShowPopup(false);
         setMadeCount(null);
@@ -945,6 +979,7 @@ export const PerformanceMetrics = () => {
         event.stopPropagation();
         setShowPopup(false);
         setMadeCount(null);
+        window.dispatchEvent(new Event('teamtrack-keybind-cancelled'));
       }
     };
 
@@ -973,9 +1008,9 @@ export const PerformanceMetrics = () => {
 
   return (
     <>
-      {/* Keyboard shortcut popup */}
+      {/* Keyboard shortcut popup — z-[9998] so it shows above the tutorial overlay */}
       {showPopup && (
-        <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
+        <div className="fixed bottom-8 right-8 z-[9998] pointer-events-none">
           <div
             className={`${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-600 text-white'} rounded-lg shadow-2xl p-12 text-center`}
           >

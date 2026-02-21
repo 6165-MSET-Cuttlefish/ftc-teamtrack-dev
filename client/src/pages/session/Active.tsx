@@ -9,6 +9,8 @@ import {
   ActiveTutorial,
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
+import { useMatchAudio } from '@/hooks';
+import { isInAudioIntroPhase } from '@/lib';
 import { APP_CONFIG } from '@/constants';
 
 /** Thin divider that adapts to the current theme */
@@ -33,6 +35,8 @@ const ActiveSessionContent = () => {
   );
   const [shouldFlashSetup, setShouldFlashSetup] = useState(false);
 
+  useMatchAudio(); // Initialize match audio with appropriate events
+
   useEffect(() => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
     
@@ -51,6 +55,7 @@ const ActiveSessionContent = () => {
     timer,
     sessionTimer,
     formatTime,
+    getDisplayTimer,
     matchPhase,
     isTimerRunning,
     phaseTimer,
@@ -69,10 +74,6 @@ const ActiveSessionContent = () => {
     <div
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} relative`}
     >
-      {/* Blur overlay when session setup is unsaved and visible */}
-      {!isSessionSetupSaved && showSessionSetup && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-10 pointer-events-none" />
-      )}
       {/* Single Column Content - All Scrollable */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10 relative">
         <div className="space-y-4 sm:space-y-6">
@@ -92,18 +93,22 @@ const ActiveSessionContent = () => {
             </div>
 
             {/* Large Match Timer - Single Line */}
-            <div className="flex flex-col items-center">
-              <div
-                className={`text-7xl sm:text-8xl tracking-wider leading-none transition-colors font-righteous ${getTimerColor()}`}
-                style={{
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {matchPhase === 'controller_pickup' || matchPhase === 'prepare'
-                  ? formatTime(phaseTimer)
-                  : formatTime(timer)}
+            {!isInAudioIntroPhase(timer) && (
+              <div className="flex flex-col items-center">
+                <div
+                  className={`text-7xl sm:text-8xl tracking-wider leading-none transition-colors font-righteous ${getTimerColor()}`}
+                  style={{
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  {matchPhase === 'controller_pickup' || matchPhase === 'prepare'
+                    ? formatTime(phaseTimer)
+                    : matchPhase === 'auton'
+                      ? formatTime(getDisplayTimer(timer, matchPhase))
+                      : formatTime(timer)}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Timer Info Below */}
             <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
@@ -144,53 +149,63 @@ const ActiveSessionContent = () => {
                 setShowSessionSetup(true);
               }}
               isSessionSetupSaved={isSessionSetupSaved}
+              onSessionReset={() => {
+                setIsSessionSetupSaved(false);
+                setShowSessionSetup(true);
+                setShouldFlashSetup(false);
+              }}
             />
           </div>
 
-          <Divider />
-
-          {/* Session Setup - Toggle visibility with settings icon */}
-          {showSessionSetup && (
+          {/* Hide everything below controls when session is completed */}
+          {!sessionData.isSessionCompleted && (
             <>
-              <div data-tutorial="session-setup" className="px-4 py-4 relative z-50">
-                <SessionSetup
-                  onSave={() => {
-                    setShowSessionSetup(false);
-                    setIsSessionSetupSaved(true);
-                    setShouldFlashSetup(false);
-                  }}
-                  shouldFlash={shouldFlashSetup}
-                  isUnsaved={!isSessionSetupSaved}
-                />
+              <Divider />
+
+              {/* Session Setup - Toggle visibility with settings icon */}
+              {showSessionSetup && (
+                <>
+                  <div data-tutorial="session-setup" className="px-4 py-4 relative z-50">
+                    <SessionSetup
+                      onSave={() => {
+                        setShowSessionSetup(false);
+                        setIsSessionSetupSaved(true);
+                        setShouldFlashSetup(false);
+                      }}
+                      shouldFlash={shouldFlashSetup}
+                      isUnsaved={!isSessionSetupSaved}
+                    />
+                  </div>
+
+                  <Divider />
+                </>
+              )}
+
+              {/* Gate Visual */}
+              <div data-tutorial="gate" className="px-4 py-4">
+                <GateVisual />
+              </div>
+
+              {/* Scoring UI */}
+              <div data-tutorial="scoring" className="px-4 py-4">
+                <ScoringUI />
               </div>
 
               <Divider />
+
+              {/* Performance Metrics */}
+              <div data-tutorial="metrics" className="px-4 py-4">
+                <PerformanceMetrics />
+              </div>
+
+              <Divider />
+
+              {/* Session Notes */}
+              <div data-tutorial="notes" className="px-4 py-4">
+                <Notes />
+              </div>
             </>
           )}
-
-          {/* Gate Visual */}
-          <div data-tutorial="gate" className="px-4 py-4">
-            <GateVisual />
-          </div>
-
-          {/* Scoring UI */}
-          <div data-tutorial="scoring" className="px-4 py-4">
-            <ScoringUI />
-          </div>
-
-          <Divider />
-
-          {/* Performance Metrics */}
-          <div data-tutorial="metrics" className="px-4 py-4">
-            <PerformanceMetrics />
-          </div>
-
-          <Divider />
-
-          {/* Session Notes */}
-          <div data-tutorial="notes" className="px-4 py-4">
-            <Notes />
-          </div>
         </div>
       </div>
     </div>
