@@ -5,6 +5,7 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
   root: './client',
+  envDir: '../',
   server: {
     host: 'localhost', // Use localhost instead of IPv6
     port: 8080,
