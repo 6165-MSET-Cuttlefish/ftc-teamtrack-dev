@@ -41,7 +41,6 @@ export const LivePreview = ({
     setMatchPhase,
     setPhaseTimer,
     editingMatchId,
-    returnToCurrentMatch,
     saveEditedMatch,
     startEditingMatch,
     matchActive,
@@ -497,7 +496,7 @@ export const LivePreview = ({
                 onClick={
                   !matchActive
                     ? () => {
-                        if (!isSessionSetupSaved) {
+                        if (!isSessionSetupSaved && !sessionData.sessionName?.trim()) {
                           onTryStartWithoutSetup?.();
                           return;
                         }
@@ -515,6 +514,7 @@ export const LivePreview = ({
                             setMatchPhase('auton');
                           }
                           setIsTimerRunning(true);
+                          window.dispatchEvent(new Event('teamtrack-match-started'));
                         }
                       }
                     : handleSaveMatch

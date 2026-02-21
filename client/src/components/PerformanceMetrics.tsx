@@ -48,16 +48,6 @@ const totalPoints = (shots: ShotEntry[]) =>
 const calcAccuracy = (made: number, shot: number): string =>
   shot > 0 ? `${Math.round((made / shot) * 100)}%` : '—';
 
-/** Format seconds as M:SS */
-const formatCycleTime = (seconds: number): string => {
-  if (seconds < 60) {
-    return `${seconds.toFixed(2)}s`;
-  }
-  const m = Math.floor(seconds / 60);
-  const s = (seconds % 60).toFixed(2);
-  return `${m}:${s.padStart(5, '0')}`;
-};
-
 // ─── Inline number input for table cells ────────────────────────────────
 const CellInput: React.FC<{
   value: number;
@@ -217,13 +207,6 @@ const ShotLogTable: React.FC<{
               const ct = shot.cycleTime;
               const isMin = ct !== undefined && minCycle !== null && ct === minCycle && cycleTimes.length > 1;
               const isMax = ct !== undefined && maxCycle !== null && ct === maxCycle && cycleTimes.length > 1;
-              const cycleClass = isMin
-                ? 'text-green-500 font-semibold'
-                : isMax
-                  ? 'text-red-500 font-semibold'
-                  : isDarkMode
-                    ? 'text-gray-400'
-                    : 'text-gray-500';
               return (
                 <div
                   key={i}

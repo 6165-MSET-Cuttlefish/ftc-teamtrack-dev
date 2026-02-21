@@ -1,6 +1,7 @@
 import { useSession, useTheme } from '@/contexts';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Keyboard } from 'lucide-react';
+import { TUTORIAL_ENDED_EVENT } from './ActiveTutorial';
 
 export const ScoringUI = () => {
   const { updateSessionData, sessionData, matchPhase, matchActive } = useSession();
@@ -8,6 +9,73 @@ export const ScoringUI = () => {
   const [flashingButton, setFlashingButton] = useState<string | null>(null);
   // Timestamp of the last scoring action, used to compute cycle time in seconds
   const lastShotTimeRef = useRef<number | null>(null);
+
+  // Ping notification for each shot
+  const [pingShot, setPingShot] = useState<{ ballsMade: number; ballsShot: number } | null>(null);
+  const [pingKey, setPingKey] = useState(0);
+  const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showPing = (ballsMade: number, ballsShot: number) => {
+    if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
+    setPingShot({ ballsMade, ballsShot });
+    setPingKey(k => k + 1);
+    pingTimeoutRef.current = setTimeout(() => setPingShot(null), 1500);
+  };
+
+  // Listen for keyboard-originated shots to show ping
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ ballsMade: number; ballsShot: number }>;
+      if (ce.detail) {
+        showPing(ce.detail.ballsMade, ce.detail.ballsShot);
+        // Flash the matching grid cell
+        const id = `${ce.detail.ballsShot}-${ce.detail.ballsMade}`;
+        setFlashingButton(id);
+        setTimeout(() => setFlashingButton(null), 400);
+      }
+      // Clear keyboard highlights on commit
+      setKeyboardActiveRow(null);
+      setKeyboardActiveMade(null);
+    };
+    window.addEventListener('teamtrack-shot-scored', handler);
+    return () => window.removeEventListener('teamtrack-shot-scored', handler);
+  }, []);
+
+  // Keyboard row/cell highlight state
+  const [keyboardActiveRow, setKeyboardActiveRow] = useState<number | null>(null);
+  const [keyboardActiveMade, setKeyboardActiveMade] = useState<number | null>(null);
+
+  useEffect(() => {
+    const onShotType = (e: Event) => {
+      const ce = e as CustomEvent<{ shotType: number }>;
+      setKeyboardActiveRow(ce.detail.shotType);
+      setKeyboardActiveMade(null);
+    };
+    const onMadeCount = (e: Event) => {
+      const ce = e as CustomEvent<{ made: number; shotType: number }>;
+      setKeyboardActiveRow(ce.detail.shotType);
+      setKeyboardActiveMade(ce.detail.made);
+    };
+    const onCancelled = () => {
+      setKeyboardActiveRow(null);
+      setKeyboardActiveMade(null);
+    };
+    window.addEventListener('teamtrack-keybind-shottype', onShotType);
+    window.addEventListener('teamtrack-keybind-madecount', onMadeCount);
+    window.addEventListener('teamtrack-keybind-cancelled', onCancelled);
+    window.addEventListener(TUTORIAL_ENDED_EVENT, onCancelled);
+    return () => {
+      window.removeEventListener('teamtrack-keybind-shottype', onShotType);
+      window.removeEventListener('teamtrack-keybind-madecount', onMadeCount);
+      window.removeEventListener('teamtrack-keybind-cancelled', onCancelled);
+      window.removeEventListener(TUTORIAL_ENDED_EVENT, onCancelled);
+    };
+  }, []);
+
+  // Persistent totals
+  const allShots = [...(sessionData.autonShots ?? []), ...(sessionData.teleopShots ?? [])];
+  const totalShot = allShots.reduce((s, e) => s + ((e as {ballsShot: number}).ballsShot ?? 0), 0);
+  const totalMade = allShots.reduce((s, e) => s + ((e as {ballsMade: number}).ballsMade ?? 0), 0);
 
   // Shot types with ball counts
   // Note: controller_pickup = 5 seconds, prepare = 3 seconds, total = 8 seconds between auton and teleop
@@ -89,6 +157,9 @@ export const ScoringUI = () => {
       });
     }
 
+    // Show ping notification for board shots
+    showPing(ballsMade, shotId);
+
     // Clear flash after animation
     setTimeout(() => {
       setFlashingButton(null);
@@ -109,6 +180,14 @@ export const ScoringUI = () => {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @keyframes shot-rise {
+          0%   { opacity: 1; transform: translateY(0px); }
+          60%  { opacity: 1; transform: translateY(-12px); }
+          100% { opacity: 0; transform: translateY(-22px); }
+        }
+        .shot-ping-anim { animation: shot-rise 1.5s ease-out forwards; }
+      `}</style>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-team-blue text-2xl font-semibold leading-6">
@@ -122,6 +201,33 @@ export const ScoringUI = () => {
           >
             <Keyboard className="w-6 h-6" />
           </button>
+          {/* Persistent shot counter */}
+          {totalShot > 0 && (
+            <div className="relative flex items-center ml-1">
+              {pingShot && (
+                <span
+                  key={pingKey}
+                  className="shot-ping-anim absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold text-green-400 whitespace-nowrap pointer-events-none"
+                >
+                  +{pingShot.ballsMade}/{pingShot.ballsShot}
+                </span>
+              )}
+              <span className={`text-xs font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {totalMade}/{totalShot} <span className="uppercase tracking-wide">Shots</span>
+              </span>
+            </div>
+          )}
+          {/* Ping notification even when totalShot is 0 (first shot) */}
+          {totalShot === 0 && pingShot && (
+            <div className="relative flex items-center ml-1">
+              <span
+                key={pingKey}
+                className="shot-ping-anim absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold text-green-400 whitespace-nowrap pointer-events-none"
+              >
+                +{pingShot.ballsMade}/{pingShot.ballsShot}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span
@@ -137,12 +243,15 @@ export const ScoringUI = () => {
 
       <div className="space-y-4">
         {shotTypes.map(shot => {
+          const isActiveRow = keyboardActiveRow === shot.id;
           return (
             <div key={shot.id} className="flex items-stretch gap-4 w-full">
               {/* Shot Label on Left - centered vertically */}
               <div className="flex items-center justify-center flex-shrink-0 min-w-[80px]">
                 <div
-                  className={`text-sm font-medium text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+                  className={`text-sm font-medium text-center transition-colors duration-150 ${
+                    isActiveRow ? 'text-yellow-400 font-bold' : isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                  }`}
                 >
                   {shot.id} {shot.id === 1 ? 'ball' : 'balls'}
                 </div>
@@ -151,52 +260,56 @@ export const ScoringUI = () => {
               {/* Scoring buttons - fill width evenly */}
               <div className="flex items-center gap-3 flex-1">
                 {/* 0 option */}
-                <button
-                  onClick={() => handleBallSelect(shot.id, 0)}
-                  disabled={!isScoringAllowed()}
-                  className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
-                    !isScoringAllowed()
-                      ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'
-                      : flashingButton === `${shot.id}-0`
-                        ? 'border-yellow-500 bg-yellow-500/20'
-                        : isDarkMode
-                          ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40 cursor-pointer'
-                          : 'border-gray-300 bg-white hover:border-gray-400 cursor-pointer'
-                  }`}
-                >
-                  {/* Dotted circles representing shot.balls count */}
-                  <div className="flex items-center gap-2">
-                    {Array.from({ length: shot.balls }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`w-5 h-5 rounded-full border-2 border-dashed ${
-                          flashingButton === `${shot.id}-0`
-                            ? 'border-yellow-500'
-                            : isDarkMode
-                              ? 'border-white'
-                              : 'border-black'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span
-                    className={`text-xs mt-1 ${
-                      flashingButton === `${shot.id}-0`
-                        ? 'text-yellow-500'
-                        : isDarkMode
-                          ? 'text-team-white-60'
-                          : 'text-gray-500'
-                    }`}
-                  >
-                    missed
-                  </span>
-                </button>
+                {(() => {
+                  const isMissedSelected = isActiveRow && keyboardActiveMade === 0;
+                  const isRowYellow = isActiveRow && keyboardActiveMade === null;
+                  return (
+                    <button
+                      onClick={() => handleBallSelect(shot.id, 0)}
+                      disabled={!isScoringAllowed()}
+                      className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
+                        !isScoringAllowed()
+                          ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'
+                          : flashingButton === `${shot.id}-0`
+                            ? 'border-yellow-500 bg-yellow-500/20'
+                            : isMissedSelected
+                              ? 'border-green-500 bg-green-500/20 cursor-pointer'
+                              : isRowYellow
+                                ? 'border-yellow-400/70 bg-yellow-400/10 cursor-pointer'
+                                : isDarkMode
+                                  ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40 cursor-pointer'
+                                  : 'border-gray-300 bg-white hover:border-gray-400 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {Array.from({ length: shot.balls }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={`w-5 h-5 rounded-full border-2 border-dashed ${
+                              flashingButton === `${shot.id}-0` ? 'border-yellow-500'
+                              : isMissedSelected ? 'border-green-500'
+                              : isRowYellow ? 'border-yellow-400/70'
+                              : isDarkMode ? 'border-white' : 'border-black'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className={`text-xs mt-1 ${
+                        flashingButton === `${shot.id}-0` ? 'text-yellow-500'
+                        : isMissedSelected ? 'text-green-500'
+                        : isRowYellow ? 'text-yellow-400/80'
+                        : isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                      }`}>missed</span>
+                    </button>
+                  );
+                })()}
 
                 {/* Ball options */}
                 {Array.from({ length: shot.balls }).map((_, index) => {
                   const ballCount = index + 1;
-                  const isFlashing =
-                    flashingButton === `${shot.id}-${ballCount}`;
+                  const isFlashing = flashingButton === `${shot.id}-${ballCount}`;
+                  const isMadeSelected = isActiveRow && keyboardActiveMade === ballCount;
+                  const isRowActive = isActiveRow && keyboardActiveMade === null;
 
                   return (
                     <button
@@ -206,39 +319,32 @@ export const ScoringUI = () => {
                       className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
                         !isScoringAllowed()
                           ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'
-                          : isFlashing
+                          : isFlashing || isMadeSelected
                             ? 'border-green-500 bg-green-500/20 cursor-pointer'
-                            : isDarkMode
-                              ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40 cursor-pointer'
-                              : 'border-gray-300 bg-white hover:border-gray-400 cursor-pointer'
+                            : isRowActive
+                              ? 'border-yellow-400/70 bg-yellow-400/10 cursor-pointer'
+                              : isDarkMode
+                                ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40 cursor-pointer'
+                                : 'border-gray-300 bg-white hover:border-gray-400 cursor-pointer'
                       }`}
                     >
-                      {/* Circles representing ball count - outline only */}
                       <div className="flex items-center gap-2">
                         {Array.from({ length: ballCount }).map((_, i) => (
                           <div
                             key={i}
                             className={`w-5 h-5 rounded-full border-2 ${
-                              isFlashing
-                                ? 'border-green-500'
-                                : isDarkMode
-                                  ? 'border-white'
-                                  : 'border-black'
+                              isFlashing || isMadeSelected ? 'border-green-500'
+                              : isRowActive ? 'border-yellow-400/70'
+                              : isDarkMode ? 'border-white' : 'border-black'
                             }`}
                           />
                         ))}
                       </div>
-                      <span
-                        className={`text-xs mt-1 ${
-                          isFlashing
-                            ? 'text-green-500'
-                            : isDarkMode
-                              ? 'text-team-white-60'
-                              : 'text-gray-500'
-                        }`}
-                      >
-                        scored
-                      </span>
+                      <span className={`text-xs mt-1 ${
+                        isFlashing || isMadeSelected ? 'text-green-500'
+                        : isRowActive ? 'text-yellow-400/80'
+                        : isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                      }`}>scored</span>
                     </button>
                   );
                 })}

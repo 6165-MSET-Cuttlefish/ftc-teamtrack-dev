@@ -69,10 +69,6 @@ const ActiveSessionContent = () => {
     <div
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} relative`}
     >
-      {/* Blur overlay when session setup is unsaved and visible */}
-      {!isSessionSetupSaved && showSessionSetup && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-10 pointer-events-none" />
-      )}
       {/* Single Column Content - All Scrollable */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10 relative">
         <div className="space-y-4 sm:space-y-6">

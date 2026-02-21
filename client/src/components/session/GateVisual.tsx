@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSession, useTheme } from '@/contexts';
 import { MotifSetupDialog } from './MotifSetupDialog';
+import { TUTORIAL_GATE_CYCLE_EVENT } from './ActiveTutorial';
 import { Edit2 } from 'lucide-react';
 
 const GATE_CAPACITY = 9;
@@ -23,6 +24,8 @@ export const GateVisual = () => {
   const { sessionData, updateSessionData, matchPhase, matchActive } = useSession();
   const { isDarkMode } = useTheme();
   const [showMotifDialog, setShowMotifDialog] = useState(false);
+  const gateCycleToastTimeRef = useRef<number>(0);
+  const TOAST_COOLDOWN_MS = 2000;
 
   const gateBallCount = sessionData.gateBallCount ?? 0;
   const isGateOpen = sessionData.gateAddBackMode ?? false;
@@ -108,6 +111,8 @@ export const GateVisual = () => {
       gateAddBackMode: false,
       gateAddBackCount: 0,
     });
+    // Notify tutorial that a gate cycle was completed via click
+    window.dispatchEvent(new CustomEvent(TUTORIAL_GATE_CYCLE_EVENT, { detail: { method: 'click' } }));
   }, [addBackCount, updateSessionData]);
 
   const handleCancelGateOpen = useCallback(() => {

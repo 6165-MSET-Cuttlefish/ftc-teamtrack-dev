@@ -1,0 +1,709 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSession, useTheme, useAuth } from '@/contexts';
+import { useFirebase } from '@/hooks';
+import { GAME_TIMING, ROUTES } from '@/constants';
+import { Check, X, Settings, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import type { Match } from '@/types';
+
+interface LivePreviewProps {
+  onOpenSessionSetup?: () => void;
+  onTryStartWithoutSetup?: () => void;
+  isSessionSetupSaved?: boolean;
+}
+
+export const LivePreview = ({ onOpenSessionSetup, onTryStartWithoutSetup, isSessionSetupSaved = false }: LivePreviewProps) => {
+  const {
+    sessionData,
+    completeSession,
+    timer,
+    sessionTimer,
+    isTimerRunning,
+    setIsTimerRunning,
+    formatTime,
+    resetSession,
+    resetTimer,
+    setExpandedSection,
+    updateSessionData,
+    hasStarted,
+    setHasStarted,
+    showTeleopTransition,
+    setShowTeleopTransition,
+    setHasTransitionedToTeleop,
+    matchPhase,
+    setMatchPhase,
+    setPhaseTimer,
+    editingMatchId,
+    returnToCurrentMatch,
+    saveEditedMatch,
+    startEditingMatch,
+    matchActive,
+    setMatchActive,
+  } = useSession();
+  const { isDarkMode } = useTheme();
+  const { user } = useAuth();
+  const { createSession, loading } = useFirebase();
+  const navigate = useNavigate();
+  const [sessionLimitReached, setSessionLimitReached] =
+    useState<boolean>(false);
+  const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
+
+  // Block navigation if there's unsaved work
+  const hasUnsavedWork =
+    !sessionData.isSessionCompleted &&
+    ((sessionData.matches && sessionData.matches.length > 0) ||
+      (sessionData.finalScore || 0) > 0 ||
+      (sessionData.autonomousScore || 0) > 0 ||
+      (sessionData.teleopScore || 0) > 0 ||
+      (sessionData.notes && sessionData.notes.trim().length > 0) ||
+      (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedWork) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedWork]);
+
+  // Check session limit on mount
+  useEffect(() => {
+    const checkSessionLimit = async () => {
+      if (user?.uid && !sessionData.isSessionCompleted) {
+        const { firebaseService } = await import('../services/firebaseService');
+        const userSessions = await firebaseService.getUserSessions(user.uid);
+        const { SESSION_LIMITS } = await import('../constants');
+
+        if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
+          setSessionLimitReached(true);
+          toast.error(
+            `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`,
+            {
+              duration: 10000,
+            }
+          );
+        } else {
+          setSessionLimitReached(false);
+        }
+      }
+    };
+
+    checkSessionLimit();
+  }, [user?.uid, sessionData.isSessionCompleted]);
+
+  // FTC phase transition: autonomous → controller pickup
+  useEffect(() => {
+    if (
+      sessionData.matchType === 'Full Game' &&
+      timer === GAME_TIMING.AUTON_END_REMAINING && // 120 seconds remaining = end of autonomous
+      isTimerRunning &&
+      matchPhase === 'auton'
+    ) {
+      setIsTimerRunning(false);
+      setMatchPhase('controller_pickup');
+      setPhaseTimer(GAME_TIMING.CONTROLLER_PICKUP_SECONDS);
+    }
+  }, [
+    timer,
+    isTimerRunning,
+    sessionData.matchType,
+    matchPhase,
+    setIsTimerRunning,
+    setMatchPhase,
+    setPhaseTimer,
+  ]);
+
+  const handleContinueToTeleop = () => {
+    setShowTeleopTransition(false);
+    setHasTransitionedToTeleop(true);
+    setExpandedSection('Teleop Score');
+    // Don't reset timer - continue from autonomous phase
+    setIsTimerRunning(true);
+  };
+
+  const handleSkipTeleop = () => {
+    setShowTeleopTransition(false);
+    setHasTransitionedToTeleop(true);
+    // Don't auto-start timer or change section
+  };
+
+  const handleViewAnalysis = () => {
+    navigate(ROUTES.ANALYSIS);
+  };
+
+  const handleNewSession = () => {
+    // Check if there's unsaved work
+    if (
+      sessionData.matches &&
+      sessionData.matches.length > 0 &&
+      !sessionData.isSessionCompleted
+    ) {
+      if (
+        !window.confirm(
+          'You have unsaved matches. Starting a new session will discard them. Continue?'
+        )
+      ) {
+        return;
+      }
+    }
+
+    // Reset all session state (including sessionTimer)
+    resetSession();
+    // Clear any UI state for confirmations
+    setCancelConfirm(false);
+    // Stay on the current page to start a new session
+  };
+
+  const handleSaveMatch = () => {
+    // Validate that timer was started
+    if (!hasStarted) {
+      toast.error('Please start the match timer before saving');
+      return;
+    }
+
+    // Validate that some scoring data exists
+    if (
+      (sessionData.finalScore || 0) === 0 &&
+      (sessionData.autonomousScore || 0) === 0 &&
+      (sessionData.teleopScore || 0) === 0 &&
+      (sessionData.endGameScore || 0) === 0
+    ) {
+      toast.error('Please enter some scoring data before saving a match');
+      return;
+    }
+
+    // Create a new match from current session data
+    const newMatch: Match = {
+      id: crypto.randomUUID(),
+      matchNumber: (sessionData.matches?.length || 0) + 1,
+      matchType: sessionData.matchType,
+      finalScore: sessionData.finalScore,
+      autonomousScore: sessionData.autonomousScore,
+      teleopScore: sessionData.teleopScore,
+      endGameScore: sessionData.endGameScore,
+      autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
+      autonOverflowArtifact: sessionData.autonOverflowArtifact,
+      autonMotif: sessionData.autonMotif,
+      autonBallsMissed: sessionData.autonBallsMissed,
+      autonLeave: sessionData.autonLeave,
+      teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
+      teleOverflowArtifact: sessionData.teleOverflowArtifact,
+      teleMotif: sessionData.teleMotif,
+      teleBallsMissed: sessionData.teleBallsMissed,
+      robot1Park: sessionData.robot1Park,
+      robot2Park: sessionData.robot2Park,
+      cycleTimes: [...(sessionData.cycleTimes || [])],
+      autonShots: [...(sessionData.autonShots || [])],
+      teleopShots: [...(sessionData.teleopShots || [])],
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add to matches array
+    const updatedMatches = [...(sessionData.matches || []), newMatch];
+    updateSessionData({
+      matches: updatedMatches,
+      // Reset ALL scoring fields for next match
+      finalScore: 0,
+      autonomousScore: 0,
+      teleopScore: 0,
+      endGameScore: 0,
+      autonLeave: 0,
+      autonClassifiedArtifact: 0,
+      autonOverflowArtifact: 0,
+      autonMotif: 0,
+      autonBallsMissed: 0,
+      teleClassifiedArtifact: 0,
+      teleOverflowArtifact: 0,
+      teleMotif: 0,
+      teleBallsMissed: 0,
+      robot1Park: 'none',
+      robot2Park: 'none',
+      cycleTimes: [],
+      autonShots: [],
+      teleopShots: [],
+    });
+
+    // Reset match timer and tracking states (but keep session running)
+    resetTimer();
+    // Keep hasStarted=true to maintain continuous sessionTimer
+    setMatchActive(false);
+    setIsTimerRunning(false);
+    setHasTransitionedToTeleop(false);
+
+    toast.success(`Match ${updatedMatches.length} saved successfully!`);
+  };
+
+  const handleCompleteSession = async () => {
+    // Validate user is authenticated
+    if (!user?.uid) {
+      toast.error('You must be logged in to save sessions');
+      return;
+    }
+
+    // Validate that at least one match has been saved
+    if (!sessionData.matches || sessionData.matches.length === 0) {
+      toast.error(
+        'Please save at least one match before completing the session'
+      );
+      return;
+    }
+
+    // Check if there's unsaved current match data
+    const hasUnsavedData =
+      (sessionData.finalScore || 0) > 0 ||
+      (sessionData.autonomousScore || 0) > 0 ||
+      (sessionData.teleopScore || 0) > 0 ||
+      (sessionData.endGameScore || 0) > 0;
+
+    if (hasUnsavedData) {
+      toast.error(
+        'Please save the current match before completing the session, or reset the scoring fields'
+      );
+      return;
+    }
+
+    // Check session limit
+    const { firebaseService } = await import('../services/firebaseService');
+    const userSessions = await firebaseService.getUserSessions(user.uid);
+    const { SESSION_LIMITS } = await import('../constants');
+
+    if (userSessions.length >= SESSION_LIMITS.MAX_SESSIONS_PER_USER) {
+      toast.error(
+        `You've reached the maximum of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Please delete old sessions before creating new ones.`
+      );
+      return;
+    }
+
+    // Use sessionTimer for total session duration, not match timer
+    const totalSessionTime = formatTime(sessionTimer);
+    setIsTimerRunning(false);
+    completeSession(totalSessionTime);
+
+    // Generate a unique session name if not provided
+    let finalSessionName = sessionData.sessionName?.trim();
+    if (!finalSessionName) {
+      // Find the next available number for "Untitled Session #X"
+      const untitledSessions = userSessions.filter(s => 
+        s.sessionName?.startsWith('Untitled Session #')
+      );
+      const numbers = untitledSessions
+        .map(s => {
+          const match = s.sessionName?.match(/Untitled Session #(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter(n => !isNaN(n));
+      const nextNumber = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+      finalSessionName = `Untitled Session #${nextNumber}`;
+    }
+
+    const sessionToSave = {
+      sessionName: finalSessionName,
+      matchType: sessionData.matchType || 'Full Game',
+      sessionDuration: totalSessionTime,
+
+      userId: user.uid, // Always set from validated user
+      userEmail: user.email || '',
+
+      // Don't save individual scoring fields - deprecated
+      // Data is in matches array
+      autonClassifiedArtifact: 0,
+      autonOverflowArtifact: 0,
+      autonMotif: 0,
+      autonLeave: 0,
+
+      teleClassifiedArtifact: 0,
+      teleOverflowArtifact: 0,
+      teleMotif: 0,
+
+      finalScore: 0,
+      autonomousScore: 0,
+      teleopScore: 0,
+      endGameScore: 0,
+
+      selectedFeature: sessionData.selectedFeature || '',
+      cycleTimes: [],
+      notes: sessionData.notes || '',
+      matches: sessionData.matches || [],
+
+      completedAt: new Date().toISOString(),
+    };
+
+    try {
+      const result = await createSession(sessionToSave);
+      if (result && result.id) {
+        toast.success('Session saved successfully!');
+        // Session saved - sessionLimitReached will be checked on next action
+      } else {
+        toast.error('Failed to save session. Please try again.');
+      }
+    } catch (error) {
+      const { logger } = await import('@/lib/logger');
+      logger.error('Error saving session', error);
+      toast.error('An error occurred while saving the session.');
+    }
+  };
+
+  // Delete a saved match from the matches array
+  const handleDeleteMatch = (matchId: string) => {
+    const updatedMatches = (sessionData.matches || []).filter(
+      (m) => m.id !== matchId
+    );
+    // Renumber matches
+    const renumbered = updatedMatches.map((m, i) => ({
+      ...m,
+      matchNumber: i + 1,
+    }));
+    updateSessionData({ matches: renumbered });
+    setDeleteConfirmId(null);
+    toast.success('Match deleted');
+  };
+
+  // Cancel the current in-progress match (discard unsaved scoring)
+  const handleCancelCurrentMatch = () => {
+    updateSessionData({
+      finalScore: 0,
+      autonomousScore: 0,
+      teleopScore: 0,
+      endGameScore: 0,
+      autonLeave: 0,
+      autonClassifiedArtifact: 0,
+      autonOverflowArtifact: 0,
+      autonMotif: 0,
+      autonBallsMissed: 0,
+      teleClassifiedArtifact: 0,
+      teleOverflowArtifact: 0,
+      teleMotif: 0,
+      teleBallsMissed: 0,
+      robot1Park: 'none',
+      robot2Park: 'none',
+      cycleTimes: [],
+      autonShots: [],
+      teleopShots: [],
+    });
+    resetTimer();
+    setHasStarted(false);
+    setMatchActive(false);
+    setIsTimerRunning(false);
+    setHasTransitionedToTeleop(false);
+    setCancelMatchConfirm(false);
+    toast.success('Current match discarded');
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      {/* New Streamlined Action Buttons */}
+      {!sessionData.isSessionCompleted ? (
+        <>
+        <div className="flex items-center gap-3 w-full">
+          {/* Save Match / Start Match Button */}
+          {!showTeleopTransition && !editingMatchId && (
+            <button
+              onClick={!matchActive ? () => { 
+                if (!isSessionSetupSaved) {
+                  onTryStartWithoutSetup?.();
+                  return;
+                }
+                setHasStarted(true); 
+                setMatchActive(true); 
+                setIsTimerRunning(true);
+                window.dispatchEvent(new Event('teamtrack-match-started'));
+              } : handleSaveMatch}
+              disabled={!matchActive && !sessionData.sessionName?.trim()}
+              title={!matchActive && !sessionData.sessionName?.trim() ? 'Complete session setup (Session Name) before starting' : ''}
+              className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                !matchActive 
+                  ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
+                  : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
+              }`}
+            >
+              {!matchActive ? 'Start Match' : 'Save Match'}
+            </button>
+          )}
+
+          {/* Teleop Transition Buttons */}
+          {showTeleopTransition && (
+            <>
+              <button
+                onClick={handleContinueToTeleop}
+                className={`flex-1 px-6 py-4 h-16 rounded-2xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-lg font-bold transition-colors flex items-center justify-center`}
+              >
+                Continue into Teleop
+              </button>
+              <button
+                onClick={handleSkipTeleop}
+                className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-lg font-bold transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-black'}`}
+              >
+                Skip / End Autonomous Only
+              </button>
+            </>
+          )}
+
+          {/* Editing Match Buttons */}
+          {editingMatchId && (
+            <>
+              <button
+                onClick={() => {
+                  saveEditedMatch();
+                  toast.success('Match changes saved!');
+                }}
+                className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={returnToCurrentMatch}
+                className="px-4 py-4 h-16 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-lg font-bold transition-colors flex items-center justify-center"
+              >
+                Return to Current Match
+              </button>
+            </>
+          )}
+
+          {/* Settings/Gear Icon - Opens Session Setup */}
+          <button
+            onClick={onOpenSessionSetup}
+            className={`py-4 px-6 h-16 rounded-2xl border-2 border-team-blue-40 transition-colors flex items-center justify-center ${
+              isDarkMode
+                ? 'bg-team-dark hover:bg-[#2a2a2a]'
+                : 'bg-white hover:bg-gray-50'
+            }`}
+            title="Edit Session Setup"
+          >
+            <Settings className={`h-6 w-6 ${isDarkMode ? 'text-white' : 'text-black'}`} />
+          </button>
+
+          {/* Complete Session Button */}
+          <button
+            onClick={handleCompleteSession}
+            disabled={loading || sessionLimitReached}
+              className="px-4 py-4 h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            title={
+              loading
+                ? 'Saving...'
+                : sessionLimitReached
+                  ? 'Session Limit Reached'
+                  : 'Complete Session'
+            }
+          >
+            {loading ? 'Saving...' : 'Complete Session'}
+          </button>
+
+          {/* Cancel Session Button */}
+          {!cancelConfirm ? (
+            <button
+              onClick={() => {
+                setCancelConfirm(true);
+                if (isTimerRunning) setIsTimerRunning(false);
+              }}
+              className="px-4 py-4 h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
+              title="Cancel Session"
+            >
+              Cancel Session
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  handleNewSession();
+                  setCancelConfirm(false);
+                  toast.success('Session cancelled');
+                }}
+                className="py-4 px-4 rounded-xl bg-green-500 hover:bg-green-600 transition-colors"
+                title="Confirm cancel"
+              >
+                <Check className="h-5 w-5 text-white" />
+              </button>
+              <button
+                onClick={() => {
+                    setCancelConfirm(false);
+                    if (hasStarted) setIsTimerRunning(true);
+                  }}
+                  className="py-4 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
+                  title="Keep session"
+                >
+                  <X className="h-5 w-5 text-white" />
+                </button>
+              </div>
+            )}
+        </div>
+
+        {/* Match Control Buttons */}
+        {!editingMatchId && matchActive && (
+          <div className="flex items-center gap-3">
+            {/* Pause/Resume controls - only when match is active */}
+            {matchActive && isTimerRunning && (
+              <button
+                onClick={() => setIsTimerRunning(false)}
+                className="px-4 py-2 rounded-xl border-2 border-yellow-500/40 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 text-sm font-semibold transition-colors flex items-center gap-2"
+              >
+                <span>⏸</span>
+                Pause Match
+              </button>
+            )}
+            {matchActive && !isTimerRunning && (matchPhase === 'auton' || matchPhase === 'teleop') && (
+              <button
+                onClick={() => setIsTimerRunning(true)}
+                className="px-4 py-2 rounded-xl border-2 border-team-blue-40 bg-team-blue-10 hover:bg-team-blue-40 text-team-blue text-sm font-semibold transition-colors flex items-center gap-2"
+              >
+                <span>▶</span>
+                Resume Match
+              </button>
+            )}
+
+            {/* Cancel Current Match Button */}
+            {matchActive && (
+              <>
+                {!cancelMatchConfirm ? (
+                  <button
+                    onClick={() => setCancelMatchConfirm(true)}
+                    className="px-4 py-2 rounded-xl border-2 border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-semibold transition-colors flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel Current Match
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Discard this match?
+                    </span>
+                    <button
+                      onClick={handleCancelCurrentMatch}
+                      className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
+                    >
+                      Yes, Discard
+                    </button>
+                    <button
+                      onClick={() => setCancelMatchConfirm(false)}
+                      className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${
+                        isDarkMode
+                          ? 'border-gray-600 text-gray-300 hover:bg-gray-800'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      No, Keep
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Match Log */}
+        {(sessionData.matches || []).length > 0 && (
+          <div className={`rounded-2xl border-2 overflow-hidden ${
+            isDarkMode ? 'border-gray-700 bg-team-dark' : 'border-gray-200 bg-white'
+          }`}>
+            <div className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wider ${
+              isDarkMode ? 'text-gray-400 border-b border-gray-700' : 'text-gray-500 border-b border-gray-200'
+            }`}>
+              Match Log
+            </div>
+            <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+              {(sessionData.matches || []).map((match) => {
+                const isEditing = editingMatchId === match.id;
+                const isConfirmingDelete = deleteConfirmId === match.id;
+                return (
+                  <div
+                    key={match.id}
+                    className={`flex items-center justify-between px-4 py-3 transition-colors cursor-pointer ${
+                      isEditing
+                        ? 'bg-yellow-400/50'
+                        : isDarkMode
+                          ? 'hover:bg-gray-800'
+                          : 'hover:bg-gray-50'
+                    }`}
+                    onClick={() => {
+                      if (!isEditing && !isConfirmingDelete) {
+                        startEditingMatch(match);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-bold ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        Match {match.matchNumber}
+                      </span>
+                      <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Score: {match.finalScore ?? 0}
+                      </span>
+                      <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        A:{match.autonomousScore ?? 0} T:{match.teleopScore ?? 0} E:{match.endGameScore ?? 0}
+                      </span>
+                      {isEditing && (
+                        <span className="text-sm font-bold text-yellow-900 bg-yellow-400 px-3 py-1 rounded-full shadow-lg">
+                          Editing
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {!isConfirmingDelete ? (
+                        <button
+                          onClick={() => setDeleteConfirmId(match.id)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isDarkMode
+                              ? 'hover:bg-red-500/20 text-gray-500 hover:text-red-400'
+                              : 'hover:bg-red-50 text-gray-400 hover:text-red-500'
+                          }`}
+                          title="Delete match"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDeleteMatch(match.id)}
+                            className="p-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors"
+                            title="Confirm delete"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(null)}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-black'
+                            }`}
+                            title="Cancel delete"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        </>
+      ) : (
+        /* Completed Session Buttons */
+        <div className="flex flex-wrap gap-4 w-full">
+          <button
+            onClick={handleViewAnalysis}
+            disabled={loading}
+            className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-white-20 bg-team-blue ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'} text-sm font-medium text-center hover:bg-team-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {loading ? 'Loading...' : 'View Full Analysis Report'}
+          </button>
+
+          <button
+            onClick={handleNewSession}
+            className={`flex-1 min-w-[160px] px-4 py-2.5 rounded-lg border border-team-blue bg-transparent text-team-blue text-sm font-medium transition-colors ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-[#FEFEFE]'}`}
+          >
+            New Session
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};

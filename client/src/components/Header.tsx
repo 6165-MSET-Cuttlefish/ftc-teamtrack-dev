@@ -17,7 +17,6 @@ import {
   Moon,
   LogOut,
   UserCircle,
-  BarChart3,
   Keyboard,
   HelpCircle,
   Hexagon,
