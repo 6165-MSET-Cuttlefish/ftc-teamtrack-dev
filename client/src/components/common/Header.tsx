@@ -42,7 +42,7 @@ const TeamTrackLogo = () => {
 
   return (
     <Link
-      to="/sessions"
+      to="/"
       aria-label="TeamTrack home"
       className="flex items-center gap-2 sm:gap-4 focus:outline-none transition-all duration-200 origin-left"
     >
@@ -553,8 +553,8 @@ export const Header = () => {
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
           {!isOnSessionsPage && (
             <button
-              onClick={() => navigate('/sessions')}
-              aria-label="Back to sessions"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
               className={`p-1.5 sm:p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />

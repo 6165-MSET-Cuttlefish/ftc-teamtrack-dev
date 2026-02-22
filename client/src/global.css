@@ -564,3 +564,9 @@
 [data-radix-popper-content-wrapper] {
   z-index: 10000 !important;
 }
+
+/* Delete-confirmation countdown bar */
+@keyframes shrinkWidth {
+  from { width: 100%; }
+  to { width: 0%; }
+}

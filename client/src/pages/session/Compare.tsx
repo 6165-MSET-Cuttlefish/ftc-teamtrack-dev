@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
@@ -55,6 +55,16 @@ const Compare = () => {
   useEffect(() => {
     document.title = `Compare - ${APP_CONFIG.name}`;
   }, []);
+
+  // Guests cannot access Compare — redirect
+  const guestRedirectToastShown = useRef(false);
+  if (!user?.uid || isGuest) {
+    if (!guestRedirectToastShown.current) {
+      guestRedirectToastShown.current = true;
+      setTimeout(() => toast.error('Please sign in to compare sessions'), 0);
+    }
+    return <Navigate to={ROUTES.SESSIONS} replace />;
+  }
 
   // --- Helpers ---
 

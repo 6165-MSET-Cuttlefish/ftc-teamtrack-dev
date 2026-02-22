@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useSession, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
@@ -397,8 +397,13 @@ const Charts = () => {
   };
 
   // Guests cannot access Charts — redirect
+  const guestRedirectToastShown = useRef(false);
   if (!user?.uid || isGuest) {
-    toast.error('Please sign in to access charts');
+    if (!guestRedirectToastShown.current) {
+      guestRedirectToastShown.current = true;
+      // Defer toast to avoid side-effect during render
+      setTimeout(() => toast.error('Please sign in to access charts'), 0);
+    }
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
 

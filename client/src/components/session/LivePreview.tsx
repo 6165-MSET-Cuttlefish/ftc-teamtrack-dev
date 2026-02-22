@@ -3,9 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth, useTeam } from '@/contexts';
 import { useFirebase, useNavigationGuard } from '@/hooks';
 import { GAME_TIMING, ROUTES } from '@/constants';
-import { Check, X, Settings, Trash2 } from 'lucide-react';
+import { Check, X, Settings, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { MotifSetupDialog } from './MotifSetupDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import type { Match } from '@/types';
 import type { ScoringFields } from '@/types';
 
@@ -78,7 +85,7 @@ export const LivePreview = ({
       (sessionData.sessionName && sessionData.sessionName.trim().length > 0)));
 
   // Block both in-app and browser navigation when there's unsaved work
-  useNavigationGuard(
+  const navGuard = useNavigationGuard(
     hasUnsavedWork,
     'You have an active session with unsaved data. Are you sure you want to leave?'
   );
@@ -478,7 +485,7 @@ export const LivePreview = ({
       {/* New Streamlined Action Buttons */}
       {!sessionData.isSessionCompleted ? (
         <>
-          <div className="flex items-center gap-3 w-full">
+          <div className="flex flex-wrap items-center gap-3 w-full">
             {/* Save Match / Start Match Button */}
             {!showTeleopTransition && !editingMatchId && (
               <button
@@ -1024,6 +1031,39 @@ export const LivePreview = ({
         onCancel={handleMotifDialogCancel}
         initialPattern={sessionData.motifPattern ?? ['empty', 'empty', 'empty']}
       />
+
+      {/* Navigation Guard Dialog */}
+      <Dialog open={navGuard.isBlocked} onOpenChange={() => navGuard.reset()}>
+        <DialogContent className={isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white'}>
+          <DialogHeader className={isDarkMode ? 'border-team-blue-40' : ''}>
+            <DialogTitle className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Unsaved Changes
+            </DialogTitle>
+            <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
+              {navGuard.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 px-6 py-4">
+            <button
+              onClick={() => navGuard.reset()}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isDarkMode
+                  ? 'bg-team-white-10 text-white hover:bg-team-white-20'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Stay on Page
+            </button>
+            <button
+              onClick={() => navGuard.proceed()}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
+            >
+              Leave Page
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

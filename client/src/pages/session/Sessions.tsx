@@ -148,7 +148,7 @@ const SessionCard = ({
 
   const cardContent = (
     <Card
-      className={`transition-all duration-300 cursor-pointer group ${
+      className={`relative transition-all duration-300 cursor-pointer group ${
         isDarkMode
           ? 'border-team-blue-40 bg-team-dark hover:border-team-blue'
           : 'border-gray-200 bg-white hover:border-team-blue'
@@ -245,15 +245,25 @@ const SessionCard = ({
                         )}
                       </button>
                       {deleteConfirm && !isDeleting && (
-                        <button
-                          onClick={handleDeleteCancel}
-                          className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                            isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                          }`}
-                          title="Cancel delete"
-                        >
-                          ✕
-                        </button>
+                        <>
+                          <button
+                            onClick={handleDeleteCancel}
+                            className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                              isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                            }`}
+                            title="Cancel delete"
+                          >
+                            ✕
+                          </button>
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden rounded-b-lg">
+                            <div
+                              className="h-full bg-red-500 rounded-b-lg"
+                              style={{
+                                animation: `shrinkWidth ${UI_TIMING.DELETE_CONFIRM_TIMEOUT}ms linear forwards`,
+                              }}
+                            />
+                          </div>
+                        </>
                       )}
                     </div>
                   </>
@@ -423,8 +433,17 @@ const Sessions = () => {
   }, []);
 
   const loadPersonalSessions = useCallback(async () => {
-    // Guests don't have sessions stored in Firebase
+    // Guests have sessions stored in localStorage, not Firebase
     if (isGuest) {
+      try {
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        setSessions(stored);
+        setFilteredSessions(stored);
+      } catch {
+        setSessions([]);
+        setFilteredSessions([]);
+      }
       setLoading(false);
       return;
     }

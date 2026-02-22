@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib/utils';
 import { APP_CONFIG } from '@/constants';
@@ -33,7 +33,7 @@ const Signup = () => {
     document.title = `Sign Up - ${APP_CONFIG.name}`;
   }, []);
 
-  const { signup, loginWithGoogle, user, loading: authLoading } = useAuth();
+  const { signup, loginWithGoogle, continueAsGuest, user, loading: authLoading } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,9 +41,11 @@ const Signup = () => {
   const from = location.state?.from?.pathname || '/sessions';
 
   // Redirect already-authenticated users away from signup page
-  if (!authLoading && user) {
-    return <Navigate to={from} replace />;
-  }
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(from, { replace: true });
+    }
+  }, [authLoading, user, navigate, from]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -305,7 +307,21 @@ const Signup = () => {
           </Button>
         </CardContent>
 
-        <CardFooter className="flex justify-center">
+        <CardFooter className="flex flex-col space-y-3">
+          <Button
+            variant="outline"
+            className={`w-full ${
+              isDarkMode
+                ? 'border-team-white-20 text-team-white-60 hover:bg-team-white-10'
+                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+            }`}
+            onClick={() => {
+              continueAsGuest();
+              navigate('/sessions', { replace: true });
+            }}
+          >
+            Continue as Guest
+          </Button>
           <div
             className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
           >

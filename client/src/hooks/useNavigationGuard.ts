@@ -3,7 +3,8 @@ import { useBlocker } from 'react-router-dom';
 
 /**
  * Hook that blocks in-app navigation when there is unsaved work.
- * Shows a browser-native confirm dialog to let users decide.
+ * Returns blocker state so the consuming component can render a
+ * custom confirmation dialog instead of relying on window.confirm.
  *
  * Also wires up `beforeunload` so page refresh / tab close is guarded.
  */
@@ -15,17 +16,6 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     ({ currentLocation, nextLocation }) =>
       shouldBlock && currentLocation.pathname !== nextLocation.pathname
   );
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      const confirmed = window.confirm(msg);
-      if (confirmed) {
-        blocker.proceed();
-      } else {
-        blocker.reset();
-      }
-    }
-  }, [blocker, msg]);
 
   // Block browser-level navigation (refresh, close tab)
   useEffect(() => {
@@ -39,4 +29,15 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [shouldBlock]);
+
+  return {
+    /** Whether a navigation attempt is currently blocked */
+    isBlocked: blocker.state === 'blocked',
+    /** Allow the blocked navigation to continue */
+    proceed: () => blocker.state === 'blocked' && blocker.proceed(),
+    /** Cancel the blocked navigation */
+    reset: () => blocker.state === 'blocked' && blocker.reset(),
+    /** The message to display in the confirmation dialog */
+    message: msg,
+  };
 };

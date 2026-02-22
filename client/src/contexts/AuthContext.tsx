@@ -7,7 +7,7 @@ import {
 } from 'react';
 import getFirebase from '@/lib/firebase';
 import { logger } from '@/lib/logger';
-import { clearSessionFromStorage } from '@/lib/sessionStorage';
+import { clearSessionFromStorage, clearHasCompletedSession } from '@/lib/sessionStorage';
 import type { User } from '@/types';
 import type {
   Auth,
@@ -169,11 +169,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       localStorage.removeItem(GUEST_MODE_KEY);
       localStorage.removeItem(GUEST_ID_KEY);
       clearSessionFromStorage();
+      clearHasCompletedSession();
       setIsGuest(false);
       setGuestId(null);
       setUser(null);
       return;
     }
+
+    // Clear per-user flags before Firebase sign-out to prevent cross-user bleed
+    clearHasCompletedSession();
 
     if (!authInstance || !authModule || !authModule.signOut) return;
     await authModule.signOut(authInstance);

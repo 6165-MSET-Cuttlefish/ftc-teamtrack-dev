@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib/utils';
 import { APP_CONFIG } from '@/constants';
@@ -24,7 +24,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login, loginWithGoogle, user, loading: authLoading } = useAuth();
+  const { login, loginWithGoogle, continueAsGuest, user, loading: authLoading } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,9 +36,11 @@ const Login = () => {
   const from = location.state?.from?.pathname || '/sessions';
 
   // Redirect already-authenticated users away from login page
-  if (!authLoading && user) {
-    return <Navigate to={from} replace />;
-  }
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(from, { replace: true });
+    }
+  }, [authLoading, user, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,7 +209,21 @@ const Login = () => {
           </Button>
         </CardContent>
 
-        <CardFooter className="flex flex-col space-y-2">
+        <CardFooter className="flex flex-col space-y-3">
+          <Button
+            variant="outline"
+            className={`w-full ${
+              isDarkMode
+                ? 'border-team-white-20 text-team-white-60 hover:bg-team-white-10'
+                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+            }`}
+            onClick={() => {
+              continueAsGuest();
+              navigate('/sessions', { replace: true });
+            }}
+          >
+            Continue as Guest
+          </Button>
           <div className="text-sm text-center">
             <Link
               to="/forgot-password"

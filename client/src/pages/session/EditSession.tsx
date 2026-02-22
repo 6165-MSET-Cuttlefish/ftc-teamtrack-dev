@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
@@ -164,8 +164,13 @@ const EditSession = () => {
   };
 
   // Guests cannot edit sessions
+  const guestRedirectToastShown = useRef(false);
   if (!user?.uid || isGuest) {
-    toast.error('Please sign in to edit sessions');
+    if (!guestRedirectToastShown.current) {
+      guestRedirectToastShown.current = true;
+      // Defer toast to avoid side-effect during render
+      setTimeout(() => toast.error('Please sign in to edit sessions'), 0);
+    }
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
 

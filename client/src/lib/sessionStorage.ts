@@ -219,6 +219,15 @@ export const clearSessionFromStorage = (): void => {
   }
 };
 
+/** Clear the "has completed a session" flag (call on logout to avoid cross-user bleed) */
+export const clearHasCompletedSession = (): void => {
+  try {
+    localStorage.removeItem(HAS_COMPLETED_SESSION_KEY);
+  } catch (error) {
+    logger.error('Failed to clear hasCompletedSession flag:', error);
+  }
+};
+
 /**
  * Check if there's an active session in storage
  * A session is only considered "active" if it has been started or has meaningful data
