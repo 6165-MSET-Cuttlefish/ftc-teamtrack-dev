@@ -15,7 +15,7 @@ interface TeamContextType {
   team: Team | null;
   loading: boolean;
   createTeam: (name: string) => Promise<Team | null>;
-  joinTeam: (inviteCode: string) => Promise<Team | null>;
+  joinTeam: (inviteCode: string, skipConfirmation?: boolean) => Promise<Team | null>;
   leaveTeam: () => Promise<void>;
   refreshTeam: () => Promise<void>;
   regenerateInviteCode: () => Promise<string | null>;
@@ -91,12 +91,16 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const joinTeam = async (inviteCode: string): Promise<Team | null> => {
+  const joinTeam = async (inviteCode: string, skipConfirmation = false): Promise<Team | null> => {
     if (!user) return null;
 
     try {
-      // If already in a team, leave it first
-      if (team) {
+      // If already in a team, require confirmation before leaving
+      if (team && !skipConfirmation) {
+        const confirmed = window.confirm(
+          `You are currently in "${team.name}". Joining a new team will remove you from your current team. Continue?`
+        );
+        if (!confirmed) return null;
         await teamService.leaveTeam(team.id, user.uid);
       }
 

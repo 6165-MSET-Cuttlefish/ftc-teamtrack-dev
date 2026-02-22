@@ -179,7 +179,16 @@ export const ScoringUI = () => {
     : (sessionData.teleopScore ?? 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Overlay when scoring is disabled after match ends */}
+      {matchActive && matchPhase === 'ended' && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 rounded-lg backdrop-blur-[2px]">
+          <div className={`text-center px-6 py-4 rounded-xl ${isDarkMode ? 'bg-team-dark/90 border border-team-blue-40' : 'bg-white/90 border border-gray-200'} shadow-lg`}>
+            <p className="text-lg font-semibold text-team-blue">Match Ended</p>
+            <p className={`text-sm mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>Save your match to continue scoring</p>
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes shot-rise {
           0%   { opacity: 1; transform: translateY(0px); }

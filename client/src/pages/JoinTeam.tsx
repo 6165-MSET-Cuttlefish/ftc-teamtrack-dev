@@ -32,14 +32,14 @@ const JoinTeam = () => {
     if (!user) {
       // Save invite code and redirect to login
       if (inviteCode) {
-        sessionStorage.setItem('pendingInviteCode', inviteCode);
+        localStorage.setItem('pendingInviteCode', inviteCode);
       }
       navigate(ROUTES.LOGIN);
       return;
     }
 
     // Also check for pending invite code from login redirect
-    const pendingCode = sessionStorage.getItem('pendingInviteCode');
+    const pendingCode = localStorage.getItem('pendingInviteCode');
     const codeToUse = inviteCode || pendingCode;
 
     if (!codeToUse) {
@@ -60,7 +60,7 @@ const JoinTeam = () => {
           setTeamName(team.name);
           setTeamId(team.id);
           setStatus('success');
-          sessionStorage.removeItem('pendingInviteCode');
+          localStorage.removeItem('pendingInviteCode');
 
           // Check if user has personal sessions to import
           if (user?.uid) {
@@ -270,7 +270,7 @@ const JoinTeam = () => {
             )}
 
             <Button
-              onClick={() => window.location.href = ROUTES.SESSIONS}
+              onClick={() => navigate(ROUTES.SESSIONS)}
               className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
             >
               <Users className="h-4 w-4 mr-2" />

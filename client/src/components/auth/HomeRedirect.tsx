@@ -9,7 +9,7 @@ import { hasCompletedASession } from '@/lib';
  * - After completing at least one session → /sessions
  */
 export const HomeRedirect = () => {
-  const { loading } = useAuth();
+  const { user, loading, isGuest } = useAuth();
 
   if (loading) {
     return (
@@ -18,6 +18,11 @@ export const HomeRedirect = () => {
         <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
       </div>
     );
+  }
+
+  // Redirect unauthenticated visitors to login
+  if (!user && !isGuest) {
+    return <Navigate to={ROUTES.LOGIN} replace />;
   }
 
   // If the user has completed at least one session, send them to the sessions list

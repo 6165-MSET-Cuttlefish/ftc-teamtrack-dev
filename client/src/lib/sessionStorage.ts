@@ -9,6 +9,10 @@ import { logger } from './logger';
 
 const HAS_COMPLETED_SESSION_KEY = 'teamtrack-has-completed-session';
 
+/** Current schema version for stored session data. Bump when SessionFormData shape changes. */
+const STORAGE_SCHEMA_VERSION = 1;
+const SCHEMA_VERSION_KEY = 'teamtrack-session-schema-version';
+
 /** Check if the user has ever completed a session */
 export const hasCompletedASession = (): boolean =>
   localStorage.getItem(HAS_COMPLETED_SESSION_KEY) === 'true';
@@ -64,6 +68,7 @@ export const saveSessionToStorage = (
   try {
     // Save session data (all scoring data, matches, etc.)
     localStorage.setItem(SESSION_DATA, JSON.stringify(sessionData));
+    localStorage.setItem(SCHEMA_VERSION_KEY, String(STORAGE_SCHEMA_VERSION));
 
     // Save timer states with timestamps so we can calculate elapsed time
     localStorage.setItem(
@@ -115,6 +120,12 @@ export const saveSessionToStorage = (
  */
 export const loadSessionFromStorage = (): SessionFormData | null => {
   try {
+    // Check schema version — discard stale data from older app versions
+    const storedVersion = localStorage.getItem(SCHEMA_VERSION_KEY);
+    if (storedVersion !== String(STORAGE_SCHEMA_VERSION)) {
+      clearSessionFromStorage();
+      return null;
+    }
     const stored = localStorage.getItem(SESSION_DATA);
     return stored ? JSON.parse(stored) : null;
   } catch (error) {
@@ -156,7 +167,7 @@ export const loadTimerStateFromStorage = (): SessionTimerState | null => {
 
     return {
       sessionTimer: sessionData.value + sessionElapsed,
-      matchTimer: matchData.value + matchElapsed,
+      matchTimer: Math.max(0, matchData.value - matchElapsed),
       isTimerRunning: sessionData.isRunning,
       hasStarted: matchState.hasStarted ?? false,
       hasTransitionedToTeleop: matchState.hasTransitionedToTeleop ?? false,
@@ -183,6 +194,7 @@ export const clearSessionFromStorage = (): void => {
     localStorage.removeItem(SESSION_START_TIME);
     localStorage.removeItem(MATCH_START_TIME);
     localStorage.removeItem(MATCH_STATE);
+    localStorage.removeItem(SCHEMA_VERSION_KEY);
   } catch (error) {
     logger.error('Failed to clear session from storage:', error);
   }

@@ -193,10 +193,16 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [isPreMatchDelay, setIsPreMatchDelay] = useState<boolean>(false);
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear session data when user logs out
+  // Clear session data when user logs out (deliberate action only)
+  // Note: we do NOT clear on auth token expiry to prevent data loss
+  const prevUserRef = useRef(user);
   useEffect(() => {
-    if (!user) {
-      // User logged out, clear session data so next user doesn't see it
+    const wasLoggedIn = prevUserRef.current;
+    prevUserRef.current = user;
+
+    // Only wipe session if user explicitly logged out (was logged in, now null)
+    // and session data is already persisted in localStorage
+    if (wasLoggedIn && !user) {
       const newData = createInitialSessionData();
       setSessionData(newData);
       setHasStarted(false);
@@ -316,6 +322,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       clearInterval(interval);
     };
+  }, [hasStarted, sessionData.isSessionCompleted]);
+
+  // Warn user before closing tab if there is unsaved session data
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasStarted && !sessionData.isSessionCompleted) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasStarted, sessionData.isSessionCompleted]);
 
   // Persist session data and timer state to localStorage whenever they change

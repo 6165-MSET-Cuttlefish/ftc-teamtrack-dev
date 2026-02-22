@@ -152,7 +152,10 @@ const NavigationMenu = () => {
       // Already on active page, just trigger the tutorial
       window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT));
     } else {
-      toast.info('You can only access the tutorial on the Active Sessions page!');
+      // Offer to navigate to the Active page for the tutorial
+      navigate(ROUTES.ACTIVE);
+      // Dispatch the tutorial event after a short delay for the page to mount
+      setTimeout(() => window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT)), 500);
     }
   };
 

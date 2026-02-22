@@ -217,10 +217,11 @@ const SharedSession = () => {
             >
               Notes
             </h3>
-            <div
-              className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
-              dangerouslySetInnerHTML={{ __html: session.notes }}
-            />
+            <p
+              className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+            >
+              {session.notes}
+            </p>
           </div>
         )}
 
@@ -293,6 +294,19 @@ const SharedSession = () => {
             >
               No matches recorded in this session
             </p>
+          </div>
+        )}
+
+        {/* ── Back to app link for logged-in users ─────────────────── */}
+        {user && (
+          <div className="text-center">
+            <Link
+              to="/sessions"
+              className="inline-flex items-center gap-2 text-team-blue hover:underline font-medium text-sm"
+            >
+              <ArrowLeft size={15} />
+              Back to My Sessions
+            </Link>
           </div>
         )}
 

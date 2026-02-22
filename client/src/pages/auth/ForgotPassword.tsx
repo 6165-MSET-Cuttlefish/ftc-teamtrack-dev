@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -21,9 +21,18 @@ const ForgotPassword = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const { resetPassword } = useAuth();
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
+
+  // Auto-redirect to login 5 seconds after successful submission
+  useEffect(() => {
+    if (!submitted) return;
+    const timeout = setTimeout(() => navigate('/login'), 5000);
+    return () => clearTimeout(timeout);
+  }, [submitted, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +48,7 @@ const ForgotPassword = () => {
       setLoading(true);
       await resetPassword(email);
       setMessage('Check your inbox for a password reset link. If you don\'t see it, check your spam or junk folder.');
+      setSubmitted(true);
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -116,10 +126,16 @@ const ForgotPassword = () => {
             <Button
               type="submit"
               className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
-              disabled={loading}
+              disabled={loading || submitted}
             >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {loading ? 'Sending...' : submitted ? 'Link Sent ✔' : 'Send Reset Link'}
             </Button>
+
+            {submitted && (
+              <p className={`text-xs text-center ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'}`}>
+                Redirecting to sign in...
+              </p>
+            )}
           </form>
         </CardContent>
 

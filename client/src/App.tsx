@@ -76,19 +76,35 @@ const App = () => (
                       {/* Protected Routes */}
                       <Route
                         path={ROUTES.HOME}
-                        element={<HomeRedirect />}
+                        element={
+                          <ProtectedRoute>
+                            <HomeRedirect />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.ACTIVE}
-                        element={<Active />}
+                        element={
+                          <ProtectedRoute>
+                            <Active />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.ANALYSIS}
-                        element={<Analysis />}
+                        element={
+                          <ProtectedRoute>
+                            <Analysis />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.EDIT_SESSION}
-                        element={<EditSession />}
+                        element={
+                          <ProtectedRoute>
+                            <EditSession />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.PROFILE}
@@ -100,15 +116,27 @@ const App = () => (
                       />
                       <Route
                         path={ROUTES.SESSIONS}
-                        element={<Sessions />}
+                        element={
+                          <ProtectedRoute>
+                            <Sessions />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.COMPARE}
-                        element={<Compare />}
+                        element={
+                          <ProtectedRoute>
+                            <Compare />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.CHARTS}
-                        element={<Charts />}
+                        element={
+                          <ProtectedRoute>
+                            <Charts />
+                          </ProtectedRoute>
+                        }
                       />
 
                       {/* Catch-all route */}
