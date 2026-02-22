@@ -207,14 +207,14 @@ const EditSession = () => {
               The session you're trying to edit could not be found.
             </p>
             <button
-              onClick={() => window.history.back()}
+              onClick={() => navigate(ROUTES.SESSIONS)}
               className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isDarkMode
                   ? 'bg-team-blue text-black hover:bg-team-blue/80'
                   : 'bg-team-blue text-white hover:bg-team-blue/90'
               }`}
             >
-              Go Back
+              Go to Sessions
             </button>
           </div>
         </div>

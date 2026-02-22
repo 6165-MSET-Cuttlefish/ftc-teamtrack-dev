@@ -1,8 +1,68 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts';
 import { AlertCircle } from 'lucide-react';
 
 type MotifColor = 'purple' | 'green' | 'empty';
+
+/** Overlay with focus trap, Escape key handling, and ARIA attributes */
+const MotifDialogOverlay = ({
+  children,
+  onCancel,
+}: {
+  children: React.ReactNode;
+  onCancel: () => void;
+}) => {
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap: keep focus inside the dialog
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+
+    const focusable = overlay.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length > 0) focusable[0].focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onCancel();
+        return;
+      }
+      if (e.key !== 'Tab' || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Set your motif pattern"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      {children}
+    </div>
+  );
+};
 
 interface MotifSetupDialogProps {
   isOpen: boolean;
@@ -61,7 +121,7 @@ export const MotifSetupDialog = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <MotifDialogOverlay onCancel={onCancel}>
       <div
         className={`rounded-2xl p-6 max-w-md w-full mx-4 space-y-4 ${
           isDarkMode ? 'bg-team-dark border border-team-blue/30' : 'bg-white border border-team-blue/20'
@@ -150,6 +210,6 @@ export const MotifSetupDialog = ({
           </button>
         </div>
       </div>
-    </div>
+    </MotifDialogOverlay>
   );
 };

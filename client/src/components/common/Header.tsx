@@ -23,6 +23,7 @@ import {
   Hexagon,
   Waves,
   ArrowLeft,
+  MoreVertical,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -169,7 +170,7 @@ const NavigationMenu = () => {
       {!isOnActivePage &&
         (hasActiveSession ? (
           <button
-            onClick={() => navigate('/active')}
+            onClick={() => navigate(ROUTES.ACTIVE)}
             aria-label="Active practice session"
             className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'}`}
           >
@@ -191,7 +192,7 @@ const NavigationMenu = () => {
 
       {/* My Sessions button */}
       <button
-        onClick={() => navigate('/sessions')}
+        onClick={() => navigate(ROUTES.SESSIONS)}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
           isDarkMode
             ? 'hover:bg-team-white-10 text-white'
@@ -202,30 +203,30 @@ const NavigationMenu = () => {
         <BarChart3 className="w-4 h-4 sm:hidden" />
       </button>
 
-      {/* Keybinds Tutorial button */}
+      {/* Keybinds Tutorial button — hidden on mobile, in More menu instead */}
       <button
         onClick={() => setShowKeybindTutorial(true)}
         aria-label="Keybinds tutorial"
-        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+        className={`hidden sm:flex p-2 sm:p-2.5 rounded-full transition-colors items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
       >
         <Keyboard className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
-      {/* Interactive Tutorial button */}
+      {/* Interactive Tutorial button — hidden on mobile, in More menu instead */}
       <button
         onClick={handleStartInteractiveTutorial}
         aria-label="Start interactive tutorial"
-        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+        className={`hidden sm:flex p-2 sm:p-2.5 rounded-full transition-colors items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
       >
         <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
-      {/* Theme dropdown */}
+      {/* Theme dropdown — hidden on mobile, in More menu instead */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             aria-label="Select theme"
-            className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
+            className={`hidden sm:flex p-2 sm:p-2.5 rounded-full transition-colors items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
           >
             {themeMode === 'dark' ? (
               <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
@@ -277,11 +278,79 @@ const NavigationMenu = () => {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Mobile "More" menu — collapses keybinds, tutorial, and theme */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            aria-label="More options"
+            className={`sm:hidden p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[160px]">
+          <DropdownMenuItem
+            onClick={() => setShowKeybindTutorial(true)}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Keyboard className="w-4 h-4" />
+            <span>Keyboard Shortcuts</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={handleStartInteractiveTutorial}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span>Tutorial</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Theme</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => setTheme('dark')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Moon className="w-4 h-4" />
+            <span>Dark</span>
+            {themeMode === 'dark' && <span className="ml-auto text-xs">✓</span>}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setTheme('light')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Sun className="w-4 h-4" />
+            <span>Light</span>
+            {themeMode === 'light' && <span className="ml-auto text-xs">✓</span>}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setTheme('honeycomb')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Hexagon className="w-4 h-4" />
+            <span>Honeycomb</span>
+            {themeMode === 'honeycomb' && <span className="ml-auto text-xs">✓</span>}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setTheme('deepsea')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Waves className="w-4 h-4" />
+            <span>Deep Sea</span>
+            {themeMode === 'deepsea' && <span className="ml-auto text-xs">✓</span>}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       {/* Keybind Tutorial Modal */}
       {showKeybindTutorial && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4"
           onClick={handleCloseKeybindTutorial}
+          onKeyDown={e => {
+            if (e.key === 'Escape') handleCloseKeybindTutorial();
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Keyboard shortcuts"
         >
           <div
             className={`relative w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
@@ -453,7 +522,7 @@ const NavigationMenu = () => {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/profile" className="flex items-center">
+              <Link to={ROUTES.PROFILE} className="flex items-center">
                 <UserCircle className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </Link>

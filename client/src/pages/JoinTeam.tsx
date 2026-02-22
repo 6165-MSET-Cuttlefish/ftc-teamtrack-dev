@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useTeam, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
+import { teamService } from '@/services/teamService';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import { Users, Check, AlertCircle, Upload, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,26 +17,28 @@ const JoinTeam = () => {
   const { joinTeam } = useTeam();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
-  const hasAttemptedJoin = useRef(false);
-  const hasAttemptedJoinId = useRef<string | null>(null);
+  const hasAttemptedLookup = useRef(false);
+  const hasAttemptedLookupId = useRef<string | null>(null);
 
-  const [status, setStatus] = useState<'loading' | 'joining' | 'success' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'preview' | 'joining' | 'success' | 'error'>('loading');
   const [teamName, setTeamName] = useState('');
   const [teamId, setTeamId] = useState('');
+  const [memberCount, setMemberCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [importing, setImporting] = useState(false);
   const [importableSessions, setImportableSessions] = useState<Session[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const [resolvedCode, setResolvedCode] = useState<string>('');
 
   useEffect(() => {
     document.title = `Join Team - ${APP_CONFIG.name}`;
   }, []);
 
+  // Step 1: look up the team by invite code (preview before joining)
   useEffect(() => {
     if (authLoading) return;
 
     if (!user) {
-      // Save invite code and redirect to login
       if (inviteCode) {
         localStorage.setItem('pendingInviteCode', inviteCode);
       }
@@ -43,7 +46,6 @@ const JoinTeam = () => {
       return;
     }
 
-    // Also check for pending invite code from login redirect
     const pendingCode = localStorage.getItem('pendingInviteCode');
     const codeToUse = inviteCode || pendingCode;
 
@@ -53,57 +55,75 @@ const JoinTeam = () => {
       return;
     }
 
-    // Prevent duplicate join attempts from re-renders (but allow re-attempt with different invite code)
-    if (hasAttemptedJoin.current && hasAttemptedJoinId.current === codeToUse) return;
-    hasAttemptedJoin.current = true;
-    hasAttemptedJoinId.current = codeToUse;
+    if (hasAttemptedLookup.current && hasAttemptedLookupId.current === codeToUse) return;
+    hasAttemptedLookup.current = true;
+    hasAttemptedLookupId.current = codeToUse;
+    setResolvedCode(codeToUse);
 
-    const doJoin = async () => {
-      setStatus('joining');
+    const doLookup = async () => {
+      setStatus('loading');
       try {
-        const team = await joinTeam(codeToUse);
+        const team = await teamService.getTeamByInviteCode(codeToUse);
         if (team) {
           setTeamName(team.name);
-          setTeamId(team.id);
-          setStatus('success');
-          localStorage.removeItem('pendingInviteCode');
-
-          // Check if user has personal sessions to import
-          if (user?.uid) {
-            try {
-              // Direct query without orderBy to avoid composite index requirement
-              const firebase = await getFirebase();
-              if (firebase?.db) {
-                const q = query(
-                  collection(firebase.db, 'sessions'),
-                  where('userId', '==', user.uid)
-                );
-                const snapshot = await getDocs(q);
-                const allSessions = snapshot.docs.map(d => ({
-                  id: d.id,
-                  ...d.data(),
-                } as Session));
-                // Exclude sessions already in this team
-                const importable = allSessions.filter(s => s.teamId !== team.id);
-                setImportableSessions(importable);
-                setSelectedSessionIds(new Set(importable.map(s => s.id)));
-              }
-            } catch (err) {
-              console.warn('Could not fetch sessions for import:', err);
-            }
-          }
+          setMemberCount(team.members?.length ?? 0);
+          setStatus('preview');
         } else {
           setStatus('error');
           setErrorMessage('Invalid invite code. Please check the link and try again.');
         }
       } catch {
         setStatus('error');
-        setErrorMessage('Failed to join team. The invite code may be invalid or expired.');
+        setErrorMessage('Failed to look up team. The invite code may be invalid or expired.');
       }
     };
 
-    doJoin();
-  }, [user, authLoading, inviteCode, joinTeam, navigate]);
+    doLookup();
+  }, [user, authLoading, inviteCode, navigate]);
+
+  // Step 2: actually join the team (triggered by user clicking "Join")
+  const handleJoin = async () => {
+    if (!resolvedCode) return;
+    setStatus('joining');
+    try {
+      const team = await joinTeam(resolvedCode);
+      if (team) {
+        setTeamName(team.name);
+        setTeamId(team.id);
+        setStatus('success');
+        localStorage.removeItem('pendingInviteCode');
+
+        // Check if user has personal sessions to import
+        if (user?.uid) {
+          try {
+            const firebase = await getFirebase();
+            if (firebase?.db) {
+              const q = query(
+                collection(firebase.db, 'sessions'),
+                where('userId', '==', user.uid)
+              );
+              const snapshot = await getDocs(q);
+              const allSessions = snapshot.docs.map(d => ({
+                id: d.id,
+                ...d.data(),
+              } as Session));
+              const importable = allSessions.filter(s => s.teamId !== team.id);
+              setImportableSessions(importable);
+              setSelectedSessionIds(new Set(importable.map(s => s.id)));
+            }
+          } catch (err) {
+            console.warn('Could not fetch sessions for import:', err);
+          }
+        }
+      } else {
+        setStatus('error');
+        setErrorMessage('Invalid invite code. Please check the link and try again.');
+      }
+    } catch {
+      setStatus('error');
+      setErrorMessage('Failed to join team. The invite code may be invalid or expired.');
+    }
+  };
 
   return (
     <div
@@ -128,11 +148,54 @@ const JoinTeam = () => {
                 isDarkMode ? 'text-white' : 'text-team-blue'
               }`}
             >
-              Joining Team...
+              {status === 'joining' ? 'Joining Team...' : 'Looking up team...'}
             </h2>
             <p className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              Please wait while we add you to the team.
+              {status === 'joining' ? 'Please wait while we add you to the team.' : 'Verifying invite code...'}
             </p>
+          </>
+        )}
+
+        {status === 'preview' && (
+          <>
+            <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
+              <Users className="h-8 w-8 text-team-blue" />
+            </div>
+            <h2
+              className={`text-xl font-bold mb-2 ${
+                isDarkMode ? 'text-white' : 'text-team-blue'
+              }`}
+            >
+              Join {teamName}?
+            </h2>
+            <p className={`mb-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+              You've been invited to join this team.
+            </p>
+            {memberCount > 0 && (
+              <p className={`text-sm mb-6 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}>
+                {memberCount} member{memberCount !== 1 ? 's' : ''}
+              </p>
+            )}
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() => navigate(ROUTES.SESSIONS)}
+                variant="outline"
+                className={
+                  isDarkMode
+                    ? 'border-team-blue-40 text-team-white-60 hover:bg-team-dark'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                }
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleJoin}
+                className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Join Team
+              </Button>
+            </div>
           </>
         )}
 

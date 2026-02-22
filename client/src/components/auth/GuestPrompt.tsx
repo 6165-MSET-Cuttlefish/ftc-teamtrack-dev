@@ -109,8 +109,8 @@ export const GuestPrompt = () => {
               isDarkMode ? 'text-team-white-60' : 'text-gray-600'
             }`}
           >
-            Create an account to sync your sessions across devices and never
-            lose your data.
+            Guest sessions are stored only in this browser and will be lost if
+            you clear your data. Create an account to save them permanently.
           </p>
         </div>
       </div>

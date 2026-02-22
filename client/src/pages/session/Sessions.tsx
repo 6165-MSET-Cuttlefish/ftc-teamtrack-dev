@@ -154,6 +154,14 @@ const SessionCard = ({
           : 'border-gray-200 bg-white hover:border-team-blue'
       }`}
       onClick={onView}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onView();
+        }
+      }}
     >
       <CardHeader className="pb-4 pt-6 px-6">
         <div className="flex items-center gap-4 mb-4">
@@ -203,6 +211,7 @@ const SessionCard = ({
                         e.stopPropagation();
                         onShare();
                       }}
+                      aria-label="Share session"
                       className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
                         isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                       } hover:text-team-blue`}
@@ -212,6 +221,7 @@ const SessionCard = ({
                     </button>
                     <button
                       onClick={handleEditClick}
+                      aria-label="Edit session name"
                       className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
                         isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                       } hover:text-team-blue`}
@@ -602,7 +612,17 @@ const Sessions = () => {
   const handleDeleteSession = async (sessionId: string) => {
     try {
       setDeletingSessionId(sessionId);
-      await firebaseService.deleteSession(sessionId);
+
+      // Guest sessions are stored in localStorage, not Firebase
+      if (sessionId.startsWith('guest_')) {
+        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
+        const stored = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const updated = stored.filter((s: { id: string }) => s.id !== sessionId);
+        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
+      } else {
+        await firebaseService.deleteSession(sessionId);
+      }
+
       setSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
       setFilteredSessions(prevSessions =>
         prevSessions.filter(s => s.id !== sessionId)
@@ -985,13 +1005,13 @@ const Sessions = () => {
             {!searchTerm && isGuest && (
               <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
                 <Button
-                  onClick={() => navigate('/signup')}
+                  onClick={() => navigate(ROUTES.SIGNUP)}
                   className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
                 >
                   Sign Up to Save Sessions
                 </Button>
                 <Button
-                  onClick={() => navigate('/active')}
+                  onClick={() => navigate(ROUTES.ACTIVE)}
                   variant="outline"
                   className={
                     isDarkMode

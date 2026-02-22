@@ -71,6 +71,15 @@ const AnalysisContent = () => {
 
       // Load by sessionId from query params
       const sessionId = searchParams.get('sessionId');
+      if (!sessionId) {
+        // No sessionId and no location state — nothing to analyse
+        if (mounted) {
+          setNotFound(true);
+          setLoading(false);
+        }
+        return;
+      }
+
       if (sessionId) {
         try {
           let session = null;
@@ -533,13 +542,13 @@ const AnalysisContent = () => {
         {/* ── Actions ─────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <Link
-            to="/sessions"
+            to={ROUTES.SESSIONS}
             className={`w-full sm:w-56 px-5 py-2.5 rounded-xl border text-sm font-medium text-center transition-colors ${isDarkMode ? 'border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue' : 'border-gray-200 text-gray-600 hover:text-gray-900 hover:border-team-blue'}`}
           >
             Back to Sessions
           </Link>
           <Link
-            to="/charts"
+            to={ROUTES.CHARTS}
             className={`w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             View Lifetime Charts

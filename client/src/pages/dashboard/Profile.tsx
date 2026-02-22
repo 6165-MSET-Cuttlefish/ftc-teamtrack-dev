@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { getInitials } from '@/lib/utils';
-import { UI_TIMING, APP_CONFIG } from '@/constants';
+import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +26,7 @@ import {
   LogOut,
   Eye,
   EyeOff,
+  ArrowLeft,
 } from 'lucide-react';
 
 /* ─── Provider labels ─── */
@@ -333,6 +335,17 @@ const Profile = () => {
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-2xl mx-auto space-y-6">
+        {/* Back to Sessions link */}
+        <Link
+          to={ROUTES.SESSIONS}
+          className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+            isDarkMode ? 'text-team-white-60 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+          }`}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Sessions
+        </Link>
+
         {/* Global message */}
         {message && (
           <Alert

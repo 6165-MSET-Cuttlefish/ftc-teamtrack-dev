@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, Navigate } from 'react-router-dom';
+import { useSearchParams, Navigate, Link } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate, isAbortError } from '@/lib/utils';
@@ -343,11 +343,7 @@ const Compare = () => {
   };
 
   // --- Guards ---
-
-  if (!user?.uid || isGuest) {
-    toast.error('Please sign in to access session comparisons');
-    return <Navigate to={ROUTES.SESSIONS} replace />;
-  }
+  // (duplicate guard removed – the early return above already handles this)
 
   if (loading) {
     return (
@@ -415,12 +411,12 @@ const Compare = () => {
               <p className={`text-sm mb-4 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}>
                 Complete some practice sessions first, then come back to compare them.
               </p>
-              <a
-                href="/active"
+              <Link
+                to={ROUTES.ACTIVE}
                 className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 Start New Session
-              </a>
+              </Link>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">

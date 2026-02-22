@@ -306,7 +306,7 @@ const SharedSession = () => {
         {user && (
           <div className="text-center">
             <Link
-              to="/sessions"
+              to={ROUTES.SESSIONS}
               className="inline-flex items-center gap-2 text-team-blue hover:underline font-medium text-sm"
             >
               <ArrowLeft size={15} />
@@ -335,14 +335,14 @@ const SharedSession = () => {
                 team's performance.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
-                <Link to="/signup">
+                <Link to={ROUTES.SIGNUP}>
                   <Button
                     className={`w-full sm:w-56 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
                   >
                     Sign Up
                   </Button>
                 </Link>
-                <Link to="/login">
+                <Link to={ROUTES.LOGIN}>
                   <Button variant="outline" className="w-full sm:w-56">
                     Sign In
                   </Button>
