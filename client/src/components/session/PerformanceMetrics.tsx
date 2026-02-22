@@ -1008,24 +1008,6 @@ export const PerformanceMetrics = () => {
 
   return (
     <>
-      {/* Keyboard shortcut popup — z-[9998] so it shows above the tutorial overlay */}
-      {showPopup && (
-        <div className="fixed bottom-8 right-8 z-[9998] pointer-events-none">
-          <div
-            className={`${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-600 text-white'} rounded-lg shadow-2xl p-12 text-center`}
-          >
-            <div className="text-6xl font-bold mb-4">shot {popupNumber}</div>
-            <div className="text-4xl mb-4">
-              {madeCount !== null ? `${madeCount} made` : '__ made'}
-            </div>
-            <div className="text-sm mb-2 text-white/80">
-              press enter to confirm
-            </div>
-            <div className="text-sm text-white/80">press esc to exit</div>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col gap-6">
         <h2 className="text-team-blue text-2xl font-semibold leading-6">
           Performance Metrics
