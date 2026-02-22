@@ -717,7 +717,7 @@ const STEPS: StepDef[] = [
     body: 'Start Match begins the countdown. Save Match records your results. Gear opens settings. Complete and Cancel manage the session.',
     target: 'controls',
     preview: d => <ControlsPreview dark={d} />,
-    pageAction: 'Press Start Match in the controls below',
+    pageAction: 'Press Start Match in the controls',
     watchEvent: 'teamtrack-match-started',
   },
   {
@@ -1391,16 +1391,6 @@ export const ActiveTutorial = () => {
                   : 'Next'}
             </button>
           </div>
-        </div>
-
-        {/* Keyboard hint */}
-        <div
-          className="mt-2.5 text-center text-xs opacity-30"
-          style={{ color: text }}
-        >
-          {taskPending
-            ? 'Use the highlighted section above · Esc to skip'
-            : '← → or Enter to navigate · Esc to skip'}
         </div>
       </div>
     </>

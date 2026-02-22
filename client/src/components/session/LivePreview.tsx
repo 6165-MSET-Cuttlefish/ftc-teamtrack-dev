@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth, useTeam } from '@/contexts';
 import { useFirebase } from '@/hooks';
@@ -48,6 +48,7 @@ export const LivePreview = ({
     matchActive,
     setMatchActive,
     skipToTeleop,
+    setIsPreMatchDelay,
   } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -64,6 +65,7 @@ export const LivePreview = ({
   const [sessionWasCancelled, setSessionWasCancelled] = useState<boolean>(false);
   const [pendingEditMatch, setPendingEditMatch] = useState<Match | null>(null);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] = useState<boolean>(false);
+  const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Block navigation if there's unsaved work
   const hasUnsavedWork =
@@ -514,16 +516,27 @@ export const LivePreview = ({
                           setMatchActive(true);
                           if (sessionData.matchType === 'Teleop') {
                             setMatchPhase('teleop');
-                          } else {
+                            setIsTimerRunning(true);
+                          } else if (sessionData.matchType === 'Autonomous') {
                             setMatchPhase('auton');
+                            setIsTimerRunning(true);
+                          } else {
+                            // Full Game: 1.61s audio intro delay before countdown
+                            setMatchPhase('auton');
+                            setIsPreMatchDelay(true);
+                            if (preMatchDelayRef.current) clearTimeout(preMatchDelayRef.current);
+                            preMatchDelayRef.current = setTimeout(() => {
+                              setIsPreMatchDelay(false);
+                              setIsTimerRunning(true);
+                              preMatchDelayRef.current = null;
+                            }, 1610);
                           }
-                          setIsTimerRunning(true);
                           window.dispatchEvent(new Event('teamtrack-match-started'));
                         }
                       }
                     : handleSaveMatch
                 }
-                disabled={!matchActive && (!isSessionSetupSaved || !sessionData.sessionName?.trim())}
+                disabled={!matchActive && !sessionData.sessionName?.trim()}
                 title={
                   !matchActive && !isSessionSetupSaved
                     ? 'Save session settings before starting'

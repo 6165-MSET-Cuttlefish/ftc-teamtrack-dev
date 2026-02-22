@@ -10,7 +10,6 @@ import {
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
 import { useMatchAudio } from '@/hooks';
-import { isInAudioIntroPhase } from '@/lib';
 import { APP_CONFIG } from '@/constants';
 
 /** Thin divider that adapts to the current theme */
@@ -60,6 +59,7 @@ const ActiveSessionContent = () => {
     isTimerRunning,
     phaseTimer,
     matchActive,
+    isPreMatchDelay,
   } = useSession();
 
   // Determine timer color based on phase
@@ -93,7 +93,7 @@ const ActiveSessionContent = () => {
             </div>
 
             {/* Large Match Timer - Single Line */}
-            {!isInAudioIntroPhase(timer) && (
+            {!isPreMatchDelay && (
               <div className="flex flex-col items-center">
                 <div
                   className={`text-7xl sm:text-8xl tracking-wider leading-none transition-colors font-righteous ${getTimerColor()}`}

@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
@@ -64,18 +65,21 @@ interface SessionContextType {
   matchActive: boolean;
   setMatchActive: (active: boolean) => void;
   skipToTeleop: () => void;
+  /** True during the 1.61s audio intro before the countdown begins (Full Game only) */
+  isPreMatchDelay: boolean;
+  setIsPreMatchDelay: (delay: boolean) => void;
 }
 
 // Helper to determine initial timer duration based on match type
 const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
   switch (matchType) {
     case 'Autonomous':
-      return 30; // 30 seconds
+      return 30; // 0:30
     case 'Teleop':
-      return 120; // 2:00 (120 seconds)
+      return 120; // 2:00
     case 'Full Game':
     default:
-      return 163; // 2:43 (163 seconds) - 3s buffer + 1.61s intro + 30s auto + 5s pickup + 3s prepare + 120s teleop
+      return 153; // 3s countdown + 30s auto + 120s teleop (1.61s audio intro handled externally)
   }
 };
 
@@ -185,6 +189,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   // Whether the current match has been explicitly started
   const [matchActive, setMatchActive] = useState<boolean>(false);
 
+  // Pre-match audio intro delay (1.61s before countdown, Full Game only)
+  const [isPreMatchDelay, setIsPreMatchDelay] = useState<boolean>(false);
+  const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Clear session data when user logs out
   useEffect(() => {
     if (!user) {
@@ -193,6 +201,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       setSessionData(newData);
       setHasStarted(false);
       setIsTimerRunning(false);
+      setIsPreMatchDelay(false);
+      if (preMatchDelayRef.current) {
+        clearTimeout(preMatchDelayRef.current);
+        preMatchDelayRef.current = null;
+      }
       setTimer(getInitialTimerDuration(newData.matchType));
       setMatchPhase('auton');
       clearSessionFromStorage();
@@ -250,21 +263,32 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     const interval = setInterval(() => {
       setPhaseTimer(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          // Advance to next phase
-          if (matchPhase === 'controller_pickup') {
-            setMatchPhase('prepare');
-            setPhaseTimer(3);
-          } else {
-            // prepare → teleop: resume main timer
-            setMatchPhase('teleop');
-            setPhaseTimer(0);
-            setIsTimerRunning(true);
+        if (matchPhase === 'controller_pickup') {
+          if (prev <= 1) {
+            // Display stays at 0:01 until transition fires
+            clearInterval(interval);
+            // Schedule transition outside the updater to avoid nested setState issues
+            setTimeout(() => {
+              setMatchPhase('prepare');
+              setPhaseTimer(3);
+            }, 0);
+            return 1;
           }
-          return 0;
+          return prev - 1;
+        } else {
+          // prepare phase: count all the way down to 0:00, then transition
+          if (prev <= 0) {
+            clearInterval(interval);
+            setTimeout(() => {
+              setMatchPhase('teleop');
+              setPhaseTimer(0);
+              setTimer(120);
+              setIsTimerRunning(true);
+            }, 0);
+            return 0;
+          }
+          return prev - 1; // shows 0:03, 0:02, 0:01, 0:00
         }
-        return prev - 1;
       });
     }, 1000);
 
@@ -501,6 +525,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setIsTimerRunning(false);
     setHasStarted(false);
     setMatchActive(false);
+    setIsPreMatchDelay(false);
+    if (preMatchDelayRef.current) {
+      clearTimeout(preMatchDelayRef.current);
+      preMatchDelayRef.current = null;
+    }
     setHasTransitionedToTeleop(false);
     setShowTeleopTransition(false);
     setEditingMatchId(null);
@@ -561,6 +590,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     matchActive,
     setMatchActive,
     skipToTeleop,
+    isPreMatchDelay,
+    setIsPreMatchDelay,
   };
 
   return (

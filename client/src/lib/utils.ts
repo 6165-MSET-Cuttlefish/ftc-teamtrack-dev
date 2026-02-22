@@ -56,52 +56,41 @@ export function formatDate(
 
 /** Format seconds to MM:SS string */
 export function formatTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+  const s = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(s / 60);
+  const remainingSeconds = s % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
 /**
- * Check if we're in the pre-match audio intro phase (1.61s before countdown)
- * During this phase, the timer should be hidden from the user
+ * Check if we're in the pre-match audio intro phase.
+ * @deprecated Use isPreMatchDelay from SessionContext instead.
+ * Kept for backward compatibility.
  */
-export function isInAudioIntroPhase(backendTimer: number): boolean {
-  const AUDIO_INTRO_DURATION = 1.61;
-  const fullStart = 163;
-  const countdownBegins = fullStart - AUDIO_INTRO_DURATION; // ~161.39
-  return backendTimer > countdownBegins;
+export function isInAudioIntroPhase(_backendTimer: number): boolean {
+  return false;
 }
 
 /**
- * Calculate the user-facing timer display for Full Game matches
- * Only called when NOT in audio intro phase (intro is hidden from UI)
- * Shows countdown, autonomous, and other phases with proper formatting
+ * Calculate the user-facing timer display for Full Game matches.
+ * Timer starts at 153 and counts down with clean integer boundaries:
+ *   153-151 → countdown (3, 2, 1)
+ *   150-120 → autonomous (2:30 → 2:00)
+ *   120-0   → teleop (2:00 → 0:00) — timer value IS the display
  */
 export function getDisplayTimer(
   backendTimer: number,
-  matchPhase: string
+  _matchPhase: string
 ): number {
-  const COUNTDOWN_DURATION = 3;
-  const AUTO_DURATION = 30;
+  const COUNTDOWN_BOUNDARY = 150; // timer values above this are countdown
 
-  // Backend timer boundaries (counting DOWN from 163)
-  const autoBegins = 163 - 1.61 - COUNTDOWN_DURATION; // ~158.39
-  const pickupBegins = autoBegins - AUTO_DURATION; // ~128.39
-
-  // Countdown phase (0:03, 0:02, 0:01)
-  if (backendTimer > autoBegins) {
-    const countdownElapsed = (163 - 1.61) - backendTimer;
-    return Math.max(0, COUNTDOWN_DURATION - countdownElapsed);
+  // Countdown phase: timer 153→151 → display 3, 2, 1
+  if (backendTimer > COUNTDOWN_BOUNDARY) {
+    return backendTimer - COUNTDOWN_BOUNDARY;
   }
 
-  // Autonomous phase (2:30 down to 2:00)
-  if (matchPhase === 'auton' && backendTimer > pickupBegins) {
-    const autoElapsed = autoBegins - backendTimer;
-    // Show 2:30 (150s) counting down to 2:00 (120s)
-    return Math.max(120, 150 - autoElapsed);
-  }
-
-  // Other phases use their own timers (phaseTimer)
+  // Autonomous / teleop: timer value IS the display value
+  // 150 = 2:30, 120 = 2:00, 0 = 0:00
   return backendTimer;
 }
 

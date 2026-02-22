@@ -50,13 +50,16 @@ export const SCORING = {
 export const GAME_TIMING = {
   AUTONOMOUS_DURATION_SECONDS: 30,
   TELEOP_DURATION_SECONDS: 120,
-  FULL_GAME_DURATION_SECONDS: 163,
-  /** Remaining seconds when autonomous ends and controller pickup begins (5s pickup + 3s prepare + 120s teleop) */
-  AUTON_END_REMAINING: 128,
+  /** 3s countdown + 30s auto + 120s teleop (1.61s audio intro handled externally) */
+  FULL_GAME_DURATION_SECONDS: 153,
+  /** Timer value when autonomous ends and controller pickup begins (= teleop duration) */
+  AUTON_END_REMAINING: 120,
   /** Duration of the controller pickup phase (yellow) */
   CONTROLLER_PICKUP_SECONDS: 5,
   /** Duration of the prepare phase */
   PREPARE_SECONDS: 3,
+  /** Duration of the audio intro before countdown (seconds) */
+  AUDIO_INTRO_SECONDS: 1.61,
   MAX_THEORETICAL_SCORE: 150,
 } as const;
 

@@ -4,7 +4,7 @@ import { useSession } from '@/contexts';
 export const useMatchAudio = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedRef = useRef<boolean>(false);
-  const { matchActive, matchPhase, isTimerRunning } = useSession();
+  const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay } = useSession();
 
   // Initialize audio element
   useEffect(() => {
@@ -14,9 +14,9 @@ export const useMatchAudio = () => {
     }
   }, []);
 
-  // Play audio when match starts (autonomous begins)
+  // Play audio when match starts (any mode: Full Game, Autonomous, or Teleop)
   useEffect(() => {
-    if (matchActive && isTimerRunning && matchPhase === 'auton') {
+    if (matchActive && (isTimerRunning || isPreMatchDelay)) {
       if (!hasPlayedRef.current) {
         hasPlayedRef.current = true;
         audioRef.current?.play().catch((err) => {
@@ -24,7 +24,7 @@ export const useMatchAudio = () => {
         });
       }
     }
-  }, [matchActive, isTimerRunning, matchPhase]);
+  }, [matchActive, isTimerRunning, isPreMatchDelay]);
 
   // Stop and reset audio when match becomes inactive
   useEffect(() => {
@@ -37,18 +37,19 @@ export const useMatchAudio = () => {
     }
   }, [matchActive]);
 
-  // Pause/resume audio when timer pauses/resumes
+  // Pause/resume audio when timer pauses/resumes (but keep playing during pre-match delay)
   useEffect(() => {
     if (matchActive && audioRef.current) {
-      if (isTimerRunning) {
+      if (isTimerRunning || isPreMatchDelay) {
         audioRef.current.play().catch(() => {
           // Silently fail if autoplay is blocked
         });
-      } else {
+      } else if (matchPhase !== 'controller_pickup' && matchPhase !== 'prepare') {
+        // Only pause audio during actual user pause, not during phase transitions
         audioRef.current.pause();
       }
     }
-  }, [isTimerRunning, matchActive]);
+  }, [isTimerRunning, matchActive, isPreMatchDelay, matchPhase]);
 
   return audioRef;
 };
