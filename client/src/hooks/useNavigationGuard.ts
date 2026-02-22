@@ -1,23 +1,32 @@
-import { useEffect } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 /**
- * Hook that blocks in-app navigation when there is unsaved work.
- * Returns blocker state so the consuming component can render a
- * custom confirmation dialog instead of relying on window.confirm.
+ * Hook that blocks navigation when there is unsaved work.
  *
- * Also wires up `beforeunload` so page refresh / tab close is guarded.
+ * Uses `beforeunload` for tab close / refresh, and intercepts in-app
+ * navigation via the History `popstate` event (back/forward buttons) and
+ * by patching `history.pushState` / `history.replaceState`.  This avoids the
+ * need for `useBlocker`, which requires a data-router setup
+ * (`createBrowserRouter` / `RouterProvider`).
  */
 export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
-  const msg = message ?? 'You have unsaved changes. Are you sure you want to leave?';
+  const msg =
+    message ?? 'You have unsaved changes. Are you sure you want to leave?';
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Block in-app (React Router) navigation
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      shouldBlock && currentLocation.pathname !== nextLocation.pathname
-  );
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
 
-  // Block browser-level navigation (refresh, close tab)
+  // Keep shouldBlock in a ref so event handlers always see the latest value.
+  const shouldBlockRef = useRef(shouldBlock);
+  shouldBlockRef.current = shouldBlock;
+
+  // Ref to track whether we're intentionally navigating (to avoid re-blocking).
+  const allowNavRef = useRef(false);
+
+  // ── Browser-level guard (refresh / close tab) ─────────────────────────
   useEffect(() => {
     if (!shouldBlock) return;
 
@@ -30,13 +39,92 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     return () => window.removeEventListener('beforeunload', handler);
   }, [shouldBlock]);
 
+  // ── In-app back/forward button guard (popstate) ───────────────────────
+  useEffect(() => {
+    if (!shouldBlock) return;
+
+    // Push a duplicate state so that "Back" gives us a popstate we can intercept.
+    window.history.pushState(null, '', window.location.href);
+
+    const handler = () => {
+      if (!shouldBlockRef.current || allowNavRef.current) return;
+
+      // Re-push state so repeated Back presses keep being intercepted.
+      window.history.pushState(null, '', window.location.href);
+
+      // Show the confirmation dialog.
+      setPendingPath(null); // back button — we'll use history.back()
+      setIsBlocked(true);
+    };
+
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, [shouldBlock]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Intercept programmatic in-app navigation (Link / navigate()) ──────
+  useEffect(() => {
+    if (!shouldBlock) return;
+
+    const originalPushState = window.history.pushState.bind(window.history);
+    const originalReplaceState = window.history.replaceState.bind(window.history);
+
+    const intercept =
+      (original: typeof window.history.pushState) =>
+      (data: unknown, unused: string, url?: string | URL | null) => {
+        if (!shouldBlockRef.current || allowNavRef.current) {
+          return original(data, unused, url);
+        }
+
+        const target = url ? String(url) : null;
+        // Same path → allow (e.g. hash or query updates).
+        if (target && new URL(target, window.location.origin).pathname === location.pathname) {
+          return original(data, unused, url);
+        }
+
+        setPendingPath(target);
+        setIsBlocked(true);
+        // Don't call original — block the navigation.
+      };
+
+    window.history.pushState = intercept(originalPushState);
+    window.history.replaceState = intercept(originalReplaceState);
+
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+    };
+  }, [shouldBlock, location.pathname]);
+
+  // ── Dialog actions ────────────────────────────────────────────────────
+  const proceed = useCallback(() => {
+    allowNavRef.current = true;
+    setIsBlocked(false);
+
+    if (pendingPath) {
+      navigate(pendingPath, { replace: true });
+    } else {
+      // Back button case — go back for real.
+      window.history.go(-1);
+    }
+
+    // Reset after a tick so future navigations are guarded again.
+    setTimeout(() => {
+      allowNavRef.current = false;
+    }, 0);
+  }, [pendingPath, navigate]);
+
+  const reset = useCallback(() => {
+    setIsBlocked(false);
+    setPendingPath(null);
+  }, []);
+
   return {
     /** Whether a navigation attempt is currently blocked */
-    isBlocked: blocker.state === 'blocked',
+    isBlocked,
     /** Allow the blocked navigation to continue */
-    proceed: () => blocker.state === 'blocked' && blocker.proceed(),
+    proceed,
     /** Cancel the blocked navigation */
-    reset: () => blocker.state === 'blocked' && blocker.reset(),
+    reset,
     /** The message to display in the confirmation dialog */
     message: msg,
   };
