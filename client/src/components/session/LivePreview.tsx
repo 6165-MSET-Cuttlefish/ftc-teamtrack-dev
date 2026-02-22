@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth, useTeam } from '@/contexts';
-import { useFirebase } from '@/hooks';
+import { useFirebase, useNavigationGuard } from '@/hooks';
 import { GAME_TIMING, ROUTES } from '@/constants';
 import { Check, X, Settings, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -68,26 +68,20 @@ export const LivePreview = ({
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Block navigation if there's unsaved work
-  const hasUnsavedWork =
+  const hasUnsavedWork = Boolean(
     !sessionData.isSessionCompleted &&
     ((sessionData.matches && sessionData.matches.length > 0) ||
       (sessionData.finalScore || 0) > 0 ||
       (sessionData.autonomousScore || 0) > 0 ||
       (sessionData.teleopScore || 0) > 0 ||
       (sessionData.notes && sessionData.notes.trim().length > 0) ||
-      (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
+      (sessionData.sessionName && sessionData.sessionName.trim().length > 0)));
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedWork) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedWork]);
+  // Block both in-app and browser navigation when there's unsaved work
+  useNavigationGuard(
+    hasUnsavedWork,
+    'You have an active session with unsaved data. Are you sure you want to leave?'
+  );
 
   // Check session limit on mount
   useEffect(() => {
@@ -106,12 +100,8 @@ export const LivePreview = ({
 
         if (sessions.length >= sessionLimit) {
           setSessionLimitReached(true);
-          toast.error(
-            `You've reached the maximum of ${sessionLimit} sessions. Please delete old sessions before creating new ones.`,
-            {
-              duration: 10000,
-            }
-          );
+          // Don't show toast on mount — only flag the state.
+          // The toast will appear when the user tries to complete the session.
         } else {
           setSessionLimitReached(false);
         }

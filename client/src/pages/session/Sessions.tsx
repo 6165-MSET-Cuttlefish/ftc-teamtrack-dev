@@ -476,7 +476,7 @@ const Sessions = () => {
           // Show the actual Firestore error (often a missing index link)
           const errorMessage = error?.message || 'Unknown error';
           if (errorMessage.includes('index')) {
-            toast.error('Firestore needs a composite index for team sessions. Check the browser console for the creation link.', { duration: 10000 });
+            toast.error('Firestore requires a database index for team sessions. Please contact your team admin or try again later.', { duration: 10000 });
           } else {
             toast.error(`Team sync error: ${errorMessage}`);
           }

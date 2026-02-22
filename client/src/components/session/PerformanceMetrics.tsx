@@ -206,8 +206,9 @@ const ShotLogTable: React.FC<{
         </div>
 
         {/* Table */}
+        <div className="overflow-x-auto">
         <div
-          className={`rounded-lg border overflow-hidden ${
+          className={`rounded-lg border overflow-hidden min-w-[500px] ${
             isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
           }`}
         >
@@ -408,6 +409,7 @@ const ShotLogTable: React.FC<{
               <div className="px-1 py-2" />
             </div>
           )}
+        </div>
         </div>
 
         {/* Bonus line */}
@@ -1055,8 +1057,9 @@ export const PerformanceMetrics = () => {
 
         {/* ── FINAL tab: summary table ──────────────────────────── */}
         {selectedTab === 'final' && (
+          <div className="overflow-x-auto">
           <div
-            className={`rounded-lg border overflow-hidden ${
+            className={`rounded-lg border overflow-hidden min-w-[600px] ${
               isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
             }`}
           >
@@ -1259,6 +1262,7 @@ export const PerformanceMetrics = () => {
                 {calcAvgCycleTime([...autonShots, ...teleopShots])}
               </div>
             </div>
+          </div>
           </div>
         )}
 

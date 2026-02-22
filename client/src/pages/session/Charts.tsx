@@ -398,6 +398,7 @@ const Charts = () => {
 
   // Guests cannot access Charts — redirect
   if (!user?.uid || isGuest) {
+    toast.error('Please sign in to access charts');
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
 

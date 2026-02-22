@@ -165,6 +165,7 @@ const EditSession = () => {
 
   // Guests cannot edit sessions
   if (!user?.uid || isGuest) {
+    toast.error('Please sign in to edit sessions');
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
 
@@ -506,6 +507,8 @@ const EditSession = () => {
                         <button
                           onClick={() => handleDeleteClick(match.id)}
                           disabled={deletingMatchId === match.id}
+                          aria-label={confirmDeleteId === match.id ? 'Confirm delete match' : 'Delete match'}
+                          aria-live="polite"
                           className={`p-3 rounded-lg transition-all transform hover:scale-110 ${
                             deletingMatchId === match.id
                               ? 'opacity-50 cursor-not-allowed'

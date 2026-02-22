@@ -11,15 +11,16 @@ interface State {
   hasError: boolean;
   error?: Error;
   errorInfo?: ErrorInfo;
+  retryCount: number;
 }
 
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, retryCount: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
@@ -31,11 +32,19 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+    this.setState(prev => ({
+      hasError: false,
+      error: undefined,
+      errorInfo: undefined,
+      retryCount: prev.retryCount + 1,
+    }));
   };
 
   render() {
     if (this.state.hasError) {
+      // If we've retried too many times, don't offer "Try Again" to avoid infinite loops
+      const maxRetries = 3;
+      const canRetry = this.state.retryCount < maxRetries;
       if (this.props.fallback) {
         return this.props.fallback;
       }
@@ -82,15 +91,17 @@ class ErrorBoundary extends Component<Props, State> {
             )}
 
             <div className="flex gap-3 justify-center">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={this.handleReset}
-                className="gap-2"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Try Again
-              </Button>
+              {canRetry && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={this.handleReset}
+                  className="gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Try Again
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -103,7 +114,10 @@ class ErrorBoundary extends Component<Props, State> {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => (window.location.href = '/sessions')}
+                onClick={() => {
+                  // Navigate to sessions using replace to avoid back-button loops
+                  window.location.replace('/sessions');
+                }}
                 className="gap-2"
               >
                 <Home className="h-4 w-4" />

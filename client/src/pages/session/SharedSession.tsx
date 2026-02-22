@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
+import { ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { Match } from '@/types';
@@ -38,6 +39,10 @@ const SharedSession = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('summary');
+
+  useEffect(() => {
+    document.title = 'Shared Session - TeamTrack';
+  }, []);
 
   // ── Load session ────────────────────────────────────────────────────────────
 
@@ -127,13 +132,13 @@ const SharedSession = () => {
           >
             {error}
           </p>
-          <Link to="/">
+          <Link to={ROUTES.SESSIONS}>
             <Button
               variant="outline"
               className="mt-2 inline-flex items-center gap-2"
             >
               <ArrowLeft size={15} />
-              Go Home
+              Go to Sessions
             </Button>
           </Link>
         </div>

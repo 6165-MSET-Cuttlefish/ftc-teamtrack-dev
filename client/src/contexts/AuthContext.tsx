@@ -7,6 +7,7 @@ import {
 } from 'react';
 import getFirebase from '@/lib/firebase';
 import { logger } from '@/lib/logger';
+import { clearSessionFromStorage } from '@/lib/sessionStorage';
 import type { User } from '@/types';
 import type {
   Auth,
@@ -166,6 +167,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     // Handle guest logout
     if (isGuest) {
       localStorage.removeItem(GUEST_MODE_KEY);
+      localStorage.removeItem(GUEST_ID_KEY);
+      clearSessionFromStorage();
       setIsGuest(false);
       setGuestId(null);
       setUser(null);

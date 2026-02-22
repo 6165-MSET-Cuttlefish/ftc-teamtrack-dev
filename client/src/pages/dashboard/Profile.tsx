@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { getInitials } from '@/lib/utils';
-import { UI_TIMING } from '@/constants';
+import { UI_TIMING, APP_CONFIG } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -156,6 +156,10 @@ const Profile = () => {
   } = useAuth();
   const { isDarkMode } = useTheme();
   const { updateMemberDisplayName } = useTeam();
+
+  useEffect(() => {
+    document.title = `Profile - ${APP_CONFIG.name}`;
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{

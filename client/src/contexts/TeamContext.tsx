@@ -97,9 +97,29 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     try {
       // If already in a team, require confirmation before leaving
       if (team && !skipConfirmation) {
-        const confirmed = window.confirm(
-          `You are currently in "${team.name}". Joining a new team will remove you from your current team. Continue?`
-        );
+        // Use a promise-based confirmation that callers can handle
+        const confirmed = await new Promise<boolean>((resolve) => {
+          // Dispatch a custom event so the UI can show a proper dialog
+          const event = new CustomEvent('teamtrack-confirm-leave-team', {
+            detail: {
+              teamName: team.name,
+              resolve,
+            },
+          });
+          // If no listener handles it within 100ms, fall back to window.confirm
+          let handled = false;
+          const handler = () => { handled = true; };
+          window.addEventListener('teamtrack-confirm-leave-team-handled', handler, { once: true });
+          window.dispatchEvent(event);
+          setTimeout(() => {
+            window.removeEventListener('teamtrack-confirm-leave-team-handled', handler);
+            if (!handled) {
+              resolve(window.confirm(
+                `You are currently in "${team.name}". Joining a new team will remove you from your current team. Continue?`
+              ));
+            }
+          }, 100);
+        });
         if (!confirmed) return null;
         await teamService.leaveTeam(team.id, user.uid);
       }

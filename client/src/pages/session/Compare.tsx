@@ -3,7 +3,7 @@ import { useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate, isAbortError } from '@/lib/utils';
-import { ROUTES } from '@/constants';
+import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, Match } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronDown } from 'lucide-react';
@@ -51,6 +51,10 @@ const Compare = () => {
   );
   const [allMatches, setAllMatches] = useState<CompareMatch[]>([]);
   const [selectedMatches, setSelectedMatches] = useState<CompareMatch[]>([]);
+
+  useEffect(() => {
+    document.title = `Compare - ${APP_CONFIG.name}`;
+  }, []);
 
   // --- Helpers ---
 
@@ -331,6 +335,7 @@ const Compare = () => {
   // --- Guards ---
 
   if (!user?.uid || isGuest) {
+    toast.error('Please sign in to access session comparisons');
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
 
@@ -392,9 +397,21 @@ const Compare = () => {
         {/* Session Selector — pill grid */}
         <div className="mb-6">
           {sessions.length === 0 ? (
-            <p className={`text-sm py-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
-              No sessions available
-            </p>
+            <div className={`text-center py-12 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}>
+              <p className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+              >
+                No sessions available
+              </p>
+              <p className={`text-sm mb-4 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}>
+                Complete some practice sessions first, then come back to compare them.
+              </p>
+              <a
+                href="/active"
+                className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
+              >
+                Start New Session
+              </a>
+            </div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {sessions.map(session => {

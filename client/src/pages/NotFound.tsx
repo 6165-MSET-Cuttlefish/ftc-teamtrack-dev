@@ -2,9 +2,14 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '@/contexts';
 import { ROUTES } from '@/constants';
 import { ArrowLeft, Home, Compass } from 'lucide-react';
+import { useEffect } from 'react';
 
 const NotFound = () => {
   const { isDarkMode } = useTheme();
+
+  useEffect(() => {
+    document.title = 'Page Not Found - TeamTrack';
+  }, []);
 
   return (
     <div

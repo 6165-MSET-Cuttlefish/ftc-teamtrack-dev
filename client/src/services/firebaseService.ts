@@ -279,6 +279,9 @@ class FirebaseService {
     for (let attempt = 0; attempt < 3; attempt++) {
       const shortId = this.generateShortId();
       const ref = doc(db, 'sharedSessions', shortId);
+      // Check for collision before overwriting
+      const existing = await getDoc(ref);
+      if (existing.exists()) continue;
       await setDoc(ref, { ...JSON.parse(JSON.stringify(shareData)), createdAt: Timestamp.now() });
       return shortId;
     }

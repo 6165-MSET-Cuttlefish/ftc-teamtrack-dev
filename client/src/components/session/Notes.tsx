@@ -220,6 +220,8 @@ export const Notes = () => {
           suppressContentEditableWarning
           onBlur={handleEditorChange}
           onInput={handleInput}
+          role="textbox"
+          aria-multiline="true"
           aria-label="Notes editor"
           className={`px-4 py-3 rounded border-2 border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue min-h-[120px] max-h-[400px] overflow-y-auto [&_ul]:ml-6 [&_ul]:list-disc [&_ol]:ml-6 [&_ol]:list-decimal [&_li]:mb-1 ${
             isDarkMode

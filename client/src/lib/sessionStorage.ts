@@ -111,6 +111,11 @@ export const saveSessionToStorage = (
     );
   } catch (error) {
     logger.error('Failed to save session to storage:', error);
+    // Notify user if localStorage write fails (e.g. storage full)
+    try {
+      const { toast } = require('sonner') as { toast: { error: (msg: string) => void } };
+      toast.error('Unable to save session data locally. Your browser storage may be full.');
+    } catch { /* sonner not yet loaded */ }
   }
 };
 
@@ -123,7 +128,21 @@ export const loadSessionFromStorage = (): SessionFormData | null => {
     // Check schema version — discard stale data from older app versions
     const storedVersion = localStorage.getItem(SCHEMA_VERSION_KEY);
     if (storedVersion !== String(STORAGE_SCHEMA_VERSION)) {
+      // If there was actual session data, warn the user
+      const hadData = localStorage.getItem(SESSION_DATA);
       clearSessionFromStorage();
+      if (hadData) {
+        // Defer toast so it fires after the app has mounted
+        setTimeout(() => {
+          try {
+            const { toast } = require('sonner') as { toast: { warning: (msg: string, opts?: Record<string, unknown>) => void } };
+            toast.warning(
+              'Your in-progress session was cleared due to an app update. Sorry for the inconvenience!',
+              { duration: 8000 }
+            );
+          } catch { /* sonner not yet loaded */ }
+        }, 1000);
+      }
       return null;
     }
     const stored = localStorage.getItem(SESSION_DATA);

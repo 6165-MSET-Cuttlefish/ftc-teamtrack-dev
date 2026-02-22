@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib/utils';
+import { APP_CONFIG } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,10 +28,14 @@ const ForgotPassword = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
-  // Auto-redirect to login 5 seconds after successful submission
+  useEffect(() => {
+    document.title = `Reset Password - ${APP_CONFIG.name}`;
+  }, []);
+
+  // Auto-redirect to login 15 seconds after successful submission
   useEffect(() => {
     if (!submitted) return;
-    const timeout = setTimeout(() => navigate('/login'), 5000);
+    const timeout = setTimeout(() => navigate('/login'), 15000);
     return () => clearTimeout(timeout);
   }, [submitted, navigate]);
 
@@ -126,14 +131,21 @@ const ForgotPassword = () => {
             <Button
               type="submit"
               className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
-              disabled={loading || submitted}
+              disabled={loading}
             >
-              {loading ? 'Sending...' : submitted ? 'Link Sent ✔' : 'Send Reset Link'}
+              {loading ? 'Sending...' : submitted ? 'Resend Reset Link' : 'Send Reset Link'}
             </Button>
 
             {submitted && (
               <p className={`text-xs text-center ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'}`}>
-                Redirecting to sign in...
+                Redirecting to sign in in a few seconds...
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="ml-1 text-team-blue hover:underline"
+                >
+                  Go now
+                </button>
               </p>
             )}
           </form>

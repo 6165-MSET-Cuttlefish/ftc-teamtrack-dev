@@ -276,6 +276,7 @@ export const ScoringUI = () => {
                     <button
                       onClick={() => handleBallSelect(shot.id, 0)}
                       disabled={!isScoringAllowed()}
+                      aria-label={`Shot ${shot.id}: miss all ${shot.balls} balls`}
                       className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
                         !isScoringAllowed()
                           ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'
@@ -325,6 +326,7 @@ export const ScoringUI = () => {
                       key={ballCount}
                       onClick={() => handleBallSelect(shot.id, ballCount)}
                       disabled={!isScoringAllowed()}
+                      aria-label={`Shot ${shot.id}: score ${ballCount} of ${shot.balls} balls`}
                       className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
                         !isScoringAllowed()
                           ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useTeam, useTheme } from '@/contexts';
 import { firebaseService } from '@/services';
-import { ROUTES } from '@/constants';
+import { ROUTES, APP_CONFIG } from '@/constants';
 import { Users, Check, AlertCircle, Upload, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ const JoinTeam = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const hasAttemptedJoin = useRef(false);
+  const hasAttemptedJoinId = useRef<string | null>(null);
 
   const [status, setStatus] = useState<'loading' | 'joining' | 'success' | 'error'>('loading');
   const [teamName, setTeamName] = useState('');
@@ -25,6 +26,10 @@ const JoinTeam = () => {
   const [importing, setImporting] = useState(false);
   const [importableSessions, setImportableSessions] = useState<Session[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    document.title = `Join Team - ${APP_CONFIG.name}`;
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -48,9 +53,10 @@ const JoinTeam = () => {
       return;
     }
 
-    // Prevent duplicate join attempts from re-renders
-    if (hasAttemptedJoin.current) return;
+    // Prevent duplicate join attempts from re-renders (but allow re-attempt with different invite code)
+    if (hasAttemptedJoin.current && hasAttemptedJoinId.current === codeToUse) return;
     hasAttemptedJoin.current = true;
+    hasAttemptedJoinId.current = codeToUse;
 
     const doJoin = async () => {
       setStatus('joining');
