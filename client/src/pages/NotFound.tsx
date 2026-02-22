@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts';
 import { ROUTES } from '@/constants';
 import { ArrowLeft, Home, Compass } from 'lucide-react';
@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 
 const NotFound = () => {
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
 
   useEffect(() => {
     document.title = 'Page Not Found - TeamTrack';
@@ -49,7 +50,14 @@ const NotFound = () => {
             Go to Sessions
           </Link>
           <button
-            onClick={() => window.history.back()}
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate(ROUTES.SESSIONS);
+              }
+            }}
+            aria-label="Go back to the previous page"
             className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
               isDarkMode
                 ? 'border-team-blue-40 text-team-white-60 hover:bg-team-blue/10 hover:text-white'

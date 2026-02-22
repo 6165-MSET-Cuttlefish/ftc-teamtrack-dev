@@ -47,7 +47,11 @@ export const generateShareableLink = async (
   // ── Try Firestore short link first ────────────────────────────────────
   try {
     const { firebaseService } = await import('@/services');
-    const shortId = await firebaseService.createSharedSession(shareData);
+    const getFirebaseModule = await import('@/lib/firebase');
+    const firebase = await getFirebaseModule.default();
+    const uid = firebase?.auth?.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    const shortId = await firebaseService.createSharedSession(shareData, uid);
     return `${window.location.origin}/shared/preview?id=${shortId}`;
   } catch (primaryError) {
     logger.warn(

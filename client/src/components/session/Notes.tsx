@@ -1,6 +1,7 @@
 import { useTheme, useSession } from '@/contexts';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Bold, Italic, Highlighter, List, ListOrdered, ChevronDown } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 const HIGHLIGHT_COLORS = [
   { name: 'Yellow', hex: '#FFFF00', bg: 'bg-yellow-200', darkBg: 'bg-yellow-500/40' },
@@ -19,10 +20,10 @@ export const Notes = () => {
   const [highlightDropdownOpen, setHighlightDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Initialize editor content on mount
+  // Initialize editor content on mount (sanitize to prevent stored XSS)
   useEffect(() => {
     if (editorRef.current && !initialized) {
-      editorRef.current.innerHTML = sessionData.notes ?? '';
+      editorRef.current.innerHTML = sanitizeHtml(sessionData.notes ?? '');
       setInitialized(true);
     }
   }, [initialized, sessionData.notes]);
@@ -60,7 +61,7 @@ export const Notes = () => {
 
   const handleEditorChange = useCallback(() => {
     if (editorRef.current) {
-      const html = editorRef.current.innerHTML;
+      const html = sanitizeHtml(editorRef.current.innerHTML);
       updateSessionData({ notes: html });
     }
   }, [updateSessionData]);

@@ -96,9 +96,15 @@ const SessionCard = ({
       return;
     }
     setIsSavingName(true);
-    await onNameChange(editedName.trim());
-    setIsSavingName(false);
-    setIsEditing(false);
+    try {
+      await onNameChange(editedName.trim());
+    } catch {
+      toast.error('Failed to rename session');
+      setEditedName(session.sessionName || '');
+    } finally {
+      setIsSavingName(false);
+      setIsEditing(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -174,6 +180,7 @@ const SessionCard = ({
                 <Input
                   value={editedName}
                   onChange={e => setEditedName(e.target.value)}
+                  maxLength={100}
                   className={`h-10 text-xl font-semibold ${
                     isDarkMode
                       ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
@@ -258,6 +265,7 @@ const SessionCard = ({
                         <>
                           <button
                             onClick={handleDeleteCancel}
+                            aria-label="Cancel delete"
                             className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
                               isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
                             }`}

@@ -11,7 +11,7 @@ export const sanitizeHtml = (dirty: string): string => {
       'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li',
       'br', 'p', 'span', 'div', 'mark',
     ],
-    ALLOWED_ATTR: ['style', 'class'],
+    ALLOWED_ATTR: ['class'],
     ALLOW_DATA_ATTR: false,
   });
 };

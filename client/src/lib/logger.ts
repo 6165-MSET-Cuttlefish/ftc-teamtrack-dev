@@ -35,7 +35,8 @@ export const logger = {
     const errorContext: Record<string, unknown> = {
       ...context,
       errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
+      // Only include stack traces in development to avoid leaking internals
+      ...(isDevelopment() && error instanceof Error ? { errorStack: error.stack } : {}),
     };
     console.error(formatLog('error', message, errorContext));
   },

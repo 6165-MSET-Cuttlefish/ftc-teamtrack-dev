@@ -140,7 +140,9 @@ const AnalysisContent = () => {
           if (mounted && (error as Error)?.name !== 'AbortError') {
             const { logger } = await import('@/lib/logger');
             logger.error('Error loading session', error);
+            setNotFound(true);
           }
+          if (mounted) setLoading(false);
         }
       }
 
@@ -461,6 +463,8 @@ const AnalysisContent = () => {
         {sessionMatches.length > 0 && (
           <>
             <div
+              role="tablist"
+              aria-label="Analysis tabs"
               className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'}`}
             >
               {TABS.map(tab => {
@@ -469,6 +473,8 @@ const AnalysisContent = () => {
                 return (
                   <button
                     key={tab.id}
+                    role="tab"
+                    aria-selected={isActive}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isActive
@@ -480,7 +486,7 @@ const AnalysisContent = () => {
                           : 'text-gray-500 hover:text-gray-900'
                     }`}
                   >
-                    <Icon size={16} />
+                    <Icon size={16} aria-hidden="true" />
                     <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 );

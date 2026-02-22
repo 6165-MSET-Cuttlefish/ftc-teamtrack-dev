@@ -68,7 +68,21 @@ const SharedSession = () => {
         // ── Legacy base64 format: ?data=<base64> (backwards compat) ──
         const encoded = params.get('data');
         if (encoded) {
+          // Limit payload size to prevent client-side DoS (100 KB)
+          if (encoded.length > 100_000) {
+            setError('Session data is too large to load.');
+            return;
+          }
           const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+          // Validate expected shape
+          if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) {
+            setError('Invalid session data format.');
+            return;
+          }
+          // Limit matches array size
+          if (Array.isArray(decoded.matches) && decoded.matches.length > 200) {
+            decoded.matches = decoded.matches.slice(0, 200);
+          }
           setSession(decoded as SharedData);
           return;
         }
@@ -234,6 +248,8 @@ const SharedSession = () => {
         {sessionMatches.length > 0 && (
           <>
             <div
+              role="tablist"
+              aria-label="Session tabs"
               className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'}`}
             >
               {TABS.map(tab => {
@@ -242,6 +258,8 @@ const SharedSession = () => {
                 return (
                   <button
                     key={tab.id}
+                    role="tab"
+                    aria-selected={isActive}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isActive
@@ -253,7 +271,7 @@ const SharedSession = () => {
                           : 'text-gray-500 hover:text-gray-900'
                     }`}
                   >
-                    <Icon size={16} />
+                    <Icon size={16} aria-hidden="true" />
                     <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 );

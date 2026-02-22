@@ -40,14 +40,22 @@ const JoinTeam = () => {
 
     if (!user) {
       if (inviteCode) {
+        // Store temporarily — will be consumed on login. Expires after 1 hour.
         localStorage.setItem('pendingInviteCode', inviteCode);
+        localStorage.setItem('pendingInviteCodeExpiry', String(Date.now() + 60 * 60 * 1000));
       }
       navigate(ROUTES.LOGIN);
       return;
     }
 
     const pendingCode = localStorage.getItem('pendingInviteCode');
-    const codeToUse = inviteCode || pendingCode;
+    const pendingExpiry = localStorage.getItem('pendingInviteCodeExpiry');
+    // Expire stale pending invite codes
+    if (pendingCode && pendingExpiry && Date.now() > Number(pendingExpiry)) {
+      localStorage.removeItem('pendingInviteCode');
+      localStorage.removeItem('pendingInviteCodeExpiry');
+    }
+    const codeToUse = inviteCode || (pendingExpiry && Date.now() <= Number(pendingExpiry) ? pendingCode : null);
 
     if (!codeToUse) {
       setStatus('error');

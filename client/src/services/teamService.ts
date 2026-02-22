@@ -58,9 +58,10 @@ class TeamService {
   /** Generate a unique invite code */
   private generateInviteCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const values = crypto.getRandomValues(new Uint32Array(8));
     let code = '';
     for (let i = 0; i < 8; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += chars.charAt(values[i] % chars.length);
     }
     return code;
   }
@@ -160,16 +161,15 @@ class TeamService {
       async () => {
         const db = await this.getDB();
         
-        // We need to query all teams and filter client-side since array-contains
-        // doesn't work well with nested objects
-        const allTeamsQuery = query(collection(db, 'teams'));
-        const snapshot = await getDocs(allTeamsQuery);
+        // Query teams where the user is in the memberIds array
+        const memberQuery = query(
+          collection(db, 'teams'),
+          where('memberIds', 'array-contains', userId)
+        );
+        const snapshot = await getDocs(memberQuery);
         
         const teams = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as Team))
-          .filter(team => 
-            team.members.some(member => member.userId === userId)
-          );
+          .map(doc => ({ id: doc.id, ...doc.data() } as Team));
 
         // Backfill memberIds on any legacy teams (fire-and-forget)
         for (const team of teams) {

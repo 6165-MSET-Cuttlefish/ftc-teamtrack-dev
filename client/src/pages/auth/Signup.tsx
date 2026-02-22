@@ -52,6 +52,7 @@ const Signup = () => {
       ...prev,
       [e.target.name]: e.target.value,
     }));
+    if (error) setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,6 +65,22 @@ const Signup = () => {
       !formData.confirmPassword
     ) {
       setError('Please fill in all fields');
+      return;
+    }
+
+    const trimmedName = formData.displayName.trim();
+    if (!trimmedName) {
+      setError('Display name cannot be blank');
+      return;
+    }
+    if (trimmedName.length > 50) {
+      setError('Display name must be 50 characters or fewer');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -147,6 +164,7 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <User
+                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -173,6 +191,7 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Mail
+                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -199,6 +218,7 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
+                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -236,6 +256,7 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
+                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input

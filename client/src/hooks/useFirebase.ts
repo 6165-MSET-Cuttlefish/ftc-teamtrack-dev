@@ -56,7 +56,7 @@ export const useFirebase = () => {
   );
 
   const getAllSessions = useCallback(
-    () => execute(() => firebaseService.getAllSessions()),
+    (userId: string) => execute(() => firebaseService.getAllSessions(userId)),
     [execute]
   );
 

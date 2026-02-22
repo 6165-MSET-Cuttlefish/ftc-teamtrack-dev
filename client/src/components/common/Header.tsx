@@ -622,7 +622,14 @@ export const Header = () => {
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
           {!isOnSessionsPage && (
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                // Use navigate(-1) only if there's real history; otherwise go to sessions
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate(ROUTES.SESSIONS);
+                }
+              }}
               aria-label="Go back"
               className={`p-1.5 sm:p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
             >

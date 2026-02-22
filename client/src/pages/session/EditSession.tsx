@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
+import { useNavigationGuard } from '@/hooks/useNavigationGuard';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
 import { ROUTES, APP_CONFIG } from '@/constants';
@@ -35,6 +36,17 @@ const EditSession = () => {
   const [editingMatch, setEditingMatch] = useState<Match | undefined>();
   const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Navigation guard: block when the match form is open
+  const navGuard = useNavigationGuard(isFormOpen, 'You have an unsaved match. Are you sure you want to leave?');
+
+  // Clean up delete confirmation timer on unmount
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     document.title = `Edit Session - ${APP_CONFIG.name}`;
@@ -132,7 +144,8 @@ const EditSession = () => {
       // First click = arm confirmation
       setConfirmDeleteId(matchId);
       // Auto-dismiss after 5 seconds
-      setTimeout(() => setConfirmDeleteId(prev => prev === matchId ? null : prev), 5000);
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = setTimeout(() => setConfirmDeleteId(prev => prev === matchId ? null : prev), 5000);
     }
   };
 
@@ -500,6 +513,7 @@ const EditSession = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditMatch(match)}
+                          aria-label="Edit match"
                           className={`p-3 rounded-lg transition-all transform hover:scale-110 ${
                             isDarkMode
                               ? 'text-team-white-60 hover:bg-team-blue/20 hover:text-team-blue'
@@ -542,6 +556,20 @@ const EditSession = () => {
           )}
         </div>
       </div>
+
+      {/* Navigation Guard Dialog */}
+      {navGuard.isBlocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className={`mx-4 max-w-sm w-full rounded-xl border-2 p-6 shadow-2xl ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}>
+            <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Unsaved Match</h3>
+            <p className={`text-sm mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>{navGuard.message}</p>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={navGuard.reset}>Stay</Button>
+              <Button variant="destructive" className="flex-1" onClick={navGuard.proceed}>Leave</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Match Form Modal */}
       <MatchForm

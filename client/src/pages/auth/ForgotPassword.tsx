@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib/utils';
-import { APP_CONFIG } from '@/constants';
+import { APP_CONFIG, ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,7 +35,7 @@ const ForgotPassword = () => {
   // Auto-redirect to login 15 seconds after successful submission
   useEffect(() => {
     if (!submitted) return;
-    const timeout = setTimeout(() => navigate('/login'), 15000);
+    const timeout = setTimeout(() => navigate(ROUTES.LOGIN), 15000);
     return () => clearTimeout(timeout);
   }, [submitted, navigate]);
 
@@ -115,13 +115,17 @@ const ForgotPassword = () => {
               >
                 <Mail
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+                  aria-hidden="true"
                 />
                 <Input
                   id="email"
                   type="email"
                   placeholder="Enter your email address"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={e => {
+                    setEmail(e.target.value);
+                    if (error) setError('');
+                  }}
                   className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
@@ -141,7 +145,7 @@ const ForgotPassword = () => {
                 Redirecting to sign in in a few seconds...
                 <button
                   type="button"
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate(ROUTES.LOGIN)}
                   className="ml-1 text-team-blue hover:underline"
                 >
                   Go now
@@ -153,10 +157,10 @@ const ForgotPassword = () => {
 
         <CardFooter className="flex justify-center pb-6 sm:pb-8">
           <Link
-            to="/login"
+            to={ROUTES.LOGIN}
             className="flex items-center text-sm text-team-blue hover:underline font-medium"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             Back to Sign In
           </Link>
         </CardFooter>

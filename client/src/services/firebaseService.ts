@@ -4,7 +4,6 @@ import {
   getDocs,
   doc,
   getDoc,
-  setDoc,
   deleteDoc,
   updateDoc,
   query,
@@ -199,13 +198,14 @@ class FirebaseService {
     );
   }
 
-  /** Get all sessions (admin/comparison view) */
-  async getAllSessions(): Promise<SessionData[]> {
+  /** Get all sessions for the current user and their teams (comparison view) */
+  async getAllSessions(userId: string): Promise<SessionData[]> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
         const q = query(
           collection(db, 'sessions'),
+          where('userId', '==', userId),
           orderBy('createdAt', 'desc'),
           limit(SESSION_LIMITS.ALL_SESSIONS_QUERY_LIMIT)
         );
@@ -265,25 +265,37 @@ class FirebaseService {
   private generateShortId(): string {
     const chars =
       'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const values = crypto.getRandomValues(new Uint32Array(7));
     let id = '';
     for (let i = 0; i < 7; i++) {
-      id += chars[Math.floor(Math.random() * chars.length)];
+      id += chars[values[i] % chars.length];
     }
     return id;
   }
 
   /** Store a session snapshot in Firestore and return its short ID */
-  async createSharedSession(shareData: object): Promise<string> {
+  async createSharedSession(shareData: object, userId: string): Promise<string> {
+    const { runTransaction } = await import('firebase/firestore');
     const db = await this.getDB();
     // Retry up to 3 times in the unlikely event of a collision
     for (let attempt = 0; attempt < 3; attempt++) {
       const shortId = this.generateShortId();
       const ref = doc(db, 'sharedSessions', shortId);
-      // Check for collision before overwriting
-      const existing = await getDoc(ref);
-      if (existing.exists()) continue;
-      await setDoc(ref, { ...JSON.parse(JSON.stringify(shareData)), createdAt: Timestamp.now() });
-      return shortId;
+      try {
+        await runTransaction(db, async (transaction) => {
+          const existing = await transaction.get(ref);
+          if (existing.exists()) throw new Error('collision');
+          transaction.set(ref, {
+            ...JSON.parse(JSON.stringify(shareData)),
+            createdBy: userId,
+            createdAt: Timestamp.now(),
+          });
+        });
+        return shortId;
+      } catch (err) {
+        if ((err as Error).message === 'collision') continue;
+        throw err;
+      }
     }
     throw new Error('Failed to create shared session after retries');
   }
