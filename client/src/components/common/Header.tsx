@@ -103,7 +103,7 @@ const TeamTrackLogo = () => {
 
 const NavigationMenu = () => {
   const { isDarkMode, themeMode, setTheme } = useTheme();
-  const { user, logout, isGuest } = useAuth();
+  const { user, logout } = useAuth();
   const { sessionData } = useSession();
   const navigate = useNavigate();
   const location = useLocation();

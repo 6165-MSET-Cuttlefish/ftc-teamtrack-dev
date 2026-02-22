@@ -2,7 +2,7 @@
 export { GuestPrompt, HomeRedirect, ProtectedRoute } from './auth';
 
 // Common/shared components
-export { ErrorBoundary, Header } from './common';
+export { ErrorBoundary, Header, MobileBanner } from './common';
 
 // Session feature components
 export {

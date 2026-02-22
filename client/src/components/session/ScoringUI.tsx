@@ -14,6 +14,15 @@ export const ScoringUI = () => {
   const [pingShot, setPingShot] = useState<{ ballsMade: number; ballsShot: number } | null>(null);
   const [pingKey, setPingKey] = useState(0);
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear pending timeouts on unmount to avoid setting state on unmounted component
+  useEffect(() => {
+    return () => {
+      if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    };
+  }, []);
 
   const showPing = (ballsMade: number, ballsShot: number) => {
     if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
@@ -31,7 +40,8 @@ export const ScoringUI = () => {
         // Flash the matching grid cell
         const id = `${ce.detail.ballsShot}-${ce.detail.ballsMade}`;
         setFlashingButton(id);
-        setTimeout(() => setFlashingButton(null), 400);
+        if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+        flashTimeoutRef.current = setTimeout(() => setFlashingButton(null), 400);
       }
       // Clear keyboard highlights on commit
       setKeyboardActiveRow(null);
@@ -161,7 +171,8 @@ export const ScoringUI = () => {
     showPing(ballsMade, shotId);
 
     // Clear flash after animation
-    setTimeout(() => {
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    flashTimeoutRef.current = setTimeout(() => {
       setFlashingButton(null);
     }, 400);
   };

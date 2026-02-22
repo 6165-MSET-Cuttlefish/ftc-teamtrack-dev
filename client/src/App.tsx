@@ -6,6 +6,7 @@ import { AuthProvider, ThemeProvider, SessionProvider, TeamProvider } from '@/co
 import {
   ErrorBoundary,
   Header,
+  MobileBanner,
   ProtectedRoute,
   GuestPrompt,
   HomeRedirect,
@@ -41,11 +42,12 @@ const App = () => (
   <TooltipProvider>
     <ThemeProvider>
       <ErrorBoundary>
+        <BrowserRouter>
         <AuthProvider>
           <TeamProvider>
             <SessionProvider>
-            <BrowserRouter>
               <div className="min-h-screen flex flex-col">
+                <MobileBanner />
                 <DeepSeaBubbles />
                 <Header />
                 <main className="flex-1">
@@ -147,10 +149,10 @@ const App = () => (
               </div>
               <GuestPrompt />
               <Sonner />
-            </BrowserRouter>
-          </SessionProvider>
+            </SessionProvider>
           </TeamProvider>
         </AuthProvider>
+        </BrowserRouter>
       </ErrorBoundary>
     </ThemeProvider>
   </TooltipProvider>

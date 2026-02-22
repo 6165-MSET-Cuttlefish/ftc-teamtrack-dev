@@ -16,6 +16,8 @@ export interface Team {
   createdBy: string;
   createdAt: TimestampValue;
   members: TeamMember[];
+  /** Flat UID array kept in sync with `members` — used by Firestore rules */
+  memberIds: string[];
   inviteCode: string;
 }
 

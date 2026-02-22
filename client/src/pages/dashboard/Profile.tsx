@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { getInitials } from '@/lib/utils';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
@@ -149,6 +149,7 @@ const Field = ({
 const Profile = () => {
   const {
     user,
+    isGuest,
     logout,
     updateDisplayName,
     updateUserEmail,
@@ -316,13 +317,10 @@ const Profile = () => {
     }
   };
 
-  /* ─── Loading state ─── */
-  if (!user)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue" />
-      </div>
-    );
+  /* ─── Guest / loading state ─── */
+  if (isGuest || !user) {
+    return <Navigate to={ROUTES.SESSIONS} replace />;
+  }
 
   const providerLabel =
     PROVIDER_LABELS[user.providerId || 'password'] ||

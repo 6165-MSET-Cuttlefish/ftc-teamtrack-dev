@@ -70,7 +70,7 @@ export const LivePreview = ({
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
   const [showMotifDialog, setShowMotifDialog] = useState<boolean>(false);
   const [sessionWasCancelled, setSessionWasCancelled] = useState<boolean>(false);
-  const [pendingEditMatch, setPendingEditMatch] = useState<Match | null>(null);
+  const [, setPendingEditMatch] = useState<Match | null>(null);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] = useState<boolean>(false);
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

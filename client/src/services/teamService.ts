@@ -65,6 +65,23 @@ class TeamService {
     return code;
   }
 
+  /**
+   * Ensure a team document has the `memberIds` field.
+   * Legacy teams created before the field existed are backfilled on first read.
+   */
+  private async ensureMemberIds(team: Team): Promise<Team> {
+    if (team.memberIds && team.memberIds.length > 0) return team;
+
+    const ids = (team.members || []).map((m) => m.userId);
+    try {
+      const db = await this.getDB();
+      await updateDoc(doc(db, 'teams', team.id), { memberIds: ids });
+    } catch {
+      // Non-critical — will retry on next read
+    }
+    return { ...team, memberIds: ids };
+  }
+
   /** Create a new team */
   async createTeam(teamData: CreateTeamData): Promise<Team | null> {
     return this.safeExecute(
@@ -77,6 +94,7 @@ class TeamService {
           createdBy: teamData.createdBy,
           createdAt: Timestamp.now(),
           inviteCode,
+          memberIds: [teamData.createdBy],
           members: [
             {
               userId: teamData.createdBy,
@@ -107,7 +125,8 @@ class TeamService {
         
         if (!docSnap.exists()) return null;
         
-        return { id: docSnap.id, ...docSnap.data() } as Team;
+        const team = { id: docSnap.id, ...docSnap.data() } as Team;
+        return this.ensureMemberIds(team);
       },
       null,
       'Error fetching team:'
@@ -146,11 +165,20 @@ class TeamService {
         const allTeamsQuery = query(collection(db, 'teams'));
         const snapshot = await getDocs(allTeamsQuery);
         
-        return snapshot.docs
+        const teams = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Team))
           .filter(team => 
             team.members.some(member => member.userId === userId)
           );
+
+        // Backfill memberIds on any legacy teams (fire-and-forget)
+        for (const team of teams) {
+          if (!team.memberIds || team.memberIds.length === 0) {
+            this.ensureMemberIds(team);
+          }
+        }
+
+        return teams;
       },
       [],
       'Error fetching user teams:'
@@ -189,11 +217,13 @@ class TeamService {
 
         await updateDoc(docRef, {
           members: arrayUnion(newMember),
+          memberIds: arrayUnion(userId),
         });
 
         return {
           ...team,
           members: [...team.members, newMember],
+          memberIds: [...(team.memberIds || []), userId],
         };
       },
       null,
@@ -283,7 +313,10 @@ class TeamService {
           this.cleanMember(m, m.userId === newOwnerUserId ? 'owner' : undefined)
         );
 
-        await updateDoc(docRef, { members: updatedMembers });
+        await updateDoc(docRef, {
+          members: updatedMembers,
+          memberIds: remaining.map((m) => m.userId),
+        });
         return true;
       },
       false,
@@ -313,7 +346,10 @@ class TeamService {
           return this.cleanMember(m);
         });
 
-        await updateDoc(docRef, { members: updatedMembers });
+        await updateDoc(docRef, {
+          members: updatedMembers,
+          memberIds: members.map((m) => m.userId),
+        });
         return true;
       },
       false,
@@ -341,11 +377,13 @@ class TeamService {
         // Cannot kick yourself
         if (ownerUserId === targetUserId) return false;
 
-        const updatedMembers = members
-          .filter((m) => m.userId !== targetUserId)
-          .map((m) => this.cleanMember(m));
+        const remaining = members.filter((m) => m.userId !== targetUserId);
+        const updatedMembers = remaining.map((m) => this.cleanMember(m));
 
-        await updateDoc(docRef, { members: updatedMembers });
+        await updateDoc(docRef, {
+          members: updatedMembers,
+          memberIds: remaining.map((m) => m.userId),
+        });
         return true;
       },
       false,
@@ -372,7 +410,10 @@ class TeamService {
           return clean;
         });
 
-        await updateDoc(docRef, { members: updatedMembers });
+        await updateDoc(docRef, {
+          members: updatedMembers,
+          memberIds: members.map((m) => m.userId),
+        });
         return true;
       },
       false,

@@ -24,8 +24,6 @@ export const GateVisual = () => {
   const { sessionData, updateSessionData, matchPhase, matchActive } = useSession();
   const { isDarkMode } = useTheme();
   const [showMotifDialog, setShowMotifDialog] = useState(false);
-  const gateCycleToastTimeRef = useRef<number>(0);
-  const TOAST_COOLDOWN_MS = 2000;
 
   const gateBallCount = sessionData.gateBallCount ?? 0;
   const isGateOpen = sessionData.gateAddBackMode ?? false;

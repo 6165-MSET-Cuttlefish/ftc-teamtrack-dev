@@ -513,8 +513,6 @@ export const PerformanceMetrics = () => {
   const isUpdatingRef = useRef(false);
   // Track last shot timestamp for cycle time calculation in keybinds
   const lastShotTimeRef = useRef<number | null>(null);
-  const gateCycleToastTimeRef = useRef<number>(0);
-  const TOAST_COOLDOWN_MS = 2000;
 
   // ── Tab state ─────────────────────────────────────────────────────
   const [selectedTab, setSelectedTab] = useState<
