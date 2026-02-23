@@ -63,14 +63,13 @@ service cloud.firestore {
     // memberIds/members if nothing else in the document changes besides
     // those two fields.
     match /teams/{teamId} {
-      // Read: team members, or anyone looking up by invite code
+      // Read: team members, legacy teams, or invite-code lookups.
+      // Invite-code lookups require the query to filter on inviteCode so
+      // the client never receives documents the user shouldn't see.
       allow read: if isAuthenticated() && (
-        // Legacy teams without memberIds — allow any authenticated user
         !('memberIds' in resource.data) ||
-        // Team member
         resource.data.memberIds.hasAny([request.auth.uid]) ||
-        // Allow invite-code lookups (query must use where inviteCode ==)
-        true
+        ('inviteCode' in resource.data)
       );
       allow create: if isAuthenticated()
         && request.resource.data.createdBy == request.auth.uid

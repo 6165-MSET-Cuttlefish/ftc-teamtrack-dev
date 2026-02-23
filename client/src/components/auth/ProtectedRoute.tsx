@@ -19,9 +19,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  // Allow both authenticated users and guests
   if (!user && !isGuest) {
-    // Redirect to login page with return url
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
   }
 

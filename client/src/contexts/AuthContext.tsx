@@ -303,7 +303,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     let guestUserId = localStorage.getItem(GUEST_ID_KEY);
 
     if (!guestUserId) {
-      guestUserId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      guestUserId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       localStorage.setItem(GUEST_ID_KEY, guestUserId);
     }
 
@@ -353,7 +353,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               if (!guestMode) {
                 let autoGuestId = localStorage.getItem(GUEST_ID_KEY);
                 if (!autoGuestId) {
-                  autoGuestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                  autoGuestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
                   localStorage.setItem(GUEST_ID_KEY, autoGuestId);
                 }
                 localStorage.setItem(GUEST_MODE_KEY, 'true');

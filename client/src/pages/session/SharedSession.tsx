@@ -73,7 +73,9 @@ const SharedSession = () => {
             setError('Session data is too large to load.');
             return;
           }
-          const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+          const binary = atob(encoded);
+          const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+          const decoded = JSON.parse(new TextDecoder().decode(bytes));
           // Validate expected shape
           if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) {
             setError('Invalid session data format.');

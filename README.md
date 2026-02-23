@@ -20,8 +20,8 @@ React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui, Firebase (Auth + Firestore 
 You'll need Node.js 18+, Yarn, and a Firebase project with Email/Password auth and Firestore enabled.
 
 ```bash
-git clone https://github.com/your-username/TeamTrack-v2-fe.git
-cd TeamTrack-v2-fe
+git clone https://github.com/6165-MSET-Cuttlefish/ftc-teamtrack.git
+cd ftc-teamtrack
 yarn install
 ```
 

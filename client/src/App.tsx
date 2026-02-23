@@ -28,7 +28,7 @@ const SharedSession = lazy(() => import('./pages/session/SharedSession'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const JoinTeam = lazy(() => import('./pages/JoinTeam'));
 
-// Loading component
+
 const LoadingFallback = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4">
     <div className="relative">

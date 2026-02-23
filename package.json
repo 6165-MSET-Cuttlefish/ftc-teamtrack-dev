@@ -5,7 +5,7 @@
   "description": "A web app for FTC (FIRST Tech Challenge) teams to track match performance, analyze scoring trends, and collaborate with teammates in real time.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/TeamTrack-v2-fe.git"
+    "url": "https://github.com/6165-MSET-Cuttlefish/ftc-teamtrack.git"
   },
   "keywords": [
     "ftc",
@@ -29,13 +29,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@types/dompurify": "^3.0.5",
-    "dompurify": "^3.3.1",
-    "firebase": "^12.2.1",
-    "recharts": "^3.5.1"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.34.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-dropdown-menu": "^2.1.1",
     "@radix-ui/react-label": "^2.1.0",
@@ -43,27 +36,34 @@
     "@radix-ui/react-separator": "^1.1.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dompurify": "^3.3.1",
+    "firebase": "^12.2.1",
+    "lucide-react": "^0.462.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^6.26.2",
+    "recharts": "^3.5.1",
+    "sonner": "^1.5.0",
+    "tailwind-merge": "^2.5.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
     "@swc/core": "^1.11.24",
+    "@types/dompurify": "^3.0.5",
     "@types/node": "^22.5.5",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.21",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^4.1.1",
+    "eslint": "^9.22.0",
     "eslint-plugin-react": "^7.22.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.9.0",
-    "lucide-react": "^0.462.0",
     "postcss": "^8.5.6",
     "prettier": "^3.5.3",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "react-router-dom": "^6.26.2",
-    "sonner": "^1.5.0",
-    "tailwind-merge": "^2.5.2",
     "tailwindcss": "^3.4.11",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.5.3",

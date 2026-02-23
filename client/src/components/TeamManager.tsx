@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTeam, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
 import { formatDate } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -162,7 +163,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Create team error:', err);
+      logger.error('Create team error', err instanceof Error ? err : undefined);
       toast.error(`Failed to create team: ${message}`);
     } finally {
       setCreating(false);
@@ -191,7 +192,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Join team error:', err);
+      logger.error('Join team error', err instanceof Error ? err : undefined);
       toast.error(`Failed to join team: ${message}`);
     } finally {
       setJoining(false);

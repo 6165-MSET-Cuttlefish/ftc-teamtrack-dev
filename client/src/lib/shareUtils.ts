@@ -63,7 +63,9 @@ export const generateShareableLink = async (
   // ── Fallback: base64-encoded URL ──────────────────────────────────────
   try {
     const jsonStr = JSON.stringify(shareData);
-    const encodedData = btoa(unescape(encodeURIComponent(jsonStr)));
+    const bytes = new TextEncoder().encode(jsonStr);
+    const binary = Array.from(bytes, b => String.fromCharCode(b)).join('');
+    const encodedData = btoa(binary);
     return `${window.location.origin}/shared/preview?data=${encodedData}`;
   } catch (fallbackError) {
     logger.error('Error generating shareable link (fallback)', { error: String(fallbackError) });

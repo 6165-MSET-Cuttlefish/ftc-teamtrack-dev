@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import type { Session } from '@/types/session';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import getFirebase from '@/lib/firebase';
+import { logger } from '@/lib/logger';
 
 const JoinTeam = () => {
   const { inviteCode } = useParams<{ inviteCode: string }>();
@@ -120,7 +121,7 @@ const JoinTeam = () => {
               setSelectedSessionIds(new Set(importable.map(s => s.id)));
             }
           } catch (err) {
-            console.warn('Could not fetch sessions for import:', err);
+            logger.warn('Could not fetch sessions for import', err instanceof Error ? { message: err.message } : undefined);
           }
         }
       } else {

@@ -5,7 +5,6 @@ export {
   formatDate,
   formatTime,
   getDisplayTimer,
-  isInAudioIntroPhase,
   getInitials,
   isAbortError,
   getErrorMessage,

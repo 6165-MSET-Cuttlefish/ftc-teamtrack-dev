@@ -7,7 +7,7 @@ export default defineConfig(() => ({
   root: './client',
   envDir: '../',
   server: {
-    host: 'localhost', // Use localhost instead of IPv6
+    host: 'localhost',
     port: 8080,
     hmr: {
       // Use polling instead of WebSocket to avoid compression issues

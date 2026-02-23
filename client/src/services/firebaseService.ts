@@ -16,6 +16,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import getFirebase from '@/lib/firebase';
+import { logger } from '@/lib/logger';
 import { isAbortError } from '@/lib/utils';
 import { SESSION_LIMITS } from '@/constants';
 import type { Session, CreateSessionData } from '@/types';
@@ -58,7 +59,6 @@ class FirebaseService {
       if (isAbortError(error)) {
         return fallback;
       }
-      const { logger } = await import('@/lib/logger');
       logger.error(errorMessage, error);
       if (throwOnError) {
         throw error;
@@ -175,7 +175,7 @@ class FirebaseService {
         onUpdate(sessions);
       },
       (error) => {
-        console.error('Error in team sessions listener:', error);
+        logger.error('Error in team sessions listener', error);
         onError?.(error);
       }
     );
@@ -325,7 +325,7 @@ class FirebaseService {
         await updateDoc(docRef, { teamId });
         updated++;
       } catch (error) {
-        console.error(`Failed to import session ${sessionId}:`, error);
+        logger.error(`Failed to import session ${sessionId}`, error);
       }
     }
     return updated;

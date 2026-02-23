@@ -1,4 +1,3 @@
-// ─── Analysis.tsx ───────────────────────────────────────────────────────────
 // Shared tab components live in ./AnalysisTabs so SharedSession stays in sync.
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
@@ -6,7 +5,7 @@ import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
 import { generateShareableLink, copyToClipboard } from '@/lib/shareUtils';
 import { APP_CONFIG, ROUTES } from '@/constants';
-import type { Match } from '@/types';
+import type { Match, Session } from '@/types';
 import { MatchForm } from '@/components';
 import { toast } from 'sonner';
 import { BarChart3, Plus, Link2, Check, Loader2, AlertTriangle } from 'lucide-react';
@@ -191,8 +190,7 @@ const AnalysisContent = () => {
           teleopShots: m.teleopShots,
         })),
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const link = await generateShareableLink(sharePayload as any);
+      const link = await generateShareableLink(sharePayload as Partial<Session>);
       await copyToClipboard(link);
       setLinkCopied(true);
       toast.success('Share link copied to clipboard!');

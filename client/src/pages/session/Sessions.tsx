@@ -5,6 +5,7 @@ import { firebaseService } from '@/services';
 import TeamManager from '@/components/TeamManager';
 import { formatDate, isAbortError } from '@/lib/utils';
 import { generateShareableLink, copyToClipboard } from '@/lib';
+import { logger } from '@/lib/logger';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -509,7 +510,7 @@ const Sessions = () => {
           setLoading(false);
         },
         async (error) => {
-          console.error('Team sessions listener error:', error);
+          logger.error('Team sessions listener error', error);
           // Show the actual Firestore error (often a missing index link)
           const errorMessage = error?.message || 'Unknown error';
           if (errorMessage.includes('index')) {
