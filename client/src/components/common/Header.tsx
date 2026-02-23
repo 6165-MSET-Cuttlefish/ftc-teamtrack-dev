@@ -23,7 +23,6 @@ import {
   Hexagon,
   Waves,
   ArrowLeft,
-  MoreVertical,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -43,7 +42,7 @@ const TeamTrackLogo = () => {
 
   return (
     <Link
-      to="/"
+      to="/sessions"
       aria-label="TeamTrack home"
       className="flex items-center gap-2 sm:gap-4 focus:outline-none transition-all duration-200 origin-left"
     >
@@ -103,7 +102,7 @@ const TeamTrackLogo = () => {
 
 const NavigationMenu = () => {
   const { isDarkMode, themeMode, setTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, isGuest } = useAuth();
   const { sessionData } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
@@ -153,10 +152,7 @@ const NavigationMenu = () => {
       // Already on active page, just trigger the tutorial
       window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT));
     } else {
-      // Offer to navigate to the Active page for the tutorial
-      navigate(ROUTES.ACTIVE);
-      // Dispatch the tutorial event after a short delay for the page to mount
-      setTimeout(() => window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT)), 500);
+      toast.info('You can only access the tutorial on the Active Sessions page!');
     }
   };
 
@@ -170,7 +166,7 @@ const NavigationMenu = () => {
       {!isOnActivePage &&
         (hasActiveSession ? (
           <button
-            onClick={() => navigate(ROUTES.ACTIVE)}
+            onClick={() => navigate('/active')}
             aria-label="Active practice session"
             className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'}`}
           >
@@ -192,7 +188,7 @@ const NavigationMenu = () => {
 
       {/* My Sessions button */}
       <button
-        onClick={() => navigate(ROUTES.SESSIONS)}
+        onClick={() => navigate('/sessions')}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
           isDarkMode
             ? 'hover:bg-team-white-10 text-white'
@@ -203,30 +199,30 @@ const NavigationMenu = () => {
         <BarChart3 className="w-4 h-4 sm:hidden" />
       </button>
 
-      {/* Keybinds Tutorial button — hidden on mobile, in More menu instead */}
+      {/* Keybinds Tutorial button */}
       <button
         onClick={() => setShowKeybindTutorial(true)}
         aria-label="Keybinds tutorial"
-        className={`hidden sm:flex p-2 sm:p-2.5 rounded-full transition-colors items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
       >
         <Keyboard className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
-      {/* Interactive Tutorial button — hidden on mobile, in More menu instead */}
+      {/* Interactive Tutorial button */}
       <button
         onClick={handleStartInteractiveTutorial}
         aria-label="Start interactive tutorial"
-        className={`hidden sm:flex p-2 sm:p-2.5 rounded-full transition-colors items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
       >
         <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
-      {/* Theme dropdown — hidden on mobile, in More menu instead */}
+      {/* Theme dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             aria-label="Select theme"
-            className={`hidden sm:flex p-2 sm:p-2.5 rounded-full transition-colors items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
+            className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
           >
             {themeMode === 'dark' ? (
               <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
@@ -278,82 +274,14 @@ const NavigationMenu = () => {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Mobile "More" menu — collapses keybinds, tutorial, and theme */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            aria-label="More options"
-            className={`sm:hidden p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[160px]">
-          <DropdownMenuItem
-            onClick={() => setShowKeybindTutorial(true)}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Keyboard className="w-4 h-4" />
-            <span>Keyboard Shortcuts</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={handleStartInteractiveTutorial}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span>Tutorial</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Theme</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => setTheme('dark')}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Moon className="w-4 h-4" />
-            <span>Dark</span>
-            {themeMode === 'dark' && <span className="ml-auto text-xs">✓</span>}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setTheme('light')}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Sun className="w-4 h-4" />
-            <span>Light</span>
-            {themeMode === 'light' && <span className="ml-auto text-xs">✓</span>}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setTheme('honeycomb')}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Hexagon className="w-4 h-4" />
-            <span>Honeycomb</span>
-            {themeMode === 'honeycomb' && <span className="ml-auto text-xs">✓</span>}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setTheme('deepsea')}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Waves className="w-4 h-4" />
-            <span>Deep Sea</span>
-            {themeMode === 'deepsea' && <span className="ml-auto text-xs">✓</span>}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
       {/* Keybind Tutorial Modal */}
       {showKeybindTutorial && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4"
           onClick={handleCloseKeybindTutorial}
-          onKeyDown={e => {
-            if (e.key === 'Escape') handleCloseKeybindTutorial();
-          }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Keyboard shortcuts"
         >
           <div
-            className={`relative w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-black'}`}
+            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg shadow-lg bg-[#191919] text-white"
             onClick={e => e.stopPropagation()}
           >
             <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
@@ -364,9 +292,7 @@ const NavigationMenu = () => {
                 <h3 className="text-base sm:text-lg font-semibold mb-2">
                   Scoring Shortcuts
                 </h3>
-                <p
-                  className={`text-xs sm:text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
+                <p className="text-xs sm:text-sm mb-3 text-gray-300">
                   Use these shortcuts when in the Autonomous or Teleop section:
                 </p>
                 <div className="space-y-2">
@@ -375,97 +301,51 @@ const NavigationMenu = () => {
                       Select shot type:
                     </span>
                     <div className="flex gap-1 sm:gap-2">
-                      <kbd
-                        className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                      >
-                        1
-                      </kbd>
-                      <kbd
-                        className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                      >
-                        2
-                      </kbd>
-                      <kbd
-                        className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                      >
-                        3
-                      </kbd>
+                      <kbd className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono bg-gray-700">1</kbd>
+                      <kbd className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono bg-gray-700">2</kbd>
+                      <kbd className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono bg-gray-700">3</kbd>
                     </div>
                   </div>
-                  <p
-                    className={`text-xs sm:text-xs ml-0 sm:ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-                  >
+                  <p className="text-xs sm:text-xs ml-0 sm:ml-4 text-gray-400">
                     Press 1, 2, or 3 to select the shot type
                   </p>
 
                   <div className="flex items-center justify-between mt-3">
                     <span>Set made count:</span>
                     <div className="flex gap-2">
-                      <kbd
-                        className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                      >
-                        1
-                      </kbd>
-                      <kbd
-                        className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                      >
-                        2
-                      </kbd>
-                      <kbd
-                        className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                      >
-                        3
-                      </kbd>
+                      <kbd className="px-2 py-1 rounded text-sm font-mono bg-gray-700">1</kbd>
+                      <kbd className="px-2 py-1 rounded text-sm font-mono bg-gray-700">2</kbd>
+                      <kbd className="px-2 py-1 rounded text-sm font-mono bg-gray-700">3</kbd>
                     </div>
                   </div>
-                  <p
-                    className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-                  >
+                  <p className="text-xs ml-4 text-gray-400">
                     After selecting shot type, press number to set how many were
                     made (≤ shot type)
                   </p>
 
                   <div className="flex items-center justify-between mt-3">
                     <span>Confirm entry:</span>
-                    <kbd
-                      className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                    >
-                      Enter
-                    </kbd>
+                    <kbd className="px-3 py-1 rounded text-sm font-mono bg-gray-700">Enter</kbd>
                   </div>
 
                   <div className="flex items-center justify-between mt-3">
                     <span>Cancel:</span>
-                    <kbd
-                      className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                    >
-                      Esc
-                    </kbd>
+                    <kbd className="px-3 py-1 rounded text-sm font-mono bg-gray-700">Esc</kbd>
                   </div>
 
                   <div className="flex items-center justify-between mt-3">
                     <span>Toggle gate:</span>
-                    <kbd
-                      className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
-                    >
-                      G
-                    </kbd>
+                    <kbd className="px-3 py-1 rounded text-sm font-mono bg-gray-700">G</kbd>
                   </div>
-                  <p
-                    className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-                  >
+                  <p className="text-xs ml-4 text-gray-400">
                     Open or close the gate
                   </p>
                 </div>
               </div>
 
-              <div
-                className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
-              >
-                <p
-                  className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-                >
-                  <strong>Note:</strong> Keyboard shortcuts only work when
+              <div className="pt-4 border-t border-gray-700">
+                <p className="text-sm text-gray-400">
+                  <strong className="text-white">Note:</strong> Keyboard shortcuts only work when
                   you're not typing in an input field.
                 </p>
               </div>
@@ -473,11 +353,7 @@ const NavigationMenu = () => {
 
             <button
               onClick={handleCloseKeybindTutorial}
-              className={`mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue ${
-                isDarkMode
-                  ? 'hover:bg-team-blue/80 text-black'
-                  : 'hover:bg-team-blue/90 text-black'
-              }`}
+              className="mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue hover:bg-team-blue/80 text-black"
             >
               Got it!
             </button>
@@ -522,7 +398,7 @@ const NavigationMenu = () => {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to={ROUTES.PROFILE} className="flex items-center">
+              <Link to="/profile" className="flex items-center">
                 <UserCircle className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </Link>
@@ -622,15 +498,8 @@ export const Header = () => {
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
           {!isOnSessionsPage && (
             <button
-              onClick={() => {
-                // Use navigate(-1) only if there's real history; otherwise go to sessions
-                if (window.history.length > 1) {
-                  navigate(-1);
-                } else {
-                  navigate(ROUTES.SESSIONS);
-                }
-              }}
-              aria-label="Go back"
+              onClick={() => navigate('/sessions')}
+              aria-label="Back to sessions"
               className={`p-1.5 sm:p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />

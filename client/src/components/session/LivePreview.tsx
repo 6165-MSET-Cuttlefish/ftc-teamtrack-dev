@@ -1,18 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth, useTeam } from '@/contexts';
-import { useFirebase, useNavigationGuard } from '@/hooks';
+import { useFirebase } from '@/hooks';
 import { GAME_TIMING, ROUTES } from '@/constants';
-import { Check, X, Settings, Trash2, AlertTriangle } from 'lucide-react';
+import { Check, X, Settings, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MotifSetupDialog } from './MotifSetupDialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
 import type { Match } from '@/types';
 import type { ScoringFields } from '@/types';
 
@@ -70,25 +63,31 @@ export const LivePreview = ({
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
   const [showMotifDialog, setShowMotifDialog] = useState<boolean>(false);
   const [sessionWasCancelled, setSessionWasCancelled] = useState<boolean>(false);
-  const [, setPendingEditMatch] = useState<Match | null>(null);
+  const [pendingEditMatch, setPendingEditMatch] = useState<Match | null>(null);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] = useState<boolean>(false);
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Block navigation if there's unsaved work
-  const hasUnsavedWork = Boolean(
+  const hasUnsavedWork =
     !sessionData.isSessionCompleted &&
     ((sessionData.matches && sessionData.matches.length > 0) ||
       (sessionData.finalScore || 0) > 0 ||
       (sessionData.autonomousScore || 0) > 0 ||
       (sessionData.teleopScore || 0) > 0 ||
       (sessionData.notes && sessionData.notes.trim().length > 0) ||
-      (sessionData.sessionName && sessionData.sessionName.trim().length > 0)));
+      (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
 
-  // Block both in-app and browser navigation when there's unsaved work
-  const navGuard = useNavigationGuard(
-    hasUnsavedWork,
-    'You have an active session with unsaved data. Are you sure you want to leave?'
-  );
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedWork) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedWork]);
 
   // Check session limit on mount
   useEffect(() => {
@@ -107,8 +106,12 @@ export const LivePreview = ({
 
         if (sessions.length >= sessionLimit) {
           setSessionLimitReached(true);
-          // Don't show toast on mount — only flag the state.
-          // The toast will appear when the user tries to complete the session.
+          toast.error(
+            `You've reached the maximum of ${sessionLimit} sessions. Please delete old sessions before creating new ones.`,
+            {
+              duration: 10000,
+            }
+          );
         } else {
           setSessionLimitReached(false);
         }
@@ -485,75 +488,75 @@ export const LivePreview = ({
       {/* New Streamlined Action Buttons */}
       {!sessionData.isSessionCompleted ? (
         <>
-          <div className="flex flex-wrap items-center gap-3 w-full">
+          <div className="flex items-center gap-3 w-full">
             {/* Save Match / Start Match Button */}
             {!showTeleopTransition && !editingMatchId && (
               <button
-                type="button"
-                onKeyDown={(e) => {
-                  // Prevent Enter from triggering the button during keybinds
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                  }
-                }}
-                onClick={
-                  !matchActive
-                    ? () => {
-                        if (!isSessionSetupSaved && !sessionData.sessionName?.trim()) {
-                          onTryStartWithoutSetup?.();
-                          return;
-                        }
-                        const motifIsSet = sessionData.motifPattern && !sessionData.motifPattern.every((c: string) => c === 'empty');
-                        if (!motifIsSet) {
-                          // Step 1: open motif dialog to set pattern first
-                          setShowMotifDialog(true);
-                        } else {
-                          // Step 2: motif already set, start the match
-                          setHasStarted(true);
-                          setMatchActive(true);
-                          if (sessionData.matchType === 'Teleop') {
-                            setMatchPhase('teleop');
-                            setIsTimerRunning(true);
-                          } else if (sessionData.matchType === 'Autonomous') {
-                            setMatchPhase('auton');
-                            setIsTimerRunning(true);
-                          } else {
-                            // Full Game: 1.61s audio intro delay before countdown
-                            setMatchPhase('auton');
-                            setIsPreMatchDelay(true);
-                            if (preMatchDelayRef.current) clearTimeout(preMatchDelayRef.current);
-                            preMatchDelayRef.current = setTimeout(() => {
-                              setIsPreMatchDelay(false);
-                              setIsTimerRunning(true);
-                              preMatchDelayRef.current = null;
-                            }, 1610);
+                  type="button"
+                  onKeyDown={(e) => {
+                    // Prevent Enter from triggering the button during keybinds
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
+                  onClick={
+                    !matchActive
+                      ? () => {
+                          if (!isSessionSetupSaved && !sessionData.sessionName?.trim()) {
+                            onTryStartWithoutSetup?.();
+                            return;
                           }
-                          window.dispatchEvent(new Event('teamtrack-match-started'));
+                          const motifIsSet = sessionData.motifPattern && !sessionData.motifPattern.every((c: string) => c === 'empty');
+                          if (!motifIsSet) {
+                            // Step 1: open motif dialog to set pattern first
+                            setShowMotifDialog(true);
+                          } else {
+                            // Step 2: motif already set, start the match
+                            setHasStarted(true);
+                            setMatchActive(true);
+                            if (sessionData.matchType === 'Teleop') {
+                              setMatchPhase('teleop');
+                              setIsTimerRunning(true);
+                            } else if (sessionData.matchType === 'Autonomous') {
+                              setMatchPhase('auton');
+                              setIsTimerRunning(true);
+                            } else {
+                              // Full Game: 1.61s audio intro delay before countdown
+                              setMatchPhase('auton');
+                              setIsPreMatchDelay(true);
+                              if (preMatchDelayRef.current) clearTimeout(preMatchDelayRef.current);
+                              preMatchDelayRef.current = setTimeout(() => {
+                                setIsPreMatchDelay(false);
+                                setIsTimerRunning(true);
+                                preMatchDelayRef.current = null;
+                              }, 1610);
+                            }
+                            window.dispatchEvent(new Event('teamtrack-match-started'));
+                          }
                         }
-                      }
-                    : handleSaveMatch
-                }
-                disabled={!matchActive && !sessionData.sessionName?.trim()}
-                title={
-                  !matchActive && !isSessionSetupSaved
-                    ? 'Save session settings before starting'
-                    : !matchActive && !sessionData.sessionName?.trim()
-                      ? 'Complete session setup (Session Name) before starting'
-                      : ''
-                }
-                className={`flex-1 px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  !matchActive && isSessionSetupSaved
-                    ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
-                    : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
-                }`}
-              >
-                {!matchActive
-                  ? (sessionData.motifPattern && !sessionData.motifPattern.every((c: string) => c === 'empty')
-                    ? 'Start Match'
-                    : 'Set Motif')
-                  : 'Save Match'}
-              </button>
-            )}
+                      : handleSaveMatch
+                  }
+                  disabled={!matchActive && !sessionData.sessionName?.trim()}
+                  title={
+                    !matchActive && !isSessionSetupSaved
+                      ? 'Save session settings before starting'
+                      : !matchActive && !sessionData.sessionName?.trim()
+                        ? 'Complete session setup (Session Name) before starting'
+                        : ''
+                  }
+                  className={`w-full px-6 py-4 h-16 rounded-2xl border-2 text-lg font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    !matchActive && isSessionSetupSaved
+                      ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
+                      : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
+                  }`}
+                >
+                  {!matchActive
+                    ? (sessionData.motifPattern && !sessionData.motifPattern.every((c: string) => c === 'empty')
+                      ? 'Start Match'
+                      : 'Set Motif')
+                    : 'Save Match'}
+                </button>
+              )}
 
             {/* Teleop Transition Buttons */}
             {showTeleopTransition && (
@@ -1031,39 +1034,6 @@ export const LivePreview = ({
         onCancel={handleMotifDialogCancel}
         initialPattern={sessionData.motifPattern ?? ['empty', 'empty', 'empty']}
       />
-
-      {/* Navigation Guard Dialog */}
-      <Dialog open={navGuard.isBlocked} onOpenChange={() => navGuard.reset()}>
-        <DialogContent className={isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white'}>
-          <DialogHeader className={isDarkMode ? 'border-team-blue-40' : ''}>
-            <DialogTitle className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Unsaved Changes
-            </DialogTitle>
-            <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              {navGuard.message}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-3 px-6 py-4">
-            <button
-              onClick={() => navGuard.reset()}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isDarkMode
-                  ? 'bg-team-white-10 text-white hover:bg-team-white-20'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Stay on Page
-            </button>
-            <button
-              onClick={() => navGuard.proceed()}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
-            >
-              Leave Page
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

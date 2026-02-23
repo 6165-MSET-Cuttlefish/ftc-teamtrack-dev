@@ -429,7 +429,15 @@ export const SummaryTab = ({
     })
     .filter((d): d is { name: string; 'Avg Cycle': number } => d !== null);
 
-  const totalAvg = stats.avgAuto + stats.avgTele + stats.avgEndgame;
+  const sessionMatchType = matches[0]?.matchType ?? 'Full Game';
+  const showAuto = sessionMatchType !== 'Teleop';
+  const showTele = sessionMatchType !== 'Autonomous';
+  const showEndgame = sessionMatchType !== 'Autonomous';
+
+  const totalAvg =
+    (showAuto ? stats.avgAuto : 0) +
+    (showTele ? stats.avgTele : 0) +
+    (showEndgame ? stats.avgEndgame : 0);
 
   // Custom dot renderer – highlight best (green) and worst (red) match
   const ScoringDot = (props: {
@@ -469,27 +477,33 @@ export const SummaryTab = ({
       {/* Average Phase Breakdown */}
       <Section title="Average Score Breakdown" isDarkMode={isDarkMode}>
         <div className="space-y-4">
-          <PhaseBar
-            label="Autonomous"
-            value={stats.avgAuto}
-            max={totalAvg}
-            color={CHART_COLORS.auto}
-            isDarkMode={isDarkMode}
-          />
-          <PhaseBar
-            label="Teleop"
-            value={stats.avgTele}
-            max={totalAvg}
-            color={CHART_COLORS.tele}
-            isDarkMode={isDarkMode}
-          />
-          <PhaseBar
-            label="Endgame"
-            value={stats.avgEndgame}
-            max={totalAvg}
-            color={CHART_COLORS.endgame}
-            isDarkMode={isDarkMode}
-          />
+          {showAuto && (
+            <PhaseBar
+              label="Autonomous"
+              value={stats.avgAuto}
+              max={totalAvg}
+              color={CHART_COLORS.auto}
+              isDarkMode={isDarkMode}
+            />
+          )}
+          {showTele && (
+            <PhaseBar
+              label="Teleop"
+              value={stats.avgTele}
+              max={totalAvg}
+              color={CHART_COLORS.tele}
+              isDarkMode={isDarkMode}
+            />
+          )}
+          {showEndgame && (
+            <PhaseBar
+              label="Endgame"
+              value={stats.avgEndgame}
+              max={totalAvg}
+              color={CHART_COLORS.endgame}
+              isDarkMode={isDarkMode}
+            />
+          )}
         </div>
         <div
           className={`mt-4 pt-4 border-t flex items-center justify-between ${isDarkMode ? 'border-team-blue-40' : 'border-gray-100'}`}
@@ -532,22 +546,26 @@ export const SummaryTab = ({
                 strokeWidth={3}
                 dot={<ScoringDot fill={CHART_COLORS.primary} />}
               />
-              <Line
-                type="monotone"
-                dataKey="Autonomous"
-                stroke={CHART_COLORS.auto}
-                strokeWidth={2}
-                dot={{ fill: CHART_COLORS.auto, r: 3 }}
-                strokeDasharray="5 5"
-              />
-              <Line
-                type="monotone"
-                dataKey="Teleop"
-                stroke={CHART_COLORS.tele}
-                strokeWidth={2}
-                dot={{ fill: CHART_COLORS.tele, r: 3 }}
-                strokeDasharray="5 5"
-              />
+              {showAuto && (
+                <Line
+                  type="monotone"
+                  dataKey="Autonomous"
+                  stroke={CHART_COLORS.auto}
+                  strokeWidth={2}
+                  dot={{ fill: CHART_COLORS.auto, r: 3 }}
+                  strokeDasharray="5 5"
+                />
+              )}
+              {showTele && (
+                <Line
+                  type="monotone"
+                  dataKey="Teleop"
+                  stroke={CHART_COLORS.tele}
+                  strokeWidth={2}
+                  dot={{ fill: CHART_COLORS.tele, r: 3 }}
+                  strokeDasharray="5 5"
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </Section>
@@ -609,26 +627,30 @@ export const SummaryTab = ({
                 cursor={{ fill: 'transparent' }}
               />
               <Legend wrapperStyle={{ fontSize: '13px' }} />
-              <Bar
-                dataKey="Auto Balls"
-                fill={
-                  ballsView === 'shot' ? CHART_COLORS.shot
-                  : ballsView === 'made' ? CHART_COLORS.made
-                  : CHART_COLORS.missedAuto
-                }
-                radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
-              />
-              <Bar
-                dataKey="Teleop Balls"
-                fill={
-                  ballsView === 'shot' ? '#93c5fd'   /* light blue for Teleop Shot */
-                  : ballsView === 'made' ? '#6ee7b7'  /* light emerald for Teleop Made */
-                  : CHART_COLORS.missedTele
-                }
-                radius={[4, 4, 0, 0]}
-                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
-              />
+              {showAuto && (
+                <Bar
+                  dataKey="Auto Balls"
+                  fill={
+                    ballsView === 'shot' ? CHART_COLORS.shot
+                    : ballsView === 'made' ? CHART_COLORS.made
+                    : CHART_COLORS.missedAuto
+                  }
+                  radius={[4, 4, 0, 0]}
+                  activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                />
+              )}
+              {showTele && (
+                <Bar
+                  dataKey="Teleop Balls"
+                  fill={
+                    ballsView === 'shot' ? '#93c5fd'   /* light blue for Teleop Shot */
+                    : ballsView === 'made' ? '#6ee7b7'  /* light emerald for Teleop Made */
+                    : CHART_COLORS.missedTele
+                  }
+                  radius={[4, 4, 0, 0]}
+                  activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+                />
+              )}
             </BarChart>
           </ResponsiveContainer>
         </Section>
@@ -679,24 +701,28 @@ export const SummaryTab = ({
                     strokeDasharray="5 5"
                     connectNulls={false}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="Autonomous"
-                    stroke={CHART_COLORS.auto}
-                    strokeWidth={2}
-                    dot={{ fill: CHART_COLORS.auto, r: 3 }}
-                    strokeDasharray="5 5"
-                    connectNulls={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="Teleop"
-                    stroke={CHART_COLORS.tele}
-                    strokeWidth={2}
-                    dot={{ fill: CHART_COLORS.tele, r: 3 }}
-                    strokeDasharray="5 5"
-                    connectNulls={false}
-                  />
+                  {showAuto && (
+                    <Line
+                      type="monotone"
+                      dataKey="Autonomous"
+                      stroke={CHART_COLORS.auto}
+                      strokeWidth={2}
+                      dot={{ fill: CHART_COLORS.auto, r: 3 }}
+                      strokeDasharray="5 5"
+                      connectNulls={false}
+                    />
+                  )}
+                  {showTele && (
+                    <Line
+                      type="monotone"
+                      dataKey="Teleop"
+                      stroke={CHART_COLORS.tele}
+                      strokeWidth={2}
+                      dot={{ fill: CHART_COLORS.tele, r: 3 }}
+                      strokeDasharray="5 5"
+                      connectNulls={false}
+                    />
+                  )}
                 </>
               )}
             </LineChart>
@@ -802,6 +828,11 @@ export const MatchDetailTab = ({
   const match = matches[selectedIdx];
   if (!match) return null;
 
+  const sessionMatchType = match.matchType ?? 'Full Game';
+  const showAuto = sessionMatchType !== 'Teleop';
+  const showTele = sessionMatchType !== 'Autonomous';
+  const showEndgame = sessionMatchType !== 'Autonomous';
+
   const totalScore = match.finalScore || 0;
   const avgFinal =
     matches.reduce((s, m) => s + (m.finalScore || 0), 0) / matches.length;
@@ -842,6 +873,12 @@ export const MatchDetailTab = ({
       color: CHART_COLORS.endgame,
     },
   ];
+
+  const visibleBreakdownRows = breakdownRows.filter(row =>
+    (row.phase !== 'Autonomous' || showAuto) &&
+    (row.phase !== 'Teleop' || showTele) &&
+    (row.phase !== 'Endgame' || showEndgame)
+  );
 
   return (
     <div className="space-y-6">
@@ -975,8 +1012,8 @@ export const MatchDetailTab = ({
       </div>
 
       {/* Phase scores */}
-      <div className="grid grid-cols-3 gap-4">
-        {breakdownRows.map(row => (
+      <div className={`grid gap-4 ${visibleBreakdownRows.length === 1 ? 'grid-cols-1' : visibleBreakdownRows.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        {visibleBreakdownRows.map(row => (
           <div
             key={row.phase}
             className="rounded-xl border p-4 text-center"
@@ -1030,7 +1067,7 @@ export const MatchDetailTab = ({
               </tr>
             </thead>
             <tbody>
-              {breakdownRows.map(row => (
+              {visibleBreakdownRows.map(row => (
                 <tr
                   key={row.phase}
                   className={`border-b last:border-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-100'}`}
@@ -1211,30 +1248,30 @@ export const MatchDetailTab = ({
           <ResponsiveContainer width="100%" height={260}>
             <BarChart
               data={[
-                {
+                ...(showAuto ? [{
                   name: 'Autonomous',
                   'This Match': match.autonomousScore || 0,
                   'Session Avg': Math.round(
                     matches.reduce((s, m) => s + (m.autonomousScore || 0), 0) /
                       matches.length
                   ),
-                },
-                {
+                }] : []),
+                ...(showTele ? [{
                   name: 'Teleop',
                   'This Match': match.teleopScore || 0,
                   'Session Avg': Math.round(
                     matches.reduce((s, m) => s + (m.teleopScore || 0), 0) /
                       matches.length
                   ),
-                },
-                {
+                }] : []),
+                ...(showEndgame ? [{
                   name: 'Endgame',
                   'This Match': match.endGameScore || 0,
                   'Session Avg': Math.round(
                     matches.reduce((s, m) => s + (m.endGameScore || 0), 0) /
                       matches.length
                   ),
-                },
+                }] : []),
               ]}
             >
               <CartesianGrid
@@ -1334,6 +1371,11 @@ export const CompareTab = ({
 
   const mA = matches[idxA];
   const mB = matches[idxB];
+
+  const sessionMatchType = matches[0]?.matchType ?? 'Full Game';
+  const showAuto = sessionMatchType !== 'Teleop';
+  const showTele = sessionMatchType !== 'Autonomous';
+  const showEndgame = sessionMatchType !== 'Autonomous';
 
   const metrics: CompareMetric[] = [
     { label: 'Final Score', a: mA.finalScore || 0, b: mB.finalScore || 0, higherIsBetter: true, phase: 'overall' },
@@ -1465,25 +1507,31 @@ export const CompareTab = ({
               cursor={{ fill: 'transparent' }}
             />
             <Legend wrapperStyle={{ fontSize: '13px' }} />
-            <Bar
-              dataKey="Autonomous"
-              stackId="s"
-              fill={CHART_COLORS.auto}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
-            />
-            <Bar
-              dataKey="Teleop"
-              stackId="s"
-              fill={CHART_COLORS.tele}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
-            />
-            <Bar
-              dataKey="Endgame"
-              stackId="s"
-              fill={CHART_COLORS.endgame}
-              radius={[4, 4, 0, 0]}
-              activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
-            />
+            {showAuto && (
+              <Bar
+                dataKey="Autonomous"
+                stackId="s"
+                fill={CHART_COLORS.auto}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              />
+            )}
+            {showTele && (
+              <Bar
+                dataKey="Teleop"
+                stackId="s"
+                fill={CHART_COLORS.tele}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              />
+            )}
+            {showEndgame && (
+              <Bar
+                dataKey="Endgame"
+                stackId="s"
+                fill={CHART_COLORS.endgame}
+                radius={[4, 4, 0, 0]}
+                activeBar={{ stroke: isDarkMode ? '#fff' : '#000', strokeWidth: 2 }}
+              />
+            )}
           </BarChart>
         </ResponsiveContainer>
       </Section>
@@ -1511,7 +1559,11 @@ export const CompareTab = ({
           </div>
         </div>
 
-        {(['overall', 'auto', 'tele', 'endgame'] as const).map(phase => {
+        {(['overall', 'auto', 'tele', 'endgame'] as const).filter(phase =>
+          (phase !== 'auto' || showAuto) &&
+          (phase !== 'tele' || showTele) &&
+          (phase !== 'endgame' || showEndgame)
+        ).map(phase => {
           const phaseMetrics = metrics.filter(m => m.phase === phase);
           if (phaseMetrics.length === 0) return null;
 

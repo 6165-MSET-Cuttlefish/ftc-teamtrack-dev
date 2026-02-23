@@ -19,8 +19,8 @@ export const useMatchAudio = () => {
     if (matchActive && (isTimerRunning || isPreMatchDelay)) {
       if (!hasPlayedRef.current) {
         hasPlayedRef.current = true;
-        audioRef.current?.play().catch(() => {
-          // Autoplay may be blocked by the browser; ignore
+        audioRef.current?.play().catch((err) => {
+          console.log('Audio autoplay blocked or error:', err);
         });
       }
     }

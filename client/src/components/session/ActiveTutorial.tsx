@@ -792,7 +792,7 @@ const STEPS: StepDef[] = [
 
 const ORIGINAL_STYLES_KEY = '__tt_original_styles__';
 
-function liftElement(el: HTMLElement, breathing = false) {
+function liftElement(el: HTMLElement, breathing = false, darkMode = true) {
   // Save originals so we can restore them
   (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY] = {
     position: el.style.position,
@@ -800,15 +800,27 @@ function liftElement(el: HTMLElement, breathing = false) {
     borderRadius: el.style.borderRadius,
     boxShadow: el.style.boxShadow,
     animation: el.style.animation,
+    backgroundColor: el.style.backgroundColor,
   };
   el.style.position = 'relative';
   el.style.zIndex = '9999';
   el.style.borderRadius = '16px';
+  // In light mode, force a solid white background so the element is fully
+  // opaque against the dark backdrop overlay (same effect dark mode gets for free
+  // from its natural dark background colors).
+  if (!darkMode) {
+    el.style.backgroundColor = '#ffffff';
+  }
   if (breathing) {
+    // Add a data attribute so the CSS keyframe can pick the right intensity
+    el.dataset.ttDark = darkMode ? '1' : '0';
     el.classList.add('tt-breathe');
   } else {
-    el.style.boxShadow =
-      '0 0 0 4px rgb(var(--team-blue) / 0.35), 0 0 60px rgb(var(--team-blue) / 0.15)';
+    // Light mode needs higher opacity — the light-mode team-blue (#537788) is
+    // muted and barely visible at low opacity on a white background.
+    el.style.boxShadow = darkMode
+      ? '0 0 0 4px rgb(var(--team-blue) / 0.35), 0 0 60px rgb(var(--team-blue) / 0.15)'
+      : '0 0 0 3px rgb(var(--team-blue) / 0.8), 0 0 32px rgb(var(--team-blue) / 0.25)';
   }
 }
 
@@ -823,6 +835,7 @@ function dropElement(el: HTMLElement) {
     el.style.borderRadius = orig.borderRadius ?? '';
     el.style.boxShadow = orig.boxShadow ?? '';
     el.style.animation = orig.animation ?? '';
+    el.style.backgroundColor = orig.backgroundColor ?? '';
     delete (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY];
   }
 }
@@ -997,7 +1010,7 @@ export const ActiveTutorial = () => {
   }, [visible, step, taskCompleted]);
 
   // Remove lift from previous element + apply to new one
-  const applyHighlight = useCallback((targetAttr: string | null, breathing = false) => {
+  const applyHighlight = useCallback((targetAttr: string | null, breathing = false, dark = isDarkMode) => {
     // Drop previous
     if (prevElRef.current) {
       dropElement(prevElRef.current);
@@ -1022,7 +1035,7 @@ export const ActiveTutorial = () => {
             `[data-tutorial="${targetAttr}"]`
           );
           if (newEl) {
-            liftElement(newEl, breathing);
+            liftElement(newEl, breathing, dark);
             prevElRef.current = newEl;
             const rect = newEl.getBoundingClientRect();
             const viewH = window.innerHeight;
@@ -1040,7 +1053,7 @@ export const ActiveTutorial = () => {
     );
     if (!el) return;
 
-    liftElement(el, breathing);
+    liftElement(el, breathing, dark);
     prevElRef.current = el;
 
     // Scroll into view if needed
@@ -1063,8 +1076,8 @@ export const ActiveTutorial = () => {
     if (!visible) return;
     const current = STEPS[step];
     const hasPageTask = !!current?.pageAction;
-    applyHighlight(current?.target ?? null, hasPageTask);
-  }, [visible, step, applyHighlight]);
+    applyHighlight(current?.target ?? null, hasPageTask, isDarkMode);
+  }, [visible, step, applyHighlight, isDarkMode]);
 
   // Clean up when hidden
   useEffect(() => {
@@ -1157,11 +1170,12 @@ export const ActiveTutorial = () => {
   const hasTarget = !!current.target;
 
   const teamBlue = 'rgb(var(--team-blue))';
-  const teamBlue50 = 'rgb(var(--team-blue) / 0.5)';
+  // Light mode: stronger border opacity so it's visible against white background
+  const teamBlue50 = isDarkMode ? 'rgb(var(--team-blue) / 0.5)' : 'rgb(var(--team-blue) / 0.75)';
   const teamBlue80 = 'rgb(var(--team-blue) / 0.8)';
   const bg = isDarkMode ? '#191919' : '#ffffff';
   const text = isDarkMode ? '#ffffff' : '#111111';
-  const subtext = isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.55)';
+  const subtext = isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
 
   const hasPageTask = !!current.pageAction;
   const taskPending = hasPageTask && !taskCompleted;
@@ -1191,9 +1205,21 @@ export const ActiveTutorial = () => {
                         0 0 70px rgb(var(--team-blue) / 0.25);
           }
         }
+        /* Stronger variant for light mode where team-blue is a muted #537788 */
+        @keyframes ttBreatheLight {
+          0%, 100% {
+            box-shadow: 0 0 0 3px rgb(var(--team-blue) / 0.75),
+                        0 0 28px rgb(var(--team-blue) / 0.22);
+          }
+          50% {
+            box-shadow: 0 0 0 5px rgb(var(--team-blue) / 0.95),
+                        0 0 48px rgb(var(--team-blue) / 0.35);
+          }
+        }
         .tt-card-slide { animation: ttCardIn 0.3s ease-out forwards; }
         .tt-card-center { animation: ttCardCenter 0.25s ease-out forwards; }
         .tt-breathe { animation: ttBreathe 2s ease-in-out infinite; }
+        .tt-breathe[data-tt-dark="0"] { animation: ttBreatheLight 2s ease-in-out infinite; }
       `}</style>
 
       {/*

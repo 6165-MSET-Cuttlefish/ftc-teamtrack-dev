@@ -6,7 +6,6 @@ import { AuthProvider, ThemeProvider, SessionProvider, TeamProvider } from '@/co
 import {
   ErrorBoundary,
   Header,
-  MobileBanner,
   ProtectedRoute,
   GuestPrompt,
   HomeRedirect,
@@ -28,7 +27,7 @@ const SharedSession = lazy(() => import('./pages/session/SharedSession'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const JoinTeam = lazy(() => import('./pages/JoinTeam'));
 
-
+// Loading component
 const LoadingFallback = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4">
     <div className="relative">
@@ -42,12 +41,11 @@ const App = () => (
   <TooltipProvider>
     <ThemeProvider>
       <ErrorBoundary>
-        <BrowserRouter>
         <AuthProvider>
           <TeamProvider>
             <SessionProvider>
+            <BrowserRouter>
               <div className="min-h-screen flex flex-col">
-                <MobileBanner />
                 <DeepSeaBubbles />
                 <Header />
                 <main className="flex-1">
@@ -78,35 +76,19 @@ const App = () => (
                       {/* Protected Routes */}
                       <Route
                         path={ROUTES.HOME}
-                        element={
-                          <ProtectedRoute>
-                            <HomeRedirect />
-                          </ProtectedRoute>
-                        }
+                        element={<HomeRedirect />}
                       />
                       <Route
                         path={ROUTES.ACTIVE}
-                        element={
-                          <ProtectedRoute>
-                            <Active />
-                          </ProtectedRoute>
-                        }
+                        element={<Active />}
                       />
                       <Route
                         path={ROUTES.ANALYSIS}
-                        element={
-                          <ProtectedRoute>
-                            <Analysis />
-                          </ProtectedRoute>
-                        }
+                        element={<Analysis />}
                       />
                       <Route
                         path={ROUTES.EDIT_SESSION}
-                        element={
-                          <ProtectedRoute>
-                            <EditSession />
-                          </ProtectedRoute>
-                        }
+                        element={<EditSession />}
                       />
                       <Route
                         path={ROUTES.PROFILE}
@@ -118,27 +100,15 @@ const App = () => (
                       />
                       <Route
                         path={ROUTES.SESSIONS}
-                        element={
-                          <ProtectedRoute>
-                            <Sessions />
-                          </ProtectedRoute>
-                        }
+                        element={<Sessions />}
                       />
                       <Route
                         path={ROUTES.COMPARE}
-                        element={
-                          <ProtectedRoute>
-                            <Compare />
-                          </ProtectedRoute>
-                        }
+                        element={<Compare />}
                       />
                       <Route
                         path={ROUTES.CHARTS}
-                        element={
-                          <ProtectedRoute>
-                            <Charts />
-                          </ProtectedRoute>
-                        }
+                        element={<Charts />}
                       />
 
                       {/* Catch-all route */}
@@ -149,10 +119,10 @@ const App = () => (
               </div>
               <GuestPrompt />
               <Sonner />
-            </SessionProvider>
+            </BrowserRouter>
+          </SessionProvider>
           </TeamProvider>
         </AuthProvider>
-        </BrowserRouter>
       </ErrorBoundary>
     </ThemeProvider>
   </TooltipProvider>

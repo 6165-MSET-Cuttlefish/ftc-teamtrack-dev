@@ -1,7 +1,6 @@
 import { useTheme, useSession } from '@/contexts';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Bold, Italic, Highlighter, List, ListOrdered, ChevronDown } from 'lucide-react';
-import { sanitizeHtml } from '@/lib/sanitize';
 
 const HIGHLIGHT_COLORS = [
   { name: 'Yellow', hex: '#FFFF00', bg: 'bg-yellow-200', darkBg: 'bg-yellow-500/40' },
@@ -20,10 +19,10 @@ export const Notes = () => {
   const [highlightDropdownOpen, setHighlightDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Initialize editor content on mount (sanitize to prevent stored XSS)
+  // Initialize editor content on mount
   useEffect(() => {
     if (editorRef.current && !initialized) {
-      editorRef.current.innerHTML = sanitizeHtml(sessionData.notes ?? '');
+      editorRef.current.innerHTML = sessionData.notes ?? '';
       setInitialized(true);
     }
   }, [initialized, sessionData.notes]);
@@ -61,7 +60,7 @@ export const Notes = () => {
 
   const handleEditorChange = useCallback(() => {
     if (editorRef.current) {
-      const html = sanitizeHtml(editorRef.current.innerHTML);
+      const html = editorRef.current.innerHTML;
       updateSessionData({ notes: html });
     }
   }, [updateSessionData]);
@@ -221,8 +220,6 @@ export const Notes = () => {
           suppressContentEditableWarning
           onBlur={handleEditorChange}
           onInput={handleInput}
-          role="textbox"
-          aria-multiline="true"
           aria-label="Notes editor"
           className={`px-4 py-3 rounded border-2 border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue min-h-[120px] max-h-[400px] overflow-y-auto [&_ul]:ml-6 [&_ul]:list-disc [&_ol]:ml-6 [&_ol]:list-decimal [&_li]:mb-1 ${
             isDarkMode

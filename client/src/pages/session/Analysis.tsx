@@ -1,15 +1,15 @@
+// ─── Analysis.tsx ───────────────────────────────────────────────────────────
 // Shared tab components live in ./AnalysisTabs so SharedSession stays in sync.
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
 import { generateShareableLink, copyToClipboard } from '@/lib/shareUtils';
-import { APP_CONFIG, ROUTES } from '@/constants';
-import type { Match, Session } from '@/types';
+import { APP_CONFIG } from '@/constants';
+import type { Match } from '@/types';
 import { MatchForm } from '@/components';
 import { toast } from 'sonner';
-import { BarChart3, Plus, Link2, Check, Loader2, AlertTriangle } from 'lucide-react';
-import { sanitizeHtml } from '@/lib/sanitize';
+import { BarChart3, Plus, Link2, Check, Loader2 } from 'lucide-react';
 import {
   SummaryTab,
   MatchDetailTab,
@@ -35,7 +35,6 @@ const AnalysisContent = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCopyingLink, setIsCopyingLink] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     document.title = `Analysis - ${APP_CONFIG.name}`;
@@ -70,15 +69,6 @@ const AnalysisContent = () => {
 
       // Load by sessionId from query params
       const sessionId = searchParams.get('sessionId');
-      if (!sessionId) {
-        // No sessionId and no location state — nothing to analyse
-        if (mounted) {
-          setNotFound(true);
-          setLoading(false);
-        }
-        return;
-      }
-
       if (sessionId) {
         try {
           let session = null;
@@ -94,11 +84,6 @@ const AnalysisContent = () => {
           // Fall back to Firebase
           if (!session) {
             session = await firebaseService.getSession(sessionId);
-          }
-          if (mounted && !session) {
-            setNotFound(true);
-            setLoading(false);
-            return;
           }
           if (mounted && session) {
             const sum = (fn: (m: Match) => number) =>
@@ -139,9 +124,7 @@ const AnalysisContent = () => {
           if (mounted && (error as Error)?.name !== 'AbortError') {
             const { logger } = await import('@/lib/logger');
             logger.error('Error loading session', error);
-            setNotFound(true);
           }
-          if (mounted) setLoading(false);
         }
       }
 
@@ -190,7 +173,8 @@ const AnalysisContent = () => {
           teleopShots: m.teleopShots,
         })),
       };
-      const link = await generateShareableLink(sharePayload as Partial<Session>);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const link = await generateShareableLink(sharePayload as any);
       await copyToClipboard(link);
       setLinkCopied(true);
       toast.success('Share link copied to clipboard!');
@@ -334,25 +318,6 @@ const AnalysisContent = () => {
     );
   }
 
-  if (notFound) {
-    return (
-      <div
-        className={`min-h-screen flex items-center justify-center p-6 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-      >
-        <div
-          className={`max-w-md w-full rounded-2xl border p-8 text-center space-y-4 ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
-        >
-          <AlertTriangle size={40} className="mx-auto text-amber-500" />
-          <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Session Not Found</h2>
-          <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>The session you're looking for doesn't exist or you don't have access to it.</p>
-          <Link to={ROUTES.SESSIONS} className="inline-flex items-center gap-2 text-team-blue hover:underline font-medium text-sm">
-            Back to Sessions
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   // ── Render ────────────────────────────────────────────────────────────
 
   return (
@@ -452,7 +417,7 @@ const AnalysisContent = () => {
             </h3>
             <div
               className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(sessionData.notes) }}
+              dangerouslySetInnerHTML={{ __html: sessionData.notes }}
             />
           </div>
         )}
@@ -461,8 +426,6 @@ const AnalysisContent = () => {
         {sessionMatches.length > 0 && (
           <>
             <div
-              role="tablist"
-              aria-label="Analysis tabs"
               className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'}`}
             >
               {TABS.map(tab => {
@@ -471,8 +434,6 @@ const AnalysisContent = () => {
                 return (
                   <button
                     key={tab.id}
-                    role="tab"
-                    aria-selected={isActive}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isActive
@@ -484,7 +445,7 @@ const AnalysisContent = () => {
                           : 'text-gray-500 hover:text-gray-900'
                     }`}
                   >
-                    <Icon size={16} aria-hidden="true" />
+                    <Icon size={16} />
                     <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 );
@@ -546,13 +507,7 @@ const AnalysisContent = () => {
         {/* ── Actions ─────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <Link
-            to={ROUTES.SESSIONS}
-            className={`w-full sm:w-56 px-5 py-2.5 rounded-xl border text-sm font-medium text-center transition-colors ${isDarkMode ? 'border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue' : 'border-gray-200 text-gray-600 hover:text-gray-900 hover:border-team-blue'}`}
-          >
-            Back to Sessions
-          </Link>
-          <Link
-            to={ROUTES.CHARTS}
+            to="/charts"
             className={`w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             View Lifetime Charts

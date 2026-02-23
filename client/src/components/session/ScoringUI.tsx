@@ -14,15 +14,6 @@ export const ScoringUI = () => {
   const [pingShot, setPingShot] = useState<{ ballsMade: number; ballsShot: number } | null>(null);
   const [pingKey, setPingKey] = useState(0);
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Clear pending timeouts on unmount to avoid setting state on unmounted component
-  useEffect(() => {
-    return () => {
-      if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
-      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-    };
-  }, []);
 
   const showPing = (ballsMade: number, ballsShot: number) => {
     if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
@@ -40,8 +31,7 @@ export const ScoringUI = () => {
         // Flash the matching grid cell
         const id = `${ce.detail.ballsShot}-${ce.detail.ballsMade}`;
         setFlashingButton(id);
-        if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-        flashTimeoutRef.current = setTimeout(() => setFlashingButton(null), 400);
+        setTimeout(() => setFlashingButton(null), 400);
       }
       // Clear keyboard highlights on commit
       setKeyboardActiveRow(null);
@@ -171,8 +161,7 @@ export const ScoringUI = () => {
     showPing(ballsMade, shotId);
 
     // Clear flash after animation
-    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-    flashTimeoutRef.current = setTimeout(() => {
+    setTimeout(() => {
       setFlashingButton(null);
     }, 400);
   };
@@ -190,16 +179,7 @@ export const ScoringUI = () => {
     : (sessionData.teleopScore ?? 0);
 
   return (
-    <div className="space-y-6 relative">
-      {/* Overlay when scoring is disabled after match ends */}
-      {matchActive && matchPhase === 'ended' && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 rounded-lg backdrop-blur-[2px]">
-          <div className={`text-center px-6 py-4 rounded-xl ${isDarkMode ? 'bg-team-dark/90 border border-team-blue-40' : 'bg-white/90 border border-gray-200'} shadow-lg`}>
-            <p className="text-lg font-semibold text-team-blue">Match Ended</p>
-            <p className={`text-sm mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>Save your match to continue scoring</p>
-          </div>
-        </div>
-      )}
+    <div className="space-y-6">
       <style>{`
         @keyframes shot-rise {
           0%   { opacity: 1; transform: translateY(0px); }
@@ -287,7 +267,6 @@ export const ScoringUI = () => {
                     <button
                       onClick={() => handleBallSelect(shot.id, 0)}
                       disabled={!isScoringAllowed()}
-                      aria-label={`Shot ${shot.id}: miss all ${shot.balls} balls`}
                       className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
                         !isScoringAllowed()
                           ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'
@@ -337,7 +316,6 @@ export const ScoringUI = () => {
                       key={ballCount}
                       onClick={() => handleBallSelect(shot.id, ballCount)}
                       disabled={!isScoringAllowed()}
-                      aria-label={`Shot ${shot.id}: score ${ballCount} of ${shot.balls} balls`}
                       className={`flex-1 flex flex-col items-center justify-center h-20 rounded-lg border-2 transition-all duration-200 ${
                         !isScoringAllowed()
                           ? 'opacity-50 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-600 dark:bg-gray-800'

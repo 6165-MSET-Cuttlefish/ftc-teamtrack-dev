@@ -24,6 +24,8 @@ export const GateVisual = () => {
   const { sessionData, updateSessionData, matchPhase, matchActive } = useSession();
   const { isDarkMode } = useTheme();
   const [showMotifDialog, setShowMotifDialog] = useState(false);
+  const gateCycleToastTimeRef = useRef<number>(0);
+  const TOAST_COOLDOWN_MS = 2000;
 
   const gateBallCount = sessionData.gateBallCount ?? 0;
   const isGateOpen = sessionData.gateAddBackMode ?? false;
@@ -35,6 +37,8 @@ export const GateVisual = () => {
   const [isInTeleopMotifWindow, setIsInTeleopMotifWindow] = useState(false);
   // Track if gate was opened during the auton motif phase (blocks rest of 10s window)
   const [gateOpenedDuringAutonWindow, setGateOpenedDuringAutonWindow] = useState(false);
+  // Track if gate was opened during an end-of-match motif window (permanently hides M buttons)
+  const [gateOpenedDuringEndMotif, setGateOpenedDuringEndMotif] = useState(false);
 
   useEffect(() => {
     if (matchPhase === 'teleop' && teleopStartedAtRef.current === null) {
@@ -45,6 +49,7 @@ export const GateVisual = () => {
       teleopStartedAtRef.current = null;
       setIsInTeleopMotifWindow(false);
       setGateOpenedDuringAutonWindow(false);
+      setGateOpenedDuringEndMotif(false);
     }
   }, [matchPhase]);
 
@@ -66,11 +71,26 @@ export const GateVisual = () => {
     sessionData.matchType === 'Full Game' &&
     (matchPhase === 'controller_pickup' || matchPhase === 'prepare');
 
-  // First 10 seconds of teleop (still counts as auto motif scoring)
-  const isTeleopMotifPhase = matchActive && matchPhase === 'teleop' && isInTeleopMotifWindow;
+  // Autonomous-only match: motifs scorable after match ends
+  const isAutonEndMotifPhase =
+    matchActive &&
+    sessionData.matchType === 'Autonomous' &&
+    matchPhase === 'ended' &&
+    !isGateOpen;
 
-  // Teleop motif scoring: only after the match has ended (timer done), and only if gate is NOT currently open
-  const isTeleopEndMotifPhase = matchActive && matchPhase === 'ended' && !isGateOpen;
+  // First 10 seconds of teleop — Full Game only (not standalone Teleop mode)
+  const isTeleopMotifPhase =
+    matchActive &&
+    matchPhase === 'teleop' &&
+    isInTeleopMotifWindow &&
+    sessionData.matchType === 'Full Game';
+
+  // Teleop motif scoring: only after the match has ended, for Full Game and Teleop modes
+  const isTeleopEndMotifPhase =
+    matchActive &&
+    matchPhase === 'ended' &&
+    !isGateOpen &&
+    sessionData.matchType !== 'Autonomous';
 
   // Hide auto motif M buttons if gate was opened during this phase during the early window
   // (gate open = no balls in gate to form motif pattern)
@@ -80,7 +100,8 @@ export const GateVisual = () => {
   // Show motif M buttons: auto motifs during buffer/first-10s (unless gate opened), teleop motifs only after match ends
   const showMotifButtons =
     ((isAutonMotifPhase || isTeleopMotifPhase) && !isGateOpenedDuringAutonMotif) ||
-    isTeleopEndMotifPhase;
+    (isTeleopEndMotifPhase && !gateOpenedDuringEndMotif) ||
+    (isAutonEndMotifPhase && !gateOpenedDuringEndMotif);
 
   // Current motif bitmask being edited
   // During buffer and first 10s of teleop: edit autonMotif
@@ -88,8 +109,8 @@ export const GateVisual = () => {
   const autonMotifMask = sessionData.autonMotif ?? 0;
   const teleMotifMask = sessionData.teleMotif ?? 0;
   
-  const currentMotifMask = (isAutonMotifPhase || isTeleopMotifPhase) ? autonMotifMask : teleMotifMask;
-  const currentMotifField = (isAutonMotifPhase || isTeleopMotifPhase) ? 'autonMotif' : 'teleMotif';
+  const currentMotifMask = (isAutonMotifPhase || isTeleopMotifPhase || isAutonEndMotifPhase) ? autonMotifMask : teleMotifMask;
+  const currentMotifField = (isAutonMotifPhase || isTeleopMotifPhase || isAutonEndMotifPhase) ? 'autonMotif' : 'teleMotif';
 
   const handleOpenGate = useCallback(() => {
     // If gate is opened during auto motif scoring window, block further scoring but DON'T clear already-scored autonMotif
@@ -97,11 +118,15 @@ export const GateVisual = () => {
     if (isInAutonMotifWindow) {
       setGateOpenedDuringAutonWindow(true);
     }
+    // If gate is opened during an end-of-match motif window, permanently hide M buttons
+    if (isTeleopEndMotifPhase || isAutonEndMotifPhase) {
+      setGateOpenedDuringEndMotif(true);
+    }
     updateSessionData({
       gateAddBackMode: true,
       gateAddBackCount: 0,
     });
-  }, [updateSessionData, isAutonMotifPhase, isTeleopMotifPhase]);
+  }, [updateSessionData, isAutonMotifPhase, isTeleopMotifPhase, isTeleopEndMotifPhase, isAutonEndMotifPhase]);
 
   const handleConfirmGateOpen = useCallback(() => {
     updateSessionData({
@@ -159,36 +184,42 @@ export const GateVisual = () => {
     return isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-gray-200 border-gray-300';
   };
 
+  // Each gate slot has a fixed motif-color assignment based on slot index:
+  //   Slots 0, 3, 6 → motifPattern[0]
+  //   Slots 1, 4, 7 → motifPattern[1]
+  //   Slots 2, 5, 8 → motifPattern[2]
+  const getSlotPatternColor = (index: number): MotifColor => {
+    const patternIndex = index % 3;
+    const color = motifPattern[patternIndex];
+    return color !== 'empty' ? color : 'purple';
+  };
+
   const getBallColor = (index: number) => {
     // Empty slot: dim background
     const emptyClass = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300';
-    // Filled ball (no motif): solid grey
-    const filledClass = isDarkMode ? 'bg-gray-500 border-gray-400' : 'bg-gray-400 border-gray-500';
+    // Filled ball (no motif, no pattern set): solid grey
+    const filledGrey = isDarkMode ? 'bg-gray-500 border-gray-400' : 'bg-gray-400 border-gray-500';
 
     if (isGateOpen) {
-      if (index < addBackCount) return filledClass;
+      if (index < addBackCount) return filledGrey;
       return emptyClass;
     }
 
     // Slot has no ball
     if (index >= gateBallCount) return emptyClass;
 
-    // Slot has a ball — check if M is scored for this slot
+    // Slot has a ball — determine motif assignment color for this slot
+    const patternColor = getSlotPatternColor(index);
+
+    // Check if M is scored for this slot
     const isMotifScored = !!(currentMotifMask & (1 << index));
-    if (!isMotifScored) {
-      return filledClass;
+
+    if (isMotifScored) {
+      // Full-opacity assigned color when scored
+      return getMotifColorClass(patternColor);
     }
 
-    // M is scored: color = motifPattern at the ordinal position among scored M's
-    // Count how many M-scored slots come BEFORE this one (lower indices)
-    let ordinal = 0;
-    for (let j = 0; j < index; j++) {
-      if (currentMotifMask & (1 << j)) ordinal++;
-    }
-    // Cycle through the 3-slot motif pattern
-    const patternIndex = ordinal % motifPattern.length;
-    const color = motifPattern[patternIndex];
-    return getMotifColorClass(color !== 'empty' ? color : 'purple');
+    return filledGrey;
   };
 
   return (
@@ -274,9 +305,16 @@ export const GateVisual = () => {
                     ? i < gateBallCount
                       ? `Keep ${i + 1} ball${i > 0 ? 's' : ''} in gate`
                       : `No ball here`
-                    : `Slot ${i + 1}`
+                    : `Ball ${i + 1}`
                 }
               >
+                <span className={`text-[10px] font-bold leading-none select-none ${
+                  i >= gateBallCount
+                    ? isDarkMode ? 'text-gray-600' : 'text-gray-300'
+                    : (currentMotifMask & (1 << i))
+                      ? 'text-white/70'
+                      : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>{i + 1}</span>
               </button>
             </div>
           ))}

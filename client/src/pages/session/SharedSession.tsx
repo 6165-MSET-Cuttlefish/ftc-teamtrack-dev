@@ -5,7 +5,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { Match } from '@/types';
@@ -40,10 +39,6 @@ const SharedSession = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('summary');
 
-  useEffect(() => {
-    document.title = 'Shared Session - TeamTrack';
-  }, []);
-
   // ── Load session ────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -68,23 +63,7 @@ const SharedSession = () => {
         // ── Legacy base64 format: ?data=<base64> (backwards compat) ──
         const encoded = params.get('data');
         if (encoded) {
-          // Limit payload size to prevent client-side DoS (100 KB)
-          if (encoded.length > 100_000) {
-            setError('Session data is too large to load.');
-            return;
-          }
-          const binary = atob(encoded);
-          const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-          const decoded = JSON.parse(new TextDecoder().decode(bytes));
-          // Validate expected shape
-          if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) {
-            setError('Invalid session data format.');
-            return;
-          }
-          // Limit matches array size
-          if (Array.isArray(decoded.matches) && decoded.matches.length > 200) {
-            decoded.matches = decoded.matches.slice(0, 200);
-          }
+          const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
           setSession(decoded as SharedData);
           return;
         }
@@ -148,13 +127,13 @@ const SharedSession = () => {
           >
             {error}
           </p>
-          <Link to={ROUTES.SESSIONS}>
+          <Link to="/">
             <Button
               variant="outline"
               className="mt-2 inline-flex items-center gap-2"
             >
               <ArrowLeft size={15} />
-              Go to Sessions
+              Go Home
             </Button>
           </Link>
         </div>
@@ -238,11 +217,10 @@ const SharedSession = () => {
             >
               Notes
             </h3>
-            <p
-              className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-            >
-              {session.notes}
-            </p>
+            <div
+              className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
+              dangerouslySetInnerHTML={{ __html: session.notes }}
+            />
           </div>
         )}
 
@@ -250,8 +228,6 @@ const SharedSession = () => {
         {sessionMatches.length > 0 && (
           <>
             <div
-              role="tablist"
-              aria-label="Session tabs"
               className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'}`}
             >
               {TABS.map(tab => {
@@ -260,8 +236,6 @@ const SharedSession = () => {
                 return (
                   <button
                     key={tab.id}
-                    role="tab"
-                    aria-selected={isActive}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isActive
@@ -273,7 +247,7 @@ const SharedSession = () => {
                           : 'text-gray-500 hover:text-gray-900'
                     }`}
                   >
-                    <Icon size={16} aria-hidden="true" />
+                    <Icon size={16} />
                     <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 );
@@ -322,19 +296,6 @@ const SharedSession = () => {
           </div>
         )}
 
-        {/* ── Back to app link for logged-in users ─────────────────── */}
-        {user && (
-          <div className="text-center">
-            <Link
-              to={ROUTES.SESSIONS}
-              className="inline-flex items-center gap-2 text-team-blue hover:underline font-medium text-sm"
-            >
-              <ArrowLeft size={15} />
-              Back to My Sessions
-            </Link>
-          </div>
-        )}
-
         {/* ── Call to Action ───────────────────────────────────────── */}
         {!user && (
           <div
@@ -355,14 +316,14 @@ const SharedSession = () => {
                 team's performance.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
-                <Link to={ROUTES.SIGNUP}>
+                <Link to="/signup">
                   <Button
                     className={`w-full sm:w-56 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
                   >
                     Sign Up
                   </Button>
                 </Link>
-                <Link to={ROUTES.LOGIN}>
+                <Link to="/login">
                   <Button variant="outline" className="w-full sm:w-56">
                     Sign In
                   </Button>

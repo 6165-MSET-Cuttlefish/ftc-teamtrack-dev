@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   SessionSetup,
   ScoringUI,
@@ -10,8 +9,8 @@ import {
   ActiveTutorial,
 } from '@/components';
 import { useTheme, useSession } from '@/contexts';
-import { useMatchAudio, useNavigationGuard } from '@/hooks';
-import { APP_CONFIG, ROUTES } from '@/constants';
+import { useMatchAudio } from '@/hooks';
+import { APP_CONFIG } from '@/constants';
 
 /** Thin divider that adapts to the current theme */
 const Divider = ({ className = '' }: { className?: string }) => {
@@ -37,28 +36,6 @@ const ActiveSessionContent = () => {
 
   useMatchAudio(); // Initialize match audio with appropriate events
 
-  const { isDarkMode } = useTheme();
-  const {
-    sessionData,
-    timer,
-    sessionTimer,
-    formatTime,
-    getDisplayTimer,
-    matchPhase,
-    isTimerRunning,
-    phaseTimer,
-    matchActive,
-    isPreMatchDelay,
-    hasStarted,
-  } = useSession();
-
-  // Guard navigation when there's unsaved session work
-  const hasUnsavedWork = hasStarted && !sessionData.isSessionCompleted;
-  const navGuard = useNavigationGuard(
-    hasUnsavedWork,
-    'You have an active session in progress. Are you sure you want to leave? Your current match data may be lost.'
-  );
-
   useEffect(() => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
     
@@ -71,6 +48,19 @@ const ActiveSessionContent = () => {
       window.removeEventListener('teamtrack-tutorial-open-session-setup', handleOpenSetup);
     };
   }, []);
+  const { isDarkMode } = useTheme();
+  const {
+    sessionData,
+    timer,
+    sessionTimer,
+    formatTime,
+    getDisplayTimer,
+    matchPhase,
+    isTimerRunning,
+    phaseTimer,
+    matchActive,
+    isPreMatchDelay,
+  } = useSession();
 
   // Determine timer color based on phase
   const getTimerColor = () => {
@@ -84,39 +74,6 @@ const ActiveSessionContent = () => {
     <div
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} relative`}
     >
-      {/* Navigation guard confirmation dialog */}
-      {navGuard.isBlocked && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div
-            className={`max-w-sm w-full rounded-xl border p-6 text-center space-y-4 shadow-2xl ${
-              isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'
-            }`}
-          >
-            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Leave active session?
-            </h3>
-            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-              {navGuard.message}
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={navGuard.reset}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  isDarkMode ? 'border-team-blue-40 text-white hover:bg-team-white-10' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Stay
-              </button>
-              <button
-                onClick={navGuard.proceed}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
-              >
-                Leave
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Single Column Content - All Scrollable */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10 relative">
         <div className="space-y-4 sm:space-y-6">
@@ -139,8 +96,6 @@ const ActiveSessionContent = () => {
             {!isPreMatchDelay && (
               <div className="flex flex-col items-center">
                 <div
-                  role="timer"
-                  aria-label="Match timer"
                   className={`text-7xl sm:text-8xl tracking-wider leading-none transition-colors font-righteous ${getTimerColor()}`}
                   style={{
                     letterSpacing: '0.05em',
@@ -210,7 +165,7 @@ const ActiveSessionContent = () => {
               {/* Session Setup - Toggle visibility with settings icon */}
               {showSessionSetup && (
                 <>
-                  <div data-tutorial="session-setup" className="px-4 py-4 relative z-50">
+                  <div data-tutorial="session-setup" className="px-4 py-4 relative">
                     <SessionSetup
                       onSave={() => {
                         setShowSessionSetup(false);
@@ -250,30 +205,6 @@ const ActiveSessionContent = () => {
                 <Notes />
               </div>
             </>
-          )}
-
-          {/* Post-completion CTA */}
-          {sessionData.isSessionCompleted && (
-            <div className="px-4 py-8 text-center space-y-4">
-              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Session Complete!
-              </h2>
-              <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-                Great work! View your analysis or go to your sessions list.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link
-                  to={ROUTES.SESSIONS}
-                  className={`px-6 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                    isDarkMode
-                      ? 'border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  View Sessions
-                </Link>
-              </div>
-            </div>
           )}
         </div>
       </div>

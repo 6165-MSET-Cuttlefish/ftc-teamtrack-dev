@@ -63,6 +63,15 @@ export function formatTime(seconds: number): string {
 }
 
 /**
+ * Check if we're in the pre-match audio intro phase.
+ * @deprecated Use isPreMatchDelay from SessionContext instead.
+ * Kept for backward compatibility.
+ */
+export function isInAudioIntroPhase(_backendTimer: number): boolean {
+  return false;
+}
+
+/**
  * Calculate the user-facing timer display for Full Game matches.
  * Timer starts at 153 and counts down with clean integer boundaries:
  *   153-151 → countdown (3, 2, 1)
@@ -95,8 +104,12 @@ export function getInitials(name: string): string {
 }
 
 /**
- * Check if an error is a Firestore AbortError (common during HMR,
- * component unmounting, or navigation with pending queries).
+ * Check if error is a Firebase Firestore AbortError
+ * These commonly occur during:
+ * - Hot Module Replacement (HMR) in development
+ * - Component unmounting during active requests
+ * - Navigation away from pages with pending Firestore queries
+ * We suppress these to avoid cluttering console during development
  */
 export function isAbortError(error: unknown): boolean {
   if (!error) return false;

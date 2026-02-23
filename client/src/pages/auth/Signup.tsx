@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib/utils';
-import { APP_CONFIG } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,30 +28,18 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    document.title = `Sign Up - ${APP_CONFIG.name}`;
-  }, []);
-
-  const { signup, loginWithGoogle, continueAsGuest, user, loading: authLoading } = useAuth();
+  const { signup, loginWithGoogle } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/sessions';
 
-  // Redirect already-authenticated users away from signup page
-  useEffect(() => {
-    if (!authLoading && user) {
-      navigate(from, { replace: true });
-    }
-  }, [authLoading, user, navigate, from]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
-    if (error) setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,22 +52,6 @@ const Signup = () => {
       !formData.confirmPassword
     ) {
       setError('Please fill in all fields');
-      return;
-    }
-
-    const trimmedName = formData.displayName.trim();
-    if (!trimmedName) {
-      setError('Display name cannot be blank');
-      return;
-    }
-    if (trimmedName.length > 50) {
-      setError('Display name must be 50 characters or fewer');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
       return;
     }
 
@@ -164,7 +135,6 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <User
-                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -191,7 +161,6 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Mail
-                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -218,7 +187,6 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
-                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -256,7 +224,6 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
-                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -328,21 +295,7 @@ const Signup = () => {
           </Button>
         </CardContent>
 
-        <CardFooter className="flex flex-col space-y-3">
-          <Button
-            variant="outline"
-            className={`w-full ${
-              isDarkMode
-                ? 'border-team-white-20 text-team-white-60 hover:bg-team-white-10'
-                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-            }`}
-            onClick={() => {
-              continueAsGuest();
-              navigate('/sessions', { replace: true });
-            }}
-          >
-            Continue as Guest
-          </Button>
+        <CardFooter className="flex justify-center">
           <div
             className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
           >

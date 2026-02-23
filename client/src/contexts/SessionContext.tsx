@@ -193,16 +193,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [isPreMatchDelay, setIsPreMatchDelay] = useState<boolean>(false);
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear session data when user logs out (deliberate action only)
-  // Note: we do NOT clear on auth token expiry to prevent data loss
-  const prevUserRef = useRef(user);
+  // Clear session data when user logs out
   useEffect(() => {
-    const wasLoggedIn = prevUserRef.current;
-    prevUserRef.current = user;
-
-    // Only wipe session if user explicitly logged out (was logged in, now null)
-    // and session data is already persisted in localStorage
-    if (wasLoggedIn && !user) {
+    if (!user) {
+      // User logged out, clear session data so next user doesn't see it
       const newData = createInitialSessionData();
       setSessionData(newData);
       setHasStarted(false);
@@ -248,6 +242,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           clearInterval(interval);
           // Transition to 'ended' when the teleop timer hits 0
           if (matchPhase === 'teleop') {
+            setMatchPhase('ended');
+          }
+          // Also transition to 'ended' for Autonomous-only match type when auton hits 0
+          if (matchPhase === 'auton' && sessionData.matchType === 'Autonomous') {
             setMatchPhase('ended');
           }
           return 0;
@@ -322,17 +320,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       clearInterval(interval);
     };
-  }, [hasStarted, sessionData.isSessionCompleted]);
-
-  // Warn user before closing tab if there is unsaved session data
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasStarted && !sessionData.isSessionCompleted) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasStarted, sessionData.isSessionCompleted]);
 
   // Persist session data and timer state to localStorage whenever they change

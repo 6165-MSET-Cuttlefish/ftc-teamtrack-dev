@@ -142,6 +142,11 @@ export const SessionSetup = ({
             }`}>
               {matchActive ? 'Locked' : 'Will lock once match starts'}
             </p>
+            {(sessionData.matchType === 'Autonomous' || sessionData.matchType === 'Teleop') && (
+              <p className="text-xs italic mt-1 text-amber-500/80">
+                There is no audio or additional time in these modes
+              </p>
+            )}
           </div>
         </div>
 

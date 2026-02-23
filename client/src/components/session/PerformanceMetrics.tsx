@@ -151,7 +151,60 @@ const CellInput: React.FC<{
 });
 CellInput.displayName = 'CellInput';
 
-// ─── Shot Log Table ─────────────────────────────────────────────────────
+// ─── Nullable cycle-time input (allows clearing to undefined) ──────────
+const CycleCellInput: React.FC<{
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+  className?: string;
+  readOnly?: boolean;
+}> = memo(({ value, onChange, className, readOnly = false }) => {
+  const [local, setLocal] = useState(
+    value !== undefined ? String(value) : ''
+  );
+  const [focused, setFocused] = useState(false);
+  const prevVal = useRef(value);
+
+  useEffect(() => {
+    if (!focused && prevVal.current !== value) {
+      setLocal(value !== undefined ? String(value) : '');
+      prevVal.current = value;
+    }
+  }, [value, focused]);
+
+  const commit = () => {
+    const trimmed = local.trim();
+    if (trimmed === '') {
+      onChange(undefined);
+    } else {
+      const n = parseFloat(trimmed);
+      if (!isNaN(n) && n >= 0) {
+        const rounded = parseFloat(n.toFixed(2));
+        onChange(rounded);
+        setLocal(String(rounded));
+      } else {
+        setLocal(value !== undefined ? String(value) : '');
+      }
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={local}
+      readOnly={readOnly}
+      placeholder="—"
+      onChange={e => setLocal(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); commit(); }}
+      onKeyDown={e => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+      }}
+      className={className}
+    />
+  );
+});
+CycleCellInput.displayName = 'CycleCellInput';
 const ShotLogTable: React.FC<{
   label: string;
   shots: ShotEntry[];
@@ -160,6 +213,7 @@ const ShotLogTable: React.FC<{
     field: 'ballsShot' | 'ballsMade',
     value: number
   ) => void;
+  onUpdateCycleTime: (index: number, value: number | undefined) => void;
   onAdd: () => void;
   onDelete: (index: number) => void;
   editable: boolean;
@@ -171,6 +225,7 @@ const ShotLogTable: React.FC<{
     label,
     shots,
     onUpdate,
+    onUpdateCycleTime,
     onAdd,
     onDelete,
     editable,
@@ -206,9 +261,8 @@ const ShotLogTable: React.FC<{
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
         <div
-          className={`rounded-lg border overflow-hidden min-w-[500px] ${
+          className={`rounded-lg border overflow-hidden ${
             isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
           }`}
         >
@@ -332,8 +386,19 @@ const ShotLogTable: React.FC<{
                   >
                     {pts}
                   </div>
-                  <div className={`px-1 py-2 text-center text-xs font-medium ${cycleClass}`}>
-                    {ct !== undefined ? `${ct.toFixed(2)}s` : '—'}
+                  <div className={`px-1 py-1.5 flex justify-center`}>
+                    <CycleCellInput
+                      value={ct}
+                      onChange={v => onUpdateCycleTime(i, v)}
+                      readOnly={!editable}
+                      className={`w-[46px] h-9 text-center text-xs font-medium rounded border transition-colors focus:outline-none placeholder:text-gray-400 ${
+                        editable
+                          ? isDarkMode
+                            ? 'bg-team-dark border-team-blue-40 focus:ring-1 focus:ring-team-blue/30'
+                            : 'bg-white border-gray-200 focus:ring-1 focus:ring-team-blue/30'
+                          : 'bg-transparent border-transparent pointer-events-none'
+                      } ${cycleClass}`}
+                    />
                   </div>
                   <div className="px-1 py-2 flex justify-center">
                     <BallVisualization ballsMade={shot.ballsMade} ballsShot={shot.ballsShot} isDarkMode={isDarkMode} />
@@ -409,7 +474,6 @@ const ShotLogTable: React.FC<{
               <div className="px-1 py-2" />
             </div>
           )}
-        </div>
         </div>
 
         {/* Bonus line */}
@@ -563,6 +627,26 @@ export const PerformanceMetrics = () => {
       if (field === 'ballsShot' && next[index].ballsMade > value) {
         next[index].ballsMade = value;
       }
+      updateSessionData({ teleopShots: next });
+    },
+    [sessionData.teleopShots, updateSessionData]
+  );
+
+  const updateAutonShotCycleTime = useCallback(
+    (index: number, value: number | undefined) => {
+      const current = migrateShotsArray(sessionData.autonShots);
+      const next = [...current];
+      next[index] = { ...next[index], cycleTime: value };
+      updateSessionData({ autonShots: next });
+    },
+    [sessionData.autonShots, updateSessionData]
+  );
+
+  const updateTeleopShotCycleTime = useCallback(
+    (index: number, value: number | undefined) => {
+      const current = migrateShotsArray(sessionData.teleopShots);
+      const next = [...current];
+      next[index] = { ...next[index], cycleTime: value };
       updateSessionData({ teleopShots: next });
     },
     [sessionData.teleopShots, updateSessionData]
@@ -772,7 +856,7 @@ export const PerformanceMetrics = () => {
     }
   }, [matchPhase]);
 
-  // ── Auto-switch to endgame tab when timer reaches <= 20 seconds in Full Game ──
+  // ── Auto-switch to endgame tab when timer reaches <= 20 seconds in Full Game or Teleop mode ──
   // Using a ref so the switch only fires once when entering the last 20 seconds
   const autoSwitchedToEndgameRef = useRef(false);
   useEffect(() => {
@@ -780,7 +864,7 @@ export const PerformanceMetrics = () => {
       autoSwitchedToEndgameRef.current = false; // reset for next match
     }
     if (
-      sessionData.matchType === 'Full Game' &&
+      (sessionData.matchType === 'Full Game' || sessionData.matchType === 'Teleop') &&
       matchPhase === 'teleop' &&
       timer <= 20 &&
       !autoSwitchedToEndgameRef.current
@@ -809,7 +893,8 @@ export const PerformanceMetrics = () => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (
         event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement
+        event.target instanceof HTMLTextAreaElement ||
+        (event.target instanceof HTMLElement && event.target.isContentEditable)
       )
         return;
 
@@ -1055,9 +1140,8 @@ export const PerformanceMetrics = () => {
 
         {/* ── FINAL tab: summary table ──────────────────────────── */}
         {selectedTab === 'final' && (
-          <div className="overflow-x-auto">
           <div
-            className={`rounded-lg border overflow-hidden min-w-[600px] ${
+            className={`rounded-lg border overflow-hidden ${
               isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
             }`}
           >
@@ -1261,7 +1345,6 @@ export const PerformanceMetrics = () => {
               </div>
             </div>
           </div>
-          </div>
         )}
 
         {/* ── AUTONOMOUS tab ─────────────────────────────────────── */}
@@ -1334,6 +1417,7 @@ export const PerformanceMetrics = () => {
               label="Autonomous Shots"
               shots={autonShots}
               onUpdate={updateAutonShot}
+              onUpdateCycleTime={updateAutonShotCycleTime}
               onAdd={addAutonShot}
               onDelete={deleteAutonShot}
               editable={isEditable}
@@ -1391,6 +1475,7 @@ export const PerformanceMetrics = () => {
               label="TeleOp Shots"
               shots={teleopShots}
               onUpdate={updateTeleopShot}
+              onUpdateCycleTime={updateTeleopShotCycleTime}
               onAdd={addTeleopShot}
               onDelete={deleteTeleopShot}
               editable={isEditable}

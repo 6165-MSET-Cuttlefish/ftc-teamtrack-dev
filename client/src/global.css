@@ -475,7 +475,7 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
   overflow: hidden;
 }
 
@@ -563,10 +563,4 @@
 /* Tutorial: Ensure Select dropdowns render above the tutorial overlay */
 [data-radix-popper-content-wrapper] {
   z-index: 10000 !important;
-}
-
-/* Delete-confirmation countdown bar */
-@keyframes shrinkWidth {
-  from { width: 100%; }
-  to { width: 0%; }
 }
