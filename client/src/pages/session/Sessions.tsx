@@ -739,16 +739,14 @@ const Sessions = () => {
     >
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 md:py-8 lg:py-12">
         <div className="mb-4 sm:mb-6 md:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
-            <div className="flex flex-col gap-3">
-              <h1
-                className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {team ? team.name : 'My Sessions'}
-              </h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 md:gap-6">
+            <h1
+              className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            >
+              {team ? team.name : 'My Sessions'}
+            </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-1 md:gap-2 flex-wrap">
               {!isGuest && <TeamManager onTeamChange={() => loadSessions()} />}
-            </div>
-            <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
               {sessions.length > 0 && (
                 <Button
                   onClick={() => navigate(ROUTES.CHARTS)}
