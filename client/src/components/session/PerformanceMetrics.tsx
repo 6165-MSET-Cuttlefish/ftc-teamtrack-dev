@@ -1126,7 +1126,7 @@ export const PerformanceMetrics = () => {
             />
           )}
           <ScoreCard
-            label="End Game"
+            label="Endgame"
             value={endGameScore}
             isDarkMode={isDarkMode}
             selected={selectedTab === 'endgame'}
@@ -1173,7 +1173,7 @@ export const PerformanceMetrics = () => {
                 <div
                   className={`px-4 py-3 text-sm font-medium font-mono ${isDarkMode ? 'text-white' : 'text-black'}`}
                 >
-                  A:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Autonomous{autonomousLeave > 0 ? ' (incl. leave +3)' : ''}
+                  Autonomous{autonomousLeave > 0 ? ' (incl. leave +3)' : ''}
                 </div>
                 <div
                   className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
@@ -1220,7 +1220,7 @@ export const PerformanceMetrics = () => {
                 <div
                   className={`px-4 py-3 text-sm font-medium font-mono ${isDarkMode ? 'text-white' : 'text-black'}`}
                 >
-                  T:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TeleOp
+                  TeleOp
                 </div>
                 <div
                   className={`px-3 py-3 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
@@ -1257,16 +1257,16 @@ export const PerformanceMetrics = () => {
               </div>
             )}
 
-            {/* End Game row */}
+            {/* Endgame row */}
             <div
-              className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t ${
+              className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t ${`
                 isDarkMode ? 'border-white/5' : 'border-gray-100'
               }`}
             >
               <div
                 className={`px-4 py-3 text-sm font-medium font-mono ${isDarkMode ? 'text-white' : 'text-black'}`}
               >
-                E:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;End Game
+                Endgame
               </div>
               <div
                 className={`px-3 py-3 text-center text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
@@ -1484,7 +1484,7 @@ export const PerformanceMetrics = () => {
           </div>
         )}
 
-        {/* ── END GAME tab ───────────────────────────────────────── */}
+        {/* ── ENDGAME tab ──────────────────────────────────────────── */}
         {selectedTab === 'endgame' && (
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
@@ -1493,14 +1493,14 @@ export const PerformanceMetrics = () => {
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`}
               >
-                End Game
+                Endgame
               </h3>
               <span className="text-team-blue font-bold text-lg">
                 {endGameScore} pts
               </span>
             </div>
 
-            {/* End Game summary table */}
+            {/* Endgame summary table */}
             <div
               className={`rounded-lg border overflow-hidden ${
                 isDarkMode ? 'border-team-blue-40' : 'border-gray-200'

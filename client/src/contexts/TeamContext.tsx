@@ -22,6 +22,7 @@ interface TeamContextType {
   transferOwnership: (newOwnerId: string) => Promise<boolean>;
   kickMember: (targetUserId: string) => Promise<boolean>;
   updateMemberDisplayName: (newDisplayName: string) => Promise<void>;
+  renameTeam: (name: string) => Promise<boolean>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -234,6 +235,20 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const renameTeam = async (name: string): Promise<boolean> => {
+    if (!team) return false;
+    try {
+      const success = await teamService.updateTeamName(team.id, name.trim());
+      if (success) {
+        setTeam(prev => prev ? { ...prev, name: name.trim() } : prev);
+      }
+      return success;
+    } catch (error) {
+      logger.error('Error renaming team:', error);
+      throw error;
+    }
+  };
+
   return (
     <TeamContext.Provider
       value={{
@@ -247,6 +262,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         transferOwnership,
         kickMember,
         updateMemberDisplayName,
+        renameTeam,
       }}
     >
       {children}

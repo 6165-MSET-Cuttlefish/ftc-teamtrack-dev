@@ -26,6 +26,8 @@ import {
   Square,
   ArrowRightLeft,
   UserMinus,
+  Pencil,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Session } from '@/types';
@@ -46,6 +48,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     refreshTeam,
     transferOwnership,
     kickMember,
+    renameTeam,
   } = useTeam();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -64,6 +67,11 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [transferConfirm, setTransferConfirm] = useState<string | null>(null);
   const [kicking, setKicking] = useState<string | null>(null);
   const [kickConfirm, setKickConfirm] = useState<string | null>(null);
+
+  // Rename team state
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [renaming, setRenaming] = useState(false);
 
   // Import sessions state
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -302,6 +310,40 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       toast.error('Failed to remove member');
     } finally {
       setKicking(null);
+    }
+  };
+
+  const handleStartRename = () => {
+    setRenameValue(team?.name ?? '');
+    setIsRenaming(true);
+  };
+
+  const handleCancelRename = () => {
+    setIsRenaming(false);
+    setRenameValue('');
+  };
+
+  const handleRenameTeam = async () => {
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === team?.name) {
+      handleCancelRename();
+      return;
+    }
+
+    setRenaming(true);
+    try {
+      const success = await renameTeam(trimmed);
+      if (success) {
+        toast.success(`Team renamed to "${trimmed}"`);
+        setIsRenaming(false);
+        setRenameValue('');
+      } else {
+        toast.error('Failed to rename team');
+      }
+    } catch {
+      toast.error('Failed to rename team');
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -552,7 +594,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       </Dialog>
 
       {/* Team Info / Invite Dialog */}
-      <Dialog open={showTeamInfo} onOpenChange={setShowTeamInfo}>
+      <Dialog open={showTeamInfo} onOpenChange={(open) => { setShowTeamInfo(open); if (!open) handleCancelRename(); }}>
         <DialogContent
           className={`max-w-md ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
@@ -567,6 +609,85 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           </DialogHeader>
 
           <div className="p-5 space-y-4">
+            {/* Rename Section - owner only */}
+            {isOwner && (
+              <div>
+                <label
+                  className={`block text-sm font-medium mb-2 ${
+                    isDarkMode ? 'text-team-white-60' : 'text-gray-700'
+                  }`}
+                >
+                  Team Name
+                </label>
+                {isRenaming ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      className={`flex-1 h-10 rounded-xl ${
+                        isDarkMode
+                          ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
+                          : 'bg-gray-50 border-gray-200 text-team-blue'
+                      }`}
+                      maxLength={50}
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleRenameTeam();
+                        if (e.key === 'Escape') handleCancelRename();
+                      }}
+                    />
+                    <Button
+                      onClick={handleRenameTeam}
+                      disabled={renaming || !renameValue.trim()}
+                      size="sm"
+                      className={`h-10 px-3 rounded-xl bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 ${isDarkMode ? 'text-black' : 'text-white'}`}
+                      title="Save name"
+                    >
+                      {renaming ? (
+                        <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleCancelRename}
+                      size="sm"
+                      variant="outline"
+                      className={`h-10 px-3 rounded-xl ${
+                        isDarkMode
+                          ? 'border-team-blue-40 text-team-white-60 hover:bg-team-dark-20'
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                      title="Cancel"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`flex-1 text-sm font-semibold truncate ${
+                        isDarkMode ? 'text-white' : 'text-team-blue'
+                      }`}
+                    >
+                      {team?.name}
+                    </span>
+                    <button
+                      onClick={handleStartRename}
+                      title="Rename team"
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        isDarkMode
+                          ? 'text-team-white-40 hover:text-team-blue hover:bg-team-dark'
+                          : 'text-gray-400 hover:text-team-blue hover:bg-gray-100'
+                      }`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Invite Section */}
             <div>
               <label
