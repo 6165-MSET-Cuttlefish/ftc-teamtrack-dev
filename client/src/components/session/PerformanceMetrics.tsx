@@ -1259,7 +1259,7 @@ export const PerformanceMetrics = () => {
 
             {/* Endgame row */}
             <div
-              className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t ${`
+              className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t ${
                 isDarkMode ? 'border-white/5' : 'border-gray-100'
               }`}
             >
