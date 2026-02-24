@@ -193,7 +193,7 @@ const ActiveSessionContent = () => {
 
               <Divider />
 
-              {/* Performance Metrics */}
+              {/* Scoring Metrics */}
               <div data-tutorial="metrics" className="px-4 py-4">
                 <PerformanceMetrics />
               </div>

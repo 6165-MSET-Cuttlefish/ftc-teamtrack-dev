@@ -14,6 +14,10 @@ import {
   TUTORIAL_GATE_TOGGLED_EVENT,
   TUTORIAL_GATE_CYCLE_EVENT,
   TUTORIAL_ENDED_EVENT,
+  TUTORIAL_METRICS_AUTON_TAB_EVENT,
+  TUTORIAL_METRICS_LEAVE_EVENT,
+  TUTORIAL_METRICS_SHOT_EDIT_EVENT,
+  TUTORIAL_METRICS_MOTIF_EDIT_EVENT,
 } from './ActiveTutorial';
 
 // ─── Constants ──────────────────────────────────────────────────────────
@@ -220,6 +224,8 @@ const ShotLogTable: React.FC<{
   isDarkMode: boolean;
   bonusPoints?: number;
   bonusLabel?: string;
+  /** When true, pulse-highlights the Shot and Made inputs of the first row */
+  highlightFirstRow?: boolean;
 }> = memo(
   ({
     label,
@@ -232,6 +238,7 @@ const ShotLogTable: React.FC<{
     isDarkMode,
     bonusPoints = 0,
     bonusLabel,
+    highlightFirstRow = false,
   }) => {
     const shotsTotal = totalPoints(shots);
     const sectionTotal = shotsTotal + bonusPoints;
@@ -336,7 +343,7 @@ const ShotLogTable: React.FC<{
                   >
                     {i + 1}
                   </div>
-                  <div className="px-1 py-1.5 flex justify-center">
+                  <div className={`px-1 py-1.5 flex justify-center${i === 0 && highlightFirstRow ? ' tt-metrics-hint' : ''}`}>
                     <CellInput
                       value={shot.ballsShot}
                       onChange={v => onUpdate(i, 'ballsShot', v)}
@@ -349,7 +356,7 @@ const ShotLogTable: React.FC<{
                       } focus:outline-none`}
                     />
                   </div>
-                  <div className="px-1 py-1.5 flex justify-center">
+                  <div className={`px-1 py-1.5 flex justify-center${i === 0 && highlightFirstRow ? ' tt-metrics-hint' : ''}`}>
                     <CellInput
                       value={shot.ballsMade}
                       onChange={v => {
@@ -615,6 +622,8 @@ export const PerformanceMetrics = () => {
         next[index].ballsMade = value;
       }
       updateSessionData({ autonShots: next });
+      setMetricsHintMask(prev => prev & ~0b010);
+      window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_SHOT_EDIT_EVENT));
     },
     [sessionData.autonShots, updateSessionData]
   );
@@ -628,6 +637,8 @@ export const PerformanceMetrics = () => {
         next[index].ballsMade = value;
       }
       updateSessionData({ teleopShots: next });
+      setMetricsHintMask(prev => prev & ~0b010);
+      window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_SHOT_EDIT_EVENT));
     },
     [sessionData.teleopShots, updateSessionData]
   );
@@ -876,17 +887,39 @@ export const PerformanceMetrics = () => {
 
   // ── Keyboard shortcut popup ───────────────────────────────────────
   const [showPopup, setShowPopup] = useState(false);
+  // Bitmask: bit 0 = leave hint, bit 1 = shot hint, bit 2 = motif hint
+  const [metricsHintMask, setMetricsHintMask] = useState(0);
   const [popupNumber, setPopupNumber] = useState<string>('');
   const [madeCount, setMadeCount] = useState<number | null>(null);
 
-  // Clear keybind popup when tutorial ends
+  // Clear keybind popup + hints when tutorial ends
   useEffect(() => {
     const handler = () => {
       setShowPopup(false);
       setMadeCount(null);
+      setMetricsHintMask(0);
     };
     window.addEventListener(TUTORIAL_ENDED_EVENT, handler);
     return () => window.removeEventListener(TUTORIAL_ENDED_EVENT, handler);
+  }, []);
+
+  // Open Autonomous tab + activate hints when the tutorial reaches Scoring Metrics
+  useEffect(() => {
+    const handler = () => {
+      setSelectedTab('autonomous');
+      setMetricsHintMask(0b111);
+    };
+    window.addEventListener(TUTORIAL_METRICS_AUTON_TAB_EVENT, handler);
+    return () => window.removeEventListener(TUTORIAL_METRICS_AUTON_TAB_EVENT, handler);
+  }, []);
+
+  // Clear hints when tutorial moves to a different step
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if ((e as CustomEvent).detail?.target !== 'metrics') setMetricsHintMask(0);
+    };
+    window.addEventListener('teamtrack-tutorial-step-changed', handler);
+    return () => window.removeEventListener('teamtrack-tutorial-step-changed', handler);
   }, []);
 
   useEffect(() => {
@@ -1093,9 +1126,28 @@ export const PerformanceMetrics = () => {
 
   return (
     <>
+      {/* Pulsing hint animation for the Scoring Metrics tutorial step */}
+      {metricsHintMask !== 0 && (
+        <style>{`
+          @keyframes ttMetricsHint {
+            0%, 100% {
+              box-shadow: 0 0 0 2px rgb(var(--team-blue) / 0.45),
+                          0 0 14px rgb(var(--team-blue) / 0.18);
+            }
+            50% {
+              box-shadow: 0 0 0 3px rgb(var(--team-blue) / 0.75),
+                          0 0 28px rgb(var(--team-blue) / 0.32);
+            }
+          }
+          .tt-metrics-hint {
+            animation: ttMetricsHint 1.6s ease-in-out infinite;
+            border-radius: 12px;
+          }
+        `}</style>
+      )}
       <div className="flex flex-col gap-6">
         <h2 className="text-team-blue text-2xl font-semibold leading-6">
-          Performance Metrics
+          Scoring Metrics
         </h2>
 
         {/* ── Score Summary Cards (clickable tabs) ──────────────── */}
@@ -1351,7 +1403,7 @@ export const PerformanceMetrics = () => {
         {selectedTab === 'autonomous' && showAuton && (
           <div className="flex flex-col gap-6">
             {/* Leave + Motif row */}
-            <div className={`rounded-xl p-3 flex flex-col gap-3 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
+            <div className={`rounded-xl p-3 flex flex-col gap-3 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}${metricsHintMask & 0b101 ? ' tt-metrics-hint' : ''}`}>
               {/* Leave */}
               <label
                 className={`flex items-center gap-2 cursor-pointer select-none text-sm ${
@@ -1364,6 +1416,8 @@ export const PerformanceMetrics = () => {
                   onChange={e => {
                     const v = e.target.checked ? 1 : 0;
                     setAutonomousLeave(v);
+                    setMetricsHintMask(prev => prev & ~0b001);
+                    window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_LEAVE_EVENT));
                   }}
                   disabled={!isEditable}
                   className="accent-team-blue w-4 h-4"
@@ -1390,6 +1444,8 @@ export const PerformanceMetrics = () => {
                             let newMask = mask;
                             newMask ^= (1 << i);
                             updateSessionData({ autonMotif: newMask });
+                            setMetricsHintMask(prev => prev & ~0b100);
+                            window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_MOTIF_EDIT_EVENT));
                           }}
                           disabled={!isEditable}
                           className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${
@@ -1424,6 +1480,7 @@ export const PerformanceMetrics = () => {
               isDarkMode={isDarkMode}
               bonusPoints={autonLeaveBonus}
               bonusLabel={autonomousLeave > 0 ? 'Leave Bonus' : undefined}
+              highlightFirstRow={!!(metricsHintMask & 0b010) && autonShots.length > 0}
             />
           </div>
         )}
@@ -1449,6 +1506,8 @@ export const PerformanceMetrics = () => {
                           let newMask = mask;
                           newMask ^= (1 << i);
                           updateSessionData({ teleMotif: newMask });
+                          setMetricsHintMask(prev => prev & ~0b100);
+                          window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_MOTIF_EDIT_EVENT));
                         }}
                         disabled={!isEditable}
                         className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${

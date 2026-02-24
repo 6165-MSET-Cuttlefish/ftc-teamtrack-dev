@@ -15,6 +15,10 @@ export const TUTORIAL_KEYBOARD_SCORE_EVENT = 'teamtrack-tutorial-keyboard-score'
 export const TUTORIAL_GATE_TOGGLED_EVENT = 'teamtrack-tutorial-gate-toggled';
 export const TUTORIAL_GATE_CYCLE_EVENT   = 'teamtrack-tutorial-gate-cycle';
 export const TUTORIAL_ENDED_EVENT        = 'teamtrack-tutorial-ended';
+export const TUTORIAL_METRICS_AUTON_TAB_EVENT  = 'teamtrack-tutorial-metrics-auton-tab';
+export const TUTORIAL_METRICS_LEAVE_EVENT      = 'teamtrack-tutorial-metrics-leave';
+export const TUTORIAL_METRICS_SHOT_EDIT_EVENT  = 'teamtrack-tutorial-metrics-shot-edit';
+export const TUTORIAL_METRICS_MOTIF_EDIT_EVENT = 'teamtrack-tutorial-metrics-motif-edit';
 
 // ─── Visual previews ───────────────────────────────────────────────────────
 
@@ -448,73 +452,103 @@ const KeybindsPreview = ({ dark }: { dark: boolean }) => {
   );
 };
 
-// ── Shot Table Preview: shows example autonomous shots table ───────────────
-const SAMPLE_SHOTS = [
-  { shot: 3, made: 2 },
-  { shot: 2, made: 2 },
-  { shot: 1, made: 1 },
-];
-
 const MetricsPreview = ({ dark }: { dark: boolean }) => {
-  const bgTable = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
-  const bgHeader = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
   const borderCol = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const textDim = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+  const textDim = dark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)';
+  const cardBg = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
+  const [view, setView] = useState<'leave' | 'endgame'>('leave');
 
-  let runningTotal = 0;
+  // Cycle between the two views
+  useEffect(() => {
+    const t = setInterval(() => setView(v => v === 'leave' ? 'endgame' : 'leave'), 2800);
+    return () => clearInterval(t);
+  }, []);
+
+  const tabStyle = (active: boolean) => ({
+    padding: '3px 10px',
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: 'default',
+    backgroundColor: active ? 'rgb(var(--team-blue))' : 'transparent',
+    color: active ? (dark ? '#000' : '#fff') : textDim,
+    transition: 'all 0.3s',
+  });
 
   return (
     <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-3">
-        Autonomous Shots
+      <div className="text-team-blue font-semibold text-sm mb-3">Scoring Metrics</div>
+
+      {/* Mini tab bar */}
+      <div
+        className="flex gap-1 rounded-lg p-0.5 mb-3"
+        style={{ backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }}
+      >
+        {(['Autonomous', 'Endgame'] as const).map(t => (
+          <div key={t} style={tabStyle((t === 'Autonomous') === (view === 'leave'))}>{t}</div>
+        ))}
       </div>
-      {/* Mini table */}
-      <div className="rounded border overflow-hidden text-xs" style={{ borderColor: borderCol }}>
-        {/* Header */}
+
+      {view === 'leave' ? (
         <div
-          className="grid grid-cols-5 gap-0 font-semibold"
-          style={{
-            backgroundColor: bgHeader,
-            borderBottom: `1px solid ${borderCol}`,
-          }}
+          className="rounded-lg p-3 flex flex-col gap-2"
+          style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}
         >
-          <div className="px-2 py-1.5 text-center">#</div>
-          <div className="px-2 py-1.5 text-center">Shot</div>
-          <div className="px-2 py-1.5 text-center">Made</div>
-          <div className="px-2 py-1.5 text-center">Pts</div>
-          <div className="px-2 py-1.5 text-center">Total</div>
-        </div>
-        {/* Rows */}
-        {SAMPLE_SHOTS.map((row, i) => {
-          const pts = row.made * 3;
-          runningTotal += pts;
-          return (
+          <div className="text-xs font-semibold" style={{ color: textDim }}>Autonomous Leave</div>
+          <label className="flex items-center gap-2 cursor-default select-none">
             <div
-              key={i}
-              className="grid grid-cols-5 gap-0 border-t"
+              className="w-4 h-4 rounded flex items-center justify-center"
               style={{
-                backgroundColor: bgTable,
-                borderTopColor: borderCol,
+                backgroundColor: 'rgb(var(--team-blue))',
+                border: '2px solid rgb(var(--team-blue))',
               }}
             >
-              <div className="px-2 py-1.5 text-center" style={{ color: textDim }}>
-                {i + 1}
-              </div>
-              <div className="px-2 py-1.5 text-center">{row.shot}</div>
-              <div className="px-2 py-1.5 text-center">{row.made}</div>
-              <div className="px-2 py-1.5 text-center" style={{ color: 'rgb(var(--team-blue))' }}>
-                {pts}
-              </div>
-              <div className="px-2 py-1.5 text-center font-semibold" style={{ color: 'rgb(var(--team-blue))' }}>
-                {runningTotal}
-              </div>
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 4l3 3 5-6" stroke={dark ? '#000' : '#fff'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </div>
-          );
-        })}
-      </div>
-      <div className="mt-2 text-[10px] flex items-center gap-1" style={{ color: textDim }}>
-        <span>✓ Each made ball = 3 pts</span>
-      </div>
+            <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)' }}>
+              Robot left starting zone
+            </span>
+            <span className="text-xs font-bold" style={{ color: 'rgb(var(--team-blue))' }}>+3 pts</span>
+          </label>
+          <div className="text-[10px] mt-1" style={{ color: textDim }}>✏️ Editable anytime — even after saving the match</div>
+        </div>
+      ) : (
+        <div
+          className="rounded-lg p-3 flex flex-col gap-2"
+          style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}
+        >
+          <div className="text-xs font-semibold" style={{ color: textDim }}>Endgame — Robot Parking</div>
+          {(['Robot 1', 'Robot 2'] as const).map(robot => (
+            <div key={robot} className="flex items-center justify-between gap-2">
+              <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>{robot}</span>
+              <div className="flex gap-0 rounded overflow-hidden" style={{ border: `1px solid ${borderCol}` }}>
+                {(['None', 'Partial', 'Full'] as const).map((val, vi) => (
+                  <div
+                    key={val}
+                    className="px-2 py-1 text-[10px] font-medium"
+                    style={{
+                      backgroundColor: vi === (robot === 'Robot 1' ? 2 : 1)
+                        ? 'rgb(var(--team-blue))'
+                        : (dark ? '#1a1a1a' : '#f5f5f5'),
+                      color: vi === (robot === 'Robot 1' ? 2 : 1)
+                        ? (dark ? '#000' : '#fff')
+                        : textDim,
+                    }}
+                  >
+                    {val}
+                  </div>
+                ))}
+              </div>
+              <span className="text-xs font-bold" style={{ color: 'rgb(var(--team-blue))' }}>
+                {robot === 'Robot 1' ? '10' : '5'} pts
+              </span>
+            </div>
+          ))}
+          <div className="text-[10px] mt-1" style={{ color: textDim }}>Both robots full park = 30 pts bonus!</div>
+        </div>
+      )}
     </PreviewBox>
   );
 };
@@ -761,10 +795,11 @@ const STEPS: StepDef[] = [
     watchKey: 'motifScore',
   },
   {
-    title: 'Performance Metrics',
-    body: 'Switch tabs for Final, Autonomous, Teleop, and Endgame. Track shot logs, accuracy, cycle times, and the live score breakdown.',
+    title: 'Scoring Metrics',
+    body: "Switch tabs for Final, Autonomous, Teleop, and Endgame. In the Autonomous tab, check Autonomous Leave if your robot left its starting zone. In the Endgame tab, set each robot's park status — None, Partial, or Full.\n\tYou can edit any of these — shots, leave, motifs, endgame — after the match too, just come back here before saving.",
     target: 'metrics',
     preview: d => <MetricsPreview dark={d} />,
+    pageAction: 'Complete all 3 tasks in the panel below',
   },
   {
     title: 'Session Notes',
@@ -851,6 +886,10 @@ export const ActiveTutorial = () => {
   const [taskCompleted, setTaskCompleted] = useState(false);
   const [tutorialEventCount, setTutorialEventCount] = useState(0);
   const [motifStepInitialized, setMotifStepInitialized] = useState(false);
+  // bitmask: bit 0 = leave done, bit 1 = shot edited, bit 2 = motif toggled
+  const [metricsTasksMask, setMetricsTasksMask] = useState(0);
+  /** true when the user has already completed the tutorial once — all tasks are pre-skippable */
+  const [isReplay, setIsReplay] = useState(false);
   const prevElRef = useRef<HTMLElement | null>(null);
 
   // Generate a stable tutorial key for both logged-in users and guests
@@ -886,6 +925,21 @@ export const ActiveTutorial = () => {
       return () => clearTimeout(t);
     }
   }, [loading, user, isGuest, getTutorialKey]);
+
+  // Detect whether this is a replay (user has already seen the tutorial)
+  useEffect(() => {
+    if (!visible) return;
+    const tutorialKey = getTutorialKey();
+    const seen = localStorage.getItem(tutorialKey);
+    setIsReplay(!!seen);
+  }, [visible, getTutorialKey]);
+
+  // When replaying, auto-complete any page task so the user can click Next freely
+  useEffect(() => {
+    if (!visible || !isReplay) return;
+    const current = STEPS[step];
+    if (current?.pageAction) setTaskCompleted(true);
+  }, [visible, step, isReplay]);
 
   // Listen for restart
   useEffect(() => {
@@ -985,9 +1039,40 @@ export const ActiveTutorial = () => {
     setIsTimerRunning(false);
   }, [visible, step, MOTIF_STEP_INDEX, sessionData.motifPattern, sessionData.gateBallCount, motifStepInitialized, setMatchActive, setMatchPhase, setIsTimerRunning, updateSessionData]);
 
-  // Reset event count when step changes
+  // Open the Autonomous tab in Scoring Metrics when that step is reached
+  const METRICS_STEP_INDEX = STEPS.findIndex(s => s.title === 'Scoring Metrics');
+  useEffect(() => {
+    if (!visible || step !== METRICS_STEP_INDEX) return;
+    window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_AUTON_TAB_EVENT));
+  }, [visible, step, METRICS_STEP_INDEX]);
+
+  // Listen for the 3 sub-tasks on the Scoring Metrics step
+  useEffect(() => {
+    if (!visible || step !== METRICS_STEP_INDEX || taskCompleted) return;
+    const makeHandler = (bit: number) => () => {
+      setMetricsTasksMask(prev => {
+        const next = prev | bit;
+        if ((next & 0b111) === 0b111) setTaskCompleted(true);
+        return next;
+      });
+    };
+    const leaveHandler = makeHandler(0b001);
+    const shotHandler  = makeHandler(0b010);
+    const motifHandler = makeHandler(0b100);
+    window.addEventListener(TUTORIAL_METRICS_LEAVE_EVENT, leaveHandler);
+    window.addEventListener(TUTORIAL_METRICS_SHOT_EDIT_EVENT, shotHandler);
+    window.addEventListener(TUTORIAL_METRICS_MOTIF_EDIT_EVENT, motifHandler);
+    return () => {
+      window.removeEventListener(TUTORIAL_METRICS_LEAVE_EVENT, leaveHandler);
+      window.removeEventListener(TUTORIAL_METRICS_SHOT_EDIT_EVENT, shotHandler);
+      window.removeEventListener(TUTORIAL_METRICS_MOTIF_EDIT_EVENT, motifHandler);
+    };
+  }, [visible, step, taskCompleted, METRICS_STEP_INDEX]);
+
+  // Reset event count and metrics task mask when step changes
   useEffect(() => {
     setTutorialEventCount(0);
+    setMetricsTasksMask(0);
   }, [step]);
 
   // Listen for custom DOM events — supports counted requirements (watchEventCount)
@@ -1300,7 +1385,7 @@ export const ActiveTutorial = () => {
         </h3>
 
         {/* Body */}
-        <p className="text-sm leading-relaxed" style={{ color: subtext }}>
+        <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: subtext }}>
           {current.body}
         </p>
 
@@ -1308,7 +1393,47 @@ export const ActiveTutorial = () => {
         {current.preview && current.preview(isDarkMode)}
 
         {/* Page action prompt — guides user to interact with the real page element */}
-        {hasPageTask && (
+        {hasPageTask && step === METRICS_STEP_INDEX ? (
+          /* 3-item checklist for the Scoring Metrics step */
+          <div className="mt-4 flex flex-col gap-2">
+            {[
+              { label: 'Check Autonomous Leave', bit: 0b001 },
+              { label: 'Edit a shot value',       bit: 0b010 },
+              { label: 'Toggle a Motif (M button)', bit: 0b100 },
+            ].map(({ label, bit }) => {
+              const done = !!(metricsTasksMask & bit);
+              return (
+                <div
+                  key={bit}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300"
+                  style={{
+                    backgroundColor: done
+                      ? isDarkMode ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)'
+                      : isDarkMode ? 'rgba(var(--team-blue) / 0.1)' : 'rgba(var(--team-blue) / 0.08)',
+                    border: `1px solid ${done ? 'rgba(34,197,94,0.3)' : 'rgb(var(--team-blue) / 0.25)'}`,
+                  }}
+                >
+                  {done ? (
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: 'rgba(34,197,94,0.2)' }}
+                    >
+                      <span className="text-green-500 text-xs font-bold">✓</span>
+                    </div>
+                  ) : (
+                    <ArrowUp size={16} className="flex-shrink-0" style={{ color: teamBlue }} />
+                  )}
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: done ? (isDarkMode ? 'rgba(34,197,94,0.9)' : 'rgba(34,197,94,1)') : teamBlue }}
+                  >
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : hasPageTask ? (
           <div
             className="flex items-center gap-2 mt-4 px-3 py-2.5 rounded-xl transition-all duration-300"
             style={{
@@ -1362,7 +1487,7 @@ export const ActiveTutorial = () => {
                     : current.pageAction}
             </span>
           </div>
-        )}
+        ) : null}
 
         {/* Controls */}
         <div className="flex items-center justify-between mt-5">
