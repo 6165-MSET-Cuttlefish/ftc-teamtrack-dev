@@ -551,6 +551,7 @@ function liftElement(el: HTMLElement, breathing = false, darkMode = true) {
     animation: el.style.animation,
     backgroundColor: el.style.backgroundColor,
     pointerEvents: el.style.pointerEvents,
+    border: el.style.border,
   };
   el.style.position = 'relative';
   el.style.zIndex = '9999';
@@ -562,17 +563,10 @@ function liftElement(el: HTMLElement, breathing = false, darkMode = true) {
   if (!darkMode) {
     el.style.backgroundColor = '#ffffff';
   }
-  if (breathing) {
-    // Add a data attribute so the CSS keyframe can pick the right intensity
-    el.dataset.ttDark = darkMode ? '1' : '0';
-    el.classList.add('tt-breathe');
-  } else {
-    // Light mode needs higher opacity — the light-mode team-blue (#537788) is
-    // muted and barely visible at low opacity on a white background.
-    el.style.boxShadow = darkMode
-      ? '0 0 0 4px rgb(var(--team-blue) / 0.35), 0 0 60px rgb(var(--team-blue) / 0.15)'
-      : '0 0 0 3px rgb(var(--team-blue) / 0.8), 0 0 32px rgb(var(--team-blue) / 0.25)';
-  }
+  // Always apply a static blue border (don't pulse the containers)
+  // Only the clickable elements inside (M buttons, shot numbers, leave text) pulse
+  el.style.border = `2px solid rgb(var(--team-blue) / 0.4)`;
+  el.style.boxShadow = 'none';
 }
 
 function dropElement(el: HTMLElement) {
@@ -588,6 +582,7 @@ function dropElement(el: HTMLElement) {
     el.style.animation = orig.animation ?? '';
     el.style.backgroundColor = orig.backgroundColor ?? '';
     el.style.pointerEvents = orig.pointerEvents ?? '';
+    el.style.border = orig.border ?? '';
     delete (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY];
   }
 }
@@ -657,6 +652,21 @@ export const ActiveTutorial = () => {
     const current = STEPS[step];
     if (current?.pageAction) setTaskCompleted(true);
   }, [visible, step, isReplay]);
+
+  // Activate match at the Scoring Grid step so the scoring grid becomes editable
+  useEffect(() => {
+    if (!visible) return;
+    const SCORING_GRID_STEP_INDEX = STEPS.findIndex(s => s.title === 'Scoring Grid');
+    if (step >= SCORING_GRID_STEP_INDEX && !matchActive) {
+      setMatchActive(true);
+      // Set initial phase and timer state for scoring to work
+      if (sessionData.matchType === 'Teleop') {
+        setMatchPhase('teleop');
+      } else {
+        setMatchPhase('auton');
+      }
+    }
+  }, [visible, step, matchActive, sessionData.matchType, setMatchActive, setMatchPhase]);
 
   // Listen for restart
   useEffect(() => {
@@ -944,15 +954,6 @@ export const ActiveTutorial = () => {
         e.stopPropagation();
         e.preventDefault();
         if (!hasPageTask) next();
-      }
-      if (e.key === 'Enter') {
-        // Don't capture Enter when there's a page task — user might be
-        // interacting with the real page element (e.g. pressing Enter in the
-        // session name input)
-        if (hasPageTask) return;
-        e.stopPropagation();
-        e.preventDefault();
-        next();
       }
       if (e.key === 'ArrowLeft') {
         e.stopPropagation();

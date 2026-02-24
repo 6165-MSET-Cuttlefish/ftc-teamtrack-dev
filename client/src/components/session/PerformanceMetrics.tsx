@@ -343,20 +343,20 @@ const ShotLogTable: React.FC<{
                   >
                     {i + 1}
                   </div>
-                  <div className={`px-1 py-1.5 flex justify-center${i === 0 && highlightFirstRow ? ' tt-metrics-hint' : ''}`}>
+                  <div className={`px-1 py-1.5 flex justify-center`}>
                     <CellInput
                       value={shot.ballsShot}
                       onChange={v => onUpdate(i, 'ballsShot', v)}
                       max={10}
                       readOnly={!editable}
-                      className={`w-12 h-9 text-center text-sm font-medium rounded border transition-colors ${
+                      className={`w-12 h-9 text-center text-sm font-medium rounded border transition-colors ${i === 0 && highlightFirstRow ? 'shot-number-blink' : ''} ${
                         isDarkMode
                           ? 'bg-team-dark border-team-blue-40 text-white focus:ring-1 focus:ring-team-blue/30'
                           : 'bg-white border-gray-200 text-black focus:ring-1 focus:ring-team-blue/30'
                       } focus:outline-none`}
                     />
                   </div>
-                  <div className={`px-1 py-1.5 flex justify-center${i === 0 && highlightFirstRow ? ' tt-metrics-hint' : ''}`}>
+                  <div className={`px-1 py-1.5 flex justify-center`}>
                     <CellInput
                       value={shot.ballsMade}
                       onChange={v => {
@@ -365,7 +365,7 @@ const ShotLogTable: React.FC<{
                       }}
                       max={shot.ballsShot}
                       readOnly={!editable}
-                      className={`w-12 h-9 text-center text-sm font-medium rounded border transition-colors ${
+                      className={`w-12 h-9 text-center text-sm font-medium rounded border transition-colors ${i === 0 && highlightFirstRow ? 'shot-number-blink' : ''} ${
                         isDarkMode
                           ? 'bg-team-dark border-team-blue-40 text-white focus:ring-1 focus:ring-team-blue/30'
                           : 'bg-white border-gray-200 text-black focus:ring-1 focus:ring-team-blue/30'
@@ -924,12 +924,25 @@ export const PerformanceMetrics = () => {
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
+      // Guard: don't process keyboard input if user is typing in a field
+      const target = event.target as HTMLElement;
       if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement ||
-        (event.target instanceof HTMLElement && event.target.isContentEditable)
-      )
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
         return;
+      }
+      // Also check if we're inside any input-like container by walking DOM tree
+      let el: HTMLElement | null = target;
+      let depth = 0;
+      while (el && depth < 10) {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true') {
+          return;
+        }
+        el = el.parentElement;
+        depth++;
+      }
 
       // Handle G keybind for gate
       if (event.key.toLowerCase() === 'g') {
@@ -1126,25 +1139,54 @@ export const PerformanceMetrics = () => {
 
   return (
     <>
-      {/* Pulsing hint animation for the Scoring Metrics tutorial step */}
-      {metricsHintMask !== 0 && (
-        <style>{`
-          @keyframes ttMetricsHint {
-            0%, 100% {
-              box-shadow: 0 0 0 2px rgb(var(--team-blue) / 0.45),
-                          0 0 14px rgb(var(--team-blue) / 0.18);
-            }
-            50% {
-              box-shadow: 0 0 0 3px rgb(var(--team-blue) / 0.75),
-                          0 0 28px rgb(var(--team-blue) / 0.32);
-            }
+      {/* M button flash animation */}
+      <style>{`
+        @keyframes motifMFlash {
+          0%, 100% {
+            color: rgb(var(--team-blue) / 0.95);
+            text-shadow: 0 0 8px rgb(var(--team-blue) / 0.6),
+                         0 0 14px rgb(var(--team-blue) / 0.4);
           }
-          .tt-metrics-hint {
-            animation: ttMetricsHint 1.6s ease-in-out infinite;
-            border-radius: 12px;
+          48%, 52% {
+            color: white;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.8),
+                         0 0 20px rgba(255, 255, 255, 0.5);
           }
-        `}</style>
-      )}
+        }
+        .motif-m-flash {
+          animation: motifMFlash 2.5s ease-in-out infinite;
+        }
+        @keyframes autonLeaveFlash {
+          0%, 100% {
+            color: rgb(var(--team-blue) / 0.9);
+            text-shadow: 0 0 8px rgb(var(--team-blue) / 0.5),
+                         0 0 14px rgb(var(--team-blue) / 0.3);
+          }
+          48%, 52% {
+            color: white;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.8),
+                         0 0 20px rgba(255, 255, 255, 0.5);
+          }
+        }
+        .auton-leave-flash {
+          animation: autonLeaveFlash 2.5s ease-in-out infinite;
+        }
+        @keyframes shotNumberBlink {
+          0%, 100% {
+            color: rgb(var(--team-blue) / 0.95);
+            text-shadow: 0 0 6px rgb(var(--team-blue) / 0.5),
+                         0 0 12px rgb(var(--team-blue) / 0.3);
+          }
+          48%, 52% {
+            color: white;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8),
+                         0 0 16px rgba(255, 255, 255, 0.5);
+          }
+        }
+        .shot-number-blink {
+          animation: shotNumberBlink 2.5s ease-in-out infinite;
+        }
+      `}</style>
       <div className="flex flex-col gap-6" data-tutorial="metrics">
         <h2 className="text-team-blue text-2xl font-semibold leading-6">
           Scoring Metrics
@@ -1403,10 +1445,10 @@ export const PerformanceMetrics = () => {
         {selectedTab === 'autonomous' && showAuton && (
           <div className="flex flex-col gap-6" data-tutorial="scoring">
             {/* Leave + Motif row */}
-            <div className={`rounded-xl p-3 flex flex-col gap-3 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}${metricsHintMask & 0b101 ? ' tt-metrics-hint' : ''}`}>
+            <div className={`rounded-xl p-3 flex flex-col gap-3 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
               {/* Leave */}
               <label
-                className={`flex items-center gap-2 cursor-pointer select-none text-sm ${
+                className={`flex items-center gap-2 cursor-pointer select-none text-sm px-3 py-2 rounded-lg transition-all ${
                   isDarkMode ? 'text-white' : 'text-black'
                 }`}
               >
@@ -1422,7 +1464,9 @@ export const PerformanceMetrics = () => {
                   disabled={!isEditable}
                   className="accent-team-blue w-4 h-4"
                 />
-                Autonomous Leave
+                <span className={metricsHintMask & 0b001 ? 'auton-leave-flash' : ''}>
+                  Autonomous Leave
+                </span>
                 <span className="text-xs text-gray-400">(+3 pts)</span>
               </label>
 
@@ -1448,7 +1492,7 @@ export const PerformanceMetrics = () => {
                             window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_MOTIF_EDIT_EVENT));
                           }}
                           disabled={!isEditable}
-                          className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${
+                          className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${metricsHintMask & 0b100 ? 'motif-m-flash' : ''} ${
                             isEditable ? 'cursor-pointer hover:scale-110' : 'cursor-default'
                           } ${
                             (mask & (1 << i)) ? 'text-amber-400' : isDarkMode ? 'text-gray-600' : 'text-gray-300'
@@ -1510,7 +1554,7 @@ export const PerformanceMetrics = () => {
                           window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_MOTIF_EDIT_EVENT));
                         }}
                         disabled={!isEditable}
-                        className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${
+                        className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${metricsHintMask & 0b100 ? 'motif-m-flash' : ''} ${
                           isEditable ? 'cursor-pointer hover:scale-110' : 'cursor-default'
                         } ${
                           (mask & (1 << i)) ? 'text-amber-400' : isDarkMode ? 'text-gray-600' : 'text-gray-300'

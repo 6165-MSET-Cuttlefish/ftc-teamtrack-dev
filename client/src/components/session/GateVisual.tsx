@@ -24,8 +24,19 @@ export const GateVisual = () => {
   const { sessionData, updateSessionData, matchPhase, matchActive } = useSession();
   const { isDarkMode } = useTheme();
   const [showMotifDialog, setShowMotifDialog] = useState(false);
+  const [isGateTutorialActive, setIsGateTutorialActive] = useState(false);
   const gateCycleToastTimeRef = useRef<number>(0);
   const TOAST_COOLDOWN_MS = 2000;
+
+  // Listen for tutorial step changes to apply pulse to Open Gate button
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setIsGateTutorialActive(detail?.target === 'gate');
+    };
+    window.addEventListener('teamtrack-tutorial-step-changed', handler);
+    return () => window.removeEventListener('teamtrack-tutorial-step-changed', handler);
+  }, []);
 
   const gateBallCount = sessionData.gateBallCount ?? 0;
   const isGateOpen = sessionData.gateAddBackMode ?? false;
@@ -224,6 +235,24 @@ export const GateVisual = () => {
 
   return (
     <div className="space-y-3" data-tutorial="gate">
+      {/* M button flash animation */}
+      <style>{`
+        @keyframes motifMFlash {
+          0%, 100% {
+            color: rgb(var(--team-blue) / 0.95);
+            text-shadow: 0 0 8px rgb(var(--team-blue) / 0.6),
+                         0 0 14px rgb(var(--team-blue) / 0.4);
+          }
+          48%, 52% {
+            color: white;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.8),
+                         0 0 20px rgba(255, 255, 255, 0.5);
+          }
+        }
+        .motif-m-flash {
+          animation: motifMFlash 2.5s ease-in-out infinite;
+        }
+      `}</style>
       {/* Gate Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -279,7 +308,7 @@ export const GateVisual = () => {
               {showMotifButtons && i < gateBallCount ? (
                 <button
                   onClick={() => handleMotifScoreClick(i)}
-                  className={`w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-base font-black transition-all duration-150 cursor-pointer hover:scale-110 ${
+                  className={`w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-base font-black transition-all duration-150 cursor-pointer hover:scale-110 motif-m-flash ${
                     (currentMotifMask & (1 << i)) ? 'text-amber-400' : isDarkMode ? 'text-gray-600 hover:text-amber-400/60' : 'text-gray-300 hover:text-amber-400/60'
                   }`}
                   title={`Toggle motif ${i + 1} (${POINTS_PER_MOTIF} pts)`}
@@ -367,17 +396,32 @@ export const GateVisual = () => {
 
       {/* Open Gate Button */}
       {!isGateOpen && (
-        <button
-          onClick={handleOpenGate}
-          disabled={gateBallCount === 0}
-          className={`w-full py-3 rounded-xl text-sm font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-            isDarkMode
-              ? 'bg-team-dark text-team-blue hover:bg-team-blue/10'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          Open Gate (Release All {gateBallCount} Balls)
-        </button>
+        <>
+          <style>{`
+            @keyframes gateButtonPulse {
+              0%, 100% {
+                box-shadow: 0 0 0 0 rgba(var(--team-blue) / 0.4);
+              }
+              50% {
+                box-shadow: 0 0 0 8px rgba(var(--team-blue) / 0.1);
+              }
+            }
+            .gate-button-pulse {
+              animation: gateButtonPulse 2.5s ease-in-out infinite;
+            }
+          `}</style>
+          <button
+            onClick={handleOpenGate}
+            disabled={gateBallCount === 0}
+            className={`w-full py-3 rounded-xl text-sm font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isGateTutorialActive ? 'gate-button-pulse' : ''} ${
+              isDarkMode
+                ? 'bg-team-dark text-team-blue hover:bg-team-blue/10'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Open Gate (Release All {gateBallCount} Balls)
+          </button>
+        </>
       )}
 
       {/* Motif Edit Button */}
