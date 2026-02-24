@@ -223,7 +223,7 @@ export const GateVisual = () => {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tutorial="gate">
       {/* Gate Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

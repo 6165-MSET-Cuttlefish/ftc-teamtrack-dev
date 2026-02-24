@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme, useAuth, useSession } from '@/contexts';
-import { Settings } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -40,225 +40,8 @@ const PreviewBox = ({
   </div>
 );
 
-// ── Animated Settings: types session name then clicks Save ──────────────
-const SettingsPreview = ({ dark }: { dark: boolean }) => {
-  const inputBg = dark ? '#191919' : '#fff';
-  const borderCol = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
-  const labelCol = dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
-  const fullText = 'My Practice Session';
-  const [charIdx, setCharIdx] = useState(0);
-  const [phase, setPhase] = useState<'typing' | 'save' | 'pause'>('typing');
-
-  useEffect(() => {
-    if (phase === 'typing') {
-      if (charIdx < fullText.length) {
-        const t = setTimeout(() => setCharIdx(i => i + 1), 80);
-        return () => clearTimeout(t);
-      }
-      const t = setTimeout(() => setPhase('save'), 500);
-      return () => clearTimeout(t);
-    }
-    if (phase === 'save') {
-      const t = setTimeout(() => setPhase('pause'), 1200);
-      return () => clearTimeout(t);
-    }
-    // pause → restart
-    const t = setTimeout(() => {
-      setCharIdx(0);
-      setPhase('typing');
-    }, 800);
-    return () => clearTimeout(t);
-  }, [phase, charIdx]);
-
-  return (
-    <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-3">
-        Session Settings
-      </div>
-      <div className="space-y-2">
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <div className="text-xs mb-1" style={{ color: labelCol }}>
-              Session Name
-            </div>
-            <div
-              className="rounded-lg px-3 py-2 text-xs border flex items-center"
-              style={{
-                backgroundColor: inputBg,
-                borderColor:
-                  phase === 'typing' ? 'rgb(var(--team-blue))' : borderCol,
-                color: dark ? '#fff' : '#000',
-                transition: 'border-color 0.2s',
-              }}
-            >
-              <span>{fullText.slice(0, charIdx)}</span>
-              {phase === 'typing' && (
-                <span
-                  className="inline-block w-[2px] h-3.5 ml-[1px]"
-                  style={{
-                    backgroundColor: 'rgb(var(--team-blue))',
-                    animation: 'ttCursorBlink 0.8s step-end infinite',
-                  }}
-                />
-              )}
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="text-xs mb-1" style={{ color: labelCol }}>
-              Match Type
-            </div>
-            <div
-              className="rounded-lg px-3 py-2 text-xs border"
-              style={{
-                backgroundColor: inputBg,
-                borderColor: borderCol,
-                color: dark ? '#fff' : '#000',
-              }}
-            >
-              Full Game
-            </div>
-          </div>
-        </div>
-        <button
-          className="w-full py-1.5 rounded-lg text-xs font-bold mt-1"
-          style={{
-            backgroundColor: 'rgb(var(--team-blue))',
-            color: dark ? '#000' : '#fff',
-            boxShadow:
-              phase === 'save'
-                ? '0 0 20px rgb(var(--team-blue) / 0.6)'
-                : 'none',
-            transform: phase === 'save' ? 'scale(1.04)' : 'scale(1)',
-            transition: 'box-shadow 0.3s, transform 0.3s',
-          }}
-        >
-          Save{phase === 'save' ? ' ✓' : ''}
-        </button>
-      </div>
-    </PreviewBox>
-  );
-};
-
-// ── Animated Timer: ticks down from 2:30 ────────────────────────────────
-const TimerPreview = ({ dark }: { dark: boolean }) => {
-  const [seconds, setSeconds] = useState(150);
-
-  useEffect(() => {
-    const id = setInterval(
-      () => setSeconds(s => (s <= 145 ? 150 : s - 1)),
-      1000
-    );
-    return () => clearInterval(id);
-  }, []);
-
-  const display = `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
-
-  return (
-    <PreviewBox dark={dark}>
-      <div className="flex flex-col items-center py-2">
-        <div
-          className="text-4xl font-bold tracking-wider"
-          style={{
-            fontFamily: '"Righteous", sans-serif',
-            letterSpacing: '0.05em',
-            fontWeight: 400,
-            color: dark ? '#fff' : '#000',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {display}
-        </div>
-        <div className="flex items-center gap-4 mt-2">
-          <span
-            className="text-xs font-semibold uppercase"
-            style={{
-              color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
-            }}
-          >
-            Full Game
-          </span>
-          <span
-            className="text-xs font-semibold"
-            style={{
-              color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
-            }}
-          >
-            Session: 0:00
-          </span>
-          <span
-            className="text-xs font-semibold uppercase"
-            style={{
-              color: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
-            }}
-          >
-            Match 1
-          </span>
-        </div>
-      </div>
-    </PreviewBox>
-  );
-};
-
+// ── Preview components ──────────────────────────────────────────────────
 // ── Animated Controls: cursor cycles through buttons ────────────────────
-const CTRL_SEQUENCE = [0, -1, 2, -1, 3, -1]; // Start Match → pause → Complete → pause → Cancel → pause
-const ControlsPreview = ({ dark }: { dark: boolean }) => {
-  const [seqIdx, setSeqIdx] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(
-      () => setSeqIdx(i => (i + 1) % CTRL_SEQUENCE.length),
-      1200
-    );
-    return () => clearInterval(id);
-  }, []);
-
-  const active = CTRL_SEQUENCE[seqIdx];
-
-  const glow = (idx: number, color: string): React.CSSProperties => ({
-    transform: active === idx ? 'scale(1.06)' : 'scale(1)',
-    boxShadow: active === idx ? `0 0 16px ${color}` : 'none',
-    transition: 'transform 0.3s, box-shadow 0.3s',
-  });
-
-  return (
-    <PreviewBox dark={dark}>
-      <div className="flex items-center gap-2">
-        <div
-          className="flex-1 px-3 py-2.5 rounded-xl border-2 border-green-500/40 bg-green-500/15 text-green-500 text-xs font-bold text-center"
-          style={glow(0, 'rgba(34,197,94,0.5)')}
-        >
-          Start Match
-        </div>
-        <div
-          className="px-3 py-2.5 rounded-xl border-2 flex items-center justify-center"
-          style={{
-            borderColor: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-            backgroundColor: dark ? '#191919' : '#fff',
-            ...glow(1, 'rgb(var(--team-blue) / 0.5)'),
-          }}
-        >
-          <Settings
-            className="h-4 w-4"
-            style={{ color: dark ? '#fff' : '#000' }}
-          />
-        </div>
-        <div
-          className="px-3 py-2.5 rounded-xl border-2 border-green-500/40 bg-green-500/15 text-green-500 text-xs font-bold text-center whitespace-nowrap"
-          style={glow(2, 'rgba(34,197,94,0.5)')}
-        >
-          Complete
-        </div>
-        <div
-          className="px-3 py-2.5 rounded-xl border-2 border-red-500/40 bg-red-500/15 text-red-500 text-xs font-bold text-center whitespace-nowrap"
-          style={glow(3, 'rgba(239,68,68,0.5)')}
-        >
-          Cancel
-        </div>
-      </div>
-    </PreviewBox>
-  );
-};
-
 // ── Animated Scoring: highlights cells in sequence ──────────────────────
 const SCORE_SEQUENCE: [number, number][] = [
   [0, 1],
@@ -361,92 +144,100 @@ const ScoringPreview = ({ dark }: { dark: boolean }) => {
   );
 };
 
-// ── Animated Keybinds: keys light up in sequence (2 shot → 1 made → Enter) ─
+// ── Interactive Keybinds Guide: Step-by-step keyboard scoring ──────────────
 const KeybindsPreview = ({ dark }: { dark: boolean }) => {
-  const arrowCol = dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
-  // animStep: 0 = key "2" (shot), 1 = key "1" (made), 2 = "Enter", 3 = pause
-  const [animStep, setAnimStep] = useState(0);
-
+  const [step, setStep] = useState(0); // 0: press 3, 1: press 2, 2: press enter, 3: done
+  
   useEffect(() => {
-    const delays = [1200, 1200, 1200, 800];
-    const t = setTimeout(() => setAnimStep(s => (s + 1) % 4), delays[animStep]);
-    return () => clearTimeout(t);
-  }, [animStep]);
+    const timer = setInterval(() => {
+      setStep(s => (s + 1) % 4);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, []);
 
-  const kbd = (isActive: boolean, pad?: string): React.CSSProperties => ({
-    backgroundColor: isActive
-      ? 'rgb(var(--team-blue))'
-      : dark
-        ? '#333'
-        : '#e5e5e5',
-    color: isActive ? (dark ? '#000' : '#fff') : dark ? '#fff' : '#000',
-    borderRadius: 6,
-    padding: pad || '2px 10px',
-    fontFamily: 'monospace',
-    fontSize: 13,
-    fontWeight: 600,
-    display: 'inline-block',
-    transform: isActive ? 'scale(1.12) translateY(-1px)' : 'scale(1)',
-    boxShadow: isActive ? '0 0 14px rgb(var(--team-blue) / 0.6)' : 'none',
-    transition: 'all 0.25s',
-  });
+  const steps = [
+    { label: 'Press Shot Count', key: '3', desc: 'How many balls shot?' },
+    { label: 'Press Made Count', key: '2', desc: 'How many scored?' },
+    { label: 'Press Enter', key: '⏎', desc: 'Confirm & save' },
+    { label: 'Score Recorded!', key: '✓', desc: 'Try it yourself' },
+  ];
+
+  const currentStep = steps[step];
+  const keyBg = dark ? '#a855f7' : '#9333ea';
+  const keyText = '#fff';
+  const textDim = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
 
   return (
     <PreviewBox dark={dark}>
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          <span style={kbd(false)}>1</span>
-          <span style={kbd(animStep === 0)}>2</span>
-          <span style={kbd(false)}>3</span>
-          <span className="text-xs" style={{ color: arrowCol }}>
-            →
-          </span>
-          <span
-            className="text-xs"
+      <div className="text-team-blue font-semibold text-sm mb-4">Keyboard Shortcut</div>
+      
+      {/* Animated input cells showing progress */}
+      <div className="flex items-end gap-2 mb-6 h-16">
+        {/* Shot cell */}
+        <div className="flex-1 flex flex-col items-center">
+          <div
+            className="w-full h-12 rounded-lg border-2 flex items-center justify-center text-xl font-bold transition-all duration-500"
             style={{
-              color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+              borderColor: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+              backgroundColor: step >= 0 ? `${keyBg}22` : 'transparent',
+              transform: step === 0 ? 'scale(1.05)' : 'scale(1)',
+              color: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'),
             }}
           >
-            balls shot
-          </span>
+            {step >= 0 ? '3' : '—'}
+          </div>
+          <span className="text-xs mt-2 text-center" style={{ color: textDim }}>Shot</span>
         </div>
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          <span style={kbd(false)}>0</span>
-          <span style={kbd(animStep === 1)}>1</span>
-          <span style={kbd(false)}>2</span>
-          <span style={kbd(false)}>3</span>
-          <span className="text-xs" style={{ color: arrowCol }}>
-            →
-          </span>
-          <span
-            className="text-xs"
+
+        {/* Plus sign */}
+        <div className="pb-4 text-lg font-light" style={{ color: textDim }}>+</div>
+
+        {/* Made cell */}
+        <div className="flex-1 flex flex-col items-center">
+          <div
+            className="w-full h-12 rounded-lg border-2 flex items-center justify-center text-xl font-bold transition-all duration-500"
             style={{
-              color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+              borderColor: step >= 1 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+              backgroundColor: step >= 1 ? `${keyBg}22` : 'transparent',
+              transform: step === 1 ? 'scale(1.05)' : 'scale(1)',
+              color: step >= 1 ? keyBg : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'),
             }}
           >
-            balls made
-          </span>
+            {step >= 1 ? '2' : '—'}
+          </div>
+          <span className="text-xs mt-2 text-center" style={{ color: textDim }}>Made</span>
         </div>
-        <div className="flex items-center justify-center gap-3">
-          <span style={kbd(animStep === 2, '2px 14px')}>Enter</span>
-          <span
-            className="text-xs"
-            style={{
-              color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
-            }}
-          >
-            confirm
-          </span>
-          <span style={kbd(false, '2px 12px')}>Esc</span>
-          <span
-            className="text-xs"
-            style={{
-              color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
-            }}
-          >
-            cancel
-          </span>
+      </div>
+
+      {/* Key instruction */}
+      <div className="flex flex-col items-center gap-3 py-4 px-3 rounded-xl" style={{ backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+        <div className="text-xs font-medium" style={{ color: textDim }}>{currentStep.desc}</div>
+        <div
+          className="px-6 py-3 rounded-lg font-bold text-lg transition-all duration-500"
+          style={{
+            backgroundColor: keyBg,
+            color: keyText,
+            transform: step === 2 ? 'scale(1.1)' : 'scale(1)',
+            boxShadow: step === 2 ? `0 0 20px ${keyBg}66` : 'none',
+          }}
+        >
+          {currentStep.key}
         </div>
+        <div className="text-sm font-semibold" style={{ color: dark ? '#fff' : '#000' }}>{currentStep.label}</div>
+      </div>
+
+      {/* Progress dots */}
+      <div className="flex justify-center gap-2 mt-4">
+        {steps.map((_, i) => (
+          <div
+            key={i}
+            className="h-1.5 rounded-full transition-all duration-500"
+            style={{
+              width: i <= step ? '8px' : '4px',
+              backgroundColor: i <= step ? keyBg : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'),
+            }}
+          />
+        ))}
       </div>
     </PreviewBox>
   );
@@ -619,44 +410,6 @@ const GatePreview = ({ dark }: { dark: boolean }) => {
     </PreviewBox>
   );
 };
-// ── Animated Notes: typewriter effect ───────────────────────────────────
-const NOTES_TEXT = 'Robot intake jammed twice during teleop. Try adjusting...';
-const NotesPreview = ({ dark }: { dark: boolean }) => {
-  const [charIdx, setCharIdx] = useState(0);
-
-  useEffect(() => {
-    if (charIdx < NOTES_TEXT.length) {
-      const t = setTimeout(() => setCharIdx(i => i + 1), 55);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => setCharIdx(0), 2000);
-    return () => clearTimeout(t);
-  }, [charIdx]);
-
-  return (
-    <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-2">Session Notes</div>
-      <div
-        className="rounded-lg border p-2 text-xs"
-        style={{
-          backgroundColor: dark ? '#191919' : '#fff',
-          borderColor: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-          color: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
-          minHeight: 48,
-        }}
-      >
-        <span>{NOTES_TEXT.slice(0, charIdx)}</span>
-        <span
-          className="inline-block w-[2px] h-3 ml-[1px] align-middle"
-          style={{
-            backgroundColor: 'rgb(var(--team-blue))',
-            animation: 'ttCursorBlink 0.8s step-end infinite',
-          }}
-        />
-      </div>
-    </PreviewBox>
-  );
-};
 
 // ── Live motif snapshot — shows the actual pattern set by the user ─────────
 const MotifSnapshot = ({ dark }: { dark: boolean }) => {
@@ -726,92 +479,53 @@ interface StepDef {
 const STEPS: StepDef[] = [
   {
     title: 'Welcome to TeamTrack!',
-    body: 'This walkthrough shows you how the Active Practice Session works. Replay anytime from the help button (?) in the top-right.',
+    body: 'Record every shot and motif during your match. The scoring, gate, and metrics panel are all you need. Replay anytime from the help button (?) in the top-right.',
     target: null,
     preview: null,
   },
   {
-    title: 'Session Settings',
-    body: 'Enter a session name and pick your match type. Click Save — the panel turns red until you do, and you cannot start a match without saving.',
-    target: 'session-setup',
-    preview: d => <SettingsPreview dark={d} />,
-    pageAction: 'Type a session name in the input',
-    watchKey: 'sessionName',
-  },
-  {
-    title: 'Set Your Motif Pattern',
-    body: "Click 'Set Motif Pattern' to open the motif dialog. Choose purple or green for all 3 slots — you won't be able to start a match until all 3 are set.",
-    target: 'gate',
-    preview: d => <MotifSnapshot dark={d} />,
-    pageAction: "Click 'Set Motif Pattern' in the gate, then set all 3 ball colors",
-    watchKey: 'motifPattern',
-  },
-  {
-    title: 'Match Controls',
-    body: 'Start Match begins the countdown. Save Match records your results. Gear opens settings. Complete and Cancel manage the session.',
-    target: 'controls',
-    preview: d => <ControlsPreview dark={d} />,
-    pageAction: 'Press Start Match in the controls',
-    watchEvent: 'teamtrack-match-started',
-  },
-  {
-    title: 'Match Timer',
-    body: 'Counts down from 2:30 in a full game. Transitions: Autonomous → Controller Pickup (5 s) → Prepare (3 s) → Teleop. Last 20 s = Endgame.',
-    target: 'timer',
-    preview: d => <TimerPreview dark={d} />,
-  },
-  {
     title: 'Scoring Grid',
-    body: 'Each row = 1, 2, or 3 balls shot. Tap how many scored — dashed circles are missed, solid are scored. Each classified ball = 3 pts.',
+    body: 'Each row = balls shot. Tap to select how many scored — dashed are missed, solid are made.',
     target: 'scoring',
     preview: d => <ScoringPreview dark={d} />,
-    pageAction: 'Tap 3 different shot combinations in the scoring grid',
+    pageAction: 'Record 3 shots using tap method',
     watchKey: 'shots',
   },
   {
-    title: 'Keyboard Shortcuts',
-    body: 'Press 1–3 for balls shot, then 0–N for balls made, then Enter to confirm. Much faster than tapping during a real match!',
+    title: 'Keyboard Scoring',
+    body: 'Faster method: press 1–3 for shot count, 0–N for made count, Enter to confirm. Try it below!',
     target: 'scoring',
     preview: d => <KeybindsPreview dark={d} />,
-    pageAction: 'Use keyboard: 1–3, then 0–N, then Enter — do this 3 times',
+    pageAction: 'Score 1 shot using keyboard',
     watchEvent: TUTORIAL_KEYBOARD_SCORE_EVENT,
-    watchEventCount: 3,
   },
   {
     title: 'Gate Mechanic',
-    body: 'The gate holds up to 9 balls. Classified balls fill it automatically. Try it both ways: click Open Gate then Confirm, and also press G → number → Enter on your keyboard.',
+    body: 'The gate holds classified balls. Click "Open Gate → Confirm" or press G → number → Enter. Quick way to manage your ball count.',
     target: 'gate',
     preview: d => <GatePreview dark={d} />,
-    pageAction: 'Complete one click cycle and one keyboard cycle (G → number → Enter)',
+    pageAction: 'Complete at least 2 gate cycles',
     watchEvent: TUTORIAL_GATE_CYCLE_EVENT,
     watchEventCount: 2,
   },
   {
     title: 'Motif Scoring',
-    body: "When the match ends, 'M' buttons appear on the gate for each motif slot. Click each lit-up M to score a pattern match (+2 pts each). Try it now — the M buttons are live.",
+    body: "When the match ends, click the 'M' buttons to score motif matches. Each press = +2 pts.",
     target: 'gate',
     preview: d => <MotifSnapshot dark={d} />,
-    pageAction: 'Click at least one M button on the gate',
+    pageAction: 'Click at least one M button',
     watchKey: 'motifScore',
   },
   {
     title: 'Scoring Metrics',
-    body: "Switch tabs for Final, Autonomous, Teleop, and Endgame. In the Autonomous tab, check Autonomous Leave if your robot left its starting zone. In the Endgame tab, set each robot's park status — None, Partial, or Full.\n\tYou can edit any of these — shots, leave, motifs, endgame — after the match too, just come back here before saving.",
+    body: "Check Autonomous Leave, edit any shots, and toggle Motif buttons here. You can change anything after the match — just revisit before saving the session.",
     target: 'metrics',
     preview: d => <MetricsPreview dark={d} />,
     pageAction: 'Complete all 3 tasks in the panel below',
   },
   {
-    title: 'Session Notes',
-    body: 'Jot down observations — strategies, mistakes, or anything to review later in analysis.',
-    target: 'notes',
-    preview: d => <NotesPreview dark={d} />,
-    pageAction: 'Try typing a note in the section',
-    watchKey: 'notes',
-  },
-  {
     title: "You're All Set!",
-    body: 'You made it through! Save your session, start matches, and let TeamTrack track everything. Good luck at your next competition!',
+    body: 'Start a match and begin tracking. Save when done. Good luck!',
     target: null,
     preview: null,
   },
@@ -836,10 +550,12 @@ function liftElement(el: HTMLElement, breathing = false, darkMode = true) {
     boxShadow: el.style.boxShadow,
     animation: el.style.animation,
     backgroundColor: el.style.backgroundColor,
+    pointerEvents: el.style.pointerEvents,
   };
   el.style.position = 'relative';
   el.style.zIndex = '9999';
   el.style.borderRadius = '16px';
+  el.style.pointerEvents = 'auto';
   // In light mode, force a solid white background so the element is fully
   // opaque against the dark backdrop overlay (same effect dark mode gets for free
   // from its natural dark background colors).
@@ -871,6 +587,7 @@ function dropElement(el: HTMLElement) {
     el.style.boxShadow = orig.boxShadow ?? '';
     el.style.animation = orig.animation ?? '';
     el.style.backgroundColor = orig.backgroundColor ?? '';
+    el.style.pointerEvents = orig.pointerEvents ?? '';
     delete (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY];
   }
 }
@@ -1312,6 +1029,7 @@ export const ActiveTutorial = () => {
         backdrop-filter blurs the content rendered BEHIND this element.
         The target element is lifted above (z-index 9999) so it renders
         ON TOP of this overlay and is NOT affected by the blur.
+        pointer-events: none allows clicks to pass through to interactive elements.
       */}
       <div
         className="fixed inset-0 z-[9997]"
@@ -1319,8 +1037,8 @@ export const ActiveTutorial = () => {
           backgroundColor: 'rgba(0,0,0,0.55)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
+          pointerEvents: 'none',
         }}
-        onClick={dismiss}
       />
 
       {/* Tutorial card */}

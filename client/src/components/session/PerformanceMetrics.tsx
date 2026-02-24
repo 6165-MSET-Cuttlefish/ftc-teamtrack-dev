@@ -1145,7 +1145,7 @@ export const PerformanceMetrics = () => {
           }
         `}</style>
       )}
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-tutorial="metrics">
         <h2 className="text-team-blue text-2xl font-semibold leading-6">
           Scoring Metrics
         </h2>
@@ -1401,7 +1401,7 @@ export const PerformanceMetrics = () => {
 
         {/* ── AUTONOMOUS tab ─────────────────────────────────────── */}
         {selectedTab === 'autonomous' && showAuton && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6" data-tutorial="scoring">
             {/* Leave + Motif row */}
             <div className={`rounded-xl p-3 flex flex-col gap-3 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}${metricsHintMask & 0b101 ? ' tt-metrics-hint' : ''}`}>
               {/* Leave */}
