@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme, useAuth, useSession } from '@/contexts';
-import { Settings, ArrowUp } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -735,7 +735,7 @@ const STEPS: StepDef[] = [
     body: 'Enter a session name and pick your match type. Click Save — the panel turns red until you do, and you cannot start a match without saving.',
     target: 'session-setup',
     preview: d => <SettingsPreview dark={d} />,
-    pageAction: 'Type a session name in the input below',
+    pageAction: 'Type a session name in the input',
     watchKey: 'sessionName',
   },
   {
@@ -743,7 +743,7 @@ const STEPS: StepDef[] = [
     body: "Click 'Set Motif Pattern' to open the motif dialog. Choose purple or green for all 3 slots — you won't be able to start a match until all 3 are set.",
     target: 'gate',
     preview: d => <MotifSnapshot dark={d} />,
-    pageAction: "Click 'Set Motif Pattern' in the gate below, then set all 3 ball colors",
+    pageAction: "Click 'Set Motif Pattern' in the gate, then set all 3 ball colors",
     watchKey: 'motifPattern',
   },
   {
@@ -756,7 +756,7 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Match Timer',
-    body: 'Counts down from 2:30 in a full game. Transitions: Autonomous → Controller Pickup (5 s) → Prepare (3 s) → Teleop. Last 20 s = End Game.',
+    body: 'Counts down from 2:30 in a full game. Transitions: Autonomous → Controller Pickup (5 s) → Prepare (3 s) → Teleop. Last 20 s = Endgame.',
     target: 'timer',
     preview: d => <TimerPreview dark={d} />,
   },
@@ -765,7 +765,7 @@ const STEPS: StepDef[] = [
     body: 'Each row = 1, 2, or 3 balls shot. Tap how many scored — dashed circles are missed, solid are scored. Each classified ball = 3 pts.',
     target: 'scoring',
     preview: d => <ScoringPreview dark={d} />,
-    pageAction: 'Tap 3 different shot combinations in the scoring grid below',
+    pageAction: 'Tap 3 different shot combinations in the scoring grid',
     watchKey: 'shots',
   },
   {
@@ -788,10 +788,10 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Motif Scoring',
-    body: "When the match ends, 'M' buttons appear on the gate for each motif slot. Click each lit-up M to score a pattern match (+2 pts each). Try it now — the M buttons are live below.",
+    body: "When the match ends, 'M' buttons appear on the gate for each motif slot. Click each lit-up M to score a pattern match (+2 pts each). Try it now — the M buttons are live.",
     target: 'gate',
     preview: d => <MotifSnapshot dark={d} />,
-    pageAction: 'Click at least one M button on the gate below',
+    pageAction: 'Click at least one M button on the gate',
     watchKey: 'motifScore',
   },
   {
@@ -806,7 +806,7 @@ const STEPS: StepDef[] = [
     body: 'Jot down observations — strategies, mistakes, or anything to review later in analysis.',
     target: 'notes',
     preview: d => <NotesPreview dark={d} />,
-    pageAction: 'Try typing a note in the section below',
+    pageAction: 'Try typing a note in the section',
     watchKey: 'notes',
   },
   {
@@ -1451,19 +1451,13 @@ export const ActiveTutorial = () => {
               }`,
             }}
           >
-            {taskCompleted ? (
+            {taskCompleted && (
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: 'rgba(34,197,94,0.2)' }}
               >
                 <span className="text-green-500 text-xs font-bold">✓</span>
               </div>
-            ) : (
-              <ArrowUp
-                size={16}
-                className="flex-shrink-0"
-                style={{ color: teamBlue }}
-              />
             )}
             <span
               className="text-xs font-medium"

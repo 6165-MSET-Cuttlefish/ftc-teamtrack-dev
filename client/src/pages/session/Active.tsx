@@ -120,7 +120,7 @@ const ActiveSessionContent = () => {
                   : matchPhase === 'prepare'
                     ? 'Prepare'
                     : matchPhase === 'teleop' && timer <= 20
-                      ? 'End Game'
+                      ? 'Endgame'
                       : sessionData.matchType || 'Full Game'}
               </div>
               <div
