@@ -7,8 +7,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import { useAuth } from './AuthContext';
-import { formatTime as formatTimeUtil, getDisplayTimer as getDisplayTimerUtil } from '@/lib/utils';
+import { formatTime as formatTimeUtil } from '@/lib/utils';
 import {
   saveSessionToStorage,
   loadSessionFromStorage,
@@ -19,28 +18,26 @@ import {
   type SessionTimerState,
 } from '@/lib/sessionStorage';
 import type { Match } from '@/types';
+import { useAuth } from './AuthContext';
 
-export type MatchPhase =
-  | 'auton'
-  | 'controller_pickup'
-  | 'prepare'
-  | 'teleop'
-  | 'ended';
+export type MatchPhase = 'auton' | 'controller_pickup' | 'prepare' | 'teleop' | 'ended';
 
 interface SessionContextType {
   sessionData: SessionFormData;
   updateSessionData: (updates: Partial<SessionFormData>) => void;
+  /** Full replacement of session data (not a merge) */
+  replaceSessionData: (data: SessionFormData) => void;
   completeSession: (timerValue: string) => void;
   resetSession: () => void;
   /** Match timer counts DOWN from 150 → 0 */
   timer: number;
+  setTimer: (timer: number) => void;
   sessionTimer: number;
   setSessionTimer: (timer: number) => void;
   isTimerRunning: boolean;
   setIsTimerRunning: (running: boolean) => void;
   resetTimer: () => void;
   formatTime: (seconds: number) => string;
-  getDisplayTimer: (timer: number, phase: string) => number;
   /** Current FTC match phase */
   matchPhase: MatchPhase;
   setMatchPhase: (phase: MatchPhase) => void;
@@ -106,8 +103,6 @@ const createInitialSessionData = (): SessionFormData => ({
   teleBallsMissed: 0,
   robot1Park: 'none',
   robot2Park: 'none',
-  gateBallCount: 0,
-  motifPattern: ['empty', 'empty', 'empty'],
   selectedFeature: 'Cycle Times',
   notes: '',
   cycleTimes: [],
@@ -134,18 +129,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return createInitialSessionData();
   });
 
-  // Load timer state from storage once on mount — only if session is active
-  const [storedTimerState] = useState<SessionTimerState | null>(() => {
-    const stored = loadSessionFromStorage();
-    if (stored && !stored.isSessionCompleted) {
+  // Load timer state from storage - but only if we actually loaded session data
+  const storedTimerState = (() => {
+    // Only use timer state if session wasn't completed
+    if (sessionData && !sessionData.isSessionCompleted) {
       return loadTimerStateFromStorage();
     }
     return null;
-  });
+  })();
 
-  // Match timer counts DOWN based on match type
+  // Match timer counts DOWN from FULL_GAME_DURATION_SECONDS (150) to 0
   const [timer, setTimer] = useState<number>(
-    () => storedTimerState?.matchTimer ?? getInitialTimerDuration(sessionData.matchType)
+    () => storedTimerState?.matchTimer ?? 150
   );
 
   // Phase management for FTC timing sequence
@@ -265,7 +260,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       clearInterval(interval);
     };
-  }, [isTimerRunning, matchPhase, sessionData.isSessionCompleted, sessionData.matchType]);
+  }, [isTimerRunning, matchPhase, sessionData.isSessionCompleted]);
 
   // Phase timer effect — counts DOWN during transition phases
   useEffect(() => {
@@ -277,14 +272,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       setPhaseTimer(prev => {
         if (matchPhase === 'controller_pickup') {
           if (prev <= 1) {
-            // Display stays at 0:01 until transition fires
             clearInterval(interval);
-            // Schedule transition outside the updater to avoid nested setState issues
-            setTimeout(() => {
-              setMatchPhase('prepare');
-              setPhaseTimer(3);
-            }, 0);
-            return 1;
+            setMatchPhase('prepare');
+            setPhaseTimer(3);
+            return 0;
           }
           return prev - 1;
         } else {
@@ -343,7 +334,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     // Save if there's session data OR if timers are active
     const hasSessionData =
-      sessionData.sessionName || sessionData.matches.length > 0;
+      sessionData.sessionName ||
+      sessionData.matches.length > 0;
     const hasActiveTimers =
       isTimerRunning || hasStarted || sessionTimer > 0;
 
@@ -382,6 +374,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setSessionData(prev => ({ ...prev, ...updates }));
   }, []);
 
+  const replaceSessionData = useCallback((data: SessionFormData) => {
+    setSessionData(data);
+  }, []);
+
   const completeSession = useCallback((timerValue: string) => {
     setSessionData(prev => ({
       ...prev,
@@ -395,10 +391,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const resetTimer = useCallback(() => {
-    setTimer(getInitialTimerDuration(sessionData.matchType));
-    setMatchPhase(sessionData.matchType === 'Teleop' ? 'teleop' : 'auton');
+    setTimer(150);
+    setMatchPhase('auton');
     setPhaseTimer(0);
-  }, [sessionData.matchType]);
+  }, []);
 
   const startEditingMatch = useCallback(
     (match: Match) => {
@@ -521,8 +517,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         robot1Park: 'none',
         robot2Park: 'none',
         cycleTimes: [],
-        autonShots: [],
-        teleopShots: [],
       };
     });
 
@@ -534,22 +528,15 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const resetSession = useCallback(() => {
     const newSessionData = createInitialSessionData();
     setSessionData(newSessionData);
-    setTimer(getInitialTimerDuration(newSessionData.matchType));
+    setTimer(150);
     setMatchPhase('auton');
     setPhaseTimer(0);
     setSessionTimer(0);
     setIsTimerRunning(false);
     setHasStarted(false);
     setMatchActive(false);
-    setIsPreMatchDelay(false);
-    if (preMatchDelayRef.current) {
-      clearTimeout(preMatchDelayRef.current);
-      preMatchDelayRef.current = null;
-    }
     setHasTransitionedToTeleop(false);
     setShowTeleopTransition(false);
-    setEditingMatchId(null);
-    setCurrentMatchData(null);
     // Clear from storage immediately to prevent race conditions with persistence effect
     clearSessionFromStorage();
     setHasActiveSessionLocal(false);
@@ -559,10 +546,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     // Only allow skip to teleop during Full Game mode in autonomous phases
     if (sessionData.matchType === 'Full Game' && 
         (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare')) {
-      // Pause audio when skipping to teleop
+      // Skip audio to the teleop portion (0:37)
       const globalAudio = (window as any)['__teamtrack_match_audio__'];
-      if (globalAudio && !globalAudio.paused) {
-        globalAudio.pause();
+      if (globalAudio) {
+        globalAudio.currentTime = 37;
+        if (globalAudio.paused) {
+          globalAudio.play().catch(() => {});
+        }
       }
       
       // Move directly to teleop phase
@@ -581,16 +571,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const value: SessionContextType = {
     sessionData,
     updateSessionData,
+    replaceSessionData,
     completeSession,
     resetSession,
     timer,
+    setTimer,
     sessionTimer,
     setSessionTimer,
     isTimerRunning,
     setIsTimerRunning,
     resetTimer,
     formatTime: formatTimeUtil,
-    getDisplayTimer: getDisplayTimerUtil,
     matchPhase,
     setMatchPhase,
     phaseTimer,

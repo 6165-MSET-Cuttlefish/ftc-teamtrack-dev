@@ -588,7 +588,13 @@ function dropElement(el: HTMLElement) {
 export const ActiveTutorial = () => {
   const { isDarkMode } = useTheme();
   const { user, isGuest, guestId, loading } = useAuth();
-  const { sessionData, matchActive, setMatchActive, setMatchPhase, setIsTimerRunning, updateSessionData, setIsTutorialActive } = useSession();
+  const {
+    sessionData, matchActive, setMatchActive, setMatchPhase, setIsTimerRunning,
+    resetSession, updateSessionData, replaceSessionData, setIsTutorialActive,
+    timer, setTimer, matchPhase, isTimerRunning, hasStarted, setHasStarted,
+    sessionTimer, setSessionTimer, hasTransitionedToTeleop, setHasTransitionedToTeleop,
+    showTeleopTransition, setShowTeleopTransition, phaseTimer, setPhaseTimer,
+  } = useSession();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const [taskCompleted, setTaskCompleted] = useState(false);
@@ -599,12 +605,20 @@ export const ActiveTutorial = () => {
   /** true when the user has already completed the tutorial once — all tasks are pre-skippable */
   const [isReplay, setIsReplay] = useState(false);
   const prevElRef = useRef<HTMLElement | null>(null);
-  // Track whether match was active BEFORE tutorial started, so we can restore it
-  const preTutorialMatchActiveRef = useRef<boolean | null>(null);
-  // Track if the tutorial itself created a match (so we can delete it later)
-  const tutorialCreatedMatchRef = useRef<boolean>(false);
-  // Snapshot of full session state BEFORE tutorial, to restore if no real match was running
-  const preTutorialSessionStateRef = useRef<any>(null);
+
+  // Snapshot of session state saved before the tutorial starts (if there was an active session)
+  const preTutorialSnapshotRef = useRef<{
+    sessionData: typeof sessionData;
+    matchActive: boolean;
+    matchPhase: typeof matchPhase;
+    timer: number;
+    isTimerRunning: boolean;
+    hasStarted: boolean;
+    sessionTimer: number;
+    hasTransitionedToTeleop: boolean;
+    showTeleopTransition: boolean;
+    phaseTimer: number;
+  } | null>(null);
 
   // Generate a stable tutorial key for both logged-in users and guests
   const getTutorialKey = useCallback(() => {
@@ -625,6 +639,24 @@ export const ActiveTutorial = () => {
       return () => clearTimeout(t);
     }
   }, []); // only on mount — independent of user loading
+
+  // Snapshot session state when tutorial becomes visible so we can restore it on dismiss
+  useEffect(() => {
+    if (!visible) return;
+    preTutorialSnapshotRef.current = {
+      sessionData: JSON.parse(JSON.stringify(sessionData)),
+      matchActive,
+      matchPhase,
+      timer,
+      isTimerRunning,
+      hasStarted,
+      sessionTimer,
+      hasTransitionedToTeleop,
+      showTeleopTransition,
+      phaseTimer,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]); // Only when visibility changes, not on every state update
 
   // Auto-show on first visit — works for both logged-in users AND guests
   useEffect(() => {
@@ -647,18 +679,6 @@ export const ActiveTutorial = () => {
     const seen = localStorage.getItem(tutorialKey);
     setIsReplay(!!seen);
   }, [visible, getTutorialKey]);
-
-  // Save the initial state when tutorial becomes visible (unless tutorial created the match)
-  useEffect(() => {
-    if (visible && !tutorialCreatedMatchRef.current) {
-      preTutorialMatchActiveRef.current = matchActive;
-      // Deep copy of sessionData to restore later if needed
-      preTutorialSessionStateRef.current = JSON.parse(JSON.stringify(sessionData));
-    } else if (!visible) {
-      preTutorialMatchActiveRef.current = null;
-      preTutorialSessionStateRef.current = null;
-    }
-  }, [visible, matchActive, sessionData]);
 
   // When replaying, auto-complete any page task so the user can click Next freely
   useEffect(() => {
@@ -687,24 +707,15 @@ export const ActiveTutorial = () => {
     setIsTutorialActive(visible);
   }, [visible, setIsTutorialActive]);
 
-  // Listen for restart and auto-start match if needed
+  // Listen for restart
   useEffect(() => {
     const handle = () => {
       setStep(0);
       setVisible(true);
-      // If no match is currently active, start one for the tutorial
-      if (!matchActive) {
-        tutorialCreatedMatchRef.current = true;
-        setMatchActive(true);
-        setMatchPhase('auton');
-        setIsTimerRunning(true);
-      } else {
-        tutorialCreatedMatchRef.current = false;
-      }
     };
     window.addEventListener(TUTORIAL_RESTART_EVENT, handle);
     return () => window.removeEventListener(TUTORIAL_RESTART_EVENT, handle);
-  }, [matchActive, setMatchActive, setMatchPhase, setIsTimerRunning]);
+  }, []);
 
   // Watch real sessionData/context for page-level task completion
   useEffect(() => {
@@ -946,73 +957,30 @@ export const ActiveTutorial = () => {
   const dismiss = useCallback(() => {
     setVisible(false);
     clearHighlight();
-    
-    const preTutorialMatchWasActive = preTutorialMatchActiveRef.current;
-    const preTutorialState = preTutorialSessionStateRef.current;
-    const wasCreatedByTutorial = tutorialCreatedMatchRef.current;
-    
-    // If tutorial created the match, delete it and reset everything
-    if (wasCreatedByTutorial) {
-      tutorialCreatedMatchRef.current = false;
-      if (preTutorialState) {
-        updateSessionData({
-          sessionName: preTutorialState.sessionName,
-          matchType: preTutorialState.matchType,
-          motifPattern: preTutorialState.motifPattern,
-          selectedFeature: preTutorialState.selectedFeature,
-          notes: preTutorialState.notes,
-          autonShots: preTutorialState.autonShots || [],
-          teleopShots: preTutorialState.teleopShots || [],
-          autonMotif: preTutorialState.autonMotif || 0,
-          teleMotif: preTutorialState.teleMotif || 0,
-          autonLeave: preTutorialState.autonLeave || 0,
-          gateBallCount: preTutorialState.gateBallCount || 0,
-          gateAddBackMode: preTutorialState.gateAddBackMode || false,
-          gateAddBackCount: preTutorialState.gateAddBackCount || 0,
-          matches: preTutorialState.matches || [],
-          finalScore: preTutorialState.finalScore || 0,
-          autonomousScore: preTutorialState.autonomousScore || 0,
-          teleopScore: preTutorialState.teleopScore || 0,
-          endGameScore: preTutorialState.endGameScore || 0,
-        });
-      }
-      setMatchActive(false);
-      setIsTimerRunning(false);
-      setMatchPhase(null as any);
-    } else if (preTutorialMatchWasActive) {
-      // If an actual match was running BEFORE the tutorial started, pause it
-      setIsTimerRunning(false);
+    setIsTutorialActive(false);
+
+    // Restore session state from the pre-tutorial snapshot
+    const snapshot = preTutorialSnapshotRef.current;
+    if (snapshot) {
+      // Full replacement of session data (not a merge) to ensure tutorial-only
+      // properties like motifPattern/gateBallCount don't leak through
+      replaceSessionData(snapshot.sessionData);
+      // Restore match state
+      setMatchActive(snapshot.matchActive);
+      setMatchPhase(snapshot.matchPhase);
+      setTimer(snapshot.timer);
+      setIsTimerRunning(snapshot.isTimerRunning);
+      setHasStarted(snapshot.hasStarted);
+      setSessionTimer(snapshot.sessionTimer);
+      setHasTransitionedToTeleop(snapshot.hasTransitionedToTeleop);
+      setShowTeleopTransition(snapshot.showTeleopTransition);
+      setPhaseTimer(snapshot.phaseTimer);
+      preTutorialSnapshotRef.current = null;
     } else {
-      // If no match was running and tutorial didn't create one, just restore state
-      if (preTutorialState) {
-        updateSessionData({
-          sessionName: preTutorialState.sessionName,
-          matchType: preTutorialState.matchType,
-          motifPattern: preTutorialState.motifPattern,
-          selectedFeature: preTutorialState.selectedFeature,
-          notes: preTutorialState.notes,
-          autonShots: preTutorialState.autonShots || [],
-          teleopShots: preTutorialState.teleopShots || [],
-          autonMotif: preTutorialState.autonMotif || 0,
-          teleMotif: preTutorialState.teleMotif || 0,
-          autonLeave: preTutorialState.autonLeave || 0,
-          gateBallCount: preTutorialState.gateBallCount || 0,
-          gateAddBackMode: preTutorialState.gateAddBackMode || false,
-          gateAddBackCount: preTutorialState.gateAddBackCount || 0,
-          matches: preTutorialState.matches || [],
-          finalScore: preTutorialState.finalScore || 0,
-          autonomousScore: preTutorialState.autonomousScore || 0,
-          teleopScore: preTutorialState.teleopScore || 0,
-          endGameScore: preTutorialState.endGameScore || 0,
-        });
-      }
-      if (matchActive) {
-        setMatchActive(false);
-        setIsTimerRunning(false);
-        setMatchPhase(null as any);
-      }
+      // Fallback: no snapshot available (shouldn't happen normally)
+      resetSession();
     }
-    
+
     // Notify other components (e.g. clear keybind popup)
     window.dispatchEvent(new Event(TUTORIAL_ENDED_EVENT));
     // Scroll back to top
@@ -1020,7 +988,7 @@ export const ActiveTutorial = () => {
     // Mark tutorial as seen for this user/guest
     const tutorialKey = getTutorialKey();
     localStorage.setItem(tutorialKey, 'true');
-  }, [getTutorialKey, clearHighlight, matchActive, setIsTimerRunning, setMatchActive, setMatchPhase, updateSessionData]);
+  }, [getTutorialKey, clearHighlight, resetSession, replaceSessionData, setIsTutorialActive, setMatchActive, setMatchPhase, setTimer, setIsTimerRunning, setHasStarted, setSessionTimer, setHasTransitionedToTeleop, setShowTeleopTransition, setPhaseTimer]);
 
   const next = useCallback(() => {
     if (step >= STEPS.length - 1) dismiss();

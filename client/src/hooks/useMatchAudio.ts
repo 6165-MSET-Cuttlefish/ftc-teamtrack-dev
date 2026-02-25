@@ -101,7 +101,7 @@ export const useMatchAudio = () => {
   // Play audio when match starts (any mode: Full Game, Autonomous, or Teleop)
   // Mute audio if tutorial is active (audio plays silently so timer is imperceptible)
   useEffect(() => {
-    if (matchActive && (isTimerRunning || isPreMatchDelay) && audioRef.current) {
+    if (matchActive && (isTimerRunning || isPreMatchDelay) && timer > 0 && audioRef.current) {
       if (!hasPlayedRef.current) {
         hasPlayedRef.current = true;
         // Mute audio during tutorial, unmute during normal play
@@ -114,12 +114,12 @@ export const useMatchAudio = () => {
         audioRef.current.muted = isTutorialActive;
       }
     }
-  }, [matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive]);
+  }, [matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive, timer]);
 
   // Pause/resume audio when timer pauses/resumes (but keep playing during pre-match delay)
   useEffect(() => {
     if (matchActive && audioRef.current) {
-      if (isTimerRunning || isPreMatchDelay) {
+      if ((isTimerRunning || isPreMatchDelay) && timer > 0) {
         audioRef.current.play().catch(() => {
           // Silently fail if autoplay is blocked
         });
@@ -128,7 +128,7 @@ export const useMatchAudio = () => {
         audioRef.current.pause();
       }
     }
-  }, [isTimerRunning, matchActive, isPreMatchDelay, matchPhase]);
+  }, [isTimerRunning, matchActive, isPreMatchDelay, matchPhase, timer]);
 
   // Stop and reset audio when match becomes inactive OR timer reaches 0
   useEffect(() => {
