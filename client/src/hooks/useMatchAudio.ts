@@ -71,7 +71,7 @@ const clearAudioState = () => {
 export const useMatchAudio = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedRef = useRef<boolean>(false);
-  const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay, timer } = useSession();
+  const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay, timer, isTutorialActive } = useSession();
 
   // Initialize global audio element and persistence once
   useEffect(() => {
@@ -99,16 +99,22 @@ export const useMatchAudio = () => {
   }, []);
 
   // Play audio when match starts (any mode: Full Game, Autonomous, or Teleop)
+  // Mute audio if tutorial is active (audio plays silently so timer is imperceptible)
   useEffect(() => {
     if (matchActive && (isTimerRunning || isPreMatchDelay) && audioRef.current) {
       if (!hasPlayedRef.current) {
         hasPlayedRef.current = true;
+        // Mute audio during tutorial, unmute during normal play
+        audioRef.current.muted = isTutorialActive;
         audioRef.current.play().catch((err) => {
           console.log('Audio autoplay blocked or error:', err);
         });
+      } else {
+        // Audio is already playing, just update mute state
+        audioRef.current.muted = isTutorialActive;
       }
     }
-  }, [matchActive, isTimerRunning, isPreMatchDelay]);
+  }, [matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive]);
 
   // Pause/resume audio when timer pauses/resumes (but keep playing during pre-match delay)
   useEffect(() => {

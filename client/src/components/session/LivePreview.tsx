@@ -506,12 +506,17 @@ export const LivePreview = ({
                             onTryStartWithoutSetup?.();
                             return;
                           }
-                          const motifIsSet = sessionData.motifPattern && !sessionData.motifPattern.every((c: string) => c === 'empty');
-                          if (!motifIsSet) {
+                          // Check if motif is enabled and needs setup
+                          const hasMotifEnabled = sessionData.motifPattern !== undefined;
+                          const motifPurpleCount = sessionData.motifPattern?.filter(c => c === 'purple').length ?? 0;
+                          const motifGreenCount = sessionData.motifPattern?.filter(c => c === 'green').length ?? 0;
+                          const motifIsProperlySet = motifPurpleCount === 2 && motifGreenCount === 1;
+                          
+                          if (hasMotifEnabled && !motifIsProperlySet) {
                             // Step 1: open motif dialog to set pattern first
                             setShowMotifDialog(true);
                           } else {
-                            // Step 2: motif already set, start the match
+                            // Step 2: motif is properly set or disabled, start the match
                             setHasStarted(true);
                             setMatchActive(true);
                             if (sessionData.matchType === 'Teleop') {
@@ -521,7 +526,7 @@ export const LivePreview = ({
                               setMatchPhase('auton');
                               setIsTimerRunning(true);
                             } else {
-                              // Full Game: 1.61s audio intro delay before countdown
+                              // Full Game: 1.15s audio intro delay before countdown
                               setMatchPhase('auton');
                               setIsPreMatchDelay(true);
                               if (preMatchDelayRef.current) clearTimeout(preMatchDelayRef.current);
@@ -529,7 +534,7 @@ export const LivePreview = ({
                                 setIsPreMatchDelay(false);
                                 setIsTimerRunning(true);
                                 preMatchDelayRef.current = null;
-                              }, 1610);
+                              }, 1150);
                             }
                             window.dispatchEvent(new Event('teamtrack-match-started'));
                           }
@@ -551,9 +556,13 @@ export const LivePreview = ({
                   }`}
                 >
                   {!matchActive
-                    ? (sessionData.motifPattern && !sessionData.motifPattern.every((c: string) => c === 'empty')
-                      ? 'Start Match'
-                      : 'Set Motif')
+                    ? (() => {
+                        const hasMotifEnabled = sessionData.motifPattern !== undefined;
+                        const motifPurpleCount = sessionData.motifPattern?.filter(c => c === 'purple').length ?? 0;
+                        const motifGreenCount = sessionData.motifPattern?.filter(c => c === 'green').length ?? 0;
+                        const motifIsProperlySet = motifPurpleCount === 2 && motifGreenCount === 1;
+                        return hasMotifEnabled && !motifIsProperlySet ? 'Set Motif' : 'Start Match';
+                      })()
                     : 'Save Match'}
                 </button>
               )}
@@ -1027,13 +1036,15 @@ export const LivePreview = ({
         </div>
       )}
 
-      {/* Motif Setup Dialog */}
-      <MotifSetupDialog
-        isOpen={showMotifDialog}
-        onConfirm={handleMotifDialogConfirm}
-        onCancel={handleMotifDialogCancel}
-        initialPattern={sessionData.motifPattern ?? ['empty', 'empty', 'empty']}
-      />
+      {/* Motif Setup Dialog - only show if motif is enabled */}
+      {sessionData.motifPattern !== undefined && (
+        <MotifSetupDialog
+          isOpen={showMotifDialog}
+          onConfirm={handleMotifDialogConfirm}
+          onCancel={handleMotifDialogCancel}
+          initialPattern={sessionData.motifPattern ?? ['empty', 'empty', 'empty']}
+        />
+      )}
     </div>
   );
 };

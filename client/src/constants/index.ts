@@ -59,7 +59,7 @@ export const GAME_TIMING = {
   /** Duration of the prepare phase */
   PREPARE_SECONDS: 3,
   /** Duration of the audio intro before countdown (seconds) */
-  AUDIO_INTRO_SECONDS: 1.61,
+  AUDIO_INTRO_SECONDS: 1.15,
   MAX_THEORETICAL_SCORE: 150,
 } as const;
 

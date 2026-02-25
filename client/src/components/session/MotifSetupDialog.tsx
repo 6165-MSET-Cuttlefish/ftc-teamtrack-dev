@@ -39,8 +39,10 @@ export const MotifSetupDialog = ({
     });
   }, []);
 
-  // Check if all slots are filled (no empty)
-  const isComplete = motifPattern.every((c) => c !== 'empty');
+  // Check if pattern is 2 purple and 1 green
+  const purpleCount = motifPattern.filter(c => c === 'purple').length;
+  const greenCount = motifPattern.filter(c => c === 'green').length;
+  const isComplete = purpleCount === 2 && greenCount === 1;
 
   const getMotifSlotStyle = (color: MotifColor) => {
     if (color === 'purple') {
@@ -77,6 +79,7 @@ export const MotifSetupDialog = ({
           <AlertCircle className="w-4 h-4 text-team-blue flex-shrink-0 mt-0.5" />
           <div className="space-y-1 text-xs">
             <p className="font-semibold">Before starting the match:</p>
+            <p>Set exactly <span className="font-bold">2 purple</span> and <span className="font-bold">1 green</span></p>
             <p>
               <span className="font-bold">Click once</span> for{' '}
               <span className={isDarkMode ? 'text-purple-400' : 'text-purple-600'}>
@@ -89,7 +92,6 @@ export const MotifSetupDialog = ({
                 green
               </span>
             </p>
-            <p>You must set all 3 balls before starting.</p>
           </div>
         </div>
 
@@ -121,7 +123,7 @@ export const MotifSetupDialog = ({
               isDarkMode ? 'text-gray-400' : 'text-gray-500'
             }`}
           >
-            {motifPattern.filter((c) => c !== 'empty').length}/3 balls set
+            {purpleCount} purple, {greenCount} green — need 2 purple + 1 green
           </p>
         )}
 

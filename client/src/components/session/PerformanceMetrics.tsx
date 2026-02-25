@@ -337,8 +337,8 @@ const ShotLogTable: React.FC<{
                   }`}
                 >
                   <div
-                    className={`px-1 py-2 text-center text-xs font-medium ${
-                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                    className={`px-1 py-2 text-center text-base font-semibold ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
                     }`}
                   >
                     {i + 1}
@@ -1136,6 +1136,7 @@ export const PerformanceMetrics = () => {
   // ── Render ────────────────────────────────────────────────────────
   const showAuton = sessionData.matchType !== 'Teleop';
   const showTeleop = sessionData.matchType !== 'Autonomous';
+  const hasMotifEnabled = sessionData.motifPattern !== undefined;
 
   return (
     <>
@@ -1402,13 +1403,13 @@ export const PerformanceMetrics = () => {
                 Total
               </div>
               <div
-                className={`px-3 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                className={`px-3 py-3 text-center text-base font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 {sumField(autonShots, 'ballsShot') +
                   sumField(teleopShots, 'ballsShot')}
               </div>
               <div
-                className={`px-3 py-3 text-center text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                className={`px-3 py-3 text-center text-base font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 {sumField(autonShots, 'ballsMade') +
                   sumField(teleopShots, 'ballsMade')}
@@ -1471,6 +1472,7 @@ export const PerformanceMetrics = () => {
               </label>
 
               {/* Autonomous Motif */}
+              {hasMotifEnabled && (
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-1">
                   <span className={`text-xs font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -1511,6 +1513,7 @@ export const PerformanceMetrics = () => {
                   {countBits(sessionData.autonMotif ?? 0) * 2} pts
                 </span>
               </div>
+              )}
             </div>
 
             <ShotLogTable
@@ -1533,6 +1536,7 @@ export const PerformanceMetrics = () => {
         {selectedTab === 'teleop' && showTeleop && (
           <div className="flex flex-col gap-6">
             {/* Teleop Motif */}
+            {hasMotifEnabled && (
             <div className={`rounded-xl p-3 flex items-center justify-between ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}>
               <div className="flex flex-col gap-1">
                 <span className={`text-xs font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -1573,6 +1577,7 @@ export const PerformanceMetrics = () => {
                 {countBits(sessionData.teleMotif ?? 0) * 2} pts
               </span>
             </div>
+            )}
 
             <ShotLogTable
               label="TeleOp Shots"

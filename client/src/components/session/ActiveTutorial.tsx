@@ -146,7 +146,7 @@ const ScoringPreview = ({ dark }: { dark: boolean }) => {
 
 // ── Interactive Keybinds Guide: Step-by-step keyboard scoring ──────────────
 const KeybindsPreview = ({ dark }: { dark: boolean }) => {
-  const [step, setStep] = useState(0); // 0: press 3, 1: press 2, 2: press enter, 3: done
+  const [step, setStep] = useState(0); // 0: shots attempted, 1: shots made, 2: enter
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -155,86 +155,89 @@ const KeybindsPreview = ({ dark }: { dark: boolean }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const steps = [
-    { label: 'Press Shot Count', key: '3', desc: 'How many balls shot?' },
-    { label: 'Press Made Count', key: '2', desc: 'How many scored?' },
-    { label: 'Press Enter', key: '⏎', desc: 'Confirm & save' },
-    { label: 'Score Recorded!', key: '✓', desc: 'Try it yourself' },
-  ];
-
-  const currentStep = steps[step];
   const keyBg = dark ? '#a855f7' : '#9333ea';
   const keyText = '#fff';
   const textDim = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+  const dividerColor = dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
 
   return (
     <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-4">Keyboard Shortcut</div>
+      <div className="text-team-blue font-semibold text-sm mb-6">Keyboard Shortcut Flow</div>
       
-      {/* Animated input cells showing progress */}
-      <div className="flex items-end gap-2 mb-6 h-16">
-        {/* Shot cell */}
-        <div className="flex-1 flex flex-col items-center">
-          <div
-            className="w-full h-12 rounded-lg border-2 flex items-center justify-center text-xl font-bold transition-all duration-500"
-            style={{
-              borderColor: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
-              backgroundColor: step >= 0 ? `${keyBg}22` : 'transparent',
-              transform: step === 0 ? 'scale(1.05)' : 'scale(1)',
-              color: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'),
-            }}
-          >
-            {step >= 0 ? '3' : '—'}
+      {/* Vertical flow */}
+      <div className="flex flex-col gap-4">
+        {/* Step 1: Shots Attempted */}
+        <div className="flex items-center justify-between px-2">
+          <div className="text-xs font-medium flex-1" style={{ color: textDim }}>Shots Attempted</div>
+          <div className="flex gap-1">
+            <kbd className={`px-2 py-1 rounded text-xs font-mono transition-all ${step === 0 ? 'scale-105' : 'scale-100'}`}
+              style={{
+                backgroundColor: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+                color: keyText,
+                borderColor: step === 0 ? keyBg : 'transparent',
+                border: '1px solid',
+              }}>1</kbd>
+            <kbd className={`px-2 py-1 rounded text-xs font-mono transition-all ${step === 0 ? 'scale-105' : 'scale-100'}`}
+              style={{
+                backgroundColor: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+                color: keyText,
+                borderColor: step === 0 ? keyBg : 'transparent',
+                border: '1px solid',
+              }}>2</kbd>
+            <kbd className={`px-2 py-1 rounded text-xs font-mono transition-all ${step === 0 ? 'scale-105' : 'scale-100'}`}
+              style={{
+                backgroundColor: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+                color: keyText,
+                borderColor: step === 0 ? keyBg : 'transparent',
+                border: '1px solid',
+              }}>3</kbd>
           </div>
-          <span className="text-xs mt-2 text-center" style={{ color: textDim }}>Shot</span>
         </div>
 
-        {/* Plus sign */}
-        <div className="pb-4 text-lg font-light" style={{ color: textDim }}>+</div>
+        {/* Plus divider */}
+        <div className="w-full text-center" style={{ color: dividerColor }}>+</div>
 
-        {/* Made cell */}
-        <div className="flex-1 flex flex-col items-center">
-          <div
-            className="w-full h-12 rounded-lg border-2 flex items-center justify-center text-xl font-bold transition-all duration-500"
-            style={{
-              borderColor: step >= 1 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
-              backgroundColor: step >= 1 ? `${keyBg}22` : 'transparent',
-              transform: step === 1 ? 'scale(1.05)' : 'scale(1)',
-              color: step >= 1 ? keyBg : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'),
-            }}
-          >
-            {step >= 1 ? '2' : '—'}
+        {/* Step 2: Shots Made */}
+        <div className="flex items-center justify-between px-2">
+          <div className="text-xs font-medium flex-1" style={{ color: textDim }}>Shots Made</div>
+          <div className="flex gap-1">
+            <kbd className={`px-2 py-1 rounded text-xs font-mono transition-all ${step === 1 ? 'scale-105' : 'scale-100'}`}
+              style={{
+                backgroundColor: step >= 1 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+                color: keyText,
+                borderColor: step === 1 ? keyBg : 'transparent',
+                border: '1px solid',
+              }}>0</kbd>
+            <span className="text-xs font-medium px-1" style={{ color: textDim }}>...N</span>
           </div>
-          <span className="text-xs mt-2 text-center" style={{ color: textDim }}>Made</span>
         </div>
-      </div>
 
-      {/* Key instruction */}
-      <div className="flex flex-col items-center gap-3 py-4 px-3 rounded-xl" style={{ backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-        <div className="text-xs font-medium" style={{ color: textDim }}>{currentStep.desc}</div>
-        <div
-          className="px-6 py-3 rounded-lg font-bold text-lg transition-all duration-500"
-          style={{
-            backgroundColor: keyBg,
-            color: keyText,
-            transform: step === 2 ? 'scale(1.1)' : 'scale(1)',
-            boxShadow: step === 2 ? `0 0 20px ${keyBg}66` : 'none',
-          }}
-        >
-          {currentStep.key}
+        {/* Confirm icon */}
+        <div className="w-full text-center text-2xl my-2" style={{ color: keyBg }}>✓</div>
+
+        {/* Step 3: Press Enter */}
+        <div className="flex items-center justify-between px-2">
+          <div className="text-xs font-medium flex-1" style={{ color: textDim }}>Confirm & Save</div>
+          <kbd className={`px-4 py-2 rounded text-xs font-mono transition-all ${step === 2 ? 'scale-110' : 'scale-100'}`}
+            style={{
+              backgroundColor: step === 2 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+              color: keyText,
+              borderColor: step === 2 ? keyBg : 'transparent',
+              border: '1px solid',
+              boxShadow: step === 2 ? `0 0 20px ${keyBg}66` : 'none',
+            }}>Enter</kbd>
         </div>
-        <div className="text-sm font-semibold" style={{ color: dark ? '#fff' : '#000' }}>{currentStep.label}</div>
       </div>
 
       {/* Progress dots */}
-      <div className="flex justify-center gap-2 mt-4">
-        {steps.map((_, i) => (
+      <div className="flex justify-center gap-2 mt-6">
+        {[0, 1, 2].map((i) => (
           <div
             key={i}
             className="h-1.5 rounded-full transition-all duration-500"
             style={{
-              width: i <= step ? '8px' : '4px',
-              backgroundColor: i <= step ? keyBg : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'),
+              width: i <= step && step < 3 ? '8px' : '4px',
+              backgroundColor: i <= step && step < 3 ? keyBg : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'),
             }}
           />
         ))}
@@ -268,24 +271,11 @@ const MetricsPreview = ({ dark }: { dark: boolean }) => {
 
   return (
     <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-3">Scoring Metrics</div>
-
-      {/* Mini tab bar */}
-      <div
-        className="flex gap-1 rounded-lg p-0.5 mb-3"
-        style={{ backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }}
-      >
-        {(['Autonomous', 'Endgame'] as const).map(t => (
-          <div key={t} style={tabStyle((t === 'Autonomous') === (view === 'leave'))}>{t}</div>
-        ))}
-      </div>
-
       {view === 'leave' ? (
         <div
           className="rounded-lg p-3 flex flex-col gap-2"
           style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}
         >
-          <div className="text-xs font-semibold" style={{ color: textDim }}>Autonomous Leave</div>
           <label className="flex items-center gap-2 cursor-default select-none">
             <div
               className="w-4 h-4 rounded flex items-center justify-center"
@@ -303,7 +293,6 @@ const MetricsPreview = ({ dark }: { dark: boolean }) => {
             </span>
             <span className="text-xs font-bold" style={{ color: 'rgb(var(--team-blue))' }}>+3 pts</span>
           </label>
-          <div className="text-[10px] mt-1" style={{ color: textDim }}>✏️ Editable anytime — even after saving the match</div>
         </div>
       ) : (
         <div
@@ -354,6 +343,8 @@ const GatePreview = ({ dark }: { dark: boolean }) => {
 
   const GATE_CAPACITY = 9;
   const ballsInGate = 6;
+  const ballsKept = 2;
+  const ballsRemaining = released ? ballsKept : ballsInGate;
 
   return (
     <PreviewBox dark={dark}>
@@ -370,7 +361,7 @@ const GatePreview = ({ dark }: { dark: boolean }) => {
             className="w-6 h-6 rounded-full border-2 transition-all duration-500"
             style={{
               backgroundColor:
-                i < (released ? 0 : ballsInGate)
+                i < ballsRemaining
                   ? i % 2 === 0
                     ? dark
                       ? '#a855f7'
@@ -382,7 +373,7 @@ const GatePreview = ({ dark }: { dark: boolean }) => {
                     ? '#374151'
                     : '#e5e7eb',
               borderColor:
-                i < (released ? 0 : ballsInGate)
+                i < ballsRemaining
                   ? i % 2 === 0
                     ? dark
                       ? '#9333ea'
@@ -393,8 +384,8 @@ const GatePreview = ({ dark }: { dark: boolean }) => {
                   : dark
                     ? '#4b5563'
                     : '#d1d5db',
-              transform: released && i < ballsInGate ? 'scale(0) translateY(20px)' : 'scale(1) translateY(0)',
-              opacity: released && i < ballsInGate ? 0 : 1,
+              transform: released && i >= ballsKept && i < ballsInGate ? 'scale(0) translateY(20px)' : 'scale(1) translateY(0)',
+              opacity: released && i >= ballsKept && i < ballsInGate ? 0 : 1,
             }}
           />
         ))}
@@ -405,7 +396,7 @@ const GatePreview = ({ dark }: { dark: boolean }) => {
           color: dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
         }}
       >
-        {released ? 'Released!' : `Holding ${ballsInGate} balls`}
+        {released ? `Released 4, keeping ${ballsKept}` : `Holding ${ballsInGate} balls`}
       </div>
     </PreviewBox>
   );
@@ -479,13 +470,18 @@ interface StepDef {
 const STEPS: StepDef[] = [
   {
     title: 'Welcome to TeamTrack!',
-    body: 'Record every shot and motif during your match. The scoring, gate, and metrics panel are all you need. Replay anytime from the help button (?) in the top-right.',
+    body: (
+      <div className="space-y-2">
+        <div>Record every shot during your match.</div>
+        <div>Replay anytime from the help button (?) in the top-right.</div>
+      </div>
+    ) as any,
     target: null,
     preview: null,
   },
   {
     title: 'Scoring Grid',
-    body: 'Each row = balls shot. Tap to select how many scored — dashed are missed, solid are made.',
+    body: 'Each row = balls shot. Select how many scored',
     target: 'scoring',
     preview: d => <ScoringPreview dark={d} />,
     pageAction: 'Record 3 shots using tap method',
@@ -501,7 +497,7 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Gate Mechanic',
-    body: 'The gate holds classified balls. Click "Open Gate → Confirm" or press G → number → Enter. Quick way to manage your ball count.',
+    body: 'Click "Open Gate → Confirm" or press G → number → Enter.',
     target: 'gate',
     preview: d => <GatePreview dark={d} />,
     pageAction: 'Complete at least 2 gate cycles',
@@ -592,7 +588,7 @@ function dropElement(el: HTMLElement) {
 export const ActiveTutorial = () => {
   const { isDarkMode } = useTheme();
   const { user, isGuest, guestId, loading } = useAuth();
-  const { sessionData, matchActive, setMatchActive, setMatchPhase, setIsTimerRunning, resetSession, updateSessionData } = useSession();
+  const { sessionData, matchActive, setMatchActive, setMatchPhase, setIsTimerRunning, updateSessionData, setIsTutorialActive } = useSession();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const [taskCompleted, setTaskCompleted] = useState(false);
@@ -603,6 +599,12 @@ export const ActiveTutorial = () => {
   /** true when the user has already completed the tutorial once — all tasks are pre-skippable */
   const [isReplay, setIsReplay] = useState(false);
   const prevElRef = useRef<HTMLElement | null>(null);
+  // Track whether match was active BEFORE tutorial started, so we can restore it
+  const preTutorialMatchActiveRef = useRef<boolean | null>(null);
+  // Track if the tutorial itself created a match (so we can delete it later)
+  const tutorialCreatedMatchRef = useRef<boolean>(false);
+  // Snapshot of full session state BEFORE tutorial, to restore if no real match was running
+  const preTutorialSessionStateRef = useRef<any>(null);
 
   // Generate a stable tutorial key for both logged-in users and guests
   const getTutorialKey = useCallback(() => {
@@ -646,6 +648,18 @@ export const ActiveTutorial = () => {
     setIsReplay(!!seen);
   }, [visible, getTutorialKey]);
 
+  // Save the initial state when tutorial becomes visible (unless tutorial created the match)
+  useEffect(() => {
+    if (visible && !tutorialCreatedMatchRef.current) {
+      preTutorialMatchActiveRef.current = matchActive;
+      // Deep copy of sessionData to restore later if needed
+      preTutorialSessionStateRef.current = JSON.parse(JSON.stringify(sessionData));
+    } else if (!visible) {
+      preTutorialMatchActiveRef.current = null;
+      preTutorialSessionStateRef.current = null;
+    }
+  }, [visible, matchActive, sessionData]);
+
   // When replaying, auto-complete any page task so the user can click Next freely
   useEffect(() => {
     if (!visible || !isReplay) return;
@@ -668,15 +682,29 @@ export const ActiveTutorial = () => {
     }
   }, [visible, step, matchActive, sessionData.matchType, setMatchActive, setMatchPhase]);
 
-  // Listen for restart
+  // Sync tutorial visible state with isTutorialActive to prevent audio playback
+  useEffect(() => {
+    setIsTutorialActive(visible);
+  }, [visible, setIsTutorialActive]);
+
+  // Listen for restart and auto-start match if needed
   useEffect(() => {
     const handle = () => {
       setStep(0);
       setVisible(true);
+      // If no match is currently active, start one for the tutorial
+      if (!matchActive) {
+        tutorialCreatedMatchRef.current = true;
+        setMatchActive(true);
+        setMatchPhase('auton');
+        setIsTimerRunning(true);
+      } else {
+        tutorialCreatedMatchRef.current = false;
+      }
     };
     window.addEventListener(TUTORIAL_RESTART_EVENT, handle);
     return () => window.removeEventListener(TUTORIAL_RESTART_EVENT, handle);
-  }, []);
+  }, [matchActive, setMatchActive, setMatchPhase, setIsTimerRunning]);
 
   // Watch real sessionData/context for page-level task completion
   useEffect(() => {
@@ -733,6 +761,24 @@ export const ActiveTutorial = () => {
       detail: { step, target: current?.target, taskCompleted }
     }));
   }, [visible, step, taskCompleted]);
+
+  // When reaching the Gate step, set up 9 balls for the user to interact with
+  const GATE_STEP_INDEX = STEPS.findIndex(s => s.title === 'Gate Mechanic');
+  const [gateStepInitialized, setGateStepInitialized] = useState(false);
+  useEffect(() => {
+    if (!visible || step !== GATE_STEP_INDEX) {
+      setGateStepInitialized(false);
+      return;
+    }
+    if (gateStepInitialized) return; // Only run once per step entry
+    
+    setGateStepInitialized(true);
+    const GATE_CAPACITY = 9;
+    // Set gateBallCount to 9 for gate tutorial step
+    if ((sessionData.gateBallCount ?? 0) !== GATE_CAPACITY) {
+      updateSessionData({ gateBallCount: GATE_CAPACITY });
+    }
+  }, [visible, step, GATE_STEP_INDEX, sessionData.gateBallCount, gateStepInitialized, updateSessionData]);
 
   // When on the motif scoring step, force match state to 'ended' so real M buttons appear
   const MOTIF_STEP_INDEX = STEPS.findIndex(s => s.watchKey === 'motifScore');
@@ -900,8 +946,73 @@ export const ActiveTutorial = () => {
   const dismiss = useCallback(() => {
     setVisible(false);
     clearHighlight();
-    // Reset all session data
-    resetSession();
+    
+    const preTutorialMatchWasActive = preTutorialMatchActiveRef.current;
+    const preTutorialState = preTutorialSessionStateRef.current;
+    const wasCreatedByTutorial = tutorialCreatedMatchRef.current;
+    
+    // If tutorial created the match, delete it and reset everything
+    if (wasCreatedByTutorial) {
+      tutorialCreatedMatchRef.current = false;
+      if (preTutorialState) {
+        updateSessionData({
+          sessionName: preTutorialState.sessionName,
+          matchType: preTutorialState.matchType,
+          motifPattern: preTutorialState.motifPattern,
+          selectedFeature: preTutorialState.selectedFeature,
+          notes: preTutorialState.notes,
+          autonShots: preTutorialState.autonShots || [],
+          teleopShots: preTutorialState.teleopShots || [],
+          autonMotif: preTutorialState.autonMotif || 0,
+          teleMotif: preTutorialState.teleMotif || 0,
+          autonLeave: preTutorialState.autonLeave || 0,
+          gateBallCount: preTutorialState.gateBallCount || 0,
+          gateAddBackMode: preTutorialState.gateAddBackMode || false,
+          gateAddBackCount: preTutorialState.gateAddBackCount || 0,
+          matches: preTutorialState.matches || [],
+          finalScore: preTutorialState.finalScore || 0,
+          autonomousScore: preTutorialState.autonomousScore || 0,
+          teleopScore: preTutorialState.teleopScore || 0,
+          endGameScore: preTutorialState.endGameScore || 0,
+        });
+      }
+      setMatchActive(false);
+      setIsTimerRunning(false);
+      setMatchPhase(null as any);
+    } else if (preTutorialMatchWasActive) {
+      // If an actual match was running BEFORE the tutorial started, pause it
+      setIsTimerRunning(false);
+    } else {
+      // If no match was running and tutorial didn't create one, just restore state
+      if (preTutorialState) {
+        updateSessionData({
+          sessionName: preTutorialState.sessionName,
+          matchType: preTutorialState.matchType,
+          motifPattern: preTutorialState.motifPattern,
+          selectedFeature: preTutorialState.selectedFeature,
+          notes: preTutorialState.notes,
+          autonShots: preTutorialState.autonShots || [],
+          teleopShots: preTutorialState.teleopShots || [],
+          autonMotif: preTutorialState.autonMotif || 0,
+          teleMotif: preTutorialState.teleMotif || 0,
+          autonLeave: preTutorialState.autonLeave || 0,
+          gateBallCount: preTutorialState.gateBallCount || 0,
+          gateAddBackMode: preTutorialState.gateAddBackMode || false,
+          gateAddBackCount: preTutorialState.gateAddBackCount || 0,
+          matches: preTutorialState.matches || [],
+          finalScore: preTutorialState.finalScore || 0,
+          autonomousScore: preTutorialState.autonomousScore || 0,
+          teleopScore: preTutorialState.teleopScore || 0,
+          endGameScore: preTutorialState.endGameScore || 0,
+        });
+      }
+      if (matchActive) {
+        setMatchActive(false);
+        setIsTimerRunning(false);
+        setMatchPhase(null as any);
+      }
+    }
+    
     // Notify other components (e.g. clear keybind popup)
     window.dispatchEvent(new Event(TUTORIAL_ENDED_EVENT));
     // Scroll back to top
@@ -909,7 +1020,7 @@ export const ActiveTutorial = () => {
     // Mark tutorial as seen for this user/guest
     const tutorialKey = getTutorialKey();
     localStorage.setItem(tutorialKey, 'true');
-  }, [getTutorialKey, clearHighlight, resetSession]);
+  }, [getTutorialKey, clearHighlight, matchActive, setIsTimerRunning, setMatchActive, setMatchPhase, updateSessionData]);
 
   const next = useCallback(() => {
     if (step >= STEPS.length - 1) dismiss();

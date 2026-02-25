@@ -150,6 +150,33 @@ export const SessionSetup = ({
           </div>
         </div>
 
+        {/* Motif Toggle */}
+        <div className="flex flex-col">
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={sessionData.motifPattern !== undefined}
+              onChange={e => {
+                if (e.target.checked) {
+                  updateSessionData({ motifPattern: ['empty', 'empty', 'empty'] });
+                } else {
+                  updateSessionData({ motifPattern: undefined });
+                }
+              }}
+              disabled={matchActive}
+              className="w-4 h-4 accent-team-blue cursor-pointer"
+            />
+            <span className={`text-sm font-semibold tracking-wide ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>Enable Motif Scoring</span>
+          </label>
+          <p className={`text-xs mt-2 ${
+            isDarkMode ? 'text-gray-500' : 'text-gray-400'
+          }`}>
+            {sessionData.motifPattern !== undefined ? 'Motif buttons will appear during the match' : 'Skip motif scoring for this match'}
+          </p>
+        </div>
+
         {/* Save Button */}
         <div className="flex justify-end pt-2">
           <Button

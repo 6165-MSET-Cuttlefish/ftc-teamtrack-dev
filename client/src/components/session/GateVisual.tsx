@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSession, useTheme } from '@/contexts';
 import { MotifSetupDialog } from './MotifSetupDialog';
 import { TUTORIAL_GATE_CYCLE_EVENT } from './ActiveTutorial';
-import { Edit2 } from 'lucide-react';
 
 const GATE_CAPACITY = 9;
 const POINTS_PER_MOTIF = 2;
@@ -42,6 +41,7 @@ export const GateVisual = () => {
   const isGateOpen = sessionData.gateAddBackMode ?? false;
   const addBackCount = sessionData.gateAddBackCount ?? 0;
   const motifPattern: MotifColor[] = sessionData.motifPattern ?? ['empty', 'empty', 'empty'];
+  const hasMotifEnabled = sessionData.motifPattern !== undefined;
 
   // Track when teleop started so we can show motif buttons for first 10 seconds
   const teleopStartedAtRef = useRef<number | null>(null);
@@ -108,11 +108,12 @@ export const GateVisual = () => {
   // Once gate opens, motif scoring disabled for rest of the 10-second window
   const isGateOpenedDuringAutonMotif = gateOpenedDuringAutonWindow && (isAutonMotifPhase || isTeleopMotifPhase);
 
-  // Show motif M buttons: auto motifs during buffer/first-10s (unless gate opened), teleop motifs only after match ends
+  // Show motif M buttons: only if motif is enabled AND in appropriate phases
   const showMotifButtons =
-    ((isAutonMotifPhase || isTeleopMotifPhase) && !isGateOpenedDuringAutonMotif) ||
+    hasMotifEnabled &&
+    (((isAutonMotifPhase || isTeleopMotifPhase) && !isGateOpenedDuringAutonMotif) ||
     (isTeleopEndMotifPhase && !gateOpenedDuringEndMotif) ||
-    (isAutonEndMotifPhase && !gateOpenedDuringEndMotif);
+    (isAutonEndMotifPhase && !gateOpenedDuringEndMotif));
 
   // Current motif bitmask being edited
   // During buffer and first 10s of teleop: edit autonMotif
@@ -304,33 +305,27 @@ export const GateVisual = () => {
         <div className="flex items-end gap-1.5 justify-center">
           {Array.from({ length: GATE_CAPACITY }).map((_, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
-              {/* M letter sits directly above its ball — only for filled slots during motif phase */}
-              {showMotifButtons && i < gateBallCount ? (
-                <button
-                  onClick={() => handleMotifScoreClick(i)}
-                  className={`w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-base font-black transition-all duration-150 cursor-pointer hover:scale-110 motif-m-flash ${
-                    (currentMotifMask & (1 << i)) ? 'text-amber-400' : isDarkMode ? 'text-gray-600 hover:text-amber-400/60' : 'text-gray-300 hover:text-amber-400/60'
-                  }`}
-                  title={`Toggle motif ${i + 1} (${POINTS_PER_MOTIF} pts)`}
-                >
-                  M
-                </button>
-              ) : showMotifButtons ? (
+              {/* No M button above — M now appears inside the ball during motif phase */}
+              {showMotifButtons ? (
                 // Spacer to keep ball rows aligned whether or not M shows
                 <div className="w-9 h-9 sm:w-10 sm:h-10" />
               ) : null}
 
               {/* Ball slot */}
               <button
-                onClick={() => handleAddBackClick(i)}
-                disabled={!isGateOpen || (isGateOpen && i >= gateBallCount)}
+                onClick={() => showMotifButtons && i < gateBallCount ? handleMotifScoreClick(i) : handleAddBackClick(i)}
+                disabled={!isGateOpen || (isGateOpen && i >= gateBallCount) || (showMotifButtons && !matchActive)}
                 className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-200 flex items-center justify-center text-xs font-bold ${
                   isGateOpen && i >= gateBallCount ? 'opacity-40' : ''
                 } ${getBallColor(i)} ${
-                  isGateOpen && i < gateBallCount ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+                  showMotifButtons && i < gateBallCount && matchActive
+                    ? 'cursor-pointer hover:scale-110'
+                    : isGateOpen && i < gateBallCount ? 'cursor-pointer hover:scale-110' : 'cursor-default'
                 }`}
                 title={
-                  isGateOpen
+                  showMotifButtons
+                    ? `Toggle motif ${i + 1} (${POINTS_PER_MOTIF} pts)`
+                    : isGateOpen
                     ? i < gateBallCount
                       ? `Keep ${i + 1} ball${i > 0 ? 's' : ''} in gate`
                       : `No ball here`
@@ -340,10 +335,14 @@ export const GateVisual = () => {
                 <span className={`text-[10px] font-bold leading-none select-none ${
                   i >= gateBallCount
                     ? isDarkMode ? 'text-gray-600' : 'text-gray-300'
+                    : showMotifButtons && i < gateBallCount
+                    ? 'text-base' // M is larger
                     : (currentMotifMask & (1 << i))
-                      ? 'text-white/70'
-                      : isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{i + 1}</span>
+                    ? 'text-white/70'
+                    : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  {showMotifButtons && i < gateBallCount ? 'M' : i + 1}
+                </span>
               </button>
             </div>
           ))}
@@ -424,44 +423,35 @@ export const GateVisual = () => {
         </>
       )}
 
-      {/* Motif Edit Button */}
+      {/* Start Match Button */}
       <button
-        onClick={() => setShowMotifDialog(true)}
-        title={matchActive ? 'Pattern is locked during match' : 'Set motif pattern'}
-        className={`w-full py-3 rounded-xl text-sm font-bold uppercase tracking-wide transition-colors flex items-center justify-center gap-2 ${
+        onClick={() => {
+          if (hasMotifEnabled && (!sessionData.motifPattern || sessionData.motifPattern.some(c => c === 'empty'))) {
+            setShowMotifDialog(true);
+          } else {
+            handleMotifDialogConfirm(sessionData.motifPattern ?? ['empty', 'empty', 'empty']);
+          }
+        }}
+        title={matchActive ? 'Pattern is locked during match' : 'Start the match'}
+        className={`w-full py-3 rounded-xl text-sm font-bold uppercase tracking-wide transition-colors flex items-center justify-center gap-2 ${matchActive ? 'opacity-50 cursor-not-allowed' : ''} ${
           isDarkMode
             ? 'bg-team-dark border border-team-blue/20 text-team-blue hover:bg-team-blue/10'
             : 'bg-white border border-team-blue/20 text-team-blue hover:bg-team-blue/5'
         }`}
+        disabled={matchActive}
       >
-        <Edit2 className="w-3.5 h-3.5" />
-        {motifPattern.every(c => c === 'empty') ? 'Set Motif Pattern' : 'Edit Motif Pattern'}
-        {/* Small 3-ball preview of current motif pattern */}
-        {!motifPattern.every(c => c === 'empty') && (
-          <span className="flex items-center gap-1 ml-1">
-            {motifPattern.map((color, i) => (
-              <span
-                key={i}
-                className={`w-3.5 h-3.5 rounded-full border ${
-                  color === 'purple'
-                    ? isDarkMode ? 'bg-purple-500 border-purple-400' : 'bg-purple-400 border-purple-500'
-                    : color === 'green'
-                      ? isDarkMode ? 'bg-emerald-500 border-emerald-400' : 'bg-emerald-400 border-emerald-500'
-                      : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'
-                }`}
-              />
-            ))}
-          </span>
-        )}
+        Start Match
       </button>
 
-      {/* Motif Setup Dialog */}
-      <MotifSetupDialog
-        isOpen={showMotifDialog}
-        onConfirm={handleMotifDialogConfirm}
-        onCancel={() => setShowMotifDialog(false)}
-        initialPattern={motifPattern}
-      />
+      {/* Motif Setup Dialog - only show if motif is enabled */}
+      {hasMotifEnabled && (
+        <MotifSetupDialog
+          isOpen={showMotifDialog}
+          onConfirm={handleMotifDialogConfirm}
+          onCancel={() => setShowMotifDialog(false)}
+          initialPattern={motifPattern}
+        />
+      )}
     </div>
   );
 };

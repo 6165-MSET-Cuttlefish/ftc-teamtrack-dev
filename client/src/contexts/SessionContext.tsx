@@ -65,9 +65,12 @@ interface SessionContextType {
   matchActive: boolean;
   setMatchActive: (active: boolean) => void;
   skipToTeleop: () => void;
-  /** True during the 1.61s audio intro before the countdown begins (Full Game only) */
+  /** True during the 1.15s audio intro before the countdown begins (Full Game only) */
   isPreMatchDelay: boolean;
   setIsPreMatchDelay: (delay: boolean) => void;
+  /** True when tutorial is active - prevents audio from playing */
+  isTutorialActive: boolean;
+  setIsTutorialActive: (active: boolean) => void;
 }
 
 // Helper to determine initial timer duration based on match type
@@ -79,7 +82,7 @@ const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
       return 120; // 2:00
     case 'Full Game':
     default:
-      return 153; // 3s countdown + 30s auto + 120s teleop (1.61s audio intro handled externally)
+      return 153; // 3s countdown + 30s auto + 120s teleop (1.15s audio intro handled externally)
   }
 };
 
@@ -189,9 +192,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   // Whether the current match has been explicitly started
   const [matchActive, setMatchActive] = useState<boolean>(false);
 
-  // Pre-match audio intro delay (1.61s before countdown, Full Game only)
+  // Pre-match audio intro delay (1.15s before countdown, Full Game only)
   const [isPreMatchDelay, setIsPreMatchDelay] = useState<boolean>(false);
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Tutorial active flag - prevents audio from playing during tutorial
+  const [isTutorialActive, setIsTutorialActive] = useState<boolean>(false);
 
   // Clear session data when user logs out
   useEffect(() => {
@@ -240,6 +246,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       setTimer(prev => {
         if (prev <= 0) {
           clearInterval(interval);
+          // Stop the timer completely
+          setIsTimerRunning(false);
           // Transition to 'ended' when the teleop timer hits 0
           if (matchPhase === 'teleop') {
             setMatchPhase('ended');
@@ -280,8 +288,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
           }
           return prev - 1;
         } else {
-          // prepare phase: count all the way down to 0:00, then transition
-          if (prev <= 0) {
+          // prepare phase: count down 3 → 1 (skip 2 and 0), then transition
+          if (prev <= 1) {
             clearInterval(interval);
             setTimeout(() => {
               setMatchPhase('teleop');
@@ -289,9 +297,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
               setTimer(120);
               setIsTimerRunning(true);
             }, 0);
-            return 0;
+            return 1;
           }
-          return prev - 1; // shows 0:03, 0:02, 0:01, 0:00
+          // Skip 0:02: go from 3 → 1 directly
+          if (prev === 2) {
+            return 1;
+          }
+          return prev - 1; // shows 0:03, 0:01, then transition to 2:00
         }
       });
     }, 1000);
@@ -547,6 +559,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     // Only allow skip to teleop during Full Game mode in autonomous phases
     if (sessionData.matchType === 'Full Game' && 
         (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare')) {
+      // Pause audio when skipping to teleop
+      const globalAudio = (window as any)['__teamtrack_match_audio__'];
+      if (globalAudio && !globalAudio.paused) {
+        globalAudio.pause();
+      }
+      
       // Move directly to teleop phase
       setMatchPhase('teleop');
       // Set timer to teleop duration (120 seconds)
@@ -596,6 +614,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     skipToTeleop,
     isPreMatchDelay,
     setIsPreMatchDelay,
+    isTutorialActive,
+    setIsTutorialActive,
   };
 
   return (

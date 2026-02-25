@@ -298,7 +298,7 @@ const NavigationMenu = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="text-sm sm:text-base">
-                      Select shot type:
+                      Shots Attempted:
                     </span>
                     <div className="flex gap-1 sm:gap-2">
                       <kbd className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono bg-gray-700">1</kbd>
@@ -311,7 +311,7 @@ const NavigationMenu = () => {
                   </p>
 
                   <div className="flex items-center justify-between mt-3">
-                    <span>Set made count:</span>
+                    <span>Shots Made:</span>
                     <div className="flex gap-2">
                       <kbd className="px-2 py-1 rounded text-sm font-mono bg-gray-700">1</kbd>
                       <kbd className="px-2 py-1 rounded text-sm font-mono bg-gray-700">2</kbd>
