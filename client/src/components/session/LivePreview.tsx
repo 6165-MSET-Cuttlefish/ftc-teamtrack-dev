@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession, useTheme, useAuth, useTeam } from '@/contexts';
 import { useFirebase } from '@/hooks';
-import { GAME_TIMING, ROUTES } from '@/constants';
+import { GAME_TIMING, ROUTES, STORAGE_KEYS } from '@/constants';
 import { Check, X, Settings, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MotifSetupDialog } from './MotifSetupDialog';
@@ -63,11 +63,18 @@ export const LivePreview = ({
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
   const [showMotifDialog, setShowMotifDialog] = useState<boolean>(false);
   const [sessionWasCancelled, setSessionWasCancelled] = useState<boolean>(false);
-  const [pendingEditMatch, setPendingEditMatch] = useState<Match | null>(null);
+  const [, setPendingEditMatch] = useState<Match | null>(null);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] = useState<boolean>(false);
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Block navigation if there's unsaved work
+  useEffect(() => {
+    return () => {
+      if (preMatchDelayRef.current) {
+        clearTimeout(preMatchDelayRef.current);
+      }
+    };
+  }, []);
+
   const hasUnsavedWork =
     !sessionData.isSessionCompleted &&
     ((sessionData.matches && sessionData.matches.length > 0) ||
@@ -89,7 +96,6 @@ export const LivePreview = ({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedWork]);
 
-  // Check session limit on mount
   useEffect(() => {
     const checkSessionLimit = async () => {
       if (user?.uid && !sessionData.isSessionCompleted) {
@@ -125,7 +131,6 @@ export const LivePreview = ({
   // For Autonomous mode: no transition, timer just counts down to 0
   // For Teleop mode: starts in teleop phase, no transition needed
   useEffect(() => {
-    // Only transition for Full Game mode
     if (
       sessionData.matchType === 'Full Game' &&
       timer === GAME_TIMING.AUTON_END_REMAINING && // 120 seconds remaining = end of autonomous
@@ -165,7 +170,6 @@ export const LivePreview = ({
   };
 
   const handleNewSession = () => {
-    // Check if there's unsaved work
     if (
       sessionData.matches &&
       sessionData.matches.length > 0 &&
@@ -208,7 +212,6 @@ export const LivePreview = ({
       return;
     }
 
-    // Create a new match from current session data
     const newMatch: Match = {
       id: crypto.randomUUID(),
       matchNumber: (sessionData.matches?.length || 0) + 1,
@@ -243,11 +246,9 @@ export const LivePreview = ({
       createdAt: new Date().toISOString(),
     };
 
-    // Add to matches array
     const updatedMatches = [...(sessionData.matches || []), newMatch];
     updateSessionData({
       matches: updatedMatches,
-      // Reset ALL scoring fields for next match
       finalScore: 0,
       autonomousScore: 0,
       teleopScore: 0,
@@ -270,7 +271,6 @@ export const LivePreview = ({
       teleopShots: [],
     });
 
-    // Reset match timer and tracking states (but keep session running)
     resetTimer();
     // Keep hasStarted=true to maintain continuous sessionTimer
     setMatchActive(false);
@@ -292,7 +292,6 @@ export const LivePreview = ({
   };
 
   const handleCompleteSession = async () => {
-    // Validate that at least one match has been saved
     if (!sessionData.matches || sessionData.matches.length === 0) {
       toast.error(
         'Please save at least one match before completing the session'
@@ -300,7 +299,6 @@ export const LivePreview = ({
       return;
     }
 
-    // Check if there's unsaved current match data
     const hasUnsavedData =
       (sessionData.finalScore || 0) > 0 ||
       (sessionData.autonomousScore || 0) > 0 ||
@@ -314,7 +312,6 @@ export const LivePreview = ({
       return;
     }
 
-    // Check session limit for authenticated users
     let userSessions: { sessionName?: string }[] = [];
     if (user?.uid) {
       const { firebaseService } = await import('@/services/firebaseService');
@@ -337,19 +334,15 @@ export const LivePreview = ({
         return;
       }
     } else {
-      // Guest: load sessions from localStorage for naming
-      const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
-      userSessions = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+      userSessions = JSON.parse(localStorage.getItem(STORAGE_KEYS.GUEST_SESSIONS) || '[]');
     }
 
     // Use sessionTimer for total session duration, not match timer
     const totalSessionTime = formatTime(sessionTimer);
     setIsTimerRunning(false);
 
-    // Generate a unique session name if not provided
     let finalSessionName = sessionData.sessionName?.trim();
     if (!finalSessionName) {
-      // Find the next available number for "Untitled Session #X"
       const untitledSessions = userSessions.filter(s =>
         s.sessionName?.startsWith('Untitled Session #')
       );
@@ -372,8 +365,6 @@ export const LivePreview = ({
       userEmail: user?.email || '',
       ...(team ? { teamId: team.id } : {}),
 
-      // Don't save individual scoring fields - deprecated
-      // Data is in matches array
       autonClassifiedArtifact: 0,
       autonOverflowArtifact: 0,
       autonMotif: 0,
@@ -401,7 +392,6 @@ export const LivePreview = ({
         // Authenticated user: save to Firebase
         const result = await createSession(sessionToSave);
         if (result && result.id) {
-          // Only mark session complete after successful save
           completeSession(totalSessionTime);
           toast.success('Session saved successfully!');
         } else {
@@ -411,22 +401,19 @@ export const LivePreview = ({
         }
       } else {
         // Guest user: save session to localStorage
-        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
-        const existing = JSON.parse(localStorage.getItem(GUEST_SESSIONS_KEY) || '[]');
+        const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.GUEST_SESSIONS) || '[]');
         const guestSession = {
           ...sessionToSave,
           id: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
           createdAt: new Date().toISOString(),
         };
         existing.unshift(guestSession);
-        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(existing));
-        // Only mark session complete after successful save
+        localStorage.setItem(STORAGE_KEYS.GUEST_SESSIONS, JSON.stringify(existing));
         completeSession(totalSessionTime);
         toast.success('Session saved locally!');
       }
 
-      // Mark that user has completed a session (drives landing page redirect)
-      const { markSessionCompleted } = await import('@/lib/sessionStorage');
+      const { markSessionCompleted } = await import('@/lib/sessionPersistence');
       markSessionCompleted();
     } catch (error) {
       const { logger } = await import('@/lib/logger');
@@ -435,12 +422,10 @@ export const LivePreview = ({
     }
   };
 
-  // Delete a saved match from the matches array
   const handleDeleteMatch = (matchId: string) => {
     const updatedMatches = (sessionData.matches || []).filter(
       m => m.id !== matchId
     );
-    // Renumber matches
     const renumbered = updatedMatches.map((m, i) => ({
       ...m,
       matchNumber: i + 1,
@@ -450,7 +435,6 @@ export const LivePreview = ({
     toast.success('Match deleted');
   };
 
-  // Cancel the current in-progress match (discard unsaved scoring)
   const handleCancelCurrentMatch = () => {
     updateSessionData({
       finalScore: 0,
@@ -485,11 +469,9 @@ export const LivePreview = ({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* New Streamlined Action Buttons */}
       {!sessionData.isSessionCompleted ? (
         <>
           <div className="flex items-center gap-3 w-full">
-            {/* Save Match / Start Match Button */}
             {!showTeleopTransition && !editingMatchId && (
               <button
                   type="button"
@@ -567,7 +549,6 @@ export const LivePreview = ({
                 </button>
               )}
 
-            {/* Teleop Transition Buttons */}
             {showTeleopTransition && (
               <>
                 <button
@@ -597,7 +578,6 @@ export const LivePreview = ({
               </>
             )}
 
-            {/* Editing Match Buttons */}
             {editingMatchId && (
               <>
                 <button
@@ -635,7 +615,6 @@ export const LivePreview = ({
               </>
             )}
 
-            {/* Unsaved Edit Warning Banner */}
             {showUnsavedEditWarning && (
               <div className={`rounded-2xl border-2 border-orange-500/60 bg-orange-500/15 px-4 py-4 h-16 flex items-center`}>
                 <p className={`text-xs font-semibold ${isDarkMode ? 'text-orange-300' : 'text-orange-700'}`}>
@@ -644,7 +623,6 @@ export const LivePreview = ({
               </div>
             )}
 
-            {/* Settings/Gear Icon - Opens Session Setup */}
             <button
               type="button"
               onKeyDown={(e) => {
@@ -667,7 +645,6 @@ export const LivePreview = ({
               />
             </button>
 
-            {/* Complete Session / New Session Button */}
             {sessionWasCancelled ? (
               <button
                 type="button"
@@ -709,7 +686,6 @@ export const LivePreview = ({
               </button>
             )}
 
-            {/* Cancel Session Button */}
             {!cancelConfirm ? (
               <button
                 type="button"
@@ -767,10 +743,8 @@ export const LivePreview = ({
             )}
           </div>
 
-          {/* Match Control Buttons */}
           {!editingMatchId && matchActive && (
             <div className="flex items-center gap-3">
-              {/* Pause/Resume controls - only when match is active */}
               {matchActive && isTimerRunning && (
                 <button
                   type="button"
@@ -804,9 +778,8 @@ export const LivePreview = ({
                   </button>
                 )}
 
-              {/* Skip to Teleop Button - Only show during Full Game autonomous phases */}
               {matchActive && sessionData.matchType === 'Full Game' && 
-               (matchPhase === 'auton' || matchPhase === 'controller_pickup' || matchPhase === 'prepare') && (
+               (matchPhase === 'auton' || matchPhase === 'controller_pickup') && (
                 <button
                   type="button"
                   onKeyDown={(e) => {
@@ -822,7 +795,6 @@ export const LivePreview = ({
                 </button>
               )}
 
-              {/* Cancel Current Match Button */}
               {matchActive && (
                 <>
                   {!cancelMatchConfirm ? (
@@ -881,7 +853,6 @@ export const LivePreview = ({
             </div>
           )}
 
-          {/* Match Log */}
           {(sessionData.matches || []).length > 0 && (
             <div
               className={`rounded-2xl border-2 overflow-hidden ${
@@ -919,7 +890,6 @@ export const LivePreview = ({
                       onClick={() => {
                         if (!isEditing && !isConfirmingDelete) {
                           if (editingMatchId) {
-                            // Already editing a different match — warn first
                             setPendingEditMatch(match);
                             setShowUnsavedEditWarning(true);
                           } else {
@@ -1000,7 +970,6 @@ export const LivePreview = ({
           )}
         </>
       ) : (
-        /* Completed Session Buttons */
         <div className="flex flex-wrap gap-4 w-full">
           <button
             onClick={handleViewAnalysis}
@@ -1036,7 +1005,6 @@ export const LivePreview = ({
         </div>
       )}
 
-      {/* Motif Setup Dialog - only show if motif is enabled */}
       {sessionData.motifPattern !== undefined && (
         <MotifSetupDialog
           isOpen={showMotifDialog}

@@ -1,26 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
-import { ArrowUp } from 'lucide-react';
+import {
+  TUTORIAL_RESTART_EVENT,
+  TUTORIAL_OPEN_SESSION_SETUP_EVENT,
+  TUTORIAL_KEYBOARD_SCORE_EVENT,
+  TUTORIAL_GATE_CYCLE_EVENT,
+  TUTORIAL_ENDED_EVENT,
+  TUTORIAL_METRICS_AUTON_TAB_EVENT,
+  TUTORIAL_METRICS_LEAVE_EVENT,
+  TUTORIAL_METRICS_SHOT_EDIT_EVENT,
+  TUTORIAL_METRICS_MOTIF_EDIT_EVENT,
+} from '@/constants/events';
 
-// ─── Constants ──────────────────────────────────────────────────────────────
-
-export const TUTORIAL_STORAGE_KEY = 'teamtrack-tutorial-v1-seen';
-export const TUTORIAL_RESTART_EVENT = 'teamtrack-restart-tutorial';
-export const TUTORIAL_OPEN_SESSION_SETUP_EVENT = 'teamtrack-tutorial-open-session-setup';
-/** Fired by SessionSetup when the Save button is clicked */
-export const TUTORIAL_SESSION_SAVED_EVENT = 'teamtrack-tutorial-session-saved';
-/** Fired by PerformanceMetrics when a shot is confirmed via keyboard (Enter) */
-export const TUTORIAL_KEYBOARD_SCORE_EVENT = 'teamtrack-tutorial-keyboard-score';
-/** Fired by PerformanceMetrics when G is pressed to open/close the gate */
-export const TUTORIAL_GATE_TOGGLED_EVENT = 'teamtrack-tutorial-gate-toggled';
-export const TUTORIAL_GATE_CYCLE_EVENT   = 'teamtrack-tutorial-gate-cycle';
-export const TUTORIAL_ENDED_EVENT        = 'teamtrack-tutorial-ended';
-export const TUTORIAL_METRICS_AUTON_TAB_EVENT  = 'teamtrack-tutorial-metrics-auton-tab';
-export const TUTORIAL_METRICS_LEAVE_EVENT      = 'teamtrack-tutorial-metrics-leave';
-export const TUTORIAL_METRICS_SHOT_EDIT_EVENT  = 'teamtrack-tutorial-metrics-shot-edit';
-export const TUTORIAL_METRICS_MOTIF_EDIT_EVENT = 'teamtrack-tutorial-metrics-motif-edit';
-
-// ─── Visual previews ───────────────────────────────────────────────────────
+import { STORAGE_KEYS } from '@/constants';
+import type { SessionFormData } from '@/types';
 
 const PreviewBox = ({
   children,
@@ -40,14 +34,11 @@ const PreviewBox = ({
   </div>
 );
 
-// ── Preview components ──────────────────────────────────────────────────
-// ── Animated Controls: cursor cycles through buttons ────────────────────
-// ── Animated Scoring: highlights cells in sequence ──────────────────────
 const SCORE_SEQUENCE: [number, number][] = [
   [0, 1],
   [1, 2],
   [2, 3],
-]; // (row, col)
+];
 const ScoringPreview = ({ dark }: { dark: boolean }) => {
   const borderCol = dark ? 'rgb(var(--team-blue) / 0.4)' : 'rgba(0,0,0,0.15)';
   const circleBorder = dark ? '#fff' : '#000';
@@ -144,100 +135,138 @@ const ScoringPreview = ({ dark }: { dark: boolean }) => {
   );
 };
 
-// ── Interactive Keybinds Guide: Step-by-step keyboard scoring ──────────────
 const KeybindsPreview = ({ dark }: { dark: boolean }) => {
-  const [step, setStep] = useState(0); // 0: shots attempted, 1: shots made, 2: enter
+  const [step, setStep] = useState(0);
+  // 0 = idle, 1 = pressed "2" (attempted), 2 = pressed "1" (made), 3 = pressed Enter, 4 = brief pause
   
   useEffect(() => {
-    const timer = setInterval(() => {
-      setStep(s => (s + 1) % 4);
-    }, 3500);
-    return () => clearInterval(timer);
-  }, []);
+    const durations = [1200, 1400, 1400, 1600, 800];
+    const timeout = setTimeout(() => {
+      setStep(s => (s + 1) % 5);
+    }, durations[step]);
+    return () => clearTimeout(timeout);
+  }, [step]);
 
-  const keyBg = dark ? '#a855f7' : '#9333ea';
-  const keyText = '#fff';
-  const textDim = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
-  const dividerColor = dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+  const accent = dark ? '#a855f7' : '#9333ea';
+  const keyInactive = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  const keyBorder = dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+  const textDim = dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)';
+  const textMain = dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)';
+  const successGreen = '#22c55e';
+
+  const exampleAttempted = '2';
+  const exampleMade = '1';
+
+  const isActive = step >= 1 && step <= 3;
+  const attemptedDone = step >= 1;
+  const madeDone = step >= 2;
+  const confirmed = step >= 3;
+
+  const keyStyle = (active: boolean, highlight: boolean) => ({
+    backgroundColor: highlight ? accent : active ? (dark ? 'rgba(168,85,247,0.15)' : 'rgba(147,51,234,0.1)') : keyInactive,
+    color: highlight ? '#fff' : active ? accent : textDim,
+    border: `1.5px solid ${highlight ? accent : active ? `${accent}40` : keyBorder}`,
+    boxShadow: highlight ? `0 0 16px ${accent}44` : 'none',
+    transform: highlight ? 'scale(1.08)' : 'scale(1)',
+    transition: 'all 0.25s ease',
+  });
 
   return (
     <PreviewBox dark={dark}>
-      <div className="text-team-blue font-semibold text-sm mb-6">Keyboard Shortcut Flow</div>
-      
-      {/* Vertical flow */}
-      <div className="flex flex-col gap-4">
-        {/* Step 1: Shots Attempted */}
-        <div className="flex items-center justify-between px-2">
-          <div className="text-xs font-medium flex-1" style={{ color: textDim }}>Shots Attempted</div>
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-team-blue font-semibold text-sm">Keyboard Shortcut Flow</span>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{
+          backgroundColor: dark ? 'rgba(168,85,247,0.15)' : 'rgba(147,51,234,0.08)',
+          color: accent,
+        }}>Example: {exampleAttempted} shot, {exampleMade} scored</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: attemptedDone ? accent : textDim }}>Step 1</div>
+          <div className="text-[10px]" style={{ color: textDim }}>Balls shot</div>
           <div className="flex gap-1">
-            <kbd className={`px-2 py-1 rounded text-xs font-mono transition-all ${step === 0 ? 'scale-105' : 'scale-100'}`}
-              style={{
-                backgroundColor: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
-                color: keyText,
-                borderColor: step === 0 ? keyBg : 'transparent',
-                border: '1px solid',
-              }}>1</kbd>
-            <kbd className={`px-2 py-1 rounded text-xs font-mono transition-all ${step === 0 ? 'scale-105' : 'scale-100'}`}
-              style={{
-                backgroundColor: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
-                color: keyText,
-                borderColor: step === 0 ? keyBg : 'transparent',
-                border: '1px solid',
-              }}>2</kbd>
-            <kbd className={`px-2 py-1 rounded text-xs font-mono transition-all ${step === 0 ? 'scale-105' : 'scale-100'}`}
-              style={{
-                backgroundColor: step >= 0 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
-                color: keyText,
-                borderColor: step === 0 ? keyBg : 'transparent',
-                border: '1px solid',
-              }}>3</kbd>
+            {['1', '2', '3'].map(k => (
+              <kbd
+                key={k}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-mono font-bold"
+                style={keyStyle(attemptedDone, step === 1 && k === exampleAttempted)}
+              >{k}</kbd>
+            ))}
           </div>
+          {attemptedDone && (
+            <div className="text-[10px] font-bold transition-opacity duration-300" style={{ color: accent }}>
+              Pressed {exampleAttempted}
+            </div>
+          )}
         </div>
 
-        {/* Plus divider */}
-        <div className="w-full text-center" style={{ color: dividerColor }}>+</div>
-
-        {/* Step 2: Shots Made */}
-        <div className="flex items-center justify-between px-2">
-          <div className="text-xs font-medium flex-1" style={{ color: textDim }}>Shots Made</div>
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: madeDone ? accent : textDim }}>Step 2</div>
+          <div className="text-[10px]" style={{ color: textDim }}>Balls scored</div>
           <div className="flex gap-1">
-            <kbd className={`px-2 py-1 rounded text-xs font-mono transition-all ${step === 1 ? 'scale-105' : 'scale-100'}`}
-              style={{
-                backgroundColor: step >= 1 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
-                color: keyText,
-                borderColor: step === 1 ? keyBg : 'transparent',
-                border: '1px solid',
-              }}>0</kbd>
-            <span className="text-xs font-medium px-1" style={{ color: textDim }}>...N</span>
+            {['0', '1', '2'].map(k => (
+              <kbd
+                key={k}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-mono font-bold"
+                style={keyStyle(madeDone, step === 2 && k === exampleMade)}
+              >{k}</kbd>
+            ))}
           </div>
+          {madeDone && (
+            <div className="text-[10px] font-bold transition-opacity duration-300" style={{ color: accent }}>
+              Pressed {exampleMade}
+            </div>
+          )}
         </div>
 
-        {/* Confirm icon */}
-        <div className="w-full text-center text-2xl my-2" style={{ color: keyBg }}>✓</div>
-
-        {/* Step 3: Press Enter */}
-        <div className="flex items-center justify-between px-2">
-          <div className="text-xs font-medium flex-1" style={{ color: textDim }}>Confirm & Save</div>
-          <kbd className={`px-4 py-2 rounded text-xs font-mono transition-all ${step === 2 ? 'scale-110' : 'scale-100'}`}
-            style={{
-              backgroundColor: step === 2 ? keyBg : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
-              color: keyText,
-              borderColor: step === 2 ? keyBg : 'transparent',
-              border: '1px solid',
-              boxShadow: step === 2 ? `0 0 20px ${keyBg}66` : 'none',
-            }}>Enter</kbd>
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: confirmed ? successGreen : textDim }}>Step 3</div>
+          <div className="text-[10px]" style={{ color: textDim }}>Confirm</div>
+          <kbd
+            className="w-full h-8 flex items-center justify-center rounded-lg text-xs font-mono font-bold"
+            style={keyStyle(confirmed, step === 3)}
+          >Enter</kbd>
+          {confirmed && (
+            <div className="text-[10px] font-bold transition-opacity duration-300" style={{ color: successGreen }}>
+              ✓ Saved!
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Progress dots */}
-      <div className="flex justify-center gap-2 mt-6">
-        {[0, 1, 2].map((i) => (
+      <div
+        className="mt-4 rounded-lg px-3 py-2 flex items-center justify-between transition-all duration-300"
+        style={{
+          backgroundColor: confirmed
+            ? (dark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.06)')
+            : (dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+          border: `1px solid ${confirmed ? `${successGreen}30` : (dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)')}`,
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-[10px]" style={{ color: textDim }}>Result:</span>
+          <span className="text-xs font-semibold" style={{ color: isActive ? textMain : textDim }}>
+            {attemptedDone ? exampleAttempted : '—'} attempted
+          </span>
+          <span className="text-[10px]" style={{ color: textDim }}>·</span>
+          <span className="text-xs font-semibold" style={{ color: isActive ? textMain : textDim }}>
+            {madeDone ? exampleMade : '—'} scored
+          </span>
+        </div>
+        {confirmed && (
+          <span className="text-xs font-bold" style={{ color: successGreen }}>✓</span>
+        )}
+      </div>
+
+      <div className="flex justify-center gap-1.5 mt-3">
+        {[1, 2, 3].map(i => (
           <div
             key={i}
-            className="h-1.5 rounded-full transition-all duration-500"
+            className="h-1 rounded-full transition-all duration-400"
             style={{
-              width: i <= step && step < 3 ? '8px' : '4px',
-              backgroundColor: i <= step && step < 3 ? keyBg : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'),
+              width: step === i ? '16px' : '6px',
+              backgroundColor: step === i ? accent : step > i || confirmed ? successGreen : (dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
             }}
           />
         ))}
@@ -250,89 +279,254 @@ const MetricsPreview = ({ dark }: { dark: boolean }) => {
   const borderCol = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
   const textDim = dark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)';
   const cardBg = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
-  const [view, setView] = useState<'leave' | 'endgame'>('leave');
+  const accent = 'rgb(var(--team-blue))';
 
-  // Cycle between the two views
+  const SLIDE_COUNT = 4;
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [direction, setDirection] = useState<'left' | 'right'>('right');
+  const [isAnimating, setIsAnimating] = useState(false);
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const goToSlide = useCallback((idx: number) => {
+    if (isAnimating || idx === activeSlide) return;
+    setDirection(idx > activeSlide ? 'right' : 'left');
+    setIsAnimating(true);
+    setActiveSlide(idx);
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    animTimerRef.current = setTimeout(() => setIsAnimating(false), 400);
+  }, [isAnimating, activeSlide]);
+
   useEffect(() => {
-    const t = setInterval(() => setView(v => v === 'leave' ? 'endgame' : 'leave'), 2800);
-    return () => clearInterval(t);
-  }, []);
+    autoTimerRef.current = setTimeout(() => {
+      const next = (activeSlide + 1) % SLIDE_COUNT;
+      setDirection('right');
+      setIsAnimating(true);
+      setActiveSlide(next);
+      if (animTimerRef.current) clearTimeout(animTimerRef.current);
+      animTimerRef.current = setTimeout(() => setIsAnimating(false), 400);
+    }, 3500);
+    return () => {
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+      if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    };
+  }, [activeSlide]);
 
-  const tabStyle = (active: boolean) => ({
-    padding: '3px 10px',
-    borderRadius: 6,
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: 'default',
-    backgroundColor: active ? 'rgb(var(--team-blue))' : 'transparent',
-    color: active ? (dark ? '#000' : '#fff') : textDim,
-    transition: 'all 0.3s',
-  });
+  const slideLabels = ['Autonomous', 'Shot Editing', 'Teleop', 'Endgame'];
+
+  const Checkbox = ({ checked }: { checked: boolean }) => (
+    <div
+      className="w-4 h-4 rounded flex items-center justify-center transition-all duration-300"
+      style={{
+        backgroundColor: checked ? accent : 'transparent',
+        border: `2px solid ${checked ? accent : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)')}`,
+      }}
+    >
+      {checked && (
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4l3 3 5-6" stroke={dark ? '#000' : '#fff'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </div>
+  );
+
+  const SegmentedButtons = ({ options, selected }: { options: string[]; selected: number }) => (
+    <div className="flex gap-0 rounded overflow-hidden" style={{ border: `1px solid ${borderCol}` }}>
+      {options.map((val, vi) => (
+        <div
+          key={val}
+          className="px-2 py-1 text-[10px] font-medium transition-all duration-300"
+          style={{
+            backgroundColor: vi === selected ? accent : (dark ? '#1a1a1a' : '#f5f5f5'),
+            color: vi === selected ? (dark ? '#000' : '#fff') : textDim,
+          }}
+        >
+          {val}
+        </div>
+      ))}
+    </div>
+  );
+
+  const slides = [
+    // Slide 0: Autonomous — Leave + Motif
+    <div key="auton" className="rounded-lg p-3 flex flex-col gap-2.5" style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}>
+      <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Autonomous</div>
+      <label className="flex items-center gap-2 cursor-default select-none">
+        <Checkbox checked={true} />
+        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)' }}>
+          Robot left starting zone
+        </span>
+        <span className="text-xs font-bold ml-auto" style={{ color: accent }}>+3 pts</span>
+      </label>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}>Auton Motif</span>
+        <div className="flex gap-1">
+          {[true, true, false].map((on, i) => (
+            <div
+              key={i}
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all duration-300"
+              style={{
+                backgroundColor: on ? (dark ? 'rgba(168,85,247,0.3)' : 'rgba(147,51,234,0.15)') : 'transparent',
+                border: `1.5px solid ${on ? '#a855f7' : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')}`,
+                color: on ? '#a855f7' : textDim,
+              }}
+            >M</div>
+          ))}
+        </div>
+        <span className="text-xs font-bold" style={{ color: accent }}>+4 pts</span>
+      </div>
+    </div>,
+
+    // Slide 1: Shot Editing table
+    <div key="shots" className="rounded-lg p-3 flex flex-col gap-2" style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}>
+      <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Shot Log — Editable</div>
+      <div className="rounded overflow-hidden" style={{ border: `1px solid ${borderCol}` }}>
+        <div className="grid grid-cols-5 text-[9px] font-semibold" style={{ color: textDim, backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+          <div className="px-2 py-1.5 text-center">#</div>
+          <div className="px-2 py-1.5 text-center">Att</div>
+          <div className="px-2 py-1.5 text-center">Cls</div>
+          <div className="px-2 py-1.5 text-center">Ovfl</div>
+          <div className="px-2 py-1.5 text-center">Pts</div>
+        </div>
+        {[
+          { n: 1, att: 2, cls: 1, ovfl: 1, pts: 4 },
+          { n: 2, att: 3, cls: 2, ovfl: 0, pts: 6 },
+          { n: 3, att: 1, cls: 1, ovfl: 0, pts: 3 },
+        ].map((row, ri) => (
+          <div
+            key={ri}
+            className="grid grid-cols-5 text-[10px] transition-all duration-300"
+            style={{
+              borderTop: `1px solid ${borderCol}`,
+              color: dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.75)',
+              backgroundColor: ri === 1 ? (dark ? 'rgba(var(--team-blue) / 0.08)' : 'rgba(var(--team-blue) / 0.05)') : 'transparent',
+            }}
+          >
+            <div className="px-2 py-1.5 text-center font-medium" style={{ color: textDim }}>{row.n}</div>
+            <div className="px-2 py-1.5 text-center font-semibold">{row.att}</div>
+            <div className="px-2 py-1.5 text-center font-semibold">{row.cls}</div>
+            <div className="px-2 py-1.5 text-center font-semibold">{row.ovfl}</div>
+            <div className="px-2 py-1.5 text-center font-bold" style={{ color: accent }}>{row.pts}</div>
+          </div>
+        ))}
+      </div>
+      <div className="text-[10px] text-center" style={{ color: textDim }}>Tap any value to edit it</div>
+    </div>,
+
+    // Slide 2: Teleop — shots + motif summary
+    <div key="teleop" className="rounded-lg p-3 flex flex-col gap-2.5" style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}>
+      <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Teleop</div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}>Shots Scored</span>
+        <span className="text-sm font-bold" style={{ color: accent }}>5 classified · 2 overflow</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}>Teleop Motif</span>
+        <div className="flex gap-1">
+          {(['purple', false, true] as (boolean | string)[]).map((on, i) => {
+            const isPurple = on === 'purple';
+            const isOn = !!on;
+            const ballColor = isPurple ? '#a855f7' : '#22c55e';
+            const bgOn = isPurple
+              ? (dark ? 'rgba(168,85,247,0.25)' : 'rgba(168,85,247,0.12)')
+              : (dark ? 'rgba(34,197,94,0.25)' : 'rgba(34,197,94,0.12)');
+            return (
+            <div
+              key={i}
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all duration-300"
+              style={{
+                backgroundColor: isOn ? bgOn : 'transparent',
+                border: `1.5px solid ${isOn ? ballColor : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')}`,
+                color: isOn ? ballColor : textDim,
+              }}
+            >M</div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ backgroundColor: dark ? 'rgba(var(--team-blue) / 0.08)' : 'rgba(var(--team-blue) / 0.05)', border: `1px solid rgba(var(--team-blue) / 0.15)` }}>
+        <span className="text-[10px] font-medium" style={{ color: textDim }}>Teleop Score</span>
+        <span className="text-sm font-bold" style={{ color: accent }}>21 pts</span>
+      </div>
+    </div>,
+
+    // Slide 3: Endgame — Parking
+    <div key="endgame" className="rounded-lg p-3 flex flex-col gap-2.5" style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}>
+      <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Endgame</div>
+      {(['Robot 1', 'Robot 2'] as const).map(robot => (
+        <div key={robot} className="flex items-center justify-between gap-2">
+          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>{robot}</span>
+          <SegmentedButtons
+            options={['None', 'Partial', 'Full']}
+            selected={robot === 'Robot 1' ? 2 : 1}
+          />
+          <span className="text-xs font-bold" style={{ color: accent }}>
+            {robot === 'Robot 1' ? '10' : '5'} pts
+          </span>
+        </div>
+      ))}
+      <div
+        className="rounded-lg px-3 py-2 flex items-center justify-between"
+        style={{
+          backgroundColor: dark ? 'rgba(34,197,94,0.08)' : 'rgba(34,197,94,0.05)',
+          border: '1px solid rgba(34,197,94,0.2)',
+        }}
+      >
+        <span className="text-[10px] font-medium" style={{ color: textDim }}>Both full park bonus</span>
+        <span className="text-xs font-bold" style={{ color: '#22c55e' }}>+30 pts</span>
+      </div>
+    </div>,
+  ];
 
   return (
     <PreviewBox dark={dark}>
-      {view === 'leave' ? (
+      {/* Slide container with overflow hidden for slide animation */}
+      <div className="relative overflow-hidden" style={{ minHeight: 130 }}>
         <div
-          className="rounded-lg p-3 flex flex-col gap-2"
-          style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}
+          key={activeSlide}
+          style={{
+            animation: `ttSlide${direction === 'right' ? 'Right' : 'Left'} 0.4s ease-out forwards`,
+          }}
         >
-          <label className="flex items-center gap-2 cursor-default select-none">
+          {slides[activeSlide]}
+        </div>
+      </div>
+
+      {/* Dot navigation */}
+      <div className="flex items-center justify-center gap-2 mt-3">
+        {slideLabels.map((label, i) => (
+          <button
+            key={i}
+            onClick={() => goToSlide(i)}
+            className="group flex flex-col items-center gap-1 transition-all"
+            title={label}
+          >
             <div
-              className="w-4 h-4 rounded flex items-center justify-center"
+              className="rounded-full transition-all duration-300"
               style={{
-                backgroundColor: 'rgb(var(--team-blue))',
-                border: '2px solid rgb(var(--team-blue))',
+                width: i === activeSlide ? 18 : 7,
+                height: 7,
+                backgroundColor: i === activeSlide
+                  ? accent
+                  : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+              }}
+            />
+            <span
+              className="text-[8px] font-medium transition-opacity duration-300"
+              style={{
+                color: i === activeSlide ? accent : textDim,
+                opacity: i === activeSlide ? 1 : 0,
               }}
             >
-              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <path d="M1 4l3 3 5-6" stroke={dark ? '#000' : '#fff'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)' }}>
-              Robot left starting zone
+              {label}
             </span>
-            <span className="text-xs font-bold" style={{ color: 'rgb(var(--team-blue))' }}>+3 pts</span>
-          </label>
-        </div>
-      ) : (
-        <div
-          className="rounded-lg p-3 flex flex-col gap-2"
-          style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}
-        >
-          <div className="text-xs font-semibold" style={{ color: textDim }}>Endgame — Robot Parking</div>
-          {(['Robot 1', 'Robot 2'] as const).map(robot => (
-            <div key={robot} className="flex items-center justify-between gap-2">
-              <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>{robot}</span>
-              <div className="flex gap-0 rounded overflow-hidden" style={{ border: `1px solid ${borderCol}` }}>
-                {(['None', 'Partial', 'Full'] as const).map((val, vi) => (
-                  <div
-                    key={val}
-                    className="px-2 py-1 text-[10px] font-medium"
-                    style={{
-                      backgroundColor: vi === (robot === 'Robot 1' ? 2 : 1)
-                        ? 'rgb(var(--team-blue))'
-                        : (dark ? '#1a1a1a' : '#f5f5f5'),
-                      color: vi === (robot === 'Robot 1' ? 2 : 1)
-                        ? (dark ? '#000' : '#fff')
-                        : textDim,
-                    }}
-                  >
-                    {val}
-                  </div>
-                ))}
-              </div>
-              <span className="text-xs font-bold" style={{ color: 'rgb(var(--team-blue))' }}>
-                {robot === 'Robot 1' ? '10' : '5'} pts
-              </span>
-            </div>
-          ))}
-          <div className="text-[10px] mt-1" style={{ color: textDim }}>Both robots full park = 30 pts bonus!</div>
-        </div>
-      )}
+          </button>
+        ))}
+      </div>
     </PreviewBox>
   );
 };
-// ── Animated Gate: shows balls being released ───────────────────────────
+
 const GatePreview = ({ dark }: { dark: boolean }) => {
   const [released, setReleased] = useState(false);
 
@@ -402,7 +596,6 @@ const GatePreview = ({ dark }: { dark: boolean }) => {
   );
 };
 
-// ── Live motif snapshot — shows the actual pattern set by the user ─────────
 const MotifSnapshot = ({ dark }: { dark: boolean }) => {
   const { sessionData } = useSession();
   const pattern = sessionData.motifPattern ?? ['empty', 'empty', 'empty'];
@@ -450,11 +643,9 @@ const MotifSnapshot = ({ dark }: { dark: boolean }) => {
   );
 };
 
-// ─── Step data ──────────────────────────────────────────────────────────────
-
 interface StepDef {
   title: string;
-  body: string;
+  body: string | React.ReactNode;
   target: string | null;
   preview: ((dark: boolean) => React.ReactNode) | null;
   /** Prompt shown when the user should interact with the real page element */
@@ -472,73 +663,79 @@ const STEPS: StepDef[] = [
     title: 'Welcome to TeamTrack!',
     body: (
       <div className="space-y-2">
-        <div>Record every shot during your match.</div>
-        <div>Replay anytime from the help button (?) in the top-right.</div>
+        <div>TeamTrack helps you track scoring during FTC matches in real time. This quick walkthrough will show you how to record shots, use the gate, and review your stats.</div>
+        <div className="text-xs opacity-60">You can restart this tutorial anytime from the (?) button in the header.</div>
       </div>
-    ) as any,
+    ) as React.ReactNode,
     target: null,
     preview: null,
   },
   {
     title: 'Scoring Grid',
-    body: 'Each row = balls shot. Select how many scored',
+    body: (
+      <div className="space-y-2">
+        <div>Tap cells to record each shot attempt. Each row represents how many balls were shot at once, and each column tracks how many of those went in.</div>
+        <div className="text-xs opacity-50">Inspired by <a href="https://heronscout.me/" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">Heron Scout</a>.</div>
+      </div>
+    ) as React.ReactNode,
     target: 'scoring',
     preview: d => <ScoringPreview dark={d} />,
-    pageAction: 'Record 3 shots using tap method',
+    pageAction: 'Tap to record 3 shots on the grid above',
     watchKey: 'shots',
   },
   {
     title: 'Keyboard Scoring',
-    body: 'Faster method: press 1–3 for shot count, 0–N for made count, Enter to confirm. Try it below!',
+    body: (
+      <div className="space-y-2">
+        <div>For faster scoring, use keyboard shortcuts: press a number key (1–3) for how many balls were shot, then another number (0–3) for how many scored, then Enter to confirm.</div>
+        <div className="text-xs opacity-50">Inspired by <a href="https://heronscout.me/" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">Heron Scout</a>.</div>
+      </div>
+    ) as React.ReactNode,
     target: 'scoring',
     preview: d => <KeybindsPreview dark={d} />,
-    pageAction: 'Score 1 shot using keyboard',
+    pageAction: 'Record a shot using the keyboard shortcuts above',
     watchEvent: TUTORIAL_KEYBOARD_SCORE_EVENT,
   },
   {
     title: 'Gate Mechanic',
-    body: 'Click "Open Gate → Confirm" or press G → number → Enter.',
+    body: 'The gate holds balls before release. Click "Open Gate" then confirm how many to keep, or use the shortcut: press G, enter a number, then Enter.',
     target: 'gate',
     preview: d => <GatePreview dark={d} />,
-    pageAction: 'Complete at least 2 gate cycles',
+    pageAction: 'Open and close the gate at least 2 times',
     watchEvent: TUTORIAL_GATE_CYCLE_EVENT,
     watchEventCount: 2,
   },
   {
     title: 'Motif Scoring',
-    body: "When the match ends, click the 'M' buttons to score motif matches. Each press = +2 pts.",
+    body: 'After the match ends, the M buttons appear next to balls in the gate. Tap an M button to mark a motif match — each one adds 2 points to your score.',
     target: 'gate',
     preview: d => <MotifSnapshot dark={d} />,
-    pageAction: 'Click at least one M button',
+    pageAction: 'Tap at least one M button above to score a motif',
     watchKey: 'motifScore',
   },
   {
     title: 'Scoring Metrics',
-    body: "Check Autonomous Leave, edit any shots, and toggle Motif buttons here. You can change anything after the match — just revisit before saving the session.",
+    body: 'Use the Autonomous, Teleop, and Endgame tabs to review and adjust your match data. You can toggle leave status, edit shot values, and change motif scores at any time before saving.',
     target: 'metrics',
     preview: d => <MetricsPreview dark={d} />,
-    pageAction: 'Complete all 3 tasks in the panel below',
+    pageAction: 'Complete all 3 tasks in the panel above',
   },
   {
-    title: "You're All Set!",
-    body: 'Start a match and begin tracking. Save when done. Good luck!',
+    title: "You're Ready!",
+    body: (
+      <div className="space-y-2">
+        <div>You now know how to track shots, use the gate, score motifs, and review your metrics.</div>
+        <div>Hit "Get Started" to begin your first match. After the match ends, you can save or edit your session from the Analysis page.</div>
+      </div>
+    ) as React.ReactNode,
     target: null,
     preview: null,
   },
 ];
 
-// ─── Highlight management ───────────────────────────────────────────────────
-// Instead of blurring the parent (which creates a stacking context that traps
-// all children), we:
-//  1. Put a backdrop-filter overlay at z-index 9997 — this blurs anything
-//     rendered BEHIND it.
-//  2. Lift the target element above the overlay via inline position+z-index so
-//     it renders ON TOP of the overlay and is never blurred.
-
 const ORIGINAL_STYLES_KEY = '__tt_original_styles__';
 
-function liftElement(el: HTMLElement, breathing = false, darkMode = true) {
-  // Save originals so we can restore them
+function liftElement(el: HTMLElement, _breathing = false, darkMode = true) {
   (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY] = {
     position: el.style.position,
     zIndex: el.style.zIndex,
@@ -583,8 +780,6 @@ function dropElement(el: HTMLElement) {
   }
 }
 
-// ─── Component ──────────────────────────────────────────────────────────────
-
 export const ActiveTutorial = () => {
   const { isDarkMode } = useTheme();
   const { user, isGuest, guestId, loading } = useAuth();
@@ -622,16 +817,15 @@ export const ActiveTutorial = () => {
 
   // Generate a stable tutorial key for both logged-in users and guests
   const getTutorialKey = useCallback(() => {
-    if (user?.uid) return `${TUTORIAL_STORAGE_KEY}-${user.uid}`;
-    if (guestId) return `${TUTORIAL_STORAGE_KEY}-guest-${guestId}`;
-    return TUTORIAL_STORAGE_KEY;
+    if (user?.uid) return `${STORAGE_KEYS.TUTORIAL_SEEN}-${user.uid}`;
+    if (guestId) return `${STORAGE_KEYS.TUTORIAL_SEEN}-guest-${guestId}`;
+    return STORAGE_KEYS.TUTORIAL_SEEN;
   }, [user, guestId]);
 
-  // Start tutorial when navigated here via the header button
   useEffect(() => {
-    const shouldStart = sessionStorage.getItem('teamtrack-start-tutorial');
+    const shouldStart = sessionStorage.getItem(STORAGE_KEYS.START_TUTORIAL);
     if (shouldStart) {
-      sessionStorage.removeItem('teamtrack-start-tutorial');
+      sessionStorage.removeItem(STORAGE_KEYS.START_TUTORIAL);
       const t = setTimeout(() => {
         setStep(0);
         setVisible(true);
@@ -658,7 +852,6 @@ export const ActiveTutorial = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]); // Only when visibility changes, not on every state update
 
-  // Auto-show on first visit — works for both logged-in users AND guests
   useEffect(() => {
     // Wait until auth has resolved (not still loading)
     if (loading) return;
@@ -672,7 +865,6 @@ export const ActiveTutorial = () => {
     }
   }, [loading, user, isGuest, getTutorialKey]);
 
-  // Detect whether this is a replay (user has already seen the tutorial)
   useEffect(() => {
     if (!visible) return;
     const tutorialKey = getTutorialKey();
@@ -684,7 +876,11 @@ export const ActiveTutorial = () => {
   useEffect(() => {
     if (!visible || !isReplay) return;
     const current = STEPS[step];
-    if (current?.pageAction) setTaskCompleted(true);
+    if (current?.pageAction) {
+      setTaskCompleted(true);
+      // Also fill the metrics checklist so all items show as done
+      setMetricsTasksMask(0b111);
+    }
   }, [visible, step, isReplay]);
 
   // Activate match at the Scoring Grid step so the scoring grid becomes editable
@@ -707,7 +903,6 @@ export const ActiveTutorial = () => {
     setIsTutorialActive(visible);
   }, [visible, setIsTutorialActive]);
 
-  // Listen for restart
   useEffect(() => {
     const handle = () => {
       setStep(0);
@@ -769,7 +964,7 @@ export const ActiveTutorial = () => {
     if (!visible) return;
     const current = STEPS[step];
     window.dispatchEvent(new CustomEvent('teamtrack-tutorial-step-changed', {
-      detail: { step, target: current?.target, taskCompleted }
+      detail: { step, target: current?.target, taskCompleted, stepTitle: current?.title }
     }));
   }, [visible, step, taskCompleted]);
 
@@ -789,7 +984,17 @@ export const ActiveTutorial = () => {
     if ((sessionData.gateBallCount ?? 0) !== GATE_CAPACITY) {
       updateSessionData({ gateBallCount: GATE_CAPACITY });
     }
-  }, [visible, step, GATE_STEP_INDEX, sessionData.gateBallCount, gateStepInitialized, updateSessionData]);
+    // Reset match phase from 'ended' if returning from the Motif step,
+    // otherwise the normal showMotifButtons logic in GateVisual stays true
+    // and M buttons persist on the Gate step.
+    if (matchPhase === 'ended') {
+      if (sessionData.matchType === 'Teleop') {
+        setMatchPhase('teleop');
+      } else {
+        setMatchPhase('auton');
+      }
+    }
+  }, [visible, step, GATE_STEP_INDEX, sessionData.gateBallCount, sessionData.matchType, matchPhase, gateStepInitialized, updateSessionData, setMatchPhase]);
 
   // When on the motif scoring step, force match state to 'ended' so real M buttons appear
   const MOTIF_STEP_INDEX = STEPS.findIndex(s => s.watchKey === 'motifScore');
@@ -805,13 +1010,20 @@ export const ActiveTutorial = () => {
     // Ensure motif pattern is set and gate has balls so M buttons are visible
     const currentPattern = sessionData.motifPattern ?? ['empty', 'empty', 'empty'];
     const noneSet = currentPattern.every(c => c === 'empty');
-    const updates: Record<string, any> = {};
+    const updates: Partial<SessionFormData> = {};
     
     if (noneSet) {
       updates.motifPattern = ['purple', 'green', 'purple'];
     }
     if ((sessionData.gateBallCount ?? 0) < 3) {
       updates.gateBallCount = 3;
+    }
+    // Close the gate if left open from the Gate step — motif buttons require
+    // the gate to be closed in the 'ended' phase, and the disabled logic also
+    // depends on this.
+    if (sessionData.gateAddBackMode) {
+      updates.gateAddBackMode = false;
+      updates.gateAddBackCount = 0;
     }
     
     if (Object.keys(updates).length > 0) {
@@ -821,9 +1033,8 @@ export const ActiveTutorial = () => {
     setMatchActive(true);
     setMatchPhase('ended');
     setIsTimerRunning(false);
-  }, [visible, step, MOTIF_STEP_INDEX, sessionData.motifPattern, sessionData.gateBallCount, motifStepInitialized, setMatchActive, setMatchPhase, setIsTimerRunning, updateSessionData]);
+  }, [visible, step, MOTIF_STEP_INDEX, sessionData.motifPattern, sessionData.gateBallCount, sessionData.gateAddBackMode, motifStepInitialized, setMatchActive, setMatchPhase, setIsTimerRunning, updateSessionData]);
 
-  // Open the Autonomous tab in Scoring Metrics when that step is reached
   const METRICS_STEP_INDEX = STEPS.findIndex(s => s.title === 'Scoring Metrics');
   useEffect(() => {
     if (!visible || step !== METRICS_STEP_INDEX) return;
@@ -853,7 +1064,6 @@ export const ActiveTutorial = () => {
     };
   }, [visible, step, taskCompleted, METRICS_STEP_INDEX]);
 
-  // Reset event count and metrics task mask when step changes
   useEffect(() => {
     setTutorialEventCount(0);
     setMetricsTasksMask(0);
@@ -925,13 +1135,12 @@ export const ActiveTutorial = () => {
     liftElement(el, breathing, dark);
     prevElRef.current = el;
 
-    // Scroll into view if needed
     const rect = el.getBoundingClientRect();
     const viewH = window.innerHeight;
     if (rect.top < 80 || rect.bottom > viewH - 80) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, []);
+  }, [isDarkMode]);
 
   const clearHighlight = useCallback(() => {
     if (prevElRef.current) {
@@ -940,7 +1149,6 @@ export const ActiveTutorial = () => {
     }
   }, []);
 
-  // Apply highlight on step change
   useEffect(() => {
     if (!visible) return;
     const current = STEPS[step];
@@ -948,7 +1156,6 @@ export const ActiveTutorial = () => {
     applyHighlight(current?.target ?? null, hasPageTask, isDarkMode);
   }, [visible, step, applyHighlight, isDarkMode]);
 
-  // Clean up when hidden
   useEffect(() => {
     if (!visible) clearHighlight();
     return () => clearHighlight();
@@ -994,30 +1201,17 @@ export const ActiveTutorial = () => {
     if (step >= STEPS.length - 1) dismiss();
     else {
       setTaskCompleted(false);
-      setStep(s => {
-        const nextStep = s + 1;
-        window.dispatchEvent(new CustomEvent('teamtrack-tutorial-step-changed', {
-          detail: { step: nextStep, target: STEPS[nextStep]?.target }
-        }));
-        return nextStep;
-      });
+      setStep(s => s + 1);
     }
   }, [step, dismiss]);
 
   const prev = useCallback(() => {
     if (step > 0) {
       setTaskCompleted(false);
-      setStep(s => {
-        const prevStep = s - 1;
-        window.dispatchEvent(new CustomEvent('teamtrack-tutorial-step-changed', {
-          detail: { step: prevStep, target: STEPS[prevStep]?.target }
-        }));
-        return prevStep;
-      });
+      setStep(s => s - 1);
     }
   }, [step]);
 
-  // Keyboard capture
   useEffect(() => {
     if (!visible) return;
     const handler = (e: KeyboardEvent) => {
@@ -1062,7 +1256,7 @@ export const ActiveTutorial = () => {
   const hasPageTask = !!current.pageAction;
   const taskPending = hasPageTask && !taskCompleted;
 
-  return (
+  return createPortal(
     <>
       <style>{`
         @keyframes ttCardIn {
@@ -1102,15 +1296,16 @@ export const ActiveTutorial = () => {
         .tt-card-center { animation: ttCardCenter 0.25s ease-out forwards; }
         .tt-breathe { animation: ttBreathe 2s ease-in-out infinite; }
         .tt-breathe[data-tt-dark="0"] { animation: ttBreatheLight 2s ease-in-out infinite; }
+        @keyframes ttSlideRight {
+          from { opacity: 0; transform: translateX(60px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes ttSlideLeft {
+          from { opacity: 0; transform: translateX(-60px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
       `}</style>
 
-      {/*
-        Backdrop overlay.
-        backdrop-filter blurs the content rendered BEHIND this element.
-        The target element is lifted above (z-index 9999) so it renders
-        ON TOP of this overlay and is NOT affected by the blur.
-        pointer-events: none allows clicks to pass through to interactive elements.
-      */}
       <div
         className="fixed inset-0 z-[9997]"
         style={{
@@ -1121,7 +1316,6 @@ export const ActiveTutorial = () => {
         }}
       />
 
-      {/* Tutorial card */}
       <div
         key={step}
         className={
@@ -1159,7 +1353,6 @@ export const ActiveTutorial = () => {
         }
         onClick={e => e.stopPropagation()}
       >
-        {/* Progress bar */}
         <div
           className="absolute top-0 left-0 h-1 rounded-tl-[20px] transition-all duration-300"
           style={{
@@ -1169,7 +1362,6 @@ export const ActiveTutorial = () => {
           }}
         />
 
-        {/* Step counter */}
         <div
           className="text-xs font-semibold uppercase tracking-widest mb-2"
           style={{ color: teamBlue }}
@@ -1177,27 +1369,22 @@ export const ActiveTutorial = () => {
           {step + 1} / {STEPS.length}
         </div>
 
-        {/* Title */}
         <h3 className="text-lg font-bold mb-1.5" style={{ color: teamBlue }}>
           {current.title}
         </h3>
 
-        {/* Body */}
         <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: subtext }}>
           {current.body}
         </p>
 
-        {/* Preview */}
         {current.preview && current.preview(isDarkMode)}
 
-        {/* Page action prompt — guides user to interact with the real page element */}
         {hasPageTask && step === METRICS_STEP_INDEX ? (
-          /* 3-item checklist for the Scoring Metrics step */
           <div className="mt-4 flex flex-col gap-2">
             {[
-              { label: 'Check Autonomous Leave', bit: 0b001 },
-              { label: 'Edit a shot value',       bit: 0b010 },
-              { label: 'Toggle a Motif (M button)', bit: 0b100 },
+              { label: 'Toggle the Autonomous Leave checkbox', bit: 0b001 },
+              { label: 'Edit a shot value in the shots list',  bit: 0b010 },
+              { label: 'Toggle a Motif button (M)',            bit: 0b100 },
             ].map(({ label, bit }) => {
               const done = !!(metricsTasksMask & bit);
               return (
@@ -1219,7 +1406,10 @@ export const ActiveTutorial = () => {
                       <span className="text-green-500 text-xs font-bold">✓</span>
                     </div>
                   ) : (
-                    <ArrowUp size={16} className="flex-shrink-0" style={{ color: teamBlue }} />
+                    <div
+                      className="w-5 h-5 rounded-full border-2 flex-shrink-0"
+                      style={{ borderColor: teamBlue, opacity: 0.5 }}
+                    />
                   )}
                   <span
                     className="text-xs font-medium"
@@ -1230,6 +1420,18 @@ export const ActiveTutorial = () => {
                 </div>
               );
             })}
+            {taskCompleted && (
+              <button
+                onClick={() => {
+                  setTaskCompleted(false);
+                  setMetricsTasksMask(0);
+                }}
+                className="text-xs font-medium mt-1 self-start opacity-50 hover:opacity-100 transition-opacity"
+                style={{ color: teamBlue }}
+              >
+                ↻ Try Again
+              </button>
+            )}
           </div>
         ) : hasPageTask ? (
           <div
@@ -1268,7 +1470,7 @@ export const ActiveTutorial = () => {
               }}
             >
               {taskCompleted
-                ? 'Done — you can continue'
+                ? 'Done! Click Next to continue '
                 : current.watchEventCount && current.watchEventCount > 1
                   ? `${current.pageAction} (${Math.min(tutorialEventCount, current.watchEventCount)}/${current.watchEventCount})`
                   : current.watchKey === 'shots'
@@ -1278,10 +1480,29 @@ export const ActiveTutorial = () => {
                       })()
                     : current.pageAction}
             </span>
+            {taskCompleted && (
+              <button
+                onClick={() => {
+                  setTaskCompleted(false);
+                  setTutorialEventCount(0);
+                  // Reset sessionData for watchKey-based steps so the watcher
+                  // doesn't immediately re-complete the task
+                  const watchKey = current.watchKey;
+                  if (watchKey === 'shots') {
+                    updateSessionData({ autonShots: [], teleopShots: [] });
+                  } else if (watchKey === 'motifScore') {
+                    updateSessionData({ autonMotif: 0, teleMotif: 0 });
+                  }
+                }}
+                className="ml-auto text-xs font-medium opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
+                style={{ color: teamBlue }}
+              >
+                ↻ Try Again
+              </button>
+            )}
           </div>
         ) : null}
 
-        {/* Controls */}
         <div className="flex items-center justify-between mt-5">
           <button
             onClick={dismiss}
@@ -1330,12 +1551,13 @@ export const ActiveTutorial = () => {
               {isLast
                 ? 'Get Started'
                 : taskPending
-                  ? 'Interact above to continue'
+                  ? 'Complete the task to continue'
                   : 'Next'}
             </button>
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };

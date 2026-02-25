@@ -3,6 +3,9 @@
  *
  * Shared components and tab contents for session analysis.
  * Used by both Analysis.tsx (with editing) and SharedSession.tsx (read-only).
+ *
+ * Intentionally exports both components and helper utilities (computeStats,
+ * TABS, TabId, StatCard, etc.) so the two consumers stay in sync.
  */
 
 import { useState, useEffect } from 'react';
@@ -34,20 +37,18 @@ import {
 } from 'recharts';
 import type { Match } from '@/types';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
 /** Format seconds to M:SS */
-export const fmtTime = (s: number) => {
+const fmtTime = (s: number) => {
   const m = Math.floor(s / 60);
   const sec = Math.round(s % 60);
   return `${m}:${sec.toString().padStart(2, '0')}`;
 };
 
 /** Compute +/- diff string */
-export const diffStr = (val: number) => (val > 0 ? `+${val}` : `${val}`);
+const diffStr = (val: number) => (val > 0 ? `+${val}` : `${val}`);
 
 /** Trend icon based on positive/negative/zero */
-export const TrendIcon = ({
+const TrendIcon = ({
   value,
   size = 16,
 }: {
@@ -60,9 +61,7 @@ export const TrendIcon = ({
   return <Minus size={size} className="text-gray-400" />;
 };
 
-// ─── Chart tooltip ──────────────────────────────────────────────────────────
-
-export const ChartTooltip = ({
+const ChartTooltip = ({
   active,
   payload,
   label,
@@ -122,8 +121,6 @@ export const ChartTooltip = ({
     </div>
   );
 };
-
-// ─── Stat card ──────────────────────────────────────────────────────────────
 
 export const StatCard = ({
   label,
@@ -198,9 +195,7 @@ export const StatCard = ({
   );
 };
 
-// ─── Phase bar ──────────────────────────────────────────────────────────────
-
-export const PhaseBar = ({
+const PhaseBar = ({
   label,
   value,
   max,
@@ -236,9 +231,7 @@ export const PhaseBar = ({
   );
 };
 
-// ─── Section wrapper ────────────────────────────────────────────────────────
-
-export const Section = ({
+const Section = ({
   title,
   children,
   isDarkMode,
@@ -259,9 +252,7 @@ export const Section = ({
   </div>
 );
 
-// ─── Computed stats helper ──────────────────────────────────────────────────
-
-export interface SessionStats {
+interface SessionStats {
   avgScore: number;
   maxScore: number;
   minScore: number;
@@ -316,9 +307,7 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
   };
 };
 
-// ─── COLORS ─────────────────────────────────────────────────────────────────
-
-export const CHART_COLORS = {
+const CHART_COLORS = {
   auto: '#10b981',     // emerald  – Autonomous
   tele: '#f59e0b',     // amber    – Teleop
   endgame: '#0ea5e9',  // sky blue – Endgame
@@ -332,8 +321,6 @@ export const CHART_COLORS = {
   missedTele: '#f97316', // orange – Teleop Missed
 };
 
-// ─── Tab definitions ─────────────────────────────────────────────────────────
-
 export type TabId = 'summary' | 'matches' | 'compare';
 
 export const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
@@ -341,10 +328,6 @@ export const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'matches', label: 'Match Details', icon: LayoutList },
   { id: 'compare', label: 'Compare', icon: ArrowRightLeft },
 ];
-
-// ═══════════════════════════════════════════════════════════════════════════
-// TAB 1 — Summary
-// ═══════════════════════════════════════════════════════════════════════════
 
 export const SummaryTab = ({
   matches,
@@ -390,7 +373,6 @@ export const SummaryTab = ({
     ballsShotData.some(d => d['Auto Balls'] + d['Teleop Balls'] > 0) ||
     ballsMissedData.some(d => d['Auto Balls'] + d['Teleop Balls'] > 0);
 
-  // Compute a single fixed Y-axis max across ALL three views so scale is constant
   const ballsYMax = (() => {
     const allValues = [
       ...ballsShotData.flatMap(d => [d['Auto Balls'], d['Teleop Balls']]),
@@ -398,7 +380,7 @@ export const SummaryTab = ({
       ...ballsMissedData.flatMap(d => [d['Auto Balls'], d['Teleop Balls']]),
     ];
     const max = Math.max(0, ...allValues);
-    // Round up to nearest 5 for clean ticks
+
     return Math.ceil((max + 1) / 5) * 5;
   })();
 
@@ -420,7 +402,6 @@ export const SummaryTab = ({
 
   const hasAnyAccuracyData = accuracyData.some(d => d.Overall !== null);
 
-  // Build cycle time data - average cycle time per match
   const cycleTimeData = matches
     .map((m, i) => {
       if (!m.cycleTimes || m.cycleTimes.length === 0) return null;
@@ -439,7 +420,6 @@ export const SummaryTab = ({
     (showTele ? stats.avgTele : 0) +
     (showEndgame ? stats.avgEndgame : 0);
 
-  // Custom dot renderer – highlight best (green) and worst (red) match
   const ScoringDot = (props: {
     cx?: number;
     cy?: number;
@@ -474,7 +454,6 @@ export const SummaryTab = ({
 
   return (
     <div className="space-y-6">
-      {/* Average Phase Breakdown */}
       <Section title="Average Score Breakdown" isDarkMode={isDarkMode}>
         <div className="space-y-4">
           {showAuto && (
@@ -519,7 +498,6 @@ export const SummaryTab = ({
         </div>
       </Section>
 
-      {/* Scoring Trends */}
       {matches.length >= 2 && (
         <Section title="Scoring Trends" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={280}>
@@ -571,7 +549,6 @@ export const SummaryTab = ({
         </Section>
       )}
 
-      {/* Balls toggle */}
       {hasAnyBallsData && (
         <Section
           title={
@@ -581,7 +558,6 @@ export const SummaryTab = ({
           }
           isDarkMode={isDarkMode}
         >
-          {/* Toggle buttons */}
           <div
             className={`flex gap-1 p-1 rounded-lg mb-4 w-fit ${
               isDarkMode ? 'bg-team-dark' : 'bg-gray-100'
@@ -656,7 +632,6 @@ export const SummaryTab = ({
         </Section>
       )}
 
-      {/* Accuracy Trend */}
       {hasAnyAccuracyData && (
         <Section title="Shooting Accuracy" isDarkMode={isDarkMode}>
           {matches.length < 2 && (
@@ -730,7 +705,6 @@ export const SummaryTab = ({
         </Section>
       )}
 
-      {/* Average Cycle Time */}
       {cycleTimeData.length > 0 && (
         <Section title="Average Cycle Time" isDarkMode={isDarkMode}>
           {matches.length < 2 && (
@@ -780,14 +754,9 @@ export const SummaryTab = ({
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// TAB 2 — Match Details
-// ═══════════════════════════════════════════════════════════════════════════
-
 export const MatchDetailTab = ({
   matches,
   isDarkMode,
-  // Edit/delete/add are optional — omit them for a read-only view
   onEdit,
   onDelete,
   onAdd,
@@ -801,14 +770,12 @@ export const MatchDetailTab = ({
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  // Reset selected index if it's out of bounds after matches change
   useEffect(() => {
     if (matches.length > 0 && selectedIdx >= matches.length) {
       setSelectedIdx(Math.max(0, matches.length - 1));
     }
   }, [matches.length, selectedIdx]);
 
-  // Auto-dismiss delete confirmation after 5 seconds
   useEffect(() => {
     if (!confirmDeleteId) return;
     const timer = setTimeout(() => setConfirmDeleteId(null), 5000);
@@ -882,7 +849,6 @@ export const MatchDetailTab = ({
 
   return (
     <div className="space-y-6">
-      {/* Match selector */}
       <div
         className={`flex items-center justify-between rounded-xl border p-4 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
       >
@@ -946,7 +912,6 @@ export const MatchDetailTab = ({
         </button>
       </div>
 
-      {/* Match score hero */}
       <div
         className={`rounded-xl border p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
       >
@@ -976,7 +941,6 @@ export const MatchDetailTab = ({
           )}
         </div>
 
-        {/* Edit and Delete buttons — only shown when handlers are provided */}
         {(onEdit || onDelete) && (
           <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-team-blue-40">
             {onEdit && (
@@ -1011,7 +975,6 @@ export const MatchDetailTab = ({
         )}
       </div>
 
-      {/* Phase scores */}
       <div className={`grid gap-4 ${visibleBreakdownRows.length === 1 ? 'grid-cols-1' : visibleBreakdownRows.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
         {visibleBreakdownRows.map(row => (
           <div
@@ -1038,7 +1001,6 @@ export const MatchDetailTab = ({
         ))}
       </div>
 
-      {/* Detailed scoring table */}
       <Section title="Scoring Breakdown" isDarkMode={isDarkMode}>
         <div className="overflow-x-auto -mx-2">
           <table className="w-full text-sm">
@@ -1157,7 +1119,6 @@ export const MatchDetailTab = ({
         </div>
       </Section>
 
-      {/* Cycle times */}
       {match.cycleTimes && match.cycleTimes.length > 0 && (
         <Section title="Cycle Times" isDarkMode={isDarkMode}>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
@@ -1242,7 +1203,6 @@ export const MatchDetailTab = ({
         </Section>
       )}
 
-      {/* Vs Session Average Chart */}
       {matches.length > 1 && (
         <Section title="This Match vs Session Average" isDarkMode={isDarkMode}>
           <ResponsiveContainer width="100%" height={260}>
@@ -1317,10 +1277,6 @@ export const MatchDetailTab = ({
     </div>
   );
 };
-
-// ═══════════════════════════════════════════════════════════════════════════
-// TAB 3 — Compare
-// ═══════════════════════════════════════════════════════════════════════════
 
 interface CompareMetric {
   label: string;
@@ -1411,7 +1367,6 @@ export const CompareTab = ({
 
   return (
     <div className="space-y-6">
-      {/* Selectors */}
       <div
         className={`grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border p-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
       >
@@ -1461,7 +1416,6 @@ export const CompareTab = ({
         </div>
       </div>
 
-      {/* Score diff hero */}
       <div
         className={`rounded-xl border p-6 text-center ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
       >
@@ -1485,7 +1439,6 @@ export const CompareTab = ({
         </p>
       </div>
 
-      {/* Stacked bar comparison */}
       <Section title="Score Composition" isDarkMode={isDarkMode}>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={chartData} barGap={20}>
@@ -1536,7 +1489,6 @@ export const CompareTab = ({
         </ResponsiveContainer>
       </Section>
 
-      {/* Full Comparison */}
       <div
         className={`rounded-xl border p-5 space-y-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
       >
@@ -1608,7 +1560,6 @@ export const CompareTab = ({
 
           return (
             <div key={phase} className="space-y-1">
-              {/* Phase header pill */}
               <div
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${phaseConfig.headerBg} ${phaseConfig.headerText}`}
               >
@@ -1619,7 +1570,6 @@ export const CompareTab = ({
                 {phaseConfig.label}
               </div>
 
-              {/* Metric rows */}
               <div
                 className={`rounded-xl border overflow-hidden ${phaseConfig.cardBg}`}
               >
@@ -1643,14 +1593,12 @@ export const CompareTab = ({
                           : ''
                       }`}
                     >
-                      {/* Metric label */}
                       <div className="flex items-center justify-between mb-2">
                         <span
                           className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                         >
                           {row.label}
                         </span>
-                        {/* Diff badge */}
                         {!tied ? (
                           <span
                             className={`text-xs font-bold px-2 py-0.5 rounded-full ${
@@ -1670,9 +1618,7 @@ export const CompareTab = ({
                         )}
                       </div>
 
-                      {/* Value comparison bars */}
                       <div className="grid grid-cols-2 gap-2">
-                        {/* Match A */}
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span
@@ -1711,7 +1657,6 @@ export const CompareTab = ({
                           </div>
                         </div>
 
-                        {/* Match B */}
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span

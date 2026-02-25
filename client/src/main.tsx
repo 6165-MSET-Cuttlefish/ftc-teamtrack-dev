@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './global.css';
-import { isAbortError } from '@/lib/utils';
+import { isAbortError } from '@/lib';
 
 // Suppress noisy console output in development
 if (import.meta.env.DEV) {

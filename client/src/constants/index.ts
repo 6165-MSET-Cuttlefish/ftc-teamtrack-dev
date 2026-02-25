@@ -1,4 +1,4 @@
-// Application-wide constants
+export * from './events';
 
 export const APP_CONFIG = {
   name: 'TeamTrack',
@@ -37,16 +37,6 @@ export const FIREBASE_CONFIG = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ?? '',
 } as const;
 
-export const SCORING = {
-  AUTON_CLASSIFIED_ARTIFACT: 3,
-  AUTON_OVERFLOW_ARTIFACT: 1,
-  AUTON_MOTIF: 2,
-  AUTON_LEAVE: 3,
-  TELE_CLASSIFIED_ARTIFACT: 3,
-  TELE_OVERFLOW_ARTIFACT: 1,
-  TELE_MOTIF: 2,
-} as const;
-
 export const GAME_TIMING = {
   AUTONOMOUS_DURATION_SECONDS: 30,
   TELEOP_DURATION_SECONDS: 120,
@@ -55,9 +45,7 @@ export const GAME_TIMING = {
   /** Timer value when autonomous ends and controller pickup begins (= teleop duration) */
   AUTON_END_REMAINING: 120,
   /** Duration of the controller pickup phase (yellow) */
-  CONTROLLER_PICKUP_SECONDS: 5,
-  /** Duration of the prepare phase */
-  PREPARE_SECONDS: 3,
+  CONTROLLER_PICKUP_SECONDS: 8,
   /** Duration of the audio intro before countdown (seconds) */
   AUDIO_INTRO_SECONDS: 1.15,
   MAX_THEORETICAL_SCORE: 150,
@@ -74,22 +62,34 @@ export const SESSION_LIMITS = {
  * UI Timing constants for animations, timeouts, and delays
  */
 export const UI_TIMING = {
-  // Delete confirmation auto-dismiss (milliseconds)
   DELETE_CONFIRM_TIMEOUT: 5000,
-  // Tutorial transition delay
   TUTORIAL_TRANSITION_DELAY: 100,
-  // Generic short toast display duration
   SHORT_DELAY: 1000,
-  // Session limit check timeout
   SESSION_LIMIT_CHECK_DELAY: 2000,
-  // Message auto-dismiss timeout
   MESSAGE_DISPLAY_TIMEOUT: 4000,
 } as const;
 
 /**
- * LocalStorage keys for persistent user preferences and state
+ * LocalStorage / sessionStorage keys for persistent user preferences and state.
+ * All keys use a `teamtrack-` prefix with kebab-case.
  */
 export const STORAGE_KEYS = {
   THEME: 'teamtrack-theme',
-  TUTORIALS_SEEN: 'teamtrack_tutorials_seen',
+  TUTORIAL_SEEN: 'teamtrack-tutorial-v1-seen',
+  KEYBIND_TUTORIAL_SEEN: 'teamtrack-keybind-tutorial-seen',
+  GUEST_PROMPT_DISMISSED: 'teamtrack-guest-prompt-dismissed',
+  GUEST_PROMPT_LAST_SHOWN: 'teamtrack-guest-prompt-last-shown',
+  HAS_COMPLETED_SESSION: 'teamtrack-has-completed-session',
+  SESSION_SCHEMA_VERSION: 'teamtrack-session-schema-version',
+  SESSION_DATA: 'teamtrack-session-data',
+  SESSION_TIMER: 'teamtrack-session-timer',
+  MATCH_TIMER: 'teamtrack-match-timer',
+  SESSION_START_TIME: 'teamtrack-session-start-time',
+  MATCH_START_TIME: 'teamtrack-match-start-time',
+  MATCH_STATE: 'teamtrack-match-state',
+  AUDIO_STATE: 'teamtrack-audio-state',
+  PENDING_INVITE_CODE: 'teamtrack-pending-invite-code',
+  PENDING_INVITE_EXPIRY: 'teamtrack-pending-invite-expiry',
+  START_TUTORIAL: 'teamtrack-start-tutorial',
+  GUEST_SESSIONS: 'teamtrack-guest-sessions',
 } as const;

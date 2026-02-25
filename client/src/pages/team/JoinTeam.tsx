@@ -1,16 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useTeam, useTheme } from '@/contexts';
-import { firebaseService } from '@/services';
-import { teamService } from '@/services/teamService';
-import { ROUTES, APP_CONFIG } from '@/constants';
+import { firebaseService, teamService } from '@/services';
+import { ROUTES, APP_CONFIG, STORAGE_KEYS } from '@/constants';
 import { Users, Check, AlertCircle, Upload, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import type { Session } from '@/types/session';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import getFirebase from '@/lib/firebase';
-import { logger } from '@/lib/logger';
+import type { Session } from '@/types';
+import { logger } from '@/lib';
 
 const JoinTeam = () => {
   const { inviteCode } = useParams<{ inviteCode: string }>();
@@ -35,26 +32,23 @@ const JoinTeam = () => {
     document.title = `Join Team - ${APP_CONFIG.name}`;
   }, []);
 
-  // Step 1: look up the team by invite code (preview before joining)
   useEffect(() => {
     if (authLoading) return;
 
     if (!user) {
       if (inviteCode) {
-        // Store temporarily — will be consumed on login. Expires after 1 hour.
-        localStorage.setItem('pendingInviteCode', inviteCode);
-        localStorage.setItem('pendingInviteCodeExpiry', String(Date.now() + 60 * 60 * 1000));
+        localStorage.setItem(STORAGE_KEYS.PENDING_INVITE_CODE, inviteCode);
+        localStorage.setItem(STORAGE_KEYS.PENDING_INVITE_EXPIRY, String(Date.now() + 60 * 60 * 1000));
       }
       navigate(ROUTES.LOGIN);
       return;
     }
 
-    const pendingCode = localStorage.getItem('pendingInviteCode');
-    const pendingExpiry = localStorage.getItem('pendingInviteCodeExpiry');
-    // Expire stale pending invite codes
+    const pendingCode = localStorage.getItem(STORAGE_KEYS.PENDING_INVITE_CODE);
+    const pendingExpiry = localStorage.getItem(STORAGE_KEYS.PENDING_INVITE_EXPIRY);
     if (pendingCode && pendingExpiry && Date.now() > Number(pendingExpiry)) {
-      localStorage.removeItem('pendingInviteCode');
-      localStorage.removeItem('pendingInviteCodeExpiry');
+      localStorage.removeItem(STORAGE_KEYS.PENDING_INVITE_CODE);
+      localStorage.removeItem(STORAGE_KEYS.PENDING_INVITE_EXPIRY);
     }
     const codeToUse = inviteCode || (pendingExpiry && Date.now() <= Number(pendingExpiry) ? pendingCode : null);
 
@@ -90,7 +84,6 @@ const JoinTeam = () => {
     doLookup();
   }, [user, authLoading, inviteCode, navigate]);
 
-  // Step 2: actually join the team (triggered by user clicking "Join")
   const handleJoin = async () => {
     if (!resolvedCode) return;
     setStatus('joining');
@@ -100,26 +93,14 @@ const JoinTeam = () => {
         setTeamName(team.name);
         setTeamId(team.id);
         setStatus('success');
-        localStorage.removeItem('pendingInviteCode');
+        localStorage.removeItem(STORAGE_KEYS.PENDING_INVITE_CODE);
 
-        // Check if user has personal sessions to import
         if (user?.uid) {
           try {
-            const firebase = await getFirebase();
-            if (firebase?.db) {
-              const q = query(
-                collection(firebase.db, 'sessions'),
-                where('userId', '==', user.uid)
-              );
-              const snapshot = await getDocs(q);
-              const allSessions = snapshot.docs.map(d => ({
-                id: d.id,
-                ...d.data(),
-              } as Session));
-              const importable = allSessions.filter(s => s.teamId !== team.id);
-              setImportableSessions(importable);
-              setSelectedSessionIds(new Set(importable.map(s => s.id)));
-            }
+            const allSessions = await firebaseService.getUserSessions(user.uid);
+            const importable = allSessions.filter(s => s.teamId !== team.id);
+            setImportableSessions(importable as Session[]);
+            setSelectedSessionIds(new Set(importable.map(s => s.id)));
           } catch (err) {
             logger.warn('Could not fetch sessions for import', err instanceof Error ? { message: err.message } : undefined);
           }
@@ -242,7 +223,6 @@ const JoinTeam = () => {
                   into <strong>{teamName}</strong>.
                 </p>
 
-                {/* Select All / Deselect All toggle */}
                 <button
                   type="button"
                   onClick={() => {
@@ -264,7 +244,6 @@ const JoinTeam = () => {
                   {selectedSessionIds.size === importableSessions.length ? 'Deselect All' : 'Select All'}
                 </button>
 
-                {/* Session list with checkboxes */}
                 <div className="max-h-48 overflow-y-auto space-y-1 mb-3">
                   {importableSessions.map(session => {
                     const isSelected = selectedSessionIds.has(session.id);
@@ -327,7 +306,6 @@ const JoinTeam = () => {
                       const ids = Array.from(selectedSessionIds);
                       const count = await firebaseService.importSessionsToTeam(ids, teamId);
                       toast.success(`Imported ${count} session${count !== 1 ? 's' : ''} to ${teamName}`);
-                      // Remove imported sessions from the list
                       setImportableSessions(prev => prev.filter(s => !selectedSessionIds.has(s.id)));
                       setSelectedSessionIds(new Set());
                     } catch {

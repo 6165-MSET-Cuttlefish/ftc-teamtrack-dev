@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useTheme } from '@/contexts';
 import { AlertCircle } from 'lucide-react';
 
-type MotifColor = 'purple' | 'green' | 'empty';
+import type { MotifColor } from '@/types';
 
 interface MotifSetupDialogProps {
   isOpen: boolean;
@@ -39,7 +39,6 @@ export const MotifSetupDialog = ({
     });
   }, []);
 
-  // Check if pattern is 2 purple and 1 green
   const purpleCount = motifPattern.filter(c => c === 'purple').length;
   const greenCount = motifPattern.filter(c => c === 'green').length;
   const isComplete = purpleCount === 2 && greenCount === 1;
@@ -69,10 +68,8 @@ export const MotifSetupDialog = ({
           isDarkMode ? 'bg-team-dark border border-team-blue/30' : 'bg-white border border-team-blue/20'
         }`}
       >
-        {/* Title */}
         <h2 className="text-xl font-bold text-center text-team-blue">Set Your Motif Pattern</h2>
 
-        {/* Instructions */}
         <div className={`text-sm p-3 rounded-lg flex items-start gap-2 ${
           isDarkMode ? 'bg-team-blue/10 border border-team-blue/30' : 'bg-team-blue/5 border border-team-blue/20'
         }`}>
@@ -95,7 +92,6 @@ export const MotifSetupDialog = ({
           </div>
         </div>
 
-        {/* Motif Pattern Slots */}
         <div className="space-y-3">
           <p className={`text-sm font-semibold text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Your 3-Ball Pattern</p>
           <div className="flex items-center gap-3 justify-center">
@@ -116,7 +112,6 @@ export const MotifSetupDialog = ({
           </div>
         </div>
 
-        {/* Status Message */}
         {!isComplete && (
           <p
             className={`text-xs text-center ${
@@ -127,7 +122,6 @@ export const MotifSetupDialog = ({
           </p>
         )}
 
-        {/* Action Buttons */}
         <div className="flex gap-3 pt-2">
           <button
             onClick={onCancel}

@@ -2,9 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
-import TeamManager from '@/components/TeamManager';
-import { formatDate, isAbortError } from '@/lib/utils';
-import { generateShareableLink, copyToClipboard } from '@/lib';
+import { TeamManager } from '@/components';
+import { formatDate, isAbortError, generateShareableLink, copyToClipboard, logger } from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -70,7 +69,6 @@ const SessionCard = ({
   const [isTitleTruncated, setIsTitleTruncated] = useState(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
-  // Check if title is truncated
   useEffect(() => {
     if (titleRef.current && !isEditing) {
       const isTruncated = titleRef.current.scrollHeight > titleRef.current.clientHeight;
@@ -80,7 +78,6 @@ const SessionCard = ({
     }
   }, [session.sessionName, isEditing]);
 
-  // Reset delete confirmation after timeout
   useEffect(() => {
     if (deleteConfirm) {
       const timeout = setTimeout(() => setDeleteConfirm(false), UI_TIMING.DELETE_CONFIRM_TIMEOUT);
@@ -126,12 +123,10 @@ const SessionCard = ({
     setDeleteConfirm(false);
   };
 
-  // Calculate session scores from matches
   const getSessionScores = () => {
     const matches = session.matches || [];
     const scores = matches
-      .map(match => match.finalScore || 0)
-      .filter(score => score > 0);
+      .map(match => match.finalScore || 0);
     
     if (scores.length === 0) {
       return { highestScore: 0, averageScore: 0, totalScore: 0, matchCount: matches.length };
@@ -423,7 +418,6 @@ const Sessions = () => {
   }, []);
 
   const loadPersonalSessions = useCallback(async () => {
-    // Guests don't have sessions stored in Firebase
     if (isGuest) {
       setLoading(false);
       return;
@@ -451,10 +445,8 @@ const Sessions = () => {
     if (!team) {
       await loadPersonalSessions();
     }
-    // Team sessions are handled by the real-time listener below
   }, [user?.uid, team, loadPersonalSessions]);
 
-  // Real-time sync for team sessions
   useEffect(() => {
     if (!team) return;
 
@@ -472,23 +464,19 @@ const Sessions = () => {
           setLoading(false);
         },
         async (error) => {
-          console.error('Team sessions listener error:', error);
-          // Show the actual Firestore error (often a missing index link)
+          logger.error('Team sessions listener error:', { error: String(error) });
           const errorMessage = error?.message || 'Unknown error';
           if (errorMessage.includes('index')) {
             toast.error('Firestore needs a composite index for team sessions. Check the browser console for the creation link.', { duration: 10000 });
           } else {
             toast.error(`Team sync error: ${errorMessage}`);
           }
-          // Fallback to one-time fetch so the page still works
           if (!subscribed) {
             try {
               const fetched = await firebaseService.getTeamSessions(team.id);
               setSessions(fetched);
               setFilteredSessions(fetched);
-            } catch {
-              // already toasted
-            }
+            } catch { /* fallback fetch already attempted */ }
           }
           setLoading(false);
         }
@@ -502,7 +490,6 @@ const Sessions = () => {
     };
   }, [team]);
 
-  // Load personal sessions (non-team)
   useEffect(() => {
     if (!team) {
       loadPersonalSessions();
@@ -512,7 +499,6 @@ const Sessions = () => {
   useEffect(() => {
     let filtered = sessions;
 
-    // Filter by search term
     if (searchTerm.trim()) {
       filtered = filtered.filter(
         session =>
@@ -521,7 +507,6 @@ const Sessions = () => {
       );
     }
 
-    // Filter by match type
     if (selectedMatchType !== 'all') {
       filtered = filtered.filter(
         session => session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
@@ -536,11 +521,9 @@ const Sessions = () => {
   };
 
   const handleUpdateSessionName = async (sessionId: string, newName: string) => {
-    // Store original name before optimistic update for potential revert
     const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
     
     try {
-      // Update local state optimistically for instant feedback
       setSessions(prevSessions =>
         prevSessions.map(session =>
           session.id === sessionId
@@ -549,11 +532,9 @@ const Sessions = () => {
         )
       );
       
-      // Then update Firebase to persist changes
       const success = await firebaseService.updateSession(sessionId, { sessionName: newName });
       
       if (!success) {
-        // Revert on failure using stored original name
         setSessions(prevSessions =>
           prevSessions.map(session =>
             session.id === sessionId
@@ -568,7 +549,6 @@ const Sessions = () => {
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error updating session name', error);
-      // Revert on error using stored original name
       setSessions(prevSessions =>
         prevSessions.map(session =>
           session.id === sessionId
@@ -623,9 +603,13 @@ const Sessions = () => {
       return;
     }
 
-    const esc = (val: string) => `"${val.replace(/"/g, '""').replace(/\n/g, ' ')}"`;
-
-    // Per-match export: one row per match with full detail
+    const esc = (val: string) => {
+      let safe = val.replace(/"/g, '""').replace(/\n/g, ' ');
+      if (/^[=+\-@\t\r]/.test(safe)) {
+        safe = `'${safe}`;
+      }
+      return `"${safe}"`;
+    };
     const headers = [
       'Session Name',
       'Session Date',
@@ -665,7 +649,6 @@ const Sessions = () => {
       const email = esc(session.userEmail || '');
 
       if (!session.matches || session.matches.length === 0) {
-        // Session with no matches — still export a row
         rows.push([
           sessionName, sessionDate, sessionDuration, matchType,
           '0', '0', '0', '0', '0',
@@ -829,7 +812,7 @@ const Sessions = () => {
                   {(() => {
                     const allScores = sessions.flatMap(s => 
                       (s.matches || []).map(m => m.finalScore || 0)
-                    ).filter(score => score > 0);
+                    );
                     return allScores.length > 0 
                       ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) 
                       : 0;

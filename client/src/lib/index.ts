@@ -1,26 +1,24 @@
-export { default as getFirebase } from './firebase';
+export { getFirebase } from './firebase';
 export {
   cn,
   toDate,
   formatDate,
   formatTime,
   getDisplayTimer,
-  isInAudioIntroPhase,
   getInitials,
   isAbortError,
   getErrorMessage,
 } from './utils';
+export { logger } from './logger';
 export {
+  hasCompletedASession,
+  markSessionCompleted,
   saveSessionToStorage,
   loadSessionFromStorage,
   loadTimerStateFromStorage,
   clearSessionFromStorage,
+  clearHasCompletedSession,
   hasActiveSession,
-  saveMatchStateToStorage,
-  hasCompletedASession,
-  markSessionCompleted,
-  type SessionFormData,
-  type SessionTimerState,
-  type MatchState,
-} from './sessionStorage';
-export { generateShareableLink, copyToClipboard } from './shareUtils';
+} from './sessionPersistence';
+export { generateShareableLink, copyToClipboard } from './shareService';
+export { sanitizeHtml } from './sanitize';

@@ -1,7 +1,7 @@
 import { useSession, useTheme } from '@/contexts';
 import { useState, useRef, useEffect } from 'react';
 import { Keyboard } from 'lucide-react';
-import { TUTORIAL_ENDED_EVENT } from './ActiveTutorial';
+import { TUTORIAL_ENDED_EVENT } from '@/constants/events';
 
 export const ScoringUI = () => {
   const { updateSessionData, sessionData, matchPhase, matchActive } = useSession();
@@ -10,7 +10,6 @@ export const ScoringUI = () => {
   // Timestamp of the last scoring action, used to compute cycle time in seconds
   const lastShotTimeRef = useRef<number | null>(null);
 
-  // Ping notification for each shot
   const [pingShot, setPingShot] = useState<{ ballsMade: number; ballsShot: number } | null>(null);
   const [pingKey, setPingKey] = useState(0);
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -22,18 +21,15 @@ export const ScoringUI = () => {
     pingTimeoutRef.current = setTimeout(() => setPingShot(null), 1500);
   };
 
-  // Listen for keyboard-originated shots to show ping
   useEffect(() => {
     const handler = (e: Event) => {
       const ce = e as CustomEvent<{ ballsMade: number; ballsShot: number }>;
       if (ce.detail) {
         showPing(ce.detail.ballsMade, ce.detail.ballsShot);
-        // Flash the matching grid cell
         const id = `${ce.detail.ballsShot}-${ce.detail.ballsMade}`;
         setFlashingButton(id);
         setTimeout(() => setFlashingButton(null), 400);
       }
-      // Clear keyboard highlights on commit
       setKeyboardActiveRow(null);
       setKeyboardActiveMade(null);
     };
@@ -41,7 +37,6 @@ export const ScoringUI = () => {
     return () => window.removeEventListener('teamtrack-shot-scored', handler);
   }, []);
 
-  // Keyboard row/cell highlight state
   const [keyboardActiveRow, setKeyboardActiveRow] = useState<number | null>(null);
   const [keyboardActiveMade, setKeyboardActiveMade] = useState<number | null>(null);
 
@@ -72,28 +67,23 @@ export const ScoringUI = () => {
     };
   }, []);
 
-  // Persistent totals
   const allShots = [...(sessionData.autonShots ?? []), ...(sessionData.teleopShots ?? [])];
   const totalShot = allShots.reduce((s, e) => s + ((e as {ballsShot: number}).ballsShot ?? 0), 0);
   const totalMade = allShots.reduce((s, e) => s + ((e as {ballsMade: number}).ballsMade ?? 0), 0);
 
-  // Shot types with ball counts
-  // Note: controller_pickup = 5 seconds, prepare = 3 seconds, total = 8 seconds between auton and teleop
   const shotTypes = [
     { id: 1, balls: 1 },
     { id: 2, balls: 2 },
     { id: 3, balls: 3 },
   ];
 
-  // Check if scoring is allowed based on match type and current phase
   const isScoringAllowed = (): boolean => {
     if (!matchActive) return false;
     if (sessionData.matchType === 'Autonomous') {
       // Autonomous mode: only allow auton phase scoring
       return (
         matchPhase === 'auton' ||
-        matchPhase === 'controller_pickup' ||
-        matchPhase === 'prepare'
+        matchPhase === 'controller_pickup'
       );
     } else if (sessionData.matchType === 'Teleop') {
       // Teleop mode: only allow teleop phase scoring
@@ -104,18 +94,14 @@ export const ScoringUI = () => {
   };
 
   const handleBallSelect = (shotId: number, ballsMade: number) => {
-    // Prevent scoring if not allowed in current phase
     if (!isScoringAllowed()) {
       return;
     }
 
-    // Create unique button identifier
     const buttonId = `${shotId}-${ballsMade}`;
 
-    // Flash the button
     setFlashingButton(buttonId);
 
-    // Compute cycle time in seconds with 2 decimal precision
     const now = Date.now();
     const cycleTime =
       lastShotTimeRef.current !== null
@@ -131,8 +117,7 @@ export const ScoringUI = () => {
       sessionData.matchType === 'Autonomous' ||
       (sessionData.matchType === 'Full Game' &&
         (matchPhase === 'auton' ||
-          matchPhase === 'controller_pickup' ||
-          matchPhase === 'prepare'));
+          matchPhase === 'controller_pickup'));
 
     // Gate logic: classify vs overflow based on gate capacity (9)
     const GATE_CAPACITY = 9;
@@ -157,22 +142,18 @@ export const ScoringUI = () => {
       });
     }
 
-    // Show ping notification for board shots
     showPing(ballsMade, shotId);
 
-    // Clear flash after animation
     setTimeout(() => {
       setFlashingButton(null);
     }, 400);
   };
 
-  // Determine score label and display the synced score from sessionData
   const isAutonPhase =
     sessionData.matchType === 'Autonomous' ||
     (sessionData.matchType === 'Full Game' &&
       (matchPhase === 'auton' ||
-        matchPhase === 'controller_pickup' ||
-        matchPhase === 'prepare'));
+        matchPhase === 'controller_pickup'));
   const scoreLabel = isAutonPhase ? 'AUTON Score:' : 'TELEOP Score:';
   const displayScore = isAutonPhase
     ? (sessionData.autonomousScore ?? 0)
@@ -201,7 +182,6 @@ export const ScoringUI = () => {
           >
             <Keyboard className="w-6 h-6" />
           </button>
-          {/* Persistent shot counter */}
           {totalShot > 0 && (
             <div className="relative flex items-center ml-1">
               {pingShot && (
@@ -217,7 +197,6 @@ export const ScoringUI = () => {
               </span>
             </div>
           )}
-          {/* Ping notification even when totalShot is 0 (first shot) */}
           {totalShot === 0 && pingShot && (
             <div className="relative flex items-center ml-1">
               <span
@@ -246,7 +225,6 @@ export const ScoringUI = () => {
           const isActiveRow = keyboardActiveRow === shot.id;
           return (
             <div key={shot.id} className="flex items-stretch gap-4 w-full">
-              {/* Shot Label on Left - centered vertically */}
               <div className="flex items-center justify-center flex-shrink-0 min-w-[80px]">
                 <div
                   className={`text-sm font-medium text-center transition-colors duration-150 ${
@@ -257,9 +235,7 @@ export const ScoringUI = () => {
                 </div>
               </div>
 
-              {/* Scoring buttons - fill width evenly */}
               <div className="flex items-center gap-3 flex-1">
-                {/* 0 option */}
                 {(() => {
                   const isMissedSelected = isActiveRow && keyboardActiveMade === 0;
                   const isRowYellow = isActiveRow && keyboardActiveMade === null;
@@ -304,7 +280,6 @@ export const ScoringUI = () => {
                   );
                 })()}
 
-                {/* Ball options */}
                 {Array.from({ length: shot.balls }).map((_, index) => {
                   const ballCount = index + 1;
                   const isFlashing = flashingButton === `${shot.id}-${ballCount}`;

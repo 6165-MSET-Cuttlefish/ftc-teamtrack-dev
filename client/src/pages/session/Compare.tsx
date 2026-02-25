@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Navigate, Link } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
-import { formatDate, isAbortError } from '@/lib/utils';
+import { formatDate, isAbortError } from '@/lib';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, Match } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,17 +56,7 @@ const Compare = () => {
     document.title = `Compare - ${APP_CONFIG.name}`;
   }, []);
 
-  // Guests cannot access Compare — redirect
   const guestRedirectToastShown = useRef(false);
-  if (!user?.uid || isGuest) {
-    if (!guestRedirectToastShown.current) {
-      guestRedirectToastShown.current = true;
-      setTimeout(() => toast.error('Please sign in to compare sessions'), 0);
-    }
-    return <Navigate to={ROUTES.SESSIONS} replace />;
-  }
-
-  // --- Helpers ---
 
   const getCellColor = (
     value: number,
@@ -144,8 +134,6 @@ const Compare = () => {
     return ct.length > 0 ? ct.reduce((a, b) => a + b, 0) / ct.length : 0;
   };
 
-  // --- Data loading ---
-
   useEffect(() => {
     const loadSessions = async () => {
       if (!user?.uid) return;
@@ -218,6 +206,14 @@ const Compare = () => {
     };
   }, [selectedSessionIds]);
 
+  if (!user?.uid || isGuest) {
+    if (!guestRedirectToastShown.current) {
+      guestRedirectToastShown.current = true;
+      setTimeout(() => toast.error('Please sign in to compare sessions'), 0);
+    }
+    return <Navigate to={ROUTES.SESSIONS} replace />;
+  }
+
   const toggleSession = (sessionId: string) => {
     if (selectedSessionIds.includes(sessionId)) {
       setSelectedSessionIds(selectedSessionIds.filter(id => id !== sessionId));
@@ -225,8 +221,6 @@ const Compare = () => {
       setSelectedSessionIds([...selectedSessionIds, sessionId]);
     }
   };
-
-  // --- Render helpers ---
 
   const renderSessionRow = (
     label: string,
@@ -342,9 +336,6 @@ const Compare = () => {
     );
   };
 
-  // --- Guards ---
-  // (duplicate guard removed – the early return above already handles this)
-
   if (loading) {
     return (
       <div
@@ -363,7 +354,6 @@ const Compare = () => {
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
     >
       <div className="max-w-[1152px] mx-auto px-4 sm:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold mb-2">
             Comparison
@@ -374,7 +364,6 @@ const Compare = () => {
             Compare sessions and matches side-by-side
           </p>
 
-          {/* Comparison Mode Tabs */}
           <div className="flex gap-2">
             <button
               onClick={() => setComparisonMode('sessions')}
@@ -400,7 +389,6 @@ const Compare = () => {
           </div>
         </div>
 
-        {/* Session Selector — pill grid */}
         <div className="mb-6">
           {sessions.length === 0 ? (
             <div className={`text-center py-12 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}>
@@ -454,12 +442,10 @@ const Compare = () => {
           )}
         </div>
 
-        {/* ====== SESSIONS MODE ====== */}
         {comparisonMode === 'sessions' ? (
           selectedSessionsData.length > 0 ? (
             <div className="space-y-6">
 
-              {/* ── Score Trend Chart ─────────────────────────────── */}
               <Card className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
                 <CardHeader
                   onClick={() => setIsScoreChartOpen(!isScoreChartOpen)}
@@ -475,7 +461,6 @@ const Compare = () => {
                     <p className={`text-xs mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
                       Average score per phase across all matches in each session. Each point = one session.
                     </p>
-                    {/* Phase toggle */}
                     <div className="flex flex-wrap gap-2 mb-5">
                       {(['total', 'autonomous', 'teleop', 'endgame'] as const).map(phase => (
                         <button
@@ -494,7 +479,6 @@ const Compare = () => {
                       ))}
                     </div>
 
-                    {/* Build a single dataset: one point per session */}
                     {(() => {
                       const chartData = selectedSessionsData.map((session, idx) => {
                         const n = session.matches.length || 1;
@@ -554,7 +538,6 @@ const Compare = () => {
                 )}
               </Card>
 
-              {/* ── Avg Cycle Time Chart ──────────────────────────── */}
               <Card className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
                 <CardHeader
                   onClick={() => setIsCycleChartOpen(!isCycleChartOpen)}
@@ -766,7 +749,6 @@ const Compare = () => {
                                 0
                               ) / (s.matches.length || 1)
                           )}
-                          {/* Parking Summary */}
                           <tr
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                           >
@@ -862,10 +844,9 @@ const Compare = () => {
               </CardContent>
             </Card>
           )
-        ) : // ====== MATCHES MODE ======
+        ) : 
         allMatches.length > 0 ? (
           <div className="space-y-6">
-            {/* Match Selector — grouped by session */}
             <div className="space-y-4">
               {selectedSessionsData.map((session) => {
                 const sessionMatches = allMatches.filter(
@@ -932,7 +913,6 @@ const Compare = () => {
 
             {selectedMatches.length > 0 && (
               <>
-              {/* ── Matches: Score Trend Chart ───────────────────── */}
               <Card className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
                 <CardHeader
                   onClick={() => setIsMatchScoreChartOpen(!isMatchScoreChartOpen)}
@@ -948,7 +928,6 @@ const Compare = () => {
                     <p className={`text-xs mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
                       Score per phase for each selected match. Toggle phase to compare.
                     </p>
-                    {/* Phase toggle */}
                     <div className="flex flex-wrap gap-2 mb-5">
                       {(['total', 'autonomous', 'teleop', 'endgame'] as const).map(phase => (
                         <button
@@ -1021,7 +1000,6 @@ const Compare = () => {
                 )}
               </Card>
 
-              {/* ── Matches: Cycle Time Chart ────────────────────── */}
               <Card className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}>
                 <CardHeader
                   onClick={() => setIsMatchCycleChartOpen(!isMatchCycleChartOpen)}
@@ -1155,7 +1133,6 @@ const Compare = () => {
                             >
                               Metric
                             </th>
-                            {/* Session header groups */}
                             {selectedSessionsData.map(session => {
                               const matchesForSession = selectedMatches.filter(
                                 m => m.sessionId === session.id
@@ -1183,7 +1160,6 @@ const Compare = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {/* Final Score */}
                           {renderMatchRow(
                             'Final Score',
                             m => m.finalScore || 0,

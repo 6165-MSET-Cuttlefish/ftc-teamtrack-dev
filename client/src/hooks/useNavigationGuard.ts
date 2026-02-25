@@ -19,14 +19,12 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
   const [isBlocked, setIsBlocked] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
 
-  // Keep shouldBlock in a ref so event handlers always see the latest value.
   const shouldBlockRef = useRef(shouldBlock);
   shouldBlockRef.current = shouldBlock;
 
-  // Ref to track whether we're intentionally navigating (to avoid re-blocking).
   const allowNavRef = useRef(false);
 
-  // ── Browser-level guard (refresh / close tab) ─────────────────────────
+  // Browser-level guard (refresh / close tab)
   useEffect(() => {
     if (!shouldBlock) return;
 
@@ -39,29 +37,26 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     return () => window.removeEventListener('beforeunload', handler);
   }, [shouldBlock]);
 
-  // ── In-app back/forward button guard (popstate) ───────────────────────
+  // In-app back/forward button guard (popstate)
   useEffect(() => {
     if (!shouldBlock) return;
 
-    // Push a duplicate state so that "Back" gives us a popstate we can intercept.
     window.history.pushState(null, '', window.location.href);
 
     const handler = () => {
       if (!shouldBlockRef.current || allowNavRef.current) return;
 
-      // Re-push state so repeated Back presses keep being intercepted.
       window.history.pushState(null, '', window.location.href);
 
-      // Show the confirmation dialog.
-      setPendingPath(null); // back button — we'll use history.back()
+      setPendingPath(null);
       setIsBlocked(true);
     };
 
     window.addEventListener('popstate', handler);
     return () => window.removeEventListener('popstate', handler);
-  }, [shouldBlock]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shouldBlock]);
 
-  // ── Intercept programmatic in-app navigation (Link / navigate()) ──────
+  // Intercept programmatic in-app navigation (Link / navigate())
   useEffect(() => {
     if (!shouldBlock) return;
 
@@ -76,14 +71,12 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
         }
 
         const target = url ? String(url) : null;
-        // Same path → allow (e.g. hash or query updates).
         if (target && new URL(target, window.location.origin).pathname === location.pathname) {
           return original(data, unused, url);
         }
 
         setPendingPath(target);
         setIsBlocked(true);
-        // Don't call original — block the navigation.
       };
 
     window.history.pushState = intercept(originalPushState);
@@ -95,7 +88,7 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     };
   }, [shouldBlock, location.pathname]);
 
-  // ── Dialog actions ────────────────────────────────────────────────────
+  // Dialog actions
   const proceed = useCallback(() => {
     allowNavRef.current = true;
     setIsBlocked(false);
@@ -103,11 +96,10 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     if (pendingPath) {
       navigate(pendingPath, { replace: true });
     } else {
-      // Back button case — go back for real.
-      window.history.go(-1);
+      // Go back past the two duplicate states we pushed
+      window.history.go(-2);
     }
 
-    // Reset after a tick so future navigations are guarded again.
     setTimeout(() => {
       allowNavRef.current = false;
     }, 0);

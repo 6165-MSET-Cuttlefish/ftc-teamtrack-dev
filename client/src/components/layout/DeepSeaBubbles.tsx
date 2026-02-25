@@ -10,7 +10,6 @@ export const DeepSeaBubbles = () => {
 
   if (!isDeepSeaMode) return null;
 
-  // Generate a set of bubbles with varied sizes, positions, and timing
   const bubbles = [
     { size: 6,  left: 5,  delay: 0,    duration: 14, opacity: 0.25 },
     { size: 10, left: 12, delay: 2,    duration: 16, opacity: 0.18 },

@@ -22,7 +22,6 @@ export function toDate(timestamp: TimestampValue | unknown): Date {
     if ('seconds' in ts && 'nanoseconds' in ts) {
       return new Date(ts.seconds * 1000 + ts.nanoseconds / 1000000);
     }
-    // Handle Firestore Timestamp with toDate method
     if (
       'toDate' in ts &&
       typeof (ts as { toDate: () => Date }).toDate === 'function'
@@ -60,15 +59,6 @@ export function formatTime(seconds: number): string {
   const minutes = Math.floor(s / 60);
   const remainingSeconds = s % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
-
-/**
- * Check if we're in the pre-match audio intro phase.
- * @deprecated Use isPreMatchDelay from SessionContext instead.
- * Kept for backward compatibility.
- */
-export function isInAudioIntroPhase(_backendTimer: number): boolean {
-  return false;
 }
 
 /**
@@ -114,7 +104,6 @@ export function getInitials(name: string): string {
 export function isAbortError(error: unknown): boolean {
   if (!error) return false;
 
-  // Handle various error formats
   const err = error as {
     name?: string;
     code?: string;
@@ -123,7 +112,6 @@ export function isAbortError(error: unknown): boolean {
     reason?: unknown;
   };
 
-  // Check if it's a PromiseRejectionEvent or similar
   const actualError = err.reason || error;
   const errorObj =
     typeof actualError === 'object' && actualError !== null
@@ -135,7 +123,6 @@ export function isAbortError(error: unknown): boolean {
   const message = String(errorObj.message || error || '').toLowerCase();
   const stack = String(errorObj.stack || '').toLowerCase();
 
-  // Common AbortError identifiers
   if (
     name === 'aborterror' ||
     code === 'err_aborted' ||
@@ -145,7 +132,6 @@ export function isAbortError(error: unknown): boolean {
     return true;
   }
 
-  // Specific message patterns for Firestore/Fetch aborts
   if (
     message.includes('aborted') ||
     message.includes('signal abort') ||

@@ -1,16 +1,13 @@
 import { FIREBASE_CONFIG } from '@/constants';
-import { logger } from '@/lib/logger';
+import { logger } from './logger';
 
-// Cache the Firebase instances to prevent reinitialization
 let cachedFirebase: {
   app: ReturnType<typeof import('firebase/app').initializeApp>;
   auth: ReturnType<typeof import('firebase/auth').getAuth>;
   db: ReturnType<typeof import('firebase/firestore').getFirestore>;
 } | null = null;
 
-// Lazy firebase initializer. Uses dynamic imports so dev server won't fail if Firebase isn't configured or installed.
 export async function getFirebase() {
-  // Return cached instance if available
   if (cachedFirebase) {
     return cachedFirebase;
   }
@@ -20,13 +17,11 @@ export async function getFirebase() {
     const { getAuth } = await import('firebase/auth');
     const { getFirestore } = await import('firebase/firestore');
 
-    // Check if an app already exists to prevent duplicate initialization
     const app =
       getApps().length > 0 ? getApp() : initializeApp(FIREBASE_CONFIG);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Cache the instances
     cachedFirebase = { app, auth, db };
     return cachedFirebase;
   } catch (err) {
@@ -47,5 +42,3 @@ export async function getFirebase() {
     return null;
   }
 }
-
-export default getFirebase;

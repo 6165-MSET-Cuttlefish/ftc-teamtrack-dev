@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage } from '@/lib';
+import { ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +34,7 @@ const Signup = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/sessions';
+  const from = location.state?.from?.pathname || ROUTES.SESSIONS;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -68,8 +69,7 @@ const Signup = () => {
     try {
       setError('');
       setLoading(true);
-      // Clear any old session data from previous accounts before creating new account
-      const { clearSessionFromStorage } = await import('@/lib/sessionStorage');
+      const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
       clearSessionFromStorage();
       await signup(formData.email, formData.password, formData.displayName);
       navigate(from, { replace: true });
@@ -84,8 +84,7 @@ const Signup = () => {
     try {
       setError('');
       setLoading(true);
-      // Clear any old session data from previous accounts before creating new account
-      const { clearSessionFromStorage } = await import('@/lib/sessionStorage');
+      const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
       clearSessionFromStorage();
       await loginWithGoogle();
       navigate(from, { replace: true });
@@ -301,7 +300,7 @@ const Signup = () => {
           >
             Already have an account?{' '}
             <Link
-              to="/login"
+              to={ROUTES.LOGIN}
               className="text-team-blue hover:underline font-medium"
             >
               Sign in

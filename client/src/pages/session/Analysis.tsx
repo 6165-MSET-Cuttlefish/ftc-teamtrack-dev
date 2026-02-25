@@ -1,11 +1,9 @@
-// ─── Analysis.tsx ───────────────────────────────────────────────────────────
-// Shared tab components live in ./AnalysisTabs so SharedSession stays in sync.
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { generateShareableLink, copyToClipboard } from '@/lib/shareUtils';
-import { APP_CONFIG } from '@/constants';
+import { generateShareableLink, copyToClipboard, sanitizeHtml } from '@/lib';
+import { APP_CONFIG, STORAGE_KEYS } from '@/constants';
 import type { Match } from '@/types';
 import { MatchForm } from '@/components';
 import { toast } from 'sonner';
@@ -18,9 +16,9 @@ import {
   computeStats,
   TABS,
   type TabId,
-} from './AnalysisTabs';
+} from '@/components/session/AnalysisTabs';
 
-const AnalysisContent = () => {
+const Analysis = () => {
   const { sessionData: contextSessionData } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -47,15 +45,12 @@ const AnalysisContent = () => {
 
   const stats = useMemo(() => computeStats(sessionMatches), [sessionMatches]);
 
-  // ── Load session data ─────────────────────────────────────────────────
-
   useEffect(() => {
     let mounted = true;
 
     const load = async () => {
       setLoading(true);
 
-      // Check location state first (temporary sessions)
       const stateData = location.state as {
         sessionData?: typeof contextSessionData;
       } | null;
@@ -67,21 +62,17 @@ const AnalysisContent = () => {
         return;
       }
 
-      // Load by sessionId from query params
       const sessionId = searchParams.get('sessionId');
       if (sessionId) {
         try {
           let session = null;
-          // Check localStorage first for guest sessions
           if (sessionId.startsWith('guest_')) {
-            const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
             const stored = JSON.parse(
-              localStorage.getItem(GUEST_SESSIONS_KEY) || '[]'
+              localStorage.getItem(STORAGE_KEYS.GUEST_SESSIONS) || '[]'
             );
             session =
               stored.find((s: { id: string }) => s.id === sessionId) || null;
           }
-          // Fall back to Firebase
           if (!session) {
             session = await firebaseService.getSession(sessionId);
           }
@@ -137,8 +128,6 @@ const AnalysisContent = () => {
     };
   }, [searchParams, location.state, user?.uid]);
 
-  // ── Copy share link ───────────────────────────────────────────────────
-
   const handleCopyLink = useCallback(async () => {
     if (!sessionData) return;
     setIsCopyingLink(true);
@@ -186,8 +175,6 @@ const AnalysisContent = () => {
     }
   }, [sessionData]);
 
-  // ── Match management ──────────────────────────────────────────────────
-
   const handleAddMatch = () => {
     setEditingMatch(null);
     setIsMatchFormOpen(true);
@@ -207,14 +194,13 @@ const AnalysisContent = () => {
       const updatedMatches = sessionData.matches.filter(m => m.id !== matchId);
 
       if (sessionId.startsWith('guest_')) {
-        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
         const stored = JSON.parse(
-          localStorage.getItem(GUEST_SESSIONS_KEY) || '[]'
+          localStorage.getItem(STORAGE_KEYS.GUEST_SESSIONS) || '[]'
         );
         const updated = stored.map((s: { id: string; matches?: Match[] }) =>
           s.id === sessionId ? { ...s, matches: updatedMatches } : s
         );
-        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
+        localStorage.setItem(STORAGE_KEYS.GUEST_SESSIONS, JSON.stringify(updated));
       } else {
         await firebaseService.updateSession(sessionId, {
           matches: updatedMatches,
@@ -274,14 +260,13 @@ const AnalysisContent = () => {
       }
 
       if (sessionId.startsWith('guest_')) {
-        const GUEST_SESSIONS_KEY = 'teamtrack-guest-sessions';
         const stored = JSON.parse(
-          localStorage.getItem(GUEST_SESSIONS_KEY) || '[]'
+          localStorage.getItem(STORAGE_KEYS.GUEST_SESSIONS) || '[]'
         );
         const updated = stored.map((s: { id: string; matches?: Match[] }) =>
           s.id === sessionId ? { ...s, matches: updatedMatches } : s
         );
-        localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(updated));
+        localStorage.setItem(STORAGE_KEYS.GUEST_SESSIONS, JSON.stringify(updated));
       } else {
         await firebaseService.updateSession(sessionId, {
           matches: updatedMatches,
@@ -303,8 +288,6 @@ const AnalysisContent = () => {
     }
   };
 
-  // ── Loading ───────────────────────────────────────────────────────────
-
   if (loading) {
     return (
       <div
@@ -318,14 +301,11 @@ const AnalysisContent = () => {
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────
-
   return (
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
-        {/* ── Header ──────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="space-y-2">
             <h1 className="text-team-blue text-3xl sm:text-4xl font-bold leading-tight">
@@ -345,7 +325,6 @@ const AnalysisContent = () => {
             </div>
           </div>
 
-          {/* Copy share link button */}
           {sessionMatches.length > 0 && (
             <button
               onClick={handleCopyLink}
@@ -372,7 +351,6 @@ const AnalysisContent = () => {
           )}
         </div>
 
-        {/* ── Hero stats ──────────────────────────────────────────── */}
         {stats && (
           <div className="space-y-3">
             <h2
@@ -405,7 +383,6 @@ const AnalysisContent = () => {
           </div>
         )}
 
-        {/* ── Notes ───────────────────────────────────────────────── */}
         {sessionData.notes && (
           <div
             className={`rounded-xl border p-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
@@ -417,12 +394,11 @@ const AnalysisContent = () => {
             </h3>
             <div
               className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
-              dangerouslySetInnerHTML={{ __html: sessionData.notes }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(sessionData.notes) }}
             />
           </div>
         )}
 
-        {/* ── Tabs ────────────────────────────────────────────────── */}
         {sessionMatches.length > 0 && (
           <>
             <div
@@ -452,7 +428,6 @@ const AnalysisContent = () => {
               })}
             </div>
 
-            {/* Tab content */}
             <div>
               {activeTab === 'summary' && stats && (
                 <SummaryTab
@@ -480,7 +455,6 @@ const AnalysisContent = () => {
           </>
         )}
 
-        {/* Empty state */}
         {sessionMatches.length === 0 && !loading && (
           <div
             className={`text-center py-16 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}
@@ -504,7 +478,6 @@ const AnalysisContent = () => {
           </div>
         )}
 
-        {/* ── Actions ─────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <Link
             to="/charts"
@@ -515,7 +488,6 @@ const AnalysisContent = () => {
         </div>
       </div>
 
-      {/* ── Match Form Modal ──────────────────────────────────────── */}
       <MatchForm
         isOpen={isMatchFormOpen}
         onClose={() => {
@@ -530,4 +502,4 @@ const AnalysisContent = () => {
   );
 };
 
-export default AnalysisContent;
+export default Analysis;

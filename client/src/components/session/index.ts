@@ -1,14 +1,9 @@
-export {
-  ActiveTutorial,
-  TUTORIAL_STORAGE_KEY,
-  TUTORIAL_RESTART_EVENT,
-  TUTORIAL_SESSION_SAVED_EVENT,
-} from './ActiveTutorial';
+export { ActiveTutorial } from './ActiveTutorial';
+export { SummaryTab, MatchDetailTab, CompareTab, StatCard, computeStats, TABS, type TabId, type SessionStats } from './AnalysisTabs';
 export { GateVisual } from './GateVisual';
 export { LivePreview } from './LivePreview';
 export { MatchForm } from './MatchForm';
 export { Notes } from './Notes';
-export { PerformanceMetrics } from './PerformanceMetrics';
+export { ScoringMetrics } from './ScoringMetrics';
 export { ScoringUI } from './ScoringUI';
 export { SessionSetup } from './SessionSetup';
-export { ShareButton } from './ShareButton';

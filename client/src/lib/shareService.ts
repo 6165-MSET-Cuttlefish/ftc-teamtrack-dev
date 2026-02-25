@@ -44,11 +44,10 @@ export const generateShareableLink = async (
     })),
   };
 
-  // ── Try Firestore short link first ────────────────────────────────────
   try {
     const { firebaseService } = await import('@/services');
-    const getFirebaseModule = await import('@/lib/firebase');
-    const firebase = await getFirebaseModule.default();
+    const { getFirebase } = await import('@/lib/firebase');
+    const firebase = await getFirebase();
     const uid = firebase?.auth?.currentUser?.uid;
     if (!uid) throw new Error('Not authenticated');
     const shortId = await firebaseService.createSharedSession(shareData, uid);
@@ -60,7 +59,7 @@ export const generateShareableLink = async (
     );
   }
 
-  // ── Fallback: base64-encoded URL ──────────────────────────────────────
+  // Fallback: base64-encoded URL
   try {
     const jsonStr = JSON.stringify(shareData);
     const bytes = new TextEncoder().encode(jsonStr);
@@ -82,7 +81,6 @@ export const copyToClipboard = async (text: string): Promise<void> => {
   if (navigator.clipboard && window.isSecureContext) {
     await navigator.clipboard.writeText(text);
   } else {
-    // Fallback for older browsers
     const textArea = document.createElement('textarea');
     textArea.value = text;
     textArea.style.position = 'fixed';

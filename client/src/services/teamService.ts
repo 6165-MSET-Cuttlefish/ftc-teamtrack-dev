@@ -11,8 +11,7 @@ import {
   arrayUnion,
   type Firestore,
 } from 'firebase/firestore';
-import getFirebase from '@/lib/firebase';
-import { isAbortError } from '@/lib/utils';
+import { getFirebase, isAbortError } from '@/lib';
 import type { Team, CreateTeamData, TeamMember } from '@/types';
 
 class TeamService {
@@ -161,7 +160,6 @@ class TeamService {
       async () => {
         const db = await this.getDB();
         
-        // Query teams where the user is in the memberIds array
         const memberQuery = query(
           collection(db, 'teams'),
           where('memberIds', 'array-contains', userId)
@@ -199,9 +197,8 @@ class TeamService {
           throw new Error('Invalid invite code');
         }
 
-        // Check if user is already a member
         if (team.members.some(m => m.userId === userId)) {
-          return team; // Already a member
+          return team;
         }
 
         const db = await this.getDB();
@@ -291,8 +288,7 @@ class TeamService {
         // If the owner is leaving, transfer ownership to the oldest member
         let newOwnerUserId: string | null = null;
         if (leavingMember?.role === 'owner' && remaining.length > 0) {
-          // Pick the first remaining member (oldest by join time) as new owner
-          // Fallback: just use remaining[0] if timestamp sorting fails
+          // Fallback to remaining[0] if timestamp sorting fails
           try {
             const sorted = [...remaining].sort((a, b) => {
               const aTime = a.joinedAt && typeof a.joinedAt === 'object' && 'seconds' in a.joinedAt
@@ -370,11 +366,9 @@ class TeamService {
         const teamData = teamDoc.data();
         const members: TeamMember[] = teamData.members || [];
 
-        // Verify the requester is the owner
         const owner = members.find((m) => m.userId === ownerUserId);
         if (!owner || owner.role !== 'owner') return false;
 
-        // Cannot kick yourself
         if (ownerUserId === targetUserId) return false;
 
         const remaining = members.filter((m) => m.userId !== targetUserId);

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { getErrorMessage } from '@/lib/utils';
-import { APP_CONFIG } from '@/constants';
+import { getErrorMessage } from '@/lib';
+import { APP_CONFIG, ROUTES, STORAGE_KEYS } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,12 +35,21 @@ const Login = () => {
 
   const from = location.state?.from?.pathname || '/sessions';
 
-  // Redirect already-authenticated users away from login page
+  /** Return the best post-login destination, consuming any pending invite. */
+  const getPostLoginDestination = useCallback((): string => {
+    const pendingCode = localStorage.getItem(STORAGE_KEYS.PENDING_INVITE_CODE);
+    const pendingExpiry = localStorage.getItem(STORAGE_KEYS.PENDING_INVITE_EXPIRY);
+    if (pendingCode && pendingExpiry && Date.now() <= Number(pendingExpiry)) {
+      return ROUTES.TEAM_INVITE.replace(':inviteCode', pendingCode);
+    }
+    return from;
+  }, [from]);
+
   useEffect(() => {
     if (!authLoading && user) {
-      navigate(from, { replace: true });
+      navigate(getPostLoginDestination(), { replace: true });
     }
-  }, [authLoading, user, navigate, from]);
+  }, [authLoading, user, navigate, from, getPostLoginDestination]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +63,7 @@ const Login = () => {
       setError('');
       setLoading(true);
       await login(email, password);
-      navigate(from, { replace: true });
+      navigate(getPostLoginDestination(), { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -67,7 +76,7 @@ const Login = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      navigate(from, { replace: true });
+      navigate(getPostLoginDestination(), { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {

@@ -20,16 +20,13 @@ export const HomeRedirect = () => {
     );
   }
 
-  // Redirect unauthenticated visitors to login
   if (!user && !isGuest) {
     return <Navigate to={ROUTES.LOGIN} replace />;
   }
 
-  // If the user has completed at least one session, send them to the sessions list
   if (hasCompletedASession()) {
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
 
-  // Otherwise, start with the active practice session page
   return <Navigate to={ROUTES.ACTIVE} replace />;
 };

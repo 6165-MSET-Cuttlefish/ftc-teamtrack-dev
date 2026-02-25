@@ -3,11 +3,10 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   type ReactNode,
 } from 'react';
-import getFirebase from '@/lib/firebase';
-import { logger } from '@/lib/logger';
-import { clearSessionFromStorage, clearHasCompletedSession } from '@/lib/sessionStorage';
+import { getFirebase, logger, clearSessionFromStorage, clearHasCompletedSession } from '@/lib';
 import type { User } from '@/types';
 import type {
   Auth,
@@ -16,7 +15,6 @@ import type {
   GoogleAuthProvider as FirebaseGoogleAuthProvider,
 } from 'firebase/auth';
 
-// Types for functions we may dynamically import
 type FirebaseAuthModule = {
   signInWithEmailAndPassword?: (
     auth: Auth,
@@ -46,8 +44,8 @@ type FirebaseAuthModule = {
   ) => Promise<UserCredential>;
 };
 
-let firebaseAuthModule: FirebaseAuthModule | null = null; // populated when available
-let firebaseAuth: Auth | null = null; // the auth instance if available
+let firebaseAuthModule: FirebaseAuthModule | null = null;
+let firebaseAuth: Auth | null = null;
 
 interface AuthContextType {
   user: User | null;
@@ -92,7 +90,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [isGuest, setIsGuest] = useState(false);
   const [guestId, setGuestId] = useState<string | null>(null);
 
-  // Helper to lazy-initialize Firebase auth and auth module
   const ensureAuth = async () => {
     if (firebaseAuth && firebaseAuthModule) {
       return { authInstance: firebaseAuth, authModule: firebaseAuthModule };
@@ -164,7 +161,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const logout = async () => {
     const { authInstance, authModule } = await ensureAuth();
 
-    // Handle guest logout
     if (isGuest) {
       localStorage.removeItem(GUEST_MODE_KEY);
       localStorage.removeItem(GUEST_ID_KEY);
@@ -176,7 +172,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
 
-    // Clear per-user flags before Firebase sign-out to prevent cross-user bleed
+    clearSessionFromStorage();
     clearHasCompletedSession();
 
     if (!authInstance || !authModule || !authModule.signOut) return;
@@ -261,7 +257,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const rawModule = await import('firebase/auth');
     const providerId = currentUser.providerData?.[0]?.providerId;
 
-    // Re-authenticate before deletion
     if (providerId === 'google.com') {
       const provider = new rawModule.GoogleAuthProvider();
       await rawModule.reauthenticateWithPopup(currentUser, provider);
@@ -299,7 +294,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const continueAsGuest = () => {
-    // Generate a unique guest ID if not already set
     let guestUserId = localStorage.getItem(GUEST_ID_KEY);
 
     if (!guestUserId) {
@@ -313,21 +307,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setLoading(false);
   };
 
+  // Module-scoped flag survives React StrictMode double-mount
+  const guestToastShownRef = useRef(false);
+
   useEffect(() => {
     let unsubscribe: () => void = () => {};
 
     (async () => {
-      // Check for guest mode in localStorage
       const guestMode = localStorage.getItem(GUEST_MODE_KEY);
       const storedGuestId = localStorage.getItem(GUEST_ID_KEY);
 
       if (guestMode === 'true' && storedGuestId) {
         setIsGuest(true);
         setGuestId(storedGuestId);
+        guestToastShownRef.current = true; // returning guest — don't show toast again
       }
 
-      // Always set up Firebase auth listener (even for guests)
-      // This ensures that if a guest signs in, the auth state updates properly
+      // Always set up Firebase auth listener even for guests
       const { authInstance, authModule } = await ensureAuth();
       if (authInstance && authModule && authModule.onAuthStateChanged) {
         unsubscribe = authModule.onAuthStateChanged(
@@ -343,14 +339,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 emailVerified: u.emailVerified,
               };
               setUser(user);
-              // Clear guest mode if user logs in
               localStorage.removeItem(GUEST_MODE_KEY);
               setIsGuest(false);
               setGuestId(null);
             } else {
               setUser(null);
-              // Auto-enter guest mode so the app is usable without signing in
-              if (!guestMode) {
+              if (!guestToastShownRef.current) {
+                guestToastShownRef.current = true;
                 let autoGuestId = localStorage.getItem(GUEST_ID_KEY);
                 if (!autoGuestId) {
                   autoGuestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -359,6 +354,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 localStorage.setItem(GUEST_MODE_KEY, 'true');
                 setIsGuest(true);
                 setGuestId(autoGuestId);
+                setTimeout(() => {
+                  import('sonner').then(({ toast }) => {
+                    toast.info('You are browsing as a guest. Sign in to save your sessions.', { duration: 5000 });
+                  }).catch(() => {});
+                }, 500);
               }
             }
             setLoading(false);
@@ -366,16 +366,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         );
       } else {
         setUser(null);
-        // Auto-enter guest mode when Firebase is unavailable
-        if (!guestMode) {
+        if (!guestToastShownRef.current) {
+          guestToastShownRef.current = true;
           let autoGuestId = localStorage.getItem(GUEST_ID_KEY);
           if (!autoGuestId) {
-            autoGuestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            autoGuestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
             localStorage.setItem(GUEST_ID_KEY, autoGuestId);
           }
           localStorage.setItem(GUEST_MODE_KEY, 'true');
           setIsGuest(true);
           setGuestId(autoGuestId);
+          setTimeout(() => {
+            import('sonner').then(({ toast }) => {
+              toast.info('You are browsing as a guest. Sign in to save your sessions.', { duration: 5000 });
+            }).catch(() => {});
+          }, 500);
         }
         setLoading(false);
       }

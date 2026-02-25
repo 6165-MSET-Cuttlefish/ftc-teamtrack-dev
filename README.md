@@ -81,7 +81,7 @@ CI is set up via GitHub Actions — see `.github/workflows/`.
 client/src/
   components/
     auth/       auth guards and prompts
-    common/     header, error boundary
+    layout/     header, error boundary
     session/    match scoring and tracking UI
     ui/         shadcn/ui base components
   constants/    app config and game constants

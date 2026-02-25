@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage } from '@/lib';
 import { APP_CONFIG, ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,6 @@ const ForgotPassword = () => {
     document.title = `Reset Password - ${APP_CONFIG.name}`;
   }, []);
 
-  // Auto-redirect to login 15 seconds after successful submission
   useEffect(() => {
     if (!submitted) return;
     const timeout = setTimeout(() => navigate(ROUTES.LOGIN), 15000);

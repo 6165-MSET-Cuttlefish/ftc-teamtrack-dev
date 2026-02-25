@@ -1,13 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSession, useTheme } from '@/contexts';
 import { MotifSetupDialog } from './MotifSetupDialog';
-import { TUTORIAL_GATE_CYCLE_EVENT } from './ActiveTutorial';
+import { TUTORIAL_GATE_CYCLE_EVENT } from '@/constants/events';
+import type { MotifColor } from '@/types';
 
 const GATE_CAPACITY = 9;
 const POINTS_PER_MOTIF = 2;
 const TELEOP_MOTIF_WINDOW_SECS = 10;
-
-type MotifColor = 'purple' | 'green' | 'empty';
 
 // Count number of set bits in a bitmask
 const countBits = (n: number): number => {
@@ -23,15 +22,16 @@ export const GateVisual = () => {
   const { sessionData, updateSessionData, matchPhase, matchActive } = useSession();
   const { isDarkMode } = useTheme();
   const [showMotifDialog, setShowMotifDialog] = useState(false);
-  const [isGateTutorialActive, setIsGateTutorialActive] = useState(false);
-  const gateCycleToastTimeRef = useRef<number>(0);
-  const TOAST_COOLDOWN_MS = 2000;
+  const [isTutorialGateStep, setIsTutorialGateStep] = useState(false);
+  const [isTutorialMotifStep, setIsTutorialMotifStep] = useState(false);
 
-  // Listen for tutorial step changes to apply pulse to Open Gate button
+  // Listen for tutorial step changes to distinguish Gate vs Motif tutorial steps
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      setIsGateTutorialActive(detail?.target === 'gate');
+      const isGateTarget = detail?.target === 'gate';
+      setIsTutorialGateStep(isGateTarget && detail?.stepTitle === 'Gate Mechanic');
+      setIsTutorialMotifStep(isGateTarget && detail?.stepTitle === 'Motif Scoring');
     };
     window.addEventListener('teamtrack-tutorial-step-changed', handler);
     return () => window.removeEventListener('teamtrack-tutorial-step-changed', handler);
@@ -56,7 +56,7 @@ export const GateVisual = () => {
       teleopStartedAtRef.current = Date.now();
       setGateOpenedDuringAutonWindow(false);
     }
-    if (matchPhase !== 'teleop' && matchPhase !== 'controller_pickup' && matchPhase !== 'prepare' && matchPhase !== 'ended') {
+    if (matchPhase !== 'teleop' && matchPhase !== 'controller_pickup' && matchPhase !== 'ended') {
       teleopStartedAtRef.current = null;
       setIsInTeleopMotifWindow(false);
       setGateOpenedDuringAutonWindow(false);
@@ -75,12 +75,20 @@ export const GateVisual = () => {
     return () => clearInterval(interval);
   }, [matchPhase]);
 
+  // Reset gateOpenedDuringEndMotif when the tutorial enters the motif step
+  // (prevents stale state from a previous gate interaction blocking M buttons)
+  useEffect(() => {
+    if (isTutorialMotifStep) {
+      setGateOpenedDuringEndMotif(false);
+    }
+  }, [isTutorialMotifStep]);
+
   // Determine if we're in a motif-scoring window
-  // Auton just ended → controller_pickup or prepare phase (Full Game)
+  // Auton just ended → controller_pickup phase (Full Game)
   const isAutonMotifPhase =
     matchActive &&
     sessionData.matchType === 'Full Game' &&
-    (matchPhase === 'controller_pickup' || matchPhase === 'prepare');
+    matchPhase === 'controller_pickup';
 
   // Autonomous-only match: motifs scorable after match ends
   const isAutonEndMotifPhase =
@@ -109,11 +117,13 @@ export const GateVisual = () => {
   const isGateOpenedDuringAutonMotif = gateOpenedDuringAutonWindow && (isAutonMotifPhase || isTeleopMotifPhase);
 
   // Show motif M buttons: only if motif is enabled AND in appropriate phases
+  // During the tutorial motif step, force-show regardless of phase logic
   const showMotifButtons =
-    hasMotifEnabled &&
+    (isTutorialMotifStep && hasMotifEnabled && gateBallCount > 0) ||
+    (hasMotifEnabled &&
     (((isAutonMotifPhase || isTeleopMotifPhase) && !isGateOpenedDuringAutonMotif) ||
     (isTeleopEndMotifPhase && !gateOpenedDuringEndMotif) ||
-    (isAutonEndMotifPhase && !gateOpenedDuringEndMotif));
+    (isAutonEndMotifPhase && !gateOpenedDuringEndMotif)));
 
   // Current motif bitmask being edited
   // During buffer and first 10s of teleop: edit autonMotif
@@ -146,7 +156,6 @@ export const GateVisual = () => {
       gateAddBackMode: false,
       gateAddBackCount: 0,
     });
-    // Notify tutorial that a gate cycle was completed via click
     window.dispatchEvent(new CustomEvent(TUTORIAL_GATE_CYCLE_EVENT, { detail: { method: 'click' } }));
   }, [addBackCount, updateSessionData]);
 
@@ -169,12 +178,11 @@ export const GateVisual = () => {
     [isGateOpen, gateBallCount, updateSessionData]
   );
 
-  // Motif M button click - toggle a motif point
   const handleMotifScoreClick = useCallback(
     (index: number) => {
       // Toggle motif index in bitmask (independent on/off)
       let mask = currentMotifMask;
-      mask ^= (1 << index);  // Toggle bit at position index
+      mask ^= (1 << index);
       updateSessionData({ [currentMotifField]: mask });
     },
     [currentMotifMask, currentMotifField, updateSessionData]
@@ -207,9 +215,7 @@ export const GateVisual = () => {
   };
 
   const getBallColor = (index: number) => {
-    // Empty slot: dim background
     const emptyClass = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300';
-    // Filled ball (no motif, no pattern set): solid grey
     const filledGrey = isDarkMode ? 'bg-gray-500 border-gray-400' : 'bg-gray-400 border-gray-500';
 
     if (isGateOpen) {
@@ -217,17 +223,13 @@ export const GateVisual = () => {
       return emptyClass;
     }
 
-    // Slot has no ball
     if (index >= gateBallCount) return emptyClass;
 
-    // Slot has a ball — determine motif assignment color for this slot
     const patternColor = getSlotPatternColor(index);
 
-    // Check if M is scored for this slot
     const isMotifScored = !!(currentMotifMask & (1 << index));
 
     if (isMotifScored) {
-      // Full-opacity assigned color when scored
       return getMotifColorClass(patternColor);
     }
 
@@ -236,7 +238,6 @@ export const GateVisual = () => {
 
   return (
     <div className="space-y-3" data-tutorial="gate">
-      {/* M button flash animation */}
       <style>{`
         @keyframes motifMFlash {
           0%, 100% {
@@ -254,7 +255,6 @@ export const GateVisual = () => {
           animation: motifMFlash 2.5s ease-in-out infinite;
         }
       `}</style>
-      {/* Gate Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-team-blue text-2xl font-semibold leading-6">
@@ -284,13 +284,11 @@ export const GateVisual = () => {
         </div>
       </div>
 
-      {/* Gate Visual - Horizontal tube */}
       <div
         className={`relative rounded-xl p-3 ${
           isDarkMode ? 'bg-team-dark' : 'bg-white'
         }`}
       >
-        {/* Motif pts label */}
         {showMotifButtons && gateBallCount > 0 && (
           <p
             className={`text-xs text-center font-semibold mb-1 ${
@@ -311,12 +309,15 @@ export const GateVisual = () => {
                 <div className="w-9 h-9 sm:w-10 sm:h-10" />
               ) : null}
 
-              {/* Ball slot */}
               <button
                 onClick={() => showMotifButtons && i < gateBallCount ? handleMotifScoreClick(i) : handleAddBackClick(i)}
-                disabled={!isGateOpen || (isGateOpen && i >= gateBallCount) || (showMotifButtons && !matchActive)}
+                disabled={
+                  showMotifButtons
+                    ? (i >= gateBallCount || !matchActive)
+                    : (!isGateOpen || i >= gateBallCount)
+                }
                 className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-200 flex items-center justify-center text-xs font-bold ${
-                  isGateOpen && i >= gateBallCount ? 'opacity-40' : ''
+                  showMotifButtons ? (i >= gateBallCount ? 'opacity-40' : '') : (isGateOpen && i >= gateBallCount ? 'opacity-40' : '')
                 } ${getBallColor(i)} ${
                   showMotifButtons && i < gateBallCount && matchActive
                     ? 'cursor-pointer hover:scale-110'
@@ -348,7 +349,6 @@ export const GateVisual = () => {
           ))}
         </div>
 
-        {/* Gate open state overlay */}
         {isGateOpen && (
           <div className="mt-3 flex flex-col items-center gap-2">
             <div className={`text-sm font-bold text-center rounded px-3 py-2 ${
@@ -393,7 +393,6 @@ export const GateVisual = () => {
         )}
       </div>
 
-      {/* Open Gate Button */}
       {!isGateOpen && (
         <>
           <style>{`
@@ -412,7 +411,7 @@ export const GateVisual = () => {
           <button
             onClick={handleOpenGate}
             disabled={gateBallCount === 0}
-            className={`w-full py-3 rounded-xl text-sm font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isGateTutorialActive ? 'gate-button-pulse' : ''} ${
+            className={`w-full py-3 rounded-xl text-sm font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isTutorialGateStep ? 'gate-button-pulse' : ''} ${
               isDarkMode
                 ? 'bg-team-dark text-team-blue hover:bg-team-blue/10'
                 : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -423,7 +422,6 @@ export const GateVisual = () => {
         </>
       )}
 
-      {/* Start Match Button */}
       <button
         onClick={() => {
           if (hasMotifEnabled && (!sessionData.motifPattern || sessionData.motifPattern.some(c => c === 'empty'))) {
@@ -443,7 +441,6 @@ export const GateVisual = () => {
         Start Match
       </button>
 
-      {/* Motif Setup Dialog - only show if motif is enabled */}
       {hasMotifEnabled && (
         <MotifSetupDialog
           isOpen={showMotifDialog}

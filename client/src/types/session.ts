@@ -1,5 +1,15 @@
 import type { Timestamp } from 'firebase/firestore';
 
+/** Match phase during active gameplay */
+export type MatchPhase =
+  | 'auton'
+  | 'controller_pickup'
+  | 'teleop'
+  | 'ended';
+
+/** Color options for 3-ball motif pattern */
+export type MotifColor = 'purple' | 'green' | 'empty';
+
 export interface FirebaseTimestamp {
   seconds: number;
   nanoseconds: number;
@@ -54,7 +64,7 @@ export interface ScoringFields {
   /** How many balls to keep when releasing gate (UI state) */
   gateAddBackCount?: number;
   /** 3-ball motif pattern set at match start (purple or green per slot) */
-  motifPattern?: ('purple' | 'green' | 'empty')[];
+  motifPattern?: MotifColor[];
   cycleTimes: number[];
   /** Individual shot records for Autonomous phase */
   autonShots?: ShotEntry[];
@@ -67,7 +77,6 @@ export interface Match {
   matchNumber: number;
   matchType?: string;
   createdAt?: TimestampValue;
-  // Scoring fields
   finalScore?: number;
   autonomousScore?: number;
   teleopScore?: number;
@@ -84,7 +93,7 @@ export interface Match {
   robot1Park?: 'none' | 'partial' | 'full';
   robot2Park?: 'none' | 'partial' | 'full';
   gateBallCount?: number;
-  motifPattern?: ('purple' | 'green' | 'empty')[];
+  motifPattern?: MotifColor[];
   cycleTimes?: number[];
   autonShots?: ShotEntry[];
   teleopShots?: ShotEntry[];

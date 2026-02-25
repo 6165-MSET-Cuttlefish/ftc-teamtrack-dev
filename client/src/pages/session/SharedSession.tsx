@@ -1,10 +1,9 @@
-// ─── SharedSession.tsx ───────────────────────────────────────────────────────
-// Read-only view of a shared session. Uses the same tab components as the main
-// Analysis page (via AnalysisTabs.tsx) so the two stay in sync automatically.
+
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
+import { sanitizeHtml } from '@/lib';
 import { Button } from '@/components/ui/button';
 import { BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { Match } from '@/types';
@@ -16,9 +15,8 @@ import {
   computeStats,
   TABS,
   type TabId,
-} from './AnalysisTabs';
+} from '@/components/session/AnalysisTabs';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SharedData {
   sessionName?: string;
@@ -29,7 +27,6 @@ interface SharedData {
   matches?: Match[];
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 
 const SharedSession = () => {
   const { isDarkMode } = useTheme();
@@ -39,7 +36,6 @@ const SharedSession = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('summary');
 
-  // ── Load session ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const load = async () => {
@@ -48,7 +44,7 @@ const SharedSession = () => {
       try {
         const params = new URLSearchParams(window.location.search);
 
-        // ── New short-link format: ?id=<7-char shortId> ──────────────
+        // New short-link format: ?id=<7-char shortId>
         const shortId = params.get('id');
         if (shortId) {
           const data = await firebaseService.getSharedSession(shortId);
@@ -60,7 +56,7 @@ const SharedSession = () => {
           return;
         }
 
-        // ── Legacy base64 format: ?data=<base64> (backwards compat) ──
+        // Legacy base64 format: ?data=<base64> (backwards compat)
         const encoded = params.get('data');
         if (encoded) {
           const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
@@ -84,7 +80,6 @@ const SharedSession = () => {
   const sessionMatches: Match[] = session?.matches ?? [];
   const stats = useMemo(() => computeStats(session?.matches ?? []), [session]);
 
-  // ── Loading ─────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -99,7 +94,6 @@ const SharedSession = () => {
     );
   }
 
-  // ── Error ───────────────────────────────────────────────────────────────────
 
   if (error) {
     return (
@@ -141,14 +135,12 @@ const SharedSession = () => {
     );
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
-        {/* ── Header ──────────────────────────────────────────────── */}
         <div className="space-y-2">
           <div
             className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full mb-2 ${
@@ -174,7 +166,6 @@ const SharedSession = () => {
           </div>
         </div>
 
-        {/* ── Hero stats ──────────────────────────────────────────── */}
         {stats && (
           <div className="space-y-3">
             <h2
@@ -207,7 +198,6 @@ const SharedSession = () => {
           </div>
         )}
 
-        {/* ── Notes ───────────────────────────────────────────────── */}
         {session?.notes && (
           <div
             className={`rounded-xl border p-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
@@ -219,12 +209,11 @@ const SharedSession = () => {
             </h3>
             <div
               className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
-              dangerouslySetInnerHTML={{ __html: session.notes }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(session.notes) }}
             />
           </div>
         )}
 
-        {/* ── Tabs ────────────────────────────────────────────────── */}
         {sessionMatches.length > 0 && (
           <>
             <div
@@ -254,7 +243,6 @@ const SharedSession = () => {
               })}
             </div>
 
-            {/* Tab content (read-only — no onEdit / onDelete / onAdd) */}
             <div>
               {activeTab === 'summary' && stats && (
                 <SummaryTab
@@ -279,7 +267,6 @@ const SharedSession = () => {
           </>
         )}
 
-        {/* Empty state */}
         {sessionMatches.length === 0 && (
           <div
             className={`text-center py-16 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}
@@ -296,7 +283,6 @@ const SharedSession = () => {
           </div>
         )}
 
-        {/* ── Call to Action ───────────────────────────────────────── */}
         {!user && (
           <div
             className={`rounded-xl border p-8 ${

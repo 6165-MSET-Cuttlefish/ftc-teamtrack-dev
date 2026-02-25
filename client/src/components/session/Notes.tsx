@@ -19,7 +19,6 @@ export const Notes = () => {
   const [highlightDropdownOpen, setHighlightDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Initialize editor content on mount
   useEffect(() => {
     if (editorRef.current && !initialized) {
       editorRef.current.innerHTML = sessionData.notes ?? '';
@@ -27,7 +26,6 @@ export const Notes = () => {
     }
   }, [initialized, sessionData.notes]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -80,7 +78,6 @@ export const Notes = () => {
           Performance Notes & Observations
         </label>
 
-        {/* Formatting Toolbar */}
         <div
           className={`flex flex-wrap gap-2 p-3 rounded border-2 ${
             isDarkMode
@@ -114,7 +111,6 @@ export const Notes = () => {
             <Italic size={18} strokeWidth={2.5} />
           </button>
 
-          {/* Highlight Color Dropdown */}
           <div ref={dropdownRef} className="relative">
             <button
               type="button"
@@ -130,7 +126,6 @@ export const Notes = () => {
               <ChevronDown size={14} />
             </button>
 
-            {/* Dropdown Menu */}
             {highlightDropdownOpen && (
               <div
                 className={`absolute top-full left-0 mt-1 rounded border-2 shadow-lg z-50 ${
@@ -162,13 +157,10 @@ export const Notes = () => {
             )}
           </div>
 
-          {/* Unhighlight Button */}
           <button
             type="button"
             onClick={() => {
-              // Remove highlighting by setting background color to match editor background
-              const bgColor = isDarkMode ? '#191919' : '#FEFEFE';
-              document.execCommand('backColor', false, bgColor);
+              document.execCommand('backColor', false, 'transparent');
               editorRef.current?.focus();
               handleEditorChange();
             }}
@@ -213,7 +205,6 @@ export const Notes = () => {
           </button>
         </div>
 
-        {/* Rich Text Editor */}
         <div
           ref={editorRef}
           contentEditable

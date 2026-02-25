@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { Button } from '../ui/button';
+import { Button } from '@/components/ui/button';
 import { X, UserPlus } from 'lucide-react';
-import { ROUTES } from '@/constants';
+import { ROUTES, STORAGE_KEYS } from '@/constants';
 
-const PROMPT_DISMISSED_KEY = 'teamtrack-guest-prompt-dismissed';
-const PROMPT_LAST_SHOWN_KEY = 'teamtrack-guest-prompt-last-shown';
 const PROMPT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Show once per day
 
-// Routes where the guest prompt should not appear
 const AUTH_ROUTES = [ROUTES.LOGIN, ROUTES.SIGNUP, ROUTES.FORGOT_PASSWORD];
 
 export const GuestPrompt = () => {
@@ -29,30 +26,28 @@ export const GuestPrompt = () => {
       return;
     }
 
-    // Check if prompt was permanently dismissed
-    const dismissed = localStorage.getItem(PROMPT_DISMISSED_KEY);
+    const dismissed = localStorage.getItem(STORAGE_KEYS.GUEST_PROMPT_DISMISSED);
     if (dismissed === 'true') {
       return;
     }
 
-    // Check when prompt was last shown
-    const lastShown = localStorage.getItem(PROMPT_LAST_SHOWN_KEY);
+    const lastShown = localStorage.getItem(STORAGE_KEYS.GUEST_PROMPT_LAST_SHOWN);
     const now = Date.now();
 
     if (!lastShown || now - parseInt(lastShown) > PROMPT_INTERVAL_MS) {
       setIsVisible(true);
-      localStorage.setItem(PROMPT_LAST_SHOWN_KEY, now.toString());
+      localStorage.setItem(STORAGE_KEYS.GUEST_PROMPT_LAST_SHOWN, now.toString());
     }
   }, [isGuest]);
 
   const handleDismiss = () => {
     setIsVisible(false);
-    localStorage.setItem(PROMPT_LAST_SHOWN_KEY, Date.now().toString());
+    localStorage.setItem(STORAGE_KEYS.GUEST_PROMPT_LAST_SHOWN, Date.now().toString());
   };
 
   const handlePermanentDismiss = () => {
     setIsVisible(false);
-    localStorage.setItem(PROMPT_DISMISSED_KEY, 'true');
+    localStorage.setItem(STORAGE_KEYS.GUEST_PROMPT_DISMISSED, 'true');
   };
 
   if (!isVisible || !isGuest || isOnAuthPage) {

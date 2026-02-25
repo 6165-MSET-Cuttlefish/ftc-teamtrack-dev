@@ -11,21 +11,17 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { ShotEntry } from '@/types';
 import {
   TUTORIAL_KEYBOARD_SCORE_EVENT,
-  TUTORIAL_GATE_TOGGLED_EVENT,
   TUTORIAL_GATE_CYCLE_EVENT,
   TUTORIAL_ENDED_EVENT,
   TUTORIAL_METRICS_AUTON_TAB_EVENT,
   TUTORIAL_METRICS_LEAVE_EVENT,
   TUTORIAL_METRICS_SHOT_EDIT_EVENT,
   TUTORIAL_METRICS_MOTIF_EDIT_EVENT,
-} from './ActiveTutorial';
+} from '@/constants/events';
 
-// ─── Constants ──────────────────────────────────────────────────────────
 const POINTS_PER_CLASSIFIED = 3;
 const POINTS_PER_OVERFLOW = 1;
 const GATE_CAPACITY = 9;
-
-// ─── Helpers ────────────────────────────────────────────────────────────
 
 /** Migrate legacy number[] shots to ShotEntry[] */
 const migrateShotsArray = (
@@ -82,7 +78,6 @@ const calcAvgCycleTime = (shots: ShotEntry[]): string => {
   return `${avg.toFixed(2)}s`;
 };
 
-// ─── Ball Visualization (dynamic balls: solid = made, dotted = missed) ────────
 const BallVisualization: React.FC<{
   ballsMade: number;
   ballsShot: number;
@@ -104,7 +99,6 @@ const BallVisualization: React.FC<{
   </div>
 );
 
-// ─── Inline number input for table cells ────────────────────────────────
 const CellInput: React.FC<{
   value: number;
   onChange: (v: number) => void;
@@ -155,7 +149,6 @@ const CellInput: React.FC<{
 });
 CellInput.displayName = 'CellInput';
 
-// ─── Nullable cycle-time input (allows clearing to undefined) ──────────
 const CycleCellInput: React.FC<{
   value: number | undefined;
   onChange: (v: number | undefined) => void;
@@ -243,7 +236,6 @@ const ShotLogTable: React.FC<{
     const shotsTotal = totalPoints(shots);
     const sectionTotal = shotsTotal + bonusPoints;
 
-    // Precompute min/max cycle times for color coding
     const cycleTimes = shots
       .map(s => s.cycleTime)
       .filter((t): t is number => t !== undefined);
@@ -307,7 +299,6 @@ const ShotLogTable: React.FC<{
               const ovfl = shot.overflow ?? 0;
               const pts = cls * POINTS_PER_CLASSIFIED + ovfl * POINTS_PER_OVERFLOW;
               
-              // Cycle time color coding
               const ct = shot.cycleTime;
               const isMin =
                 ct !== undefined &&
@@ -515,7 +506,6 @@ const ShotLogTable: React.FC<{
 );
 ShotLogTable.displayName = 'ShotLogTable';
 
-// ─── Score Tab Card ─────────────────────────────────────────────────────
 const ScoreCard: React.FC<{
   label: string;
   value: number;
@@ -565,10 +555,7 @@ const ScoreCard: React.FC<{
   </button>
 );
 
-// ═══════════════════════════════════════════════════════════════════════
-// Main Component
-// ═══════════════════════════════════════════════════════════════════════
-export const PerformanceMetrics = () => {
+export const ScoringMetrics = () => {
   const {
     sessionData,
     updateSessionData,
@@ -585,12 +572,10 @@ export const PerformanceMetrics = () => {
   // Track last shot timestamp for cycle time calculation in keybinds
   const lastShotTimeRef = useRef<number | null>(null);
 
-  // ── Tab state ─────────────────────────────────────────────────────
   const [selectedTab, setSelectedTab] = useState<
     'final' | 'autonomous' | 'teleop' | 'endgame'
   >('final');
 
-  // ── Local scoring state ───────────────────────────────────────────
   const [autonomousLeave, setAutonomousLeave] = useState(
     sessionData.autonLeave || 0
   );
@@ -601,7 +586,7 @@ export const PerformanceMetrics = () => {
     sessionData.robot2Park || 'none'
   );
 
-  // ── Shot logs — derived directly from sessionData so ScoringUI writes
+  // Shot logs — derived directly from sessionData so ScoringUI writes
   //   are immediately visible without needing local state sync.
   const autonShots = useMemo(
     () => migrateShotsArray(sessionData.autonShots),
@@ -612,7 +597,6 @@ export const PerformanceMetrics = () => {
     [sessionData.teleopShots]
   );
 
-  // ── Shot log mutators ─────────────────────────────────────────────
   const updateAutonShot = useCallback(
     (index: number, field: 'ballsShot' | 'ballsMade', value: number) => {
       const current = migrateShotsArray(sessionData.autonShots);
@@ -693,7 +677,6 @@ export const PerformanceMetrics = () => {
     [sessionData.teleopShots, updateSessionData]
   );
 
-  // ── Computed scores ───────────────────────────────────────────────
   const autonShotsScore = useMemo(() => totalPoints(autonShots), [autonShots]);
   const teleopShotsScore = useMemo(
     () => totalPoints(teleopShots),
@@ -717,7 +700,6 @@ export const PerformanceMetrics = () => {
 
   const finalScore = autonomousScore + teleopScore + endGameScore;
 
-  // ── Push computed scores to session data ──────────────────────────
   const updateScores = useCallback(() => {
     isUpdatingRef.current = true;
     updateSessionData({
@@ -764,7 +746,6 @@ export const PerformanceMetrics = () => {
     return () => clearTimeout(t);
   }, [updateScores]);
 
-  // ── Cycle times ───────────────────────────────────────────────────
   const [cycleTimerStartTime, setCycleTimerStartTime] = useState<number | null>(
     null
   );
@@ -779,7 +760,6 @@ export const PerformanceMetrics = () => {
   useEffect(() => {
     if (matchPhase === 'ended' || !isTimerRunning || !matchActive || matchPhase === 'auton') {
       lastShotTimeRef.current = null;
-      // Reset cycle timer state when match ends or transitions to prevent persistence
       if (matchPhase === 'ended' || matchPhase === 'auton') {
         setCycleTimerStartTime(null);
         setCycleTimerElapsed(0);
@@ -818,7 +798,6 @@ export const PerformanceMetrics = () => {
     updateSessionData,
   ]);
 
-  // ── Sync local state on reset / edit ──────────────────────────────
   const prevEditingMatchIdRef = useRef<string | null>(null);
   const prevSessionDataRef = useRef(sessionData);
 
@@ -853,7 +832,7 @@ export const PerformanceMetrics = () => {
     prevSessionDataRef.current = sessionData;
   }, [sessionData, editingMatchId]);
 
-  // ── Auto-switch to teleop tab when phase transitions (once per match) ──
+  // Auto-switch to teleop tab when phase transitions (once per match)
   // Using a ref so the switch only fires the first time, allowing the user
   // to navigate back to the Autonomous tab manually afterwards.
   const autoSwitchedRef = useRef(false);
@@ -867,7 +846,7 @@ export const PerformanceMetrics = () => {
     }
   }, [matchPhase]);
 
-  // ── Auto-switch to endgame tab when timer reaches <= 20 seconds in Full Game or Teleop mode ──
+  // Auto-switch to endgame tab when timer reaches <= 20 seconds in Full Game or Teleop mode
   // Using a ref so the switch only fires once when entering the last 20 seconds
   const autoSwitchedToEndgameRef = useRef(false);
   useEffect(() => {
@@ -885,7 +864,6 @@ export const PerformanceMetrics = () => {
     }
   }, [timer, matchPhase, sessionData.matchType]);
 
-  // ── Keyboard shortcut popup ───────────────────────────────────────
   const [showPopup, setShowPopup] = useState(false);
   // Bitmask: bit 0 = leave hint, bit 1 = shot hint, bit 2 = motif hint
   const [metricsHintMask, setMetricsHintMask] = useState(0);
@@ -948,8 +926,6 @@ export const PerformanceMetrics = () => {
       if (event.key.toLowerCase() === 'g') {
         event.preventDefault();
         event.stopPropagation();
-        // Notify tutorial that gate key was pressed
-        window.dispatchEvent(new CustomEvent(TUTORIAL_GATE_TOGGLED_EVENT));
         if (!sessionData.gateAddBackMode) {
           // First G press: open gate
           if ((sessionData.gateBallCount ?? 0) > 0) {
@@ -970,6 +946,8 @@ export const PerformanceMetrics = () => {
             gateAddBackMode: false,
             gateAddBackCount: 0,
           });
+          // Full gate cycle completed via G→G shortcut
+          window.dispatchEvent(new CustomEvent(TUTORIAL_GATE_CYCLE_EVENT, { detail: { method: 'keyboard' } }));
         }
         return;
       }
@@ -1053,8 +1031,7 @@ export const PerformanceMetrics = () => {
           sessionData.matchType === 'Autonomous' ||
           (sessionData.matchType === 'Full Game' &&
             (matchPhase === 'auton' ||
-              matchPhase === 'controller_pickup' ||
-              matchPhase === 'prepare'));
+              matchPhase === 'controller_pickup'));
 
         // Compute cycle time in seconds with 2 decimal precision (same as ScoringUI)
         const now = Date.now();
@@ -1133,7 +1110,6 @@ export const PerformanceMetrics = () => {
     updateSessionData,
   ]);
 
-  // ── Render ────────────────────────────────────────────────────────
   const showAuton = sessionData.matchType !== 'Teleop';
   const showTeleop = sessionData.matchType !== 'Autonomous';
   const hasMotifEnabled = sessionData.motifPattern !== undefined;
@@ -1193,7 +1169,6 @@ export const PerformanceMetrics = () => {
           Scoring Metrics
         </h2>
 
-        {/* ── Score Summary Cards (clickable tabs) ──────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <ScoreCard
             label="Final"
@@ -1229,11 +1204,6 @@ export const PerformanceMetrics = () => {
           />
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {/* Tab Content                                                */}
-        {/* ═══════════════════════════════════════════════════════════ */}
-
-        {/* ── FINAL tab: summary table ──────────────────────────── */}
         {selectedTab === 'final' && (
           <div
             className={`rounded-lg border overflow-hidden ${
@@ -1442,7 +1412,6 @@ export const PerformanceMetrics = () => {
           </div>
         )}
 
-        {/* ── AUTONOMOUS tab ─────────────────────────────────────── */}
         {selectedTab === 'autonomous' && showAuton && (
           <div className="flex flex-col gap-6" data-tutorial="scoring">
             {/* Leave + Motif row */}
@@ -1482,7 +1451,12 @@ export const PerformanceMetrics = () => {
                   <div className="flex items-center gap-1.5">
                     {(() => {
                       const mask = sessionData.autonMotif ?? 0;
-                      return Array.from({ length: GATE_CAPACITY }).map((_, i) => (
+                      const pattern = sessionData.motifPattern ?? ['empty', 'empty', 'empty'];
+                      return Array.from({ length: GATE_CAPACITY }).map((_, i) => {
+                        const isOn = !!(mask & (1 << i));
+                        const color = pattern[i % 3];
+                        const isPurple = color === 'purple' || color === 'empty';
+                        return (
                         <button
                           key={i}
                           onClick={() => {
@@ -1494,16 +1468,28 @@ export const PerformanceMetrics = () => {
                             window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_MOTIF_EDIT_EVENT));
                           }}
                           disabled={!isEditable}
-                          className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${metricsHintMask & 0b100 ? 'motif-m-flash' : ''} ${
+                          className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-black transition-all duration-150 ${metricsHintMask & 0b100 ? 'motif-m-flash' : ''} ${
                             isEditable ? 'cursor-pointer hover:scale-110' : 'cursor-default'
-                          } ${
-                            (mask & (1 << i)) ? 'text-amber-400' : isDarkMode ? 'text-gray-600' : 'text-gray-300'
                           }`}
+                          style={{
+                            backgroundColor: isOn
+                              ? (isPurple
+                                  ? (isDarkMode ? 'rgba(168,85,247,0.3)' : 'rgba(168,85,247,0.15)')
+                                  : (isDarkMode ? 'rgba(16,185,129,0.3)' : 'rgba(16,185,129,0.15)'))
+                              : 'transparent',
+                            borderColor: isOn
+                              ? (isPurple ? '#a855f7' : '#10b981')
+                              : (isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+                            color: isOn
+                              ? (isPurple ? '#a855f7' : '#10b981')
+                              : (isDarkMode ? '#4b5563' : '#d1d5db'),
+                          }}
                           title={`Toggle auton motif ${i + 1}`}
                         >
                           M
                         </button>
-                      ));
+                        );
+                      });
                     })()}
                   </div>
                 </div>
@@ -1532,7 +1518,6 @@ export const PerformanceMetrics = () => {
           </div>
         )}
 
-        {/* ── TELEOP tab ─────────────────────────────────────────── */}
         {selectedTab === 'teleop' && showTeleop && (
           <div className="flex flex-col gap-6">
             {/* Teleop Motif */}
@@ -1546,7 +1531,12 @@ export const PerformanceMetrics = () => {
                 <div className="flex items-center gap-1.5">
                   {(() => {
                     const mask = sessionData.teleMotif ?? 0;
-                    return Array.from({ length: GATE_CAPACITY }).map((_, i) => (
+                    const pattern = sessionData.motifPattern ?? ['empty', 'empty', 'empty'];
+                    return Array.from({ length: GATE_CAPACITY }).map((_, i) => {
+                      const isOn = !!(mask & (1 << i));
+                      const color = pattern[i % 3];
+                      const isPurple = color === 'purple' || color === 'empty';
+                      return (
                       <button
                         key={i}
                         onClick={() => {
@@ -1558,16 +1548,28 @@ export const PerformanceMetrics = () => {
                           window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_MOTIF_EDIT_EVENT));
                         }}
                         disabled={!isEditable}
-                        className={`w-8 h-8 flex items-center justify-center text-sm font-black transition-all duration-150 ${metricsHintMask & 0b100 ? 'motif-m-flash' : ''} ${
+                        className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-black transition-all duration-150 ${metricsHintMask & 0b100 ? 'motif-m-flash' : ''} ${
                           isEditable ? 'cursor-pointer hover:scale-110' : 'cursor-default'
-                        } ${
-                          (mask & (1 << i)) ? 'text-amber-400' : isDarkMode ? 'text-gray-600' : 'text-gray-300'
                         }`}
+                        style={{
+                          backgroundColor: isOn
+                            ? (isPurple
+                                ? (isDarkMode ? 'rgba(168,85,247,0.3)' : 'rgba(168,85,247,0.15)')
+                                : (isDarkMode ? 'rgba(16,185,129,0.3)' : 'rgba(16,185,129,0.15)'))
+                            : 'transparent',
+                          borderColor: isOn
+                            ? (isPurple ? '#a855f7' : '#10b981')
+                            : (isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+                          color: isOn
+                            ? (isPurple ? '#a855f7' : '#10b981')
+                            : (isDarkMode ? '#4b5563' : '#d1d5db'),
+                        }}
                         title={`Toggle teleop motif ${i + 1}`}
                       >
                         M
                       </button>
-                    ));
+                      );
+                    });
                   })()}
                 </div>
               </div>
@@ -1592,7 +1594,6 @@ export const PerformanceMetrics = () => {
           </div>
         )}
 
-        {/* ── ENDGAME tab ──────────────────────────────────────────── */}
         {selectedTab === 'endgame' && (
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">

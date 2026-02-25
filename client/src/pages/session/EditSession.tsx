@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { useNavigationGuard } from '@/hooks/useNavigationGuard';
+import { useNavigationGuard } from '@/hooks';
 import { firebaseService } from '@/services';
-import { formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, Match } from '@/types';
 import { MatchForm } from '@/components';
@@ -38,10 +38,8 @@ const EditSession = () => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Navigation guard: block when the match form is open
   const navGuard = useNavigationGuard(isFormOpen, 'You have an unsaved match. Are you sure you want to leave?');
 
-  // Clean up delete confirmation timer on unmount
   useEffect(() => {
     return () => {
       if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
@@ -101,12 +99,10 @@ const EditSession = () => {
       let updatedMatches: Match[];
 
       if (editingMatch?.id) {
-        // Update existing match
         updatedMatches = (session.matches || []).map(m =>
           m.id === editingMatch.id ? { ...m, ...matchData } : m
         );
       } else {
-        // Add new match
         const newMatch: Match = {
           id: `match_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
           matchNumber: matchData.matchNumber || 1,
@@ -115,7 +111,6 @@ const EditSession = () => {
         updatedMatches = [...(session.matches || []), newMatch];
       }
 
-      // Update session in Firebase
       await firebaseService.updateSession(session.id, {
         matches: updatedMatches,
       });
@@ -138,12 +133,9 @@ const EditSession = () => {
 
   const handleDeleteClick = (matchId: string) => {
     if (confirmDeleteId === matchId) {
-      // Second click = confirm
       handleDeleteMatch(matchId);
     } else {
-      // First click = arm confirmation
       setConfirmDeleteId(matchId);
-      // Auto-dismiss after 5 seconds
       if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
       deleteTimerRef.current = setTimeout(() => setConfirmDeleteId(prev => prev === matchId ? null : prev), 5000);
     }
@@ -159,7 +151,6 @@ const EditSession = () => {
         m => m.id !== matchId
       );
 
-      // Update session in Firebase
       await firebaseService.updateSession(session.id, {
         matches: updatedMatches,
       });
@@ -176,12 +167,10 @@ const EditSession = () => {
     }
   };
 
-  // Guests cannot edit sessions
   const guestRedirectToastShown = useRef(false);
   if (!user?.uid || isGuest) {
     if (!guestRedirectToastShown.current) {
       guestRedirectToastShown.current = true;
-      // Defer toast to avoid side-effect during render
       setTimeout(() => toast.error('Please sign in to edit sessions'), 0);
     }
     return <Navigate to={ROUTES.SESSIONS} replace />;
@@ -251,7 +240,6 @@ const EditSession = () => {
     >
       <div className="max-w-[1152px] mx-auto px-4 py-8">
 
-        {/* Session Header */}
         <Card
           className={`mb-8 overflow-hidden border-2 ${
             isDarkMode
@@ -305,7 +293,6 @@ const EditSession = () => {
           </CardHeader>
         </Card>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card
             className={`overflow-hidden border-2 transform transition-all duration-300 hover:scale-105 hover:shadow-xl ${
@@ -393,7 +380,6 @@ const EditSession = () => {
           </Card>
         </div>
 
-        {/* Matches List */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2
@@ -557,7 +543,6 @@ const EditSession = () => {
         </div>
       </div>
 
-      {/* Navigation Guard Dialog */}
       {navGuard.isBlocked && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className={`mx-4 max-w-sm w-full rounded-xl border-2 p-6 shadow-2xl ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}>
@@ -571,7 +556,6 @@ const EditSession = () => {
         </div>
       )}
 
-      {/* Match Form Modal */}
       <MatchForm
         isOpen={isFormOpen}
         onClose={() => {

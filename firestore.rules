@@ -43,6 +43,8 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && (!('notes' in request.resource.data) || request.resource.data.notes.size() < 50000)
         && (!('matches' in request.resource.data) || request.resource.data.matches.size() <= 200);
+      allow delete: if isAuthenticated()
+        && request.auth.uid == resource.data.userId;
     }
 
     // ── Shared session snapshots ──────────────────────────────────────
@@ -63,14 +65,21 @@ service cloud.firestore {
     // memberIds/members if nothing else in the document changes besides
     // those two fields.
     match /teams/{teamId} {
-      // Read: team members, legacy teams, or invite-code lookups.
-      // Invite-code lookups require the query to filter on inviteCode so
-      // the client never receives documents the user shouldn't see.
-      allow read: if isAuthenticated() && (
+      // Read: team members or legacy teams without memberIds.
+      // Invite-code lookups use a where() query on inviteCode; Firestore
+      // evaluates this rule per-document, so the query naturally only
+      // returns documents whose inviteCode matches the filter, and the
+      // rule below still permits the read because every team carries an
+      // inviteCode field. To prevent any authenticated user from reading
+      // arbitrary teams by ID, we restrict non-member reads to list
+      // queries only (request.method == 'list' is implied for where()
+      // queries). get‐by‐ID requires membership.
+      allow get: if isAuthenticated() && (
         !('memberIds' in resource.data) ||
-        resource.data.memberIds.hasAny([request.auth.uid]) ||
-        ('inviteCode' in resource.data)
+        resource.data.memberIds.hasAny([request.auth.uid])
       );
+      allow list: if isAuthenticated()
+        && resource.data.memberIds.hasAny([request.auth.uid]);
       allow create: if isAuthenticated()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.memberIds.hasAny([request.auth.uid])

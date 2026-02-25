@@ -28,7 +28,6 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       // Handle legacy boolean format
       if (saved === 'true') return 'dark';
       if (saved === 'false') return 'light';
-      // New format
       try {
         const parsed = JSON.parse(saved);
         if (parsed === true) return 'dark';
@@ -46,16 +45,13 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     return 'dark';
   });
 
-  // Derived values for backward compatibility
   const isDarkMode = themeMode === 'dark' || themeMode === 'honeycomb' || themeMode === 'deepsea';
   const isHoneycombMode = themeMode === 'honeycomb';
   const isDeepSeaMode = themeMode === 'deepsea';
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    // Remove all theme classes first
     document.documentElement.classList.remove('dark', 'honeycomb', 'deepsea');
-    // Add appropriate classes
     if (themeMode === 'dark') {
       document.documentElement.classList.add('dark');
     } else if (themeMode === 'honeycomb') {
@@ -63,12 +59,10 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     } else if (themeMode === 'deepsea') {
       document.documentElement.classList.add('dark', 'deepsea');
     }
-    // light mode = no classes
   }, [themeMode]);
 
   const toggleTheme = () => {
     setThemeMode((prev: ThemeMode) => {
-      // Cycle: dark -> light -> honeycomb -> deepsea -> dark
       let next: ThemeMode;
       if (prev === 'dark') next = 'light';
       else if (prev === 'light') next = 'honeycomb';

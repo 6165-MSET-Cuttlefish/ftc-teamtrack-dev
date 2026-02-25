@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSession, useTheme } from '@/contexts';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Button } from '../ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 import {
   Select,
@@ -10,7 +10,7 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-} from '../ui/select';
+} from '@/components/ui/select';
 
 interface SessionSetupProps {
   onSave?: () => void;
@@ -65,7 +65,7 @@ export const SessionSetup = ({
           isUnsaved ? 'session-setup-unsaved p-6' : 'session-setup-saved p-0'
         }`}
       >
-        {/* Header */}
+
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-team-blue">Session Settings</h3>
           {isUnsaved && (
@@ -81,7 +81,6 @@ export const SessionSetup = ({
           )}
         </div>
 
-        {/* Session Name and Match Type */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="flex flex-col">
             <Label
@@ -150,7 +149,6 @@ export const SessionSetup = ({
           </div>
         </div>
 
-        {/* Motif Toggle */}
         <div className="flex flex-col">
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
@@ -177,7 +175,6 @@ export const SessionSetup = ({
           </p>
         </div>
 
-        {/* Save Button */}
         <div className="flex justify-end pt-2">
           <Button
             onClick={handleSave}

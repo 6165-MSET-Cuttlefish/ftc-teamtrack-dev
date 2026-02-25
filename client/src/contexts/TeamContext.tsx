@@ -8,7 +8,7 @@ import {
 import { useAuth } from './AuthContext';
 import { teamService } from '@/services';
 import type { Team } from '@/types';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib';
 
 interface TeamContextType {
   /** The user's current (and only) team, or null if not in a team */
@@ -42,7 +42,6 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user's team when user changes
   useEffect(() => {
     const loadTeam = async () => {
       if (!user) {
@@ -54,7 +53,6 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
       try {
         setLoading(true);
         const teams = await teamService.getUserTeams(user.uid);
-        // User can only be in one team
         if (teams.length > 0) {
           setTeam(teams[0]);
         } else {
@@ -98,9 +96,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     try {
       // If already in a team, require confirmation before leaving
       if (team && !skipConfirmation) {
-        // Use a promise-based confirmation that callers can handle
         const confirmed = await new Promise<boolean>((resolve) => {
-          // Dispatch a custom event so the UI can show a proper dialog
           const event = new CustomEvent('teamtrack-confirm-leave-team', {
             detail: {
               teamName: team.name,
@@ -159,19 +155,16 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     if (!user) return;
 
     try {
-      // If we already know the team ID, do a direct document read (avoids stale cache)
       if (team?.id) {
         const freshTeam = await teamService.getTeam(team.id);
         if (freshTeam && freshTeam.members.some(m => m.userId === user.uid)) {
           setTeam(freshTeam);
         } else {
-          // User was removed from this team or team was deleted
           setTeam(null);
         }
         return;
       }
 
-      // No known team — query for user's teams
       const teams = await teamService.getUserTeams(user.uid);
       if (teams.length > 0) {
         setTeam(teams[0]);

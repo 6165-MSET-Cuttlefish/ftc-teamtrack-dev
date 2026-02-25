@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts';
 import type { Match } from '@/types';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../ui/dialog';
+} from '@/components/ui/dialog';
 import { Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -67,7 +67,6 @@ export const MatchForm = ({
     handleInputChange(field, numValue);
   };
 
-  // Update form data when initialMatch changes (for editing)
   useEffect(() => {
     if (initialMatch) {
       setFormData({
@@ -88,7 +87,6 @@ export const MatchForm = ({
         teleopShots: initialMatch.teleopShots || [],
       });
     } else if (isOpen) {
-      // Reset form when opening for a new match
       setFormData({
         matchType: 'Full Game',
         autonClassifiedArtifact: 0,
@@ -109,7 +107,6 @@ export const MatchForm = ({
     }
   }, [initialMatch, isOpen]);
 
-  // Calculate scores automatically
   useEffect(() => {
     const autonomousScore =
       (formData.autonClassifiedArtifact || 0) * 3 +
@@ -122,7 +119,6 @@ export const MatchForm = ({
       (formData.teleOverflowArtifact || 0) * 1 +
       (formData.teleMotif || 0) * 2;
 
-    // Calculate endgame score based on parking
     let endGameScore = 0;
     const robot1Score =
       formData.robot1Park === 'partial'
@@ -224,7 +220,6 @@ export const MatchForm = ({
         </DialogHeader>
 
         <div className="space-y-6 px-6 py-6">
-          {/* Match Type */}
           <div className="space-y-2">
             <Label
               htmlFor="matchType"
@@ -257,7 +252,6 @@ export const MatchForm = ({
             </Select>
           </div>
 
-          {/* Scores */}
           <div
             className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
           >
@@ -310,7 +304,6 @@ export const MatchForm = ({
             </div>
           </div>
 
-          {/* Autonomous Details */}
           <div
             className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
           >
@@ -443,7 +436,6 @@ export const MatchForm = ({
             </div>
           </div>
 
-          {/* Teleop Details */}
           <div
             className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
           >
@@ -550,7 +542,6 @@ export const MatchForm = ({
             </div>
           </div>
 
-          {/* Endgame */}
           <div
             className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
           >

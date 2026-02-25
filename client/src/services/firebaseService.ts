@@ -15,14 +15,9 @@ import {
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore';
-import getFirebase from '@/lib/firebase';
-import { logger } from '@/lib/logger';
-import { isAbortError } from '@/lib/utils';
+import { getFirebase, logger, isAbortError } from '@/lib';
 import { SESSION_LIMITS } from '@/constants';
 import type { Session, CreateSessionData } from '@/types';
-
-// Re-export Session type for backwards compatibility
-export type SessionData = Session;
 
 class FirebaseService {
   private dbInstance: Firestore | null = null;
@@ -70,7 +65,7 @@ class FirebaseService {
   /** Create a new session */
   async createSession(
     sessionData: CreateSessionData
-  ): Promise<SessionData | null> {
+  ): Promise<Session | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -81,16 +76,16 @@ class FirebaseService {
           createdAt: Timestamp.now(),
         };
         const docRef = await addDoc(collection(db, 'sessions'), newSession);
-        return { id: docRef.id, ...newSession } as SessionData;
+        return { id: docRef.id, ...newSession } as Session;
       },
       null,
       'Error creating session:',
-      true // Throw errors for session creation
+      true
     );
   }
 
   /** Get all sessions for a specific user */
-  async getUserSessions(userId: string): Promise<SessionData[]> {
+  async getUserSessions(userId: string): Promise<Session[]> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -103,14 +98,13 @@ class FirebaseService {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => {
           const data = doc.data();
-          // Basic validation to ensure required fields exist
           return {
             id: doc.id,
             userId: data.userId || userId,
             sessionName: data.sessionName || 'Untitled Session',
             createdAt: data.createdAt,
             ...data,
-          } as SessionData;
+          } as Session;
         });
       },
       [],
@@ -119,7 +113,7 @@ class FirebaseService {
   }
 
   /** Get all sessions for a specific team */
-  async getTeamSessions(teamId: string): Promise<SessionData[]> {
+  async getTeamSessions(teamId: string): Promise<Session[]> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -138,7 +132,7 @@ class FirebaseService {
             sessionName: data.sessionName || 'Untitled Session',
             createdAt: data.createdAt,
             ...data,
-          } as SessionData;
+          } as Session;
         });
       },
       [],
@@ -149,7 +143,7 @@ class FirebaseService {
   /** Subscribe to real-time team session updates */
   async subscribeTeamSessions(
     teamId: string,
-    onUpdate: (sessions: SessionData[]) => void,
+    onUpdate: (sessions: Session[]) => void,
     onError?: (error: Error) => void
   ): Promise<Unsubscribe> {
     const db = await this.getDB();
@@ -170,7 +164,7 @@ class FirebaseService {
             sessionName: data.sessionName || 'Untitled Session',
             createdAt: data.createdAt,
             ...data,
-          } as SessionData;
+          } as Session;
         });
         onUpdate(sessions);
       },
@@ -182,7 +176,7 @@ class FirebaseService {
   }
 
   /** Get a single session by ID */
-  async getSession(sessionId: string): Promise<SessionData | null> {
+  async getSession(sessionId: string): Promise<Session | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -191,7 +185,7 @@ class FirebaseService {
 
         if (!docSnap.exists()) return null;
 
-        return { id: docSnap.id, ...docSnap.data() } as SessionData;
+        return { id: docSnap.id, ...docSnap.data() } as Session;
       },
       null,
       'Error fetching session:'
@@ -199,7 +193,7 @@ class FirebaseService {
   }
 
   /** Get all sessions for the current user and their teams (comparison view) */
-  async getAllSessions(userId: string): Promise<SessionData[]> {
+  async getAllSessions(userId: string): Promise<Session[]> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -218,7 +212,7 @@ class FirebaseService {
             sessionName: data.sessionName || 'Untitled Session',
             createdAt: data.createdAt,
             ...data,
-          } as SessionData;
+          } as Session;
         });
       },
       [],
@@ -229,7 +223,7 @@ class FirebaseService {
   /** Update an existing session */
   async updateSession(
     sessionId: string,
-    updates: Partial<SessionData>
+    updates: Partial<Session>
   ): Promise<boolean> {
     return this.safeExecute(
       async () => {
@@ -240,7 +234,7 @@ class FirebaseService {
       },
       false,
       'Error updating session:',
-      true // Throw errors for updates
+      true
     );
   }
 
@@ -255,11 +249,9 @@ class FirebaseService {
       },
       false,
       'Error deleting session:',
-      true // Throw errors for deletes
+      true
     );
   }
-
-  // ── Shared Sessions (public short links) ──────────────────────────────
 
   /** Generate a random 7-character base62 string suitable for use as a short ID */
   private generateShortId(): string {

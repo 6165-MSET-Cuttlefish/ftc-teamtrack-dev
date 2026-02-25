@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
-import { getInitials } from '@/lib/utils';
+import { getInitials } from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,7 +30,6 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-/* ─── Provider labels ─── */
 const PROVIDER_LABELS: Record<string, string> = {
   'google.com': 'Google',
   'github.com': 'GitHub',
@@ -39,7 +39,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   password: 'Email & Password',
 };
 
-/* ─── Reusable section card ─── */
 const Section = ({
   icon: Icon,
   title,
@@ -121,7 +120,6 @@ const Section = ({
   );
 };
 
-/* ─── Field row ─── */
 const Field = ({
   label,
   children,
@@ -143,9 +141,7 @@ const Field = ({
   </div>
 );
 
-/* ═══════════════════════════════════════════════════
-   Profile Page
-   ═══════════════════════════════════════════════════ */
+
 const Profile = () => {
   const {
     user,
@@ -170,18 +166,15 @@ const Profile = () => {
     type: 'success' | 'error';
   } | null>(null);
 
-  // Name editing
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [nameLoading, setNameLoading] = useState(false);
 
-  // Email editing
   const [editingEmail, setEditingEmail] = useState(false);
   const [emailValue, setEmailValue] = useState('');
   const [emailPasswordValue, setEmailPasswordValue] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
 
-  // Password change
   const [editingPassword, setEditingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -190,10 +183,8 @@ const Profile = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // Email verification
   const [verificationLoading, setVerificationLoading] = useState(false);
 
-  // Account deletion
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -224,7 +215,6 @@ const Profile = () => {
     return msg;
   };
 
-  /* ─── Handlers ─── */
   const handleLogout = async () => {
     try {
       setLoading(true);
@@ -241,7 +231,6 @@ const Profile = () => {
     try {
       setNameLoading(true);
       await updateDisplayName(nameValue.trim());
-      // Also update display name in team member list
       await updateMemberDisplayName(nameValue.trim());
       setEditingName(false);
       showMessage('Display name updated.', 'success');
@@ -317,8 +306,12 @@ const Profile = () => {
     }
   };
 
-  /* ─── Guest / loading state ─── */
+  const guestRedirectToastShown = useRef(false);
   if (isGuest || !user) {
+    if (!guestRedirectToastShown.current) {
+      guestRedirectToastShown.current = true;
+      setTimeout(() => toast.error('Please sign in to view your profile'), 0);
+    }
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
 
@@ -327,13 +320,11 @@ const Profile = () => {
     user.providerId ||
     'Email & Password';
 
-  /* ─────────── Render ─────────── */
   return (
     <div
       className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Back to Sessions link */}
         <Link
           to={ROUTES.SESSIONS}
           className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
@@ -344,7 +335,6 @@ const Profile = () => {
           Back to Sessions
         </Link>
 
-        {/* Global message */}
         {message && (
           <Alert
             className={`shadow-sm ${
@@ -363,7 +353,6 @@ const Profile = () => {
           </Alert>
         )}
 
-        {/* ─── Profile Header Card ─── */}
         <Card
           className={`shadow-lg border-2 transition-all duration-300 overflow-hidden ${
             isDarkMode
@@ -439,13 +428,11 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        {/* ─── Profile Information ─── */}
         <Section
           icon={User}
           title="Profile Information"
           isDarkMode={isDarkMode}
         >
-          {/* Display Name */}
           <Field label="Display Name" isDarkMode={isDarkMode}>
             {editingName ? (
               <div className="flex gap-2">
@@ -511,7 +498,6 @@ const Profile = () => {
             )}
           </Field>
 
-          {/* Email */}
           <Field label="Email Address" isDarkMode={isDarkMode}>
             {editingEmail ? (
               <div className="space-y-3">
@@ -603,7 +589,6 @@ const Profile = () => {
                   )}
                 </div>
 
-                {/* Verification status + action */}
                 {user.emailVerified ? (
                   <div className="flex items-center gap-1.5">
                     <BadgeCheck size={13} className="text-emerald-500" />
@@ -644,7 +629,6 @@ const Profile = () => {
           </Field>
         </Section>
 
-        {/* ─── Security ─── */}
         <Section
           icon={Lock}
           title="Security"
@@ -795,7 +779,6 @@ const Profile = () => {
           )}
         </Section>
 
-        {/* ─── Danger Zone ─── */}
         <Section
           icon={Trash2}
           title="Danger Zone"

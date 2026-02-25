@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTeam, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { formatDate } from '@/lib/utils';
-import { logger } from '@/lib/logger';
+import { formatDate, logger, copyToClipboard } from '@/lib';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -36,7 +35,7 @@ interface TeamManagerProps {
   onTeamChange?: () => void;
 }
 
-const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
+export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const {
@@ -68,12 +67,10 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [kicking, setKicking] = useState<string | null>(null);
   const [kickConfirm, setKickConfirm] = useState<string | null>(null);
 
-  // Rename team state
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
 
-  // Import sessions state
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [personalSessions, setPersonalSessions] = useState<Session[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
@@ -81,7 +78,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const [loadingPersonal, setLoadingPersonal] = useState(false);
   const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
 
-  // Load personal sessions when import dialog opens
   useEffect(() => {
     if (!showImportDialog || !user?.uid) return;
 
@@ -94,7 +90,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
         // This includes personal sessions AND sessions from old teams the user left
         const importable = sessions.filter(s => s.teamId !== targetTeamId);
         setPersonalSessions(importable);
-        // Pre-select all by default
         setSelectedSessionIds(new Set(importable.map(s => s.id)));
       } catch {
         toast.error('Failed to load your sessions');
@@ -163,7 +158,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
         onTeamChange?.();
         setShowCreateDialog(false);
         setTeamName('');
-        // Offer to import existing sessions
         setPendingTeamId(newTeam.id);
         setShowImportDialog(true);
       } else {
@@ -192,7 +186,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
         onTeamChange?.();
         setShowJoinDialog(false);
         setInviteCode('');
-        // Offer to import existing sessions
         setPendingTeamId(joinedTeam.id);
         setShowImportDialog(true);
       } else {
@@ -233,19 +226,12 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
 
     const inviteUrl = `${window.location.origin}/join/${team.inviteCode}`;
     try {
-      await navigator.clipboard.writeText(inviteUrl);
+      await copyToClipboard(inviteUrl);
       setCopied(true);
       toast.success('Invite link copied!');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      try {
-        await navigator.clipboard.writeText(team.inviteCode);
-        setCopied(true);
-        toast.success('Invite code copied!');
-        setTimeout(() => setCopied(false), 2000);
-      } catch {
-        toast.error('Failed to copy');
-      }
+      toast.error('Failed to copy');
     }
   };
 
@@ -264,14 +250,12 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   };
 
   const handleTransferOwnership = async (newOwnerId: string, memberName: string) => {
-    // First click: show confirmation
     if (transferConfirm !== newOwnerId) {
       setTransferConfirm(newOwnerId);
       setTimeout(() => setTransferConfirm(prev => prev === newOwnerId ? null : prev), 5000);
       return;
     }
 
-    // Second click: execute transfer
     setTransferConfirm(null);
     setTransferring(newOwnerId);
     try {
@@ -289,14 +273,12 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   };
 
   const handleKickMember = async (targetUserId: string, memberName: string) => {
-    // First click: show confirmation
     if (kickConfirm !== targetUserId) {
       setKickConfirm(targetUserId);
       setTimeout(() => setKickConfirm(prev => prev === targetUserId ? null : prev), 5000);
       return;
     }
 
-    // Second click: execute kick
     setKickConfirm(null);
     setKicking(targetUserId);
     try {
@@ -351,7 +333,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
 
   return (
     <>
-      {/* Team Status Bar */}
       <div
         className={`flex items-center gap-2 flex-wrap ${
           isDarkMode ? 'text-white' : 'text-team-blue'
@@ -359,7 +340,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       >
         {team ? (
           <>
-            {/* Team badge */}
             <button
               onClick={async () => {
                 await refreshTeam();
@@ -378,20 +358,15 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               </span>
             </button>
 
-            {/* Invite / Copy link button */}
             <button
               onClick={async () => {
                 if (!team?.inviteCode) return;
                 const inviteUrl = `${window.location.origin}/join/${team.inviteCode}`;
                 try {
-                  await navigator.clipboard.writeText(inviteUrl);
+                  await copyToClipboard(inviteUrl);
                 } catch {
-                  try {
-                    await navigator.clipboard.writeText(team.inviteCode);
-                  } catch {
-                    toast.error('Failed to copy');
-                    return;
-                  }
+                  toast.error('Failed to copy');
+                  return;
                 }
                 setInviteCopied(true);
                 setTimeout(() => setInviteCopied(false), 2000);
@@ -419,7 +394,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           </>
         ) : (
           <>
-            {/* No team - show create/join buttons */}
             <button
               onClick={() => setShowCreateDialog(true)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] sm:min-h-[44px] ${
@@ -446,7 +420,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
         )}
       </div>
 
-      {/* Create Team Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent
           className={isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}
@@ -515,7 +488,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Join Team Dialog */}
       <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
         <DialogContent
           className={isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}
@@ -593,7 +565,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Team Info / Invite Dialog */}
       <Dialog open={showTeamInfo} onOpenChange={(open) => { setShowTeamInfo(open); if (!open) handleCancelRename(); }}>
         <DialogContent
           className={`max-w-md ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
@@ -609,7 +580,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           </DialogHeader>
 
           <div className="p-5 space-y-4">
-            {/* Rename Section - owner only */}
             {isOwner && (
               <div>
                 <label
@@ -688,7 +658,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               </div>
             )}
 
-            {/* Invite Section */}
             <div>
               <label
                 className={`block text-sm font-medium mb-3 ${
@@ -742,7 +711,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               </p>
             </div>
 
-            {/* Invite Code Display */}
             <div>
               <label
                 className={`block text-sm font-medium mb-2 ${
@@ -762,7 +730,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               </div>
             </div>
 
-            {/* Members List */}
             <div>
               <label
                 className={`block text-sm font-medium mb-3 ${
@@ -927,8 +894,7 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           </div>
         </DialogContent>
       </Dialog>
-      {/* Import Sessions Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={(open) => { if (!open) handleSkipImport(); }}>
+            <Dialog open={showImportDialog} onOpenChange={(open) => { if (!open) handleSkipImport(); }}>
         <DialogContent
           className={`max-w-lg ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
@@ -954,7 +920,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               </div>
             ) : (
               <>
-                {/* Select all toggle */}
                 <button
                   onClick={toggleAll}
                   className={`flex items-center gap-2 text-sm font-medium w-full px-3 py-2 rounded-lg transition-colors ${
@@ -969,7 +934,6 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                   Select all ({personalSessions.length} session{personalSessions.length !== 1 ? 's' : ''})
                 </button>
 
-                {/* Session list */}
                 <div className={`max-h-[300px] overflow-y-auto rounded-xl border ${
                   isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
                 }`}>
@@ -1045,5 +1009,3 @@ const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     </>
   );
 };
-
-export default TeamManager;

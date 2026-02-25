@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { firebaseService } from '@/services';
-import { isAbortError } from '@/lib/utils';
+import { isAbortError } from '@/lib';
 import type { Session, CreateSessionData } from '@/types';
 
 interface UseFirebaseState {

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useSession, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES, APP_CONFIG } from '@/constants';
-import { isAbortError, toDate } from '@/lib/utils';
+import { isAbortError, toDate } from '@/lib';
 import type { Session, ChartDataPoint } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -77,7 +77,6 @@ const Charts = () => {
     loadSessions();
   }, [user?.uid, team]);
 
-  // Use a custom short date format for charts
   const formatChartDate = (timestamp: unknown): string => {
     if (!timestamp) return 'Unknown';
     const date = toDate(timestamp);
@@ -85,7 +84,7 @@ const Charts = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const getFilteredSessions = (): Session[] => {
+  const filteredSessions = useMemo((): Session[] => {
     if (timeRange === 'all') return sessions;
 
     const days = parseInt(timeRange);
@@ -98,11 +97,9 @@ const Charts = () => {
 
       return sessionDate >= cutoffDate;
     });
-  };
+  }, [sessions, timeRange]);
 
-  // Score Trend Data
   const getScoreTrendData = (): ChartDataPoint[] => {
-    const filteredSessions = getFilteredSessions();
     if (filteredSessions.length === 0) return [];
 
     return filteredSessions
@@ -136,9 +133,7 @@ const Charts = () => {
       });
   };
 
-  // Balls Missed Trend Data
   const getBallsMissedTrendData = (): ChartDataPoint[] => {
-    const filteredSessions = getFilteredSessions();
     if (filteredSessions.length === 0) return [];
 
     return filteredSessions
@@ -152,11 +147,9 @@ const Charts = () => {
         let totalBallsMade = 0;
 
         session.matches.forEach(match => {
-          // Balls missed
           totalBallsMissed +=
             (match.autonBallsMissed || 0) + (match.teleBallsMissed || 0);
           
-          // Balls made = classified artifacts + overflow artifacts
           totalBallsMade +=
             (match.autonClassifiedArtifact || 0) +
             (match.autonOverflowArtifact || 0) +
@@ -178,18 +171,12 @@ const Charts = () => {
       });
   };
 
-  // Cycle Time Analysis
   const getCycleTimeData = (): ChartDataPoint[] => {
-    const filteredSessions = getFilteredSessions();
-
-    // Get sessions that have cycle times from matches or shots
     const sessionsWithCycleTimes = filteredSessions.filter(session => {
-      // Check if session has matches with cycle times
       const hasCycleTimes =
         session.matches &&
         session.matches.length > 0 &&
         session.matches.some(match => {
-          // Check cycleTimes array or shot entries
           const hasCycleTimesArray =
             match.cycleTimes &&
             Array.isArray(match.cycleTimes) &&
@@ -209,10 +196,8 @@ const Charts = () => {
     if (sessionsWithCycleTimes.length === 0) return [];
 
     const results = sessionsWithCycleTimes.map(session => {
-      // Collect all cycle times from all matches in this session
       const allCycleTimes: number[] = [];
       session.matches.forEach(match => {
-        // First add from cycleTimes array
         if (
           match.cycleTimes &&
           Array.isArray(match.cycleTimes) &&
@@ -221,7 +206,6 @@ const Charts = () => {
           allCycleTimes.push(...match.cycleTimes);
         }
         
-        // Also extract from shot entries
         if (match.autonShots && Array.isArray(match.autonShots)) {
           match.autonShots.forEach(shot => {
             if (shot.cycleTime !== undefined) {
@@ -258,9 +242,8 @@ const Charts = () => {
     );
   };
 
-  // Recent Performance Trend (Last 10 sessions)
   const getRecentTrendData = (): ChartDataPoint[] => {
-    const allSessions = getFilteredSessions();
+    const allSessions = filteredSessions;
     const sorted = [...allSessions].sort(
       (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime()
     );
@@ -284,9 +267,8 @@ const Charts = () => {
     });
   };
 
-  // Accuracy Over Time (balls made percentage per session)
   const getAccuracyOverTimeData = (): ChartDataPoint[] => {
-    const allSessions = getFilteredSessions();
+    const allSessions = filteredSessions;
     const sorted = [...allSessions].sort(
       (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime()
     );
@@ -299,7 +281,6 @@ const Charts = () => {
 
       if (session.matches && session.matches.length > 0) {
         session.matches.forEach(match => {
-          // Total balls made = classified artifacts + overflow artifacts
           const ballsMade =
             (match.autonClassifiedArtifact || 0) +
             (match.autonOverflowArtifact || 0) +
@@ -312,7 +293,6 @@ const Charts = () => {
         });
       }
 
-      // Calculate accuracy as percentage of balls made out of total attempts
       const totalAttempts = totalBallsMade + totalBallsMissed;
       const accuracy =
         totalAttempts > 0
@@ -396,7 +376,6 @@ const Charts = () => {
     return null;
   };
 
-  // Guests cannot access Charts — redirect
   if (!user?.uid || isGuest) {
     return <Navigate to={ROUTES.SESSIONS} replace />;
   }
@@ -456,7 +435,6 @@ const Charts = () => {
     );
   }
 
-  // Helper function to get average match score for a session
   const getSessionScore = (session: Session): number => {
     const matchCount = session.matches.length || 1;
     return Math.round(
@@ -469,13 +447,13 @@ const Charts = () => {
   const ballsMissedTrendData = getBallsMissedTrendData();
   const cycleTimeData = getCycleTimeData();
   const recentTrendData = getRecentTrendData();
+  const accuracyOverTimeData = getAccuracyOverTimeData();
 
   return (
     <div
       className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-8 py-4 sm:py-6 md:py-8">
-        {/* Header */}
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
@@ -509,8 +487,7 @@ const Charts = () => {
           </div>
         </div>
 
-        {/* Key Insights */}
-        {getFilteredSessions().length >= 3 && (
+        {filteredSessions.length >= 3 && (
           <Card
             className={`mb-6 sm:mb-8 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-r from-blue-50 to-white border-blue-200'}`}
           >
@@ -526,7 +503,7 @@ const Charts = () => {
                     className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-700'}`}
                   >
                     {(() => {
-                      const sessions = getFilteredSessions();
+                      const sessions = filteredSessions;
                       let totalScore = 0;
                       let totalAuto = 0;
                       let totalTele = 0;
@@ -581,9 +558,6 @@ const Charts = () => {
                         0
                       ) : '0';
 
-                      const mean = avgScore;
-                      void mean; // used for autoPercent/telePercent
-
                       return (
                         <>
                           <div>
@@ -622,7 +596,6 @@ const Charts = () => {
           </Card>
         )}
 
-        {/* Stats Overview */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
           <Card
             className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
@@ -630,7 +603,7 @@ const Charts = () => {
             <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
               <div className="text-center">
                 <div className="text-team-blue text-2xl sm:text-3xl font-bold">
-                  {getFilteredSessions().length}
+                  {filteredSessions.length}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -646,12 +619,12 @@ const Charts = () => {
             <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
               <div className="text-center">
                 <div className="text-team-blue text-2xl sm:text-3xl font-bold">
-                  {getFilteredSessions().length > 0
+                  {filteredSessions.length > 0
                     ? Math.round(
-                        getFilteredSessions().reduce(
+                        filteredSessions.reduce(
                           (sum, s) => sum + getSessionScore(s),
                           0
-                        ) / getFilteredSessions().length
+                        ) / filteredSessions.length
                       )
                     : 0}
                 </div>
@@ -669,9 +642,9 @@ const Charts = () => {
             <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
               <div className="text-center">
                 <div className="text-team-blue text-2xl sm:text-3xl font-bold">
-                  {getFilteredSessions().length > 0
+                  {filteredSessions.length > 0
                     ? Math.max(
-                        ...getFilteredSessions().map(s => getSessionScore(s))
+                        ...filteredSessions.map(s => getSessionScore(s))
                       )
                     : 0}
                 </div>
@@ -689,7 +662,7 @@ const Charts = () => {
             <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
               <div className="text-center">
                 {(() => {
-                  const sessions = getFilteredSessions();
+                  const sessions = filteredSessions;
                   if (sessions.length < 2) {
                     return (
                       <div className="text-team-blue text-2xl sm:text-3xl font-bold">
@@ -702,12 +675,10 @@ const Charts = () => {
                       toDate(a.createdAt).getTime() -
                       toDate(b.createdAt).getTime()
                   );
-                  // Overall average across all sessions except the most recent
                   const allButLast = sorted.slice(0, -1);
                   const overallAvg =
                     allButLast.reduce((sum, s) => sum + getSessionScore(s), 0) /
                     allButLast.length;
-                  // Most recent session score
                   const lastScore = getSessionScore(sorted[sorted.length - 1]);
                   const diff = lastScore - Math.round(overallAvg);
                   const isPositive = diff > 0;
@@ -735,9 +706,7 @@ const Charts = () => {
           </Card>
         </div>
 
-        {/* Charts Grid */}
         <div className="space-y-6 sm:space-y-8">
-          {/* Score Trend Line Chart */}
           <Card
             className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
@@ -865,7 +834,6 @@ const Charts = () => {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Performance Trend */}
             <Card
               className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
             >
@@ -931,8 +899,7 @@ const Charts = () => {
               </CardContent>
             </Card>
 
-            {/* Accuracy Over Time */}
-            {getAccuracyOverTimeData().length > 0 && (
+            {accuracyOverTimeData.length > 0 && (
               <Card
                 className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
               >
@@ -955,7 +922,7 @@ const Charts = () => {
                       height={220}
                       minWidth={300}
                     >
-                      <LineChart data={getAccuracyOverTimeData()}>
+                      <LineChart data={accuracyOverTimeData}>
                         <CartesianGrid
                           strokeDasharray="3 3"
                           stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
@@ -993,7 +960,6 @@ const Charts = () => {
             )}
           </div>
 
-          {/* Balls Missed Trend Chart */}
           <Card
             className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
           >
@@ -1061,7 +1027,6 @@ const Charts = () => {
             </CardContent>
           </Card>
 
-          {/* Average Cycle Time Trend */}
           {cycleTimeData.length > 0 && (
             <Card
               className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}

@@ -19,15 +19,14 @@ const EditSession = lazy(() => import('./pages/session/EditSession'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
-const Profile = lazy(() => import('./pages/dashboard/Profile'));
+const Profile = lazy(() => import('./pages/account/Profile'));
 const Sessions = lazy(() => import('./pages/session/Sessions'));
 const Compare = lazy(() => import('./pages/session/Compare'));
 const Charts = lazy(() => import('./pages/session/Charts'));
 const SharedSession = lazy(() => import('./pages/session/SharedSession'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const JoinTeam = lazy(() => import('./pages/JoinTeam'));
+const JoinTeam = lazy(() => import('./pages/team/JoinTeam'));
 
-// Loading component
 const LoadingFallback = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4">
     <div className="relative">
@@ -51,7 +50,6 @@ const App = () => (
                 <main className="flex-1">
                   <Suspense fallback={<LoadingFallback />}>
                     <Routes>
-                      {/* Public Routes */}
                       <Route path={ROUTES.LOGIN} element={<Login />} />
                       <Route path={ROUTES.SIGNUP} element={<Signup />} />
                       <Route
@@ -67,28 +65,38 @@ const App = () => (
                         }
                       />
 
-                      {/* Public Shared Session Route */}
                       <Route
                         path={ROUTES.SHARED_SESSION}
                         element={<SharedSession />}
                       />
 
-                      {/* Protected Routes */}
                       <Route
                         path={ROUTES.HOME}
                         element={<HomeRedirect />}
                       />
                       <Route
                         path={ROUTES.ACTIVE}
-                        element={<Active />}
+                        element={
+                          <ProtectedRoute>
+                            <Active />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.ANALYSIS}
-                        element={<Analysis />}
+                        element={
+                          <ProtectedRoute>
+                            <Analysis />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.EDIT_SESSION}
-                        element={<EditSession />}
+                        element={
+                          <ProtectedRoute>
+                            <EditSession />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.PROFILE}
@@ -100,18 +108,29 @@ const App = () => (
                       />
                       <Route
                         path={ROUTES.SESSIONS}
-                        element={<Sessions />}
+                        element={
+                          <ProtectedRoute>
+                            <Sessions />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.COMPARE}
-                        element={<Compare />}
+                        element={
+                          <ProtectedRoute>
+                            <Compare />
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path={ROUTES.CHARTS}
-                        element={<Charts />}
+                        element={
+                          <ProtectedRoute>
+                            <Charts />
+                          </ProtectedRoute>
+                        }
                       />
 
-                      {/* Catch-all route */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>

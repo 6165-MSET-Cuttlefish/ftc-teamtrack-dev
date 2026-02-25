@@ -1,61 +1,26 @@
 /**
- * Session Storage Utilities
+ * Session Persistence Utilities
  * Handles persistent storage of active session data in localStorage
  * Allows timers and state to continue running in the background
  */
 
-import type { Match, ScoringFields } from '@/types';
+import type { SessionFormData, SessionTimerState } from '@/types';
+import { STORAGE_KEYS } from '@/constants';
 import { logger } from './logger';
-
-const HAS_COMPLETED_SESSION_KEY = 'teamtrack-has-completed-session';
 
 /** Current schema version for stored session data. Bump when SessionFormData shape changes. */
 const STORAGE_SCHEMA_VERSION = 1;
-const SCHEMA_VERSION_KEY = 'teamtrack-session-schema-version';
 
 /** Check if the user has ever completed a session */
 export const hasCompletedASession = (): boolean =>
-  localStorage.getItem(HAS_COMPLETED_SESSION_KEY) === 'true';
+  localStorage.getItem(STORAGE_KEYS.HAS_COMPLETED_SESSION) === 'true';
 
 /** Mark that the user has completed at least one session */
 export const markSessionCompleted = (): void =>
-  localStorage.setItem(HAS_COMPLETED_SESSION_KEY, 'true');
+  localStorage.setItem(STORAGE_KEYS.HAS_COMPLETED_SESSION, 'true');
 
-const SESSION_DATA = 'teamtrack-session-data';
-const SESSION_TIMER = 'teamtrack-session-timer';
-const MATCH_TIMER = 'teamtrack-match-timer';
-const SESSION_START_TIME = 'teamtrack-session-start-time';
-const MATCH_START_TIME = 'teamtrack-match-start-time';
-const MATCH_STATE = 'teamtrack-match-state';
-
-export interface SessionFormData extends ScoringFields {
-  sessionName: string;
-  sessionDuration: string;
-  matchType: string;
-  isSessionCompleted: boolean;
-  selectedFeature: string;
-  notes: string;
-  matches: Match[];
-}
-
-export interface SessionTimerState {
-  sessionTimer: number;
-  matchTimer: number;
-  isTimerRunning: boolean;
-  hasStarted: boolean;
-  hasTransitionedToTeleop: boolean;
-  showTeleopTransition: boolean;
-  sessionStartTime: number;
-  matchStartTime: number;
-  matchPhase?: 'auton' | 'controller_pickup' | 'prepare' | 'teleop' | 'ended';
-}
-
-export interface MatchState {
-  hasStarted: boolean;
-  hasTransitionedToTeleop: boolean;
-  showTeleopTransition: boolean;
-  matchPhase?: 'auton' | 'controller_pickup' | 'prepare' | 'teleop' | 'ended';
-}
+// Re-export types for backward compatibility
+export type { SessionFormData, SessionTimerState } from '@/types';
 
 /**
  * Save active session data and timers to localStorage
@@ -66,13 +31,11 @@ export const saveSessionToStorage = (
   timerState: SessionTimerState
 ): void => {
   try {
-    // Save session data (all scoring data, matches, etc.)
-    localStorage.setItem(SESSION_DATA, JSON.stringify(sessionData));
-    localStorage.setItem(SCHEMA_VERSION_KEY, String(STORAGE_SCHEMA_VERSION));
+    localStorage.setItem(STORAGE_KEYS.SESSION_DATA, JSON.stringify(sessionData));
+    localStorage.setItem(STORAGE_KEYS.SESSION_SCHEMA_VERSION, String(STORAGE_SCHEMA_VERSION));
 
-    // Save timer states with timestamps so we can calculate elapsed time
     localStorage.setItem(
-      SESSION_TIMER,
+      STORAGE_KEYS.SESSION_TIMER,
       JSON.stringify({
         value: timerState.sessionTimer,
         timestamp: Date.now(),
@@ -81,7 +44,7 @@ export const saveSessionToStorage = (
     );
 
     localStorage.setItem(
-      MATCH_TIMER,
+      STORAGE_KEYS.MATCH_TIMER,
       JSON.stringify({
         value: timerState.matchTimer,
         timestamp: Date.now(),
@@ -89,9 +52,8 @@ export const saveSessionToStorage = (
       })
     );
 
-    // Save match state flags
     localStorage.setItem(
-      MATCH_STATE,
+      STORAGE_KEYS.MATCH_STATE,
       JSON.stringify({
         hasStarted: timerState.hasStarted,
         hasTransitionedToTeleop: timerState.hasTransitionedToTeleop,
@@ -100,13 +62,12 @@ export const saveSessionToStorage = (
       })
     );
 
-    // Save session meta info
     localStorage.setItem(
-      SESSION_START_TIME,
+      STORAGE_KEYS.SESSION_START_TIME,
       timerState.sessionStartTime.toString()
     );
     localStorage.setItem(
-      MATCH_START_TIME,
+      STORAGE_KEYS.MATCH_START_TIME,
       timerState.matchStartTime.toString()
     );
   } catch (error) {
@@ -123,11 +84,9 @@ export const saveSessionToStorage = (
  */
 export const loadSessionFromStorage = (): SessionFormData | null => {
   try {
-    // Check schema version — discard stale data from older app versions
-    const storedVersion = localStorage.getItem(SCHEMA_VERSION_KEY);
+    const storedVersion = localStorage.getItem(STORAGE_KEYS.SESSION_SCHEMA_VERSION);
     if (storedVersion !== String(STORAGE_SCHEMA_VERSION)) {
-      // If there was actual session data, warn the user
-      const hadData = localStorage.getItem(SESSION_DATA);
+      const hadData = localStorage.getItem(STORAGE_KEYS.SESSION_DATA);
       clearSessionFromStorage();
       if (hadData) {
         setTimeout(() => {
@@ -141,7 +100,7 @@ export const loadSessionFromStorage = (): SessionFormData | null => {
       }
       return null;
     }
-    const stored = localStorage.getItem(SESSION_DATA);
+    const stored = localStorage.getItem(STORAGE_KEYS.SESSION_DATA);
     return stored ? JSON.parse(stored) : null;
   } catch (error) {
     logger.error('Failed to load session from storage:', error);
@@ -156,11 +115,11 @@ export const loadSessionFromStorage = (): SessionFormData | null => {
  */
 export const loadTimerStateFromStorage = (): SessionTimerState | null => {
   try {
-    const sessionTimerData = localStorage.getItem(SESSION_TIMER);
-    const matchTimerData = localStorage.getItem(MATCH_TIMER);
-    const matchStateData = localStorage.getItem(MATCH_STATE);
-    const sessionStartTime = localStorage.getItem(SESSION_START_TIME);
-    const matchStartTime = localStorage.getItem(MATCH_START_TIME);
+    const sessionTimerData = localStorage.getItem(STORAGE_KEYS.SESSION_TIMER);
+    const matchTimerData = localStorage.getItem(STORAGE_KEYS.MATCH_TIMER);
+    const matchStateData = localStorage.getItem(STORAGE_KEYS.MATCH_STATE);
+    const sessionStartTime = localStorage.getItem(STORAGE_KEYS.SESSION_START_TIME);
+    const matchStartTime = localStorage.getItem(STORAGE_KEYS.MATCH_START_TIME);
 
     if (!sessionTimerData || !matchTimerData) {
       return null;
@@ -170,8 +129,6 @@ export const loadTimerStateFromStorage = (): SessionTimerState | null => {
     const matchData = JSON.parse(matchTimerData);
     const matchState = matchStateData ? JSON.parse(matchStateData) : {};
 
-    // Calculate elapsed time based on how long the storage has been sitting
-    // BUT only if the timer was actually running - if it was paused, don't add elapsed time
     const now = Date.now();
     const sessionElapsed = sessionData.isRunning
       ? Math.floor((now - sessionData.timestamp) / 1000)
@@ -203,13 +160,13 @@ export const loadTimerStateFromStorage = (): SessionTimerState | null => {
  */
 export const clearSessionFromStorage = (): void => {
   try {
-    localStorage.removeItem(SESSION_DATA);
-    localStorage.removeItem(SESSION_TIMER);
-    localStorage.removeItem(MATCH_TIMER);
-    localStorage.removeItem(SESSION_START_TIME);
-    localStorage.removeItem(MATCH_START_TIME);
-    localStorage.removeItem(MATCH_STATE);
-    localStorage.removeItem(SCHEMA_VERSION_KEY);
+    localStorage.removeItem(STORAGE_KEYS.SESSION_DATA);
+    localStorage.removeItem(STORAGE_KEYS.SESSION_TIMER);
+    localStorage.removeItem(STORAGE_KEYS.MATCH_TIMER);
+    localStorage.removeItem(STORAGE_KEYS.SESSION_START_TIME);
+    localStorage.removeItem(STORAGE_KEYS.MATCH_START_TIME);
+    localStorage.removeItem(STORAGE_KEYS.MATCH_STATE);
+    localStorage.removeItem(STORAGE_KEYS.SESSION_SCHEMA_VERSION);
   } catch (error) {
     logger.error('Failed to clear session from storage:', error);
   }
@@ -218,7 +175,7 @@ export const clearSessionFromStorage = (): void => {
 /** Clear the "has completed a session" flag (call on logout to avoid cross-user bleed) */
 export const clearHasCompletedSession = (): void => {
   try {
-    localStorage.removeItem(HAS_COMPLETED_SESSION_KEY);
+    localStorage.removeItem(STORAGE_KEYS.HAS_COMPLETED_SESSION);
   } catch (error) {
     logger.error('Failed to clear hasCompletedSession flag:', error);
   }
@@ -230,16 +187,11 @@ export const clearHasCompletedSession = (): void => {
  */
 export const hasActiveSession = (): boolean => {
   try {
-    const sessionDataStr = localStorage.getItem(SESSION_DATA);
+    const sessionDataStr = localStorage.getItem(STORAGE_KEYS.SESSION_DATA);
     if (!sessionDataStr) return false;
 
     const sessionData = JSON.parse(sessionDataStr);
 
-    // Check if the session has actually been started or has meaningful content
-    // A session is active if:
-    // 1. It has a session name (user has configured it)
-    // 2. It has matches recorded
-    // 3. It has any scoring data (not all zeros)
     const hasName =
       sessionData.sessionName && sessionData.sessionName.trim() !== '';
     const hasMatches = sessionData.matches && sessionData.matches.length > 0;
@@ -255,19 +207,4 @@ export const hasActiveSession = (): boolean => {
   }
 };
 
-/**
- * Save only the match state (without full session data)
- * Used when you only need to persist UI state flags
- */
-export const saveMatchStateToStorage = (state: MatchState): void => {
-  try {
-    localStorage.setItem(MATCH_STATE, JSON.stringify({
-      hasStarted: state.hasStarted,
-      hasTransitionedToTeleop: state.hasTransitionedToTeleop,
-      showTeleopTransition: state.showTeleopTransition,
-      matchPhase: state.matchPhase ?? 'auton',
-    }));
-  } catch (error) {
-    logger.error('Failed to save match state to storage:', error);
-  }
-};
+

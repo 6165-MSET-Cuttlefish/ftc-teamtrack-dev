@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts';
-import { ROUTES } from '@/constants';
+import { APP_CONFIG, ROUTES } from '@/constants';
 import { ArrowLeft, Home, Compass } from 'lucide-react';
 import { useEffect } from 'react';
 
@@ -9,7 +9,7 @@ const NotFound = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = 'Page Not Found - TeamTrack';
+    document.title = `Page Not Found - ${APP_CONFIG.name}`;
   }, []);
 
   return (
