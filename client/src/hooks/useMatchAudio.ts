@@ -1,15 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSession } from '@/contexts';
 import { STORAGE_KEYS } from '@/constants';
 
-// Extend window with our custom properties to avoid `as any` casts
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
   __teamtrack_audio_persist_interval__?: ReturnType<typeof setInterval> | null;
 }
 const ttWindow = window as TeamTrackWindow;
 
-// Global audio instance - shared across all component instances
 const getOrCreateGlobalAudio = (): HTMLAudioElement => {
   if (!ttWindow.__teamtrack_match_audio__) {
     const audio = new Audio('/audio/match-audio.mp3');
@@ -19,7 +17,6 @@ const getOrCreateGlobalAudio = (): HTMLAudioElement => {
   return ttWindow.__teamtrack_match_audio__;
 };
 
-// Ref-counted global persistence interval
 let globalPersistRefCount = 0;
 
 const startGlobalAudioPersistence = () => {
@@ -41,9 +38,7 @@ const startGlobalAudioPersistence = () => {
             lastUpdated: Date.now(),
           })
         );
-      } catch {
-        // Silently fail if storage is unavailable
-      }
+      } catch { /* storage unavailable */ }
     }
   }, 500);
 };
@@ -74,10 +69,12 @@ const getAudioState = (): MatchAudioState | null => {
 const clearAudioState = () => {
   try {
     sessionStorage.removeItem(STORAGE_KEYS.AUDIO_STATE);
-  } catch {
-    // Silently fail if storage is unavailable
-  }
+  } catch { /* storage unavailable */ }
 };
+
+const FULL_GAME_AUDIO_OFFSET = 0.8;
+const AUTON_AUDIO_OFFSET = FULL_GAME_AUDIO_OFFSET + 3;
+const TELEOP_AUDIO_OFFSET = 42;
 
 export const useMatchAudio = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -85,42 +82,29 @@ export const useMatchAudio = () => {
   const audioTailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay, timer, isTutorialActive, sessionData } = useSession();
 
-  // Compute the expected audio position from the current timer value and phase.
-  // Audio timeline: ~0.8s intro | 0.8-3.8s countdown | 3.8-33.8s auton | ~34-42s pickup | 42+s teleop
-  const FULL_GAME_AUDIO_OFFSET = 0.8; // seconds into audio where the countdown "Three" begins
-  const AUTON_AUDIO_OFFSET = FULL_GAME_AUDIO_OFFSET + 3; // after countdown, autonomous gameplay starts
-  const TELEOP_AUDIO_OFFSET = 42; // teleop section of the audio
-
-  const getExpectedAudioTime = () => {
+  const getExpectedAudioTime = useCallback(() => {
     if (sessionData.matchType === 'Autonomous') {
-      // Timer counts 30→0, audio plays from after the countdown
       return AUTON_AUDIO_OFFSET + (30 - timer);
     }
     if (sessionData.matchType === 'Teleop') {
-      // Timer counts 120→0, audio plays from 42s
       return TELEOP_AUDIO_OFFSET + (120 - timer);
     }
-    // Full Game
     if (matchPhase === 'teleop') {
       return TELEOP_AUDIO_OFFSET + (120 - timer);
     }
-    // auton phase: timer counts 153→120
     return FULL_GAME_AUDIO_OFFSET + (153 - timer);
-  };
+  }, [sessionData.matchType, matchPhase, timer]);
 
-  // Get the audio start position for a fresh match start
-  const getAudioStartTime = () => {
+  const getAudioStartTime = useCallback(() => {
     if (sessionData.matchType === 'Autonomous') return AUTON_AUDIO_OFFSET;
     if (sessionData.matchType === 'Teleop') return TELEOP_AUDIO_OFFSET;
-    return FULL_GAME_AUDIO_OFFSET; // Full Game starts at the countdown
-  };
+    return FULL_GAME_AUDIO_OFFSET;
+  }, [sessionData.matchType]);
 
-  // Initialize global audio element and persistence once
   useEffect(() => {
     audioRef.current = getOrCreateGlobalAudio();
     startGlobalAudioPersistence();
 
-    // Restore audio state from storage if available
     const savedState = getAudioState();
     if (savedState && audioRef.current && savedState.isPlaying) {
       const timeSinceSave = Date.now() - savedState.lastUpdated;
@@ -138,7 +122,6 @@ export const useMatchAudio = () => {
     };
   }, []);
 
-  // Play audio when match starts
   useEffect(() => {
     if (matchActive && (isTimerRunning || isPreMatchDelay) && timer > 0 && audioRef.current) {
       if (!hasPlayedRef.current) {
@@ -150,34 +133,28 @@ export const useMatchAudio = () => {
         audioRef.current.muted = isTutorialActive;
       }
     }
-  }, [matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive, timer]);
+  }, [matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive, timer, getAudioStartTime]);
 
-  // Pause/resume audio when timer running state changes — re-sync only on resume
   useEffect(() => {
     if (matchActive && audioRef.current) {
       if (isTimerRunning || isPreMatchDelay) {
         if (audioRef.current.paused && timer > 0) {
-          // Re-sync audio position to match the timer on resume
           audioRef.current.currentTime = getExpectedAudioTime();
           audioRef.current.play().catch(() => {});
         }
       } else if (timer > 0 && matchPhase !== 'controller_pickup') {
-        // Only pause if timer hasn't reached 0 (let end-of-match audio play out)
         audioRef.current.pause();
       }
     }
-  }, [isTimerRunning, matchActive, isPreMatchDelay, matchPhase]);
+  }, [isTimerRunning, matchActive, isPreMatchDelay, matchPhase, timer, getExpectedAudioTime]);
 
-  // Stop and reset audio when match ends
   useEffect(() => {
-    // Clear any pending tail timeout on state change
     if (audioTailTimeoutRef.current) {
       clearTimeout(audioTailTimeoutRef.current);
       audioTailTimeoutRef.current = null;
     }
 
     if (!matchActive) {
-      // Match was cancelled/reset — stop immediately
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -185,9 +162,6 @@ export const useMatchAudio = () => {
       hasPlayedRef.current = false;
       clearAudioState();
     } else if (timer === 0 && hasPlayedRef.current) {
-      // Timer reached 0 — let the bell finish playing before stopping
-      // Autonomous: 3s tail for the end-of-auton bell
-      // Teleop / Full Game: 5s tail for the final buzzer
       const tailDuration = sessionData.matchType === 'Autonomous' ? 3000 : 5000;
       audioTailTimeoutRef.current = setTimeout(() => {
         if (audioRef.current) {
@@ -201,7 +175,6 @@ export const useMatchAudio = () => {
     }
   }, [matchActive, timer, sessionData.matchType]);
 
-  // Clean up when audio finishes naturally
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;

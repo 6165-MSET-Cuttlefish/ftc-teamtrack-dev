@@ -1373,9 +1373,9 @@ export const ActiveTutorial = () => {
           {current.title}
         </h3>
 
-        <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: subtext }}>
+        <div className="text-sm leading-relaxed whitespace-pre-line" style={{ color: subtext }}>
           {current.body}
-        </p>
+        </div>
 
         {current.preview && current.preview(isDarkMode)}
 

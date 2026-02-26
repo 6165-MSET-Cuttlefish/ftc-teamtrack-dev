@@ -42,7 +42,6 @@ export default tseslint.config(
     files: [
       '**/components/ui/**/*.{ts,tsx}',
       '**/contexts/**/*.{ts,tsx}',
-      '**/pages/session/AnalysisTabs.tsx',
     ],
     rules: {
       'react-refresh/only-export-components': 'off',

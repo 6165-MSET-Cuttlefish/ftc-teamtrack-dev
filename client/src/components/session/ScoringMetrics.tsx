@@ -56,7 +56,6 @@ const totalPoints = (shots: ShotEntry[]) =>
     return s + cls * POINTS_PER_CLASSIFIED + ovfl * POINTS_PER_OVERFLOW;
   }, 0);
 
-// Count number of set bits in a bitmask
 const countBits = (n: number): number => {
   let count = 0;
   while (n > 0) {
@@ -219,6 +218,8 @@ const ShotLogTable: React.FC<{
   bonusLabel?: string;
   /** When true, pulse-highlights the Shot and Made inputs of the first row */
   highlightFirstRow?: boolean;
+  /** Whether gate scoring is enabled (show Cls/Ovfl columns) */
+  gateEnabled?: boolean;
 }> = memo(
   ({
     label,
@@ -232,9 +233,14 @@ const ShotLogTable: React.FC<{
     bonusPoints = 0,
     bonusLabel,
     highlightFirstRow = false,
+    gateEnabled = true,
   }) => {
     const shotsTotal = totalPoints(shots);
     const sectionTotal = shotsTotal + bonusPoints;
+
+    const gridCols = gateEnabled
+      ? 'grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_50px_1fr_32px]'
+      : 'grid-cols-[32px_1fr_1fr_1fr_50px_1fr_32px]';
 
     const cycleTimes = shots
       .map(s => s.cycleTime)
@@ -267,7 +273,7 @@ const ShotLogTable: React.FC<{
         >
           {/* Header */}
           <div
-            className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_50px_1fr_32px] text-xs font-semibold uppercase tracking-wide ${
+            className={`grid ${gridCols} text-xs font-semibold uppercase tracking-wide ${
               isDarkMode
                 ? 'bg-team-dark-20 text-gray-400'
                 : 'bg-gray-50 text-gray-500'
@@ -276,8 +282,8 @@ const ShotLogTable: React.FC<{
             <div className="px-1 py-2 text-center" title="Shot number">#</div>
             <div className="px-1 py-2 text-center cursor-help" title="Number of balls shot">Shot</div>
             <div className="px-1 py-2 text-center cursor-help" title="Number of balls made">Made</div>
-            <div className="px-1 py-2 text-center cursor-help" title="Classified artifacts (3 pts each)">Cls</div>
-            <div className="px-1 py-2 text-center cursor-help" title="Overflow artifacts (1 pt each)">Ovfl</div>
+            {gateEnabled && <div className="px-1 py-2 text-center cursor-help" title="Classified artifacts (3 pts each)">Cls</div>}
+            {gateEnabled && <div className="px-1 py-2 text-center cursor-help" title="Overflow artifacts (1 pt each)">Ovfl</div>}
             <div className="px-1 py-2 text-center cursor-help" title="Points scored">Pts</div>
             <div className="px-1 py-2 text-center cursor-help" title="Time elapsed since last shot (seconds)">Cycle</div>
             <div className="px-1 py-2 text-center cursor-help" title="Visual representation of balls made vs shot">Balls</div>
@@ -321,7 +327,7 @@ const ShotLogTable: React.FC<{
               return (
                 <div
                   key={i}
-                  className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_50px_1fr_32px] items-center border-t ${
+                  className={`grid ${gridCols} items-center border-t ${
                     isDarkMode
                       ? 'border-white/5 even:bg-white/[0.02]'
                       : 'border-gray-100 even:bg-gray-50/50'
@@ -363,20 +369,20 @@ const ShotLogTable: React.FC<{
                       } focus:outline-none`}
                     />
                   </div>
-                  <div
+                  {gateEnabled && <div
                     className={`px-1 py-2 text-center text-xs font-semibold ${
                       cls > 0 ? 'text-green-500' : isDarkMode ? 'text-gray-500' : 'text-gray-400'
                     }`}
                   >
                     {cls}
-                  </div>
-                  <div
+                  </div>}
+                  {gateEnabled && <div
                     className={`px-1 py-2 text-center text-xs font-semibold ${
                       ovfl > 0 ? 'text-orange-500' : isDarkMode ? 'text-gray-500' : 'text-gray-400'
                     }`}
                   >
                     {ovfl}
-                  </div>
+                  </div>}
                   <div
                     className={`px-1 py-2 text-center text-sm font-semibold ${
                       isDarkMode ? 'text-white' : 'text-black'
@@ -423,7 +429,7 @@ const ShotLogTable: React.FC<{
           {/* Footer totals */}
           {shots.length > 0 && (
             <div
-              className={`grid grid-cols-[32px_1fr_1fr_1fr_1fr_1fr_50px_1fr_32px] items-center border-t-2 ${
+              className={`grid ${gridCols} items-center border-t-2 ${
                 isDarkMode
                   ? 'border-team-blue-40 bg-team-dark-20'
                   : 'border-gray-200 bg-gray-50'
@@ -444,16 +450,16 @@ const ShotLogTable: React.FC<{
               >
                 {sumField(shots, 'ballsMade')}
               </div>
-              <div
+              {gateEnabled && <div
                 className={`px-1 py-2 text-center text-xs font-bold text-green-500`}
               >
                 {sumClassified(shots)}
-              </div>
-              <div
+              </div>}
+              {gateEnabled && <div
                 className={`px-1 py-2 text-center text-xs font-bold text-orange-500`}
               >
                 {sumOverflow(shots)}
-              </div>
+              </div>}
               <div
                 className={`px-1 py-2 text-center text-xs font-bold ${
                   isDarkMode ? 'text-white' : 'text-black'
@@ -1112,6 +1118,7 @@ export const ScoringMetrics = () => {
 
   const showAuton = sessionData.matchType !== 'Teleop';
   const showTeleop = sessionData.matchType !== 'Autonomous';
+  const showEndgame = sessionData.matchType !== 'Autonomous';
   const hasMotifEnabled = sessionData.motifPattern !== undefined;
 
   return (
@@ -1195,13 +1202,15 @@ export const ScoringMetrics = () => {
               onClick={() => setSelectedTab('teleop')}
             />
           )}
-          <ScoreCard
-            label="Endgame"
-            value={endGameScore}
-            isDarkMode={isDarkMode}
-            selected={selectedTab === 'endgame'}
-            onClick={() => setSelectedTab('endgame')}
-          />
+          {showEndgame && (
+            <ScoreCard
+              label="Endgame"
+              value={endGameScore}
+              isDarkMode={isDarkMode}
+              selected={selectedTab === 'endgame'}
+              onClick={() => setSelectedTab('endgame')}
+            />
+          )}
         </div>
 
         {selectedTab === 'final' && (
@@ -1323,6 +1332,7 @@ export const ScoringMetrics = () => {
             )}
 
             {/* Endgame row */}
+            {showEndgame && (
             <div
               className={`grid grid-cols-[1fr_70px_70px_60px_60px_70px_75px_70px] items-center border-t ${
                 isDarkMode ? 'border-white/5' : 'border-gray-100'
@@ -1358,6 +1368,7 @@ export const ScoringMetrics = () => {
               </div>
               <div className="px-3 py-3 text-center text-sm" />
             </div>
+            )}
 
             {/* Total footer */}
             <div
@@ -1514,6 +1525,7 @@ export const ScoringMetrics = () => {
               bonusPoints={autonLeaveBonus}
               bonusLabel={autonomousLeave > 0 ? 'Leave Bonus' : undefined}
               highlightFirstRow={!!(metricsHintMask & 0b010) && autonShots.length > 0}
+              gateEnabled={sessionData.gateEnabled !== false}
             />
           </div>
         )}
@@ -1590,11 +1602,12 @@ export const ScoringMetrics = () => {
               onDelete={deleteTeleopShot}
               editable={isEditable}
               isDarkMode={isDarkMode}
+              gateEnabled={sessionData.gateEnabled !== false}
             />
           </div>
         )}
 
-        {selectedTab === 'endgame' && (
+        {selectedTab === 'endgame' && showEndgame && (
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <h3

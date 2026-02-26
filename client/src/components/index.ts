@@ -1,6 +1,6 @@
 export { GuestPrompt, HomeRedirect, ProtectedRoute } from './auth';
 
-export { ErrorBoundary, Header, DeepSeaBubbles } from './layout';
+export { ErrorBoundary, Header, DeepSeaBubbles, MobileWarning } from './layout';
 
 export {
   ActiveTutorial,

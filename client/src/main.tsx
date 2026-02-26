@@ -4,7 +4,6 @@ import App from './App';
 import './global.css';
 import { isAbortError } from '@/lib';
 
-// Suppress noisy console output in development
 if (import.meta.env.DEV) {
   const originalConsoleError = console.error;
   console.error = function (...args: unknown[]) {
@@ -26,7 +25,6 @@ if (import.meta.env.DEV) {
   };
 }
 
-// Suppress unhandled AbortError rejections from Firestore
 window.addEventListener(
   'unhandledrejection',
   (event: PromiseRejectionEvent) => {

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
+import { STORAGE_KEYS } from '@/constants';
 import {
   Select,
   SelectTrigger,
@@ -136,26 +137,39 @@ export const SessionSetup = ({
                 </SelectContent>
               </Select>
             </div>
-            <p className={`text-xs italic mt-2 ${
-              matchActive ? 'text-gray-500' : 'text-gray-400'
-            }`}>
-              {matchActive ? 'Locked' : 'Will lock once match starts'}
-            </p>
 
           </div>
         </div>
 
-        <div className="flex flex-col">
+        <div className="grid grid-cols-2 gap-4">
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={sessionData.gateEnabled !== false}
+              onChange={e => {
+                const enabled = e.target.checked;
+                updateSessionData({ gateEnabled: enabled, gateBallCount: 0 });
+                localStorage.setItem(STORAGE_KEYS.GATE_SCORING_ENABLED, String(enabled));
+              }}
+              disabled={matchActive}
+              className="w-4 h-4 accent-team-blue cursor-pointer"
+            />
+            <span className={`text-sm font-semibold tracking-wide ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>Enable Gate Scoring</span>
+          </label>
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={sessionData.motifPattern !== undefined}
               onChange={e => {
-                if (e.target.checked) {
+                const enabled = e.target.checked;
+                if (enabled) {
                   updateSessionData({ motifPattern: ['empty', 'empty', 'empty'] });
                 } else {
                   updateSessionData({ motifPattern: undefined });
                 }
+                localStorage.setItem(STORAGE_KEYS.MOTIF_SCORING_ENABLED, String(enabled));
               }}
               disabled={matchActive}
               className="w-4 h-4 accent-team-blue cursor-pointer"
@@ -164,11 +178,6 @@ export const SessionSetup = ({
               isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}>Enable Motif Scoring</span>
           </label>
-          <p className={`text-xs mt-2 ${
-            isDarkMode ? 'text-gray-500' : 'text-gray-400'
-          }`}>
-            {sessionData.motifPattern !== undefined ? 'Motif buttons will appear during the match' : 'Skip motif scoring for this match'}
-          </p>
         </div>
 
         <div className="flex justify-end pt-2">

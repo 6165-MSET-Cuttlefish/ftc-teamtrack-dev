@@ -160,7 +160,7 @@ const Active = () => {
                 {matchPhase === 'controller_pickup'
                   ? 'Controller Pickup'
                   : matchPhase === 'teleop' && timer <= 20
-                      ? 'End Game'
+                      ? 'Endgame'
                       : sessionData.matchType || 'Full Game'}
               </div>
               <div
@@ -222,7 +222,7 @@ const Active = () => {
               )}
 
               <div data-tutorial="gate" className="px-4 py-4">
-                <GateVisual />
+                {sessionData.gateEnabled !== false && <GateVisual />}
               </div>
 
               <div data-tutorial="scoring" className="px-4 py-4">

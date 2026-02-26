@@ -17,6 +17,7 @@ import {
   hasActiveSession,
 } from '@/lib';
 import type { Match, SessionFormData, SessionTimerState, MatchPhase } from '@/types';
+import { STORAGE_KEYS } from '@/constants';
 
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
@@ -72,7 +73,6 @@ interface SessionContextType {
   setIsTutorialActive: (active: boolean) => void;
 }
 
-// Helper to determine initial timer duration based on match type
 const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
   switch (matchType) {
     case 'Autonomous':
@@ -85,34 +85,43 @@ const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
   }
 };
 
-const createInitialSessionData = (): SessionFormData => ({
-  sessionName: '',
-  sessionDuration: '',
-  matchType: 'Full Game',
-  finalScore: 0,
-  autonomousScore: 0,
-  teleopScore: 0,
-  endGameScore: 0,
-  isSessionCompleted: false,
-  autonLeave: 0,
-  autonClassifiedArtifact: 0,
-  autonOverflowArtifact: 0,
-  autonMotif: 0,
-  autonBallsMissed: 0,
-  teleClassifiedArtifact: 0,
-  teleOverflowArtifact: 0,
-  teleMotif: 0,
-  teleBallsMissed: 0,
-  gateBallCount: 0,
-  robot1Park: 'none',
-  robot2Park: 'none',
-  selectedFeature: 'Cycle Times',
-  notes: '',
-  cycleTimes: [],
-  autonShots: [],
-  teleopShots: [],
-  matches: [],
-});
+const createInitialSessionData = (): SessionFormData => {
+  const storedGate = localStorage.getItem(STORAGE_KEYS.GATE_SCORING_ENABLED);
+  const storedMotif = localStorage.getItem(STORAGE_KEYS.MOTIF_SCORING_ENABLED);
+  const gateEnabled = storedGate !== null ? storedGate === 'true' : true;
+  const motifEnabled = storedMotif !== null ? storedMotif === 'true' : true;
+
+  return {
+    sessionName: '',
+    sessionDuration: '',
+    matchType: 'Full Game',
+    finalScore: 0,
+    autonomousScore: 0,
+    teleopScore: 0,
+    endGameScore: 0,
+    isSessionCompleted: false,
+    autonLeave: 0,
+    autonClassifiedArtifact: 0,
+    autonOverflowArtifact: 0,
+    autonMotif: 0,
+    autonBallsMissed: 0,
+    teleClassifiedArtifact: 0,
+    teleOverflowArtifact: 0,
+    teleMotif: 0,
+    teleBallsMissed: 0,
+    gateBallCount: 0,
+    robot1Park: 'none',
+    robot2Park: 'none',
+    selectedFeature: 'Cycle Times',
+    notes: '',
+    cycleTimes: [],
+    autonShots: [],
+    teleopShots: [],
+    matches: [],
+    gateEnabled,
+    motifPattern: motifEnabled ? ['empty', 'empty', 'empty'] : undefined,
+  };
+};
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 

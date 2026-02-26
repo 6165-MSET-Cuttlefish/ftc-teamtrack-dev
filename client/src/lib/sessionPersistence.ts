@@ -19,7 +19,6 @@ export const hasCompletedASession = (): boolean =>
 export const markSessionCompleted = (): void =>
   localStorage.setItem(STORAGE_KEYS.HAS_COMPLETED_SESSION, 'true');
 
-// Re-export types for backward compatibility
 export type { SessionFormData, SessionTimerState } from '@/types';
 
 /**

@@ -70,6 +70,8 @@ export interface ScoringFields {
   autonShots?: ShotEntry[];
   /** Individual shot records for TeleOp phase */
   teleopShots?: ShotEntry[];
+  /** Whether gate scoring (classified/overflow) is enabled */
+  gateEnabled?: boolean;
 }
 
 export interface Match {
@@ -97,6 +99,7 @@ export interface Match {
   cycleTimes?: number[];
   autonShots?: ShotEntry[];
   teleopShots?: ShotEntry[];
+  gateEnabled?: boolean;
 }
 
 /**

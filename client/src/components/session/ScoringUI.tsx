@@ -121,13 +121,20 @@ export const ScoringUI = () => {
 
     // Gate logic: classify vs overflow based on gate capacity (9)
     const GATE_CAPACITY = 9;
-    const currentGate = sessionData.gateBallCount ?? 0;
-    const spaceInGate = Math.max(0, GATE_CAPACITY - currentGate);
+    const gateEnabled = sessionData.gateEnabled !== false;
+    const currentGate = gateEnabled ? (sessionData.gateBallCount ?? 0) : 0;
+    const spaceInGate = gateEnabled ? Math.max(0, GATE_CAPACITY - currentGate) : ballsMade;
     const classified = Math.min(ballsMade, spaceInGate);
     const overflow = ballsMade - classified;
-    const newGateCount = currentGate + classified;
+    const newGateCount = gateEnabled ? currentGate + classified : 0;
 
-    const shotEntry = { ballsShot: shotId, ballsMade, cycleTime, classified, overflow };
+    const shotEntry: { ballsShot: number; ballsMade: number; cycleTime?: number; classified?: number; overflow?: number } = {
+      ballsShot: shotId,
+      ballsMade,
+      cycleTime,
+      classified: gateEnabled ? classified : ballsMade,
+      overflow: gateEnabled ? overflow : 0,
+    };
     if (isAutonPhase) {
       const currentAutonShots = sessionData.autonShots || [];
       updateSessionData({

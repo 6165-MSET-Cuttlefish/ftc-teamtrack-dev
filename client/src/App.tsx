@@ -10,6 +10,7 @@ import {
   GuestPrompt,
   HomeRedirect,
   DeepSeaBubbles,
+  MobileWarning,
 } from '@/components';
 import { ROUTES } from '@/constants';
 
@@ -43,7 +44,7 @@ const App = () => (
         <AuthProvider>
           <TeamProvider>
             <SessionProvider>
-            <BrowserRouter>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <div className="min-h-screen flex flex-col">
                 <DeepSeaBubbles />
                 <Header />
@@ -137,6 +138,7 @@ const App = () => (
                 </main>
               </div>
               <GuestPrompt />
+              <MobileWarning />
               <Sonner />
             </BrowserRouter>
           </SessionProvider>

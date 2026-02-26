@@ -1,9 +1,4 @@
-/**
- * AnalysisTabs.tsx
- *
- * Shared components and tab contents for session analysis.
- * Used by both Analysis.tsx (with editing) and SharedSession.tsx (read-only).
- */
+
 
 /* eslint-disable react-refresh/only-export-components */
 
@@ -800,11 +795,13 @@ export const MatchDetailTab = ({
     matches.reduce((s, m) => s + (m.finalScore || 0), 0) / matches.length;
   const diffFromAvg = totalScore - avgFinal;
 
+  const matchGateEnabled = match.gateEnabled !== false;
+
   const breakdownRows = [
     {
       phase: 'Autonomous',
-      classified: match.autonClassifiedArtifact || 0,
-      overflow: match.autonOverflowArtifact || 0,
+      classified: matchGateEnabled ? (match.autonClassifiedArtifact || 0) : null,
+      overflow: matchGateEnabled ? (match.autonOverflowArtifact || 0) : null,
       motifs: match.autonMotif || 0,
       missed: match.autonBallsMissed || 0,
       extra: match.autonLeave || 0,
@@ -814,8 +811,8 @@ export const MatchDetailTab = ({
     },
     {
       phase: 'Teleop',
-      classified: match.teleClassifiedArtifact || 0,
-      overflow: match.teleOverflowArtifact || 0,
+      classified: matchGateEnabled ? (match.teleClassifiedArtifact || 0) : null,
+      overflow: matchGateEnabled ? (match.teleOverflowArtifact || 0) : null,
       motifs: match.teleMotif || 0,
       missed: match.teleBallsMissed || 0,
       extra: null,
@@ -1005,8 +1002,7 @@ export const MatchDetailTab = ({
               >
                 {[
                   'Phase',
-                  'Classified',
-                  'Overflow',
+                  ...(matchGateEnabled ? ['Classified', 'Overflow'] : []),
                   'Motifs',
                   'Missed',
                   'Extra',
@@ -1042,16 +1038,16 @@ export const MatchDetailTab = ({
                       </span>
                     </div>
                   </td>
-                  <td
+                  {matchGateEnabled && <td
                     className={`text-center py-3 px-3 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
                     {row.classified !== null ? row.classified : '—'}
-                  </td>
-                  <td
+                  </td>}
+                  {matchGateEnabled && <td
                     className={`text-center py-3 px-3 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
                     {row.overflow !== null ? row.overflow : '—'}
-                  </td>
+                  </td>}
                   <td
                     className={`text-center py-3 px-3 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
@@ -1099,7 +1095,7 @@ export const MatchDetailTab = ({
                 className={`border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
               >
                 <td
-                  colSpan={5}
+                  colSpan={matchGateEnabled ? 5 : 3}
                   className={`py-3 px-3 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
                   Total Match Score
@@ -1328,15 +1324,19 @@ export const CompareTab = ({
   const showTele = sessionMatchType !== 'Autonomous';
   const showEndgame = sessionMatchType !== 'Autonomous';
 
+  const anyGateEnabled = mA.gateEnabled !== false || mB.gateEnabled !== false;
+
   const metrics: CompareMetric[] = [
     { label: 'Final Score', a: mA.finalScore || 0, b: mB.finalScore || 0, higherIsBetter: true, phase: 'overall' },
     { label: 'Autonomous', a: mA.autonomousScore || 0, b: mB.autonomousScore || 0, higherIsBetter: true, phase: 'auto' },
     { label: 'Teleop', a: mA.teleopScore || 0, b: mB.teleopScore || 0, higherIsBetter: true, phase: 'tele' },
     { label: 'Endgame', a: mA.endGameScore || 0, b: mB.endGameScore || 0, higherIsBetter: true, phase: 'endgame' },
-    { label: 'Classified (Auto)', a: mA.autonClassifiedArtifact || 0, b: mB.autonClassifiedArtifact || 0, higherIsBetter: true, phase: 'auto' },
-    { label: 'Classified (Teleop)', a: mA.teleClassifiedArtifact || 0, b: mB.teleClassifiedArtifact || 0, higherIsBetter: true, phase: 'tele' },
-    { label: 'Overflow (Auto)', a: mA.autonOverflowArtifact || 0, b: mB.autonOverflowArtifact || 0, higherIsBetter: true, phase: 'auto' },
-    { label: 'Overflow (Teleop)', a: mA.teleOverflowArtifact || 0, b: mB.teleOverflowArtifact || 0, higherIsBetter: true, phase: 'tele' },
+    ...(anyGateEnabled ? [
+      { label: 'Classified (Auto)', a: mA.autonClassifiedArtifact || 0, b: mB.autonClassifiedArtifact || 0, higherIsBetter: true, phase: 'auto' as const },
+      { label: 'Classified (Teleop)', a: mA.teleClassifiedArtifact || 0, b: mB.teleClassifiedArtifact || 0, higherIsBetter: true, phase: 'tele' as const },
+      { label: 'Overflow (Auto)', a: mA.autonOverflowArtifact || 0, b: mB.autonOverflowArtifact || 0, higherIsBetter: true, phase: 'auto' as const },
+      { label: 'Overflow (Teleop)', a: mA.teleOverflowArtifact || 0, b: mB.teleOverflowArtifact || 0, higherIsBetter: true, phase: 'tele' as const },
+    ] : []),
     { label: 'Motifs (Auto)', a: mA.autonMotif || 0, b: mB.autonMotif || 0, higherIsBetter: true, phase: 'auto' },
     { label: 'Motifs (Teleop)', a: mA.teleMotif || 0, b: mB.teleMotif || 0, higherIsBetter: true, phase: 'tele' },
     { label: 'Balls Missed (Auto)', a: mA.autonBallsMissed || 0, b: mB.autonBallsMissed || 0, higherIsBetter: false, phase: 'auto' },

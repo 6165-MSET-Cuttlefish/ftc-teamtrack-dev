@@ -22,11 +22,6 @@ export const ROUTES = {
   TEAM_INVITE: '/join/:inviteCode',
 } as const;
 
-/**
- * Firebase configuration
- * Loaded from environment variables (VITE_FIREBASE_*)
- * See .env.example for the required variables
- */
 export const FIREBASE_CONFIG = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
@@ -58,9 +53,6 @@ export const SESSION_LIMITS = {
   ALL_SESSIONS_QUERY_LIMIT: 100,
 } as const;
 
-/**
- * UI Timing constants for animations, timeouts, and delays
- */
 export const UI_TIMING = {
   DELETE_CONFIRM_TIMEOUT: 5000,
   TUTORIAL_TRANSITION_DELAY: 100,
@@ -92,4 +84,6 @@ export const STORAGE_KEYS = {
   PENDING_INVITE_EXPIRY: 'teamtrack-pending-invite-expiry',
   START_TUTORIAL: 'teamtrack-start-tutorial',
   GUEST_SESSIONS: 'teamtrack-guest-sessions',
+  GATE_SCORING_ENABLED: 'teamtrack-gate-scoring-enabled',
+  MOTIF_SCORING_ENABLED: 'teamtrack-motif-scoring-enabled',
 } as const;

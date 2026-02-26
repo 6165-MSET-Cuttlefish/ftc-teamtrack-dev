@@ -48,7 +48,6 @@ export const LivePreview = ({
     matchActive,
     setMatchActive,
     skipToTeleop,
-    setIsPreMatchDelay,
   } = useSession();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -68,9 +67,10 @@ export const LivePreview = ({
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const ref = preMatchDelayRef;
     return () => {
-      if (preMatchDelayRef.current) {
-        clearTimeout(preMatchDelayRef.current);
+      if (ref.current) {
+        clearTimeout(ref.current);
       }
     };
   }, []);
@@ -195,13 +195,11 @@ export const LivePreview = ({
   };
 
   const handleSaveMatch = () => {
-    // Validate that timer was started
     if (!hasStarted) {
       toast.error('Please start the match timer before saving');
       return;
     }
 
-    // Validate that some scoring data exists
     if (
       (sessionData.finalScore || 0) === 0 &&
       (sessionData.autonomousScore || 0) === 0 &&
@@ -231,7 +229,6 @@ export const LivePreview = ({
       teleBallsMissed: sessionData.teleBallsMissed,
       robot1Park: sessionData.robot1Park,
       robot2Park: sessionData.robot2Park,
-      // Extract cycle times from shots - get all defined cycleTime values
       cycleTimes: [
         ...((sessionData.autonShots || [])
           .map(s => s.cycleTime)
@@ -244,6 +241,7 @@ export const LivePreview = ({
       autonShots: [...(sessionData.autonShots || [])],
       teleopShots: [...(sessionData.teleopShots || [])],
       createdAt: new Date().toISOString(),
+      gateEnabled: sessionData.gateEnabled,
     };
 
     const updatedMatches = [...(sessionData.matches || []), newMatch];
@@ -265,7 +263,7 @@ export const LivePreview = ({
       robot1Park: 'none',
       robot2Park: 'none',
       gateBallCount: 0,
-      motifPattern: ['empty', 'empty', 'empty'],
+      motifPattern: sessionData.motifPattern !== undefined ? ['empty', 'empty', 'empty'] : undefined,
       cycleTimes: [],
       autonShots: [],
       teleopShots: [],
@@ -317,7 +315,6 @@ export const LivePreview = ({
       const { firebaseService } = await import('@/services/firebaseService');
       const { SESSION_LIMITS } = await import('@/constants');
 
-      // Use team-aware limit check (consistent with mount check)
       const sessions = team
         ? await firebaseService.getTeamSessions(team.id)
         : await firebaseService.getUserSessions(user.uid);
@@ -337,7 +334,6 @@ export const LivePreview = ({
       userSessions = JSON.parse(localStorage.getItem(STORAGE_KEYS.GUEST_SESSIONS) || '[]');
     }
 
-    // Use sessionTimer for total session duration, not match timer
     const totalSessionTime = formatTime(sessionTimer);
     setIsTimerRunning(false);
 
@@ -389,7 +385,6 @@ export const LivePreview = ({
 
     try {
       if (user?.uid) {
-        // Authenticated user: save to Firebase
         const result = await createSession(sessionToSave);
         if (result && result.id) {
           completeSession(totalSessionTime);
@@ -400,7 +395,6 @@ export const LivePreview = ({
           return;
         }
       } else {
-        // Guest user: save session to localStorage
         const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.GUEST_SESSIONS) || '[]');
         const guestSession = {
           ...sessionToSave,
@@ -453,7 +447,7 @@ export const LivePreview = ({
       robot1Park: 'none',
       robot2Park: 'none',
       gateBallCount: 0,
-      motifPattern: ['empty', 'empty', 'empty'],
+      motifPattern: sessionData.motifPattern !== undefined ? ['empty', 'empty', 'empty'] : undefined,
       cycleTimes: [],
       autonShots: [],
       teleopShots: [],
@@ -476,7 +470,6 @@ export const LivePreview = ({
               <button
                   type="button"
                   onKeyDown={(e) => {
-                    // Prevent Enter from triggering the button during keybinds
                     if (e.key === 'Enter') {
                       e.preventDefault();
                     }
@@ -488,17 +481,14 @@ export const LivePreview = ({
                             onTryStartWithoutSetup?.();
                             return;
                           }
-                          // Check if motif is enabled and needs setup
                           const hasMotifEnabled = sessionData.motifPattern !== undefined;
                           const motifPurpleCount = sessionData.motifPattern?.filter(c => c === 'purple').length ?? 0;
                           const motifGreenCount = sessionData.motifPattern?.filter(c => c === 'green').length ?? 0;
                           const motifIsProperlySet = motifPurpleCount === 2 && motifGreenCount === 1;
                           
                           if (hasMotifEnabled && !motifIsProperlySet) {
-                            // Step 1: open motif dialog to set pattern first
                             setShowMotifDialog(true);
                           } else {
-                            // Step 2: motif is properly set or disabled, start the match
                             setHasStarted(true);
                             setMatchActive(true);
                             if (sessionData.matchType === 'Teleop') {
