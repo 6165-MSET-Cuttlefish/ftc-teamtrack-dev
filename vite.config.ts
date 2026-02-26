@@ -28,6 +28,19 @@ export default defineConfig(() => ({
   },
   build: {
     outDir: '../dist/spa',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-firebase': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+          ],
+          'vendor-charts': ['recharts'],
+        },
+      },
+    },
   },
   plugins: [react()],
   resolve: {

@@ -7,6 +7,7 @@
 import type { SessionFormData, SessionTimerState } from '@/types';
 import { STORAGE_KEYS } from '@/constants';
 import { logger } from './logger';
+import { toast } from 'sonner';
 
 /** Current schema version for stored session data. Bump when SessionFormData shape changes. */
 const STORAGE_SCHEMA_VERSION = 1;
@@ -71,9 +72,7 @@ export const saveSessionToStorage = (
     );
   } catch (error) {
     logger.error('Failed to save session to storage:', error);
-    import('sonner').then(({ toast }) => {
-      toast.error('Unable to save session data locally. Your browser storage may be full.');
-    }).catch(() => {});
+    toast.error('Unable to save session data locally. Your browser storage may be full.');
   }
 };
 
@@ -89,12 +88,10 @@ export const loadSessionFromStorage = (): SessionFormData | null => {
       clearSessionFromStorage();
       if (hadData) {
         setTimeout(() => {
-          import('sonner').then(({ toast }) => {
-            toast.warning(
-              'Your in-progress session was cleared due to an app update. Sorry for the inconvenience!',
-              { duration: 8000 }
-            );
-          }).catch(() => {});
+          toast.warning(
+            'Your in-progress session was cleared due to an app update. Sorry for the inconvenience!',
+            { duration: 8000 }
+          );
         }, 1000);
       }
       return null;

@@ -1,10 +1,13 @@
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import { FIREBASE_CONFIG } from '@/constants';
 import { logger } from './logger';
 
 let cachedFirebase: {
-  app: ReturnType<typeof import('firebase/app').initializeApp>;
-  auth: ReturnType<typeof import('firebase/auth').getAuth>;
-  db: ReturnType<typeof import('firebase/firestore').getFirestore>;
+  app: ReturnType<typeof initializeApp>;
+  auth: ReturnType<typeof getAuth>;
+  db: ReturnType<typeof getFirestore>;
 } | null = null;
 
 export async function getFirebase() {
@@ -13,12 +16,7 @@ export async function getFirebase() {
   }
 
   try {
-    const { initializeApp, getApps, getApp } = await import('firebase/app');
-    const { getAuth } = await import('firebase/auth');
-    const { getFirestore } = await import('firebase/firestore');
-
-    const app =
-      getApps().length > 0 ? getApp() : initializeApp(FIREBASE_CONFIG);
+    const app = getApps().length > 0 ? getApp() : initializeApp(FIREBASE_CONFIG);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
