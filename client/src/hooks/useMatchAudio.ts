@@ -82,11 +82,38 @@ const clearAudioState = () => {
 export const useMatchAudio = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedRef = useRef<boolean>(false);
+  const audioTailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay, timer, isTutorialActive, sessionData } = useSession();
 
-  // Determine if audio should play for this match type
-  // Audio only plays for 'Full Game' mode; disabled for 'Autonomous' and 'Teleop' modes
-  const shouldPlayAudio = sessionData.matchType === 'Full Game';
+  // Compute the expected audio position from the current timer value and phase.
+  // Audio timeline: ~0.8s intro | 0.8-3.8s countdown | 3.8-33.8s auton | ~34-42s pickup | 42+s teleop
+  const FULL_GAME_AUDIO_OFFSET = 0.8; // seconds into audio where the countdown "Three" begins
+  const AUTON_AUDIO_OFFSET = FULL_GAME_AUDIO_OFFSET + 3; // after countdown, autonomous gameplay starts
+  const TELEOP_AUDIO_OFFSET = 42; // teleop section of the audio
+
+  const getExpectedAudioTime = () => {
+    if (sessionData.matchType === 'Autonomous') {
+      // Timer counts 30→0, audio plays from after the countdown
+      return AUTON_AUDIO_OFFSET + (30 - timer);
+    }
+    if (sessionData.matchType === 'Teleop') {
+      // Timer counts 120→0, audio plays from 42s
+      return TELEOP_AUDIO_OFFSET + (120 - timer);
+    }
+    // Full Game
+    if (matchPhase === 'teleop') {
+      return TELEOP_AUDIO_OFFSET + (120 - timer);
+    }
+    // auton phase: timer counts 153→120
+    return FULL_GAME_AUDIO_OFFSET + (153 - timer);
+  };
+
+  // Get the audio start position for a fresh match start
+  const getAudioStartTime = () => {
+    if (sessionData.matchType === 'Autonomous') return AUTON_AUDIO_OFFSET;
+    if (sessionData.matchType === 'Teleop') return TELEOP_AUDIO_OFFSET;
+    return FULL_GAME_AUDIO_OFFSET; // Full Game starts at the countdown
+  };
 
   // Initialize global audio element and persistence once
   useEffect(() => {
@@ -111,41 +138,68 @@ export const useMatchAudio = () => {
     };
   }, []);
 
-  // Play audio when match starts (only for Full Game mode)
+  // Play audio when match starts
   useEffect(() => {
-    if (shouldPlayAudio && matchActive && (isTimerRunning || isPreMatchDelay) && timer > 0 && audioRef.current) {
+    if (matchActive && (isTimerRunning || isPreMatchDelay) && timer > 0 && audioRef.current) {
       if (!hasPlayedRef.current) {
         hasPlayedRef.current = true;
+        audioRef.current.currentTime = getAudioStartTime();
         audioRef.current.muted = isTutorialActive;
         audioRef.current.play().catch(() => {});
       } else {
         audioRef.current.muted = isTutorialActive;
       }
     }
-  }, [shouldPlayAudio, matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive, timer]);
+  }, [matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive, timer]);
 
-  // Pause/resume audio when timer state changes (only for Full Game mode)
+  // Pause/resume audio when timer running state changes — re-sync only on resume
   useEffect(() => {
-    if (shouldPlayAudio && matchActive && audioRef.current) {
-      if ((isTimerRunning || isPreMatchDelay) && timer > 0) {
-        audioRef.current.play().catch(() => {});
-      } else if (matchPhase !== 'controller_pickup') {
+    if (matchActive && audioRef.current) {
+      if (isTimerRunning || isPreMatchDelay) {
+        if (audioRef.current.paused && timer > 0) {
+          // Re-sync audio position to match the timer on resume
+          audioRef.current.currentTime = getExpectedAudioTime();
+          audioRef.current.play().catch(() => {});
+        }
+      } else if (timer > 0 && matchPhase !== 'controller_pickup') {
+        // Only pause if timer hasn't reached 0 (let end-of-match audio play out)
         audioRef.current.pause();
       }
     }
-  }, [shouldPlayAudio, isTimerRunning, matchActive, isPreMatchDelay, matchPhase, timer]);
+  }, [isTimerRunning, matchActive, isPreMatchDelay, matchPhase]);
 
   // Stop and reset audio when match ends
   useEffect(() => {
-    if (!matchActive || timer === 0) {
+    // Clear any pending tail timeout on state change
+    if (audioTailTimeoutRef.current) {
+      clearTimeout(audioTailTimeoutRef.current);
+      audioTailTimeoutRef.current = null;
+    }
+
+    if (!matchActive) {
+      // Match was cancelled/reset — stop immediately
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
       hasPlayedRef.current = false;
       clearAudioState();
+    } else if (timer === 0 && hasPlayedRef.current) {
+      // Timer reached 0 — let the bell finish playing before stopping
+      // Autonomous: 3s tail for the end-of-auton bell
+      // Teleop / Full Game: 5s tail for the final buzzer
+      const tailDuration = sessionData.matchType === 'Autonomous' ? 3000 : 5000;
+      audioTailTimeoutRef.current = setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        hasPlayedRef.current = false;
+        clearAudioState();
+        audioTailTimeoutRef.current = null;
+      }, tailDuration);
     }
-  }, [matchActive, timer]);
+  }, [matchActive, timer, sessionData.matchType]);
 
   // Clean up when audio finishes naturally
   useEffect(() => {

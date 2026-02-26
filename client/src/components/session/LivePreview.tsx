@@ -503,21 +503,10 @@ export const LivePreview = ({
                             setMatchActive(true);
                             if (sessionData.matchType === 'Teleop') {
                               setMatchPhase('teleop');
-                              setIsTimerRunning(true);
-                            } else if (sessionData.matchType === 'Autonomous') {
-                              setMatchPhase('auton');
-                              setIsTimerRunning(true);
                             } else {
-                              // Full Game: 1.15s audio intro delay before countdown
                               setMatchPhase('auton');
-                              setIsPreMatchDelay(true);
-                              if (preMatchDelayRef.current) clearTimeout(preMatchDelayRef.current);
-                              preMatchDelayRef.current = setTimeout(() => {
-                                setIsPreMatchDelay(false);
-                                setIsTimerRunning(true);
-                                preMatchDelayRef.current = null;
-                              }, 1150);
                             }
+                            setIsTimerRunning(true);
                             window.dispatchEvent(new Event('teamtrack-match-started'));
                           }
                         }
