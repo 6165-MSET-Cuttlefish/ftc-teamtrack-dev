@@ -354,11 +354,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 localStorage.setItem(GUEST_MODE_KEY, 'true');
                 setIsGuest(true);
                 setGuestId(autoGuestId);
-                setTimeout(() => {
-                  import('sonner').then(({ toast }) => {
-                    toast.info('You are browsing as a guest. Sign in to save your sessions.', { duration: 5000 });
-                  }).catch(() => {});
-                }, 500);
               }
             }
             setLoading(false);
@@ -376,11 +371,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           localStorage.setItem(GUEST_MODE_KEY, 'true');
           setIsGuest(true);
           setGuestId(autoGuestId);
-          setTimeout(() => {
-            import('sonner').then(({ toast }) => {
-              toast.info('You are browsing as a guest. Sign in to save your sessions.', { duration: 5000 });
-            }).catch(() => {});
-          }, 500);
         }
         setLoading(false);
       }
