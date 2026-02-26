@@ -82,7 +82,11 @@ const clearAudioState = () => {
 export const useMatchAudio = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedRef = useRef<boolean>(false);
-  const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay, timer, isTutorialActive } = useSession();
+  const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay, timer, isTutorialActive, sessionData } = useSession();
+
+  // Determine if audio should play for this match type
+  // Audio only plays for 'Full Game' mode; disabled for 'Autonomous' and 'Teleop' modes
+  const shouldPlayAudio = sessionData.matchType === 'Full Game';
 
   // Initialize global audio element and persistence once
   useEffect(() => {
@@ -107,9 +111,9 @@ export const useMatchAudio = () => {
     };
   }, []);
 
-  // Play audio when match starts
+  // Play audio when match starts (only for Full Game mode)
   useEffect(() => {
-    if (matchActive && (isTimerRunning || isPreMatchDelay) && timer > 0 && audioRef.current) {
+    if (shouldPlayAudio && matchActive && (isTimerRunning || isPreMatchDelay) && timer > 0 && audioRef.current) {
       if (!hasPlayedRef.current) {
         hasPlayedRef.current = true;
         audioRef.current.muted = isTutorialActive;
@@ -118,18 +122,18 @@ export const useMatchAudio = () => {
         audioRef.current.muted = isTutorialActive;
       }
     }
-  }, [matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive, timer]);
+  }, [shouldPlayAudio, matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive, timer]);
 
-  // Pause/resume audio when timer state changes
+  // Pause/resume audio when timer state changes (only for Full Game mode)
   useEffect(() => {
-    if (matchActive && audioRef.current) {
+    if (shouldPlayAudio && matchActive && audioRef.current) {
       if ((isTimerRunning || isPreMatchDelay) && timer > 0) {
         audioRef.current.play().catch(() => {});
       } else if (matchPhase !== 'controller_pickup') {
         audioRef.current.pause();
       }
     }
-  }, [isTimerRunning, matchActive, isPreMatchDelay, matchPhase, timer]);
+  }, [shouldPlayAudio, isTimerRunning, matchActive, isPreMatchDelay, matchPhase, timer]);
 
   // Stop and reset audio when match ends
   useEffect(() => {
