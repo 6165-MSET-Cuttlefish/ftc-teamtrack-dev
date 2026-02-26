@@ -21,4 +21,3 @@ export {
   hasActiveSession,
 } from './sessionPersistence';
 export { generateShareableLink, copyToClipboard } from './shareService';
-export { sanitizeHtml } from './sanitize';
