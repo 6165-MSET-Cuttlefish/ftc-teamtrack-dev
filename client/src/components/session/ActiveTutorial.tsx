@@ -1226,7 +1226,7 @@ export const ActiveTutorial = () => {
       if (e.key === 'ArrowRight') {
         e.stopPropagation();
         e.preventDefault();
-        if (!hasPageTask) next();
+        next();
       }
       if (e.key === 'ArrowLeft') {
         e.stopPropagation();
@@ -1527,32 +1527,15 @@ export const ActiveTutorial = () => {
             )}
             <button
               onClick={() => {
-                if (taskPending) return;
                 next();
               }}
-              className={`px-5 py-2 text-sm font-bold rounded-xl transition-all duration-200 ${
-                taskPending ? 'opacity-40 cursor-not-allowed' : ''
-              }`}
+              className="px-5 py-2 text-sm font-bold rounded-xl transition-all duration-200"
               style={{
-                backgroundColor: taskPending
-                  ? isDarkMode
-                    ? 'rgba(255,255,255,0.15)'
-                    : 'rgba(0,0,0,0.1)'
-                  : teamBlue,
-                color: taskPending
-                  ? isDarkMode
-                    ? 'rgba(255,255,255,0.4)'
-                    : 'rgba(0,0,0,0.35)'
-                  : isDarkMode
-                    ? '#000'
-                    : '#fff',
+                backgroundColor: teamBlue,
+                color: isDarkMode ? '#000' : '#fff',
               }}
             >
-              {isLast
-                ? 'Get Started'
-                : taskPending
-                  ? 'Complete the task to continue'
-                  : 'Next'}
+              {isLast ? 'Get Started' : 'Next'}
             </button>
           </div>
         </div>
