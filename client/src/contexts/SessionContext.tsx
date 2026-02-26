@@ -329,7 +329,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       };
 
       saveSessionToStorage(sessionData, timerState);
-      setHasActiveSessionLocal(true);
+      setHasActiveSessionLocal(hasStarted || sessionData.matches.length > 0);
     }, 300);
 
     return () => {

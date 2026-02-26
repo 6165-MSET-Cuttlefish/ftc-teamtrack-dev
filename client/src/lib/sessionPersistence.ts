@@ -192,15 +192,13 @@ export const hasActiveSession = (): boolean => {
 
     const sessionData = JSON.parse(sessionDataStr);
 
-    const hasName =
-      sessionData.sessionName && sessionData.sessionName.trim() !== '';
     const hasMatches = sessionData.matches && sessionData.matches.length > 0;
-    const hasScoring =
-      (sessionData.finalScore && sessionData.finalScore > 0) ||
-      (sessionData.autonomousScore && sessionData.autonomousScore > 0) ||
-      (sessionData.teleopScore && sessionData.teleopScore > 0);
 
-    return hasName || hasMatches || hasScoring;
+    const matchStateStr = localStorage.getItem(STORAGE_KEYS.MATCH_STATE);
+    const matchState = matchStateStr ? JSON.parse(matchStateStr) : null;
+    const hasStarted = matchState?.hasStarted ?? false;
+
+    return hasMatches || hasStarted;
   } catch (error) {
     logger.error('Failed to check for active session:', error);
     return false;
