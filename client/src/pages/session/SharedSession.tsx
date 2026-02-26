@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { sanitizeHtml } from '@/lib/sanitize';
+import { sanitizeHtml } from '@/lib';
 import { Button } from '@/components/ui/button';
 import { BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { Match } from '@/types';
