@@ -2,7 +2,10 @@ import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './global.css';
-import { isAbortError } from '@/lib';
+import { isAbortError, getFirebase } from '@/lib';
+
+// Initialize Firebase (including Analytics) eagerly on page load
+getFirebase();
 
 if (import.meta.env.DEV) {
   const originalConsoleError = console.error;

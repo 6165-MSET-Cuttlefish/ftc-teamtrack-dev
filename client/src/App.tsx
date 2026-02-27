@@ -1,5 +1,7 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { logEvent } from 'firebase/analytics';
+import { getFirebase } from '@/lib';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, ThemeProvider, SessionProvider, TeamProvider } from '@/contexts';
@@ -28,6 +30,21 @@ const SharedSession = lazy(() => import('./pages/session/SharedSession'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const JoinTeam = lazy(() => import('./pages/team/JoinTeam'));
 
+const RouteTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    getFirebase().then(firebase => {
+      if (firebase?.analytics) {
+        logEvent(firebase.analytics, 'page_view', {
+          page_path: location.pathname + location.search,
+          page_location: window.location.href,
+        });
+      }
+    });
+  }, [location]);
+  return null;
+};
+
 const LoadingFallback = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4">
     <div className="relative">
@@ -45,6 +62,7 @@ const App = () => (
           <TeamProvider>
             <SessionProvider>
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <RouteTracker />
               <div className="min-h-screen flex flex-col">
                 <DeepSeaBubbles />
                 <Header />
