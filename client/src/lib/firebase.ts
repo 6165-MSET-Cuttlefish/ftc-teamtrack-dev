@@ -1,6 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getAnalytics, isSupported } from 'firebase/analytics';
+import type { Analytics } from 'firebase/analytics';
 import { FIREBASE_CONFIG } from '@/constants';
 import { logger } from './logger';
 
@@ -8,6 +10,7 @@ let cachedFirebase: {
   app: ReturnType<typeof initializeApp>;
   auth: ReturnType<typeof getAuth>;
   db: ReturnType<typeof getFirestore>;
+  analytics: Analytics | null;
 } | null = null;
 
 export async function getFirebase() {
@@ -20,7 +23,15 @@ export async function getFirebase() {
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    cachedFirebase = { app, auth, db };
+    let analytics: Analytics | null = null;
+    if (FIREBASE_CONFIG.measurementId) {
+      const supported = await isSupported();
+      if (supported) {
+        analytics = getAnalytics(app);
+      }
+    }
+
+    cachedFirebase = { app, auth, db, analytics };
     return cachedFirebase;
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
