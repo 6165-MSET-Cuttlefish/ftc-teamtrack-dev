@@ -22,3 +22,5 @@ export {
 } from './sessionPersistence';
 export { generateShareableLink, copyToClipboard } from './shareService';
 export { sanitizeHtml } from './sanitize';
+export { getVideoDuration, extractFrames } from './frameExtraction';
+export type { ExtractedFrame } from './frameExtraction';

@@ -22,3 +22,13 @@ export type {
   SessionFormData,
   SessionTimerState,
 } from './storage';
+
+export type {
+  DetectionBox,
+  TrackingFrame,
+  AnalysisFinding,
+  AnalysisReport,
+  VideoAnalysis,
+  CreateVideoAnalysisData,
+  AnalyzeResponse,
+} from './video';

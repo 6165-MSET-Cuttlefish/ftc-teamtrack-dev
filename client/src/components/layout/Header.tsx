@@ -23,6 +23,7 @@ import {
   Hexagon,
   Waves,
   ArrowLeft,
+  Video,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -190,6 +191,18 @@ const NavigationMenu = () => {
       >
         <span className="hidden sm:inline">My Sessions</span>
         <BarChart3 className="w-4 h-4 sm:hidden" />
+      </button>
+
+      <button
+        onClick={() => navigate(ROUTES.VIDEO_ANALYSIS)}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+          isDarkMode
+            ? 'hover:bg-team-white-10 text-white'
+            : 'hover:bg-gray-100 text-black'
+        }`}
+      >
+        <span className="hidden sm:inline">Video Analysis</span>
+        <Video className="w-4 h-4 sm:hidden" />
       </button>
 
       <button

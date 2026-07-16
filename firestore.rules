@@ -54,6 +54,21 @@ service cloud.firestore {
         && resource.data.createdBy == request.auth.uid;
     }
 
+    // ── Video analyses ──────────────────────────────────────────────────
+    // Robot video tracking/coaching reports, scoped to a team. Written once
+    // by the uploader after the Gemini analysis completes client-side; no
+    // update rule since records aren't edited after creation.
+    match /videoAnalyses/{analysisId} {
+      allow read: if isTeamMember(resource.data.teamId);
+      allow create: if isAuthenticated()
+        && request.resource.data.uploaderId == request.auth.uid
+        && isTeamMember(request.resource.data.teamId)
+        && request.resource.data.tracking.size() <= 50
+        && request.resource.data.report.findings.size() <= 20;
+      allow delete: if isAuthenticated()
+        && resource.data.uploaderId == request.auth.uid;
+    }
+
     // ── Teams ─────────────────────────────────────────────────────────
     // Members can read their own team. Invite-code lookups use a
     // separate query limited to the inviteCode field (see docs).

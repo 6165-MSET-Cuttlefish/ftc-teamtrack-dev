@@ -20,6 +20,7 @@ export const ROUTES = {
   EDIT_SESSION: '/edit-session',
   SHARED_SESSION: '/shared/preview',
   TEAM_INVITE: '/join/:inviteCode',
+  VIDEO_ANALYSIS: '/video',
 } as const;
 
 export const FIREBASE_CONFIG = {
@@ -51,6 +52,16 @@ export const SESSION_LIMITS = {
   MAX_CYCLE_TIMES: 100,
   /** Maximum sessions to fetch in admin/comparison queries */
   ALL_SESSIONS_QUERY_LIMIT: 100,
+} as const;
+
+export const VIDEO_LIMITS = {
+  MAX_DURATION_SECONDS: 20,
+  MAX_FILE_SIZE_MB: 80,
+  /** Seconds between sampled frames sent to the robot-tracking model */
+  FRAME_INTERVAL_SECONDS: 1.5,
+  /** Hard cap on sampled frames — keeps Worker calls within the Gemini free-tier rate limit */
+  MAX_FRAMES: 12,
+  MAX_ANALYSES_PER_TEAM: 30,
 } as const;
 
 export const UI_TIMING = {

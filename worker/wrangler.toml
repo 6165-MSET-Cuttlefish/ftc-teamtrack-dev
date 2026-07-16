@@ -1,0 +1,11 @@
+name = "teamtrack-video-analysis"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "teamtrack-572e5"
+# Comma-separated list — add more local dev ports here if yours differs.
+ALLOWED_ORIGIN = "https://teamtrack-572e5.web.app,http://localhost:8080"
+
+# Set the real secret with:
+#   wrangler secret put GEMINI_API_KEY

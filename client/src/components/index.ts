@@ -14,3 +14,5 @@ export {
 } from './session';
 
 export { TeamManager } from './team';
+
+export { VideoUploadCard, VideoAnalysisResult, VideoAnalysisList } from './video';

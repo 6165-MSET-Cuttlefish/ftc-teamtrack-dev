@@ -29,6 +29,7 @@ const Charts = lazy(() => import('./pages/session/Charts'));
 const SharedSession = lazy(() => import('./pages/session/SharedSession'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const JoinTeam = lazy(() => import('./pages/team/JoinTeam'));
+const VideoAnalysis = lazy(() => import('./pages/video/VideoAnalysis'));
 
 const RouteTracker = () => {
   const location = useLocation();
@@ -146,6 +147,14 @@ const App = () => (
                         element={
                           <ProtectedRoute>
                             <Charts />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path={ROUTES.VIDEO_ANALYSIS}
+                        element={
+                          <ProtectedRoute>
+                            <VideoAnalysis />
                           </ProtectedRoute>
                         }
                       />
