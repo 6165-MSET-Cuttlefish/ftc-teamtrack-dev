@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Secrets / credentials
+.env
+.env.local
+*-service-account*.json
+gcp-key*.json
+
+# Analysis output written by the CLI
+output/
+
+# Local robot clips — don't commit large video into git.
+# Keep samples/README.md but ignore the videos themselves.
+samples/*
+!samples/README.md
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.avi
+
+# Concatenated clip built by the timeline pipeline
+combined-all-clips.mp4
+
+# Generated report + its footage-derived media stay LOCAL — never commit/push
+# them to GitHub. The generator (build-timeline.mjs) and README are tracked so
+# the report can be rebuilt on the machine that has the clips.
+reports/media/
+reports/intake-timeline.html
+
+# Misc
+*.log
+.DS_Store

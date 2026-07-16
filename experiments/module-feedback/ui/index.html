@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Module feedback</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b6b6b;
+    --line: #dcdcdc; --field: #ffffff; --btn: #1a1a1a; --btn-fg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a; --fg: #ececec; --muted: #9a9a9a;
+      --line: #383838; --field: #232323; --btn: #ececec; --btn-fg: #1a1a1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 620px; margin: 0 auto; padding: 48px 20px 80px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 32px; }
+  form { display: flex; flex-direction: column; gap: 20px; }
+  label { display: flex; flex-direction: column; gap: 7px; font-size: 14px; font-weight: 500; }
+  textarea, input[type="file"], input[type="number"], select {
+    font: inherit; color: var(--fg); background: var(--field);
+    border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
+  }
+  select { align-self: flex-start; min-width: 220px; }
+  input[type="number"] { align-self: flex-start; max-width: 110px; }
+  .hint { color: var(--muted); font-weight: 400; font-size: 12.5px; }
+  textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+  input[type="file"] { font-size: 14px; padding: 9px 12px; }
+  input[type="file"]::file-selector-button {
+    font: inherit; font-size: 13px; margin-right: 10px; padding: 5px 10px;
+    border: 1px solid var(--line); border-radius: 5px; background: transparent;
+    color: var(--fg); cursor: pointer;
+  }
+  button[type="submit"] {
+    align-self: flex-start; font: inherit; font-weight: 500; cursor: pointer;
+    background: var(--btn); color: var(--btn-fg); border: none;
+    border-radius: 6px; padding: 10px 20px;
+  }
+  button[disabled] { opacity: 0.5; cursor: default; }
+  :focus-visible { outline: 2px solid #4a90d9; outline-offset: 1px; }
+  #out { margin-top: 28px; }
+  #out:empty { display: none; }
+  .status { color: var(--muted); font-size: 14px; }
+  .error { color: #c0392b; font-size: 14px; white-space: pre-wrap; }
+  .result {
+    border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px;
+    background: var(--field); font-size: 15px;
+  }
+  .result h2 { font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em; margin: 0 0 12px; }
+  .rich p { margin: 0 0 12px; }
+  .rich p.lead { font-weight: 500; }
+  .rich ul { margin: 0 0 12px; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 10px; }
+  .rich li { padding-left: 16px; position: relative; }
+  .rich li::before { content: "–"; position: absolute; left: 0; color: var(--muted); }
+  .rich strong { font-weight: 600; }
+  .rich :last-child { margin-bottom: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Module feedback</h1>
+  <p class="sub">Upload a clip of the robot and get suggestions. Runs on your machine.</p>
+
+  <form id="form">
+    <label>
+      Prompt
+      <textarea id="prompt" spellcheck="false" placeholder="Ask anything about the clip — e.g. “How can we make this intake faster?” (leave blank for a general review)"></textarea>
+    </label>
+    <label>
+      Video
+      <input type="file" id="video" accept="video/*" />
+    </label>
+    <label>
+      Engine
+      <select id="backend">
+        <option value="twelvelabs">TwelveLabs (Pegasus)</option>
+        <option value="gemini">Gemini</option>
+      </select>
+    </label>
+    <label id="fps-row" hidden>
+      FPS <span class="hint">— Gemini samples the video at this rate; higher = more detail &amp; cost (max 24)</span>
+      <input type="number" id="fps" min="1" max="24" step="1" value="5" />
+    </label>
+    <button type="submit" id="go">Analyze</button>
+  </form>
+
+  <div id="out"></div>
+</main>
+
+<script>
+  const form = document.getElementById('form');
+  const out = document.getElementById('out');
+  const go = document.getElementById('go');
+  const backendSel = document.getElementById('backend');
+  const fpsRow = document.getElementById('fps-row');
+
+  // Show the FPS control only for Gemini (TwelveLabs doesn't take a frame rate).
+  const syncFps = () => { fpsRow.hidden = backendSel.value !== 'gemini'; };
+  backendSel.addEventListener('change', syncFps);
+  syncFps();
+
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  // Render the model's text: bullet/numbered lines → a list, blank lines → breaks,
+  // **bold** → <strong>. Everything is escaped first, so this is safe to inject.
+  function renderRich(text) {
+    const lines = (text || '').split('\n');
+    let html = '', inList = false, first = true;
+    const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+    for (const raw of lines) {
+      const line = raw.trim();
+      const m = line.match(/^(?:[-*•]|\d+[.)])\s+(.*)$/);
+      if (m) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += '<li>' + inline(m[1]) + '</li>';
+      } else if (line) {
+        closeList();
+        html += '<p' + (first ? ' class="lead"' : '') + '>' + inline(line) + '</p>';
+      } else {
+        closeList();
+      }
+      if (line) first = false;
+    }
+    closeList();
+    return html || '<p>(no response)</p>';
+  }
+
+  const readAsDataURL = (file) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error('Could not read the file.'));
+    r.readAsDataURL(file);
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = document.getElementById('video').files[0];
+    if (!file) { out.innerHTML = '<p class="error">Choose a video first.</p>'; return; }
+
+    const backend = backendSel.value;
+    const fps = Math.max(1, Math.min(24, Number(document.getElementById('fps').value) || 5));
+    const engineLabel = backend === 'gemini' ? 'Gemini' : 'TwelveLabs';
+    go.disabled = true;
+    out.innerHTML =
+      '<p class="status">Analyzing with ' + engineLabel +
+      (backend === 'gemini' ? ' at ' + fps + ' FPS' : '') +
+      '… this can take a minute or two.</p>';
+
+    try {
+      const video = await readAsDataURL(file);
+      const prompt = document.getElementById('prompt').value;
+      const resp = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt, video, backend, fps }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) {
+        out.innerHTML = '<p class="error"></p>';
+        out.querySelector('.error').textContent = data.error || 'Something went wrong.';
+      } else {
+        const label = data.backend === 'gemini' ? 'Gemini' : 'TwelveLabs';
+        const meta = [data.model, data.fps ? data.fps + ' FPS' : null].filter(Boolean).join(', ');
+        out.innerHTML =
+          '<div class="result"><h2>Suggestions · via ' + label +
+          (meta ? ' (' + esc(meta) + ')' : '') + '</h2><div class="rich"></div></div>';
+        out.querySelector('.rich').innerHTML = renderRich(data.text);
+      }
+    } catch (err) {
+      out.innerHTML = '<p class="error"></p>';
+      out.querySelector('.error').textContent = String(err && err.message || err);
+    } finally {
+      go.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

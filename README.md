@@ -95,6 +95,18 @@ firestore.rules
 firebase.json
 ```
 
+## Experiments
+
+Proof-of-concept work that is **not** part of the deployed website lives under
+[`experiments/`](experiments/) — each is self-contained and never built or
+served by the web app. Current:
+
+- [`experiments/module-feedback/`](experiments/module-feedback/) — **TeamTrack v2
+  "BioBuzz"**: an AI system that analyzes FTC robot video and returns
+  mechanism-improvement suggestions (proof-of-concept CLI, built on the side).
+
+Planning docs live in [`docs/`](docs/) and are not deployed.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
