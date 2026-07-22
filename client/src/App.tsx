@@ -29,6 +29,7 @@ const Charts = lazy(() => import('./pages/session/Charts'));
 const SharedSession = lazy(() => import('./pages/session/SharedSession'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const JoinTeam = lazy(() => import('./pages/team/JoinTeam'));
+const DevVideos = lazy(() => import('./pages/dev/DevVideos'));
 
 const RouteTracker = () => {
   const location = useLocation();
@@ -149,6 +150,13 @@ const App = () => (
                           </ProtectedRoute>
                         }
                       />
+
+                      {import.meta.env.DEV && (
+                        <Route
+                          path={ROUTES.DEV_VIDEOS}
+                          element={<DevVideos />}
+                        />
+                      )}
 
                       <Route path="*" element={<NotFound />} />
                     </Routes>

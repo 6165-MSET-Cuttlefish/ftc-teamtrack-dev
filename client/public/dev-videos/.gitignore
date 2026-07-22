@@ -1,0 +1,17 @@
+# Ignore the actual video files by default — they can be large.
+# Remove/adjust these lines if you DO want to commit specific clips.
+*.mp4
+*.mov
+*.webm
+*.m4v
+*.ogg
+*.avi
+*.mkv
+
+# Auto-generated transcode cache (see vite.config dev-videos plugin).
+_transcoded/
+
+# Keep the captions and docs tracked.
+!captions.json
+!README.md
+!.gitignore

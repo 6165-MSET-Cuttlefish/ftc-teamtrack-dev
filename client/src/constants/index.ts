@@ -20,6 +20,8 @@ export const ROUTES = {
   EDIT_SESSION: '/edit-session',
   SHARED_SESSION: '/shared/preview',
   TEAM_INVITE: '/join/:inviteCode',
+  /** Dev-only video captioning tool (registered only when import.meta.env.DEV). */
+  DEV_VIDEOS: '/dev/videos',
 } as const;
 
 export const FIREBASE_CONFIG = {
