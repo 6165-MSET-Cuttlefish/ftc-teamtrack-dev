@@ -18,7 +18,7 @@ interface DevVideo {
 type SaveState = 'idle' | 'saving' | 'saved';
 
 /**
- * Dev-only tool for captioning videos dropped into client/public/dev-videos.
+ * Dev-only tool for captioning videos dropped into dev-videos/ at the repo root.
  * Captions are persisted to disk (captions.json) via the dev-videos Vite
  * middleware. This page is only registered when import.meta.env.DEV is true.
  */
@@ -61,7 +61,7 @@ const DevVideos = () => {
           <p className="mt-1 text-sm text-muted-foreground">
             Videos live in{' '}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">
-              client/public/dev-videos/
+              dev-videos/
             </code>
             . Captions save to{' '}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">
@@ -89,7 +89,7 @@ const DevVideos = () => {
           <CardContent className="p-8 text-center text-muted-foreground">
             No videos found. Drop video files into{' '}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">
-              client/public/dev-videos/
+              dev-videos/
             </code>{' '}
             and click Refresh.
           </CardContent>

@@ -8,10 +8,10 @@ import ffmpegPath from 'ffmpeg-static';
 /**
  * Dev-only middleware for the video-captioning UI (see /dev/videos).
  *
- * - GET    /__dev-videos/api/list     → lists videos in client/public/dev-videos
+ * - GET    /__dev-videos/api/list     → lists videos in dev-videos/ (repo root)
  *                                        plus their saved captions.
  * - POST   /__dev-videos/api/caption  → { file, caption } persisted to
- *                                        client/public/dev-videos/captions.json
+ *                                        dev-videos/captions.json
  * - POST   /__dev-videos/api/delete   → { file } removes the video file from
  *                                        disk and drops its caption.
  * - POST   /__dev-videos/api/transcode → { file } transcodes a non-web-friendly
@@ -19,20 +19,106 @@ import ffmpegPath from 'ffmpeg-static';
  *                                        caches it under _transcoded/, and
  *                                        returns { url } for the cached MP4.
  *
- * Everything is stored in the repo (video files + captions.json), no database.
- * Videos are served statically by Vite from the public dir (with HTTP range
- * support, so seeking works). Formats browsers can't reliably decode are
- * transcoded to MP4 on demand via a bundled ffmpeg (ffmpeg-static) and cached
- * to disk. This plugin is not applied in production builds.
+ * Captions live in the repo (dev-videos/captions.json, tracked); the video files
+ * themselves are gitignored. Videos are served by the GET /dev-videos/* handler
+ * below with HTTP range support, so seeking works. Formats browsers can't
+ * reliably decode are transcoded to MP4 on demand via a bundled ffmpeg
+ * (ffmpeg-static) and cached to disk.
+ *
+ * This plugin is dev-only (`apply: 'serve'`) and dev-videos/ sits outside
+ * client/public, so no video ever reaches the production build or gets deployed.
  */
 const devVideosPlugin = (): Plugin => {
-  const videosDir = path.resolve(__dirname, './client/public/dev-videos');
+  // NOTE: this lives OUTSIDE client/public on purpose. Anything in Vite's public
+  // dir is copied verbatim into dist/ and would be deployed publicly by Firebase
+  // Hosting — which would publish every clip dropped in here. Instead the files
+  // are served in dev by the range-capable middleware below, and never enter the
+  // production build at all.
+  const videosDir = path.resolve(__dirname, './dev-videos');
   const captionsPath = path.join(videosDir, 'captions.json');
-  // Transcoded MP4s are cached here (served statically at /dev-videos/_transcoded).
+  // Transcoded MP4s are cached here (served at /dev-videos/_transcoded).
   const cacheDir = path.join(videosDir, '_transcoded');
   const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m4v', '.ogg', '.avi', '.mkv'];
   // Extensions browsers can generally play directly — served as-is, no transcode.
   const NATIVE_EXTENSIONS = new Set(['.mp4', '.webm', '.m4v', '.ogg']);
+
+  const MIME_BY_EXT: Record<string, string> = {
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.webm': 'video/webm',
+    '.m4v': 'video/x-m4v',
+    '.ogg': 'video/ogg',
+    '.avi': 'video/x-msvideo',
+    '.mkv': 'video/x-matroska',
+  };
+
+  /**
+   * Serve a file from videosDir with HTTP range support, so the browser can seek
+   * within a video instead of downloading the whole thing. Replaces the static
+   * serving Vite used to do for us when this folder lived in public/.
+   */
+  const serveVideoFile = (
+    relPath: string,
+    req: import('http').IncomingMessage,
+    res: import('http').ServerResponse
+  ): void => {
+    const abs = path.join(videosDir, relPath);
+    // Containment guard: the resolved path must stay inside videosDir.
+    const rel = path.relative(videosDir, abs);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      res.statusCode = 403;
+      res.end();
+      return;
+    }
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(abs);
+    } catch {
+      res.statusCode = 404;
+      res.end();
+      return;
+    }
+    if (!stat.isFile()) {
+      res.statusCode = 404;
+      res.end();
+      return;
+    }
+
+    res.setHeader('Content-Type', MIME_BY_EXT[path.extname(abs).toLowerCase()] ?? 'application/octet-stream');
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const rangeHeader = req.headers.range;
+    const match = rangeHeader ? /^bytes=(\d*)-(\d*)$/.exec(rangeHeader) : null;
+    if (match) {
+      const size = stat.size;
+      const start = match[1] ? parseInt(match[1], 10) : 0;
+      const requestedEnd = match[2] ? parseInt(match[2], 10) : size - 1;
+      if (Number.isNaN(start) || Number.isNaN(requestedEnd) || start > requestedEnd || start >= size) {
+        res.statusCode = 416;
+        res.setHeader('Content-Range', `bytes */${size}`);
+        res.end();
+        return;
+      }
+      const end = Math.min(requestedEnd, size - 1);
+      res.statusCode = 206;
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${size}`);
+      res.setHeader('Content-Length', String(end - start + 1));
+      if (req.method === 'HEAD') {
+        res.end();
+        return;
+      }
+      fs.createReadStream(abs, { start, end }).pipe(res);
+      return;
+    }
+
+    res.statusCode = 200;
+    res.setHeader('Content-Length', String(stat.size));
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+    fs.createReadStream(abs).pipe(res);
+  };
 
   const cachedNameFor = (file: string) => `${file}.mp4`;
   const cachedUrlFor = (file: string) =>
@@ -147,6 +233,27 @@ const devVideosPlugin = (): Plugin => {
     name: 'dev-videos-middleware',
     apply: 'serve',
     configureServer(server) {
+      // Serve the video files themselves (they're no longer in Vite's public dir).
+      server.middlewares.use('/dev-videos', (req, res, next) => {
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+          next();
+          return;
+        }
+        let relPath: string;
+        try {
+          relPath = decodeURIComponent((req.url ?? '/').split('?')[0]).replace(/^\/+/, '');
+        } catch {
+          res.statusCode = 400;
+          res.end();
+          return;
+        }
+        if (!relPath) {
+          next();
+          return;
+        }
+        serveVideoFile(relPath, req, res);
+      });
+
       server.middlewares.use('/__dev-videos/api/list', (_req, res) => {
         const captions = readCaptions();
         let files: string[] = [];

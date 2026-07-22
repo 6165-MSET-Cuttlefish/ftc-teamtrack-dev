@@ -26,5 +26,19 @@ or auth required.
 You can also **Discard** a video from the UI, which deletes the file from this
 folder and removes its caption from `captions.json`.
 
-> Note: files here are served statically by Vite in dev. Avoid committing large
-> videos you don't want in the repo — see `.gitignore` in this folder.
+## Why this folder is at the repo root
+
+⚠️ **Do not move this folder into `client/public/`.** Anything in Vite's public
+dir is copied verbatim into `dist/` on build, and `firebase.json` deploys
+`dist/spa` — so every clip dropped in here would be published to the public
+TeamTrack site (the repo being private does not protect Firebase Hosting).
+
+Living at the repo root keeps the videos out of the production build entirely.
+In dev they're served by the `dev-videos` middleware in `vite.config.ts`, which
+supports HTTP range requests so seeking still works.
+
+## What gets committed
+
+Only `captions.json`, this README, and `.gitignore` are tracked — the videos
+themselves are gitignored (see `.gitignore` here). The captions are the valuable
+artifact; share the raw footage out-of-band rather than committing it.
