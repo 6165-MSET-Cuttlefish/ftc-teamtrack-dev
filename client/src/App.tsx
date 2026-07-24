@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { logEvent } from 'firebase/analytics';
 import { getFirebase } from '@/lib';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -34,12 +33,18 @@ const DevVideos = lazy(() => import('./pages/dev/DevVideos'));
 const RouteTracker = () => {
   const location = useLocation();
   useEffect(() => {
-    getFirebase().then(firebase => {
-      if (firebase?.analytics) {
+    getFirebase().then(async firebase => {
+      if (!firebase?.analytics) return;
+      // Import logEvent lazily so the firebase/analytics chunk (often
+      // blocked by ad/privacy extensions) can never break app startup.
+      try {
+        const { logEvent } = await import('firebase/analytics');
         logEvent(firebase.analytics, 'page_view', {
           page_path: location.pathname + location.search,
           page_location: window.location.href,
         });
+      } catch {
+        // Analytics unavailable (e.g. blocked); page views just aren't tracked.
       }
     });
   }, [location]);

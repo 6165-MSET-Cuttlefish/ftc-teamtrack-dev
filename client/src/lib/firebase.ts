@@ -1,7 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getAnalytics, isSupported } from 'firebase/analytics';
 import type { Analytics } from 'firebase/analytics';
 import { FIREBASE_CONFIG } from '@/constants';
 import { logger } from './logger';
@@ -25,9 +24,27 @@ export async function getFirebase() {
 
     let analytics: Analytics | null = null;
     if (FIREBASE_CONFIG.measurementId) {
-      const supported = await isSupported();
-      if (supported) {
-        analytics = getAnalytics(app);
+      // Load analytics lazily and never let it break app startup: the
+      // firebase/analytics chunk is frequently blocked by ad/privacy
+      // extensions (ERR_BLOCKED_BY_CLIENT), which would otherwise take
+      // down the whole module graph if imported statically.
+      try {
+        const { getAnalytics, isSupported } = await import(
+          'firebase/analytics'
+        );
+        if (await isSupported()) {
+          analytics = getAnalytics(app);
+        }
+      } catch (analyticsErr) {
+        logger.warn(
+          'Firebase Analytics unavailable (often blocked by an ad/privacy extension); continuing without it.',
+          {
+            reason:
+              analyticsErr instanceof Error
+                ? analyticsErr.message
+                : String(analyticsErr),
+          }
+        );
       }
     }
 
