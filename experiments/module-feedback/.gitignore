@@ -29,6 +29,11 @@ combined-all-clips.mp4
 reports/media/
 reports/intake-timeline.html
 
+# Tuning track — generated artifacts stay local. The clips are already covered
+# by the video rules above; these are the manifests, datasets and eval sheets.
+tuning/data/prepared/
+tuning/data/build/
+
 # Misc
 *.log
 .DS_Store

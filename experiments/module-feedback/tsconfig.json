@@ -15,5 +15,5 @@
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "ui/**/*.ts"]
+  "include": ["src/**/*.ts", "ui/**/*.ts", "tuning/src/**/*.ts"]
 }

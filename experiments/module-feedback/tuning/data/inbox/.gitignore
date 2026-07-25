@@ -1,0 +1,5 @@
+# Clips stay local — only the captions and docs are tracked.
+*
+!.gitignore
+!README.md
+!captions.json

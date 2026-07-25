@@ -16,6 +16,7 @@
     "gemini-fps": "tsx src/cli.ts gemini-fps",
     "ui": "tsx ui/serve.ts",
     "demo": "tsx src/cli.ts compare --mock",
+    "tuning": "tsx tuning/src/cli.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -24,6 +25,8 @@
     "@google/genai": "^2.10.0",
     "commander": "^15.0.0",
     "dotenv": "^17.4.2",
+    "ffmpeg-static": "^5.2.0",
+    "google-auth-library": "^10.5.0",
     "twelvelabs-js": "^1.2.9"
   },
   "devDependencies": {
