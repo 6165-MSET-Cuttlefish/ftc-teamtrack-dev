@@ -22,7 +22,7 @@
   "IMG_6633.mov": "hinged intake, vector wheels on ends, compliant wheels with spokes in middle, not full-width, intakes from edges of range",
   "IMG_9041.mov": "hinged intake, alternating surgical tubing rollers and compliant wheels, not full-width, intakes well from middle",
   "IMG_9068.mov": "Surgical tubing intake, not full-width, triangular wedges on sides, intaking not visible",
-  "IMG_9315.mov": "hinged intake, two surgical tubing wheels, intakes well fro middle, not full width, rectangular wedges on sides",
+  "IMG_9315.mov": "hinged in  take, two surgical tubing wheels, intakes well fro middle, not full width, rectangular wedges on sides",
   "lift.mov": "hinged intake, full-width, vector wheels on sides, not shown intaking, park mechanism lifts robot off of ground",
   "Movie_on_1-21-26_at_1.35_PM.mov": "not full-width intake, singular compliant wheel transfer ball to shooter, no wedges",
   "Movie_on_1-29-26_at_5.46_PM.mov": "full-width intake, vector wheels on sides, surgical tubing rollers in center, hinged intake, does not intake very well from sides or middle",
@@ -41,5 +41,12 @@
   "VID-20260218-WA0017.mp4": "full-width intake, small triangular wedges on sides, vector wheels on far sides, two more stages of surgical tubing rollers farther up, covered portion which may or may not have an intake roller,  intakes poorly from sides",
   "VID-20260321-WA0083.mp4": "covered intake roller, not full-width, no wedges on sides, type of wheels in roller not visible in video, intakes decently well across full length of intake",
   "VID_20251126_072014_732.mp4": "not full-width intake, 1 large rubber band roller used, no wedges on sides, intakes well from middle",
-  "WIN_20260130_17_49_44_Pro.mp4": "full width-intake, hinged, compliant wheels in center of roller, vector wheels on sides of roller, intakes very well from full range of intake (middle and sides)"
+  "WIN_20260130_17_49_44_Pro.mp4": "full width-intake, hinged, compliant wheels in center of roller, vector wheels on sides of roller, intakes very well from full range of intake (middle and sides)",
+  "IMG_5057.mov": "Hinged intake, Full-width intake,  vectors wheels on each ends of the intake, set of compliant wheels in the middle of the intake, slightly curved wedges on the sides, intakes well in the middle, does not intake well on the sides",
+  "copy_FFC8F48E-0B4D-4FDC-BEDD-B04181E3B67D.mov": "Unhinged intake, not full-width intake, with compliant wheels and surgical tubing on the intake, with triangle wedges on the sides, intakes well in the middle",
+  "67c05c4e52fc139efb7b788ac0aa056c.mov": "Unhinged intake, no wedges, not full-width intake, alternating between compliant wheels and surgical tubing as the center and base of the intake, 1 vector wheel on only one side of the intake, intakes balls well from the sides and the center.",
+  "VID_20260509_185934.mp4": "Unhinged intake, no wedges on the sides, full-width intake, 6 vector wheels on each side of the intake, only 2 compliant wheels and 1 surgical tubing in the center of the intake, does not intake balls well when there are multiple coming in at the same time",
+  "IMG_5233.MOV": "unhinged intake, full-width intake, vector wheels on both ends of intake, a set of compliant wheels in the center of the intake, intakes well from the sides, intakes well from the center, intakes well when balls are in clumps.",
+  "IMG_6913.mov": "unhinged intake, full-width intake, 3 vector wheels on one end of the intake, 3 vector wheels on other end of intake, compliant wheels in the center of the intake, intakes balls well from the sides, intakes balls well from the center, intake balls well when balls are in clumps",
+  "ntake.mov": "unhinged intake, full-width intake, big gecko wheels as intake roller, intakes well in the middle, has a little trouble intaking on the sides, has trouble intaking when balls are in clumps."
 }
