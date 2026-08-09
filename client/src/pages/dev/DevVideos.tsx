@@ -34,7 +34,16 @@ const DevVideos = () => {
       const res = await fetch('/__dev-videos/api/list');
       if (!res.ok) throw new Error(`List failed (${res.status})`);
       const data = (await res.json()) as { videos: DevVideo[] };
-      setVideos(data.videos);
+      // Uncaptioned first (the work that's left), then by name within each
+      // group. Sorting only here — not on every render — means a card doesn't
+      // jump away the moment you save its caption; the order settles on Refresh.
+      const sorted = [...data.videos].sort((a, b) => {
+        const aDone = a.caption.trim() !== '';
+        const bDone = b.caption.trim() !== '';
+        if (aDone !== bDone) return aDone ? 1 : -1;
+        return a.file.localeCompare(b.file, undefined, { numeric: true });
+      });
+      setVideos(sorted);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load videos');
     } finally {
@@ -49,6 +58,10 @@ const DevVideos = () => {
   const removeVideo = useCallback((file: string) => {
     setVideos(prev => prev.filter(v => v.file !== file));
   }, []);
+
+  // Counted from the last load, so it matches the order on screen (both update
+  // together on Refresh) rather than shifting under you as you save captions.
+  const remaining = videos.filter(v => v.caption.trim() === '').length;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -69,6 +82,13 @@ const DevVideos = () => {
             </code>{' '}
             in that folder.
           </p>
+          {videos.length > 0 && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {remaining === 0
+                ? `All ${videos.length} captioned.`
+                : `${remaining} of ${videos.length} still need captions — shown first.`}
+            </p>
+          )}
         </div>
         <Button variant="outline" onClick={() => void load()} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
