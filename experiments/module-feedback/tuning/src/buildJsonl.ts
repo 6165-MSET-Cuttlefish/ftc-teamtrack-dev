@@ -46,8 +46,10 @@ function toExample(clip: PreparedClip, uri: string): string {
         parts: [{ text: clip.caption }],
       },
     ],
-    // Must be identical on every line of train AND val, or the job is rejected.
-    mediaResolution: tuningConfig.mediaResolution,
+    // Goes inside generationConfig — Vertex rejects it as a top-level field
+    // ("Cannot find field: mediaResolution in GeminiTuneExample"). Must be
+    // identical on every line of train AND val, or the job is rejected.
+    generationConfig: { mediaResolution: tuningConfig.mediaResolution },
   });
 }
 
