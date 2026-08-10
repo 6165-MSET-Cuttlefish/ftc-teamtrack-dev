@@ -1,0 +1,13 @@
+# torch/torchvision need the CUDA wheel index, not plain PyPI:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+# Then: pip install -r requirements.txt
+torch==2.6.0
+torchvision==0.21.0
+transformers==4.49.0
+tokenizers==0.21.4
+accelerate==1.2.1
+peft==0.20.0
+bitsandbytes==0.50.0
+qwen-vl-utils==0.0.14
+pillow==12.3.0
+numpy==2.4.6
