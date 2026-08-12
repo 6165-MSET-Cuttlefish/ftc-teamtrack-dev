@@ -1,0 +1,365 @@
+{
+ "count": 45,
+ "videos": [
+  {
+   "videoId": "W6ywzjs-MUM",
+   "durationSec": 34991,
+   "title": "MTI 2026 Sunday | FTC Event | Multinational Tech Invitational",
+   "estMb": 12597,
+   "keep": false,
+   "reason": ">=1h stream (9.7h)"
+  },
+  {
+   "videoId": "a7WJBT3RHZU",
+   "durationSec": 18775,
+   "title": "MTI 2026 Saturday | FTC Event | Multinational Tech Invitational",
+   "estMb": 6759,
+   "keep": false,
+   "reason": ">=1h stream (5.2h)"
+  },
+  {
+   "videoId": "rtdpos7IvPQ",
+   "durationSec": 2323,
+   "title": "MTI 2026 Schedule Release & Predictions | FTC Live",
+   "estMb": 387,
+   "keep": false,
+   "reason": "FTC Live (studio panel)"
+  },
+  {
+   "videoId": "NtZWHN9pPWI",
+   "durationSec": 226,
+   "title": "30030 Exodus & 21087 Velocity | Championship Winner Interview | FTC DECODE",
+   "estMb": 49,
+   "keep": false,
+   "reason": "interview"
+  },
+  {
+   "videoId": "cLDzf6VcrTg",
+   "durationSec": 4186,
+   "title": "FTC Reveal Night | DECODE Robot Reveals",
+   "estMb": 1507,
+   "keep": false,
+   "reason": ">=1h stream (1.2h)"
+  },
+  {
+   "videoId": "AdT94eYEI5Q",
+   "durationSec": 4167,
+   "title": "Final FTC Top 25 | DECODE - Presented by Studica Robotics",
+   "estMb": 1500,
+   "keep": false,
+   "reason": ">=1h stream (1.2h)"
+  },
+  {
+   "videoId": "njwgOy3oSMY",
+   "durationSec": 677,
+   "title": "Winning DECODE as the Lower Seed | FTC FUNalysis",
+   "estMb": 113,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "60bJ5KK9Xbo",
+   "durationSec": 7,
+   "title": "Parking Kickstand by 20153 Silver Wolves",
+   "estMb": 1,
+   "keep": false,
+   "reason": "ultra-short (7s)"
+  },
+  {
+   "videoId": "fvCFkyRoR_Y",
+   "durationSec": 99,
+   "title": "US Governors Cup Winners Interview | FTC DECODE",
+   "estMb": 9,
+   "keep": false,
+   "reason": "interview"
+  },
+  {
+   "videoId": "ayBJWYIao-I",
+   "durationSec": 769,
+   "title": "Next Level DECODE Strategies That Win | FTC FUNalysis",
+   "estMb": 128,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "xxtuPr2g9Y4",
+   "durationSec": 973,
+   "title": "New DECODE Record Breakdown 421 NP | FTC FUNalysis",
+   "estMb": 162,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "k9spNgKR_SY",
+   "durationSec": 773,
+   "title": "New Emerging DECODE Strategies | FTC FUNalysis",
+   "estMb": 129,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "CDvTeJOMHBg",
+   "durationSec": 1149,
+   "title": "INSANE 317 to 315 Match Strategy Breakdown | FTC FUNalysis DECODE",
+   "estMb": 192,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "B7reLSsao7s",
+   "durationSec": 687,
+   "title": "Out-of-the-Box DECODE Strategies That Win | FTC FUNalysis",
+   "estMb": 115,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "39f6G4UOTGk",
+   "durationSec": 657,
+   "title": "China SHATTERS DECODE Record 342 NP | FTC FUNalysis",
+   "estMb": 110,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "GlnCSRTNiqE",
+   "durationSec": 743,
+   "title": "90+ Artifacts Scored Sets New DECODE Record | FTC FUNalysis",
+   "estMb": 124,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "8o-LGoJ8nLk",
+   "durationSec": 630,
+   "title": "26000 Theseus | Behind the Bot | FTC DECODE Robot",
+   "estMb": 105,
+   "keep": false,
+   "reason": "duplicate title of O2zHFFIedcI"
+  },
+  {
+   "videoId": "OqO5xGcZ2UY",
+   "durationSec": 5,
+   "title": "Cool Candy Dispensing Robot by 21790 COSMIC TOADS",
+   "estMb": 0,
+   "keep": false,
+   "reason": "ultra-short (5s)"
+  },
+  {
+   "videoId": "tdXtKRHcZwE",
+   "durationSec": 801,
+   "title": "Far Zone Defense vs Insane Cycling | FTC FUNalysis",
+   "estMb": 134,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "LUrJJL1QqAc",
+   "durationSec": 407,
+   "title": "15972 TehnoZ | Behind the Bot | FTC DECODE Robot",
+   "estMb": 88,
+   "keep": false,
+   "reason": "duplicate title of uTG6JavIoxI"
+  },
+  {
+   "videoId": "4oVf27yPWAs",
+   "durationSec": 738,
+   "title": "They SHATTERED the DECODE Record 🤯 | FTC FUNalysis",
+   "estMb": 123,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "ClOEAFz3AkA",
+   "durationSec": 873,
+   "title": "Why Far Launch Zones Win Matches | FTC FUNalysis – DECODE",
+   "estMb": 146,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "yc9WwBLvDtM",
+   "durationSec": 835,
+   "title": "🤖 Early DECODE Matches are INSANE  | FTC FUNalysis",
+   "estMb": 139,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "dEgxjG_hWbk",
+   "durationSec": 821,
+   "title": "Early DECODE Masterclass Match | FTC FUNaylsis #firsttechchallenge",
+   "estMb": 137,
+   "keep": false,
+   "reason": "FUNalysis (match commentary)"
+  },
+  {
+   "videoId": "z7lIFRR3KJM",
+   "durationSec": 690,
+   "title": "History of: FIRST Tech Challenge | Rewind Episode 15 #firsttechchallenge",
+   "estMb": 115,
+   "keep": false,
+   "reason": "archival/history"
+  },
+  {
+   "videoId": "FlTDD_i91P0",
+   "durationSec": 2058,
+   "title": "Uncovering DECODE Match Strategies | FTC Live #firsttechchallenge",
+   "estMb": 343,
+   "keep": false,
+   "reason": "FTC Live (studio panel)"
+  },
+  {
+   "videoId": "PRRVYxRqHX8",
+   "durationSec": 1225,
+   "title": "(Ad Free) DECODE Custom Swerve | Dual Intake | 23513 I.N.T. Robotics",
+   "estMb": 204,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "Ccvrl0kyvHI",
+   "durationSec": 925,
+   "title": "(Ad Free) DECODE Adjustable Hooded Shooter | Vision Estimation | 12737 Electric Mayhem White",
+   "estMb": 154,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "92_XQhYU7aA",
+   "durationSec": 1204,
+   "title": "(Ad Free) DECODE Top 15 Ri30H/Ri3D Robots",
+   "estMb": 201,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "SbY0rABv6Qg",
+   "durationSec": 1115,
+   "title": "DECODE Early Season Game Play Analysis | FUN Ri30H Matches",
+   "estMb": 186,
+   "keep": false,
+   "reason": "gameplay analysis"
+  },
+  {
+   "videoId": "5Dj6TvqkL6g",
+   "durationSec": 1048,
+   "title": "(Ad FREE) DECODE Early Season Game Play Analysis | FUN Ri30H Matches",
+   "estMb": 175,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "hqb-Nx88iEc",
+   "durationSec": 6,
+   "title": "DECODE Prototype Shooter by 9225 | #firsttechchallenge",
+   "estMb": 1,
+   "keep": false,
+   "reason": "ultra-short (6s)"
+  },
+  {
+   "videoId": "Q0WJk6VUs4I",
+   "durationSec": 1061,
+   "title": "(Ad Free) Vision Tracking | 2 Robot Park Prototype | 12736 Electric Mayhem Green | FTC Open Alliance",
+   "estMb": 177,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "wYagNG6AuDc",
+   "durationSec": 3609,
+   "title": "10 DECODE Robot Reveals | Robot in 30 Hours",
+   "estMb": 1299,
+   "keep": false,
+   "reason": ">=1h stream (1.0h)"
+  },
+  {
+   "videoId": "yY9o5hgB6nI",
+   "durationSec": 34881,
+   "title": "Robot in 30 Hours | FTC DECODE | Sunday Stream",
+   "estMb": 12557,
+   "keep": false,
+   "reason": ">=1h stream (9.7h)"
+  },
+  {
+   "videoId": "zfXO0x-UhuQ",
+   "durationSec": 215,
+   "title": "(Ad Free) DECODE Hopper and Transfer Prototypes | #firsttechchallenge",
+   "estMb": 47,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "l1nzbhC817M",
+   "durationSec": 316,
+   "title": "(Ad Free) Sweeper Intake Options for DECODE | #firsttechchallenge",
+   "estMb": 68,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "E9msT3auhnE",
+   "durationSec": 245,
+   "title": "(Ad Free) Intake Outtake Improvements by 16460 GEarheads | #firsttechchallenge",
+   "estMb": 53,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "2QR_sp7zOEg",
+   "durationSec": 42896,
+   "title": "Robot in 30 Hours | FTC DECODE | Saturday Stream",
+   "estMb": 15443,
+   "keep": false,
+   "reason": ">=1h stream (11.9h)"
+  },
+  {
+   "videoId": "1qYwHF40ZcQ",
+   "durationSec": 2428,
+   "title": "(Ad Free) Day 1 Recap 9 FTC DECODE Robots Robot in 30 Hours",
+   "estMb": 405,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "mVKBS7xoKfo",
+   "durationSec": 198,
+   "title": "(Ad Free) Intake and Hopper Prototype from 16460 GEarheads",
+   "estMb": 43,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "7Gr4wRziN3A",
+   "durationSec": 298,
+   "title": "(Ad Free) DECODE Shooting and Intake Prototypes",
+   "estMb": 65,
+   "keep": false,
+   "reason": "duplicate (Ad Free) re-upload"
+  },
+  {
+   "videoId": "-OVtWJ7MvBo",
+   "durationSec": 2184,
+   "title": "Breaking Down DECODE Strategies | FTC Live | #firsttechchallenge",
+   "estMb": 364,
+   "keep": false,
+   "reason": "FTC Live (studio panel)"
+  },
+  {
+   "videoId": "ls1d2uieB3A",
+   "durationSec": 1800,
+   "title": "DECODE Rules Q&A with Head Referee Erik O | #firsttechchallenge",
+   "estMb": 300,
+   "keep": false,
+   "reason": "rules Q&A"
+  },
+  {
+   "videoId": "LmzPyc3RF_M",
+   "durationSec": null,
+   "title": "NA",
+   "estMb": null,
+   "keep": false,
+   "reason": "no duration reported"
+  }
+ ]
+}

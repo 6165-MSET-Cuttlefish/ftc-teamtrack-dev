@@ -1,0 +1,2912 @@
+{
+ "count": 323,
+ "videos": [
+  {
+   "videoId": "llqfSMo64kc",
+   "durationSec": 43,
+   "title": "Powered Compression Arm | 24909 StarLight | FTC DECODE Snapshot",
+   "estMb": 4,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "KqeF4Tt8FIg",
+   "durationSec": 74,
+   "title": "Spindexer and Passive Transfer | 24033 Alphatronic | FTC DECODE Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "BBEePFof15U",
+   "durationSec": 81,
+   "title": "Intake and Sorting Mechanism | 24345 SPARKTECH | FTC DECODE Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "kf2hkcsByFE",
+   "durationSec": 114,
+   "title": "Locking Mecanum Wheel System | 19082 RoboAS | FTC DECODE Snapshot",
+   "estMb": 10,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "-qgnsHLOgJM",
+   "durationSec": 12,
+   "title": "Flipping Double Park by 19256 CyberMoon",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "YnfeU8vTXnw",
+   "durationSec": 652,
+   "title": "19256 CyberMoon | Behind the Bot | EU Premiere WAC",
+   "estMb": 109,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "swduQEnQL1Y",
+   "durationSec": 69,
+   "title": "Counter Roller Shooter | 25779 Action Robotix | FTC DECODE Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "hxjfJdXQECM",
+   "durationSec": 82,
+   "title": "Penny Flywheel Weights | 4017 RoboPandas | FTC DECODE Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "Hll8TunF9PA",
+   "durationSec": 14,
+   "title": "Breaking System by 23286 Lazer Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "a4HCmTSc78w",
+   "durationSec": 601,
+   "title": "23286 Lazer Robotics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 100,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "SQkQYoECGEw",
+   "durationSec": 50,
+   "title": "PTO Boxtube Lift | 25620 Hexadecimal Nibble | FTC DECODE Snapshot",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "Yn3HeU5-CXA",
+   "durationSec": 13,
+   "title": "Dead Axle Intake by 18221 Meta^Infinity",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "H6qOsrN_1yI",
+   "durationSec": 688,
+   "title": "18221 Meta^Infinity | Behind the Bot | FTC DECODE Robot",
+   "estMb": 115,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "t8FTm0Gbc4E",
+   "durationSec": 80,
+   "title": "Shooter Engineering Process | 23644 Skeleton Army | FTC DECODE Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "pVxMvbOczyQ",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/28/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "T8bplAemc44",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/27/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "Zf10LHM7IAA",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/25/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "E4N2LFZl1O0",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/23/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "wjwThQGSXG4",
+   "durationSec": 15,
+   "title": "Intake Sensor by 11329 I.C.E. Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "1dBZRrK4dF0",
+   "durationSec": 1463,
+   "title": "11329 I.C.E. Robotics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 244,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "tkiPr-K7IjU",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/20/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "GXIb5Q4DJfw",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/18/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "dYr-uBjooPE",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/14/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "co7io5WqrpI",
+   "durationSec": 106,
+   "title": "Durability and Software | 24180 Blue Bananas | FTC DECODE Snapshot",
+   "estMb": 10,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "sL_SMsF0ehQ",
+   "durationSec": 132,
+   "title": "PTO and 2 Joystick Teleop | 22489 GNCE Diamond | FTC DECODE Snapshot",
+   "estMb": 12,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "Zs8L8N-LM_g",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/12/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "pSSvMaqaJRs",
+   "durationSec": 133,
+   "title": "Double Sided Intake | 19862 Mecha Mantises | FTC DECODE Snapshot",
+   "estMb": 12,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "B-Np-N-VPG0",
+   "durationSec": 101,
+   "title": "Turret Wiring and Robot Programming | 5477 Innovo | FTC DECODE Snapshot",
+   "estMb": 9,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "l6nLhULefnY",
+   "durationSec": 15,
+   "title": "3 Wide Intaking by 32896 Droid Squad",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "Ju0pQT1S9lU",
+   "durationSec": 651,
+   "title": "32896 Droid Squad | Behind the Bot | FTC DECODE Robot",
+   "estMb": 109,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "zVcva35oa3Y",
+   "durationSec": 124,
+   "title": "Swingarm and Grabdexer | 19376 Thermal Equilibrium | FTC DECODE Snapshot",
+   "estMb": 11,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "coU8EhQjzys",
+   "durationSec": 100,
+   "title": "No Counter Rollers and Shooter Autopathing | 23305 Creative Minds | FTC DECODE Snapshot",
+   "estMb": 9,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "uYaim4vYeTo",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/7/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "YLt-6QYljFA",
+   "durationSec": 928,
+   "title": "19564 ITKAN Solar | Behind the Bot | FTC DECODE Robot",
+   "estMb": 155,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "PrpxeyfXM9k",
+   "durationSec": 10,
+   "title": "Lightning Fast Diverter Demo by 19564 ITKAN Solar",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "lszHlhnzNak",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/5/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "ktBrOHUxBPc",
+   "durationSec": 51,
+   "title": "Intake and Shooter | 23400 UFORCE | FTC DECODE Snapshot",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "QqBVVHkXy14",
+   "durationSec": 104,
+   "title": "Shooter Motion Library | 8721 Mighty Mechanics | FTC DECODE Snapshot",
+   "estMb": 10,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "dH7UK_JyMrg",
+   "durationSec": 70,
+   "title": "Mechanical Integrations with Control Systems | 9879 Root Negative One | FTC DECODE Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "BmnCgrDiqdc",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 7/1/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "Ffo0ZongYso",
+   "durationSec": 10,
+   "title": "Corkscrew Intake Wheel by 11260 Up-A-Creek Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "wlRhoOZ8ZR0",
+   "durationSec": 1154,
+   "title": "11260 Up-A-Creek Robotics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 192,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "RY__1DG_ivU",
+   "durationSec": 48,
+   "title": "Expanding Intake | 365 MOE | FTC DECODE Snapshot",
+   "estMb": 4,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "3ViPbFq1eDM",
+   "durationSec": 10,
+   "title": "String and Bungee Artifact Blocker Mech by 12808 RevAmped Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "0SpmGbFcoFc",
+   "durationSec": 1041,
+   "title": "12808 RevAmped Robotics | Behind the Bot | MTI Winners",
+   "estMb": 174,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "Ll-wUHuNnvU",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 6/29/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "FO3yN0_u5WQ",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 6/26/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "h2Co7TYitY8",
+   "durationSec": 199,
+   "title": "MTI 2026 Team Preview | Multinational Tech Invitational",
+   "estMb": 43,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "URXSqOzmrDg",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 6/22/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "RewVqT5ds6Y",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 6/19/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "dDcOZbnExbI",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 6/16/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "23mJwPKmTh4",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 6/13/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "xiK-f7bsIOc",
+   "durationSec": 15,
+   "title": "Can you guess this FTC Robot? 6/10/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "a8WGYGa6uRo",
+   "durationSec": 15,
+   "title": "Quiz: Can you guess this FTC Robot? 6/7/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "vohuqAG7jAQ",
+   "durationSec": 15,
+   "title": "Quiz: Can you guess this FTC Robot? 6/2/26",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "CrJdn1BjDkA",
+   "durationSec": 82,
+   "title": "Carousel Mechanism | 19502 The Moment Makers | FTC DECODE Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "eai8TLdFOuU",
+   "durationSec": 75,
+   "title": "Custom Wheel Intake and Transfer | 24697 SANA | FTC DECODE Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "Z4BaXnXEFQw",
+   "durationSec": 114,
+   "title": "Triple Turret and Targeting | 15991 Gamma | FTC DECODE Snapshot",
+   "estMb": 10,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "EyMp2OKFmDQ",
+   "durationSec": 64,
+   "title": "Turret E-Chain | 12682 The Golden Ratio | FTC DECODE Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "9pjv1uvyWvU",
+   "durationSec": 111,
+   "title": "Triangle Spindexer | 22105 Runtime Terror | FTC DECODE Snapshot",
+   "estMb": 10,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "iZT_aNIQRX0",
+   "durationSec": 85,
+   "title": "Drop Down Intake | 6962 Pokébolts | FTC DECODE Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "kdf1kv31NdI",
+   "durationSec": 78,
+   "title": "Passive Spindexer Sorting System | 12808 RevAmped Robotics | FTC DECODE Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "qqovSjvvPsU",
+   "durationSec": 178,
+   "title": "Lifting PTO Robot Overview | 19660 Sigma | FTC DECODE Snapshot",
+   "estMb": 16,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "fXd2FdsH9EA",
+   "durationSec": 86,
+   "title": "Double Sided Intake and Unique Features | 19013 G-Force | FTC DECODE Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "njySRj_NonA",
+   "durationSec": 15,
+   "title": "Adjustable Back Roller by 21058 Panheya (ᵔ ᵔ)",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "DldlG1MBKKo",
+   "durationSec": 529,
+   "title": "21058 Panheya (ᵔ ᵔ) | Behind the Bot | FTC DECODE Robot",
+   "estMb": 115,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "Ybx6bWAUr_k",
+   "durationSec": 92,
+   "title": "Aerospace Cables for Turret | 24006 LeXT--Watermelon Why? | DECODE Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "AzptiubjJdg",
+   "durationSec": 15,
+   "title": "Driver Communication Trick by 10084 Team Calamari",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "277rmvv6BQg",
+   "durationSec": 879,
+   "title": "10084 Team Calamari | Behind the Bot | FTC DECODE Robot",
+   "estMb": 147,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "t8XeBKfgpkM",
+   "durationSec": 90,
+   "title": "Super Modular Robot | 25609 LOAD Robotics | FTC DECODE Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "JAdPWYbCWjs",
+   "durationSec": 13,
+   "title": "Carbon Fiber Rod Turret Supports by 23511 Seattle Solvers",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "GFXoEtIMY48",
+   "durationSec": 809,
+   "title": "23511 Seattle Solvers | Behind the Bot | FTC DECODE Robot",
+   "estMb": 135,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "-XPVexb6CLk",
+   "durationSec": 72,
+   "title": "Triple Shooter on a Turret | 6417 Blu Cru | DECODE Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "jualsM2faqY",
+   "durationSec": 116,
+   "title": "Robot Overview | 10355 Project Peacock | DECODE Pit Stop",
+   "estMb": 11,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "ucvBRFGXeWk",
+   "durationSec": 9,
+   "title": "3 Ball Intake Limit by 17861 CSH",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "GoBkywvcwV8",
+   "durationSec": 858,
+   "title": "17861 CSH | Behind the Bot | FTC DECODE Robot",
+   "estMb": 143,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "Gs1Zl4FkmdY",
+   "durationSec": 86,
+   "title": "Quick Spin-Up Shooter | 21239 All Systems Go | FTC DECODE Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "rC4jJrwn-NI",
+   "durationSec": 14,
+   "title": "One Way Bearing by 26000 Theseus",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "O2zHFFIedcI",
+   "durationSec": 1087,
+   "title": "26000 Theseus | Behind the Bot | FTC DECODE Robot",
+   "estMb": 181,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "duKlveURqwU",
+   "durationSec": 13,
+   "title": "In-Robot Sorting System by 14270 Quantum Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "DiWEMH436hY",
+   "durationSec": 955,
+   "title": "14270 Quantum Robotics | Behind the Bot | FTC Decode Robot",
+   "estMb": 159,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "Vzbz1s5H9wc",
+   "durationSec": 829,
+   "title": "19066 AiCitizens | Behind the Bot | FTC Decode Robot",
+   "estMb": 138,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "wsQqyf4d1ew",
+   "durationSec": 12,
+   "title": "Purposeful Motor Backlash by 19066 AiCitizens",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "YgWjVzkufr0",
+   "durationSec": 47,
+   "title": "Steel Bumpers | 30303 Rebel Automaton | DECODE Snapshot",
+   "estMb": 4,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "h61zoiO8Wos",
+   "durationSec": 14,
+   "title": "30 to 50 Degree Angled Hood by 22045 Power Breakers",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "LHPKW3UiLIM",
+   "durationSec": 635,
+   "title": "22045 Power Breakers | Behind the Bot | FTC DECODE Robot",
+   "estMb": 106,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "3vaPwFzxaCo",
+   "durationSec": 15,
+   "title": "Transfer Linkage Arm by 15083 Overclock",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "M72oQuVfxDM",
+   "durationSec": 716,
+   "title": "15083 Overclock | Behind the Bot | FTC DECODE Robot",
+   "estMb": 119,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "ZtSqeeeNPXE",
+   "durationSec": 60,
+   "title": "Insanely Fast Turret | 5189 Wolves Robotics | DECODE Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "-oHyDRBEQ_8",
+   "durationSec": 16,
+   "title": "DECODE Reveal Night Teaser | FTC Championship Hype",
+   "estMb": 1,
+   "keep": true,
+   "kind": "reveal",
+   "reason": "series: reveal"
+  },
+  {
+   "videoId": "UkhK9FdK_oo",
+   "durationSec": 14,
+   "title": "Hood Gearing by 3565 Ghost Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "iOMBicgn2JU",
+   "durationSec": 760,
+   "title": "3565 Ghost Robotics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 127,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "SUJQsHH_T5s",
+   "durationSec": 69,
+   "title": "Two Ways of Intaking | 25718 Ctrl+Z | DECODE Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "O5roLQ3AqYE",
+   "durationSec": 12,
+   "title": "Automatic Shooter Sequence by 11444 Garnet Squadron",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "lo8UIfuKYCM",
+   "durationSec": 1045,
+   "title": "11444 Garnet Squadron | Behind the Bot | FTC DECODE Robot",
+   "estMb": 174,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "L4EoRAgW898",
+   "durationSec": 1504,
+   "title": "DECODE Late Season Strategy and Design Discussion | FTC Open Alliance",
+   "estMb": 251,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "jSYdIQS-QhE",
+   "durationSec": 14,
+   "title": "Over Center Hood Adjuster by 23224 Cheesy Bytes",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "mTXRrHnDBZs",
+   "durationSec": 1245,
+   "title": "23224 Cheesy Bytes | Behind the Bot | FTC DECODE Robot",
+   "estMb": 208,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "AVxZEu3JR-s",
+   "durationSec": 12,
+   "title": "Vectored Intake by 23361 Cosmobotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "TPqli98KcnM",
+   "durationSec": 653,
+   "title": "23361 Cosmobotics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 109,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "3bbrrSYdsPE",
+   "durationSec": 15,
+   "title": "Vertical Spindexer by 23944 Robolobos Fenrir",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "nwmy-Bl6kGQ",
+   "durationSec": 555,
+   "title": "23944 Robolobos Fenrir | Behind the Bot | FTC DECODE Robot",
+   "estMb": 120,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "F6fRFgq2Rv0",
+   "durationSec": 73,
+   "title": "Wood and Metal Chassis Construction | 27072 Tech Outlaws | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "k42GwXrWB70",
+   "durationSec": 12,
+   "title": "2 Rotation Turret Cable Management by 30030 Exodus",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "gaTss6W49CQ",
+   "durationSec": 1124,
+   "title": "30030 Exodus | Behind the Bot | FTC DECODE Robot",
+   "estMb": 187,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "ZzzLtBSx-kI",
+   "durationSec": 69,
+   "title": "Auto Tracking System | 19062 Phantom Robotics | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "Uw3ujGunZM8",
+   "durationSec": 71,
+   "title": "Powerful and Fast Shooter and Hood | 26075 Vampire Robotics | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "r6YpztC2dpE",
+   "durationSec": 14,
+   "title": "Hood Adjusting Linkage by 21087 Velocity",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "YHMd6lpBCGQ",
+   "durationSec": 900,
+   "title": "21087 Velocity | Behind the Bot | FTC DECODE Robot",
+   "estMb": 150,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "uqJ0vg_Cs7s",
+   "durationSec": 12,
+   "title": "Easy to Install Turret by 772 Golden Dragons",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "R6d9MqGzyz4",
+   "durationSec": 777,
+   "title": "772 Golden Dragons | Behind the Bot | FTC DECODE Robot",
+   "estMb": 130,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "ezYOwPQHhSY",
+   "durationSec": 74,
+   "title": "Gate Opener and Tilt Parking Mech | 25916 EngiNeerds NextGen | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "9iedPayPGjg",
+   "durationSec": 89,
+   "title": "Vertically Transferring Intake | 25068 Raptoria | FTC Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "xOg39dqqjjk",
+   "durationSec": 73,
+   "title": "Two Sided Intake Differential | 12560 Soft Hoarders | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "84jhgqOlPHE",
+   "durationSec": 90,
+   "title": "Artifact Arm Stress Relief | 23161 CyberLIS76 | FTC Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "QmcBhxAlPaM",
+   "durationSec": 15,
+   "title": "Kicker-Roller Wheel for Spindex Transfer by 14503 Robo Sapiens",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "sw7XmXNju-c",
+   "durationSec": 509,
+   "title": "14503 Robo Sapiens | Behind the Bot | FTC DECODE Robot",
+   "estMb": 110,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "bArAekr6nO4",
+   "durationSec": 70,
+   "title": "Shooter Design Breakdown | 15996 BrickBot | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "1im3sYznKms",
+   "durationSec": 12,
+   "title": "Hybrid Transfer by 20265 Heart of RoBots",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "on4jUaoD5UA",
+   "durationSec": 1337,
+   "title": "20265 Heart of RoBots | Behind the Bot | FTC DECODE Robot",
+   "estMb": 223,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "1QVC86mq2mE",
+   "durationSec": 80,
+   "title": "Ratcheting Kickstand Mechanism | 11444 Garnet Squadron | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "G0jAlOgIxMA",
+   "durationSec": 66,
+   "title": "Motor Gearbox on a Servo | 26949 Royal Society of Robotics | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "ex9anz-_BCs",
+   "durationSec": 71,
+   "title": "Quickest Intake in DECODE? | 3565 Ghost Robotics | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "OldDrHSwoLc",
+   "durationSec": 14,
+   "title": "Launcher Hard Stop by 31537 Non- Applicable",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "GG1kAISoWbY",
+   "durationSec": 590,
+   "title": "31537 Non-Applicable | Behind the Bot | FTC DECODE Robot",
+   "estMb": 128,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "ZGE86bB2_JM",
+   "durationSec": 12,
+   "title": "Artifact Recycler by 23849 Droid Force",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "QSaImCYylos",
+   "durationSec": 1079,
+   "title": "23849 Droid Force | Behind the Bot | FTC DECODE Robot",
+   "estMb": 180,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "8ek7cVmwnKE",
+   "durationSec": 76,
+   "title": "Intake Flap and PedroPathing | 23345 The Sterling Stormers | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "W7Dj0a3H8qI",
+   "durationSec": 958,
+   "title": "20153 Silver Wolves | Behind the Bot | FTC DECODE Robot",
+   "estMb": 160,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "w3wsWzTmRp0",
+   "durationSec": 83,
+   "title": "Articulating Ramp and LED Indicators | 23786 MakEMinds | FTC Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "f0dZ3te9LTM",
+   "durationSec": 53,
+   "title": "Reverse Shooter Human Player Intake | 5553 RoboComets | FTC Snapshot",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "DHJNzojpPEg",
+   "durationSec": 3500,
+   "title": "FTC Top 25 | DECODE | February - Presented by Studica Robotics",
+   "estMb": 583,
+   "keep": true,
+   "kind": "top25",
+   "reason": "series: top25"
+  },
+  {
+   "videoId": "6HzkStmCMWQ",
+   "durationSec": 11,
+   "title": "Turret Cable Management by 23521 DeSoto Technix",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "DO_12ErJRqQ",
+   "durationSec": 928,
+   "title": "23521 DeSoto Technix | Behind the Bot | FTC DECODE Robot",
+   "estMb": 155,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "CCOY_m0eFNo",
+   "durationSec": 14,
+   "title": "Retractable Traction Wheels by 19434 Redstone",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "W-PCmLj3Hos",
+   "durationSec": 804,
+   "title": "19434 Redstone | Behind the Bot | FTC DECODE Robot",
+   "estMb": 134,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "QxIdw-UV39k",
+   "durationSec": 15,
+   "title": "Double Sided Intake and Transfer by 23203 Light Bulb Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "H-uZWlvg51U",
+   "durationSec": 905,
+   "title": "23203 Light Bulb Robotics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 151,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "xtWWWjAfWcY",
+   "durationSec": 14,
+   "title": "Lift Magnet by 19234 ByteForce",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "tHgaA30R_q0",
+   "durationSec": 539,
+   "title": "19234 ByteForce | Behind the Bot | FTC DECODE Robot",
+   "estMb": 117,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "QiR28E8Br6w",
+   "durationSec": 54,
+   "title": "Double Park Lift Mechanism | 7 Tactical Sheep | FTC Snapshot",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "9AWKvpPu9o0",
+   "durationSec": 14,
+   "title": "Intake Bumper by 15993 infO(1)Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "qS9vA0yD_SY",
+   "durationSec": 532,
+   "title": "15993 infO(1)Robotics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 115,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "giPR6kiesC4",
+   "durationSec": 14,
+   "title": "Governors Cup is MASSIVE | FTC DECODE",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "uHX_VqEGfl4",
+   "durationSec": 15,
+   "title": "Custom Vectored Intake Wheels by 26073 BeaverBots",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "hmNTCFHNYKY",
+   "durationSec": 518,
+   "title": "26073 BeaverBots | Behind the Bot | FTC DECODE Robot",
+   "estMb": 112,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "odlBnjTNBLw",
+   "durationSec": 15,
+   "title": "LED Indicator Screen by 4410 ARC Lightning",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "2p25AhpJHW4",
+   "durationSec": 669,
+   "title": "4410 ARC Lightning | Behind the Bot | FTC DECODE Robot",
+   "estMb": 112,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "_P9IVqvlG90",
+   "durationSec": 15,
+   "title": "Indexing French Fries by 19668 HiveMind",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "PK4CWQifoDI",
+   "durationSec": 525,
+   "title": "19668 HiveMind | Behind the Bot | FTC DECODE Robot",
+   "estMb": 114,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "7mMWBV4anBw",
+   "durationSec": 11,
+   "title": "Transfer RPMs by 10809 Crow Force",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "ZTWlN25KUQg",
+   "durationSec": 598,
+   "title": "10809 Crow Force | Behind the Bot | FTC DECODE Robot",
+   "estMb": 130,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "9GElbMhJ5I8",
+   "durationSec": 10,
+   "title": "Ultra Fast Spindexer by 19116 VV Robots",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "NaK2Oimd_Q0",
+   "durationSec": 582,
+   "title": "19116 VV Robots | Behind the Bot | FTC DECODE Robot",
+   "estMb": 126,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "bHjMcaYzd-8",
+   "durationSec": 69,
+   "title": "Auto Tracking Turret and RGB Indicator | 33444 UlyDala | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "rp2ip8PFFho",
+   "durationSec": 67,
+   "title": "Mecanum Flywheels | 25528 Nomadic.Dragons.FTC | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "r0yWxSi0Wx0",
+   "durationSec": 12,
+   "title": "Transfer Color Sensors by 11525 Minerva's Mechanics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "ksdJT6S4EVw",
+   "durationSec": 832,
+   "title": "11525 Minerva's Mechanics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 139,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "c3lWpihQpv8",
+   "durationSec": 16,
+   "title": "Presorted Artifact Flickers by 15972 TehnoZ",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "uTG6JavIoxI",
+   "durationSec": 616,
+   "title": "15972 TehnoZ | Behind the Bot | FTC DECODE Robot",
+   "estMb": 103,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "Wy1hhmanaeQ",
+   "durationSec": 12,
+   "title": "Shooter Counter Rollers by 23641 Cuberobot",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "7IuDxVvBye0",
+   "durationSec": 989,
+   "title": "23641 Cuberobot | Behind the Bot | FTC DECODE Robot",
+   "estMb": 165,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "cCtVzMcioH8",
+   "durationSec": 15,
+   "title": "Clutch Mechanism for Artifact Transfer by 19161 BraveBots",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "m_5JtN_YlPo",
+   "durationSec": 781,
+   "title": "19141 BraveBots | Behind the Bot | FTC DECODE Robot",
+   "estMb": 130,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "Ry1FMwCeCSc",
+   "durationSec": 12,
+   "title": "Mecanum Intake Wheels by 23435 Gyrobotic Droids",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "INXUHdYV3Xk",
+   "durationSec": 1171,
+   "title": "23435 Gyrobotic Droids | Behind the Bot | FTC Decode Robot",
+   "estMb": 195,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "3wjK0d26TW8",
+   "durationSec": 75,
+   "title": "Effective Vectored Intake and Robot Overview | 33611 OVERTIME | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "UdjpgraSGhA",
+   "durationSec": 15,
+   "title": "Transfer Flap by 16166 Watt'S Up",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "TDLQgQZrlh4",
+   "durationSec": 470,
+   "title": "16166 Watt'S Up | Behind the Bot | FTC DECODE Robot",
+   "estMb": 102,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "6wefbe7WZas",
+   "durationSec": 14,
+   "title": "Transfer to Flywheel Momentum by 21050 MasterMinds",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "OIGn71kIfvo",
+   "durationSec": 555,
+   "title": "21050 MasterMinds | Behind the Bot | FTC DECODE Robot",
+   "estMb": 120,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "_p7OF_GeYH8",
+   "durationSec": 14,
+   "title": "Custom Intake Wheels by 30355 Black Box",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "n7z21Dw_YN4",
+   "durationSec": 773,
+   "title": "30355 Black Box | Behind the Bot | FTC DECODE Robot",
+   "estMb": 129,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "sLtFNDWQA-A",
+   "durationSec": 15,
+   "title": "3 Wheel Swerve Drive by 25538 ARRA",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "hYe_oHoNsCs",
+   "durationSec": 320,
+   "title": "25538 ARRA | Behind the Bot | DECODE Robot",
+   "estMb": 69,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "JdELefRFDDw",
+   "durationSec": 57,
+   "title": "3 Axon Turret | 25943 HIVE Robotics | FTC Snapshot",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "zmbXCLjpUag",
+   "durationSec": 859,
+   "title": "Double Sided Intakes are DOMINATING DECODE | FTC FUNalysis",
+   "estMb": 143,
+   "keep": true,
+   "kind": "override",
+   "reason": "on-topic: intake design"
+  },
+  {
+   "videoId": "XVzCgsgozmg",
+   "durationSec": 2847,
+   "title": "FTC Top 25 | DECODE | January - Presented by Studica Robotics",
+   "estMb": 475,
+   "keep": true,
+   "kind": "top25",
+   "reason": "series: top25"
+  },
+  {
+   "videoId": "g6pgyY5p384",
+   "durationSec": 11,
+   "title": "2-Servo Robot Lift by 16917 Gear Wizards",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "ls5TUlhLtCA",
+   "durationSec": 1148,
+   "title": "16917 Gear Wizards | Behind the Bot | DECODE Robot",
+   "estMb": 191,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "j4_Hwfb3HpM",
+   "durationSec": 9,
+   "title": "Shooting on the Move by 19745 Turtle Walkers",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "xusN9ZAENZw",
+   "durationSec": 1218,
+   "title": "19745 Turtle Walkers | Behind the Bot | DECODE Robot",
+   "estMb": 203,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "-ao-ZQBQm2s",
+   "durationSec": 87,
+   "title": "9 1/2 Inch Robot | 5962 Nordic Storm | FTC Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "ghI6mCjFHXs",
+   "durationSec": 68,
+   "title": "Side Shooting Spindexer | 22017 Eu codez | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "g8iCaRtVW4k",
+   "durationSec": 46,
+   "title": "Ultra-Wide Intake | 26115 Alphabots | FTC Snapshot",
+   "estMb": 4,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "P69GnVtQ-j8",
+   "durationSec": 86,
+   "title": "Revolving Vertical Spindexer | 17860 Helix | FTC Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "RIymQYiBOVc",
+   "durationSec": 14,
+   "title": "Double Barrel Sorter by 13072 Fellowship of the Robot",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "dn8hlr_S6dc",
+   "durationSec": 989,
+   "title": "13072 Fellowship of the Robot | Behind the Bot | FTC DECODE Robot",
+   "estMb": 165,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "kunUgsxzkc4",
+   "durationSec": 66,
+   "title": "Simple Automated Control | 33422 Sirius | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "BwYOI7K1ZIo",
+   "durationSec": 15,
+   "title": "Linear Artifact Indexer Mech by 22437 Demon Dogs",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "aBTY3Rc27O8",
+   "durationSec": 853,
+   "title": "22437 Demon Dogs | Behind the Bot | DECODE Robot",
+   "estMb": 142,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "issMDjEgpCA",
+   "durationSec": 74,
+   "title": "Kickstand Parking Mech | 21455 RoSophia | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "ZnArSzDBd6s",
+   "durationSec": 15,
+   "title": "3D Printed Gears on Bare Motors by 21028 The Eagles RO143",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "eOU4N3qMV9Y",
+   "durationSec": 415,
+   "title": "21028 The Eagles RO143 | Behind the Bot | DECODE Robot",
+   "estMb": 90,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "XJ1-DruQBMI",
+   "durationSec": 76,
+   "title": "Unique Robot Packaging | 24697 SANA | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "j0oj2ZLH_2I",
+   "durationSec": 15,
+   "title": "Vectorized Anti-Jam Intake Geometry by 15996 BrickBot",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "OcMV_pZJmvA",
+   "durationSec": 1023,
+   "title": "15996 BrickBot | Behind the Bot | DECODE Robot",
+   "estMb": 171,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "URjWAxjt4ws",
+   "durationSec": 14,
+   "title": "Left-Right Artifact Sorter by 21229 Quality Control",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "TD1ywruOkbg",
+   "durationSec": 965,
+   "title": "21229 Quality Control | Behind the Bot | DECODE Robot",
+   "estMb": 161,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "4-04YlSu3uc",
+   "durationSec": 50,
+   "title": "Passive Spindexer Transfer | 18365 Dapper RoboNoodles | FTC Snapshot",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "gIuiRAKTk60",
+   "durationSec": 15,
+   "title": "Double Carriage Ball Sorter by 24478 EngiNeerds",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "7v8uT93n96I",
+   "durationSec": 575,
+   "title": "24478 EngiNeerds | Behind the Bot | FTC Decode Robot",
+   "estMb": 125,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "dliML1R-1Oc",
+   "durationSec": 68,
+   "title": "Floating Rubber Band Intake | 3650 Limited Liability | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "McdWqsZS-jo",
+   "durationSec": 79,
+   "title": "'Macaroni' Mat & Intake System | 11618 Chelsea Gremlins | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "fnZ_41ZeTPc",
+   "durationSec": 10,
+   "title": "Dual Flipper Design by 25751 Dread Pirate Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "aQj4Ps160AQ",
+   "durationSec": 667,
+   "title": "25751 Dread Pirate Robotics | Behind the Bot | DECODE Robot",
+   "estMb": 111,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "9c2Jm0gHI04",
+   "durationSec": 79,
+   "title": "Triple Launcher Robot | 19429 Infrared | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "B5MoIHP4294",
+   "durationSec": 14,
+   "title": "Triple Artifact Flicker by 10538 Team KILTS",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "1-1cF-6lPxI",
+   "durationSec": 667,
+   "title": "10538 Team KILTS | Behind the Bot | DECODE Robot",
+   "estMb": 111,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "c4klP97IJvw",
+   "durationSec": 65,
+   "title": "Vertical Magazine Spindexer | 16714 Dread Bolts | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "KbZfXcY0_2c",
+   "durationSec": 15,
+   "title": "Intaking into a Spindexer by 12611 TechNova",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "6n98Birxhg4",
+   "durationSec": 545,
+   "title": "12611 TechNova | Behind the Bot | DECODE Robot",
+   "estMb": 118,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "msqNySX0hiI",
+   "durationSec": 79,
+   "title": "Custom Bumpers & TPU Star Intake | 30529 Curiosity Robotics | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "RUdkdoj0-U8",
+   "durationSec": 14,
+   "title": "Anti Defense Brakes by 29999 Weeping Angels",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "PpNfFZMulKU",
+   "durationSec": 650,
+   "title": "29999 Weeping Angels | Behind the Bot | DECODE Robot",
+   "estMb": 108,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "45eCr9DCwbs",
+   "durationSec": 15,
+   "title": "Floating Intake by 10644 CyBugs",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "Y-Z5lVKryAo",
+   "durationSec": 551,
+   "title": "10644 CyBugs | Behind the Bot | DECODE Robot",
+   "estMb": 119,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "ZIUDty5Tr0Q",
+   "durationSec": 14,
+   "title": "Overlake Robotics Path Planner by 16965 SUPERCRITICAL",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "LMi-VYRM5zY",
+   "durationSec": 699,
+   "title": "16965 SUPERCRITICAL | Behind the Bot | DECODE Robot",
+   "estMb": 117,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "hVrhK_j3m6A",
+   "durationSec": 81,
+   "title": "Adjustable Hood and Color Sensor Setup | 5385 Enigma Riddlers | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "VtQN2eLXO1s",
+   "durationSec": 15,
+   "title": "Easy-Access Hinged Turret by 11228 OverClucked Bots",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "yfVIuF9O-y0",
+   "durationSec": 753,
+   "title": "11228 OverClucked Bots | Behind the Bot | DECODE Robot",
+   "estMb": 126,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "vPYn3Q5Akho",
+   "durationSec": 14,
+   "title": "Intake Demo by 11146 Barker Redbacks",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "26ytEhG80K8",
+   "durationSec": 768,
+   "title": "11146 Barker Redbacks | Behind the Bot | DECODE Robot",
+   "estMb": 128,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "nDCPArnD_hY",
+   "durationSec": 79,
+   "title": "Robot Bumpers and Autonomous Localization | 10653 Dragatrons | FTC Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "qrNBkL6PzwE",
+   "durationSec": 13,
+   "title": "Link and Lever Mechanism for Elevator by 15104 Static Eagles",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "pNP6fObvN9M",
+   "durationSec": 584,
+   "title": "15104 Static Eagles | Behind the Bot | DECODE Robot",
+   "estMb": 127,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "0FJ5K97WBbw",
+   "durationSec": 14,
+   "title": "Shooter Hood Positions by 23636 Pymble Bees",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "l6_ZdDAqZD0",
+   "durationSec": 492,
+   "title": "23636 Pymble Bees | Behind the Bot | DECODE Robot",
+   "estMb": 107,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "QBFtU3RVTHs",
+   "durationSec": 3448,
+   "title": "FTC Top 25 | DECODE | December - Presented by Studica Robotics",
+   "estMb": 575,
+   "keep": true,
+   "kind": "top25",
+   "reason": "series: top25"
+  },
+  {
+   "videoId": "8vBk4FyaO5c",
+   "durationSec": 68,
+   "title": "Multi-Functional Lifting Ramp | 18535 Frozen Code | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "xurehBdnrdg",
+   "durationSec": 15,
+   "title": "Insane Parking Flipper by 10255 RoboDux",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "OcYtVLsyUpI",
+   "durationSec": 458,
+   "title": "10255 RoboDux | Behind the Bot | DECODE Robot",
+   "estMb": 99,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "41bTB8-1uXA",
+   "durationSec": 15,
+   "title": "Spindexer Demo by 11148 Barker Greybacks",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "cztugXsD7Zw",
+   "durationSec": 581,
+   "title": "11148 Barker Greybacks | Behind the Bot | DECODE Robot",
+   "estMb": 126,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "a3vcLDE9rLg",
+   "durationSec": 89,
+   "title": "Awesome 2 Stage Lift System | 10273 The Cat in The Hat Comes Back | FTC Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "Fo-U0qzeyMA",
+   "durationSec": 15,
+   "title": "This Impressive 360 Turret with Cable Chain by 26000 Theseus lead to a WAC at AUS Nationals!",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "l1MtBwHrxm4",
+   "durationSec": 11,
+   "title": "Foam Bar as a Counter Roller by 24909 StarLight",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "fIs96OXbMBk",
+   "durationSec": 587,
+   "title": "24909 StarLight | Behind the Bot | FTC DECODE Robot",
+   "estMb": 127,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "FYE7VLnBNd4",
+   "durationSec": 14,
+   "title": "Custom Adjustable Shooter Hood by 19088 BROBOTS",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "xvjDm1_hIBI",
+   "durationSec": 506,
+   "title": "19088 BROBOTS | Behind the Bot | FTC DECODE Robot",
+   "estMb": 110,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "mctH_4te76Y",
+   "durationSec": 14,
+   "title": "Clever Robot-Lifting Mechanism by 19053 Homosapiens",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "9k1ym0IUn4E",
+   "durationSec": 570,
+   "title": "19053 Homosapiens | Behind the Bot | FTC DECODE Robot",
+   "estMb": 124,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "O2ATrRc3aWc",
+   "durationSec": 15,
+   "title": "Rubber Band Transfer by 15972 TehnoZ",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "WVCewteIt3c",
+   "durationSec": 15,
+   "title": "Removable Intake by 14906 Leviathan Robotics",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "7Pf5MIiNa80",
+   "durationSec": 564,
+   "title": "14906 Leviathan Robotics | Behind the Bot | FTC DECODE Robot",
+   "estMb": 122,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "DP3dIHbJHV4",
+   "durationSec": 55,
+   "title": "Everybot Inspired DECODE Robot | 30326 FUTURE VORTEX | FTC Snapshot",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "yKGi1JEzrO8",
+   "durationSec": 9,
+   "title": "Speedy Vectored Intake by 6962 Pokébolts #firsttechchallenge",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "XV9jSupG1bs",
+   "durationSec": 907,
+   "title": "6962 Pokébolts | Behind the Bot | FTC DECODE Robot",
+   "estMb": 151,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "1fnKFT0cgyg",
+   "durationSec": 9,
+   "title": "Spindexer Demo by 18270 RoboPlayers #firsttechchallenge",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "jD7gIYiTWSQ",
+   "durationSec": 1035,
+   "title": "18270 RoboPlayers | Behind the Bot | FTC DECODE Robot",
+   "estMb": 173,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "453CdPtpRPs",
+   "durationSec": 68,
+   "title": "Double Stage Flexible Intake and Vision | 21058 Panheya (ᵔ ᵕ ᵔ) | FTC Snapshot",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "1iJI4r8ROiw",
+   "durationSec": 86,
+   "title": "Efficient Intake + Shooter 19163 MLP | FTC Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "aDY7wthjMog",
+   "durationSec": 49,
+   "title": "Sick Artifact Spindexer | 26085 Binary Builders | FTC Snapshot",
+   "estMb": 4,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "rHTkfsp_0OQ",
+   "durationSec": 11,
+   "title": "Scoring Cycle Demo by 16010 Astra Machina",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "6p3KPNP_Vk0",
+   "durationSec": 949,
+   "title": "16010 Astra Machina | Behind the Bot | FTC DECODE Robot",
+   "estMb": 158,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "nngF98R1f38",
+   "durationSec": 2897,
+   "title": "FTC Top 25 | DECODE | November - Presented by Studica Robotics",
+   "estMb": 483,
+   "keep": true,
+   "kind": "top25",
+   "reason": "series: top25"
+  },
+  {
+   "videoId": "axYTENDMLmY",
+   "durationSec": 75,
+   "title": "Custom Silicon Molded Intake Wheels | FTC 30405 Clockwork | Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "eAAaCHBenNU",
+   "durationSec": 58,
+   "title": "⚙️ Dual-Sided Intake to Spindexer | FTC 23213 Snapshot",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "0rBDQdHz-eU",
+   "durationSec": 76,
+   "title": "🚀 FTC 18228 Red Botbuilders | Snapshot",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "0o9srDn4Tkc",
+   "durationSec": 14,
+   "title": "Triple Indexing Flicker by 14380 Blue BotBuilders",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "J1LTsyiCLh0",
+   "durationSec": 821,
+   "title": "🤖 FTC 14380 Blue BotBuilders | Behind the Bot – DECODE",
+   "estMb": 137,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "3keWc2hBhuI",
+   "durationSec": 82,
+   "title": "Double Park Lift & Overview | 21830 Renaissance Raptors | FTC Snapshot",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "ziji2vEfDYM",
+   "durationSec": 1036,
+   "title": "🚀 FTC 23849 Droid Force | Behind the Bot – DECODE",
+   "estMb": 173,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "lTfMQlcEH50",
+   "durationSec": 12,
+   "title": "Cut Flex Wheel Intake Demo by 21171 ITKAN Lunar",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "PaQhs7qaMBA",
+   "durationSec": 1388,
+   "title": "21171 ITKAN Lunar | Behind the Bot | FTC DECODE Robot",
+   "estMb": 231,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "42wKWXjsYD8",
+   "durationSec": 406,
+   "title": "Awesome Double Park Lift | Cool Robots of DECODE Episode 5",
+   "estMb": 88,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "SFV69qfcLMo",
+   "durationSec": 1044,
+   "title": "Block Coding and Auto Strategies | 23509 RoboRibbits | FTA OA Show",
+   "estMb": 174,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "LoU7EZCF1cM",
+   "durationSec": 1305,
+   "title": "DECODE Coaxial Swerve and Impressive Transfer Process | 23511 Seattle Solvers | FTC OA Show",
+   "estMb": 218,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "vPw_y3XOVXU",
+   "durationSec": 1065,
+   "title": "Custom Spindexer | Turret & Intake Assembly | 14596 XLR8 FTC OA Show #firsttechchallenge",
+   "estMb": 178,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "phrrq8zaOAU",
+   "durationSec": 1278,
+   "title": "PID Shooter Tuning & Custom Planetary Gearbox | 19075 Clockworks | FTC OA Show #firsttechchallenge",
+   "estMb": 213,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "rxDWmjOMJf8",
+   "durationSec": 789,
+   "title": "Intake, Shooter Progression & 3D Printing | 13598 MOBots & 15357 MOreBots | FTC Open Alliance Show",
+   "estMb": 132,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "lxC0Gj44K24",
+   "durationSec": 12,
+   "title": "$1000 BaseBot+ Intake by 23070 Royal Turtles #firsttechchallenge",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "fZeT4VeyaVY",
+   "durationSec": 750,
+   "title": "DECODE $1000 BaseBot+ | Behind the Bot  #firsttechchallenge",
+   "estMb": 125,
+   "keep": true,
+   "kind": "behind-the-bot",
+   "reason": "series: behind-the-bot"
+  },
+  {
+   "videoId": "jBoEaaqxXjc",
+   "durationSec": 387,
+   "title": "Cool Robots of DECODE | Episode 4 #firsttechchallenge",
+   "estMb": 84,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "K_leotla7co",
+   "durationSec": 1337,
+   "title": "Innovative Turret Options for DECODE | 3188 Squiggle Splat Bang | FTC Open Alliance Show",
+   "estMb": 223,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "p0t4EifPxpg",
+   "durationSec": 87,
+   "title": "Team Updates and the FTC Everybot | FTC in 90 #firsttechchallenge",
+   "estMb": 8,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "PUZwxe15n6M",
+   "durationSec": 316,
+   "title": "Cool Robots of DECODE | Episode 3",
+   "estMb": 68,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "9XC1RkjNGdw",
+   "durationSec": 1311,
+   "title": "DECODE Custom Swerve | Dual Intake | 23513 I.N.T. Robotics | FTC Open Alliance #firsttechchallenge",
+   "estMb": 219,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "sJ4_bGeKjc8",
+   "durationSec": 253,
+   "title": "Cool Robots of DECODE | Episode 2",
+   "estMb": 55,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "eAkxvWukRr0",
+   "durationSec": 249,
+   "title": "Cool Robots of FTC DECODE | Episode 1 | #firsttechchallenge",
+   "estMb": 54,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "7XNUmv3oTk0",
+   "durationSec": 1011,
+   "title": "DECODE Adjustable Shooter | Vision Estimation | 12737 Electric Mayhem White | #firsttechchallenge",
+   "estMb": 169,
+   "keep": true,
+   "kind": "override",
+   "reason": "on-topic: named team mechanism"
+  },
+  {
+   "videoId": "bPrqckPORgY",
+   "durationSec": 1282,
+   "title": "DECODE Top 15 Ri30H/Ri3D Robots | #firsttechchallenge",
+   "estMb": 214,
+   "keep": true,
+   "kind": "top25",
+   "reason": "series: top25"
+  },
+  {
+   "videoId": "OxoSCQShwQY",
+   "durationSec": 60,
+   "title": "Simple Intake and Shooter Prototype | 4115 Men in Kilts | FTC Snapshot #firsttechchallenge",
+   "estMb": 6,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "H9N1Fr2AFpo",
+   "durationSec": 9,
+   "title": "3 Piece Auto by 16460 GEarheads  | #firsttechchallenge",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "1Hyc2Tk0RDs",
+   "durationSec": 54,
+   "title": "DECODE Prototype Shooter | 25538 ARRA | FTC Snapshot #firsttechchallenge",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "pA6zsCNgX8s",
+   "durationSec": 90,
+   "title": "Cardboard Hopper Prototype | 4116 Volta Robotics | FTC Snapshot #firsttechchallenge",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "QXjErjwESdo",
+   "durationSec": 55,
+   "title": "Shooter Gear Ratios and Hopper Servo Gate | 24345 SPARKTECH | FTC Snapshot #firsttechchallenge",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "TGv-1Z8FLFY",
+   "durationSec": 90,
+   "title": "DECODE is Here | FTC in 90 #firsttechchallenge",
+   "estMb": 8,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "nqk4ng-xfbg",
+   "durationSec": 1148,
+   "title": "Vision Tracking | 2 Robot Park Prototype | 12736 Electric Mayhem Green | FTC Open Alliance",
+   "estMb": 191,
+   "keep": true,
+   "kind": "open-alliance",
+   "reason": "series: open-alliance"
+  },
+  {
+   "videoId": "QHBDqUDKjqE",
+   "durationSec": 76,
+   "title": "Pivoting Intake & Shooter Combo | 26691 THUNDER Heads | FTC Snapshot #firsttechchallenge",
+   "estMb": 7,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "mN_nRqa7xY0",
+   "durationSec": 34,
+   "title": "Studica Flex Wheel Demo | Robot in 30 Hours | #firsttechchallenge",
+   "estMb": 3,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "ZhblpuVFang",
+   "durationSec": 52,
+   "title": "Studica Intake Hub Kit | Robot in 30 Hours | #firsttechchallenge",
+   "estMb": 5,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "9El5UcekiR0",
+   "durationSec": 56,
+   "title": "Reliable Shooter With Servo Launcher | 24909 StarLight | FTC Snapshot #firsttechchallenge",
+   "estMb": 5,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "oPVnVJPBVG0",
+   "durationSec": 223,
+   "title": "Match 11 | DECODE | Robot in 30 Hours",
+   "estMb": 48,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "5oRvq8K9SQc",
+   "durationSec": 219,
+   "title": "Match 10 | DECODE | Robot in 30 Hours",
+   "estMb": 47,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "teJucHZgM90",
+   "durationSec": 223,
+   "title": "Match 9 | DECODE | Robot in 30 Hours",
+   "estMb": 48,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "FDMmdLyQPCw",
+   "durationSec": 220,
+   "title": "Match 8 | DECODE | Robot in 30 Hours",
+   "estMb": 48,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "aQHZQzB4Lns",
+   "durationSec": 220,
+   "title": "Match 7 | DECODE | Robot in 30 Hours",
+   "estMb": 48,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "NAj7ThVw4aU",
+   "durationSec": 201,
+   "title": "Match 6 | DECODE | Robot in 30 Hours",
+   "estMb": 44,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "Rhmif2evY9M",
+   "durationSec": 210,
+   "title": "Match 5 | DECODE | Robot in 30 Hours",
+   "estMb": 46,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "guDS8nkkKmE",
+   "durationSec": 207,
+   "title": "Match 4 | DECODE | Robot in 30 Hours",
+   "estMb": 45,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "EHPdzeXqAUk",
+   "durationSec": 211,
+   "title": "Match 3 | DECODE | Robot in 30 Hours",
+   "estMb": 46,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "BdfNdEqDqeM",
+   "durationSec": 208,
+   "title": "Match 2 | DECODE | Robot in 30 Hours",
+   "estMb": 45,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "IzySlgquUfE",
+   "durationSec": 214,
+   "title": "Match 1 | DECODE | Robot in 30 Hours",
+   "estMb": 46,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "-rvcqYkKpKE",
+   "durationSec": 90,
+   "title": "13201 Team Hazmat | Ri30H DECODE Robot Snapshot | #firsttechchallenge",
+   "estMb": 8,
+   "keep": true,
+   "kind": "snapshot",
+   "reason": "series: snapshot"
+  },
+  {
+   "videoId": "ANZE5L2qZYQ",
+   "durationSec": 17,
+   "title": "DECODE Hopper and Transfer Mech | #firsttechchallenge",
+   "estMb": 2,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "F-9oHaB-dKY",
+   "durationSec": 282,
+   "title": "DECODE Hopper and Transfer Prototypes | #firsttechchallenge",
+   "estMb": 61,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "f6rPhIk5MIU",
+   "durationSec": 15,
+   "title": "DECODE Sweeper Intake Prototype | #firsttechchallenge",
+   "estMb": 1,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "inHrpEtWU_M",
+   "durationSec": 408,
+   "title": "Sweeper Intake Options for DECODE | #firsttechchallenge",
+   "estMb": 88,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "rlCDMVpKP1Y",
+   "durationSec": 29,
+   "title": "Intake & Outtake Improvements by 16460 | #firsttechchallenge",
+   "estMb": 3,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "UZ1NYPPN1lg",
+   "durationSec": 338,
+   "title": "Intake & Outtake Improvements by 16460 GEarheads | #firsttechchallenge",
+   "estMb": 73,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "eLswY-s2nDo",
+   "durationSec": 31,
+   "title": "DECODE Robot in 30 Hours Day 2 | #firsttechchallenge",
+   "estMb": 3,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "c2w7u7a0qM0",
+   "durationSec": 2601,
+   "title": "Day 1 Recap | 9 FTC DECODE Robots | Robot in 30 Hours | #firsttechchallenge",
+   "estMb": 434,
+   "keep": true,
+   "kind": "override",
+   "reason": "multi-robot showcase"
+  },
+  {
+   "videoId": "_PA_C0U-QC8",
+   "durationSec": 29,
+   "title": "Claw intake for DECODE | #firsttechchallenge",
+   "estMb": 3,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "BBFWpYKiKVo",
+   "durationSec": 265,
+   "title": "Intake and Hopper Prototype from 16460 GEarheads",
+   "estMb": 57,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "hqrj-tnYsOA",
+   "durationSec": 32,
+   "title": "FTC DECODE Shooting and Intake Prototypes | #firsttechchallenge",
+   "estMb": 3,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "E784vkpJK-g",
+   "durationSec": 387,
+   "title": "DECODE Shooting and Intake Prototypes | #firsttechchallenge",
+   "estMb": 84,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "-G97dvQ97dg",
+   "durationSec": 18,
+   "title": "DECODE Artifact Strange Interaction | #firsttechchallenge",
+   "estMb": 2,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "JhGftT1k2g0",
+   "durationSec": 527,
+   "title": "DECODE Artifact Game Piece Scoring Behavior | #firsttechchallenge",
+   "estMb": 114,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "4Gmfqk-p6yY",
+   "durationSec": 89,
+   "title": "Robot in 30 Hours | Studica Parts Unboxing | #firsttechchallenge",
+   "estMb": 8,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "1XRmvpAdQrM",
+   "durationSec": 90,
+   "title": "FTC DECODE Reactions | Ri30H | #firsttechchallenge",
+   "estMb": 8,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  },
+  {
+   "videoId": "YEhCZJgFCcE",
+   "durationSec": 545,
+   "title": "DECODE Essential Resources for FTC Teams | #firsttechchallenge",
+   "estMb": 118,
+   "keep": true,
+   "kind": "unclassified-short",
+   "reason": "short & unclassified"
+  }
+ ]
+}
