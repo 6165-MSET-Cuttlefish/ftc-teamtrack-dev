@@ -22,3 +22,11 @@ export {
 } from './sessionPersistence';
 export { generateShareableLink, copyToClipboard } from './shareService';
 export { sanitizeHtml } from './sanitize';
+export { buildSessionsCsv, downloadSessionsCsv } from './csvExport';
+export {
+  SORT_LABELS,
+  sessionComparators,
+  filterAndSortSessions,
+  bestScore,
+} from './sessionFilters';
+export type { SortOption, SessionListOptions } from './sessionFilters';

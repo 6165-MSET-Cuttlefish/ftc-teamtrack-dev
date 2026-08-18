@@ -2,12 +2,17 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { generateShareableLink, copyToClipboard, sanitizeHtml } from '@/lib';
+import {
+  generateShareableLink,
+  copyToClipboard,
+  sanitizeHtml,
+  downloadSessionsCsv,
+} from '@/lib';
 import { APP_CONFIG, STORAGE_KEYS } from '@/constants';
-import type { Match } from '@/types';
+import type { Match, Session, TimestampValue } from '@/types';
 import { MatchForm } from '@/components';
 import { toast } from 'sonner';
-import { BarChart3, Plus, Link2, Check, Loader2 } from 'lucide-react';
+import { BarChart3, Plus, Link2, Check, Loader2, Download } from 'lucide-react';
 import {
   SummaryTab,
   MatchDetailTab,
@@ -33,6 +38,15 @@ const Analysis = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCopyingLink, setIsCopyingLink] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  /**
+   * sessionData is form-shaped and drops createdAt/userEmail, but the CSV
+   * export needs them — otherwise every exported row is stamped with today's
+   * date instead of when the session actually happened.
+   */
+  const [sessionMeta, setSessionMeta] = useState<{
+    createdAt?: TimestampValue;
+    userEmail?: string;
+  }>({});
 
   useEffect(() => {
     document.title = `Analysis - ${APP_CONFIG.name}`;
@@ -89,9 +103,7 @@ const Analysis = () => {
               teleopScore: sum(m => m.teleopScore || 0),
               endGameScore: sum(m => m.endGameScore || 0),
               isSessionCompleted: true,
-              autonClassifiedArtifact: sum(
-                m => m.autonClassifiedArtifact || 0
-              ),
+              autonClassifiedArtifact: sum(m => m.autonClassifiedArtifact || 0),
               autonOverflowArtifact: sum(m => m.autonOverflowArtifact || 0),
               autonMotif: sum(m => m.autonMotif || 0),
               autonLeave: sum(m => m.autonLeave || 0),
@@ -110,6 +122,10 @@ const Analysis = () => {
               matches: session.matches || [],
               gateBallCount: 0,
             });
+            setSessionMeta({
+              createdAt: session.createdAt,
+              userEmail: session.userEmail,
+            });
           }
         } catch (error) {
           if (mounted && (error as Error)?.name !== 'AbortError') {
@@ -127,6 +143,31 @@ const Analysis = () => {
       mounted = false;
     };
   }, [searchParams, location.state, user?.uid]);
+
+  /** Export just this session, reusing the same CSV shape as the list page. */
+  const handleExportSession = () => {
+    if (sessionMatches.length === 0) {
+      toast.error('No matches to export');
+      return;
+    }
+
+    const session = {
+      id: searchParams.get('sessionId') ?? '',
+      userId: '',
+      userEmail: sessionMeta.userEmail,
+      sessionName: sessionData.sessionName || 'Untitled Session',
+      matchType: sessionData.matchType,
+      sessionDuration: sessionData.sessionDuration,
+      createdAt: sessionMeta.createdAt ?? new Date(),
+      notes: sessionData.notes,
+      matches: sessionMatches,
+    } satisfies Session;
+
+    downloadSessionsCsv([session], session.sessionName);
+    toast.success(
+      `Exported ${sessionMatches.length} match${sessionMatches.length === 1 ? '' : 'es'} to CSV`
+    );
+  };
 
   const handleCopyLink = useCallback(async () => {
     if (!sessionData) return;
@@ -169,7 +210,9 @@ const Analysis = () => {
       toast.success('Share link copied to clipboard!');
       setTimeout(() => setLinkCopied(false), 2500);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to generate share link');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to generate share link'
+      );
     } finally {
       setIsCopyingLink(false);
     }
@@ -200,7 +243,10 @@ const Analysis = () => {
         const updated = stored.map((s: { id: string; matches?: Match[] }) =>
           s.id === sessionId ? { ...s, matches: updatedMatches } : s
         );
-        localStorage.setItem(STORAGE_KEYS.GUEST_SESSIONS, JSON.stringify(updated));
+        localStorage.setItem(
+          STORAGE_KEYS.GUEST_SESSIONS,
+          JSON.stringify(updated)
+        );
       } else {
         await firebaseService.updateSession(sessionId, {
           matches: updatedMatches,
@@ -266,7 +312,10 @@ const Analysis = () => {
         const updated = stored.map((s: { id: string; matches?: Match[] }) =>
           s.id === sessionId ? { ...s, matches: updatedMatches } : s
         );
-        localStorage.setItem(STORAGE_KEYS.GUEST_SESSIONS, JSON.stringify(updated));
+        localStorage.setItem(
+          STORAGE_KEYS.GUEST_SESSIONS,
+          JSON.stringify(updated)
+        );
       } else {
         await firebaseService.updateSession(sessionId, {
           matches: updatedMatches,
@@ -326,28 +375,42 @@ const Analysis = () => {
           </div>
 
           {sessionMatches.length > 0 && (
-            <button
-              onClick={handleCopyLink}
-              disabled={isCopyingLink}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shrink-0 ${
-                linkCopied
-                  ? isDarkMode
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                    : 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                  : isDarkMode
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <button
+                onClick={handleCopyLink}
+                disabled={isCopyingLink}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shrink-0 ${
+                  linkCopied
+                    ? isDarkMode
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                      : 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                    : isDarkMode
+                      ? 'border-team-blue-40 bg-team-dark-20 text-team-white-60 hover:text-white hover:border-team-blue'
+                      : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-team-blue'
+                }`}
+              >
+                {isCopyingLink ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : linkCopied ? (
+                  <Check size={15} />
+                ) : (
+                  <Link2 size={15} />
+                )}
+                {linkCopied ? 'Copied!' : 'Copy Share Link'}
+              </button>
+              <button
+                onClick={handleExportSession}
+                title="Export this session's matches as CSV"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shrink-0 ${
+                  isDarkMode
                     ? 'border-team-blue-40 bg-team-dark-20 text-team-white-60 hover:text-white hover:border-team-blue'
                     : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-team-blue'
-              }`}
-            >
-              {isCopyingLink ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : linkCopied ? (
-                <Check size={15} />
-              ) : (
-                <Link2 size={15} />
-              )}
-              {linkCopied ? 'Copied!' : 'Copy Share Link'}
-            </button>
+                }`}
+              >
+                <Download size={15} />
+                Export CSV
+              </button>
+            </div>
           )}
         </div>
 
@@ -394,7 +457,9 @@ const Analysis = () => {
             </h3>
             <div
               className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(sessionData.notes) }}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeHtml(sessionData.notes),
+              }}
             />
           </div>
         )}
@@ -446,10 +511,7 @@ const Analysis = () => {
                 />
               )}
               {activeTab === 'compare' && (
-                <CompareTab
-                  matches={sessionMatches}
-                  isDarkMode={isDarkMode}
-                />
+                <CompareTab matches={sessionMatches} isDarkMode={isDarkMode} />
               )}
             </div>
           </>

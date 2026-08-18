@@ -3,16 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { TeamManager } from '@/components';
-import { formatDate, isAbortError, generateShareableLink, copyToClipboard, logger } from '@/lib';
+import {
+  formatDate,
+  isAbortError,
+  generateShareableLink,
+  copyToClipboard,
+  logger,
+  downloadSessionsCsv,
+  filterAndSortSessions,
+  SORT_LABELS,
+} from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
+import type { SortOption } from '@/lib';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Tooltip,
@@ -39,6 +44,9 @@ import {
   TrendingUp,
   Hash,
   Share2,
+  ArrowUpDown,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -48,6 +56,7 @@ interface SessionCardProps {
   onNameChange: (newName: string) => void;
   onDelete: () => void;
   onShare: () => void;
+  onToggleArchive: () => void;
   isDeleting?: boolean;
   ownerName?: string;
 }
@@ -58,6 +67,7 @@ const SessionCard = ({
   onNameChange,
   onDelete,
   onShare,
+  onToggleArchive,
   isDeleting = false,
   ownerName,
 }: SessionCardProps) => {
@@ -71,7 +81,8 @@ const SessionCard = ({
 
   useEffect(() => {
     if (titleRef.current && !isEditing) {
-      const isTruncated = titleRef.current.scrollHeight > titleRef.current.clientHeight;
+      const isTruncated =
+        titleRef.current.scrollHeight > titleRef.current.clientHeight;
       setIsTitleTruncated(isTruncated);
     } else {
       setIsTitleTruncated(false);
@@ -80,7 +91,10 @@ const SessionCard = ({
 
   useEffect(() => {
     if (deleteConfirm) {
-      const timeout = setTimeout(() => setDeleteConfirm(false), UI_TIMING.DELETE_CONFIRM_TIMEOUT);
+      const timeout = setTimeout(
+        () => setDeleteConfirm(false),
+        UI_TIMING.DELETE_CONFIRM_TIMEOUT
+      );
       return () => clearTimeout(timeout);
     }
   }, [deleteConfirm]);
@@ -125,21 +139,31 @@ const SessionCard = ({
 
   const getSessionScores = () => {
     const matches = session.matches || [];
-    const scores = matches
-      .map(match => match.finalScore || 0);
-    
+    const scores = matches.map(match => match.finalScore || 0);
+
     if (scores.length === 0) {
-      return { highestScore: 0, averageScore: 0, totalScore: 0, matchCount: matches.length };
+      return {
+        highestScore: 0,
+        averageScore: 0,
+        totalScore: 0,
+        matchCount: matches.length,
+      };
     }
 
     const totalScore = scores.reduce((a, b) => a + b, 0);
     const highestScore = Math.max(...scores);
     const averageScore = Math.round(totalScore / scores.length);
-    
-    return { highestScore, averageScore, totalScore, matchCount: matches.length };
+
+    return {
+      highestScore,
+      averageScore,
+      totalScore,
+      matchCount: matches.length,
+    };
   };
 
-  const { highestScore, averageScore, totalScore, matchCount } = getSessionScores();
+  const { highestScore, averageScore, totalScore, matchCount } =
+    getSessionScores();
 
   const cardContent = (
     <Card
@@ -194,7 +218,7 @@ const SessionCard = ({
                 ) : (
                   <>
                     <button
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         onShare();
                       }}
@@ -204,6 +228,27 @@ const SessionCard = ({
                       title="Share session"
                     >
                       <Share2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        onToggleArchive();
+                      }}
+                      className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                      } hover:text-team-blue`}
+                      title={
+                        session.archived ? 'Restore session' : 'Archive session'
+                      }
+                      aria-label={
+                        session.archived ? 'Restore session' : 'Archive session'
+                      }
+                    >
+                      {session.archived ? (
+                        <ArchiveRestore className="h-4 w-4" />
+                      ) : (
+                        <Archive className="h-4 w-4" />
+                      )}
                     </button>
                     <button
                       onClick={handleEditClick}
@@ -243,7 +288,9 @@ const SessionCard = ({
                         <button
                           onClick={handleDeleteCancel}
                           className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                            isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                            isDarkMode
+                              ? 'text-team-white-60'
+                              : 'text-team-blue-40'
                           }`}
                           title="Cancel delete"
                         >
@@ -271,7 +318,11 @@ const SessionCard = ({
           <span>{formatDate(session.createdAt)}</span>
           {ownerName && (
             <>
-              <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>·</span>
+              <span
+                className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
+                ·
+              </span>
               <span>{ownerName}</span>
             </>
           )}
@@ -359,9 +410,7 @@ const SessionCard = ({
   if (isTitleTruncated) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>
-          {cardContent}
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{cardContent}</TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs break-words">
           {session.sessionName || 'Untitled Session'}
         </TooltipContent>
@@ -410,8 +459,12 @@ const Sessions = () => {
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     document.title = `Sessions - ${APP_CONFIG.name}`;
@@ -457,17 +510,22 @@ const Sessions = () => {
     firebaseService
       .subscribeTeamSessions(
         team.id,
-        (teamSessions) => {
+        teamSessions => {
           subscribed = true;
           setSessions(teamSessions);
           setFilteredSessions(teamSessions);
           setLoading(false);
         },
-        async (error) => {
-          logger.error('Team sessions listener error:', { error: String(error) });
+        async error => {
+          logger.error('Team sessions listener error:', {
+            error: String(error),
+          });
           const errorMessage = error?.message || 'Unknown error';
           if (errorMessage.includes('index')) {
-            toast.error('Firestore needs a composite index for team sessions. Check the browser console for the creation link.', { duration: 10000 });
+            toast.error(
+              'Firestore needs a composite index for team sessions. Check the browser console for the creation link.',
+              { duration: 10000 }
+            );
           } else {
             toast.error(`Team sync error: ${errorMessage}`);
           }
@@ -476,12 +534,14 @@ const Sessions = () => {
               const fetched = await firebaseService.getTeamSessions(team.id);
               setSessions(fetched);
               setFilteredSessions(fetched);
-            } catch { /* fallback fetch already attempted */ }
+            } catch {
+              /* fallback fetch already attempted */
+            }
           }
           setLoading(false);
         }
       )
-      .then((unsub) => {
+      .then(unsub => {
         unsubscribe = unsub;
       });
 
@@ -497,32 +557,28 @@ const Sessions = () => {
   }, [team, loadPersonalSessions]);
 
   useEffect(() => {
-    let filtered = sessions;
+    setFilteredSessions(
+      filterAndSortSessions(sessions, {
+        searchTerm,
+        matchType: selectedMatchType,
+        sortBy,
+        showArchived,
+      })
+    );
+  }, [searchTerm, sessions, selectedMatchType, sortBy, showArchived]);
 
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(
-        session =>
-          session.sessionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          session.matchType?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (selectedMatchType !== 'all') {
-      filtered = filtered.filter(
-        session => session.matchType?.toLowerCase() === selectedMatchType.toLowerCase()
-      );
-    }
-
-    setFilteredSessions(filtered);
-  }, [searchTerm, sessions, selectedMatchType]);
+  const archivedCount = sessions.filter(s => s.archived === true).length;
 
   const handleViewSession = (sessionId: string) => {
     navigate(`/analysis?sessionId=${sessionId}`);
   };
 
-  const handleUpdateSessionName = async (sessionId: string, newName: string) => {
+  const handleUpdateSessionName = async (
+    sessionId: string,
+    newName: string
+  ) => {
     const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
-    
+
     try {
       setSessions(prevSessions =>
         prevSessions.map(session =>
@@ -531,9 +587,11 @@ const Sessions = () => {
             : session
         )
       );
-      
-      const success = await firebaseService.updateSession(sessionId, { sessionName: newName });
-      
+
+      const success = await firebaseService.updateSession(sessionId, {
+        sessionName: newName,
+      });
+
       if (!success) {
         setSessions(prevSessions =>
           prevSessions.map(session =>
@@ -578,6 +636,32 @@ const Sessions = () => {
     }
   };
 
+  /**
+   * Archive / unarchive. Optimistic: flip it locally first so the card leaves
+   * the list immediately, and roll back if Firestore rejects the write.
+   *
+   * Note the Firestore rule only allows the session's owner to update it, so a
+   * teammate viewing a shared team session will get a failure here rather than
+   * a silent no-op — hence the explicit error toast.
+   */
+  const handleToggleArchive = async (sessionId: string, archived: boolean) => {
+    setSessions(prev =>
+      prev.map(s => (s.id === sessionId ? { ...s, archived } : s))
+    );
+
+    const ok = await firebaseService.updateSession(sessionId, { archived });
+
+    if (!ok) {
+      setSessions(prev =>
+        prev.map(s => (s.id === sessionId ? { ...s, archived: !archived } : s))
+      );
+      toast.error(`Failed to ${archived ? 'archive' : 'restore'} session`);
+      return;
+    }
+
+    toast.success(archived ? 'Session archived' : 'Session restored');
+  };
+
   const handleShareSession = async (session: Session) => {
     try {
       const shareLink = await generateShareableLink(session);
@@ -594,126 +678,22 @@ const Sessions = () => {
   const getSessionOwnerName = (session: Session): string | undefined => {
     if (!team) return undefined;
     const member = team.members.find(m => m.userId === session.userId);
-    return member?.displayName || member?.email || session.userEmail || undefined;
+    return (
+      member?.displayName || member?.email || session.userEmail || undefined
+    );
   };
 
   const handleExportCSV = () => {
-    if (sessions.length === 0) {
+    if (filteredSessions.length === 0) {
       toast.error('No sessions to export');
       return;
     }
-
-    const esc = (val: string) => {
-      let safe = val.replace(/"/g, '""').replace(/\n/g, ' ');
-      if (/^[=+\-@\t\r]/.test(safe)) {
-        safe = `'${safe}`;
-      }
-      return `"${safe}"`;
-    };
-    const headers = [
-      'Session Name',
-      'Session Date',
-      'Session Duration',
-      'Match Type',
-      'Match Number',
-      'Final Score',
-      'Autonomous Score',
-      'Teleop Score',
-      'Endgame Score',
-      'Auton Classified Artifact',
-      'Auton Overflow Artifact',
-      'Auton Motif',
-      'Auton Leave',
-      'Auton Balls Missed',
-      'Tele Classified Artifact',
-      'Tele Overflow Artifact',
-      'Tele Motif',
-      'Tele Balls Missed',
-      'Robot 1 Park',
-      'Robot 2 Park',
-      'Cycle Times',
-      'Auton Shots (Made/Shot)',
-      'Teleop Shots (Made/Shot)',
-      'Notes',
-      'User Email',
-    ];
-
-    const rows: string[][] = [];
-
-    for (const session of sessions) {
-      const sessionDate = esc(formatDate(session.createdAt));
-      const sessionName = esc(session.sessionName || 'Untitled Session');
-      const sessionDuration = esc(session.sessionDuration || '');
-      const matchType = esc(session.matchType || 'Full Game');
-      const notes = esc(session.notes || '');
-      const email = esc(session.userEmail || '');
-
-      if (!session.matches || session.matches.length === 0) {
-        rows.push([
-          sessionName, sessionDate, sessionDuration, matchType,
-          '0', '0', '0', '0', '0',
-          '0', '0', '0', '0', '0',
-          '0', '0', '0', '0',
-          '"none"', '"none"',
-          '""', '""', '""',
-          notes, email,
-        ]);
-      } else {
-        for (const match of session.matches) {
-          const cycleTimes = (match.cycleTimes || []).join('; ');
-          const autonShots = (match.autonShots || []).map(s => `${s.ballsMade}/${s.ballsShot}`).join('; ');
-          const teleopShots = (match.teleopShots || []).map(s => `${s.ballsMade}/${s.ballsShot}`).join('; ');
-
-          rows.push([
-            sessionName,
-            sessionDate,
-            sessionDuration,
-            esc(match.matchType || session.matchType || 'Full Game'),
-            String(match.matchNumber || 0),
-            String(match.finalScore || 0),
-            String(match.autonomousScore || 0),
-            String(match.teleopScore || 0),
-            String(match.endGameScore || 0),
-            String(match.autonClassifiedArtifact || 0),
-            String(match.autonOverflowArtifact || 0),
-            String(match.autonMotif || 0),
-            String(match.autonLeave || 0),
-            String(match.autonBallsMissed || 0),
-            String(match.teleClassifiedArtifact || 0),
-            String(match.teleOverflowArtifact || 0),
-            String(match.teleMotif || 0),
-            String(match.teleBallsMissed || 0),
-            esc(match.robot1Park || 'none'),
-            esc(match.robot2Park || 'none'),
-            esc(cycleTimes),
-            esc(autonShots),
-            esc(teleopShots),
-            notes,
-            email,
-          ]);
-        }
-      }
-    }
-
-    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute(
-      'download',
-      `sessions-export-${new Date().toISOString().split('T')[0]}.csv`
+    // Export what's on screen, not everything — otherwise the button silently
+    // contradicts the search/filter/archive state the user just set up.
+    downloadSessionsCsv(filteredSessions, 'sessions-export');
+    toast.success(
+      `Exported ${filteredSessions.length} session${filteredSessions.length === 1 ? '' : 's'} to CSV`
     );
-    link.style.visibility = 'hidden';
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast.success('Sessions exported to CSV');
   };
 
   return (
@@ -810,11 +790,14 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {(() => {
-                    const allScores = sessions.flatMap(s => 
+                    const allScores = sessions.flatMap(s =>
                       (s.matches || []).map(m => m.finalScore || 0)
                     );
-                    return allScores.length > 0 
-                      ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) 
+                    return allScores.length > 0
+                      ? Math.round(
+                          allScores.reduce((a, b) => a + b, 0) /
+                            allScores.length
+                        )
                       : 0;
                   })()}
                 </div>
@@ -829,7 +812,7 @@ const Sessions = () => {
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
                   {(() => {
-                    const allScores = sessions.flatMap(s => 
+                    const allScores = sessions.flatMap(s =>
                       (s.matches || []).map(m => m.finalScore || 0)
                     );
                     return allScores.length > 0 ? Math.max(...allScores) : 0;
@@ -845,9 +828,10 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {
-                    sessions.reduce((total, s) => total + (s.matches?.length || 0), 0)
-                  }
+                  {sessions.reduce(
+                    (total, s) => total + (s.matches?.length || 0),
+                    0
+                  )}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
@@ -898,6 +882,61 @@ const Sessions = () => {
                 <SelectItem value="teleop">Teleop</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={sortBy}
+              onValueChange={value => setSortBy(value as SortOption)}
+            >
+              <SelectTrigger
+                aria-label="Sort sessions"
+                className={`w-full sm:w-[180px] h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm border ${
+                  isDarkMode
+                    ? 'bg-team-dark border-team-blue-40 text-white'
+                    : 'bg-white border-gray-200 text-gray-900'
+                }`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <ArrowUpDown className="h-4 w-4 shrink-0 opacity-70" />
+                  <SelectValue placeholder="Sort" />
+                </div>
+              </SelectTrigger>
+              <SelectContent
+                className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
+              >
+                {(Object.keys(SORT_LABELS) as SortOption[]).map(option => (
+                  <SelectItem key={option} value={option}>
+                    {SORT_LABELS[option]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowArchived(prev => !prev)}
+              aria-pressed={showArchived}
+              title={
+                showArchived ? 'Show active sessions' : 'Show archived sessions'
+              }
+              className={`h-10 md:h-11 rounded-xl shadow-sm text-sm md:text-base px-3 flex items-center gap-2 shrink-0 ${
+                showArchived
+                  ? 'bg-team-blue/10 border-team-blue text-team-blue'
+                  : isDarkMode
+                    ? 'bg-team-dark border-team-blue-40 text-team-white-60'
+                    : 'bg-white border-gray-200 text-gray-600'
+              }`}
+            >
+              {showArchived ? (
+                <ArchiveRestore className="h-4 w-4" />
+              ) : (
+                <Archive className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">
+                {showArchived ? 'Archived' : 'Active'}
+              </span>
+              {archivedCount > 0 && !showArchived && (
+                <span className="text-xs opacity-70">({archivedCount})</span>
+              )}
+            </Button>
           </div>
         </div>
 
@@ -939,7 +978,11 @@ const Sessions = () => {
                   navigate(ROUTES.ACTIVE);
                 }}
                 disabled={hasActiveSession}
-                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
+                title={
+                  hasActiveSession
+                    ? 'Complete or cancel the active session first'
+                    : undefined
+                }
                 className={`bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -980,6 +1023,9 @@ const Sessions = () => {
                 }
                 onShare={() => handleShareSession(session)}
                 onDelete={() => handleDeleteSession(session.id)}
+                onToggleArchive={() =>
+                  handleToggleArchive(session.id, !session.archived)
+                }
                 isDeleting={deletingSessionId === session.id}
                 ownerName={getSessionOwnerName(session)}
               />

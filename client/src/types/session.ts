@@ -1,11 +1,7 @@
 import type { Timestamp } from 'firebase/firestore';
 
 /** Match phase during active gameplay */
-export type MatchPhase =
-  | 'auton'
-  | 'controller_pickup'
-  | 'teleop'
-  | 'ended';
+export type MatchPhase = 'auton' | 'controller_pickup' | 'teleop' | 'ended';
 
 /** Color options for 3-ball motif pattern */
 export type MotifColor = 'purple' | 'green' | 'empty';
@@ -121,6 +117,11 @@ export interface Session {
   createdAt: TimestampValue;
   selectedFeature?: string;
   notes?: string;
+  /**
+   * Archived sessions stay in Firestore but are hidden from the default list.
+   * Optional so existing documents (which predate this field) read as active.
+   */
+  archived?: boolean;
   matches: Match[];
 }
 
