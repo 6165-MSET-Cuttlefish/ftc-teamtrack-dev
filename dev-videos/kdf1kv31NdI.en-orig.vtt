@@ -1,0 +1,344 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.000 --> 00:00:01.870 align:start position:0%
+ 
+Hi,<00:00:00.440><c> my</c><00:00:00.640><c> name</c><00:00:00.800><c> is</c><00:00:00.920><c> Tanner</c><00:00:01.280><c> and</c><00:00:01.400><c> I'm</c><00:00:01.520><c> here</c><00:00:01.680><c> with</c>
+
+00:00:01.870 --> 00:00:01.880 align:start position:0%
+Hi, my name is Tanner and I'm here with
+ 
+
+00:00:01.880 --> 00:00:03.870 align:start position:0%
+Hi, my name is Tanner and I'm here with
+Elon<00:00:02.160><c> and</c><00:00:02.280><c> Eric</c><00:00:02.520><c> from</c><00:00:02.680><c> 12808</c><00:00:03.520><c> Revamped</c>
+
+00:00:03.870 --> 00:00:03.880 align:start position:0%
+Elon and Eric from 12808 Revamped
+ 
+
+00:00:03.880 --> 00:00:05.550 align:start position:0%
+Elon and Eric from 12808 Revamped
+Robotics<00:00:04.320><c> from</c><00:00:04.440><c> Portland,</c><00:00:04.800><c> Oregon.</c><00:00:05.480><c> We're</c>
+
+00:00:05.550 --> 00:00:05.560 align:start position:0%
+Robotics from Portland, Oregon. We're
+ 
+
+00:00:05.560 --> 00:00:07.150 align:start position:0%
+Robotics from Portland, Oregon. We're
+going<00:00:05.840><c> to</c><00:00:05.920><c> talk</c><00:00:06.160><c> about</c><00:00:06.400><c> our</c><00:00:06.520><c> passive</c><00:00:06.920><c> spin</c>
+
+00:00:07.150 --> 00:00:07.160 align:start position:0%
+going to talk about our passive spin
+ 
+
+00:00:07.160 --> 00:00:09.310 align:start position:0%
+going to talk about our passive spin
+indexer<00:00:07.480><c> sorting</c><00:00:07.880><c> system.</c><00:00:08.800><c> The</c><00:00:08.880><c> spin</c><00:00:09.080><c> indexer</c>
+
+00:00:09.310 --> 00:00:09.320 align:start position:0%
+indexer sorting system. The spin indexer
+ 
+
+00:00:09.320 --> 00:00:11.750 align:start position:0%
+indexer sorting system. The spin indexer
+base<00:00:09.600><c> itself</c><00:00:10.040><c> is</c><00:00:10.200><c> powered</c><00:00:10.480><c> by</c><00:00:10.640><c> two</c><00:00:11.040><c> Axon</c><00:00:11.480><c> Max</c>
+
+00:00:11.750 --> 00:00:11.760 align:start position:0%
+base itself is powered by two Axon Max
+ 
+
+00:00:11.760 --> 00:00:14.230 align:start position:0%
+base itself is powered by two Axon Max
+servos<00:00:12.160><c> geared</c><00:00:12.440><c> 3:1.</c><00:00:13.360><c> To</c><00:00:13.480><c> actually</c><00:00:13.840><c> transfer</c>
+
+00:00:14.230 --> 00:00:14.240 align:start position:0%
+servos geared 3:1. To actually transfer
+ 
+
+00:00:14.240 --> 00:00:16.190 align:start position:0%
+servos geared 3:1. To actually transfer
+artifacts<00:00:14.680><c> into</c><00:00:14.880><c> the</c><00:00:15.000><c> shooter,</c><00:00:15.600><c> we</c><00:00:15.720><c> have</c><00:00:15.960><c> this</c>
+
+00:00:16.190 --> 00:00:16.200 align:start position:0%
+artifacts into the shooter, we have this
+ 
+
+00:00:16.200 --> 00:00:18.030 align:start position:0%
+artifacts into the shooter, we have this
+pool<00:00:16.520><c> on</c><00:00:16.640><c> the</c><00:00:16.760><c> side</c><00:00:17.040><c> of</c><00:00:17.120><c> the</c><00:00:17.240><c> robot</c><00:00:17.600><c> mounted</c><00:00:17.920><c> to</c>
+
+00:00:18.030 --> 00:00:18.040 align:start position:0%
+pool on the side of the robot mounted to
+ 
+
+00:00:18.040 --> 00:00:20.110 align:start position:0%
+pool on the side of the robot mounted to
+an<00:00:18.200><c> Axon</c><00:00:18.640><c> Mini</c><00:00:19.080><c> which</c><00:00:19.280><c> pulls</c><00:00:19.560><c> on</c><00:00:19.680><c> a</c><00:00:19.720><c> string</c><00:00:20.040><c> to</c>
+
+00:00:20.110 --> 00:00:20.120 align:start position:0%
+an Axon Mini which pulls on a string to
+ 
+
+00:00:20.120 --> 00:00:22.070 align:start position:0%
+an Axon Mini which pulls on a string to
+move<00:00:20.360><c> the</c><00:00:20.480><c> MGN</c><00:00:20.880><c> carriage</c><00:00:21.320><c> in</c><00:00:21.560><c> and</c><00:00:21.760><c> out</c><00:00:21.920><c> of</c><00:00:22.000><c> the</c>
+
+00:00:22.070 --> 00:00:22.080 align:start position:0%
+move the MGN carriage in and out of the
+ 
+
+00:00:22.080 --> 00:00:23.830 align:start position:0%
+move the MGN carriage in and out of the
+spin<00:00:22.320><c> indexer.</c><00:00:23.000><c> The</c><00:00:23.120><c> carriage</c><00:00:23.400><c> has</c><00:00:23.560><c> a</c><00:00:23.600><c> hard</c>
+
+00:00:23.830 --> 00:00:23.840 align:start position:0%
+spin indexer. The carriage has a hard
+ 
+
+00:00:23.840 --> 00:00:25.510 align:start position:0%
+spin indexer. The carriage has a hard
+stop<00:00:24.040><c> mounted</c><00:00:24.360><c> to</c><00:00:24.480><c> it</c><00:00:24.880><c> which</c><00:00:25.040><c> is</c><00:00:25.160><c> just</c><00:00:25.400><c> a</c>
+
+00:00:25.510 --> 00:00:25.520 align:start position:0%
+stop mounted to it which is just a
+ 
+
+00:00:25.520 --> 00:00:27.070 align:start position:0%
+stop mounted to it which is just a
+printed<00:00:25.920><c> piece</c><00:00:26.160><c> that</c><00:00:26.320><c> gives</c><00:00:26.520><c> the</c><00:00:26.640><c> artifacts</c>
+
+00:00:27.070 --> 00:00:27.080 align:start position:0%
+printed piece that gives the artifacts
+ 
+
+00:00:27.080 --> 00:00:28.790 align:start position:0%
+printed piece that gives the artifacts
+something<00:00:27.320><c> to</c><00:00:27.440><c> push</c><00:00:27.600><c> against.</c><00:00:28.320><c> We</c><00:00:28.440><c> also</c><00:00:28.680><c> have</c>
+
+00:00:28.790 --> 00:00:28.800 align:start position:0%
+something to push against. We also have
+ 
+
+00:00:28.800 --> 00:00:30.670 align:start position:0%
+something to push against. We also have
+an<00:00:28.920><c> intake</c><00:00:29.240><c> gate</c><00:00:29.520><c> that</c><00:00:29.640><c> closes</c><00:00:30.120><c> to</c><00:00:30.240><c> stop</c><00:00:30.480><c> the</c>
+
+00:00:30.670 --> 00:00:30.680 align:start position:0%
+an intake gate that closes to stop the
+ 
+
+00:00:30.680 --> 00:00:32.310 align:start position:0%
+an intake gate that closes to stop the
+artifacts<00:00:31.160><c> from</c><00:00:31.280><c> trying</c><00:00:31.520><c> to</c><00:00:31.640><c> push</c><00:00:31.880><c> back</c><00:00:32.200><c> out</c>
+
+00:00:32.310 --> 00:00:32.320 align:start position:0%
+artifacts from trying to push back out
+ 
+
+00:00:32.320 --> 00:00:34.350 align:start position:0%
+artifacts from trying to push back out
+of<00:00:32.400><c> the</c><00:00:32.520><c> intake.</c><00:00:33.240><c> To</c><00:00:33.360><c> transfer</c><00:00:33.800><c> the</c><00:00:33.920><c> artifacts</c>
+
+00:00:34.350 --> 00:00:34.360 align:start position:0%
+of the intake. To transfer the artifacts
+ 
+
+00:00:34.360 --> 00:00:35.870 align:start position:0%
+of the intake. To transfer the artifacts
+into<00:00:34.560><c> the</c><00:00:34.640><c> shooter,</c><00:00:35.080><c> each</c><00:00:35.280><c> artifact</c><00:00:35.680><c> has</c><00:00:35.800><c> a</c>
+
+00:00:35.870 --> 00:00:35.880 align:start position:0%
+into the shooter, each artifact has a
+ 
+
+00:00:35.880 --> 00:00:37.510 align:start position:0%
+into the shooter, each artifact has a
+ramp<00:00:36.160><c> behind</c><00:00:36.520><c> it</c><00:00:36.640><c> that</c><00:00:36.760><c> pushes</c><00:00:37.120><c> it</c><00:00:37.240><c> against</c>
+
+00:00:37.510 --> 00:00:37.520 align:start position:0%
+ramp behind it that pushes it against
+ 
+
+00:00:37.520 --> 00:00:39.310 align:start position:0%
+ramp behind it that pushes it against
+the<00:00:37.600><c> hard</c><00:00:37.800><c> stops</c><00:00:38.320><c> and</c><00:00:38.440><c> eventually</c><00:00:38.880><c> forces</c><00:00:39.200><c> it</c>
+
+00:00:39.310 --> 00:00:39.320 align:start position:0%
+the hard stops and eventually forces it
+ 
+
+00:00:39.320 --> 00:00:40.600 align:start position:0%
+the hard stops and eventually forces it
+vertically<00:00:39.760><c> into</c><00:00:39.960><c> the</c><00:00:40.080><c> shooter.</c>
+
+00:00:40.600 --> 00:00:40.610 align:start position:0%
+vertically into the shooter.
+ 
+
+00:00:40.610 --> 00:00:40.750 align:start position:0%
+vertically into the shooter.
+&gt;&gt; [music]
+
+00:00:40.750 --> 00:00:40.760 align:start position:0%
+&gt;&gt; [music]
+ 
+
+00:00:40.760 --> 00:00:41.910 align:start position:0%
+&gt;&gt; [music]
+&gt;&gt; So,<00:00:40.880><c> now</c><00:00:41.080><c> we</c><00:00:41.200><c> will</c><00:00:41.320><c> show</c><00:00:41.440><c> you</c><00:00:41.560><c> how</c><00:00:41.640><c> it</c><00:00:41.720><c> works</c>
+
+00:00:41.910 --> 00:00:41.920 align:start position:0%
+&gt;&gt; So, now we will show you how it works
+ 
+
+00:00:41.920 --> 00:00:44.230 align:start position:0%
+&gt;&gt; So, now we will show you how it works
+all<00:00:42.040><c> together.</c><00:00:43.040><c> First,</c><00:00:43.400><c> the</c><00:00:43.520><c> three</c><00:00:43.760><c> artifacts</c>
+
+00:00:44.230 --> 00:00:44.240 align:start position:0%
+all together. First, the three artifacts
+ 
+
+00:00:44.240 --> 00:00:46.510 align:start position:0%
+all together. First, the three artifacts
+arrange<00:00:44.640><c> in</c><00:00:44.840><c> each</c><00:00:45.600><c> section</c><00:00:46.080><c> of</c><00:00:46.240><c> the</c><00:00:46.320><c> spin</c>
+
+00:00:46.510 --> 00:00:46.520 align:start position:0%
+arrange in each section of the spin
+ 
+
+00:00:46.520 --> 00:00:48.430 align:start position:0%
+arrange in each section of the spin
+indexer,<00:00:47.200><c> then</c><00:00:47.360><c> the</c><00:00:47.440><c> hard</c><00:00:47.640><c> stop</c><00:00:47.880><c> is</c><00:00:48.000><c> pulled</c><00:00:48.280><c> in</c>
+
+00:00:48.430 --> 00:00:48.440 align:start position:0%
+indexer, then the hard stop is pulled in
+ 
+
+00:00:48.440 --> 00:00:49.950 align:start position:0%
+indexer, then the hard stop is pulled in
+and<00:00:48.560><c> the</c><00:00:48.680><c> intake</c><00:00:49.000><c> gate</c><00:00:49.200><c> closes</c><00:00:49.560><c> behind</c><00:00:49.880><c> the</c>
+
+00:00:49.950 --> 00:00:49.960 align:start position:0%
+and the intake gate closes behind the
+ 
+
+00:00:49.960 --> 00:00:52.270 align:start position:0%
+and the intake gate closes behind the
+first<00:00:50.440><c> artifact.</c><00:00:51.240><c> For</c><00:00:51.360><c> sorting,</c><00:00:51.760><c> all</c><00:00:51.880><c> we</c><00:00:52.000><c> do</c>
+
+00:00:52.270 --> 00:00:52.280 align:start position:0%
+first artifact. For sorting, all we do
+ 
+
+00:00:52.280 --> 00:00:54.150 align:start position:0%
+first artifact. For sorting, all we do
+is<00:00:52.480><c> rotate</c><00:00:52.840><c> the</c><00:00:52.920><c> spin</c><00:00:53.120><c> indexer</c><00:00:53.360><c> 1/3</c><00:00:53.760><c> in</c><00:00:53.920><c> either</c>
+
+00:00:54.150 --> 00:00:54.160 align:start position:0%
+is rotate the spin indexer 1/3 in either
+ 
+
+00:00:54.160 --> 00:00:55.670 align:start position:0%
+is rotate the spin indexer 1/3 in either
+direction<00:00:54.560><c> before</c><00:00:54.840><c> we</c><00:00:54.960><c> put</c><00:00:55.120><c> the</c><00:00:55.200><c> hard</c><00:00:55.400><c> stop</c>
+
+00:00:55.670 --> 00:00:55.680 align:start position:0%
+direction before we put the hard stop
+ 
+
+00:00:55.680 --> 00:00:57.710 align:start position:0%
+direction before we put the hard stop
+in.<00:00:56.360><c> And</c><00:00:56.480><c> then</c><00:00:56.680><c> once</c><00:00:56.880><c> we</c><00:00:57.000><c> are</c><00:00:57.080><c> ready</c><00:00:57.280><c> to</c><00:00:57.400><c> shoot,</c>
+
+00:00:57.710 --> 00:00:57.720 align:start position:0%
+in. And then once we are ready to shoot,
+ 
+
+00:00:57.720 --> 00:00:59.110 align:start position:0%
+in. And then once we are ready to shoot,
+all<00:00:57.840><c> we</c><00:00:57.920><c> need</c><00:00:58.080><c> to</c><00:00:58.160><c> do</c><00:00:58.360><c> is</c><00:00:58.520><c> rotate</c><00:00:58.840><c> the</c><00:00:58.920><c> spin</c>
+
+00:00:59.110 --> 00:00:59.120 align:start position:0%
+all we need to do is rotate the spin
+ 
+
+00:00:59.120 --> 00:01:00.950 align:start position:0%
+all we need to do is rotate the spin
+indexer<00:00:59.440><c> once</c><00:01:00.000><c> and</c><00:01:00.120><c> all</c><00:01:00.280><c> three</c><00:01:00.480><c> artifacts</c><00:01:00.880><c> are</c>
+
+00:01:00.950 --> 00:01:00.960 align:start position:0%
+indexer once and all three artifacts are
+ 
+
+00:01:00.960 --> 00:01:03.150 align:start position:0%
+indexer once and all three artifacts are
+shot<00:01:01.200><c> in</c><00:01:01.280><c> around</c><00:01:01.600><c> 0.25</c><00:01:02.280><c> seconds.</c><00:01:03.000><c> That</c>
+
+00:01:03.150 --> 00:01:03.160 align:start position:0%
+shot in around 0.25 seconds. That
+ 
+
+00:01:03.160 --> 00:01:04.950 align:start position:0%
+shot in around 0.25 seconds. That
+basically<00:01:03.560><c> explains</c><00:01:03.920><c> our</c><00:01:04.000><c> sorting</c><00:01:04.320><c> system.</c>
+
+00:01:04.950 --> 00:01:04.960 align:start position:0%
+basically explains our sorting system.
+ 
+
+00:01:04.960 --> 00:01:07.110 align:start position:0%
+basically explains our sorting system.
+Thanks<00:01:05.199><c> for</c><00:01:05.360><c> watching.</c>
+
+00:01:07.110 --> 00:01:07.120 align:start position:0%
+Thanks for watching.
+ 
+
+00:01:07.120 --> 00:01:08.870 align:start position:0%
+Thanks for watching.
+Build<00:01:07.440><c> your</c><00:01:07.600><c> alliance</c><00:01:08.040><c> with</c><00:01:08.200><c> so</c><00:01:08.400><c> many</c><00:01:08.640><c> other</c>
+
+00:01:08.870 --> 00:01:08.880 align:start position:0%
+Build your alliance with so many other
+ 
+
+00:01:08.880 --> 00:01:10.390 align:start position:0%
+Build your alliance with so many other
+FIRST<00:01:09.160><c> alumni</c><00:01:09.600><c> who</c><00:01:09.760><c> go</c><00:01:09.880><c> to</c><00:01:10.000><c> Kettering</c>
+
+00:01:10.390 --> 00:01:10.400 align:start position:0%
+FIRST alumni who go to Kettering
+ 
+
+00:01:10.400 --> 00:01:11.710 align:start position:0%
+FIRST alumni who go to Kettering
+University.<00:01:11.200><c> Head</c><00:01:11.360><c> on</c><00:01:11.480><c> over</c><00:01:11.600><c> to</c>
+
+00:01:11.710 --> 00:01:11.720 align:start position:0%
+University. Head on over to
+ 
+
+00:01:11.720 --> 00:01:13.790 align:start position:0%
+University. Head on over to
+kettering.edu/first<00:01:13.160><c> to</c><00:01:13.280><c> learn</c><00:01:13.480><c> more</c><00:01:13.600><c> about</c>
+
+00:01:13.790 --> 00:01:13.800 align:start position:0%
+kettering.edu/first to learn more about
+ 
+
+00:01:13.800 --> 00:01:15.190 align:start position:0%
+kettering.edu/first to learn more about
+their<00:01:13.920><c> incredible</c><00:01:14.320><c> programs</c><00:01:14.880><c> and</c><00:01:14.960><c> to</c><00:01:15.040><c> get</c>
+
+00:01:15.190 --> 00:01:15.200 align:start position:0%
+their incredible programs and to get
+ 
+
+00:01:15.200 --> 00:01:18.080 align:start position:0%
+their incredible programs and to get
+more<00:01:15.360><c> information.</c>
+

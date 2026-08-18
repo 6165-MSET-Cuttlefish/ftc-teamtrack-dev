@@ -11,6 +11,15 @@
 # Auto-generated transcode cache (see vite.config dev-videos plugin).
 _transcoded/
 
+# yt-dlp download-state archives — purely local bookkeeping.
+.dl-archive-*
+
+# Transcripts (.vtt) ARE tracked on purpose. They're small (~33 MB), static,
+# and the raw material for segmenting long videos — a teammate can work on that
+# without re-downloading 25 GB. They were also the only artifact to survive an
+# ignored-file cleanup that deleted every .mp4 here, which is the argument for
+# keeping them in git rather than relying on them being re-fetchable.
+
 # Keep the captions and docs tracked.
 !captions.json
 !README.md

@@ -1,0 +1,264 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.000 --> 00:00:03.030 align:start position:0%
+ 
+My<00:00:00.240><c> name</c><00:00:00.440><c> is</c><00:00:00.560><c> Adey</c><00:00:00.840><c> Raj.</c><00:00:01.200><c> I'm</c><00:00:01.440><c> from</c><00:00:01.680><c> team</c><00:00:01.960><c> 9879</c>
+
+00:00:03.030 --> 00:00:03.040 align:start position:0%
+My name is Adey Raj. I'm from team 9879
+ 
+
+00:00:03.040 --> 00:00:04.790 align:start position:0%
+My name is Adey Raj. I'm from team 9879
+root<00:00:03.240><c> negative</c><00:00:03.560><c> one</c><00:00:04.080><c> and</c><00:00:04.200><c> today</c><00:00:04.440><c> I</c><00:00:04.480><c> would</c><00:00:04.600><c> like</c>
+
+00:00:04.790 --> 00:00:04.800 align:start position:0%
+root negative one and today I would like
+ 
+
+00:00:04.800 --> 00:00:06.470 align:start position:0%
+root negative one and today I would like
+to<00:00:04.880><c> talk</c><00:00:05.120><c> about</c><00:00:05.440><c> how</c><00:00:05.560><c> we</c><00:00:05.800><c> integrate</c><00:00:06.360><c> our</c>
+
+00:00:06.470 --> 00:00:06.480 align:start position:0%
+to talk about how we integrate our
+ 
+
+00:00:06.480 --> 00:00:08.630 align:start position:0%
+to talk about how we integrate our
+mechanical<00:00:07.040><c> systems</c><00:00:07.880><c> with</c><00:00:08.120><c> our</c><00:00:08.240><c> control</c>
+
+00:00:08.630 --> 00:00:08.640 align:start position:0%
+mechanical systems with our control
+ 
+
+00:00:08.640 --> 00:00:10.910 align:start position:0%
+mechanical systems with our control
+systems<00:00:09.440><c> and</c><00:00:09.560><c> this</c><00:00:09.680><c> is</c><00:00:09.800><c> exemplified</c><00:00:10.600><c> by</c><00:00:10.760><c> our</c>
+
+00:00:10.910 --> 00:00:10.920 align:start position:0%
+systems and this is exemplified by our
+ 
+
+00:00:10.920 --> 00:00:13.670 align:start position:0%
+systems and this is exemplified by our
+launcher.<00:00:11.840><c> So</c><00:00:12.080><c> our</c><00:00:12.280><c> launcher</c><00:00:12.800><c> is</c><00:00:12.960><c> situated</c><00:00:13.560><c> on</c>
+
+00:00:13.670 --> 00:00:13.680 align:start position:0%
+launcher. So our launcher is situated on
+ 
+
+00:00:13.680 --> 00:00:15.870 align:start position:0%
+launcher. So our launcher is situated on
+a<00:00:13.760><c> 300</c><00:00:14.240><c> degree</c><00:00:14.560><c> turret</c><00:00:15.200><c> which</c><00:00:15.360><c> is</c><00:00:15.480><c> a</c><00:00:15.520><c> lazy</c>
+
+00:00:15.870 --> 00:00:15.880 align:start position:0%
+a 300 degree turret which is a lazy
+ 
+
+00:00:15.880 --> 00:00:18.390 align:start position:0%
+a 300 degree turret which is a lazy
+Susan<00:00:16.240><c> bearing</c><00:00:16.960><c> and</c><00:00:17.080><c> we</c><00:00:17.200><c> can</c><00:00:17.520><c> adjust</c><00:00:17.960><c> our</c><00:00:18.120><c> hood</c>
+
+00:00:18.390 --> 00:00:18.400 align:start position:0%
+Susan bearing and we can adjust our hood
+ 
+
+00:00:18.400 --> 00:00:21.270 align:start position:0%
+Susan bearing and we can adjust our hood
+angle<00:00:19.040><c> using</c><00:00:19.320><c> these</c><00:00:19.520><c> two</c><00:00:19.680><c> axon</c><00:00:20.120><c> max</c><00:00:20.440><c> servos</c>
+
+00:00:21.270 --> 00:00:21.280 align:start position:0%
+angle using these two axon max servos
+ 
+
+00:00:21.280 --> 00:00:23.430 align:start position:0%
+angle using these two axon max servos
+and<00:00:21.480><c> we</c><00:00:21.560><c> can</c><00:00:21.720><c> adjust</c><00:00:22.040><c> flywheel</c><00:00:22.520><c> speed</c><00:00:23.080><c> using</c>
+
+00:00:23.430 --> 00:00:23.440 align:start position:0%
+and we can adjust flywheel speed using
+ 
+
+00:00:23.440 --> 00:00:26.830 align:start position:0%
+and we can adjust flywheel speed using
+our<00:00:23.560><c> two</c><00:00:24.120><c> go</c><00:00:24.320><c> builder</c><00:00:24.720><c> 6000</c><00:00:25.280><c> rpm</c><00:00:25.720><c> motors.</c><00:00:26.600><c> Adey</c>
+
+00:00:26.830 --> 00:00:26.840 align:start position:0%
+our two go builder 6000 rpm motors. Adey
+ 
+
+00:00:26.840 --> 00:00:28.910 align:start position:0%
+our two go builder 6000 rpm motors. Adey
+will<00:00:27.160><c> now</c><00:00:27.400><c> talk</c><00:00:27.680><c> about</c><00:00:28.000><c> the</c><00:00:28.080><c> control</c><00:00:28.480><c> systems</c>
+
+00:00:28.910 --> 00:00:28.920 align:start position:0%
+will now talk about the control systems
+ 
+
+00:00:28.920 --> 00:00:30.710 align:start position:0%
+will now talk about the control systems
+that<00:00:29.040><c> help</c><00:00:29.280><c> us</c><00:00:29.400><c> dynamically</c><00:00:30.160><c> change</c><00:00:30.480><c> all</c>
+
+00:00:30.710 --> 00:00:30.720 align:start position:0%
+that help us dynamically change all
+ 
+
+00:00:30.720 --> 00:00:32.390 align:start position:0%
+that help us dynamically change all
+three<00:00:30.960><c> of</c><00:00:31.080><c> these</c><00:00:31.280><c> systems</c><00:00:31.880><c> throughout</c><00:00:32.279><c> the</c>
+
+00:00:32.390 --> 00:00:32.400 align:start position:0%
+three of these systems throughout the
+ 
+
+00:00:32.400 --> 00:00:34.630 align:start position:0%
+three of these systems throughout the
+match.<00:00:33.120><c> So</c><00:00:33.240><c> to</c><00:00:33.320><c> adjust</c><00:00:33.680><c> in</c><00:00:33.800><c> both</c><00:00:34.040><c> autonomous</c>
+
+00:00:34.630 --> 00:00:34.640 align:start position:0%
+match. So to adjust in both autonomous
+ 
+
+00:00:34.640 --> 00:00:37.270 align:start position:0%
+match. So to adjust in both autonomous
+and<00:00:34.840><c> teleop</c><00:00:35.680><c> we</c><00:00:35.800><c> use</c><00:00:36.040><c> odometry</c><00:00:36.760><c> and</c><00:00:36.920><c> using</c><00:00:37.200><c> the</c>
+
+00:00:37.270 --> 00:00:37.280 align:start position:0%
+and teleop we use odometry and using the
+ 
+
+00:00:37.280 --> 00:00:38.670 align:start position:0%
+and teleop we use odometry and using the
+position<00:00:37.720><c> of</c><00:00:37.840><c> our</c><00:00:37.960><c> robot</c><00:00:38.280><c> as</c><00:00:38.400><c> well</c><00:00:38.520><c> as</c><00:00:38.600><c> the</c>
+
+00:00:38.670 --> 00:00:38.680 align:start position:0%
+position of our robot as well as the
+ 
+
+00:00:38.680 --> 00:00:40.150 align:start position:0%
+position of our robot as well as the
+position<00:00:39.080><c> of</c><00:00:39.160><c> the</c><00:00:39.280><c> goal</c><00:00:39.760><c> we're</c><00:00:39.920><c> able</c><00:00:40.080><c> to</c>
+
+00:00:40.150 --> 00:00:40.160 align:start position:0%
+position of the goal we're able to
+ 
+
+00:00:40.160 --> 00:00:42.430 align:start position:0%
+position of the goal we're able to
+determine<00:00:40.600><c> how</c><00:00:40.760><c> far</c><00:00:41.000><c> we</c><00:00:41.200><c> are</c><00:00:41.880><c> and</c><00:00:42.040><c> using</c><00:00:42.280><c> that</c>
+
+00:00:42.430 --> 00:00:42.440 align:start position:0%
+determine how far we are and using that
+ 
+
+00:00:42.440 --> 00:00:43.830 align:start position:0%
+determine how far we are and using that
+knowledge<00:00:42.720><c> we're</c><00:00:42.840><c> able</c><00:00:43.080><c> to</c><00:00:43.160><c> adjust</c><00:00:43.520><c> both</c><00:00:43.720><c> the</c>
+
+00:00:43.830 --> 00:00:43.840 align:start position:0%
+knowledge we're able to adjust both the
+ 
+
+00:00:43.840 --> 00:00:46.430 align:start position:0%
+knowledge we're able to adjust both the
+hood<00:00:44.200><c> and</c><00:00:44.320><c> the</c><00:00:44.440><c> rpm</c><00:00:45.520><c> dynamically</c><00:00:46.120><c> throughout</c>
+
+00:00:46.430 --> 00:00:46.440 align:start position:0%
+hood and the rpm dynamically throughout
+ 
+
+00:00:46.440 --> 00:00:48.430 align:start position:0%
+hood and the rpm dynamically throughout
+the<00:00:46.520><c> match</c><00:00:47.120><c> but</c><00:00:47.240><c> one</c><00:00:47.400><c> thing</c><00:00:47.520><c> we</c><00:00:47.640><c> found</c><00:00:48.040><c> is</c>
+
+00:00:48.430 --> 00:00:48.440 align:start position:0%
+the match but one thing we found is
+ 
+
+00:00:48.440 --> 00:00:49.910 align:start position:0%
+the match but one thing we found is
+odometry<00:00:48.920><c> can</c><00:00:49.080><c> get</c><00:00:49.280><c> off</c><00:00:49.480><c> so</c><00:00:49.600><c> we</c><00:00:49.680><c> use</c><00:00:49.840><c> the</c>
+
+00:00:49.910 --> 00:00:49.920 align:start position:0%
+odometry can get off so we use the
+ 
+
+00:00:49.920 --> 00:00:52.270 align:start position:0%
+odometry can get off so we use the
+limelight<00:00:50.840><c> to</c><00:00:51.160><c> localize</c><00:00:51.800><c> our</c><00:00:51.880><c> position</c>
+
+00:00:52.270 --> 00:00:52.280 align:start position:0%
+limelight to localize our position
+ 
+
+00:00:52.280 --> 00:00:53.990 align:start position:0%
+limelight to localize our position
+throughout<00:00:52.480><c> the</c><00:00:52.600><c> match</c><00:00:53.200><c> and</c><00:00:53.320><c> this</c><00:00:53.440><c> is</c><00:00:53.680><c> this</c><00:00:53.880><c> is</c>
+
+00:00:53.990 --> 00:00:54.000 align:start position:0%
+throughout the match and this is this is
+ 
+
+00:00:54.000 --> 00:00:55.670 align:start position:0%
+throughout the match and this is this is
+provides<00:00:54.600><c> a</c><00:00:54.640><c> fast</c><00:00:55.000><c> and</c><00:00:55.120><c> easy</c><00:00:55.360><c> way</c><00:00:55.560><c> to</c>
+
+00:00:55.670 --> 00:00:55.680 align:start position:0%
+provides a fast and easy way to
+ 
+
+00:00:55.680 --> 00:00:58.070 align:start position:0%
+provides a fast and easy way to
+localize.
+
+00:00:58.070 --> 00:00:58.080 align:start position:0%
+localize.
+ 
+
+00:00:58.080 --> 00:00:59.790 align:start position:0%
+localize.
+&gt;&gt; If<00:00:58.280><c> your</c><00:00:58.440><c> team</c><00:00:58.640><c> is</c><00:00:58.760><c> looking</c><00:00:58.960><c> for</c><00:00:59.120><c> inspiration</c>
+
+00:00:59.790 --> 00:00:59.800 align:start position:0%
+&gt;&gt; If your team is looking for inspiration
+ 
+
+00:00:59.800 --> 00:01:01.550 align:start position:0%
+&gt;&gt; If your team is looking for inspiration
+check<00:01:00.000><c> out</c><00:01:00.120><c> the</c><00:01:00.240><c> Studica</c><00:01:00.640><c> Robotics</c><00:01:01.080><c> FTC</c>
+
+00:01:01.550 --> 00:01:01.560 align:start position:0%
+check out the Studica Robotics FTC
+ 
+
+00:01:01.560 --> 00:01:03.350 align:start position:0%
+check out the Studica Robotics FTC
+Starter<00:01:01.920><c> Bot</c><00:01:02.240><c> to</c><00:01:02.360><c> get</c><00:01:02.560><c> you</c><00:01:02.680><c> going.</c><00:01:03.120><c> Build</c>
+
+00:01:03.350 --> 00:01:03.360 align:start position:0%
+Starter Bot to get you going. Build
+ 
+
+00:01:03.360 --> 00:01:05.710 align:start position:0%
+Starter Bot to get you going. Build
+better<00:01:03.600><c> robots</c><00:01:04.040><c> and</c><00:01:04.160><c> receive</c><00:01:04.440><c> a</c><00:01:04.480><c> 25%</c><00:01:05.320><c> discount</c>
+
+00:01:05.710 --> 00:01:05.720 align:start position:0%
+better robots and receive a 25% discount
+ 
+
+00:01:05.720 --> 00:01:07.350 align:start position:0%
+better robots and receive a 25% discount
+off<00:01:05.920><c> most</c><00:01:06.200><c> kits</c><00:01:06.440><c> and</c><00:01:06.560><c> parts</c><00:01:06.960><c> when</c><00:01:07.080><c> you</c><00:01:07.160><c> go</c><00:01:07.280><c> to</c>
+
+00:01:07.350 --> 00:01:07.360 align:start position:0%
+off most kits and parts when you go to
+ 
+
+00:01:07.360 --> 00:01:10.360 align:start position:0%
+off most kits and parts when you go to
+studica.com/robots.
+

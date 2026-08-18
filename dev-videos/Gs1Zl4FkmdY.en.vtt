@@ -1,0 +1,376 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.000 --> 00:00:02.150 align:start position:0%
+ 
+Hey<00:00:00.160><c> guys,</c><00:00:00.520><c> Cade</c><00:00:00.800><c> here</c><00:00:01.000><c> with</c><00:00:01.120><c> team</c><00:00:01.280><c> 21239</c><00:00:02.000><c> All</c>
+
+00:00:02.150 --> 00:00:02.160 align:start position:0%
+Hey guys, Cade here with team 21239 All
+ 
+
+00:00:02.160 --> 00:00:03.870 align:start position:0%
+Hey guys, Cade here with team 21239 All
+Systems<00:00:02.480><c> Go</c><00:00:02.600><c> at</c><00:00:02.680><c> the</c><00:00:02.760><c> World</c><00:00:03.000><c> Championships.</c>
+
+00:00:03.870 --> 00:00:03.880 align:start position:0%
+Systems Go at the World Championships.
+ 
+
+00:00:03.880 --> 00:00:04.870 align:start position:0%
+Systems Go at the World Championships.
+And<00:00:04.040><c> today</c><00:00:04.240><c> we're</c><00:00:04.360><c> going</c><00:00:04.480><c> to</c><00:00:04.520><c> do</c><00:00:04.640><c> a</c><00:00:04.680><c> little</c>
+
+00:00:04.870 --> 00:00:04.880 align:start position:0%
+And today we're going to do a little
+ 
+
+00:00:04.880 --> 00:00:06.830 align:start position:0%
+And today we're going to do a little
+snapshot<00:00:05.520><c> on</c><00:00:05.760><c> our</c><00:00:05.960><c> shooter</c><00:00:06.320><c> and</c><00:00:06.480><c> transfer</c>
+
+00:00:06.830 --> 00:00:06.840 align:start position:0%
+snapshot on our shooter and transfer
+ 
+
+00:00:06.840 --> 00:00:08.670 align:start position:0%
+snapshot on our shooter and transfer
+system.<00:00:07.640><c> So</c><00:00:07.840><c> starting</c><00:00:08.200><c> off</c><00:00:08.320><c> early</c><00:00:08.520><c> in</c><00:00:08.600><c> the</c>
+
+00:00:08.670 --> 00:00:08.680 align:start position:0%
+system. So starting off early in the
+ 
+
+00:00:08.680 --> 00:00:09.910 align:start position:0%
+system. So starting off early in the
+season,<00:00:09.120><c> we</c><00:00:09.240><c> had</c><00:00:09.400><c> something</c><00:00:09.600><c> that</c><00:00:09.720><c> looked</c>
+
+00:00:09.910 --> 00:00:09.920 align:start position:0%
+season, we had something that looked
+ 
+
+00:00:09.920 --> 00:00:11.230 align:start position:0%
+season, we had something that looked
+nothing<00:00:10.200><c> like</c><00:00:10.400><c> this.</c><00:00:10.760><c> It</c><00:00:10.880><c> was</c><00:00:11.040><c> pretty</c>
+
+00:00:11.230 --> 00:00:11.240 align:start position:0%
+nothing like this. It was pretty
+ 
+
+00:00:11.240 --> 00:00:12.590 align:start position:0%
+nothing like this. It was pretty
+inefficient<00:00:11.840><c> and</c><00:00:11.960><c> our</c><00:00:12.040><c> spin-up</c><00:00:12.320><c> time</c><00:00:12.480><c> was</c>
+
+00:00:12.590 --> 00:00:12.600 align:start position:0%
+inefficient and our spin-up time was
+ 
+
+00:00:12.600 --> 00:00:14.310 align:start position:0%
+inefficient and our spin-up time was
+slow.<00:00:13.200><c> One</c><00:00:13.360><c> thing</c><00:00:13.520><c> we</c><00:00:13.600><c> wanted</c><00:00:13.800><c> to</c><00:00:13.880><c> optimize</c>
+
+00:00:14.310 --> 00:00:14.320 align:start position:0%
+slow. One thing we wanted to optimize
+ 
+
+00:00:14.320 --> 00:00:16.070 align:start position:0%
+slow. One thing we wanted to optimize
+specifically<00:00:14.800><c> for</c><00:00:14.920><c> our</c><00:00:15.000><c> worlds</c><00:00:15.280><c> rebuild</c><00:00:15.880><c> was</c>
+
+00:00:16.070 --> 00:00:16.080 align:start position:0%
+specifically for our worlds rebuild was
+ 
+
+00:00:16.080 --> 00:00:17.550 align:start position:0%
+specifically for our worlds rebuild was
+how<00:00:16.360><c> fast</c><00:00:16.680><c> we</c><00:00:16.800><c> could</c><00:00:16.920><c> shoot</c><00:00:17.120><c> from</c><00:00:17.240><c> the</c><00:00:17.360><c> far</c>
+
+00:00:17.550 --> 00:00:17.560 align:start position:0%
+how fast we could shoot from the far
+ 
+
+00:00:17.560 --> 00:00:19.510 align:start position:0%
+how fast we could shoot from the far
+zone<00:00:17.880><c> and</c><00:00:18.000><c> have</c><00:00:18.160><c> our</c><00:00:18.240><c> recovery</c><00:00:18.600><c> time</c><00:00:18.880><c> be</c>
+
+00:00:19.510 --> 00:00:19.520 align:start position:0%
+zone and have our recovery time be
+ 
+
+00:00:19.520 --> 00:00:21.510 align:start position:0%
+zone and have our recovery time be
+actually<00:00:19.840><c> good.</c><00:00:20.400><c> So</c><00:00:20.600><c> we</c><00:00:20.720><c> have</c><00:00:20.920><c> these</c><00:00:21.120><c> silicone</c>
+
+00:00:21.510 --> 00:00:21.520 align:start position:0%
+actually good. So we have these silicone
+ 
+
+00:00:21.520 --> 00:00:22.950 align:start position:0%
+actually good. So we have these silicone
+counter<00:00:21.800><c> rollers</c><00:00:22.120><c> here</c><00:00:22.360><c> that</c><00:00:22.480><c> are</c><00:00:22.560><c> powered</c><00:00:22.840><c> by</c>
+
+00:00:22.950 --> 00:00:22.960 align:start position:0%
+counter rollers here that are powered by
+ 
+
+00:00:22.960 --> 00:00:24.990 align:start position:0%
+counter rollers here that are powered by
+one<00:00:23.200><c> motor.</c><00:00:23.720><c> These</c><00:00:23.960><c> are</c><00:00:24.120><c> silicone</c><00:00:24.640><c> surgical</c>
+
+00:00:24.990 --> 00:00:25.000 align:start position:0%
+one motor. These are silicone surgical
+ 
+
+00:00:25.000 --> 00:00:26.790 align:start position:0%
+one motor. These are silicone surgical
+tubing<00:00:25.280><c> from</c><00:00:25.440><c> McMaster</c><00:00:25.880><c> Carr</c><00:00:26.440><c> that</c><00:00:26.640><c> are</c>
+
+00:00:26.790 --> 00:00:26.800 align:start position:0%
+tubing from McMaster Carr that are
+ 
+
+00:00:26.800 --> 00:00:28.830 align:start position:0%
+tubing from McMaster Carr that are
+friction<00:00:27.160><c> fit</c><00:00:27.440><c> over</c><00:00:27.640><c> some</c><00:00:27.800><c> 3D</c><00:00:28.000><c> printed</c><00:00:28.280><c> cores</c>
+
+00:00:28.830 --> 00:00:28.840 align:start position:0%
+friction fit over some 3D printed cores
+ 
+
+00:00:28.840 --> 00:00:31.270 align:start position:0%
+friction fit over some 3D printed cores
+just<00:00:29.000><c> run</c><00:00:29.120><c> with</c><00:00:29.240><c> GT2</c><00:00:29.600><c> belting.</c><00:00:30.320><c> And</c><00:00:30.720><c> that</c><00:00:30.960><c> rule</c>
+
+00:00:31.270 --> 00:00:31.280 align:start position:0%
+just run with GT2 belting. And that rule
+ 
+
+00:00:31.280 --> 00:00:33.310 align:start position:0%
+just run with GT2 belting. And that rule
+powers<00:00:31.560><c> the</c><00:00:31.680><c> rollers</c><00:00:32.400><c> and</c><00:00:32.680><c> this</c><00:00:32.840><c> motor</c><00:00:33.080><c> down</c>
+
+00:00:33.310 --> 00:00:33.320 align:start position:0%
+powers the rollers and this motor down
+ 
+
+00:00:33.320 --> 00:00:35.230 align:start position:0%
+powers the rollers and this motor down
+here<00:00:33.680><c> powers</c><00:00:34.160><c> the</c><00:00:34.400><c> main</c><00:00:34.680><c> flywheel</c><00:00:35.120><c> which</c>
+
+00:00:35.230 --> 00:00:35.240 align:start position:0%
+here powers the main flywheel which
+ 
+
+00:00:35.240 --> 00:00:37.310 align:start position:0%
+here powers the main flywheel which
+gives<00:00:35.400><c> us</c><00:00:35.480><c> about</c><00:00:35.720><c> 90%</c><00:00:36.200><c> of</c><00:00:36.280><c> our</c><00:00:36.360><c> power.</c><00:00:37.000><c> And</c><00:00:37.160><c> one</c>
+
+00:00:37.310 --> 00:00:37.320 align:start position:0%
+gives us about 90% of our power. And one
+ 
+
+00:00:37.320 --> 00:00:38.310 align:start position:0%
+gives us about 90% of our power. And one
+thing<00:00:37.440><c> you</c><00:00:37.480><c> might</c><00:00:37.640><c> notice</c><00:00:37.880><c> is</c><00:00:37.960><c> that</c><00:00:38.080><c> we</c><00:00:38.160><c> have</c>
+
+00:00:38.310 --> 00:00:38.320 align:start position:0%
+thing you might notice is that we have
+ 
+
+00:00:38.320 --> 00:00:39.990 align:start position:0%
+thing you might notice is that we have
+very<00:00:38.640><c> little</c><00:00:38.880><c> inertia</c><00:00:39.400><c> compared</c><00:00:39.720><c> to</c><00:00:39.800><c> other</c>
+
+00:00:39.990 --> 00:00:40.000 align:start position:0%
+very little inertia compared to other
+ 
+
+00:00:40.000 --> 00:00:41.710 align:start position:0%
+very little inertia compared to other
+far<00:00:40.200><c> zone</c><00:00:40.360><c> teams</c><00:00:40.600><c> on</c><00:00:40.720><c> here.</c><00:00:41.280><c> This</c><00:00:41.440><c> was</c><00:00:41.560><c> by</c>
+
+00:00:41.710 --> 00:00:41.720 align:start position:0%
+far zone teams on here. This was by
+ 
+
+00:00:41.720 --> 00:00:43.070 align:start position:0%
+far zone teams on here. This was by
+choice.<00:00:42.120><c> We</c><00:00:42.200><c> wanted</c><00:00:42.400><c> to</c><00:00:42.440><c> be</c><00:00:42.520><c> able</c><00:00:42.640><c> to</c><00:00:42.720><c> do</c><00:00:42.840><c> shoot</c>
+
+00:00:43.070 --> 00:00:43.080 align:start position:0%
+choice. We wanted to be able to do shoot
+ 
+
+00:00:43.080 --> 00:00:44.150 align:start position:0%
+choice. We wanted to be able to do shoot
+on<00:00:43.160><c> the</c><00:00:43.240><c> move.</c><00:00:43.520><c> We</c><00:00:43.600><c> wanted</c><00:00:43.760><c> to</c><00:00:43.840><c> be</c><00:00:43.920><c> able</c><00:00:44.040><c> to</c>
+
+00:00:44.150 --> 00:00:44.160 align:start position:0%
+on the move. We wanted to be able to
+ 
+
+00:00:44.160 --> 00:00:45.790 align:start position:0%
+on the move. We wanted to be able to
+adjust<00:00:44.520><c> our</c><00:00:44.640><c> flywheel</c><00:00:44.920><c> velocity</c><00:00:45.320><c> as</c><00:00:45.520><c> quick</c><00:00:45.680><c> as</c>
+
+00:00:45.790 --> 00:00:45.800 align:start position:0%
+adjust our flywheel velocity as quick as
+ 
+
+00:00:45.800 --> 00:00:48.310 align:start position:0%
+adjust our flywheel velocity as quick as
+possible<00:00:46.520><c> and</c><00:00:46.640><c> also</c><00:00:46.800><c> not</c><00:00:47.000><c> have</c><00:00:47.400><c> a</c><00:00:47.760><c> bad</c><00:00:48.000><c> spin-up</c>
+
+00:00:48.310 --> 00:00:48.320 align:start position:0%
+possible and also not have a bad spin-up
+ 
+
+00:00:48.320 --> 00:00:49.630 align:start position:0%
+possible and also not have a bad spin-up
+time<00:00:48.560><c> so</c><00:00:48.680><c> we</c><00:00:48.760><c> can</c><00:00:48.920><c> spin-up</c><00:00:49.120><c> the</c><00:00:49.200><c> flywheel</c><00:00:49.520><c> from</c>
+
+00:00:49.630 --> 00:00:49.640 align:start position:0%
+time so we can spin-up the flywheel from
+ 
+
+00:00:49.640 --> 00:00:52.390 align:start position:0%
+time so we can spin-up the flywheel from
+the<00:00:49.720><c> far</c><00:00:49.920><c> zone</c><00:00:50.440><c> in</c><00:00:50.520><c> about</c><00:00:50.720><c> 0.75</c><00:00:51.440><c> seconds</c><00:00:52.200><c> and</c>
+
+00:00:52.390 --> 00:00:52.400 align:start position:0%
+the far zone in about 0.75 seconds and
+ 
+
+00:00:52.400 --> 00:00:53.590 align:start position:0%
+the far zone in about 0.75 seconds and
+that<00:00:52.560><c> gives</c><00:00:52.760><c> us</c><00:00:52.880><c> pretty</c><00:00:53.080><c> good</c><00:00:53.240><c> starting</c><00:00:53.520><c> at</c>
+
+00:00:53.590 --> 00:00:53.600 align:start position:0%
+that gives us pretty good starting at
+ 
+
+00:00:53.600 --> 00:00:55.390 align:start position:0%
+that gives us pretty good starting at
+the<00:00:53.680><c> start</c><00:00:53.840><c> of</c><00:00:53.920><c> auto</c><00:00:54.400><c> so</c><00:00:54.480><c> we</c><00:00:54.520><c> can</c><00:00:54.640><c> attempt</c><00:00:54.880><c> 27</c>
+
+00:00:55.390 --> 00:00:55.400 align:start position:0%
+the start of auto so we can attempt 27
+ 
+
+00:00:55.400 --> 00:00:58.270 align:start position:0%
+the start of auto so we can attempt 27
+balls.<00:00:56.080><c> In</c><00:00:56.200><c> addition,</c><00:00:56.600><c> the</c><00:00:56.800><c> transfer</c><00:00:57.400><c> is</c><00:00:58.040><c> run</c>
+
+00:00:58.270 --> 00:00:58.280 align:start position:0%
+balls. In addition, the transfer is run
+ 
+
+00:00:58.280 --> 00:01:00.030 align:start position:0%
+balls. In addition, the transfer is run
+by<00:00:58.480><c> two</c><00:00:58.720><c> bare</c><00:00:58.920><c> motors</c><00:00:59.560><c> right</c><00:00:59.720><c> here</c><00:00:59.880><c> in</c><00:01:00.000><c> the</c>
+
+00:01:00.030 --> 00:01:00.040 align:start position:0%
+by two bare motors right here in the
+ 
+
+00:01:00.040 --> 00:01:01.590 align:start position:0%
+by two bare motors right here in the
+front.<00:01:00.560><c> It's</c><00:01:00.720><c> been</c><00:01:00.840><c> these</c><00:01:01.000><c> custom</c><00:01:01.320><c> molded</c>
+
+00:01:01.590 --> 00:01:01.600 align:start position:0%
+front. It's been these custom molded
+ 
+
+00:01:01.600 --> 00:01:04.310 align:start position:0%
+front. It's been these custom molded
+silicone<00:01:02.080><c> wheels</c><00:01:02.840><c> and</c><00:01:03.280><c> they</c><00:01:03.600><c> go</c><00:01:03.760><c> into</c><00:01:03.960><c> an</c><00:01:04.080><c> over</c>
+
+00:01:04.310 --> 00:01:04.320 align:start position:0%
+silicone wheels and they go into an over
+ 
+
+00:01:04.320 --> 00:01:05.590 align:start position:0%
+silicone wheels and they go into an over
+center<00:01:04.640><c> linkage</c><00:01:04.879><c> right</c><00:01:05.040><c> here</c><00:01:05.199><c> that</c><00:01:05.360><c> stops</c>
+
+00:01:05.590 --> 00:01:05.600 align:start position:0%
+center linkage right here that stops
+ 
+
+00:01:05.600 --> 00:01:07.270 align:start position:0%
+center linkage right here that stops
+them<00:01:05.720><c> from</c><00:01:05.920><c> entering</c><00:01:06.320><c> the</c><00:01:06.480><c> shooter.</c><00:01:07.120><c> When</c>
+
+00:01:07.270 --> 00:01:07.280 align:start position:0%
+them from entering the shooter. When
+ 
+
+00:01:07.280 --> 00:01:09.510 align:start position:0%
+them from entering the shooter. When
+this<00:01:07.400><c> deploys,</c><00:01:07.920><c> powered</c><00:01:08.160><c> by</c><00:01:08.320><c> two</c><00:01:08.480><c> Axon</c><00:01:08.800><c> maxes,</c>
+
+00:01:09.510 --> 00:01:09.520 align:start position:0%
+this deploys, powered by two Axon maxes,
+ 
+
+00:01:09.520 --> 00:01:11.070 align:start position:0%
+this deploys, powered by two Axon maxes,
+this<00:01:09.640><c> will</c><00:01:09.760><c> come</c><00:01:09.960><c> up</c>
+
+00:01:11.070 --> 00:01:11.080 align:start position:0%
+this will come up
+ 
+
+00:01:11.080 --> 00:01:13.590 align:start position:0%
+this will come up
+and<00:01:11.200><c> let</c><00:01:11.320><c> the</c><00:01:11.400><c> balls</c><00:01:11.680><c> into</c><00:01:11.840><c> the</c><00:01:11.920><c> shooter.</c>
+
+00:01:13.590 --> 00:01:13.600 align:start position:0%
+and let the balls into the shooter.
+ 
+
+00:01:13.600 --> 00:01:15.310 align:start position:0%
+and let the balls into the shooter.
+If<00:01:13.840><c> your</c><00:01:14.000><c> team</c><00:01:14.200><c> is</c><00:01:14.320><c> looking</c><00:01:14.520><c> for</c><00:01:14.680><c> inspiration,</c>
+
+00:01:15.310 --> 00:01:15.320 align:start position:0%
+If your team is looking for inspiration,
+ 
+
+00:01:15.320 --> 00:01:17.190 align:start position:0%
+If your team is looking for inspiration,
+check<00:01:15.560><c> out</c><00:01:15.680><c> the</c><00:01:15.760><c> Studica</c><00:01:16.160><c> Robotics</c><00:01:16.680><c> FTC</c>
+
+00:01:17.190 --> 00:01:17.200 align:start position:0%
+check out the Studica Robotics FTC
+ 
+
+00:01:17.200 --> 00:01:18.910 align:start position:0%
+check out the Studica Robotics FTC
+Starter<00:01:17.560><c> Bot</c><00:01:17.840><c> to</c><00:01:17.960><c> get</c><00:01:18.160><c> you</c><00:01:18.240><c> going.</c><00:01:18.680><c> Build</c>
+
+00:01:18.910 --> 00:01:18.920 align:start position:0%
+Starter Bot to get you going. Build
+ 
+
+00:01:18.920 --> 00:01:21.270 align:start position:0%
+Starter Bot to get you going. Build
+better<00:01:19.160><c> robots</c><00:01:19.600><c> and</c><00:01:19.720><c> receive</c><00:01:20.000><c> a</c><00:01:20.040><c> 25%</c><00:01:20.840><c> discount</c>
+
+00:01:21.270 --> 00:01:21.280 align:start position:0%
+better robots and receive a 25% discount
+ 
+
+00:01:21.280 --> 00:01:22.910 align:start position:0%
+better robots and receive a 25% discount
+off<00:01:21.480><c> most</c><00:01:21.760><c> kits</c><00:01:22.000><c> and</c><00:01:22.120><c> parts</c><00:01:22.520><c> when</c><00:01:22.640><c> you</c><00:01:22.720><c> go</c><00:01:22.840><c> to</c>
+
+00:01:22.910 --> 00:01:22.920 align:start position:0%
+off most kits and parts when you go to
+ 
+
+00:01:22.920 --> 00:01:25.920 align:start position:0%
+off most kits and parts when you go to
+studica.com/robots.
+

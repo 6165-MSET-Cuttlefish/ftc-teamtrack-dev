@@ -1,0 +1,248 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.000 --> 00:00:03.070 align:start position:0%
+ 
+Hi,<00:00:00.400><c> I'm</c><00:00:00.560><c> Victor</c><00:00:00.840><c> from</c><00:00:01.040><c> team</c><00:00:01.320><c> 19062</c><00:00:02.760><c> Phantom</c>
+
+00:00:03.070 --> 00:00:03.080 align:start position:0%
+Hi, I'm Victor from team 19062 Phantom
+ 
+
+00:00:03.080 --> 00:00:05.710 align:start position:0%
+Hi, I'm Victor from team 19062 Phantom
+Robotics.<00:00:03.760><c> And</c><00:00:03.960><c> I'm</c><00:00:04.080><c> Andreas,</c><00:00:05.000><c> and</c><00:00:05.200><c> today</c><00:00:05.520><c> we</c>
+
+00:00:05.710 --> 00:00:05.720 align:start position:0%
+Robotics. And I'm Andreas, and today we
+ 
+
+00:00:05.720 --> 00:00:07.390 align:start position:0%
+Robotics. And I'm Andreas, and today we
+would<00:00:05.880><c> like</c><00:00:06.040><c> to</c><00:00:06.120><c> talk</c><00:00:06.280><c> about</c><00:00:06.720><c> our</c><00:00:07.120><c> auto</c>
+
+00:00:07.390 --> 00:00:07.400 align:start position:0%
+would like to talk about our auto
+ 
+
+00:00:07.400 --> 00:00:09.070 align:start position:0%
+would like to talk about our auto
+tracking<00:00:07.720><c> mechanism.</c>
+
+00:00:09.070 --> 00:00:09.080 align:start position:0%
+tracking mechanism.
+ 
+
+00:00:09.080 --> 00:00:11.790 align:start position:0%
+tracking mechanism.
+The<00:00:09.320><c> turret</c><00:00:09.680><c> sits</c><00:00:10.520><c> on</c><00:00:10.760><c> the</c><00:00:10.880><c> bearings</c><00:00:11.560><c> which</c>
+
+00:00:11.790 --> 00:00:11.800 align:start position:0%
+The turret sits on the bearings which
+ 
+
+00:00:11.800 --> 00:00:13.630 align:start position:0%
+The turret sits on the bearings which
+are<00:00:11.880><c> placed</c><00:00:12.520><c> in</c><00:00:12.640><c> the</c><00:00:12.760><c> interior</c><00:00:13.360><c> of</c><00:00:13.520><c> the</c>
+
+00:00:13.630 --> 00:00:13.640 align:start position:0%
+are placed in the interior of the
+ 
+
+00:00:13.640 --> 00:00:16.750 align:start position:0%
+are placed in the interior of the
+turret.
+
+00:00:16.750 --> 00:00:16.760 align:start position:0%
+ 
+ 
+
+00:00:16.760 --> 00:00:18.270 align:start position:0%
+ 
+Keeping<00:00:17.080><c> the</c><00:00:17.200><c> turret</c>
+
+00:00:18.270 --> 00:00:18.280 align:start position:0%
+Keeping the turret
+ 
+
+00:00:18.280 --> 00:00:19.550 align:start position:0%
+Keeping the turret
+uh<00:00:18.640><c> from</c>
+
+00:00:19.550 --> 00:00:19.560 align:start position:0%
+uh from
+ 
+
+00:00:19.560 --> 00:00:21.550 align:start position:0%
+uh from
+from<00:00:19.800><c> moving</c><00:00:20.200><c> up</c><00:00:20.400><c> and</c><00:00:20.520><c> down</c><00:00:21.120><c> while</c><00:00:21.360><c> being</c>
+
+00:00:21.550 --> 00:00:21.560 align:start position:0%
+from moving up and down while being
+ 
+
+00:00:21.560 --> 00:00:24.510 align:start position:0%
+from moving up and down while being
+rotated<00:00:22.080><c> by</c><00:00:22.280><c> a</c><00:00:22.360><c> servo</c><00:00:22.800><c> in</c><00:00:22.960><c> the</c><00:00:23.080><c> back</c><00:00:23.880><c> which</c><00:00:24.160><c> has</c>
+
+00:00:24.510 --> 00:00:24.520 align:start position:0%
+rotated by a servo in the back which has
+ 
+
+00:00:24.520 --> 00:00:27.110 align:start position:0%
+rotated by a servo in the back which has
+or<00:00:24.960><c> um</c><00:00:25.440><c> first</c><00:00:25.720><c> stage</c><00:00:25.960><c> multiplication</c><00:00:26.800><c> after</c>
+
+00:00:27.110 --> 00:00:27.120 align:start position:0%
+or um first stage multiplication after
+ 
+
+00:00:27.120 --> 00:00:30.390 align:start position:0%
+or um first stage multiplication after
+reduction<00:00:28.240><c> into</c><00:00:28.560><c> the</c><00:00:28.720><c> turret.</c>
+
+00:00:30.390 --> 00:00:30.400 align:start position:0%
+reduction into the turret.
+ 
+
+00:00:30.400 --> 00:00:32.150 align:start position:0%
+reduction into the turret.
+For<00:00:30.680><c> tracking</c><00:00:31.080><c> we</c><00:00:31.200><c> use</c><00:00:31.360><c> the</c><00:00:31.480><c> pin</c><00:00:31.680><c> point</c><00:00:32.040><c> and</c>
+
+00:00:32.150 --> 00:00:32.160 align:start position:0%
+For tracking we use the pin point and
+ 
+
+00:00:32.160 --> 00:00:34.230 align:start position:0%
+For tracking we use the pin point and
+Limelights<00:00:32.920><c> which</c><00:00:33.400><c> my</c><00:00:33.520><c> programmer</c><00:00:33.960><c> can</c><00:00:34.080><c> talk</c>
+
+00:00:34.230 --> 00:00:34.240 align:start position:0%
+Limelights which my programmer can talk
+ 
+
+00:00:34.240 --> 00:00:37.710 align:start position:0%
+Limelights which my programmer can talk
+about<00:00:34.480><c> this.</c>
+
+00:00:37.710 --> 00:00:37.720 align:start position:0%
+ 
+ 
+
+00:00:37.720 --> 00:00:40.750 align:start position:0%
+ 
+Our<00:00:38.280><c> auto</c><00:00:38.600><c> line</c><00:00:38.920><c> system</c>
+
+00:00:40.750 --> 00:00:40.760 align:start position:0%
+Our auto line system
+ 
+
+00:00:40.760 --> 00:00:42.230 align:start position:0%
+Our auto line system
+adapted
+
+00:00:42.230 --> 00:00:42.240 align:start position:0%
+adapted
+ 
+
+00:00:42.240 --> 00:00:44.590 align:start position:0%
+adapted
+adaptively<00:00:43.360><c> learn</c>
+
+00:00:44.590 --> 00:00:44.600 align:start position:0%
+adaptively learn
+ 
+
+00:00:44.600 --> 00:00:46.510 align:start position:0%
+adaptively learn
+from<00:00:44.800><c> the</c><00:00:44.880><c> Limelights</c><00:00:45.520><c> the</c><00:00:45.680><c> error</c><00:00:46.400><c> and</c>
+
+00:00:46.510 --> 00:00:46.520 align:start position:0%
+from the Limelights the error and
+ 
+
+00:00:46.520 --> 00:00:47.910 align:start position:0%
+from the Limelights the error and
+correct<00:00:46.920><c> it</c>
+
+00:00:47.910 --> 00:00:47.920 align:start position:0%
+correct it
+ 
+
+00:00:47.920 --> 00:00:49.030 align:start position:0%
+correct it
+uh
+
+00:00:49.030 --> 00:00:49.040 align:start position:0%
+uh
+ 
+
+00:00:49.040 --> 00:00:50.750 align:start position:0%
+uh
+through<00:00:49.280><c> the</c><00:00:49.400><c> game.</c><00:00:49.920><c> Basically,</c><00:00:50.520><c> at</c><00:00:50.640><c> the</c>
+
+00:00:50.750 --> 00:00:50.760 align:start position:0%
+through the game. Basically, at the
+ 
+
+00:00:50.760 --> 00:00:53.550 align:start position:0%
+through the game. Basically, at the
+start<00:00:51.000><c> of</c><00:00:51.120><c> the</c><00:00:51.520><c> or</c><00:00:51.640><c> the</c><00:00:51.840><c> end</c><00:00:52.040><c> of</c><00:00:52.120><c> the</c><00:00:52.240><c> game</c>
+
+00:00:53.550 --> 00:00:53.560 align:start position:0%
+start of the or the end of the game
+ 
+
+00:00:53.560 --> 00:00:55.870 align:start position:0%
+start of the or the end of the game
+the<00:00:53.720><c> tracking</c><00:00:54.080><c> system</c><00:00:54.440><c> is</c><00:00:54.600><c> better</c><00:00:55.040><c> than</c><00:00:55.720><c> when</c>
+
+00:00:55.870 --> 00:00:55.880 align:start position:0%
+the tracking system is better than when
+ 
+
+00:00:55.880 --> 00:00:58.550 align:start position:0%
+the tracking system is better than when
+we<00:00:55.960><c> start.</c>
+
+00:00:58.550 --> 00:00:58.560 align:start position:0%
+ 
+ 
+
+00:00:58.560 --> 00:01:00.790 align:start position:0%
+ 
+Studica<00:00:59.160><c> Robotics</c><00:00:59.680><c> is</c><00:00:59.840><c> inspiring</c><00:01:00.360><c> teams</c><00:01:00.680><c> to</c>
+
+00:01:00.790 --> 00:01:00.800 align:start position:0%
+Studica Robotics is inspiring teams to
+ 
+
+00:01:00.800 --> 00:01:02.630 align:start position:0%
+Studica Robotics is inspiring teams to
+build<00:01:01.080><c> better</c><00:01:01.360><c> robots</c><00:01:01.800><c> with</c><00:01:01.920><c> their</c><00:01:02.040><c> new</c><00:01:02.240><c> array</c>
+
+00:01:02.630 --> 00:01:02.640 align:start position:0%
+build better robots with their new array
+ 
+
+00:01:02.640 --> 00:01:04.390 align:start position:0%
+build better robots with their new array
+of<00:01:02.760><c> FTC</c><00:01:03.280><c> team</c><00:01:03.560><c> options.</c><00:01:04.160><c> Go</c><00:01:04.280><c> to</c>
+
+00:01:04.390 --> 00:01:04.400 align:start position:0%
+of FTC team options. Go to
+ 
+
+00:01:04.400 --> 00:01:06.150 align:start position:0%
+of FTC team options. Go to
+studica.com/robots<00:01:05.500><c> [music]</c>
+
+00:01:06.150 --> 00:01:06.160 align:start position:0%
+studica.com/robots [music]
+ 
+
+00:01:06.160 --> 00:01:10.120 align:start position:0%
+studica.com/robots [music]
+to<00:01:06.280><c> learn</c><00:01:06.520><c> more</c><00:01:06.760><c> and</c><00:01:06.880><c> apply</c><00:01:07.240><c> for</c><00:01:07.400><c> discounts.</c>
+
