@@ -1215,9 +1215,6 @@ export const ActiveTutorial = () => {
   useEffect(() => {
     if (!visible) return;
     const handler = (e: KeyboardEvent) => {
-      const currentStep = STEPS[step];
-      const hasPageTask = !!currentStep?.pageAction && !taskCompleted;
-
       if (e.key === 'Escape') {
         e.stopPropagation();
         e.preventDefault();
@@ -1236,7 +1233,7 @@ export const ActiveTutorial = () => {
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [visible, next, prev, dismiss, step, taskCompleted]);
+  }, [visible, next, prev, dismiss]);
 
   if (!visible) return null;
 
@@ -1254,7 +1251,6 @@ export const ActiveTutorial = () => {
   const subtext = isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
 
   const hasPageTask = !!current.pageAction;
-  const taskPending = hasPageTask && !taskCompleted;
 
   return createPortal(
     <>

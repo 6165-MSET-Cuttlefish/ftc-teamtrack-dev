@@ -3,6 +3,7 @@ export { SummaryTab, MatchDetailTab, CompareTab, StatCard, computeStats, TABS, t
 export { GateVisual } from './GateVisual';
 export { LivePreview } from './LivePreview';
 export { MatchForm } from './MatchForm';
+export { MatchInsights } from './MatchInsights';
 export { Notes } from './Notes';
 export { ScoringMetrics } from './ScoringMetrics';
 export { ScoringUI } from './ScoringUI';

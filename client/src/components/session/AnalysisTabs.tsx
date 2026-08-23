@@ -30,7 +30,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import type { Match } from '@/types';
-import { formatTime } from '@/lib';
+import { MatchInsights } from './MatchInsights';
 
 /** Compute +/- diff string */
 const formatDiff = (val: number) => (val > 0 ? `+${val}` : `${val}`);
@@ -1110,89 +1110,7 @@ export const MatchDetailTab = ({
         </div>
       </Section>
 
-      {match.cycleTimes && match.cycleTimes.length > 0 && (
-        <Section title="Cycle Times" isDarkMode={isDarkMode}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
-            {match.cycleTimes.map((time, i) => (
-              <div
-                key={i}
-                className={`rounded-lg p-3 text-center border ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gray-50 border-gray-200'}`}
-              >
-                <p
-                  className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
-                >
-                  Cycle {i + 1}
-                </p>
-                <p
-                  className={`text-lg font-bold mt-0.5 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  {formatTime(time)}
-                </p>
-              </div>
-            ))}
-          </div>
-          {match.cycleTimes.length > 1 && (
-            <>
-              <div
-                className={`flex items-center justify-between p-3 rounded-lg ${isDarkMode ? 'bg-team-blue/10 border border-team-blue-40' : 'bg-team-blue/5 border border-gray-200'}`}
-              >
-                <span
-                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Average Cycle Time
-                </span>
-                <span className="text-lg font-bold text-team-blue">
-                  {formatTime(
-                    match.cycleTimes.reduce((a, b) => a + b, 0) /
-                      match.cycleTimes.length
-                  )}
-                </span>
-              </div>
-              <div className="mt-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart
-                    data={match.cycleTimes.map((time, idx) => ({
-                      cycle: `#${idx + 1}`,
-                      Time: time,
-                    }))}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
-                    />
-                    <XAxis
-                      dataKey="cycle"
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 11 }}
-                    />
-                    <YAxis
-                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                      tick={{ fontSize: 11 }}
-                      label={{
-                        value: 'Seconds',
-                        angle: -90,
-                        position: 'insideLeft',
-                        style: { fontSize: 11 },
-                      }}
-                    />
-                    <Tooltip
-                      content={<ChartTooltip isDarkMode={isDarkMode} />}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="Time"
-                      stroke={CHART_COLORS.purple}
-                      strokeWidth={2}
-                      dot={{ fill: CHART_COLORS.purple, r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </>
-          )}
-        </Section>
-      )}
+      <MatchInsights match={match} isDarkMode={isDarkMode} />
 
       {matches.length > 1 && (
         <Section title="This Match vs Session Average" isDarkMode={isDarkMode}>

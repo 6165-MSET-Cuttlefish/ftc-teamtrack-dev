@@ -10,6 +10,16 @@ export const ScoringUI = () => {
   // Timestamp of the last scoring action, used to compute cycle time in seconds
   const lastShotTimeRef = useRef<number | null>(null);
 
+  /**
+   * This component stays mounted across matches, so the ref has to be cleared
+   * whenever a match ends or is reset. Otherwise the next match's first shot
+   * reports a "cycle time" covering the idle gap between matches, which then
+   * poisons every cycle-time average that reads it.
+   */
+  useEffect(() => {
+    if (!matchActive) lastShotTimeRef.current = null;
+  }, [matchActive]);
+
   const [pingShot, setPingShot] = useState<{ ballsMade: number; ballsShot: number } | null>(null);
   const [pingKey, setPingKey] = useState(0);
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
