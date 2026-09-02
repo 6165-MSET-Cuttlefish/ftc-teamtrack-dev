@@ -50,6 +50,41 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+/**
+ * Session match type shown on each card. Colors follow the phase convention
+ * used by the analysis charts: emerald for Autonomous, amber for Teleop.
+ */
+const MATCH_TYPE_STYLES: Record<string, { light: string; dark: string }> = {
+  'Full Game': {
+    light: 'bg-team-blue/15 text-team-blue',
+    dark: 'bg-team-blue/25 text-team-blue',
+  },
+  Autonomous: {
+    light: 'bg-emerald-500/15 text-emerald-700',
+    dark: 'bg-emerald-500/20 text-emerald-400',
+  },
+  Teleop: {
+    light: 'bg-amber-500/15 text-amber-700',
+    dark: 'bg-amber-500/20 text-amber-400',
+  },
+};
+
+const MatchTypeBadge = ({ matchType }: { matchType?: string }) => {
+  const { isDarkMode } = useTheme();
+  const label = matchType || 'Full Game';
+  const style = MATCH_TYPE_STYLES[label] ?? MATCH_TYPE_STYLES['Full Game'];
+
+  return (
+    <span
+      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
+        isDarkMode ? style.dark : style.light
+      }`}
+    >
+      {label}
+    </span>
+  );
+};
+
 interface SessionCardProps {
   session: Session;
   onView: () => void;
@@ -314,6 +349,7 @@ const SessionCard = ({
         <div
           className={`flex items-center gap-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
         >
+          <MatchTypeBadge matchType={session.matchType} />
           <Calendar className="h-4 w-4" />
           <span>{formatDate(session.createdAt)}</span>
           {ownerName && (
