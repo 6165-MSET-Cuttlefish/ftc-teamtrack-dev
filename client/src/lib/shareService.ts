@@ -1,5 +1,6 @@
 import type { Session } from '@/types';
 import { logger } from './logger';
+import { pickScoringFields } from './scoring';
 
 /**
  * Generate a short, safe shareable link for a session.
@@ -15,32 +16,17 @@ export const generateShareableLink = async (
 ): Promise<string> => {
   const shareData = {
     sessionName: session.sessionName,
+    sessionType: session.sessionType,
     sessionDuration: session.sessionDuration,
     matchType: session.matchType,
     selectedFeature: session.selectedFeature,
     notes: session.notes || '',
     matches: (session.matches ?? []).map(match => ({
+      ...pickScoringFields(match),
       id: match.id,
       matchNumber: match.matchNumber,
       matchType: match.matchType,
       finalScore: match.finalScore,
-      autonomousScore: match.autonomousScore,
-      teleopScore: match.teleopScore,
-      endGameScore: match.endGameScore,
-      autonClassifiedArtifact: match.autonClassifiedArtifact,
-      autonOverflowArtifact: match.autonOverflowArtifact,
-      autonMotif: match.autonMotif,
-      autonLeave: match.autonLeave,
-      autonBallsMissed: match.autonBallsMissed,
-      teleClassifiedArtifact: match.teleClassifiedArtifact,
-      teleOverflowArtifact: match.teleOverflowArtifact,
-      teleMotif: match.teleMotif,
-      teleBallsMissed: match.teleBallsMissed,
-      robot1Park: match.robot1Park,
-      robot2Park: match.robot2Park,
-      cycleTimes: match.cycleTimes,
-      autonShots: match.autonShots,
-      teleopShots: match.teleopShots,
     })),
   };
 

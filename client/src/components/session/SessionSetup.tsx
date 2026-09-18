@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 import { STORAGE_KEYS } from '@/constants';
+import type { SessionType } from '@/types';
 import {
   Select,
   SelectTrigger,
@@ -12,6 +13,11 @@ import {
   SelectItem,
   SelectValue,
 } from '@/components/ui/select';
+
+const SESSION_TYPES: Array<{ value: SessionType; hint: string }> = [
+  { value: 'Practice', hint: 'Solo drilling and repetition' },
+  { value: 'Scrim', hint: 'Full matches against another alliance' },
+];
 
 interface SessionSetupProps {
   onSave?: () => void;
@@ -41,6 +47,10 @@ export const SessionSetup = ({
     updateSessionData({ sessionName: value });
   const setMatchType = (value: string) =>
     updateSessionData({ matchType: value });
+  const setSessionType = (value: SessionType) => {
+    updateSessionData({ sessionType: value });
+    localStorage.setItem(STORAGE_KEYS.SESSION_TYPE, value);
+  };
 
   const hasName = sessionData.sessionName?.trim().length > 0;
 
@@ -141,43 +151,49 @@ export const SessionSetup = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={sessionData.gateEnabled !== false}
-              onChange={e => {
-                const enabled = e.target.checked;
-                updateSessionData({ gateEnabled: enabled, gateBallCount: 0 });
-                localStorage.setItem(STORAGE_KEYS.GATE_SCORING_ENABLED, String(enabled));
-              }}
-              disabled={matchActive}
-              className="w-4 h-4 accent-team-blue cursor-pointer"
-            />
-            <span className={`text-sm font-semibold tracking-wide ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Enable Gate Scoring</span>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={sessionData.motifPattern !== undefined}
-              onChange={e => {
-                const enabled = e.target.checked;
-                if (enabled) {
-                  updateSessionData({ motifPattern: ['empty', 'empty', 'empty'] });
-                } else {
-                  updateSessionData({ motifPattern: undefined });
-                }
-                localStorage.setItem(STORAGE_KEYS.MOTIF_SCORING_ENABLED, String(enabled));
-              }}
-              disabled={matchActive}
-              className="w-4 h-4 accent-team-blue cursor-pointer"
-            />
-            <span className={`text-sm font-semibold tracking-wide ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Enable Motif Scoring</span>
-          </label>
+        <div className="flex flex-col">
+          <Label
+            className={`text-sm font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+          >
+            Session Type
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            {SESSION_TYPES.map(type => {
+              const isSelected = sessionData.sessionType === type.value;
+              return (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => setSessionType(type.value)}
+                  disabled={matchActive}
+                  className={`px-4 py-3 rounded-xl border-2 text-left transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                    isSelected
+                      ? 'border-team-blue bg-team-blue/10'
+                      : isDarkMode
+                        ? 'border-team-blue-40 bg-team-dark hover:border-team-white-40'
+                        : 'border-gray-300 bg-white hover:border-gray-400'
+                  }`}
+                >
+                  <div
+                    className={`text-sm font-bold ${
+                      isSelected
+                        ? 'text-team-blue'
+                        : isDarkMode
+                          ? 'text-gray-200'
+                          : 'text-gray-800'
+                    }`}
+                  >
+                    {type.value}
+                  </div>
+                  <div
+                    className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                  >
+                    {type.hint}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex justify-end pt-2">

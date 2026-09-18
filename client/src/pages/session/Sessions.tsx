@@ -3,7 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { TeamManager } from '@/components';
-import { formatDate, isAbortError, generateShareableLink, copyToClipboard, logger } from '@/lib';
+import {
+  formatDate,
+  isAbortError,
+  generateShareableLink,
+  copyToClipboard,
+  logger,
+  calculateScore,
+  cycleTimesOf,
+} from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -613,27 +621,31 @@ const Sessions = () => {
     const headers = [
       'Session Name',
       'Session Date',
+      'Session Type',
       'Session Duration',
       'Match Type',
       'Match Number',
       'Final Score',
-      'Autonomous Score',
-      'Teleop Score',
-      'Endgame Score',
-      'Auton Classified Artifact',
-      'Auton Overflow Artifact',
-      'Auton Motif',
-      'Auton Leave',
-      'Auton Balls Missed',
-      'Tele Classified Artifact',
-      'Tele Overflow Artifact',
-      'Tele Motif',
-      'Tele Balls Missed',
-      'Robot 1 Park',
-      'Robot 2 Park',
+      'Tipping',
+      'Tipping Points',
+      'Garden',
+      'Garden Points',
+      'Flower',
+      'Flower Points',
+      'Flower Bonus',
+      'Flower Bonus Points',
+      'Left in Hive',
+      'Hive Points',
+      'Robot 1 Leave',
+      'Robot 1 Park Auto',
+      'Robot 1 Park Teleop',
+      'Robot 2 Leave',
+      'Robot 2 Park Auto',
+      'Robot 2 Park Teleop',
+      'Minor Penalties',
+      'Major Penalties',
+      'Penalty Points',
       'Cycle Times',
-      'Auton Shots (Made/Shot)',
-      'Teleop Shots (Made/Shot)',
       'Notes',
       'User Email',
     ];
@@ -643,6 +655,7 @@ const Sessions = () => {
     for (const session of sessions) {
       const sessionDate = esc(formatDate(session.createdAt));
       const sessionName = esc(session.sessionName || 'Untitled Session');
+      const sessionType = esc(session.sessionType || 'Practice');
       const sessionDuration = esc(session.sessionDuration || '');
       const matchType = esc(session.matchType || 'Full Game');
       const notes = esc(session.notes || '');
@@ -650,44 +663,46 @@ const Sessions = () => {
 
       if (!session.matches || session.matches.length === 0) {
         rows.push([
-          sessionName, sessionDate, sessionDuration, matchType,
-          '0', '0', '0', '0', '0',
-          '0', '0', '0', '0', '0',
-          '0', '0', '0', '0',
-          '"none"', '"none"',
-          '""', '""', '""',
+          sessionName, sessionDate, sessionType, sessionDuration, matchType,
+          '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+          '"no"', '"no"', '"no"', '"no"', '"no"', '"no"',
+          '0', '0', '0',
+          '""',
           notes, email,
         ]);
       } else {
         for (const match of session.matches) {
-          const cycleTimes = (match.cycleTimes || []).join('; ');
-          const autonShots = (match.autonShots || []).map(s => `${s.ballsMade}/${s.ballsShot}`).join('; ');
-          const teleopShots = (match.teleopShots || []).map(s => `${s.ballsMade}/${s.ballsShot}`).join('; ');
+          const b = calculateScore(match);
+          const cycleTimes = cycleTimesOf(match).join('; ');
 
           rows.push([
             sessionName,
             sessionDate,
+            sessionType,
             sessionDuration,
             esc(match.matchType || session.matchType || 'Full Game'),
             String(match.matchNumber || 0),
-            String(match.finalScore || 0),
-            String(match.autonomousScore || 0),
-            String(match.teleopScore || 0),
-            String(match.endGameScore || 0),
-            String(match.autonClassifiedArtifact || 0),
-            String(match.autonOverflowArtifact || 0),
-            String(match.autonMotif || 0),
-            String(match.autonLeave || 0),
-            String(match.autonBallsMissed || 0),
-            String(match.teleClassifiedArtifact || 0),
-            String(match.teleOverflowArtifact || 0),
-            String(match.teleMotif || 0),
-            String(match.teleBallsMissed || 0),
-            esc(match.robot1Park || 'none'),
-            esc(match.robot2Park || 'none'),
+            String(match.finalScore ?? b.total),
+            String(match.tipping || 0),
+            String(b.tipping),
+            String(match.garden || 0),
+            String(b.garden),
+            String(match.flower || 0),
+            String(b.flower),
+            String(match.flowerBonus || 0),
+            String(b.flowerBonus),
+            String(match.ballsInHive || 0),
+            String(b.hive),
+            esc(match.robot1Leave ? 'yes' : 'no'),
+            esc(match.robot1ParkAuto ? 'yes' : 'no'),
+            esc(match.robot1ParkTeleop ? 'yes' : 'no'),
+            esc(match.robot2Leave ? 'yes' : 'no'),
+            esc(match.robot2ParkAuto ? 'yes' : 'no'),
+            esc(match.robot2ParkTeleop ? 'yes' : 'no'),
+            String(match.minorPenalties || 0),
+            String(match.majorPenalties || 0),
+            String(b.penalties),
             esc(cycleTimes),
-            esc(autonShots),
-            esc(teleopShots),
             notes,
             email,
           ]);

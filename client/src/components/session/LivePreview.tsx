@@ -5,9 +5,13 @@ import { useFirebase } from '@/hooks';
 import { GAME_TIMING, ROUTES, STORAGE_KEYS } from '@/constants';
 import { Check, X, Settings, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { MotifSetupDialog } from './MotifSetupDialog';
 import type { Match } from '@/types';
-import type { ScoringFields } from '@/types';
+import {
+  calculateScore,
+  emptyScoringFields,
+  pickScoringFields,
+} from '@/lib';
+
 
 interface LivePreviewProps {
   onOpenSessionSetup?: () => void;
@@ -60,7 +64,6 @@ export const LivePreview = ({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
-  const [showMotifDialog, setShowMotifDialog] = useState<boolean>(false);
   const [sessionWasCancelled, setSessionWasCancelled] = useState<boolean>(false);
   const [, setPendingEditMatch] = useState<Match | null>(null);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] = useState<boolean>(false);
@@ -75,12 +78,15 @@ export const LivePreview = ({
     };
   }, []);
 
+  /** Points entered for the current, not-yet-saved match */
+  const currentMatchScore = calculateScore(sessionData);
+  const hasUnsavedMatchData =
+    currentMatchScore.earned > 0 || currentMatchScore.penalties > 0;
+
   const hasUnsavedWork =
     !sessionData.isSessionCompleted &&
     ((sessionData.matches && sessionData.matches.length > 0) ||
-      (sessionData.finalScore || 0) > 0 ||
-      (sessionData.autonomousScore || 0) > 0 ||
-      (sessionData.teleopScore || 0) > 0 ||
+      hasUnsavedMatchData ||
       (sessionData.notes && sessionData.notes.trim().length > 0) ||
       (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
 
@@ -200,73 +206,27 @@ export const LivePreview = ({
       return;
     }
 
-    if (
-      (sessionData.finalScore || 0) === 0 &&
-      (sessionData.autonomousScore || 0) === 0 &&
-      (sessionData.teleopScore || 0) === 0 &&
-      (sessionData.endGameScore || 0) === 0
-    ) {
+    const scoring = pickScoringFields(sessionData);
+    const breakdown = calculateScore(scoring);
+
+    if (breakdown.earned === 0 && breakdown.penalties === 0) {
       toast.error('Please enter some scoring data before saving a match');
       return;
     }
 
     const newMatch: Match = {
+      ...scoring,
       id: crypto.randomUUID(),
       matchNumber: (sessionData.matches?.length || 0) + 1,
       matchType: sessionData.matchType,
-      finalScore: sessionData.finalScore,
-      autonomousScore: sessionData.autonomousScore,
-      teleopScore: sessionData.teleopScore,
-      endGameScore: sessionData.endGameScore,
-      autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
-      autonOverflowArtifact: sessionData.autonOverflowArtifact,
-      autonMotif: sessionData.autonMotif,
-      autonBallsMissed: sessionData.autonBallsMissed,
-      autonLeave: sessionData.autonLeave,
-      teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
-      teleOverflowArtifact: sessionData.teleOverflowArtifact,
-      teleMotif: sessionData.teleMotif,
-      teleBallsMissed: sessionData.teleBallsMissed,
-      robot1Park: sessionData.robot1Park,
-      robot2Park: sessionData.robot2Park,
-      cycleTimes: [
-        ...((sessionData.autonShots || [])
-          .map(s => s.cycleTime)
-          .filter((ct): ct is number => ct !== undefined)),
-        ...((sessionData.teleopShots || [])
-          .map(s => s.cycleTime)
-          .filter((ct): ct is number => ct !== undefined)),
-        ...(sessionData.cycleTimes || []),
-      ],
-      autonShots: [...(sessionData.autonShots || [])],
-      teleopShots: [...(sessionData.teleopShots || [])],
+      finalScore: breakdown.total,
       createdAt: new Date().toISOString(),
-      gateEnabled: sessionData.gateEnabled,
     };
 
     const updatedMatches = [...(sessionData.matches || []), newMatch];
     updateSessionData({
       matches: updatedMatches,
-      finalScore: 0,
-      autonomousScore: 0,
-      teleopScore: 0,
-      endGameScore: 0,
-      autonLeave: 0,
-      autonClassifiedArtifact: 0,
-      autonOverflowArtifact: 0,
-      autonMotif: 0,
-      autonBallsMissed: 0,
-      teleClassifiedArtifact: 0,
-      teleOverflowArtifact: 0,
-      teleMotif: 0,
-      teleBallsMissed: 0,
-      robot1Park: 'none',
-      robot2Park: 'none',
-      gateBallCount: 0,
-      motifPattern: sessionData.motifPattern !== undefined ? ['empty', 'empty', 'empty'] : undefined,
-      cycleTimes: [],
-      autonShots: [],
-      teleopShots: [],
+      ...emptyScoringFields(),
     });
 
     resetTimer();
@@ -278,17 +238,6 @@ export const LivePreview = ({
     toast.success(`Match ${updatedMatches.length} saved successfully!`);
   };
 
-  const handleMotifDialogConfirm = (pattern: ScoringFields['motifPattern']) => {
-    // Pattern is confirmed and all slots are filled — just save the pattern
-    updateSessionData({ motifPattern: pattern });
-    setShowMotifDialog(false);
-    // Match is NOT started here — user clicks "Start Match" after motif is set
-  };
-
-  const handleMotifDialogCancel = () => {
-    setShowMotifDialog(false);
-  };
-
   const handleCompleteSession = async () => {
     if (!sessionData.matches || sessionData.matches.length === 0) {
       toast.error(
@@ -297,13 +246,7 @@ export const LivePreview = ({
       return;
     }
 
-    const hasUnsavedData =
-      (sessionData.finalScore || 0) > 0 ||
-      (sessionData.autonomousScore || 0) > 0 ||
-      (sessionData.teleopScore || 0) > 0 ||
-      (sessionData.endGameScore || 0) > 0;
-
-    if (hasUnsavedData) {
+    if (hasUnsavedMatchData) {
       toast.error(
         'Please save the current match before completing the session, or reset the scoring fields'
       );
@@ -354,6 +297,7 @@ export const LivePreview = ({
 
     const sessionToSave = {
       sessionName: finalSessionName,
+      sessionType: sessionData.sessionType || 'Practice',
       matchType: sessionData.matchType || 'Full Game',
       sessionDuration: totalSessionTime,
 
@@ -361,22 +305,7 @@ export const LivePreview = ({
       userEmail: user?.email || '',
       ...(team ? { teamId: team.id } : {}),
 
-      autonClassifiedArtifact: 0,
-      autonOverflowArtifact: 0,
-      autonMotif: 0,
-      autonLeave: 0,
-
-      teleClassifiedArtifact: 0,
-      teleOverflowArtifact: 0,
-      teleMotif: 0,
-
-      finalScore: 0,
-      autonomousScore: 0,
-      teleopScore: 0,
-      endGameScore: 0,
-
       selectedFeature: sessionData.selectedFeature || '',
-      cycleTimes: [],
       notes: sessionData.notes || '',
       matches: sessionData.matches || [],
 
@@ -430,28 +359,7 @@ export const LivePreview = ({
   };
 
   const handleCancelCurrentMatch = () => {
-    updateSessionData({
-      finalScore: 0,
-      autonomousScore: 0,
-      teleopScore: 0,
-      endGameScore: 0,
-      autonLeave: 0,
-      autonClassifiedArtifact: 0,
-      autonOverflowArtifact: 0,
-      autonMotif: 0,
-      autonBallsMissed: 0,
-      teleClassifiedArtifact: 0,
-      teleOverflowArtifact: 0,
-      teleMotif: 0,
-      teleBallsMissed: 0,
-      robot1Park: 'none',
-      robot2Park: 'none',
-      gateBallCount: 0,
-      motifPattern: sessionData.motifPattern !== undefined ? ['empty', 'empty', 'empty'] : undefined,
-      cycleTimes: [],
-      autonShots: [],
-      teleopShots: [],
-    });
+    updateSessionData(emptyScoringFields());
     resetTimer();
     setHasStarted(false);
     setMatchActive(false);
@@ -481,24 +389,15 @@ export const LivePreview = ({
                             onTryStartWithoutSetup?.();
                             return;
                           }
-                          const hasMotifEnabled = sessionData.motifPattern !== undefined;
-                          const motifPurpleCount = sessionData.motifPattern?.filter(c => c === 'purple').length ?? 0;
-                          const motifGreenCount = sessionData.motifPattern?.filter(c => c === 'green').length ?? 0;
-                          const motifIsProperlySet = motifPurpleCount === 2 && motifGreenCount === 1;
-                          
-                          if (hasMotifEnabled && !motifIsProperlySet) {
-                            setShowMotifDialog(true);
+                          setHasStarted(true);
+                          setMatchActive(true);
+                          if (sessionData.matchType === 'Teleop') {
+                            setMatchPhase('teleop');
                           } else {
-                            setHasStarted(true);
-                            setMatchActive(true);
-                            if (sessionData.matchType === 'Teleop') {
-                              setMatchPhase('teleop');
-                            } else {
-                              setMatchPhase('auton');
-                            }
-                            setIsTimerRunning(true);
-                            window.dispatchEvent(new Event('teamtrack-match-started'));
+                            setMatchPhase('auton');
                           }
+                          setIsTimerRunning(true);
+                          window.dispatchEvent(new Event('teamtrack-match-started'));
                         }
                       : handleSaveMatch
                   }
@@ -516,15 +415,7 @@ export const LivePreview = ({
                       : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
                   }`}
                 >
-                  {!matchActive
-                    ? (() => {
-                        const hasMotifEnabled = sessionData.motifPattern !== undefined;
-                        const motifPurpleCount = sessionData.motifPattern?.filter(c => c === 'purple').length ?? 0;
-                        const motifGreenCount = sessionData.motifPattern?.filter(c => c === 'green').length ?? 0;
-                        const motifIsProperlySet = motifPurpleCount === 2 && motifGreenCount === 1;
-                        return hasMotifEnabled && !motifIsProperlySet ? 'Set Motif' : 'Start Match';
-                      })()
-                    : 'Save Match'}
+                  {!matchActive ? 'Start Match' : 'Save Match'}
                 </button>
               )}
 
@@ -893,8 +784,8 @@ export const LivePreview = ({
                         <span
                           className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                         >
-                          A:{match.autonomousScore ?? 0} T:
-                          {match.teleopScore ?? 0} E:{match.endGameScore ?? 0}
+                          G:{match.garden ?? 0} T:{match.tipping ?? 0} F:
+                          {match.flower ?? 0} H:{match.ballsInHive ?? 0}
                         </span>
                         {isEditing && (
                           <span className="text-sm font-bold text-yellow-900 bg-yellow-400 px-3 py-1 rounded-full shadow-lg">
@@ -984,14 +875,6 @@ export const LivePreview = ({
         </div>
       )}
 
-      {sessionData.motifPattern !== undefined && (
-        <MotifSetupDialog
-          isOpen={showMotifDialog}
-          onConfirm={handleMotifDialogConfirm}
-          onCancel={handleMotifDialogCancel}
-          initialPattern={sessionData.motifPattern ?? ['empty', 'empty', 'empty']}
-        />
-      )}
     </div>
   );
 };

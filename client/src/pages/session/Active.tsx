@@ -2,17 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   SessionSetup,
-  ScoringUI,
-  GateVisual,
+  LiveScoring,
   Notes,
   LivePreview,
-  ScoringMetrics,
+  MatchEntry,
   ActiveTutorial,
 } from '@/components';
 import { TUTORIAL_OPEN_SESSION_SETUP_EVENT } from '@/constants/events';
 import { useTheme, useSession } from '@/contexts';
 import { useMatchAudio, useNavigationGuard } from '@/hooks';
-import { APP_CONFIG, ROUTES } from '@/constants';
+import { APP_CONFIG, GAME_TIMING, ROUTES } from '@/constants';
 
 /** Thin divider that adapts to the current theme */
 const Divider = ({ className = '' }: { className?: string }) => {
@@ -159,7 +158,7 @@ const Active = () => {
               >
                 {matchPhase === 'controller_pickup'
                   ? 'Controller Pickup'
-                  : matchPhase === 'teleop' && timer <= 20
+                  : matchPhase === 'teleop' && timer <= GAME_TIMING.ENDGAME_REMAINING
                       ? 'Endgame'
                       : sessionData.matchType || 'Full Game'}
               </div>
@@ -221,18 +220,14 @@ const Active = () => {
                 </>
               )}
 
-              <div data-tutorial="gate" className="px-4 py-4">
-                {sessionData.gateEnabled !== false && <GateVisual />}
-              </div>
-
               <div data-tutorial="scoring" className="px-4 py-4">
-                <ScoringUI />
+                <LiveScoring />
               </div>
 
               <Divider />
 
               <div data-tutorial="metrics" className="px-4 py-4">
-                <ScoringMetrics />
+                <MatchEntry />
               </div>
 
               <Divider />

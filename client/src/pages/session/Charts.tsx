@@ -3,8 +3,8 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useSession, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES, APP_CONFIG } from '@/constants';
-import { isAbortError, toDate } from '@/lib';
-import type { Session, ChartDataPoint } from '@/types';
+import { isAbortError, toDate, calculateScore, cycleTimesOf } from '@/lib';
+import type { Session, Match, ChartDataPoint, ScoreBreakdown } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -108,32 +108,25 @@ const Charts = () => {
       )
       .map((session, index) => {
         const matchCount = session.matches.length || 1;
-        const finalScore =
-          session.matches.reduce((sum, m) => sum + (m.finalScore || 0), 0) /
-          matchCount;
-        const autonomousScore =
-          session.matches.reduce(
-            (sum, m) => sum + (m.autonomousScore || 0),
-            0
-          ) / matchCount;
-        const teleopScore =
-          session.matches.reduce((sum, m) => sum + (m.teleopScore || 0), 0) /
-          matchCount;
-        const endGameScore =
-          session.matches.reduce((sum, m) => sum + (m.endGameScore || 0), 0) /
-          matchCount;
+        const avgOf = (fn: (b: ScoreBreakdown) => number) =>
+          Math.round(
+            session.matches.reduce((sum, m) => sum + fn(calculateScore(m)), 0) /
+              matchCount
+          );
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
-          'Final Score': Math.round(finalScore),
-          Autonomous: Math.round(autonomousScore),
-          Teleop: Math.round(teleopScore),
-          Endgame: Math.round(endGameScore),
+          'Final Score': avgOf(b => b.total),
+          Garden: avgOf(b => b.garden),
+          Tipping: avgOf(b => b.tipping),
+          Flower: avgOf(b => b.flower),
+          Hive: avgOf(b => b.hive),
         };
       });
   };
 
-  const getBallsMissedTrendData = (): ChartDataPoint[] => {
+  /** Average count of each scored element per match, session over session. */
+  const getElementVolumeTrendData = (): ChartDataPoint[] => {
     if (filteredSessions.length === 0) return [];
 
     return filteredSessions
@@ -142,85 +135,26 @@ const Charts = () => {
       )
       .map((session, index) => {
         const matchCount = session.matches.length || 1;
-        
-        let totalBallsMissed = 0;
-        let totalBallsMade = 0;
-
-        session.matches.forEach(match => {
-          totalBallsMissed +=
-            (match.autonBallsMissed || 0) + (match.teleBallsMissed || 0);
-          
-          totalBallsMade +=
-            (match.autonClassifiedArtifact || 0) +
-            (match.autonOverflowArtifact || 0) +
-            (match.teleClassifiedArtifact || 0) +
-            (match.teleOverflowArtifact || 0);
-        });
-
-        const avgBallsMissed = totalBallsMissed / matchCount;
-        const avgBallsMade = totalBallsMade / matchCount;
-        const avgBallsShot = (totalBallsMissed + totalBallsMade) / matchCount;
+        const avgCount = (fn: (m: Match) => number) =>
+          Math.round(
+            (session.matches.reduce((sum, m) => sum + fn(m), 0) / matchCount) *
+              10
+          ) / 10;
 
         return {
           name: formatChartDate(session.createdAt),
           sessionNumber: index + 1,
-          'Balls Missed': Math.round(avgBallsMissed * 10) / 10,
-          'Balls Made': Math.round(avgBallsMade * 10) / 10,
-          'Balls Shot': Math.round(avgBallsShot * 10) / 10,
+          Garden: avgCount(m => m.garden || 0),
+          Tipping: avgCount(m => m.tipping || 0),
+          Flower: avgCount(m => m.flower || 0),
+          Hive: avgCount(m => m.ballsInHive || 0),
         };
       });
   };
 
   const getCycleTimeData = (): ChartDataPoint[] => {
-    const sessionsWithCycleTimes = filteredSessions.filter(session => {
-      const hasCycleTimes =
-        session.matches &&
-        session.matches.length > 0 &&
-        session.matches.some(match => {
-          const hasCycleTimesArray =
-            match.cycleTimes &&
-            Array.isArray(match.cycleTimes) &&
-            match.cycleTimes.length > 0;
-          const hasShots =
-            (match.autonShots &&
-              Array.isArray(match.autonShots) &&
-              match.autonShots.some(s => s.cycleTime !== undefined)) ||
-            (match.teleopShots &&
-              Array.isArray(match.teleopShots) &&
-              match.teleopShots.some(s => s.cycleTime !== undefined));
-          return hasCycleTimesArray || hasShots;
-        });
-      return hasCycleTimes;
-    });
-
-    if (sessionsWithCycleTimes.length === 0) return [];
-
-    const results = sessionsWithCycleTimes.map(session => {
-      const allCycleTimes: number[] = [];
-      session.matches.forEach(match => {
-        if (
-          match.cycleTimes &&
-          Array.isArray(match.cycleTimes) &&
-          match.cycleTimes.length > 0
-        ) {
-          allCycleTimes.push(...match.cycleTimes);
-        }
-        
-        if (match.autonShots && Array.isArray(match.autonShots)) {
-          match.autonShots.forEach(shot => {
-            if (shot.cycleTime !== undefined) {
-              allCycleTimes.push(shot.cycleTime);
-            }
-          });
-        }
-        if (match.teleopShots && Array.isArray(match.teleopShots)) {
-          match.teleopShots.forEach(shot => {
-            if (shot.cycleTime !== undefined) {
-              allCycleTimes.push(shot.cycleTime);
-            }
-          });
-        }
-      });
+    const results = filteredSessions.map(session => {
+      const allCycleTimes = (session.matches ?? []).flatMap(cycleTimesOf);
 
       if (allCycleTimes.length === 0) return null;
 
@@ -267,41 +201,32 @@ const Charts = () => {
     });
   };
 
-  const getAccuracyOverTimeData = (): ChartDataPoint[] => {
-    const allSessions = filteredSessions;
-    const sorted = [...allSessions].sort(
+  /**
+   * Penalty points lost per match over the last ten sessions, alongside the
+   * share of matches that drew no penalty at all.
+   */
+  const getPenaltyOverTimeData = (): ChartDataPoint[] => {
+    const sorted = [...filteredSessions].sort(
       (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime()
     );
 
     const recent = sorted.slice(0, 10).reverse();
 
     return recent.map((session, index) => {
-      let totalBallsMissed = 0;
-      let totalBallsMade = 0;
-
-      if (session.matches && session.matches.length > 0) {
-        session.matches.forEach(match => {
-          const ballsMade =
-            (match.autonClassifiedArtifact || 0) +
-            (match.autonOverflowArtifact || 0) +
-            (match.teleClassifiedArtifact || 0) +
-            (match.teleOverflowArtifact || 0);
-          
-          totalBallsMade += ballsMade;
-          totalBallsMissed +=
-            (match.autonBallsMissed || 0) + (match.teleBallsMissed || 0);
-        });
-      }
-
-      const totalAttempts = totalBallsMade + totalBallsMissed;
-      const accuracy =
-        totalAttempts > 0
-          ? Math.round((totalBallsMade / totalAttempts) * 100)
-          : 0;
+      const matches = session.matches ?? [];
+      const matchCount = matches.length || 1;
+      const penaltyPoints = matches.reduce(
+        (sum, m) => sum + calculateScore(m).penalties,
+        0
+      );
+      const cleanMatches = matches.filter(
+        m => calculateScore(m).penalties === 0
+      ).length;
 
       return {
         name: `#${recent.length - index}`,
-        Accuracy: accuracy,
+        'Penalty Points': Math.round((penaltyPoints / matchCount) * 10) / 10,
+        'Clean Matches': Math.round((cleanMatches / matchCount) * 100),
       };
     });
   };
@@ -444,10 +369,10 @@ const Charts = () => {
   };
 
   const scoreTrendData = getScoreTrendData();
-  const ballsMissedTrendData = getBallsMissedTrendData();
+  const elementVolumeTrendData = getElementVolumeTrendData();
   const cycleTimeData = getCycleTimeData();
   const recentTrendData = getRecentTrendData();
-  const accuracyOverTimeData = getAccuracyOverTimeData();
+  const penaltyOverTimeData = getPenaltyOverTimeData();
 
   return (
     <div
@@ -503,88 +428,86 @@ const Charts = () => {
                     className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-700'}`}
                   >
                     {(() => {
-                      const sessions = filteredSessions;
-                      let totalScore = 0;
-                      let totalAuto = 0;
-                      let totalTele = 0;
-                      let totalEndgame = 0;
-                      const allScores: number[] = [];
-
-                      sessions.forEach(s => {
-                        s.matches.forEach(m => {
-                          totalScore += m.finalScore || 0;
-                          totalAuto += m.autonomousScore || 0;
-                          totalTele += m.teleopScore || 0;
-                          totalEndgame += m.endGameScore || 0;
-                          allScores.push(m.finalScore || 0);
-                        });
-                      });
-
-                      const totalMatches = sessions.reduce(
-                        (sum, s) => sum + s.matches.length,
-                        0
+                      const allMatches = filteredSessions.flatMap(
+                        s => s.matches
                       );
-                      const count = totalMatches || 1;
-                      const avgScore = totalScore / count;
-                      const autoAvg = totalAuto / count;
-                      const teleAvg = totalTele / count;
-                      const endgameAvg = totalEndgame / count;
+                      const count = allMatches.length || 1;
+                      const breakdowns = allMatches.map(m => calculateScore(m));
 
-                      const totalMissed = sessions.reduce(
-                        (sum, s) =>
-                          sum +
-                          s.matches.reduce(
-                            (mSum, m) =>
-                              mSum +
-                              (m.autonBallsMissed || 0) +
-                              (m.teleBallsMissed || 0),
-                            0
-                          ),
-                        0
+                      const avgScore =
+                        breakdowns.reduce((sum, b) => sum + b.total, 0) / count;
+                      const avgPenalty =
+                        breakdowns.reduce((sum, b) => sum + b.penalties, 0) /
+                        count;
+
+                      // Rank the scoring elements by average contribution.
+                      const elements = [
+                        {
+                          label: 'Garden',
+                          avg:
+                            breakdowns.reduce((s, b) => s + b.garden, 0) / count,
+                        },
+                        {
+                          label: 'Tipping',
+                          avg:
+                            breakdowns.reduce((s, b) => s + b.tipping, 0) /
+                            count,
+                        },
+                        {
+                          label: 'Flower',
+                          avg:
+                            breakdowns.reduce((s, b) => s + b.flower, 0) / count,
+                        },
+                        {
+                          label: 'Balls in Hive',
+                          avg:
+                            breakdowns.reduce((s, b) => s + b.hive, 0) / count,
+                        },
+                      ].sort((a, b) => b.avg - a.avg);
+
+                      const best = elements[0];
+                      const bestShare =
+                        avgScore > 0
+                          ? ((best.avg / avgScore) * 100).toFixed(0)
+                          : '0';
+
+                      // Park is scored separately for AUTO and TELEOP, so
+                      // each robot contributes two park opportunities.
+                      const parkSlots = allMatches.length * 4 || 1;
+                      const parkRate = Math.round(
+                        (allMatches.reduce(
+                          (s, m) =>
+                            s +
+                            (m.robot1ParkAuto ? 1 : 0) +
+                            (m.robot1ParkTeleop ? 1 : 0) +
+                            (m.robot2ParkAuto ? 1 : 0) +
+                            (m.robot2ParkTeleop ? 1 : 0),
+                          0
+                        ) /
+                          parkSlots) *
+                          100
                       );
-                      const avgMissed = (totalMissed / count).toFixed(1);
-
-                      const bestPhase =
-                        autoAvg > teleAvg && autoAvg > endgameAvg
-                          ? 'Autonomous'
-                          : teleAvg > endgameAvg
-                            ? 'Teleop'
-                            : 'Endgame';
-
-                      const autoPercent = avgScore > 0 ? ((autoAvg / avgScore) * 100).toFixed(
-                        0
-                      ) : '0';
-                      const telePercent = avgScore > 0 ? ((teleAvg / avgScore) * 100).toFixed(
-                        0
-                      ) : '0';
 
                       return (
                         <>
                           <div>
                             <span className="font-semibold text-team-blue">
-                              Strongest Phase:
+                              Biggest Scorer:
                             </span>{' '}
-                            {bestPhase} averaging{' '}
-                            {Math.round(
-                              bestPhase === 'Autonomous'
-                                ? autoAvg
-                                : bestPhase === 'Teleop'
-                                  ? teleAvg
-                                  : endgameAvg
-                            )}{' '}
-                            points
+                            {best.label} averaging {Math.round(best.avg)} points
+                            ({bestShare}% of score)
                           </div>
                           <div>
                             <span className="font-semibold text-team-blue">
-                              Score Distribution:
+                              Endgame:
                             </span>{' '}
-                            {autoPercent}% Auto, {telePercent}% Teleop
+                            Parked in {parkRate}% of robot-matches
                           </div>
                           <div>
                             <span className="font-semibold text-team-blue">
-                              Accuracy:
+                              Penalties:
                             </span>{' '}
-                            Avg {avgMissed} balls missed per match
+                            Avg {avgPenalty.toFixed(1)} points lost per match
                           </div>
                         </>
                       );
@@ -899,7 +822,7 @@ const Charts = () => {
               </CardContent>
             </Card>
 
-            {accuracyOverTimeData.length > 0 && (
+            {penaltyOverTimeData.length > 0 && (
               <Card
                 className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
               >
@@ -907,12 +830,12 @@ const Charts = () => {
                   <CardTitle
                     className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                   >
-                    Accuracy Over Time
+                    Penalties Over Time
                   </CardTitle>
                   <CardDescription
                     className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    Ball shooting accuracy percentage (Last 10)
+                    Penalty points per match and clean-match rate (Last 10)
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -922,7 +845,7 @@ const Charts = () => {
                       height={220}
                       minWidth={300}
                     >
-                      <LineChart data={accuracyOverTimeData}>
+                      <LineChart data={penaltyOverTimeData}>
                         <CartesianGrid
                           strokeDasharray="3 3"
                           stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
@@ -941,11 +864,24 @@ const Charts = () => {
                         <Legend wrapperStyle={{ fontSize: '14px' }} />
                         <Line
                           type="monotone"
-                          dataKey="Accuracy"
-                          stroke={COLORS.warning}
+                          dataKey="Clean Matches"
+                          stroke={COLORS.success}
                           strokeWidth={3}
                           dot={{
-                            fill: COLORS.warning,
+                            fill: COLORS.success,
+                            r: 5,
+                            strokeWidth: 2,
+                            stroke: '#fff',
+                          }}
+                          animationDuration={1200}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="Penalty Points"
+                          stroke={COLORS.danger}
+                          strokeWidth={3}
+                          dot={{
+                            fill: COLORS.danger,
                             r: 5,
                             strokeWidth: 2,
                             stroke: '#fff',
@@ -967,18 +903,18 @@ const Charts = () => {
               <CardTitle
                 className={`text-xl sm:text-2xl font-bold flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
               >
-                Balls Trend
+                Scoring Volume Trend
               </CardTitle>
               <CardDescription
                 className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
-                Track balls missed, made, and shot per session
+                Average count of each element scored per match
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="w-full overflow-x-auto">
                 <ResponsiveContainer width="100%" height={240} minWidth={300}>
-                  <LineChart data={ballsMissedTrendData}>
+                  <LineChart data={elementVolumeTrendData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke={isDarkMode ? '#2a2a2a' : '#e5e7eb'}
@@ -996,16 +932,7 @@ const Charts = () => {
                     <Legend wrapperStyle={{ fontSize: '14px' }} />
                     <Line
                       type="monotone"
-                      dataKey="Balls Missed"
-                      stroke={COLORS.danger}
-                      strokeWidth={3}
-                      dot={{ fill: COLORS.danger, r: 5 }}
-                      activeDot={{ r: 8 }}
-                      animationDuration={1500}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="Balls Made"
+                      dataKey="Garden"
                       stroke={COLORS.success}
                       strokeWidth={3}
                       dot={{ fill: COLORS.success, r: 5 }}
@@ -1014,10 +941,28 @@ const Charts = () => {
                     />
                     <Line
                       type="monotone"
-                      dataKey="Balls Shot"
+                      dataKey="Tipping"
                       stroke={COLORS.warning}
                       strokeWidth={3}
                       dot={{ fill: COLORS.warning, r: 5 }}
+                      activeDot={{ r: 8 }}
+                      animationDuration={1500}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="Flower"
+                      stroke={COLORS.purple}
+                      strokeWidth={3}
+                      dot={{ fill: COLORS.purple, r: 5 }}
+                      activeDot={{ r: 8 }}
+                      animationDuration={1500}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="Hive"
+                      stroke={COLORS.secondary}
+                      strokeWidth={3}
+                      dot={{ fill: COLORS.secondary, r: 5 }}
                       activeDot={{ r: 8 }}
                       animationDuration={1500}
                     />

@@ -44,6 +44,8 @@ export const GAME_TIMING = {
   /** Duration of the audio intro before countdown (seconds) */
   AUDIO_INTRO_SECONDS: 1.15,
   MAX_THEORETICAL_SCORE: 150,
+  /** Match clock value at which the endgame begins */
+  ENDGAME_REMAINING: 30,
 } as const;
 
 export const SESSION_LIMITS = {
@@ -68,7 +70,7 @@ export const UI_TIMING = {
 export const STORAGE_KEYS = {
   THEME: 'teamtrack-theme',
   TUTORIAL_SEEN: 'teamtrack-tutorial-v1-seen',
-  KEYBIND_TUTORIAL_SEEN: 'teamtrack-keybind-tutorial-seen',
+
   GUEST_PROMPT_DISMISSED: 'teamtrack-guest-prompt-dismissed',
   GUEST_PROMPT_LAST_SHOWN: 'teamtrack-guest-prompt-last-shown',
   HAS_COMPLETED_SESSION: 'teamtrack-has-completed-session',
@@ -84,6 +86,5 @@ export const STORAGE_KEYS = {
   PENDING_INVITE_EXPIRY: 'teamtrack-pending-invite-expiry',
   START_TUTORIAL: 'teamtrack-start-tutorial',
   GUEST_SESSIONS: 'teamtrack-guest-sessions',
-  GATE_SCORING_ENABLED: 'teamtrack-gate-scoring-enabled',
-  MOTIF_SCORING_ENABLED: 'teamtrack-motif-scoring-enabled',
+  SESSION_TYPE: 'teamtrack-session-type',
 } as const;

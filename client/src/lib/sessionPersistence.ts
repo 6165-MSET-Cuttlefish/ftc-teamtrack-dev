@@ -10,7 +10,7 @@ import { logger } from './logger';
 import { toast } from 'sonner';
 
 /** Current schema version for stored session data. Bump when SessionFormData shape changes. */
-const STORAGE_SCHEMA_VERSION = 1;
+const STORAGE_SCHEMA_VERSION = 2;
 
 /** Check if the user has ever completed a session */
 export const hasCompletedASession = (): boolean =>

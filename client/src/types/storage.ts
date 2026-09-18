@@ -1,9 +1,11 @@
-import type { Match, ScoringFields, MatchPhase } from './session';
+import type { Match, MatchScoringFields, MatchPhase, SessionType } from './session';
 
 /** Shape of session form data persisted to localStorage */
-export interface SessionFormData extends ScoringFields {
+export interface SessionFormData extends MatchScoringFields {
   sessionName: string;
   sessionDuration: string;
+  /** Practice or Scrim */
+  sessionType: SessionType;
   matchType: string;
   isSessionCompleted: boolean;
   selectedFeature: string;

@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Navigate, Link } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
-import { formatDate, isAbortError } from '@/lib';
+import {
+  formatDate,
+  isAbortError,
+  calculateScore,
+  cycleTimesOf,
+} from '@/lib';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, Match } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +30,36 @@ interface CompareMatch extends Match {
   sessionIndex: number;
 }
 
+/** Which slice of a match score the comparison charts plot. */
+type ScoreElement = 'total' | 'garden' | 'tipping' | 'flower' | 'hive';
+
+const ELEMENT_LABELS: Record<ScoreElement, string> = {
+  total: 'Total',
+  garden: 'Garden',
+  tipping: 'Tipping',
+  flower: 'Flower',
+  hive: 'Balls in Hive',
+};
+
+const ELEMENTS = Object.keys(ELEMENT_LABELS) as ScoreElement[];
+
+/** Points a match contributed for one element (or its full score). */
+const elementPoints = (match: Match, element: ScoreElement): number => {
+  const b = calculateScore(match);
+  switch (element) {
+    case 'garden':
+      return b.garden;
+    case 'tipping':
+      return b.tipping;
+    case 'flower':
+      return b.flower;
+    case 'hive':
+      return b.hive;
+    default:
+      return b.total;
+  }
+};
+
 const Compare = () => {
   const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
@@ -39,10 +74,10 @@ const Compare = () => {
   const [loading, setLoading] = useState(true);
   const [isDetailedBreakdownOpen, setIsDetailedBreakdownOpen] = useState(true);
   const [isMatchBreakdownOpen, setIsMatchBreakdownOpen] = useState(true);
-  const [scoreChartPhase, setScoreChartPhase] = useState<'total' | 'autonomous' | 'teleop' | 'endgame'>('total');
+  const [scoreChartPhase, setScoreChartPhase] = useState<ScoreElement>('total');
   const [isScoreChartOpen, setIsScoreChartOpen] = useState(true);
   const [isCycleChartOpen, setIsCycleChartOpen] = useState(true);
-  const [matchScoreChartPhase, setMatchScoreChartPhase] = useState<'total' | 'autonomous' | 'teleop' | 'endgame'>('total');
+  const [matchScoreChartPhase, setMatchScoreChartPhase] = useState<ScoreElement>('total');
   const [isMatchScoreChartOpen, setIsMatchScoreChartOpen] = useState(true);
   const [isMatchCycleChartOpen, setIsMatchCycleChartOpen] = useState(true);
 
@@ -77,62 +112,40 @@ const Compare = () => {
     return '';
   };
 
-  const getSessionAvgCycleTime = (session: Session): number => {
-    const all = session.matches.flatMap(m => m.cycleTimes || []);
-    return all.length > 0 ? all.reduce((a, b) => a + b, 0) / all.length : 0;
+  const avgOf = (values: number[]): number =>
+    values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+
+  const getSessionAvgCycleTime = (session: Session): number =>
+    avgOf(session.matches.flatMap(cycleTimesOf));
+
+  /**
+   * Share of park opportunities converted. Park is scored separately for
+   * AUTO and TELEOP, so each robot contributes two opportunities per match.
+   */
+  const getSessionParkRate = (session: Session): number => {
+    const slots = session.matches.length * 4;
+    if (slots === 0) return 0;
+    const parked = session.matches.reduce(
+      (s, m) =>
+        s +
+        (m.robot1ParkAuto ? 1 : 0) +
+        (m.robot1ParkTeleop ? 1 : 0) +
+        (m.robot2ParkAuto ? 1 : 0) +
+        (m.robot2ParkTeleop ? 1 : 0),
+      0
+    );
+    return (parked / slots) * 100;
   };
 
-  const getSessionAccuracy = (session: Session): number => {
-    let totalShot = 0,
-      totalMade = 0;
-    session.matches.forEach(m => {
-      const shots = [...(m.autonShots || []), ...(m.teleopShots || [])];
-      if (shots.length > 0) {
-        shots.forEach(s => {
-          totalShot += s.ballsShot;
-          totalMade += s.ballsMade;
-        });
-      } else {
-        const made =
-          (m.autonClassifiedArtifact || 0) +
-          (m.autonOverflowArtifact || 0) +
-          (m.teleClassifiedArtifact || 0) +
-          (m.teleOverflowArtifact || 0);
-        const missed = (m.autonBallsMissed || 0) + (m.teleBallsMissed || 0);
-        totalMade += made;
-        totalShot += made + missed;
-      }
-    });
-    return totalShot > 0 ? (totalMade / totalShot) * 100 : 0;
-  };
+  /** Average penalty points charged per match. */
+  const getSessionPenalties = (session: Session): number =>
+    avgOf(session.matches.map(m => calculateScore(m).penalties));
 
-  const getMatchAccuracy = (match: CompareMatch): number => {
-    const shots = [...(match.autonShots || []), ...(match.teleopShots || [])];
-    let totalShot = 0,
-      totalMade = 0;
-    if (shots.length > 0) {
-      shots.forEach(s => {
-        totalShot += s.ballsShot;
-        totalMade += s.ballsMade;
-      });
-    } else {
-      const made =
-        (match.autonClassifiedArtifact || 0) +
-        (match.autonOverflowArtifact || 0) +
-        (match.teleClassifiedArtifact || 0) +
-        (match.teleOverflowArtifact || 0);
-      const missed =
-        (match.autonBallsMissed || 0) + (match.teleBallsMissed || 0);
-      totalMade = made;
-      totalShot = made + missed;
-    }
-    return totalShot > 0 ? (totalMade / totalShot) * 100 : 0;
-  };
+  const getMatchPenalties = (match: CompareMatch): number =>
+    calculateScore(match).penalties;
 
-  const getMatchAvgCycleTime = (match: CompareMatch): number => {
-    const ct = match.cycleTimes || [];
-    return ct.length > 0 ? ct.reduce((a, b) => a + b, 0) / ct.length : 0;
-  };
+  const getMatchAvgCycleTime = (match: CompareMatch): number =>
+    avgOf(cycleTimesOf(match));
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -459,10 +472,10 @@ const Compare = () => {
                 {isScoreChartOpen && (
                   <CardContent>
                     <p className={`text-xs mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
-                      Average score per phase across all matches in each session. Each point = one session.
+                      Average points from each element across all matches in each session. Each point = one session.
                     </p>
                     <div className="flex flex-wrap gap-2 mb-5">
-                      {(['total', 'autonomous', 'teleop', 'endgame'] as const).map(phase => (
+                      {ELEMENTS.map(phase => (
                         <button
                           key={phase}
                           onClick={() => setScoreChartPhase(phase)}
@@ -474,7 +487,7 @@ const Compare = () => {
                                 : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
                           }`}
                         >
-                          {phase === 'total' ? 'Total' : phase === 'autonomous' ? 'Autonomous' : phase === 'teleop' ? 'Teleop' : 'Endgame'}
+                          {ELEMENT_LABELS[phase]}
                         </button>
                       ))}
                     </div>
@@ -483,13 +496,10 @@ const Compare = () => {
                       const chartData = selectedSessionsData.map((session, idx) => {
                         const n = session.matches.length || 1;
                         const avg =
-                          scoreChartPhase === 'total'
-                            ? session.matches.reduce((s, m) => s + (m.finalScore || 0), 0) / n
-                            : scoreChartPhase === 'autonomous'
-                            ? session.matches.reduce((s, m) => s + (m.autonomousScore || 0), 0) / n
-                            : scoreChartPhase === 'teleop'
-                            ? session.matches.reduce((s, m) => s + (m.teleopScore || 0), 0) / n
-                            : session.matches.reduce((s, m) => s + (m.endGameScore || 0), 0) / n;
+                          session.matches.reduce(
+                            (s, m) => s + elementPoints(m, scoreChartPhase),
+                            0
+                          ) / n;
                         return {
                           sessionLabel: session.sessionName || `Session ${idx + 1}`,
                           score: Math.round(avg * 10) / 10,
@@ -523,7 +533,7 @@ const Compare = () => {
                             />
                             <Line
                               dataKey="score"
-                              name={`Avg ${scoreChartPhase === 'total' ? 'Total' : scoreChartPhase === 'autonomous' ? 'Autonomous' : scoreChartPhase === 'teleop' ? 'Teleop' : 'Endgame'} Score`}
+                              name={`Avg  Points`}
                               stroke="#3b82f6"
                               strokeWidth={2.5}
                               dot={{ r: 5, fill: '#3b82f6', strokeWidth: 0 }}
@@ -555,8 +565,8 @@ const Compare = () => {
                     </p>
                     {(() => {
                       const chartData = selectedSessionsData.map((session, idx) => {
-                        const all = session.matches.flatMap(m => m.cycleTimes || []);
-                        const avg = all.length > 0 ? all.reduce((a, b) => a + b, 0) / all.length : null;
+                        const all = session.matches.flatMap(cycleTimesOf);
+                        const avg = all.length > 0 ? avgOf(all) : null;
                         return {
                           sessionLabel: session.sessionName || `Session ${idx + 1}`,
                           cycleTime: avg !== null ? Math.round(avg * 10) / 10 : null,
@@ -658,96 +668,57 @@ const Compare = () => {
                               ) / (s.matches.length || 1),
                             { highlight: true }
                           )}
-                          {renderSessionRow(
-                            'Avg Autonomous Score',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) => sum + (m.autonomousScore || 0),
-                                0
-                              ) / (s.matches.length || 1)
+                          {renderSessionRow('Avg Garden Points', s =>
+                            avgOf(s.matches.map(m => calculateScore(m).garden))
                           )}
                           {renderSessionRow(
-                            'Avg Classified Artifact',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) =>
-                                  sum + (m.autonClassifiedArtifact || 0),
-                                0
-                              ) / (s.matches.length || 1),
+                            'Avg Garden Scored',
+                            s => avgOf(s.matches.map(m => m.garden || 0)),
                             { indent: true, format: v => v.toFixed(1) }
                           )}
+                          {renderSessionRow('Avg Tipping Points', s =>
+                            avgOf(s.matches.map(m => calculateScore(m).tipping))
+                          )}
                           {renderSessionRow(
-                            'Avg Overflow Artifact',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) =>
-                                  sum + (m.autonOverflowArtifact || 0),
-                                0
-                              ) / (s.matches.length || 1),
+                            'Avg Tipping Scored',
+                            s => avgOf(s.matches.map(m => m.tipping || 0)),
                             { indent: true, format: v => v.toFixed(1) }
                           )}
+                          {renderSessionRow('Avg Flower Points', s =>
+                            avgOf(s.matches.map(m => calculateScore(m).flower))
+                          )}
                           {renderSessionRow(
-                            'Avg Motif',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) => sum + (m.autonMotif || 0),
-                                0
-                              ) / (s.matches.length || 1),
+                            'Avg Flower Scored',
+                            s => avgOf(s.matches.map(m => m.flower || 0)),
                             { indent: true, format: v => v.toFixed(1) }
                           )}
+                          {renderSessionRow('Avg Hive Points', s =>
+                            avgOf(s.matches.map(m => calculateScore(m).hive))
+                          )}
                           {renderSessionRow(
-                            'Avg Leave',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) => sum + (m.autonLeave || 0),
-                                0
-                              ) / (s.matches.length || 1),
+                            'Avg Balls in Hive',
+                            s => avgOf(s.matches.map(m => m.ballsInHive || 0)),
                             { indent: true, format: v => v.toFixed(1) }
                           )}
-                          {renderSessionRow(
-                            'Avg Teleop Score',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) => sum + (m.teleopScore || 0),
-                                0
-                              ) / (s.matches.length || 1)
+                          {renderSessionRow('Avg Robot Points', s =>
+                            avgOf(
+                              s.matches.map(m => {
+                                const b = calculateScore(m);
+                                return b.leave + b.park;
+                              })
+                            )
                           )}
+                          {renderSessionRow('Park Rate', getSessionParkRate, {
+                            indent: true,
+                            format: v => `${Math.round(v)}%`,
+                          })}
                           {renderSessionRow(
-                            'Avg Classified Artifact',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) =>
-                                  sum + (m.teleClassifiedArtifact || 0),
-                                0
-                              ) / (s.matches.length || 1),
-                            { indent: true, format: v => v.toFixed(1) }
-                          )}
-                          {renderSessionRow(
-                            'Avg Overflow Artifact',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) =>
-                                  sum + (m.teleOverflowArtifact || 0),
-                                0
-                              ) / (s.matches.length || 1),
-                            { indent: true, format: v => v.toFixed(1) }
-                          )}
-                          {renderSessionRow(
-                            'Avg Motif',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) => sum + (m.teleMotif || 0),
-                                0
-                              ) / (s.matches.length || 1),
-                            { indent: true, format: v => v.toFixed(1) }
-                          )}
-                          {renderSessionRow(
-                            'Avg Endgame Score',
-                            s =>
-                              s.matches.reduce(
-                                (sum, m) => sum + (m.endGameScore || 0),
-                                0
-                              ) / (s.matches.length || 1)
+                            'Avg Penalty Points',
+                            getSessionPenalties,
+                            {
+                              higherIsBetter: false,
+                              format: v => v.toFixed(1),
+                            }
                           )}
                           <tr
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
@@ -758,29 +729,23 @@ const Compare = () => {
                               ↳ Parking Summary
                             </td>
                             {selectedSessionsData.map(session => {
-                              const fullCount = session.matches.filter(
-                                m =>
-                                  m.robot1Park === 'full' ||
-                                  m.robot2Park === 'full'
+                              const autoCount = session.matches.filter(
+                                m => m.robot1ParkAuto || m.robot2ParkAuto
                               ).length;
-                              const partialCount = session.matches.filter(
-                                m =>
-                                  m.robot1Park === 'partial' ||
-                                  m.robot2Park === 'partial'
+                              const teleopCount = session.matches.filter(
+                                m => m.robot1ParkTeleop || m.robot2ParkTeleop
                               ).length;
                               return (
                                 <td
                                   key={session.id}
                                   className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                                 >
-                                  {fullCount > 0 ? `${fullCount} full` : ''}
-                                  {fullCount > 0 && partialCount > 0
-                                    ? ', '
+                                  {autoCount > 0 ? `${autoCount} auto` : ''}
+                                  {autoCount > 0 && teleopCount > 0 ? ', ' : ''}
+                                  {teleopCount > 0
+                                    ? `${teleopCount} teleop`
                                     : ''}
-                                  {partialCount > 0
-                                    ? `${partialCount} partial`
-                                    : ''}
-                                  {fullCount === 0 && partialCount === 0
+                                  {autoCount === 0 && teleopCount === 0
                                     ? 'None'
                                     : ''}
                                 </td>
@@ -796,10 +761,22 @@ const Compare = () => {
                                 v > 0 ? `${v.toFixed(1)}s` : 'N/A',
                             }
                           )}
-                          {renderSessionRow('Accuracy', getSessionAccuracy, {
-                            format: v =>
-                              v > 0 ? `${v.toFixed(1)}%` : 'N/A',
-                          })}
+                          {renderSessionRow(
+                            'Leave Rate',
+                            s => {
+                              const slots = s.matches.length * 2;
+                              if (slots === 0) return 0;
+                              const left = s.matches.reduce(
+                                (sum, m) =>
+                                  sum +
+                                  (m.robot1Leave ? 1 : 0) +
+                                  (m.robot2Leave ? 1 : 0),
+                                0
+                              );
+                              return (left / slots) * 100;
+                            },
+                            { format: v => `${Math.round(v)}%` }
+                          )}
                           <tr>
                             <td
                               className={`py-3 px-4 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -879,7 +856,7 @@ const Compare = () => {
                                 ]);
                               }
                             }}
-                            title={`Auto ${match.autonomousScore || 0} / Teleop ${match.teleopScore || 0} / End ${match.endGameScore || 0}`}
+                            title={`Garden ${match.garden || 0} · Tipping ${match.tipping || 0} · Flower ${match.flower || 0} · Hive ${match.ballsInHive || 0}`}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                               isChecked
                                 ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
@@ -929,7 +906,7 @@ const Compare = () => {
                       Score per phase for each selected match. Toggle phase to compare.
                     </p>
                     <div className="flex flex-wrap gap-2 mb-5">
-                      {(['total', 'autonomous', 'teleop', 'endgame'] as const).map(phase => (
+                      {ELEMENTS.map(phase => (
                         <button
                           key={phase}
                           onClick={() => setMatchScoreChartPhase(phase)}
@@ -941,18 +918,14 @@ const Compare = () => {
                                 : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
                           }`}
                         >
-                          {phase === 'total' ? 'Total' : phase === 'autonomous' ? 'Autonomous' : phase === 'teleop' ? 'Teleop' : 'Endgame'}
+                          {ELEMENT_LABELS[phase]}
                         </button>
                       ))}
                     </div>
                     {(() => {
                       const sessionColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
                       const chartData = selectedMatches.map((match, idx) => {
-                        const score =
-                          matchScoreChartPhase === 'total' ? (match.finalScore || 0)
-                          : matchScoreChartPhase === 'autonomous' ? (match.autonomousScore || 0)
-                          : matchScoreChartPhase === 'teleop' ? (match.teleopScore || 0)
-                          : (match.endGameScore || 0);
+                        const score = elementPoints(match, matchScoreChartPhase);
                         return {
                           matchLabel: `M${match.matchNumber}`,
                           score,
@@ -985,7 +958,7 @@ const Compare = () => {
                             />
                             <Line
                               dataKey="score"
-                              name={`${matchScoreChartPhase === 'total' ? 'Total' : matchScoreChartPhase === 'autonomous' ? 'Autonomous' : matchScoreChartPhase === 'teleop' ? 'Teleop' : 'Endgame'} Score`}
+                              name={` Points`}
                               stroke="#3b82f6"
                               strokeWidth={2.5}
                               dot={{ r: 5, fill: '#3b82f6', strokeWidth: 0 }}
@@ -1024,7 +997,7 @@ const Compare = () => {
                       </div>
                     ) : (() => {
                       const sessionColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-                      const maxBalls = Math.max(...selectedMatches.map(m => (m.cycleTimes || []).length), 0);
+                      const maxBalls = Math.max(...selectedMatches.map(m => cycleTimesOf(m).length), 0);
                       if (maxBalls === 0) return (
                         <div className={`flex items-center justify-center h-32 rounded-lg border-2 border-dashed ${isDarkMode ? 'border-team-blue-40 text-team-white-60' : 'border-gray-200 text-gray-400'} text-sm`}>
                           No cycle time data for selected matches
@@ -1033,7 +1006,7 @@ const Compare = () => {
                       const chartData = Array.from({ length: maxBalls }, (_, i) => {
                         const entry: Record<string, number | string> = { ball: `Ball ${i + 1}` };
                         selectedMatches.forEach((m, idx) => {
-                          const ct = m.cycleTimes || [];
+                          const ct = cycleTimesOf(m);
                           if (ct[i] !== undefined) entry[`match${idx}`] = ct[i];
                         });
                         return entry;
@@ -1165,47 +1138,43 @@ const Compare = () => {
                             m => m.finalScore || 0,
                             { highlight: true }
                           )}
-                          {renderMatchRow(
-                            'Autonomous Score',
-                            m => m.autonomousScore || 0
+                          {renderMatchRow('Garden Points', m =>
+                            calculateScore(m).garden
                           )}
-                          {renderMatchRow(
-                            'Classified Artifact',
-                            m => m.autonClassifiedArtifact || 0,
-                            { indent: true }
-                          )}
-                          {renderMatchRow(
-                            'Overflow Artifact',
-                            m => m.autonOverflowArtifact || 0,
-                            { indent: true }
-                          )}
-                          {renderMatchRow('Motif', m => m.autonMotif || 0, {
+                          {renderMatchRow('Garden Scored', m => m.garden || 0, {
                             indent: true,
                           })}
-                          {renderMatchRow('Leave', m => m.autonLeave || 0, {
-                            indent: true,
-                          })}
-                          {renderMatchRow(
-                            'Teleop Score',
-                            m => m.teleopScore || 0
+                          {renderMatchRow('Tipping Points', m =>
+                            calculateScore(m).tipping
                           )}
                           {renderMatchRow(
-                            'Classified Artifact',
-                            m => m.teleClassifiedArtifact || 0,
+                            'Tipping Scored',
+                            m => m.tipping || 0,
                             { indent: true }
                           )}
-                          {renderMatchRow(
-                            'Overflow Artifact',
-                            m => m.teleOverflowArtifact || 0,
-                            { indent: true }
+                          {renderMatchRow('Flower Points', m =>
+                            calculateScore(m).flower
                           )}
-                          {renderMatchRow('Motif', m => m.teleMotif || 0, {
+                          {renderMatchRow('Flower Scored', m => m.flower || 0, {
                             indent: true,
                           })}
-                          {renderMatchRow(
-                            'Endgame Score',
-                            m => m.endGameScore || 0
+                          {renderMatchRow('Hive Points', m =>
+                            calculateScore(m).hive
                           )}
+                          {renderMatchRow(
+                            'Balls in Hive',
+                            m => m.ballsInHive || 0,
+                            { indent: true }
+                          )}
+                          {renderMatchRow('Leave Points', m =>
+                            calculateScore(m).leave
+                          )}
+                          {renderMatchRow('Park Points', m =>
+                            calculateScore(m).park
+                          )}
+                          {renderMatchRow('Penalty Points', getMatchPenalties, {
+                            higherIsBetter: false,
+                          })}
                           <tr
                             className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                           >
@@ -1219,7 +1188,12 @@ const Compare = () => {
                                 key={match.id}
                                 className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {match.robot1Park || 'none'}
+                                {[
+                                  match.robot1ParkAuto && 'auto',
+                                  match.robot1ParkTeleop && 'teleop',
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ') || 'none'}
                               </td>
                             ))}
                             {selectedMatches.length > 1 && <td className="px-4 py-3" />}
@@ -1237,7 +1211,12 @@ const Compare = () => {
                                 key={match.id}
                                 className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
-                                {match.robot2Park || 'none'}
+                                {[
+                                  match.robot2ParkAuto && 'auto',
+                                  match.robot2ParkTeleop && 'teleop',
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ') || 'none'}
                               </td>
                             ))}
                             {selectedMatches.length > 1 && <td className="px-4 py-3" />}
@@ -1251,10 +1230,6 @@ const Compare = () => {
                                 v > 0 ? `${v.toFixed(1)}s` : 'N/A',
                             }
                           )}
-                          {renderMatchRow('Accuracy', getMatchAccuracy, {
-                            format: v =>
-                              v > 0 ? `${v.toFixed(1)}%` : 'N/A',
-                          })}
                         </tbody>
                       </table>
                     </div>

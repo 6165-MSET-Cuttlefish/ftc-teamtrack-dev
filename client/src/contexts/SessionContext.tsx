@@ -8,7 +8,13 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
-import { formatTime as formatTimeUtil, getDisplayTimer as getDisplayTimerUtil } from '@/lib';
+import {
+  formatTime as formatTimeUtil,
+  getDisplayTimer as getDisplayTimerUtil,
+  calculateTotal,
+  emptyScoringFields,
+  pickScoringFields,
+} from '@/lib';
 import {
   saveSessionToStorage,
   loadSessionFromStorage,
@@ -16,7 +22,14 @@ import {
   clearSessionFromStorage,
   hasActiveSession,
 } from '@/lib';
-import type { Match, SessionFormData, SessionTimerState, MatchPhase } from '@/types';
+import type {
+  Match,
+  SessionFormData,
+  SessionTimerState,
+  MatchPhase,
+  MatchScoringFields,
+  SessionType,
+} from '@/types';
 import { STORAGE_KEYS } from '@/constants';
 
 interface TeamTrackWindow extends Window {
@@ -86,40 +99,19 @@ const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
 };
 
 const createInitialSessionData = (): SessionFormData => {
-  const storedGate = localStorage.getItem(STORAGE_KEYS.GATE_SCORING_ENABLED);
-  const storedMotif = localStorage.getItem(STORAGE_KEYS.MOTIF_SCORING_ENABLED);
-  const gateEnabled = storedGate !== null ? storedGate === 'true' : true;
-  const motifEnabled = storedMotif !== null ? storedMotif === 'true' : true;
+  const storedType = localStorage.getItem(STORAGE_KEYS.SESSION_TYPE);
+  const sessionType: SessionType = storedType === 'Scrim' ? 'Scrim' : 'Practice';
 
   return {
+    ...emptyScoringFields(),
     sessionName: '',
     sessionDuration: '',
+    sessionType,
     matchType: 'Full Game',
-    finalScore: 0,
-    autonomousScore: 0,
-    teleopScore: 0,
-    endGameScore: 0,
     isSessionCompleted: false,
-    autonLeave: 0,
-    autonClassifiedArtifact: 0,
-    autonOverflowArtifact: 0,
-    autonMotif: 0,
-    autonBallsMissed: 0,
-    teleClassifiedArtifact: 0,
-    teleOverflowArtifact: 0,
-    teleMotif: 0,
-    teleBallsMissed: 0,
-    gateBallCount: 0,
-    robot1Park: 'none',
-    robot2Park: 'none',
     selectedFeature: 'Cycle Times',
     notes: '',
-    cycleTimes: [],
-    autonShots: [],
-    teleopShots: [],
     matches: [],
-    gateEnabled,
-    motifPattern: motifEnabled ? ['empty', 'empty', 'empty'] : undefined,
   };
 };
 
@@ -162,7 +154,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const [expandedSection, setExpandedSection] = useState<string | null>(
-    'Autonomous Score'
+    'Live Scoring'
   );
 
   const [hasStarted, setHasStarted] = useState(
@@ -183,7 +175,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [currentMatchData, setCurrentMatchData] =
-    useState<Partial<SessionFormData> | null>(null);
+    useState<MatchScoringFields | null>(null);
 
   const [matchActive, setMatchActive] = useState<boolean>(false);
   const [isPreMatchDelay, setIsPreMatchDelay] = useState<boolean>(false);
@@ -389,49 +381,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   const startEditingMatch = useCallback(
     (match: Match) => {
-      setCurrentMatchData({
-        finalScore: sessionData.finalScore,
-        autonomousScore: sessionData.autonomousScore,
-        teleopScore: sessionData.teleopScore,
-        endGameScore: sessionData.endGameScore,
-        autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
-        autonOverflowArtifact: sessionData.autonOverflowArtifact,
-        autonMotif: sessionData.autonMotif,
-        autonBallsMissed: sessionData.autonBallsMissed,
-        autonLeave: sessionData.autonLeave,
-        teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
-        teleOverflowArtifact: sessionData.teleOverflowArtifact,
-        teleMotif: sessionData.teleMotif,
-        teleBallsMissed: sessionData.teleBallsMissed,
-        robot1Park: sessionData.robot1Park,
-        robot2Park: sessionData.robot2Park,
-        cycleTimes: sessionData.cycleTimes,
-        autonShots: sessionData.autonShots,
-        teleopShots: sessionData.teleopShots,
-      });
-
-      setSessionData(prev => ({
-        ...prev,
-        finalScore: match.finalScore || 0,
-        autonomousScore: match.autonomousScore || 0,
-        teleopScore: match.teleopScore || 0,
-        endGameScore: match.endGameScore || 0,
-        autonClassifiedArtifact: match.autonClassifiedArtifact || 0,
-        autonOverflowArtifact: match.autonOverflowArtifact || 0,
-        autonMotif: match.autonMotif || 0,
-        autonBallsMissed: match.autonBallsMissed || 0,
-        autonLeave: match.autonLeave || 0,
-        teleClassifiedArtifact: match.teleClassifiedArtifact || 0,
-        teleOverflowArtifact: match.teleOverflowArtifact || 0,
-        teleMotif: match.teleMotif || 0,
-        teleBallsMissed: match.teleBallsMissed || 0,
-        robot1Park: match.robot1Park || 'none',
-        robot2Park: match.robot2Park || 'none',
-        cycleTimes: match.cycleTimes || [],
-        autonShots: match.autonShots || [],
-        teleopShots: match.teleopShots || [],
-      }));
-
+      setCurrentMatchData(pickScoringFields(sessionData));
+      setSessionData(prev => ({ ...prev, ...pickScoringFields(match) }));
       setEditingMatchId(match.id);
     },
     [sessionData]
@@ -449,59 +400,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     if (!editingMatchId) return;
 
     setSessionData(prev => {
+      const edited = pickScoringFields(prev);
       const updatedMatches = prev.matches.map(match =>
         match.id === editingMatchId
-          ? {
-              ...match,
-              finalScore: prev.finalScore,
-              autonomousScore: prev.autonomousScore,
-              teleopScore: prev.teleopScore,
-              endGameScore: prev.endGameScore,
-              autonClassifiedArtifact: prev.autonClassifiedArtifact,
-              autonOverflowArtifact: prev.autonOverflowArtifact,
-              autonMotif: prev.autonMotif,
-              autonBallsMissed: prev.autonBallsMissed,
-              autonLeave: prev.autonLeave,
-              teleClassifiedArtifact: prev.teleClassifiedArtifact,
-              teleOverflowArtifact: prev.teleOverflowArtifact,
-              teleMotif: prev.teleMotif,
-              teleBallsMissed: prev.teleBallsMissed,
-              robot1Park: prev.robot1Park,
-              robot2Park: prev.robot2Park,
-              cycleTimes: prev.cycleTimes,
-              autonShots: prev.autonShots,
-              teleopShots: prev.teleopShots,
-            }
+          ? { ...match, ...edited, finalScore: calculateTotal(edited) }
           : match
       );
-
-      if (currentMatchData) {
-        return {
-          ...prev,
-          matches: updatedMatches,
-          ...currentMatchData,
-        };
-      }
 
       return {
         ...prev,
         matches: updatedMatches,
-        finalScore: 0,
-        autonomousScore: 0,
-        teleopScore: 0,
-        endGameScore: 0,
-        autonClassifiedArtifact: 0,
-        autonOverflowArtifact: 0,
-        autonMotif: 0,
-        autonBallsMissed: 0,
-        autonLeave: 0,
-        teleClassifiedArtifact: 0,
-        teleOverflowArtifact: 0,
-        teleMotif: 0,
-        teleBallsMissed: 0,
-        robot1Park: 'none',
-        robot2Park: 'none',
-        cycleTimes: [],
+        ...(currentMatchData ?? emptyScoringFields()),
       };
     });
 

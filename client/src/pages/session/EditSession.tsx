@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { useNavigationGuard } from '@/hooks';
 import { firebaseService } from '@/services';
-import { formatDate } from '@/lib';
+import { formatDate, calculateTotal, pickScoringFields } from '@/lib';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, Match } from '@/types';
 import { MatchForm } from '@/components';
@@ -104,9 +104,11 @@ const EditSession = () => {
         );
       } else {
         const newMatch: Match = {
+          ...pickScoringFields(matchData),
           id: `match_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
           matchNumber: matchData.matchNumber || 1,
-          ...matchData,
+          matchType: matchData.matchType || 'Full Game',
+          finalScore: matchData.finalScore ?? calculateTotal(matchData),
         };
         updatedMatches = [...(session.matches || []), newMatch];
       }
@@ -483,16 +485,20 @@ const EditSession = () => {
                           }`}
                         >
                           <span className="flex items-center gap-1">
-                            <div className="w-2 h-2 rounded-full bg-purple-500" />
-                            Auto: {match.autonomousScore || 0}
-                          </span>
-                          <span className="flex items-center gap-1">
                             <div className="w-2 h-2 rounded-full bg-green-500" />
-                            Teleop: {match.teleopScore || 0}
+                            Garden: {match.garden || 0}
                           </span>
                           <span className="flex items-center gap-1">
-                            <div className="w-2 h-2 rounded-full bg-orange-500" />
-                            End: {match.endGameScore || 0}
+                            <div className="w-2 h-2 rounded-full bg-amber-500" />
+                            Tipping: {match.tipping || 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-purple-500" />
+                            Flower: {match.flower || 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-sky-500" />
+                            Hive: {match.ballsInHive || 0}
                           </span>
                         </div>
                       </div>

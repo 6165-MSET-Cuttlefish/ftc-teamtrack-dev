@@ -4,12 +4,12 @@ export { ErrorBoundary, Header, DeepSeaBubbles, MobileWarning } from './layout';
 
 export {
   ActiveTutorial,
-  GateVisual,
   LivePreview,
+  LiveScoring,
+  MatchEntry,
   MatchForm,
   Notes,
-  ScoringMetrics,
-  ScoringUI,
+  ScoreField,
   SessionSetup,
 } from './session';
 

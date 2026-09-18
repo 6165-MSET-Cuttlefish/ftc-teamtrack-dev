@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
-import { STORAGE_KEYS, ROUTES, TUTORIAL_RESTART_EVENT } from '@/constants';
+import { ROUTES, TUTORIAL_RESTART_EVENT } from '@/constants';
 import { getInitials } from '@/lib';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -18,7 +18,6 @@ import {
   LogOut,
   UserCircle,
   BarChart3,
-  Keyboard,
   HelpCircle,
   Hexagon,
   Waves,
@@ -105,14 +104,6 @@ const NavigationMenu = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isOnActivePage = location.pathname.includes('/active');
-  const [showKeybindTutorial, setShowKeybindTutorial] = useState(false);
-
-  // Listen for external requests to open keybind tutorial (e.g. from ScoringUI)
-  useEffect(() => {
-    const handleOpen = () => setShowKeybindTutorial(true);
-    window.addEventListener('teamtrack-open-keybind-tutorial', handleOpen);
-    return () => window.removeEventListener('teamtrack-open-keybind-tutorial', handleOpen);
-  }, []);
 
   const { hasStarted } = useSession();
   const hasActiveSession =
@@ -137,10 +128,6 @@ const NavigationMenu = () => {
     }
   };
 
-  const handleCloseKeybindTutorial = () => {
-    setShowKeybindTutorial(false);
-    localStorage.setItem(STORAGE_KEYS.KEYBIND_TUTORIAL_SEEN, 'true');
-  };
 
   const handleStartInteractiveTutorial = () => {
     if (isOnActivePage) {
@@ -192,13 +179,6 @@ const NavigationMenu = () => {
         <BarChart3 className="w-4 h-4 sm:hidden" />
       </button>
 
-      <button
-        onClick={() => setShowKeybindTutorial(true)}
-        aria-label="Keybinds tutorial"
-        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
-      >
-        <Keyboard className="w-4 h-4 sm:w-5 sm:h-5" />
-      </button>
 
       <button
         onClick={handleStartInteractiveTutorial}
@@ -263,92 +243,6 @@ const NavigationMenu = () => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {showKeybindTutorial && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4"
-          onClick={handleCloseKeybindTutorial}
-        >
-          <div
-            className={`relative w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg shadow-lg ${isDarkMode ? 'bg-[#191919] text-white' : 'bg-white text-gray-900'}`}
-            onClick={e => e.stopPropagation()}
-          >
-            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
-              Keyboard Shortcuts
-            </h2>
-            <div className="space-y-3 sm:space-y-4">
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold mb-2">
-                  Scoring Shortcuts
-                </h3>
-                <p className={`text-xs sm:text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-                  Use these shortcuts when in the Autonomous or Teleop section:
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-sm sm:text-base">
-                      Shots Attempted:
-                    </span>
-                    <div className="flex gap-1 sm:gap-2">
-                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>1</kbd>
-                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>2</kbd>
-                      <kbd className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>3</kbd>
-                    </div>
-                  </div>
-                  <p className={`text-xs sm:text-xs ml-0 sm:ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Press 1, 2, or 3 to select the shot type
-                  </p>
-
-                  <div className="flex items-center justify-between mt-3">
-                    <span>Shots Made:</span>
-                    <div className="flex gap-2">
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>1</kbd>
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>2</kbd>
-                      <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>3</kbd>
-                    </div>
-                  </div>
-                  <p className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    After selecting shot type, press number to set how many were
-                    made (≤ shot type)
-                  </p>
-
-                  <div className="flex items-center justify-between mt-3">
-                    <span>Confirm entry:</span>
-                    <kbd className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>Enter</kbd>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-3">
-                    <span>Cancel:</span>
-                    <kbd className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>Esc</kbd>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-3">
-                    <span>Toggle gate:</span>
-                    <kbd className={`px-3 py-1 rounded text-sm font-mono ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>G</kbd>
-                  </div>
-                  <p className={`text-xs ml-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Open or close the gate
-                  </p>
-                </div>
-              </div>
-
-              <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <strong className={isDarkMode ? 'text-white' : 'text-gray-900'}>Note:</strong> Keyboard shortcuts only work when
-                  you're not typing in an input field.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={handleCloseKeybindTutorial}
-              className="mt-6 w-full py-2 px-4 rounded-md font-medium transition-colors bg-team-blue hover:bg-team-blue/80 text-black"
-            >
-              Got it!
-            </button>
-          </div>
-        </div>
-      )}
 
       {user ? (
         <DropdownMenu>

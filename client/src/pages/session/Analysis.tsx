@@ -2,7 +2,14 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useSession, useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { generateShareableLink, copyToClipboard, sanitizeHtml } from '@/lib';
+import {
+  generateShareableLink,
+  copyToClipboard,
+  sanitizeHtml,
+  calculateTotal,
+  emptyScoringFields,
+  pickScoringFields,
+} from '@/lib';
 import { APP_CONFIG, STORAGE_KEYS } from '@/constants';
 import type { Match } from '@/types';
 import { MatchForm } from '@/components';
@@ -77,38 +84,18 @@ const Analysis = () => {
             session = await firebaseService.getSession(sessionId);
           }
           if (mounted && session) {
-            const sum = (fn: (m: Match) => number) =>
-              session.matches.reduce((s: number, m: Match) => s + fn(m), 0);
-
+            // The scoring fields on a loaded session are only placeholders —
+            // every figure on this page is aggregated from `matches`.
             setLocalSessionData({
+              ...emptyScoringFields(),
               sessionName: session.sessionName || '',
+              sessionType: session.sessionType || 'Practice',
               sessionDuration: session.sessionDuration || '',
               matchType: session.matchType || '',
-              finalScore: sum(m => m.finalScore || 0),
-              autonomousScore: sum(m => m.autonomousScore || 0),
-              teleopScore: sum(m => m.teleopScore || 0),
-              endGameScore: sum(m => m.endGameScore || 0),
               isSessionCompleted: true,
-              autonClassifiedArtifact: sum(
-                m => m.autonClassifiedArtifact || 0
-              ),
-              autonOverflowArtifact: sum(m => m.autonOverflowArtifact || 0),
-              autonMotif: sum(m => m.autonMotif || 0),
-              autonLeave: sum(m => m.autonLeave || 0),
-              teleClassifiedArtifact: sum(m => m.teleClassifiedArtifact || 0),
-              teleOverflowArtifact: sum(m => m.teleOverflowArtifact || 0),
-              teleMotif: sum(m => m.teleMotif || 0),
-              teleBallsMissed: sum(m => m.teleBallsMissed || 0),
-              autonBallsMissed: sum(m => m.autonBallsMissed || 0),
-              robot1Park: 'none',
-              robot2Park: 'none',
               selectedFeature: session.selectedFeature || '',
-              cycleTimes: session.matches.flatMap(
-                (m: Match) => m.cycleTimes || []
-              ),
               notes: session.notes || '',
               matches: session.matches || [],
-              gateBallCount: 0,
             });
           }
         } catch (error) {
@@ -139,27 +126,11 @@ const Analysis = () => {
         selectedFeature: sessionData.selectedFeature,
         notes: sessionData.notes || '',
         matches: (sessionData.matches || []).map(m => ({
+          ...pickScoringFields(m),
           id: m.id,
           matchNumber: m.matchNumber,
           matchType: m.matchType,
           finalScore: m.finalScore,
-          autonomousScore: m.autonomousScore,
-          teleopScore: m.teleopScore,
-          endGameScore: m.endGameScore,
-          autonClassifiedArtifact: m.autonClassifiedArtifact,
-          autonOverflowArtifact: m.autonOverflowArtifact,
-          autonMotif: m.autonMotif,
-          autonLeave: m.autonLeave,
-          autonBallsMissed: m.autonBallsMissed,
-          teleClassifiedArtifact: m.teleClassifiedArtifact,
-          teleOverflowArtifact: m.teleOverflowArtifact,
-          teleMotif: m.teleMotif,
-          teleBallsMissed: m.teleBallsMissed,
-          robot1Park: m.robot1Park,
-          robot2Park: m.robot2Park,
-          cycleTimes: m.cycleTimes,
-          autonShots: m.autonShots,
-          teleopShots: m.teleopShots,
         })),
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -236,25 +207,11 @@ const Analysis = () => {
         );
       } else {
         const newMatch: Match = {
+          ...pickScoringFields(matchData),
           id: `match_${Date.now()}`,
           matchNumber: matchData.matchNumber || currentMatches.length + 1,
           matchType: matchData.matchType || 'Full Game',
-          finalScore: matchData.finalScore || 0,
-          autonomousScore: matchData.autonomousScore || 0,
-          teleopScore: matchData.teleopScore || 0,
-          endGameScore: matchData.endGameScore || 0,
-          autonClassifiedArtifact: matchData.autonClassifiedArtifact || 0,
-          autonOverflowArtifact: matchData.autonOverflowArtifact || 0,
-          autonMotif: matchData.autonMotif || 0,
-          autonLeave: matchData.autonLeave || 0,
-          autonBallsMissed: matchData.autonBallsMissed || 0,
-          teleClassifiedArtifact: matchData.teleClassifiedArtifact || 0,
-          teleOverflowArtifact: matchData.teleOverflowArtifact || 0,
-          teleMotif: matchData.teleMotif || 0,
-          teleBallsMissed: matchData.teleBallsMissed || 0,
-          robot1Park: matchData.robot1Park || 'none',
-          robot2Park: matchData.robot2Park || 'none',
-          cycleTimes: matchData.cycleTimes || [],
+          finalScore: matchData.finalScore ?? calculateTotal(matchData),
         };
         updatedMatches = [...currentMatches, newMatch];
       }

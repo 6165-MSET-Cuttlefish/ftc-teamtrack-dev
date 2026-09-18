@@ -22,3 +22,12 @@ export {
 } from './sessionPersistence';
 export { generateShareableLink, copyToClipboard } from './shareService';
 export { sanitizeHtml } from './sanitize';
+export {
+  POINTS,
+  calculateScore,
+  calculateTotal,
+  scoreRows,
+  emptyScoringFields,
+  pickScoringFields,
+  cycleTimesOf,
+} from './scoring';
