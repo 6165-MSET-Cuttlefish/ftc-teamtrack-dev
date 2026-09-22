@@ -181,7 +181,7 @@ const EditSession = () => {
   if (loading) {
     return (
       <div
-        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+        className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div className="max-w-[1152px] mx-auto px-4 py-8 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
@@ -193,7 +193,7 @@ const EditSession = () => {
   if (!session) {
     return (
       <div
-        className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+        className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div className="max-w-[1152px] mx-auto px-4 py-8">
           <div className="text-center py-12">
@@ -238,7 +238,7 @@ const EditSession = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} page-transition`}
+      className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} page-transition`}
     >
       <div className="max-w-[1152px] mx-auto px-4 py-8">
 
@@ -251,10 +251,10 @@ const EditSession = () => {
         >
           <CardHeader className="relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-team-blue/5 rounded-full blur-3xl -z-10" />
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex-1 min-w-0">
                 <CardTitle
-                  className={`text-3xl mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                  className={`text-2xl sm:text-3xl mb-2 break-words ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
                 >
                   {session.sessionName || 'Untitled Session'}
                 </CardTitle>
@@ -278,7 +278,7 @@ const EditSession = () => {
                 </div>
               </div>
               <div
-                className={`px-6 py-4 rounded-xl border-2 backdrop-blur-sm ${
+                className={`self-start px-6 py-4 rounded-xl border-2 backdrop-blur-sm shrink-0 ${
                   isDarkMode
                     ? 'bg-team-blue/10 border-team-blue/40'
                     : 'bg-team-blue/10 border-team-blue/30'
@@ -383,9 +383,9 @@ const EditSession = () => {
         </div>
 
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
             <h2
-              className={`text-3xl font-bold flex items-center gap-3 ${
+              className={`text-2xl sm:text-3xl font-bold flex items-center gap-3 ${
                 isDarkMode ? 'text-white' : 'text-team-blue'
               }`}
             >
@@ -450,8 +450,8 @@ const EditSession = () => {
                 >
                   <CardContent className="py-4 relative">
                     <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-team-blue to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="flex items-center justify-between pl-2">
-                      <div className="flex-1">
+                    <div className="flex items-start justify-between flex-wrap gap-3 pl-2">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-4 flex-wrap">
                           <div
                             className={`px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${
@@ -480,7 +480,7 @@ const EditSession = () => {
                           </div>
                         </div>
                         <div
-                          className={`mt-3 text-xs flex items-center gap-4 ${
+                          className={`mt-3 text-xs flex items-center gap-x-4 gap-y-1.5 flex-wrap ${
                             isDarkMode ? 'text-team-white-40' : 'text-gray-500'
                           }`}
                         >

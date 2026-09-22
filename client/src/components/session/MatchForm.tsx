@@ -46,7 +46,7 @@ const Panel = ({
   const { isDarkMode } = useTheme();
   return (
     <div
-      className={`p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
+      className={`p-3 sm:p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
     >
       <h4
         className={`font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
@@ -169,7 +169,7 @@ export const MatchForm = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 px-6 py-6">
+        <div className="space-y-6 px-4 sm:px-6 py-4 sm:py-6">
           <div className="space-y-2">
             <Label
               htmlFor="matchType"

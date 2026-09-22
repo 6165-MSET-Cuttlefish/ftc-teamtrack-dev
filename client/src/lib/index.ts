@@ -5,6 +5,7 @@ export {
   formatDate,
   formatTime,
   getDisplayTimer,
+  generateId,
   getInitials,
   isAbortError,
   getErrorMessage,

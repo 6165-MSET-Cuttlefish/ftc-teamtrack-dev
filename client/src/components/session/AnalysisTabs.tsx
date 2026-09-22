@@ -228,7 +228,7 @@ const Section = ({
   isDarkMode: boolean;
 }) => (
   <div
-    className={`rounded-xl border p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
+    className={`rounded-xl border p-4 sm:p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
   >
     <h3
       className={`text-lg font-semibold mb-5 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -1013,11 +1013,11 @@ export const CompareTab = ({
             return (
               <div
                 key={row.key}
-                className={`grid grid-cols-4 items-center text-sm py-1.5 ${
+                className={`grid grid-cols-[minmax(0,1.6fr)_1fr_1fr_1fr] items-center text-sm py-1.5 ${
                   isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
               >
-                <span className="col-span-1">{row.label}</span>
+                <span className="truncate pr-2">{row.label}</span>
                 <span className="text-right tabular-nums font-semibold">
                   {row.points}
                 </span>

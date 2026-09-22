@@ -22,6 +22,8 @@ import {
   Hexagon,
   Waves,
   ArrowLeft,
+  Radio,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -149,9 +151,15 @@ const NavigationMenu = () => {
           <button
             onClick={() => navigate('/active')}
             aria-label="Active practice session"
-            className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'}`}
+            className={`flex items-center gap-1.5 sm:gap-2 transition-colors ${isDarkMode ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'}`}
           >
-            <span className="text-sm font-semibold">Active Session</span>
+            {/* Label collapses to an icon on mobile — same pattern as "My
+                Sessions" below — so this doesn't crowd the icons next to it
+                on a phone-width header. */}
+            <span className="hidden sm:inline text-sm font-semibold">
+              Active Session
+            </span>
+            <Radio className="w-4 h-4 sm:hidden" />
             <div className="relative w-2 h-2">
               <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse"></div>
               <div className="absolute inset-0 bg-green-500 rounded-full"></div>
@@ -161,9 +169,12 @@ const NavigationMenu = () => {
           <button
             onClick={() => navigate(ROUTES.ACTIVE)}
             aria-label="New session"
-            className={`px-4 py-1.5 rounded-full flex items-center gap-2 transition-all bg-team-blue hover:opacity-90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+            className={`px-3 sm:px-4 py-1.5 rounded-full flex items-center gap-2 transition-all bg-team-blue hover:opacity-90 ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
-            <span className="text-sm font-semibold">New Session</span>
+            <span className="hidden sm:inline text-sm font-semibold">
+              New Session
+            </span>
+            <Plus className="w-4 h-4 sm:hidden" />
           </button>
         ))}
 
@@ -323,7 +334,7 @@ const CompactTimer = () => {
 
   return (
     <span
-      className={`text-3xl sm:text-4xl font-righteous tracking-wider leading-none transition-colors ${timerColor}`}
+      className={`text-xl sm:text-3xl md:text-4xl font-righteous tracking-wider leading-none transition-colors ${timerColor}`}
     >
       {matchPhase === 'controller_pickup'
         ? formatTime(phaseTimer)
@@ -376,7 +387,7 @@ export const Header = () => {
       ref={setHeaderEl}
       className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
-      <div className="relative max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_auto] items-center gap-2 sm:gap-4 md:gap-6">
+      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:gap-4 md:gap-6">
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
           {!isOnSessionsPage && (
             <button
@@ -390,16 +401,23 @@ export const Header = () => {
           <TeamTrackLogo />
         </div>
 
-        {/* Absolutely centered so it's always in the middle of the header */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+        {/*
+          A real grid track, not an absolute overlay: the timer can only ever
+          take the space left over between the two side groups, so it cannot
+          render on top of the nav icons no matter how wide either side gets
+          (e.g. the extra "Sign in" / "Sign up" buttons in guest mode).
+          `overflow-hidden` is a last-resort clamp for when even that leftover
+          space is narrower than the timer itself on very small screens.
+        */}
+        <div className="min-w-0 flex items-center justify-center overflow-hidden">
           {showCompactTimer && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto">
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
               <CompactTimer />
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-1 sm:gap-2 md:gap-4 lg:gap-6 flex-shrink-0 ml-auto">
+        <div className="flex items-center justify-end gap-1 sm:gap-2 md:gap-4 lg:gap-6 flex-shrink-0">
           <NavigationMenu />
         </div>
       </div>

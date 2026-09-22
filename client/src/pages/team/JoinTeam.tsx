@@ -117,12 +117,12 @@ const JoinTeam = () => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center px-4 ${
+      className={`min-h-[100dvh] flex items-center justify-center px-4 ${
         isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
       }`}
     >
       <div
-        className={`max-w-md w-full rounded-2xl border shadow-xl p-8 text-center ${
+        className={`max-w-md w-full rounded-2xl border shadow-xl p-6 sm:p-8 text-center ${
           isDarkMode
             ? 'bg-team-dark-20 border-team-blue-40'
             : 'bg-white border-gray-200'
@@ -166,7 +166,7 @@ const JoinTeam = () => {
                 {memberCount} member{memberCount !== 1 ? 's' : ''}
               </p>
             )}
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center flex-wrap">
               <Button
                 onClick={() => navigate(ROUTES.SESSIONS)}
                 variant="outline"
@@ -350,7 +350,7 @@ const JoinTeam = () => {
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
               {errorMessage}
             </p>
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center flex-wrap">
               <Button
                 onClick={() => navigate(ROUTES.SESSIONS)}
                 variant="outline"

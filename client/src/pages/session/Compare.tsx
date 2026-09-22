@@ -352,7 +352,7 @@ const Compare = () => {
   if (loading) {
     return (
       <div
-        className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
+        className={`min-h-[100dvh] flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
       >
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
@@ -364,7 +364,7 @@ const Compare = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
+      className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
     >
       <div className="max-w-[1152px] mx-auto px-4 sm:px-8 py-8">
         <div className="mb-8">
@@ -377,7 +377,7 @@ const Compare = () => {
             Compare sessions and matches side-by-side
           </p>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setComparisonMode('sessions')}
               className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all ${
@@ -506,7 +506,8 @@ const Compare = () => {
                         };
                       });
                       return (
-                        <ResponsiveContainer width="100%" height={280}>
+                        <div className="w-full overflow-x-auto">
+                        <ResponsiveContainer width="100%" height={280} minWidth={300}>
                           <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} />
                             <XAxis
@@ -542,6 +543,7 @@ const Compare = () => {
                             />
                           </LineChart>
                         </ResponsiveContainer>
+                        </div>
                       );
                     })()}
                   </CardContent>
@@ -573,7 +575,8 @@ const Compare = () => {
                         };
                       }).filter(d => d.cycleTime !== null);
                       return (
-                        <ResponsiveContainer width="100%" height={280}>
+                        <div className="w-full overflow-x-auto">
+                        <ResponsiveContainer width="100%" height={280} minWidth={300}>
                           <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} />
                             <XAxis
@@ -611,6 +614,7 @@ const Compare = () => {
                             />
                           </LineChart>
                         </ResponsiveContainer>
+                        </div>
                       );
                     })()}
                   </CardContent>
@@ -933,7 +937,8 @@ const Compare = () => {
                         };
                       });
                       return (
-                        <ResponsiveContainer width="100%" height={280}>
+                        <div className="w-full overflow-x-auto">
+                        <ResponsiveContainer width="100%" height={280} minWidth={300}>
                           <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} />
                             <XAxis
@@ -967,6 +972,7 @@ const Compare = () => {
                             />
                           </LineChart>
                         </ResponsiveContainer>
+                        </div>
                       );
                     })()}
                   </CardContent>
@@ -1012,7 +1018,8 @@ const Compare = () => {
                         return entry;
                       });
                       return (
-                        <ResponsiveContainer width="100%" height={280}>
+                        <div className="w-full overflow-x-auto">
+                        <ResponsiveContainer width="100%" height={280} minWidth={300}>
                           <LineChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} />
                             <XAxis
@@ -1066,6 +1073,7 @@ const Compare = () => {
                             ))}
                           </LineChart>
                         </ResponsiveContainer>
+                        </div>
                       );
                     })()}
                   </CardContent>

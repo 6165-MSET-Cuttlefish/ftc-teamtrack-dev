@@ -1,9 +1,27 @@
 export { ActiveTutorial } from './ActiveTutorial';
 export { SummaryTab, MatchDetailTab, CompareTab, StatCard, computeStats, TABS, type TabId, type SessionStats } from './AnalysisTabs';
-export { LivePreview } from './LivePreview';
 export { LiveScoring } from './LiveScoring';
 export { MatchEntry } from './MatchEntry';
 export { MatchForm } from './MatchForm';
 export { Notes } from './Notes';
 export { ScoreField } from './ScoreField';
 export { SessionSetup } from './SessionSetup';
+export {
+  LiveControlsProvider,
+  useLiveControls,
+  OpenSetupButton,
+  PrimaryAction,
+  SessionActions,
+  PlayPauseControl,
+  CancelMatchButton,
+  MatchExtras,
+  MatchLog,
+  CompletedActions,
+  type LiveControlsProps,
+} from './controls';
+export {
+  ActiveDesktopLayout,
+  ActiveMobileLayout,
+  type ActiveSlotKey,
+  type ActiveSlots,
+} from './layout';

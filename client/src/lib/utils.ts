@@ -84,6 +84,25 @@ export function getDisplayTimer(
   return backendTimer;
 }
 
+/**
+ * Generate a random ID for a client-created record (a match, a local draft).
+ *
+ * `crypto.randomUUID()` throws outside a secure context — HTTPS, or the
+ * special-cased `localhost`. A phone hitting the dev server over the LAN by
+ * IP address (`http://192.168.x.x:8080`) is not a secure context, so that
+ * call throws there even though it works fine on the machine running the
+ * server. `crypto.getRandomValues()` has no such restriction, so it's the
+ * one to build IDs on.
+ */
+export function generateId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  // RFC 4122 version 4: set the version and variant bits.
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 /** Get initials from a name string */
 export function getInitials(name: string): string {
   return name

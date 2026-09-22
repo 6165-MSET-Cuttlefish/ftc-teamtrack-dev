@@ -49,10 +49,10 @@ export const LiveScoring = () => {
   const liveTotal = breakdown.garden + breakdown.tipping;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 md:space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-team-blue text-2xl font-semibold leading-6">
+          <h2 className="text-team-blue text-xl md:text-2xl font-semibold leading-6">
             Live Scoring
           </h2>
           <p
@@ -75,7 +75,7 @@ export const LiveScoring = () => {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2 md:space-y-3">
         <ScoreField
           label="Tipping"
           hint={`${POINTS.HIVE_TIP} pts each — hive tips`}

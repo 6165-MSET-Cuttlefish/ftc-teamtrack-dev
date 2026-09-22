@@ -1,25 +1,31 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTheme } from '@/contexts';
-import { APP_CONFIG } from '@/constants';
+import { useIsCompact } from '@/hooks';
+import { APP_CONFIG, MOBILE_READY_ROUTES } from '@/constants';
 import { DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Monitor } from 'lucide-react';
 
-const MOBILE_BREAKPOINT = 768;
-
-const isMobileDevice = () => {
-  if (typeof window === 'undefined') return false;
-  const ua = navigator.userAgent;
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  const isSmallScreen = window.innerWidth < MOBILE_BREAKPOINT;
-  return isMobileUA || isSmallScreen;
-};
-
+/**
+ * Notice shown on phone-width screens for pages that do not have a compact
+ * layout yet.
+ *
+ * Routes are opted in through `MOBILE_READY_ROUTES` rather than opted out, so
+ * a new page never silently claims mobile support it does not have. Remove a
+ * route from that list only by giving it a compact layout first.
+ */
 export const MobileWarning = () => {
   const { isDarkMode } = useTheme();
-  const [open, setOpen] = useState(() => isMobileDevice());
+  const isCompact = useIsCompact();
+  const { pathname } = useLocation();
+  const [dismissed, setDismissed] = useState(false);
 
-  if (!open) return null;
+  const routeIsReady = MOBILE_READY_ROUTES.some(
+    route => pathname === route || pathname.startsWith(`${route}/`)
+  );
+
+  if (dismissed || routeIsReady || !isCompact) return null;
 
   return (
     <div className="fixed inset-0 z-[10001] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -36,16 +42,18 @@ export const MobileWarning = () => {
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-xl font-bold">Mobile Support Coming Soon</h2>
+            <h2 className="text-xl font-bold">Best on a bigger screen</h2>
             <p
               className={`text-sm leading-relaxed ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
             >
-              {APP_CONFIG.name} currently doesn't support mobile devices, but mobile support will be added soon. For now, please use a computer for the best experience.
+              This page of {APP_CONFIG.name} isn&apos;t laid out for phones yet.
+              Running a session works on mobile — for everything else, please
+              use a computer.
             </p>
           </div>
 
           <Button
-            onClick={() => setOpen(false)}
+            onClick={() => setDismissed(true)}
             className={`w-full bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             Got it

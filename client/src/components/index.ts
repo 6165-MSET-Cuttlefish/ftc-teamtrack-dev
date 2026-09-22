@@ -4,13 +4,25 @@ export { ErrorBoundary, Header, DeepSeaBubbles, MobileWarning } from './layout';
 
 export {
   ActiveTutorial,
-  LivePreview,
   LiveScoring,
   MatchEntry,
   MatchForm,
   Notes,
   ScoreField,
   SessionSetup,
+  LiveControlsProvider,
+  useLiveControls,
+  OpenSetupButton,
+  PrimaryAction,
+  SessionActions,
+  PlayPauseControl,
+  CancelMatchButton,
+  MatchExtras,
+  MatchLog,
+  CompletedActions,
+  ActiveDesktopLayout,
+  ActiveMobileLayout,
+  type ActiveSlots,
 } from './session';
 
 export { TeamManager } from './team';

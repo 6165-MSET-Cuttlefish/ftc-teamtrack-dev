@@ -322,7 +322,7 @@ const Profile = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-4 sm:px-6 lg:px-8`}
+      className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-2xl mx-auto space-y-6">
         <Link
@@ -475,9 +475,9 @@ const Profile = () => {
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <p
-                  className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  className={`text-sm font-medium truncate min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
                   {user.displayName || (
                     <span className="italic opacity-50">Not set</span>
@@ -486,6 +486,7 @@ const Profile = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="shrink-0"
                   onClick={() => {
                     setNameValue(user?.displayName || '');
                     setEditingName(true);

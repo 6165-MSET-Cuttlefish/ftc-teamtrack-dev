@@ -4,27 +4,29 @@ import {
   SessionSetup,
   LiveScoring,
   Notes,
-  LivePreview,
   MatchEntry,
   ActiveTutorial,
+  LiveControlsProvider,
+  OpenSetupButton,
+  PrimaryAction,
+  SessionActions,
+  PlayPauseControl,
+  CancelMatchButton,
+  MatchExtras,
+  MatchLog,
+  CompletedActions,
+  ActiveDesktopLayout,
+  ActiveMobileLayout,
+  type ActiveSlots,
 } from '@/components';
 import { TUTORIAL_OPEN_SESSION_SETUP_EVENT } from '@/constants/events';
 import { useTheme, useSession } from '@/contexts';
-import { useMatchAudio, useNavigationGuard } from '@/hooks';
+import { useMatchAudio, useNavigationGuard, useIsCompact } from '@/hooks';
 import { APP_CONFIG, GAME_TIMING, ROUTES } from '@/constants';
-
-/** Thin divider that adapts to the current theme */
-const Divider = ({ className = '' }: { className?: string }) => {
-  const { isDarkMode } = useTheme();
-  return (
-    <div
-      className={`h-px mx-4 ${isDarkMode ? 'bg-gray-700/60' : 'bg-gray-200'} ${className}`}
-    />
-  );
-};
 
 const Active = () => {
   const { isDarkMode } = useTheme();
+  const isCompact = useIsCompact();
   const {
     sessionData,
     timer,
@@ -39,8 +41,8 @@ const Active = () => {
     hasStarted,
   } = useSession();
 
-  const isSessionSetupSavedInit =
-    () => sessionData.sessionName?.trim().length > 0;
+  const isSessionSetupSavedInit = () =>
+    sessionData.sessionName?.trim().length > 0;
   const [showSessionSetup, setShowSessionSetup] = useState(
     () => !isSessionSetupSavedInit()
   );
@@ -59,7 +61,10 @@ const Active = () => {
     };
     window.addEventListener(TUTORIAL_OPEN_SESSION_SETUP_EVENT, handleOpenSetup);
     return () => {
-      window.removeEventListener(TUTORIAL_OPEN_SESSION_SETUP_EVENT, handleOpenSetup);
+      window.removeEventListener(
+        TUTORIAL_OPEN_SESSION_SETUP_EVENT,
+        handleOpenSetup
+      );
     };
   }, []);
 
@@ -83,28 +88,164 @@ const Active = () => {
     return isDarkMode ? 'text-white' : 'text-team-blue';
   };
 
+  const isCompleted = Boolean(sessionData.isSessionCompleted);
+  const matchNumber = (sessionData.matches?.length || 0) + 1;
+
+  /**
+   * Every section of the page, keyed by slot. This decides *whether* a
+   * section applies; the layout decides *where* it goes. Keep the nodes free
+   * of page-level spacing so both layouts can position them.
+   */
+  const slots: ActiveSlots = {
+    title: (
+      <h1 className="text-center font-semibold text-team-blue text-[clamp(1.25rem,5vw,3rem)] leading-tight">
+        {sessionData.sessionName?.trim() || 'Active Practice Session'}
+      </h1>
+    ),
+
+    timer: isPreMatchDelay ? null : (
+      <div
+        role="timer"
+        aria-label="Match timer"
+        className={`text-center tracking-wider leading-none transition-colors font-righteous text-[clamp(3.5rem,20vw,7rem)] ${getTimerColor()}`}
+        style={{ letterSpacing: '0.05em' }}
+      >
+        {matchPhase === 'controller_pickup'
+          ? formatTime(phaseTimer)
+          : matchPhase === 'auton'
+            ? formatTime(getDisplayTimer(timer, matchPhase))
+            : formatTime(timer)}
+      </div>
+    ),
+
+    status: (
+      <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+        <div
+          className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+        >
+          {matchPhase === 'controller_pickup'
+            ? 'Controller Pickup'
+            : matchPhase === 'teleop' && timer <= GAME_TIMING.ENDGAME_REMAINING
+              ? 'Endgame'
+              : sessionData.matchType || 'Full Game'}
+        </div>
+        <div
+          className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+        >
+          Session: {formatTime(sessionTimer)}
+        </div>
+        <div
+          className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+        >
+          {!matchActive
+            ? `Match ${matchNumber} Not Started`
+            : isTimerRunning
+              ? `Match ${matchNumber} Active`
+              : `Match ${matchNumber} Paused`}
+        </div>
+      </div>
+    ),
+
+    openSetup: isCompleted ? null : <OpenSetupButton />,
+    primaryAction: isCompleted ? null : <PrimaryAction />,
+    sessionActions: isCompleted ? null : <SessionActions />,
+    playPause: isCompleted ? null : <PlayPauseControl />,
+    cancelMatch: isCompleted ? null : <CancelMatchButton />,
+    matchExtras: isCompleted ? null : <MatchExtras />,
+    matchLog: isCompleted ? null : <MatchLog />,
+    completedActions: isCompleted ? <CompletedActions /> : null,
+
+    setup:
+      isCompleted || !showSessionSetup ? null : (
+        <div data-tutorial="session-setup">
+          <SessionSetup
+            onSave={() => {
+              setShowSessionSetup(false);
+              setIsSessionSetupSaved(true);
+              setShouldFlashSetup(false);
+            }}
+            shouldFlash={shouldFlashSetup}
+            isUnsaved={!isSessionSetupSaved}
+          />
+        </div>
+      ),
+
+    scoring: isCompleted ? null : (
+      <div data-tutorial="scoring">
+        <LiveScoring />
+      </div>
+    ),
+
+    matchEntry: isCompleted ? null : (
+      <div data-tutorial="metrics">
+        <MatchEntry />
+      </div>
+    ),
+
+    notes: isCompleted ? null : (
+      <div data-tutorial="notes">
+        <Notes />
+      </div>
+    ),
+
+    completionNotice: isCompleted ? (
+      <div className="py-4 text-center space-y-4">
+        <h2
+          className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+        >
+          Session Complete!
+        </h2>
+        <p
+          className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+        >
+          Great work! View your analysis or go to your sessions list.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            to={ROUTES.SESSIONS}
+            className={`px-6 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+              isDarkMode
+                ? 'border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            View Sessions
+          </Link>
+        </div>
+      </div>
+    ) : null,
+  };
+
   return (
     <div
-      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} relative`}
+      className={`min-h-[100dvh] page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'} relative`}
     >
       {navGuard.isBlocked && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
           <div
             className={`max-w-sm w-full rounded-xl border p-6 text-center space-y-4 shadow-2xl ${
-              isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'
+              isDarkMode
+                ? 'bg-team-dark border-team-blue-40'
+                : 'bg-white border-gray-200'
             }`}
           >
-            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h3
+              className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+            >
               Leave active session?
             </h3>
-            <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
+            <p
+              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+            >
               {navGuard.message}
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={navGuard.reset}
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  isDarkMode ? 'border-team-blue-40 text-white hover:bg-team-white-10' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  isDarkMode
+                    ? 'border-team-blue-40 text-white hover:bg-team-white-10'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 Stay
@@ -119,149 +260,32 @@ const Active = () => {
           </div>
         </div>
       )}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-10 relative">
-        <div className="space-y-4 sm:space-y-6">
+
+      <LiveControlsProvider
+        onOpenSessionSetup={() => {
+          if (showSessionSetup && !sessionData.sessionName?.trim()) return;
+          setShowSessionSetup(!showSessionSetup);
+        }}
+        onTryStartWithoutSetup={() => {
+          setShouldFlashSetup(true);
+          setShowSessionSetup(true);
+        }}
+        isSessionSetupSaved={isSessionSetupSaved}
+        onSessionReset={() => {
+          setIsSessionSetupSaved(false);
+          setShowSessionSetup(true);
+          setShouldFlashSetup(false);
+        }}
+      >
+        <div className="max-w-6xl mx-auto md:px-6 lg:px-8 md:pt-6 md:pb-10 relative">
           <ActiveTutorial />
-
-          <div
-            className="space-y-4 px-4 py-4"
-            data-tutorial="timer"
-          >
-            <div className="flex flex-col items-center">
-              <h1 className="text-center text-2xl sm:text-4xl md:text-5xl font-semibold text-team-blue">
-                {sessionData.sessionName?.trim() || 'Active Practice Session'}
-              </h1>
-            </div>
-
-            {!isPreMatchDelay && (
-              <div className="flex flex-col items-center">
-                <div
-                  role="timer"
-                  aria-label="Match timer"
-                  className={`text-7xl sm:text-8xl tracking-wider leading-none transition-colors font-righteous ${getTimerColor()}`}
-                  style={{
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  {matchPhase === 'controller_pickup'
-                    ? formatTime(phaseTimer)
-                    : matchPhase === 'auton'
-                      ? formatTime(getDisplayTimer(timer, matchPhase))
-                      : formatTime(timer)}
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
-              <div
-                className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                {matchPhase === 'controller_pickup'
-                  ? 'Controller Pickup'
-                  : matchPhase === 'teleop' && timer <= GAME_TIMING.ENDGAME_REMAINING
-                      ? 'Endgame'
-                      : sessionData.matchType || 'Full Game'}
-              </div>
-              <div
-                className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-              >
-                Session: {formatTime(sessionTimer)}
-              </div>
-              <div
-                className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                {!matchActive
-                  ? `Match ${(sessionData.matches?.length || 0) + 1} Not Started`
-                  : isTimerRunning
-                    ? `Match ${(sessionData.matches?.length || 0) + 1} Active`
-                    : `Match ${(sessionData.matches?.length || 0) + 1} Paused`}
-              </div>
-            </div>
-          </div>
-
-          <div data-tutorial="controls" className="px-4 py-4">
-            <LivePreview
-              onOpenSessionSetup={() => {
-                if (showSessionSetup && !sessionData.sessionName?.trim()) return;
-                setShowSessionSetup(!showSessionSetup);
-              }}
-              onTryStartWithoutSetup={() => {
-                setShouldFlashSetup(true);
-                setShowSessionSetup(true);
-              }}
-              isSessionSetupSaved={isSessionSetupSaved}
-              onSessionReset={() => {
-                setIsSessionSetupSaved(false);
-                setShowSessionSetup(true);
-                setShouldFlashSetup(false);
-              }}
-            />
-          </div>
-
-          {!sessionData.isSessionCompleted && (
-            <>
-              <Divider />
-
-              {showSessionSetup && (
-                <>
-                  <div data-tutorial="session-setup" className="px-4 py-4">
-                    <SessionSetup
-                      onSave={() => {
-                        setShowSessionSetup(false);
-                        setIsSessionSetupSaved(true);
-                        setShouldFlashSetup(false);
-                      }}
-                      shouldFlash={shouldFlashSetup}
-                      isUnsaved={!isSessionSetupSaved}
-                    />
-                  </div>
-
-                  <Divider />
-                </>
-              )}
-
-              <div data-tutorial="scoring" className="px-4 py-4">
-                <LiveScoring />
-              </div>
-
-              <Divider />
-
-              <div data-tutorial="metrics" className="px-4 py-4">
-                <MatchEntry />
-              </div>
-
-              <Divider />
-
-              <div data-tutorial="notes" className="px-4 py-4">
-                <Notes />
-              </div>
-            </>
-          )}
-
-          {sessionData.isSessionCompleted && (
-            <div className="px-4 py-8 text-center space-y-4">
-              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Session Complete!
-              </h2>
-              <p className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-                Great work! View your analysis or go to your sessions list.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link
-                  to={ROUTES.SESSIONS}
-                  className={`px-6 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                    isDarkMode
-                      ? 'border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  View Sessions
-                </Link>
-              </div>
-            </div>
+          {isCompact ? (
+            <ActiveMobileLayout slots={slots} />
+          ) : (
+            <ActiveDesktopLayout slots={slots} />
           )}
         </div>
-      </div>
+      </LiveControlsProvider>
     </div>
   );
 };
