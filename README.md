@@ -50,6 +50,29 @@ yarn dev
 
 The app runs at [http://localhost:8080](http://localhost:8080).
 
+## Testing on a phone
+
+`vite.config.ts` binds the dev server to `localhost` only, so by default nothing outside your machine can reach it. To test on a real phone on the same Wi-Fi:
+
+```bash
+npx vite --host 0.0.0.0
+```
+
+(`--host` on the CLI overrides the `localhost` in the config. Don't run this alongside a plain `yarn dev` — both bind the same HMR websocket port, `24678`, and the second one will fail to start.)
+
+Vite prints a `Network:` URL once it's up:
+
+```
+➜  Local:   http://localhost:8080/
+➜  Network: http://192.168.1.23:8080/
+```
+
+Open that `Network` address in your phone's browser. If it doesn't load, your computer's firewall is likely blocking the inbound connection on first run — allow it and retry.
+
+You don't need Firebase configured to test the UI: on the login screen, tap **Continue as Guest**. Guest sessions are saved to the browser's local storage instead of Firestore, so this works without a `.env` file at all.
+
+Not every page has a phone-width layout yet — see `MOBILE_READY_ROUTES` in `client/src/constants/layout.ts` for what's covered. Anything else shows a "best on a bigger screen" notice instead.
+
 ## Scripts
 
 ```
