@@ -8,6 +8,7 @@ export {
   MatchEntry,
   MatchForm,
   Notes,
+  ScoreBreakdown,
   ScoreField,
   SessionSetup,
   LiveControlsProvider,

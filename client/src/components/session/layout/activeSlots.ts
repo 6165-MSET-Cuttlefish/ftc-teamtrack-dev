@@ -27,6 +27,7 @@ export type ActiveSlotKey =
   | 'setup'
   | 'scoring'
   | 'matchEntry'
+  | 'breakdown'
   | 'notes'
   | 'completedActions'
   | 'completionNotice';

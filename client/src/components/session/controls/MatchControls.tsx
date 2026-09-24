@@ -4,7 +4,7 @@ import { useLiveControls } from './liveControlsContext';
 import { swallowEnter } from './swallowEnter';
 
 const CONTROL_CLASS =
-  'px-4 py-2 min-h-11 rounded-xl border-2 text-sm font-semibold transition-colors flex items-center gap-2';
+  'px-3 py-1.5 min-h-11 md:min-h-10 rounded-xl border-2 text-sm font-semibold transition-colors flex items-center gap-2';
 
 /**
  * Pause / resume only.

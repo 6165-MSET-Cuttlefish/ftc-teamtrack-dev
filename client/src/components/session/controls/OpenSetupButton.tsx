@@ -17,7 +17,7 @@ export const OpenSetupButton = () => {
       type="button"
       onKeyDown={swallowEnter}
       onClick={onOpenSessionSetup}
-      className={`w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-2xl border-2 transition-colors flex items-center justify-center ${
+      className={`w-12 h-12 shrink-0 rounded-2xl border-2 transition-colors flex items-center justify-center ${
         !isSessionSetupSaved
           ? 'border-red-500/60 bg-red-500/20 hover:bg-red-500/30'
           : isDarkMode

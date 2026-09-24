@@ -5,6 +5,7 @@ import {
   LiveScoring,
   Notes,
   MatchEntry,
+  ScoreBreakdown,
   ActiveTutorial,
   LiveControlsProvider,
   OpenSetupButton,
@@ -98,7 +99,7 @@ const Active = () => {
    */
   const slots: ActiveSlots = {
     title: (
-      <h1 className="text-center font-semibold text-team-blue text-[clamp(1.25rem,5vw,3rem)] leading-tight">
+      <h1 className="text-center font-semibold text-team-blue text-[clamp(1.25rem,5vw,2.25rem)] leading-tight">
         {sessionData.sessionName?.trim() || 'Active Practice Session'}
       </h1>
     ),
@@ -107,7 +108,7 @@ const Active = () => {
       <div
         role="timer"
         aria-label="Match timer"
-        className={`text-center tracking-wider leading-none transition-colors font-righteous text-[clamp(3.5rem,20vw,7rem)] ${getTimerColor()}`}
+        className={`text-center tracking-wider leading-none transition-colors font-righteous text-[clamp(3.5rem,20vw,5.5rem)] ${getTimerColor()}`}
         style={{ letterSpacing: '0.05em' }}
       >
         {matchPhase === 'controller_pickup'
@@ -181,6 +182,8 @@ const Active = () => {
         <MatchEntry />
       </div>
     ),
+
+    breakdown: isCompleted ? null : <ScoreBreakdown />,
 
     notes: isCompleted ? null : (
       <div data-tutorial="notes">

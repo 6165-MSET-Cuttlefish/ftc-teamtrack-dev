@@ -8,12 +8,22 @@ import {
   type PlacementMap,
 } from './activeSlots';
 
-type Region = 'headline' | 'actionRow' | 'matchRow' | 'log' | 'body' | 'hidden';
+type Region =
+  | 'headline'
+  | 'actionRow'
+  | 'matchRow'
+  | 'setup'
+  | 'live'
+  | 'main'
+  | 'side'
+  | 'footer'
+  | 'hidden';
 
 /**
- * Where each section sits on a full-size screen. This reproduces the
- * long-standing single-column page: headline block, action row, in-match
- * controls, match log, then the stacked editing sections.
+ * Where each section sits on a full-size screen: headline and controls on
+ * top, Live Scoring in its own full-width row, then a split view — Match
+ * Entry on the left, the breakdown and match log pinned on the right — so a
+ * whole match can be scored without scrolling. Notes sit below the split.
  */
 const PLACEMENT: PlacementMap<Region> = {
   title: { region: 'headline', order: 0 },
@@ -29,60 +39,105 @@ const PLACEMENT: PlacementMap<Region> = {
   matchExtras: { region: 'matchRow', order: 1 },
   cancelMatch: { region: 'matchRow', order: 2 },
 
-  matchLog: { region: 'log', order: 0 },
+  setup: { region: 'setup', order: 0 },
 
-  setup: { region: 'body', order: 0 },
-  scoring: { region: 'body', order: 1 },
-  matchEntry: { region: 'body', order: 2 },
-  notes: { region: 'body', order: 3 },
-  completionNotice: { region: 'body', order: 4 },
+  scoring: { region: 'live', order: 0 },
+
+  matchEntry: { region: 'main', order: 0 },
+
+  breakdown: { region: 'side', order: 0 },
+  matchLog: { region: 'side', order: 1 },
+
+  notes: { region: 'footer', order: 0 },
+  completionNotice: { region: 'footer', order: 1 },
 };
 
 /** Thin divider that adapts to the current theme */
 const Divider = () => {
   const { isDarkMode } = useTheme();
   return (
-    <div
-      className={`h-px mx-4 ${isDarkMode ? 'bg-gray-700/60' : 'bg-gray-200'}`}
-    />
+    <div className={`h-px ${isDarkMode ? 'bg-gray-700/60' : 'bg-gray-200'}`} />
   );
 };
 
 export const ActiveDesktopLayout = ({ slots }: { slots: ActiveSlots }) => {
-  const render = (region: Region) =>
-    slotsInRegion(PLACEMENT, region).map(key => (
-      <Fragment key={key}>{slots[key]}</Fragment>
-    ));
+  const present = (region: Region) =>
+    slotsInRegion(PLACEMENT, region).filter(key => slots[key] != null);
 
-  /** Body sections are separated by dividers, but only where both sides exist. */
-  const bodySections = slotsInRegion(PLACEMENT, 'body')
-    .filter(key => slots[key] != null)
-    .map(key => (
+  const render = (region: Region) =>
+    present(region).map(key => <Fragment key={key}>{slots[key]}</Fragment>);
+
+  /** Sections separated by dividers, but only where both sides exist. */
+  const divided = (region: Region) =>
+    present(region).map((key, i) => (
       <Fragment key={key}>
-        <Divider />
-        <div className="px-4 py-4">{slots[key]}</div>
+        {i > 0 && <Divider />}
+        {slots[key]}
       </Fragment>
     ));
 
+  const main = present('main');
+  const side = present('side');
+  const footer = present('footer');
+
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="space-y-4 px-4 py-4" data-tutorial="timer">
+    <div className="space-y-4">
+      <div className="space-y-2 px-4 pt-2" data-tutorial="timer">
         {render('headline')}
       </div>
 
-      <div data-tutorial="controls" className="px-4 py-4">
-        <div className="flex flex-col gap-8">
-          <div className="flex items-center gap-3 w-full">
-            {render('actionRow')}
-          </div>
-          <div className="flex items-center gap-3 flex-wrap empty:hidden">
-            {render('matchRow')}
-          </div>
-          {render('log')}
+      <div data-tutorial="controls" className="px-4 flex flex-col gap-3">
+        <div className="flex items-center gap-3 w-full">
+          {render('actionRow')}
+        </div>
+        <div className="flex items-center gap-3 flex-wrap empty:hidden">
+          {render('matchRow')}
         </div>
       </div>
 
-      {bodySections}
+      {present('setup').length > 0 && (
+        <div className="px-4">{render('setup')}</div>
+      )}
+
+      {present('live').length > 0 && (
+        <>
+          <div className="px-4">
+            <Divider />
+          </div>
+          <div className="px-4">{render('live')}</div>
+        </>
+      )}
+
+      {(main.length > 0 || side.length > 0) && (
+        <>
+          <div className="px-4">
+            <Divider />
+          </div>
+          <div className="px-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-6 items-start">
+            {main.length > 0 && (
+              <div className="flex flex-col gap-5 min-w-0">
+                {divided('main')}
+              </div>
+            )}
+            {side.length > 0 && (
+              <div className="flex flex-col gap-4 lg:sticky lg:top-4">
+                {render('side')}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {footer.length > 0 && (
+        <>
+          <div className="px-4">
+            <Divider />
+          </div>
+          <div className="px-4 pb-4 flex flex-col gap-6">
+            {divided('footer')}
+          </div>
+        </>
+      )}
     </div>
   );
 };

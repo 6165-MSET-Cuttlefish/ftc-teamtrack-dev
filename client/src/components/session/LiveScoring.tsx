@@ -7,6 +7,9 @@ import { ScoreField } from './ScoreField';
 /**
  * Garden and Tipping are counted while the match runs. Flower and hive
  * contents are assessed after the buzzer and live in MatchEntry instead.
+ *
+ * In a scrim the opponent's fouls happen live too, so penalties are counted
+ * here; in practice they stay with the post-match entry.
  */
 export const LiveScoring = () => {
   const { sessionData, updateSessionData, matchPhase, matchActive, timer } =
@@ -23,6 +26,7 @@ export const LiveScoring = () => {
    */
   const allowed = matchActive;
   const breakdown = calculateScore(sessionData);
+  const isScrim = sessionData.sessionType === 'Scrim';
 
   const record = (field: ScoreEvent['field'], value: number) => {
     const now = Date.now();
@@ -49,20 +53,11 @@ export const LiveScoring = () => {
   const liveTotal = breakdown.garden + breakdown.tipping;
 
   return (
-    <div className="space-y-3 md:space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-team-blue text-xl md:text-2xl font-semibold leading-6">
-            Live Scoring
-          </h2>
-          <p
-            className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-          >
-            {allowed
-              ? 'Tap +/- or type a count and press Enter'
-              : 'Start the match to begin scoring'}
-          </p>
-        </div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-team-blue text-xl font-semibold leading-6">
+          Live Scoring
+        </h2>
         <div className="flex items-center gap-2 shrink-0">
           <span
             className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -75,10 +70,9 @@ export const LiveScoring = () => {
         </div>
       </div>
 
-      <div className="space-y-2 md:space-y-3">
+      <div className="space-y-2">
         <ScoreField
           label="Tipping"
-          hint={`${POINTS.HIVE_TIP} pts each — hive tips`}
           size="large"
           stepper
           value={sessionData.tipping}
@@ -88,7 +82,6 @@ export const LiveScoring = () => {
         />
         <ScoreField
           label="Garden"
-          hint={`${POINTS.GARDEN} pt each`}
           size="large"
           stepper
           value={sessionData.garden}
@@ -96,6 +89,26 @@ export const LiveScoring = () => {
           disabled={!allowed}
           onChange={v => record('garden', v)}
         />
+        {isScrim && (
+          <>
+            <ScoreField
+              label="Minor Penalty"
+              size="large"
+              stepper
+              value={sessionData.minorPenalties}
+              points={-(sessionData.minorPenalties * POINTS.MINOR_PENALTY)}
+              onChange={v => updateSessionData({ minorPenalties: v })}
+            />
+            <ScoreField
+              label="Major Penalty"
+              size="large"
+              stepper
+              value={sessionData.majorPenalties}
+              points={-(sessionData.majorPenalties * POINTS.MAJOR_PENALTY)}
+              onChange={v => updateSessionData({ majorPenalties: v })}
+            />
+          </>
+        )}
       </div>
     </div>
   );

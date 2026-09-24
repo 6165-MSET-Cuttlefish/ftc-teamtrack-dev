@@ -62,9 +62,10 @@ const PLACEMENT: PlacementMap<Region> = {
   completionNotice: { region: 'scroll', order: 1 },
   matchExtras: { region: 'scroll', order: 2 },
   matchEntry: { region: 'scroll', order: 3 },
-  notes: { region: 'scroll', order: 4 },
-  matchLog: { region: 'scroll', order: 5 },
-  sessionActions: { region: 'scroll', order: 6 },
+  breakdown: { region: 'scroll', order: 4 },
+  notes: { region: 'scroll', order: 5 },
+  matchLog: { region: 'scroll', order: 6 },
+  sessionActions: { region: 'scroll', order: 7 },
 };
 
 /** A single slot, or a `PAIRED_ROWS` group rendered together. */

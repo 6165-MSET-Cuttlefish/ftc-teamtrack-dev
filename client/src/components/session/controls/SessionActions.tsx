@@ -39,7 +39,7 @@ export const SessionActions = () => {
             onSessionReset?.();
             setSessionWasCancelled(false);
           }}
-          className="shrink-0 whitespace-nowrap px-5 h-14 md:h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors flex items-center justify-center"
+          className="shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors flex items-center justify-center"
           title="Start a new session"
         >
           New Session
@@ -50,7 +50,7 @@ export const SessionActions = () => {
           onKeyDown={swallowEnter}
           onClick={handleCompleteSession}
           disabled={loading || sessionLimitReached}
-          className="shrink-0 whitespace-nowrap px-5 h-14 md:h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          className="shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           title={
             loading
               ? 'Saving...'
@@ -71,7 +71,7 @@ export const SessionActions = () => {
             setCancelConfirm(true);
             if (isTimerRunning) setIsTimerRunning(false);
           }}
-          className="shrink-0 whitespace-nowrap px-5 h-14 md:h-16 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-lg font-bold transition-colors flex items-center justify-center"
+          className="shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-base font-bold transition-colors flex items-center justify-center"
           title="Cancel Session"
         >
           Cancel Session
@@ -87,7 +87,7 @@ export const SessionActions = () => {
               setCancelConfirm(false);
               toast.success('Session cancelled');
             }}
-            className="py-4 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
+            className="h-12 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
             title="Confirm cancel — discard session"
           >
             <Check className="h-5 w-5 text-white" />
@@ -99,7 +99,7 @@ export const SessionActions = () => {
               setCancelConfirm(false);
               if (hasStarted) setIsTimerRunning(true);
             }}
-            className="py-4 px-4 rounded-xl bg-gray-500 hover:bg-gray-600 transition-colors"
+            className="h-12 px-4 rounded-xl bg-gray-500 hover:bg-gray-600 transition-colors"
             title="Keep session"
           >
             <X className="h-5 w-5 text-white" />

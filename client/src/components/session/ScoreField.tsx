@@ -68,7 +68,7 @@ export const ScoreField = memo(
 
     // 48px on a phone keeps the tap target over the 44px minimum while
     // leaving room for the label on a 360px-wide screen.
-    const stepBtnSize = isLarge ? 'w-12 h-12 md:w-14 md:h-14' : 'w-10 h-10';
+    const stepBtnSize = isLarge ? 'w-12 h-12' : 'w-10 h-10';
     const stepIconSize = isLarge ? 20 : 16;
     const stepBtnClass = (atLimit: boolean) =>
       `flex items-center justify-center rounded-lg border-2 shrink-0 transition-colors ${stepBtnSize} ${
@@ -83,7 +83,7 @@ export const ScoreField = memo(
       <div className="flex items-center gap-2 md:gap-3">
         <div className="flex-1 min-w-0">
           <div
-            className={`font-semibold ${isLarge ? 'text-base' : 'text-sm'} ${
+            className={`font-semibold ${isLarge ? 'text-xl' : 'text-lg'} ${
               disabled
                 ? isDarkMode
                   ? 'text-gray-600'
@@ -139,7 +139,7 @@ export const ScoreField = memo(
           }}
           className={`text-center font-bold rounded-lg border-2 transition-colors tabular-nums ${
             isLarge
-              ? 'h-12 w-16 text-xl md:h-14 md:w-24 md:text-2xl'
+              ? 'h-12 w-16 text-xl md:w-20'
               : 'h-10 w-20 text-lg'
           } ${
             disabled
@@ -164,7 +164,7 @@ export const ScoreField = memo(
 
         {points !== undefined && (
           <div
-            className={`text-right tabular-nums shrink-0 ${isLarge ? 'text-sm w-12 md:text-base md:w-20' : 'text-sm w-16'} font-semibold ${
+            className={`text-right tabular-nums shrink-0 ${isLarge ? 'text-sm w-12 md:w-16' : 'text-sm w-16'} font-semibold ${
               disabled
                 ? isDarkMode
                   ? 'text-gray-600'

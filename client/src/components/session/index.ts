@@ -4,6 +4,7 @@ export { LiveScoring } from './LiveScoring';
 export { MatchEntry } from './MatchEntry';
 export { MatchForm } from './MatchForm';
 export { Notes } from './Notes';
+export { ScoreBreakdown } from './ScoreBreakdown';
 export { ScoreField } from './ScoreField';
 export { SessionSetup } from './SessionSetup';
 export {
