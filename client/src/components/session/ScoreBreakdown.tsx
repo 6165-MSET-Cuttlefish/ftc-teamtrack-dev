@@ -10,7 +10,10 @@ export const ScoreBreakdown = () => {
   const { isDarkMode } = useTheme();
 
   const breakdown = calculateScore(sessionData);
-  const rows = scoreRows(sessionData);
+  // Penalties are only tracked in scrims.
+  const rows = scoreRows(sessionData).filter(
+    row => row.key !== 'penalties' || sessionData.sessionType === 'Scrim'
+  );
 
   return (
     <div

@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react';
 import { useSession, useTheme } from '@/contexts';
-import { POINTS, calculateScore } from '@/lib';
+import { calculateScore } from '@/lib';
 import { ScoreField } from './ScoreField';
 
 const Section = ({
@@ -93,15 +93,14 @@ const RobotRow = ({
 
 /**
  * Everything about the current match that is not counted live: the
- * end-of-match assessment, robot leave/park, and (in practice) penalties.
- * The running total lives in ScoreBreakdown.
+ * end-of-match assessment and robot leave/park. Penalties are scrim-only
+ * and live in LiveScoring; the running total lives in ScoreBreakdown.
  */
 export const MatchEntry = () => {
   const { sessionData, updateSessionData, matchPhase, matchActive } =
     useSession();
 
   const breakdown = calculateScore(sessionData);
-  const isScrim = sessionData.sessionType === 'Scrim';
 
   /**
    * Flower and hive contents are only knowable once the buzzer sounds, so
@@ -167,27 +166,6 @@ export const MatchEntry = () => {
           onChange={v => updateSessionData({ ballsInHive: v })}
         />
       </Section>
-
-      {!isScrim && (
-        <Section title="Penalties">
-          <ScoreField
-            size="large"
-            stepper
-            label="Minor"
-            value={sessionData.minorPenalties}
-            points={-(sessionData.minorPenalties * POINTS.MINOR_PENALTY)}
-            onChange={v => updateSessionData({ minorPenalties: v })}
-          />
-          <ScoreField
-            size="large"
-            stepper
-            label="Major"
-            value={sessionData.majorPenalties}
-            points={-(sessionData.majorPenalties * POINTS.MAJOR_PENALTY)}
-            onChange={v => updateSessionData({ majorPenalties: v })}
-          />
-        </Section>
-      )}
     </div>
   );
 };
