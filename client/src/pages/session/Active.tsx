@@ -20,7 +20,10 @@ import {
   ActiveMobileLayout,
   type ActiveSlots,
 } from '@/components';
-import { TUTORIAL_OPEN_SESSION_SETUP_EVENT } from '@/constants/events';
+import {
+  TUTORIAL_ENDED_EVENT,
+  TUTORIAL_OPEN_SESSION_SETUP_EVENT,
+} from '@/constants/events';
 import { useTheme, useSession } from '@/contexts';
 import { useMatchAudio, useNavigationGuard, useIsCompact } from '@/hooks';
 import { APP_CONFIG, GAME_TIMING, ROUTES } from '@/constants';
@@ -60,12 +63,19 @@ const Active = () => {
     const handleOpenSetup = () => {
       setShowSessionSetup(true);
     };
+    // The tutorial opens settings near its end; close them again so the user
+    // lands back on Start Session.
+    const handleTutorialEnded = () => {
+      setShowSessionSetup(false);
+    };
     window.addEventListener(TUTORIAL_OPEN_SESSION_SETUP_EVENT, handleOpenSetup);
+    window.addEventListener(TUTORIAL_ENDED_EVENT, handleTutorialEnded);
     return () => {
       window.removeEventListener(
         TUTORIAL_OPEN_SESSION_SETUP_EVENT,
         handleOpenSetup
       );
+      window.removeEventListener(TUTORIAL_ENDED_EVENT, handleTutorialEnded);
     };
   }, []);
 

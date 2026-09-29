@@ -177,7 +177,7 @@ interface StepDef {
   /** Prompt shown when the user should interact with the real page element */
   pageAction?: string;
   /** Session field watched for automatic task completion */
-  watchKey?: 'sessionName' | 'notes' | 'garden';
+  watchKey?: 'notes' | 'garden';
 }
 
 const STEPS: StepDef[] = [
@@ -199,16 +199,8 @@ const STEPS: StepDef[] = [
     preview: null,
   },
   {
-    title: 'Name Your Session',
-    body: 'Give the session a name and pick whether it is a Practice or a Scrim. Scrims are full matches against another alliance; practice is solo drilling.',
-    target: 'session-setup',
-    preview: null,
-    pageAction: 'Enter a session name above',
-    watchKey: 'sessionName',
-  },
-  {
-    title: 'Start the Match',
-    body: 'Press Start Match to run the real 2:30 clock — 30 seconds of autonomous, then teleop. Save Match stores the result and resets for the next one.',
+    title: 'Start Your Session',
+    body: 'Every session is ready to go as a Practice session, so just press Start Session. It runs the real 2:30 clock — 30 seconds of autonomous, then teleop. Save Match stores the result, and Start Match runs the next one.',
     target: 'controls',
     preview: null,
   },
@@ -228,14 +220,14 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Leave and Park',
-    body: `Tick Leave for each robot that left its starting zone in autonomous (${POINTS.LEAVE} points each). Park is scored twice per robot — once if it's in the loading zone at the end of AUTO, once if it's there at the end of the match (${POINTS.PARK} points each).`,
+    body: `Tick Leave for each robot that left its starting zone in autonomous (${POINTS.LEAVE} points each). Park is scored twice per robot — once if it's in the loading zone at the end of AUTO, once if it's there at the end of the match (${POINTS.PARK} points each). Park Tele stays locked while autonomous is running.`,
     target: 'metrics',
     preview: d => <RobotsPreview dark={d} />,
   },
   {
     title: 'Penalties',
-    body: `Log minor and major penalties as they happen. They come straight off the match score, so you can see what fouls actually cost you.`,
-    target: 'metrics',
+    body: `In a Scrim, log minor and major penalties as they happen. They come straight off the match score, so you can see what fouls actually cost you.`,
+    target: 'scoring',
     preview: d => <PenaltyPreview dark={d} />,
   },
   {
@@ -245,8 +237,14 @@ const STEPS: StepDef[] = [
     preview: null,
   },
   {
+    title: 'Session Settings',
+    body: 'Open settings with the gear button whenever you need them — rename the session, change the match type, or switch between Practice and Scrim. Scrims are full matches against another alliance; practice is solo drilling.',
+    target: 'session-setup',
+    preview: null,
+  },
+  {
     title: 'You Are Set',
-    body: 'Save each match as you finish it, then Complete Session. Your Sessions, Analysis, Charts, and Compare pages build on that data.',
+    body: "Save each match as you finish it, then press Complete Session — you'll be asked to confirm the session name before it saves. Your Sessions, Analysis, Charts, and Compare pages build on that data.",
     target: null,
     preview: null,
   },
@@ -430,9 +428,6 @@ export const ActiveTutorial = () => {
     if (!visible || taskCompleted) return;
     const key = STEPS[step]?.watchKey;
     if (!key) return;
-    if (key === 'sessionName' && sessionData.sessionName?.trim()) {
-      setTaskCompleted(true);
-    }
     if (key === 'notes' && sessionData.notes?.trim()) {
       setTaskCompleted(true);
     }
