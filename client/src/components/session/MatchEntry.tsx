@@ -1,6 +1,8 @@
+import { useRef } from 'react';
 import { Check } from 'lucide-react';
 import { useSession, useTheme } from '@/contexts';
-import { calculateScore } from '@/lib';
+import { POINTS, calculateScore } from '@/lib';
+import type { ScoreEvent } from '@/types';
 import { ScoreField } from './ScoreField';
 
 const Section = ({
@@ -146,18 +148,50 @@ const RobotHeader = () => {
 };
 
 /**
- * Everything about the current match that is not counted live: the
- * end-of-match assessment and robot leave/park. Penalties are scrim-only
- * and live in LiveScoring; the running total lives in ScoreBreakdown.
+ * All scoring for the current match: Tipping, robot leave/park, scrim
+ * penalties and the end-of-match assessment. The running total lives in
+ * ScoreBreakdown.
  */
 export const MatchEntry = () => {
-  const { sessionData, updateSessionData, matchPhase, matchActive } =
+  const { sessionData, updateSessionData, matchPhase, matchActive, timer } =
     useSession();
 
   const breakdown = calculateScore(sessionData);
+  const isScrim = sessionData.sessionType === 'Scrim';
+
+  /** Timestamp of the last Tipping change, for cycle times */
+  const lastActionRef = useRef<number | null>(null);
 
   /**
-   * Flower and hive contents are only knowable once the buzzer sounds, so
+   * Tipping is counted while the match runs, so each change is logged with
+   * its phase and time for cycle-time analysis. The count is a whole-match
+   * total and stays editable after the buzzer, so a miscount can be
+   * corrected before the match is saved.
+   */
+  const record = (field: ScoreEvent['field'], value: number) => {
+    const now = Date.now();
+    const cycleTime =
+      lastActionRef.current !== null
+        ? parseFloat(((now - lastActionRef.current) / 1000).toFixed(2))
+        : undefined;
+    lastActionRef.current = now;
+
+    const entry: ScoreEvent = {
+      field,
+      value,
+      phase: matchPhase,
+      timeRemaining: timer,
+      cycleTime,
+    };
+
+    updateSessionData({
+      [field]: value,
+      phaseLog: [...(sessionData.phaseLog ?? []), entry],
+    });
+  };
+
+  /**
+   * Flower, hive and garden contents are only knowable once the buzzer sounds, so
    * they stay locked while the clock is still running. Before a match starts
    * they are open, which is what lets a user correct an entry after the fact.
    */
@@ -173,6 +207,15 @@ export const MatchEntry = () => {
       </h2>
 
       <Section title="Robots" tutorialId="robots">
+        <ScoreField
+          label="Tipping"
+          size="large"
+          stepper
+          value={sessionData.tipping}
+          points={breakdown.tipping}
+          disabled={!matchActive}
+          onChange={v => record('tipping', v)}
+        />
         <RobotHeader />
         <RobotRow
           label="Robot 1"
@@ -195,6 +238,27 @@ export const MatchEntry = () => {
           parkTeleopDisabled={inAuto}
         />
       </Section>
+
+      {isScrim && (
+        <Section title="Penalties" tutorialId="penalties">
+          <ScoreField
+            label="Minor Penalty"
+            size="large"
+            stepper
+            value={sessionData.minorPenalties}
+            points={-(sessionData.minorPenalties * POINTS.MINOR_PENALTY)}
+            onChange={v => updateSessionData({ minorPenalties: v })}
+          />
+          <ScoreField
+            label="Major Penalty"
+            size="large"
+            stepper
+            value={sessionData.majorPenalties}
+            points={-(sessionData.majorPenalties * POINTS.MAJOR_PENALTY)}
+            onChange={v => updateSessionData({ majorPenalties: v })}
+          />
+        </Section>
+      )}
 
       <Section title="End of Match" tutorialId="end-of-match">
         <ScoreField
@@ -226,6 +290,15 @@ export const MatchEntry = () => {
           points={breakdown.hive}
           disabled={!matchOver}
           onChange={v => updateSessionData({ ballsInHive: v })}
+        />
+        <ScoreField
+          size="large"
+          stepper
+          label="Garden"
+          value={sessionData.garden}
+          points={breakdown.garden}
+          disabled={!matchOver}
+          onChange={v => updateSessionData({ garden: v })}
         />
       </Section>
     </div>

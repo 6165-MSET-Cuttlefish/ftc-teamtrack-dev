@@ -1,6 +1,5 @@
 export { ActiveTutorial } from './ActiveTutorial';
 export { SummaryTab, MatchDetailTab, CompareTab, StatCard, computeStats, TABS, type TabId, type SessionStats } from './AnalysisTabs';
-export { LiveScoring } from './LiveScoring';
 export { MatchEntry } from './MatchEntry';
 export { MatchForm } from './MatchForm';
 export { Notes } from './Notes';

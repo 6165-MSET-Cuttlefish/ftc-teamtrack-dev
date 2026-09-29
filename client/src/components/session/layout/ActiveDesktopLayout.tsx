@@ -13,7 +13,6 @@ type Region =
   | 'actionRow'
   | 'matchRow'
   | 'setup'
-  | 'live'
   | 'main'
   | 'side'
   | 'footer'
@@ -21,9 +20,9 @@ type Region =
 
 /**
  * Where each section sits on a full-size screen: headline and controls on
- * top, Live Scoring in its own full-width row, then a split view — Match
- * Entry on the left, the breakdown and match log pinned on the right — so a
- * whole match can be scored without scrolling. Notes sit below the split.
+ * top, then a split view — Match Entry on the left, the breakdown and match
+ * log pinned on the right — so a whole match can be scored without
+ * scrolling. Notes sit below the split.
  */
 const PLACEMENT: PlacementMap<Region> = {
   title: { region: 'headline', order: 0 },
@@ -40,8 +39,6 @@ const PLACEMENT: PlacementMap<Region> = {
   cancelMatch: { region: 'matchRow', order: 2 },
 
   setup: { region: 'setup', order: 0 },
-
-  scoring: { region: 'live', order: 0 },
 
   matchEntry: { region: 'main', order: 0 },
 
@@ -97,15 +94,6 @@ export const ActiveDesktopLayout = ({ slots }: { slots: ActiveSlots }) => {
 
       {present('setup').length > 0 && (
         <div className="px-4">{render('setup')}</div>
-      )}
-
-      {present('live').length > 0 && (
-        <>
-          <div className="px-4">
-            <Divider />
-          </div>
-          <div className="px-4">{render('live')}</div>
-        </>
       )}
 
       {(main.length > 0 || side.length > 0) && (

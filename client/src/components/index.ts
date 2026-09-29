@@ -4,7 +4,6 @@ export { ErrorBoundary, Header, DeepSeaBubbles, MobileWarning } from './layout';
 
 export {
   ActiveTutorial,
-  LiveScoring,
   MatchEntry,
   MatchForm,
   Notes,

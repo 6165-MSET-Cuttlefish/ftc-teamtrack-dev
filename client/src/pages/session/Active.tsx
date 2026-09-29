@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   SessionSetup,
-  LiveScoring,
   Notes,
   MatchEntry,
   ScoreBreakdown,
@@ -198,12 +197,6 @@ const Active = () => {
           />
         </div>
       ),
-
-    scoring: isCompleted ? null : (
-      <div data-tutorial="scoring">
-        <LiveScoring />
-      </div>
-    ),
 
     matchEntry: isCompleted ? null : (
       <div data-tutorial="metrics">

@@ -43,7 +43,8 @@ const PAIRED_ROWS: readonly (readonly [ActiveSlotKey, ActiveSlotKey])[] = [
  * open there's nothing to score yet, so it's fine for the pane to grow past
  * one screen for that one pre-match step. Everything else scrolls below.
  *
- * Adding to `fixed` costs vertical space that the scoring fields need. If a
+ * All scoring lives in Match Entry, just below the fixed
+ * area, so anything added to `fixed` pushes it further down the page. If a
  * new section is not required *while a match is running*, it belongs in
  * `scroll`.
  */
@@ -56,7 +57,6 @@ const PLACEMENT: PlacementMap<Region> = {
   primaryAction: { region: 'fixed', order: 5 },
   playPause: { region: 'fixed', order: 6 },
   cancelMatch: { region: 'fixed', order: 7 },
-  scoring: { region: 'fixed', order: 8 },
 
   completedActions: { region: 'scroll', order: 0 },
   completionNotice: { region: 'scroll', order: 1 },

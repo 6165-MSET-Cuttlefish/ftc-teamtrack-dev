@@ -86,7 +86,6 @@ const LiveScoringPreview = ({ dark }: { dark: boolean }) => {
           points={`${n * POINTS.HIVE_TIP} pts`}
           dark={dark}
         />
-        <FieldRow label="Garden" value="2" points={`${2 * POINTS.GARDEN} pts`} dark={dark} />
       </div>
     </PreviewBox>
   );
@@ -105,6 +104,12 @@ const EndOfMatchPreview = ({ dark }: { dark: boolean }) => (
         label="Left in Hive"
         value="7"
         points={`${7 * POINTS.CELL_REMAINING} pts`}
+        dark={dark}
+      />
+      <FieldRow
+        label="Garden"
+        value="2"
+        points={`${2 * POINTS.GARDEN} pts`}
         dark={dark}
       />
       <div
@@ -178,7 +183,7 @@ interface StepDef {
   /** Prompt shown when the user should interact with the real page element */
   pageAction?: string;
   /** Session field watched for automatic task completion */
-  watchKey?: 'notes' | 'garden';
+  watchKey?: 'notes' | 'tipping';
 }
 
 const STEPS: StepDef[] = [
@@ -209,11 +214,11 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Score While You Watch',
-    body: `Tipping and Garden are counted live. Type the running total into each field and press Enter — TeamTrack converts it to points as you go (Tipping ${POINTS.HIVE_TIP} each, Garden ${POINTS.GARDEN} each).`,
-    target: 'scoring',
+    body: `Tipping, at the top of Match Entry, is counted as the match runs. Type the running total or use the +/− buttons — TeamTrack converts it to points as you go (${POINTS.HIVE_TIP} each).`,
+    target: 'metrics',
     preview: d => <LiveScoringPreview dark={d} />,
-    pageAction: 'Type a Garden count above',
-    watchKey: 'garden',
+    pageAction: 'Enter a Tipping count in Match Entry',
+    watchKey: 'tipping',
   },
   {
     title: 'Leave and Park',
@@ -223,13 +228,13 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'After the Buzzer',
-    body: 'Flower and balls left in the hive can only be judged once the match ends, so those fields stay locked until the clock runs out.',
+    body: `Flower, balls left in the hive and Garden (${POINTS.GARDEN} each) can only be judged once the match ends, so those fields stay locked until the clock runs out.`,
     target: 'end-of-match',
     preview: d => <EndOfMatchPreview dark={d} />,
   },
   {
     title: 'Penalties',
-    body: `In a Scrim, count minor and major penalties under Live Scoring as they're called. They come straight off the match score, so you can see what fouls actually cost you.`,
+    body: `In a Scrim, count minor and major penalties in Match Entry as they're called. They come straight off the match score, so you can see what fouls actually cost you.`,
     target: 'penalties',
     preview: d => <PenaltyPreview dark={d} />,
   },
@@ -454,7 +459,7 @@ export const ActiveTutorial = () => {
     if (key === 'notes' && sessionData.notes?.trim()) {
       setTaskCompleted(true);
     }
-    if (key === 'garden' && sessionData.garden > 0) {
+    if (key === 'tipping' && sessionData.tipping > 0) {
       setTaskCompleted(true);
     }
   }, [visible, step, taskCompleted, sessionData]);
@@ -753,8 +758,8 @@ export const ActiveTutorial = () => {
               <button
                 onClick={() => {
                   setTaskCompleted(false);
-                  if (current.watchKey === 'garden') {
-                    updateSessionData({ garden: 0 });
+                  if (current.watchKey === 'tipping') {
+                    updateSessionData({ tipping: 0 });
                   }
                 }}
                 className="ml-auto text-xs font-medium opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
