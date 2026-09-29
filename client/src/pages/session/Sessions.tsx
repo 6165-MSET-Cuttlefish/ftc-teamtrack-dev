@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useSession, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { TeamManager } from '@/components';
+import { useEscapeKey } from '@/hooks';
 import {
   formatDate,
   isAbortError,
@@ -11,6 +12,9 @@ import {
   logger,
   calculateScore,
   cycleTimesOf,
+  isGuestSessionId,
+  readGuestSessions,
+  writeGuestSessions,
 } from '@/lib';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import type { Session } from '@/types';
@@ -92,6 +96,7 @@ const SessionCard = ({
       return () => clearTimeout(timeout);
     }
   }, [deleteConfirm]);
+  useEscapeKey(deleteConfirm, () => setDeleteConfirm(false));
 
   const handleSaveName = async () => {
     if (!editedName.trim()) {
@@ -419,7 +424,24 @@ const Sessions = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  /** Sessions deleted but still inside their undo window */
+  const [hiddenIds, setHiddenIds] = useState<ReadonlySet<string>>(new Set());
+  /** Deletions waiting on their undo window, keyed by session ID */
+  const pendingDeletesRef = useRef(
+    new Map<string, { timer: ReturnType<typeof setTimeout>; commit: () => void }>()
+  );
+
+  // Leaving the page doesn't undo a delete — finish any that are pending.
+  useEffect(() => {
+    const pending = pendingDeletesRef.current;
+    return () => {
+      pending.forEach(({ timer, commit }) => {
+        clearTimeout(timer);
+        commit();
+      });
+      pending.clear();
+    };
+  }, []);
 
   useEffect(() => {
     document.title = `Sessions - ${APP_CONFIG.name}`;
@@ -427,6 +449,9 @@ const Sessions = () => {
 
   const loadPersonalSessions = useCallback(async () => {
     if (isGuest) {
+      const guestSessions = readGuestSessions();
+      setSessions(guestSessions);
+      setFilteredSessions(guestSessions);
       setLoading(false);
       return;
     }
@@ -505,7 +530,7 @@ const Sessions = () => {
   }, [team, loadPersonalSessions]);
 
   useEffect(() => {
-    let filtered = sessions;
+    let filtered = sessions.filter(session => !hiddenIds.has(session.id));
 
     if (searchTerm.trim()) {
       filtered = filtered.filter(
@@ -522,7 +547,10 @@ const Sessions = () => {
     }
 
     setFilteredSessions(filtered);
-  }, [searchTerm, sessions, selectedMatchType]);
+  }, [searchTerm, sessions, selectedMatchType, hiddenIds]);
+
+  /** Every loaded session except ones waiting out their undo window */
+  const allSessionsVisible = sessions.filter(s => !hiddenIds.has(s.id));
 
   const handleViewSession = (sessionId: string) => {
     navigate(`/analysis?sessionId=${sessionId}`);
@@ -540,7 +568,19 @@ const Sessions = () => {
         )
       );
       
-      const success = await firebaseService.updateSession(sessionId, { sessionName: newName });
+      let success: boolean;
+      if (isGuestSessionId(sessionId)) {
+        writeGuestSessions(
+          readGuestSessions().map(s =>
+            s.id === sessionId ? { ...s, sessionName: newName } : s
+          )
+        );
+        success = true;
+      } else {
+        success = await firebaseService.updateSession(sessionId, {
+          sessionName: newName,
+        });
+      }
       
       if (!success) {
         setSessions(prevSessions =>
@@ -568,29 +608,83 @@ const Sessions = () => {
     }
   };
 
-  const handleDeleteSession = async (sessionId: string) => {
-    try {
-      setDeletingSessionId(sessionId);
-      await firebaseService.deleteSession(sessionId);
-      setSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
-      setFilteredSessions(prevSessions =>
-        prevSessions.filter(s => s.id !== sessionId)
-      );
-      toast.success('Session deleted');
-    } catch (error) {
-      const { logger } = await import('@/lib/logger');
-      logger.error('Error deleting session', error);
-      toast.error('Failed to delete session');
-    } finally {
-      setDeletingSessionId(null);
-    }
+  const unhide = (sessionId: string) =>
+    setHiddenIds(prev => {
+      const next = new Set(prev);
+      next.delete(sessionId);
+      return next;
+    });
+
+  /**
+   * Hide the session straight away, but only delete it for real once the
+   * undo window has passed.
+   */
+  const handleDeleteSession = (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session || pendingDeletesRef.current.has(sessionId)) return;
+
+    setHiddenIds(prev => new Set(prev).add(sessionId));
+
+    const commit = async () => {
+      pendingDeletesRef.current.delete(sessionId);
+      try {
+        if (isGuestSessionId(sessionId)) {
+          writeGuestSessions(
+            readGuestSessions().filter(s => s.id !== sessionId)
+          );
+        } else {
+          await firebaseService.deleteSession(sessionId);
+        }
+        setSessions(prev => prev.filter(s => s.id !== sessionId));
+      } catch (error) {
+        logger.error('Error deleting session', error);
+        toast.error(`Failed to delete "${session.sessionName}"`);
+      } finally {
+        unhide(sessionId);
+      }
+    };
+
+    const timer = setTimeout(commit, UI_TIMING.UNDO_WINDOW);
+    pendingDeletesRef.current.set(sessionId, { timer, commit });
+
+    toast.success(`Deleted "${session.sessionName || 'Untitled Session'}"`, {
+      duration: UI_TIMING.UNDO_WINDOW,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          const pending = pendingDeletesRef.current.get(sessionId);
+          if (!pending) return;
+          clearTimeout(pending.timer);
+          pendingDeletesRef.current.delete(sessionId);
+          unhide(sessionId);
+        },
+      },
+    });
   };
 
   const handleShareSession = async (session: Session) => {
+    if (isGuest) {
+      toast.error('Create an account to share sessions');
+      return;
+    }
     try {
       const shareLink = await generateShareableLink(session);
       await copyToClipboard(shareLink);
-      toast.success('Share link copied to clipboard!');
+      toast.success('Share link copied to clipboard!', {
+        duration: UI_TIMING.UNDO_WINDOW,
+        action: {
+          label: 'Turn off sharing',
+          onClick: async () => {
+            try {
+              await firebaseService.deleteSharedSessions(session.id);
+              toast.success('Share links for this session no longer work');
+            } catch (error) {
+              logger.error('Error revoking share links', error);
+              toast.error('Failed to turn off sharing');
+            }
+          },
+        },
+      });
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error sharing session', error);
@@ -606,7 +700,7 @@ const Sessions = () => {
   };
 
   const handleExportCSV = () => {
-    if (sessions.length === 0) {
+    if (allSessionsVisible.length === 0) {
       toast.error('No sessions to export');
       return;
     }
@@ -652,7 +746,7 @@ const Sessions = () => {
 
     const rows: string[][] = [];
 
-    for (const session of sessions) {
+    for (const session of allSessionsVisible) {
       const sessionDate = esc(formatDate(session.createdAt));
       const sessionName = esc(session.sessionName || 'Untitled Session');
       const sessionType = esc(session.sessionType || 'Practice');
@@ -662,14 +756,13 @@ const Sessions = () => {
       const email = esc(session.userEmail || '');
 
       if (!session.matches || session.matches.length === 0) {
-        rows.push([
-          sessionName, sessionDate, sessionType, sessionDuration, matchType,
-          '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-          '"no"', '"no"', '"no"', '"no"', '"no"', '"no"',
-          '0', '0', '0',
-          '""',
-          notes, email,
-        ]);
+        // Session columns, blanks for every per-match column, then the
+        // trailing session columns — built from the header count so the row
+        // can't drift out of line if a column is added.
+        const leading = [sessionName, sessionDate, sessionType, sessionDuration, matchType];
+        const trailing = [notes, email];
+        const blanks = headers.length - leading.length - trailing.length;
+        rows.push([...leading, ...Array<string>(blanks).fill('""'), ...trailing]);
       } else {
         for (const match of session.matches) {
           const b = calculateScore(match);
@@ -995,7 +1088,6 @@ const Sessions = () => {
                 }
                 onShare={() => handleShareSession(session)}
                 onDelete={() => handleDeleteSession(session.id)}
-                isDeleting={deletingSessionId === session.id}
                 ownerName={getSessionOwnerName(session)}
               />
             ))}

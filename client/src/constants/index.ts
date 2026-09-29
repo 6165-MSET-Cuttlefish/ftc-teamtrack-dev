@@ -45,9 +45,12 @@ export const GAME_TIMING = {
   /** Duration of the audio intro before countdown (seconds) */
   AUDIO_INTRO_SECONDS: 1.15,
   MAX_THEORETICAL_SCORE: 150,
-  /** Match clock value at which the endgame begins */
-  ENDGAME_REMAINING: 30,
+  /** Match clock value at which the BIOBUZZ endgame (and flower scoring) begins */
+  ENDGAME_REMAINING: 60,
 } as const;
+
+/** Season tag written on every new session; older seasons are hidden. */
+export const CURRENT_SEASON = 'biobuzz';
 
 export const SESSION_LIMITS = {
   MAX_SESSIONS_PER_USER: 50,
@@ -62,6 +65,8 @@ export const UI_TIMING = {
   SHORT_DELAY: 1000,
   SESSION_LIMIT_CHECK_DELAY: 2000,
   MESSAGE_DISPLAY_TIMEOUT: 4000,
+  /** How long a deletion can be undone from its toast */
+  UNDO_WINDOW: 10000,
 } as const;
 
 /**
@@ -70,7 +75,7 @@ export const UI_TIMING = {
  */
 export const STORAGE_KEYS = {
   THEME: 'teamtrack-theme',
-  TUTORIAL_SEEN: 'teamtrack-tutorial-v1-seen',
+  TUTORIAL_SEEN: 'teamtrack-tutorial-v2-seen',
 
   GUEST_PROMPT_DISMISSED: 'teamtrack-guest-prompt-dismissed',
   GUEST_PROMPT_LAST_SHOWN: 'teamtrack-guest-prompt-last-shown',

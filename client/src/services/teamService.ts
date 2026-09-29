@@ -4,16 +4,33 @@ import {
   getDocs,
   doc,
   getDoc,
+  setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   Timestamp,
   arrayUnion,
+  arrayRemove,
   type Firestore,
 } from 'firebase/firestore';
 import { getFirebase, isAbortError } from '@/lib';
-import type { Team, CreateTeamData, TeamMember } from '@/types';
+import type { Team, CreateTeamData, TeamInvite, TeamMember } from '@/types';
 
+/**
+ * Teams, and how the Firestore rules police them (see firestore.rules):
+ *
+ * - The owner is `ownerId` (falling back to `createdBy` on teams made before
+ *   the field existed). Only the owner can rename, kick, transfer, or change
+ *   the invite code. `members[].role` mirrors it for display.
+ * - A member can only remove themselves, or change their own entry.
+ * - A non-member can only add themselves, and only by writing the team's
+ *   current invite code into `joinCode` — so knowing a team's ID is not
+ *   enough to get in.
+ * - Invite codes resolve through `teamInvites/{code}` → `{ teamId, teamName }`,
+ *   which any signed-in user can fetch by exact code but nobody can list.
+ *   Team documents themselves are readable by members only.
+ */
 class TeamService {
   private dbInstance: Firestore | null = null;
 
@@ -25,12 +42,12 @@ class TeamService {
     if (!firebase?.db) {
       throw new Error('Firebase not initialized');
     }
-    
+
     this.dbInstance = firebase.db;
     return this.dbInstance;
   }
 
-  /** 
+  /**
    * Safely execute a database operation with abort error handling
    */
   private async safeExecute<T>(
@@ -65,6 +82,17 @@ class TeamService {
     return code;
   }
 
+  /** The team's owner, allowing for teams saved before `ownerId` existed. */
+  ownerOf(team: Pick<Team, 'ownerId' | 'createdBy'>): string {
+    return team.ownerId ?? team.createdBy;
+  }
+
+  /** Point an invite code at its team. Owner only. */
+  private async writeInvite(teamId: string, code: string, teamName: string) {
+    const db = await this.getDB();
+    await setDoc(doc(db, 'teamInvites', code), { teamId, teamName });
+  }
+
   /**
    * Ensure a team document has the `memberIds` field.
    * Legacy teams created before the field existed are backfilled on first read.
@@ -82,16 +110,46 @@ class TeamService {
     return { ...team, memberIds: ids };
   }
 
+  /**
+   * Bring an owner's team up to date with the current data model: record
+   * `ownerId`, and make sure its invite code resolves. Teams created before
+   * `teamInvites` existed have no invite document, which is why their links
+   * stopped working. Safe to call on every load; a no-op for non-owners.
+   */
+  async ensureOwnerSetup(team: Team, userId: string): Promise<void> {
+    if (this.ownerOf(team) !== userId) return;
+    try {
+      const db = await this.getDB();
+      if (!team.ownerId) {
+        await updateDoc(doc(db, 'teams', team.id), { ownerId: userId });
+      }
+      const invite = await getDoc(doc(db, 'teamInvites', team.inviteCode));
+      if (
+        !invite.exists() ||
+        invite.data().teamId !== team.id ||
+        invite.data().teamName !== team.name
+      ) {
+        await this.writeInvite(team.id, team.inviteCode, team.name);
+      }
+    } catch (error) {
+      const { logger } = await import('@/lib/logger');
+      logger.warn('Could not update team setup', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   /** Create a new team */
   async createTeam(teamData: CreateTeamData): Promise<Team | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
         const inviteCode = this.generateInviteCode();
-        
+
         const newTeam = {
           name: teamData.name,
           createdBy: teamData.createdBy,
+          ownerId: teamData.createdBy,
           createdAt: Timestamp.now(),
           inviteCode,
           memberIds: [teamData.createdBy],
@@ -105,8 +163,9 @@ class TeamService {
             },
           ],
         };
-        
+
         const docRef = await addDoc(collection(db, 'teams'), newTeam);
+        await this.writeInvite(docRef.id, inviteCode, newTeam.name);
         return { id: docRef.id, ...newTeam } as Team;
       },
       null,
@@ -115,16 +174,16 @@ class TeamService {
     );
   }
 
-  /** Get team by ID */
+  /** Get team by ID (members only) */
   async getTeam(teamId: string): Promise<Team | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
         const docRef = doc(db, 'teams', teamId);
         const docSnap = await getDoc(docRef);
-        
+
         if (!docSnap.exists()) return null;
-        
+
         const team = { id: docSnap.id, ...docSnap.data() } as Team;
         return this.ensureMemberIds(team);
       },
@@ -133,21 +192,17 @@ class TeamService {
     );
   }
 
-  /** Get team by invite code */
-  async getTeamByInviteCode(inviteCode: string): Promise<Team | null> {
+  /** Look up which team an invite code belongs to */
+  async getInviteByCode(inviteCode: string): Promise<TeamInvite | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
-        const q = query(
-          collection(db, 'teams'),
-          where('inviteCode', '==', inviteCode.toUpperCase())
-        );
-        const snapshot = await getDocs(q);
-        
-        if (snapshot.empty) return null;
-        
-        const doc = snapshot.docs[0];
-        return { id: doc.id, ...doc.data() } as Team;
+        const code = inviteCode.trim().toUpperCase();
+        if (!code) return null;
+        const snap = await getDoc(doc(db, 'teamInvites', code));
+        if (!snap.exists()) return null;
+        const data = snap.data();
+        return { code, teamId: data.teamId, teamName: data.teamName ?? '' };
       },
       null,
       'Error fetching team by invite code:'
@@ -159,13 +214,13 @@ class TeamService {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
-        
+
         const memberQuery = query(
           collection(db, 'teams'),
           where('memberIds', 'array-contains', userId)
         );
         const snapshot = await getDocs(memberQuery);
-        
+
         const teams = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Team));
 
@@ -192,18 +247,24 @@ class TeamService {
   ): Promise<Team | null> {
     return this.safeExecute(
       async () => {
-        const team = await this.getTeamByInviteCode(inviteCode);
-        if (!team) {
+        const invite = await this.getInviteByCode(inviteCode);
+        if (!invite) {
           throw new Error('Invalid invite code');
         }
 
-        if (team.members.some(m => m.userId === userId)) {
-          return team;
+        const db = await this.getDB();
+
+        // Team documents are members-only, so a successful read means the
+        // user is already in this team; a denied read is the normal case.
+        try {
+          const snap = await getDoc(doc(db, 'teams', invite.teamId));
+          if (snap.exists() && (snap.data().memberIds ?? []).includes(userId)) {
+            return { id: snap.id, ...snap.data() } as Team;
+          }
+        } catch {
+          // Not a member yet
         }
 
-        const db = await this.getDB();
-        const docRef = doc(db, 'teams', team.id);
-        
         const newMember: TeamMember = {
           userId,
           email: userEmail,
@@ -212,16 +273,15 @@ class TeamService {
           role: 'member',
         };
 
-        await updateDoc(docRef, {
+        await updateDoc(doc(db, 'teams', invite.teamId), {
           members: arrayUnion(newMember),
           memberIds: arrayUnion(userId),
+          // Proof of invite: the rules only admit a new member whose
+          // joinCode matches the team's current invite code.
+          joinCode: invite.code,
         });
 
-        return {
-          ...team,
-          members: [...team.members, newMember],
-          memberIds: [...(team.memberIds || []), userId],
-        };
+        return this.getTeam(invite.teamId);
       },
       null,
       'Error joining team:',
@@ -229,13 +289,15 @@ class TeamService {
     );
   }
 
-  /** Update team name */
+  /** Update team name (owner only) */
   async updateTeamName(teamId: string, name: string): Promise<boolean> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
         const docRef = doc(db, 'teams', teamId);
         await updateDoc(docRef, { name });
+        const team = await this.getTeam(teamId);
+        if (team) await this.writeInvite(teamId, team.inviteCode, name);
         return true;
       },
       false,
@@ -244,14 +306,18 @@ class TeamService {
     );
   }
 
-  /** Regenerate invite code */
+  /** Regenerate invite code (owner only). Old links stop working. */
   async regenerateInviteCode(teamId: string): Promise<string | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
+        const team = await this.getTeam(teamId);
+        if (!team) return null;
+
         const newCode = this.generateInviteCode();
-        const docRef = doc(db, 'teams', teamId);
-        await updateDoc(docRef, { inviteCode: newCode });
+        await updateDoc(doc(db, 'teams', teamId), { inviteCode: newCode });
+        await this.writeInvite(teamId, newCode, team.name);
+        await deleteDoc(doc(db, 'teamInvites', team.inviteCode)).catch(() => {});
         return newCode;
       },
       null,
@@ -271,7 +337,10 @@ class TeamService {
     };
   }
 
-  /** Leave a team (remove user from members array) */
+  /**
+   * Leave a team. A member just removes themselves. The owner hands the team
+   * to the longest-standing member, or deletes it if they were the last one.
+   */
   async leaveTeam(teamId: string, userId: string): Promise<boolean> {
     return this.safeExecute(
       async () => {
@@ -280,37 +349,41 @@ class TeamService {
         const teamDoc = await getDoc(docRef);
         if (!teamDoc.exists()) return false;
 
-        const teamData = teamDoc.data();
-        const members: TeamMember[] = teamData.members || [];
+        const team = { id: teamDoc.id, ...teamDoc.data() } as Team;
+        const members: TeamMember[] = team.members || [];
         const leavingMember = members.find((m) => m.userId === userId);
+        if (!leavingMember) return true;
         const remaining = members.filter((m) => m.userId !== userId);
 
-        // If the owner is leaving, transfer ownership to the oldest member
-        let newOwnerUserId: string | null = null;
-        if (leavingMember?.role === 'owner' && remaining.length > 0) {
-          // Fallback to remaining[0] if timestamp sorting fails
-          try {
-            const sorted = [...remaining].sort((a, b) => {
-              const aTime = a.joinedAt && typeof a.joinedAt === 'object' && 'seconds' in a.joinedAt
-                ? (a.joinedAt as { seconds: number }).seconds
-                : 0;
-              const bTime = b.joinedAt && typeof b.joinedAt === 'object' && 'seconds' in b.joinedAt
-                ? (b.joinedAt as { seconds: number }).seconds
-                : 0;
-              return aTime - bTime;
-            });
-            newOwnerUserId = sorted[0].userId;
-          } catch {
-            newOwnerUserId = remaining[0].userId;
-          }
+        if (this.ownerOf(team) !== userId) {
+          // Remove exactly the stored entry, so the rules can see nothing
+          // else in the member list changed.
+          await updateDoc(docRef, {
+            members: arrayRemove(leavingMember),
+            memberIds: arrayRemove(userId),
+          });
+          return true;
         }
 
-        const updatedMembers = remaining.map((m) =>
-          this.cleanMember(m, m.userId === newOwnerUserId ? 'owner' : undefined)
-        );
+        if (remaining.length === 0) {
+          await deleteDoc(doc(db, 'teamInvites', team.inviteCode)).catch(() => {});
+          await deleteDoc(docRef);
+          return true;
+        }
+
+        const joinedSeconds = (m: TeamMember) =>
+          m.joinedAt && typeof m.joinedAt === 'object' && 'seconds' in m.joinedAt
+            ? (m.joinedAt as { seconds: number }).seconds
+            : 0;
+        const newOwnerUserId = [...remaining].sort(
+          (a, b) => joinedSeconds(a) - joinedSeconds(b)
+        )[0].userId;
 
         await updateDoc(docRef, {
-          members: updatedMembers,
+          ownerId: newOwnerUserId,
+          members: remaining.map((m) =>
+            this.cleanMember(m, m.userId === newOwnerUserId ? 'owner' : 'member')
+          ),
           memberIds: remaining.map((m) => m.userId),
         });
         return true;
@@ -321,7 +394,7 @@ class TeamService {
     );
   }
 
-  /** Transfer ownership to another member */
+  /** Transfer ownership to another member (owner only) */
   async transferOwnership(teamId: string, currentOwnerId: string, newOwnerId: string): Promise<boolean> {
     return this.safeExecute(
       async () => {
@@ -330,11 +403,11 @@ class TeamService {
         const teamDoc = await getDoc(docRef);
         if (!teamDoc.exists()) return false;
 
-        const teamData = teamDoc.data();
-        const members: TeamMember[] = teamData.members || [];
+        const team = { id: teamDoc.id, ...teamDoc.data() } as Team;
+        const members: TeamMember[] = team.members || [];
 
-        const currentOwner = members.find((m) => m.userId === currentOwnerId);
-        if (!currentOwner || currentOwner.role !== 'owner') return false;
+        if (this.ownerOf(team) !== currentOwnerId) return false;
+        if (!members.some((m) => m.userId === newOwnerId)) return false;
 
         const updatedMembers = members.map((m) => {
           if (m.userId === currentOwnerId) return this.cleanMember(m, 'member');
@@ -343,8 +416,8 @@ class TeamService {
         });
 
         await updateDoc(docRef, {
+          ownerId: newOwnerId,
           members: updatedMembers,
-          memberIds: members.map((m) => m.userId),
         });
         return true;
       },
@@ -363,19 +436,16 @@ class TeamService {
         const teamDoc = await getDoc(docRef);
         if (!teamDoc.exists()) return false;
 
-        const teamData = teamDoc.data();
-        const members: TeamMember[] = teamData.members || [];
+        const team = { id: teamDoc.id, ...teamDoc.data() } as Team;
+        const members: TeamMember[] = team.members || [];
 
-        const owner = members.find((m) => m.userId === ownerUserId);
-        if (!owner || owner.role !== 'owner') return false;
-
+        if (this.ownerOf(team) !== ownerUserId) return false;
         if (ownerUserId === targetUserId) return false;
 
         const remaining = members.filter((m) => m.userId !== targetUserId);
-        const updatedMembers = remaining.map((m) => this.cleanMember(m));
 
         await updateDoc(docRef, {
-          members: updatedMembers,
+          members: remaining.map((m) => this.cleanMember(m)),
           memberIds: remaining.map((m) => m.userId),
         });
         return true;
@@ -386,7 +456,7 @@ class TeamService {
     );
   }
 
-  /** Update a member's display name in the team */
+  /** Update the current user's own display name in the team */
   async updateMemberDisplayName(teamId: string, userId: string, newDisplayName: string): Promise<boolean> {
     return this.safeExecute(
       async () => {
@@ -395,18 +465,14 @@ class TeamService {
         const teamDoc = await getDoc(docRef);
         if (!teamDoc.exists()) return false;
 
-        const teamData = teamDoc.data();
-        const members: TeamMember[] = teamData.members || [];
+        const members: TeamMember[] = teamDoc.data().members || [];
 
-        const updatedMembers = members.map((m) => {
-          const clean = this.cleanMember(m);
-          if (m.userId === userId) clean.displayName = newDisplayName;
-          return clean;
-        });
-
+        // Every other entry is written back untouched: the rules let a
+        // member change their own entry and nothing else.
         await updateDoc(docRef, {
-          members: updatedMembers,
-          memberIds: members.map((m) => m.userId),
+          members: members.map((m) =>
+            m.userId === userId ? { ...m, displayName: newDisplayName } : m
+          ),
         });
         return true;
       },

@@ -1,4 +1,5 @@
 import { ReactNode, HTMLAttributes, useEffect } from 'react';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface DialogProps {
   open?: boolean;
@@ -11,6 +12,8 @@ export const Dialog = ({
   onOpenChange,
   children,
 }: DialogProps) => {
+  useEscapeKey(open, () => onOpenChange?.(false));
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';

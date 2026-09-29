@@ -7,6 +7,7 @@ import {
   isAbortError,
   calculateScore,
   cycleTimesOf,
+  robotRates,
 } from '@/lib';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, Match } from '@/types';
@@ -52,13 +53,24 @@ const elementPoints = (match: Match, element: ScoreElement): number => {
     case 'tipping':
       return b.tipping;
     case 'flower':
-      return b.flower;
+      return b.flower + b.flowerBonus;
     case 'hive':
       return b.hive;
     default:
       return b.total;
   }
 };
+
+/**
+ * Selected matches in the order the table columns are drawn: by session (in
+ * selection order), then match number. Every row and chart reads from this
+ * one ordering, so a value can never land under another match's header no
+ * matter which order the matches were clicked in.
+ */
+const sortForDisplay = (matches: CompareMatch[]): CompareMatch[] =>
+  [...matches].sort(
+    (a, b) => a.sessionIndex - b.sessionIndex || a.matchNumber - b.matchNumber
+  );
 
 const Compare = () => {
   const { user, isGuest } = useAuth();
@@ -119,23 +131,13 @@ const Compare = () => {
     avgOf(session.matches.flatMap(cycleTimesOf));
 
   /**
-   * Share of park opportunities converted. Park is scored separately for
-   * AUTO and TELEOP, so each robot contributes two opportunities per match.
+   * Leave / park conversion, counting only the periods each match actually
+   * ran. NaN (shown as N/A) when the session never ran that period.
    */
-  const getSessionParkRate = (session: Session): number => {
-    const slots = session.matches.length * 4;
-    if (slots === 0) return 0;
-    const parked = session.matches.reduce(
-      (s, m) =>
-        s +
-        (m.robot1ParkAuto ? 1 : 0) +
-        (m.robot1ParkTeleop ? 1 : 0) +
-        (m.robot2ParkAuto ? 1 : 0) +
-        (m.robot2ParkTeleop ? 1 : 0),
-      0
-    );
-    return (parked / slots) * 100;
-  };
+  const getSessionRate = (session: Session, rate: 'leaveRate' | 'parkRate') =>
+    robotRates(session.matches, session.matchType)[rate] ?? NaN;
+  const formatRate = (v: number) =>
+    Number.isNaN(v) ? 'N/A' : `${Math.round(v)}%`;
 
   /** Average penalty points charged per match. */
   const getSessionPenalties = (session: Session): number =>
@@ -201,6 +203,18 @@ const Compare = () => {
           }
         });
         setAllMatches(matches);
+        // Drop picks from sessions that were deselected, and refresh the rest
+        // so their session position matches the new selection.
+        setSelectedMatches(prev =>
+          sortForDisplay(
+            prev.flatMap(p => {
+              const fresh = matches.find(
+                m => m.id === p.id && m.sessionId === p.sessionId
+              );
+              return fresh ? [fresh] : [];
+            })
+          )
+        );
       } catch (error) {
         if (!isMounted || isAbortError(error)) return;
         const { logger } = await import('@/lib/logger');
@@ -213,6 +227,7 @@ const Compare = () => {
     } else {
       setSelectedSessionsData([]);
       setAllMatches([]);
+      setSelectedMatches([]);
     }
     return () => {
       isMounted = false;
@@ -696,6 +711,11 @@ const Compare = () => {
                             s => avgOf(s.matches.map(m => m.flower || 0)),
                             { indent: true, format: v => v.toFixed(1) }
                           )}
+                          {renderSessionRow('Avg Flower Bonus Points', s =>
+                            avgOf(
+                              s.matches.map(m => calculateScore(m).flowerBonus)
+                            )
+                          )}
                           {renderSessionRow('Avg Hive Points', s =>
                             avgOf(s.matches.map(m => calculateScore(m).hive))
                           )}
@@ -712,10 +732,11 @@ const Compare = () => {
                               })
                             )
                           )}
-                          {renderSessionRow('Park Rate', getSessionParkRate, {
-                            indent: true,
-                            format: v => `${Math.round(v)}%`,
-                          })}
+                          {renderSessionRow(
+                            'Park Rate',
+                            s => getSessionRate(s, 'parkRate'),
+                            { indent: true, format: formatRate }
+                          )}
                           {renderSessionRow(
                             'Avg Penalty Points',
                             getSessionPenalties,
@@ -767,19 +788,8 @@ const Compare = () => {
                           )}
                           {renderSessionRow(
                             'Leave Rate',
-                            s => {
-                              const slots = s.matches.length * 2;
-                              if (slots === 0) return 0;
-                              const left = s.matches.reduce(
-                                (sum, m) =>
-                                  sum +
-                                  (m.robot1Leave ? 1 : 0) +
-                                  (m.robot2Leave ? 1 : 0),
-                                0
-                              );
-                              return (left / slots) * 100;
-                            },
-                            { format: v => `${Math.round(v)}%` }
+                            s => getSessionRate(s, 'leaveRate'),
+                            { format: formatRate }
                           )}
                           <tr>
                             <td
@@ -842,23 +852,18 @@ const Compare = () => {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {sessionMatches.map(match => {
-                        const isChecked = selectedMatches.some(
-                          m => m.id === match.id
-                        );
+                        const isSame = (m: CompareMatch) =>
+                          m.id === match.id && m.sessionId === match.sessionId;
+                        const isChecked = selectedMatches.some(isSame);
                         return (
                           <button
                             key={match.id}
                             onClick={() => {
-                              if (isChecked) {
-                                setSelectedMatches(
-                                  selectedMatches.filter(m => m.id !== match.id)
-                                );
-                              } else {
-                                setSelectedMatches([
-                                  ...selectedMatches,
-                                  match,
-                                ]);
-                              }
+                              setSelectedMatches(prev =>
+                                prev.some(isSame)
+                                  ? prev.filter(m => !isSame(m))
+                                  : sortForDisplay([...prev, match])
+                              );
                             }}
                             title={`Garden ${match.garden || 0} · Tipping ${match.tipping || 0} · Flower ${match.flower || 0} · Hive ${match.ballsInHive || 0}`}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
@@ -1114,23 +1119,18 @@ const Compare = () => {
                             >
                               Metric
                             </th>
-                            {selectedSessionsData.map(session => {
-                              const matchesForSession = selectedMatches.filter(
-                                m => m.sessionId === session.id
-                              );
-                              if (matchesForSession.length === 0) return null;
-                              return matchesForSession.map(match => (
-                                <th
-                                  key={match.id}
-                                  className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                                >
-                                  <div className={`text-xs font-normal mb-0.5 ${isDarkMode ? 'text-team-white-60/60' : 'text-gray-400'}`}>
-                                    {session.sessionName || 'Unnamed'}
-                                  </div>
-                                  Match #{match.matchNumber}
-                                </th>
-                              ));
-                            })}
+                            {/* Same list, same order as every row below */}
+                            {selectedMatches.map(match => (
+                              <th
+                                key={`${match.sessionId}-${match.id}`}
+                                className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              >
+                                <div className={`text-xs font-normal mb-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+                                  {match.sessionName || 'Unnamed'}
+                                </div>
+                                Match #{match.matchNumber}
+                              </th>
+                            ))}
                             {selectedMatches.length > 1 && (
                               <th
                                 className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}
@@ -1166,6 +1166,9 @@ const Compare = () => {
                           {renderMatchRow('Flower Scored', m => m.flower || 0, {
                             indent: true,
                           })}
+                          {renderMatchRow('Flower Bonus Points', m =>
+                            calculateScore(m).flowerBonus
+                          )}
                           {renderMatchRow('Hive Points', m =>
                             calculateScore(m).hive
                           )}

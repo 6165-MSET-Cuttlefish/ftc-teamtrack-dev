@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTheme } from '@/contexts';
-import { useIsCompact } from '@/hooks';
+import { useEscapeKey, useIsCompact } from '@/hooks';
 import { APP_CONFIG, MOBILE_READY_ROUTES } from '@/constants';
 import { DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,10 @@ export const MobileWarning = () => {
     route => pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  if (dismissed || routeIsReady || !isCompact) return null;
+  const visible = !dismissed && !routeIsReady && isCompact;
+  useEscapeKey(visible, () => setDismissed(true));
+
+  if (!visible) return null;
 
   return (
     <div className="fixed inset-0 z-[10001] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">

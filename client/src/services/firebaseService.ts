@@ -15,9 +15,22 @@ import {
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { getFirebase, logger, isAbortError } from '@/lib';
-import { SESSION_LIMITS } from '@/constants';
+import {
+  getFirebase,
+  logger,
+  isAbortError,
+  isCurrentSeasonSession,
+} from '@/lib';
+import { CURRENT_SEASON, SESSION_LIMITS } from '@/constants';
 import type { Session, CreateSessionData } from '@/types';
+
+/**
+ * Only the current season's sessions are listed. Older seasons stay in
+ * Firestore (nothing is deleted) but their scoring fields mean nothing to
+ * this season's analysis, so they are left out of every list and chart.
+ */
+const currentSeasonOnly = (sessions: Session[]): Session[] =>
+  sessions.filter(isCurrentSeasonSession);
 
 class FirebaseService {
   private dbInstance: Firestore | null = null;
@@ -73,6 +86,7 @@ class FirebaseService {
         const clean = JSON.parse(JSON.stringify(sessionData));
         const newSession = {
           ...clean,
+          season: CURRENT_SEASON,
           createdAt: Timestamp.now(),
         };
         const docRef = await addDoc(collection(db, 'sessions'), newSession);
@@ -96,7 +110,7 @@ class FirebaseService {
           limit(SESSION_LIMITS.MAX_SESSIONS_PER_USER)
         );
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => {
+        return currentSeasonOnly(snapshot.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -105,7 +119,7 @@ class FirebaseService {
             createdAt: data.createdAt,
             ...data,
           } as Session;
-        });
+        }));
       },
       [],
       'Error fetching user sessions:'
@@ -124,7 +138,7 @@ class FirebaseService {
           limit(SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5) // Allow more for teams
         );
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => {
+        return currentSeasonOnly(snapshot.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -133,7 +147,7 @@ class FirebaseService {
             createdAt: data.createdAt,
             ...data,
           } as Session;
-        });
+        }));
       },
       [],
       'Error fetching team sessions:'
@@ -166,7 +180,7 @@ class FirebaseService {
             ...data,
           } as Session;
         });
-        onUpdate(sessions);
+        onUpdate(currentSeasonOnly(sessions));
       },
       (error) => {
         logger.error('Error in team sessions listener', error);
@@ -204,7 +218,7 @@ class FirebaseService {
           limit(SESSION_LIMITS.ALL_SESSIONS_QUERY_LIMIT)
         );
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => {
+        return currentSeasonOnly(snapshot.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -213,7 +227,7 @@ class FirebaseService {
             createdAt: data.createdAt,
             ...data,
           } as Session;
-        });
+        }));
       },
       [],
       'Error fetching all sessions:'
@@ -238,19 +252,81 @@ class FirebaseService {
     );
   }
 
-  /** Delete a session */
+  /** Delete a session, and take down any share links made from it */
   async deleteSession(sessionId: string): Promise<boolean> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
-        const docRef = doc(db, 'sessions', sessionId);
-        await deleteDoc(docRef);
+        // Links first: if that fails the session is kept, rather than
+        // leaving links behind that nothing points at any more.
+        await this.deleteSharedSessions(sessionId);
+        await deleteDoc(doc(db, 'sessions', sessionId));
         return true;
       },
       false,
       'Error deleting session:',
       true
     );
+  }
+
+  /** UID of the signed-in user, or throw — share links are per-owner. */
+  private async currentUid(): Promise<string> {
+    const firebase = await getFirebase();
+    const uid = firebase?.auth?.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    return uid;
+  }
+
+  /**
+   * Delete share links for one session: every link anyone made from it if
+   * the current user owns the session, otherwise the ones they made.
+   */
+  async deleteSharedSessions(sessionId: string): Promise<number> {
+    const db = await this.getDB();
+    const uid = await this.currentUid();
+    const shared = collection(db, 'sharedSessions');
+    // Two queries because Firestore rules only allow a list the requester
+    // can be shown to own, by one field or the other.
+    const snapshots = await Promise.all([
+      getDocs(
+        query(
+          shared,
+          where('sessionOwnerId', '==', uid),
+          where('sessionId', '==', sessionId)
+        )
+      ),
+      getDocs(
+        query(
+          shared,
+          where('createdBy', '==', uid),
+          where('sessionId', '==', sessionId)
+        )
+      ),
+    ]);
+    const refs = new Map(
+      snapshots.flatMap(s => s.docs).map(d => [d.id, d.ref] as const)
+    );
+    await Promise.all([...refs.values()].map(ref => deleteDoc(ref)));
+    return refs.size;
+  }
+
+  /**
+   * Delete everything the given user owns: all their sessions (from every
+   * season, not just the listed ones), every share link they made, and every
+   * share link anyone made of their sessions.
+   */
+  async deleteAllUserData(userId: string): Promise<void> {
+    const db = await this.getDB();
+    const shared = collection(db, 'sharedSessions');
+    const snapshots = await Promise.all([
+      getDocs(query(shared, where('createdBy', '==', userId))),
+      getDocs(query(shared, where('sessionOwnerId', '==', userId))),
+      getDocs(query(collection(db, 'sessions'), where('userId', '==', userId))),
+    ]);
+    const refs = new Map(
+      snapshots.flatMap(s => s.docs).map(d => [d.ref.path, d.ref] as const)
+    );
+    await Promise.all([...refs.values()].map(ref => deleteDoc(ref)));
   }
 
   /** Generate a random 7-character base62 string suitable for use as a short ID */
@@ -265,8 +341,14 @@ class FirebaseService {
     return id;
   }
 
-  /** Store a session snapshot in Firestore and return its short ID */
-  async createSharedSession(shareData: object, userId: string): Promise<string> {
+  /**
+   * Store a session snapshot in Firestore and return its short ID. The
+   * snapshot records its source `sessionId` so it can be taken down later.
+   */
+  async createSharedSession(
+    shareData: object & { sessionId: string; sessionOwnerId: string },
+    userId: string
+  ): Promise<string> {
     const { runTransaction } = await import('firebase/firestore');
     const db = await this.getDB();
     // Retry up to 3 times in the unlikely event of a collision

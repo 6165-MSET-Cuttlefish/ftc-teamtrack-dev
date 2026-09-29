@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTeam, useTheme, useAuth } from '@/contexts';
-import { firebaseService } from '@/services';
+import { firebaseService, teamService } from '@/services';
 import { formatDate, logger, copyToClipboard } from '@/lib';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -329,7 +329,9 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     }
   };
 
-  const isOwner = team?.members.some(m => m.userId === user?.uid && m.role === 'owner') ?? false;
+  // Same test the Firestore rules apply, so the UI never offers an owner
+  // action the server would reject.
+  const isOwner = team ? teamService.ownerOf(team) === user?.uid : false;
 
   return (
     <>
@@ -689,23 +691,25 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                     <Copy className="h-4 w-4" />
                   )}
                 </Button>
-                <Button
-                  onClick={handleRegenerateCode}
-                  size="sm"
-                  disabled={regenerating}
-                  variant="outline"
-                  className={`h-11 px-3 rounded-xl ${
-                    isDarkMode
-                      ? 'border-team-blue-40 text-team-white-60 hover:bg-team-dark-20'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                  title="Generate new invite code (old code will stop working)"
-                >
-                  <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
-                </Button>
+                {isOwner && (
+                  <Button
+                    onClick={handleRegenerateCode}
+                    size="sm"
+                    disabled={regenerating}
+                    variant="outline"
+                    className={`h-11 px-3 rounded-xl ${
+                      isDarkMode
+                        ? 'border-team-blue-40 text-team-white-60 hover:bg-team-dark-20'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                    title="Generate new invite code (old code will stop working)"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
+                  </Button>
+                )}
               </div>
               <p
-                className={`text-xs mt-2 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+                className={`text-xs mt-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
               >
                 Share this link to invite others. All members can invite new people.
               </p>

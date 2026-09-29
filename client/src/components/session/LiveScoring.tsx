@@ -90,7 +90,7 @@ export const LiveScoring = () => {
           onChange={v => record('garden', v)}
         />
         {isScrim && (
-          <>
+          <div className="space-y-2" data-tutorial="penalties">
             <ScoreField
               label="Minor Penalty"
               size="large"
@@ -107,7 +107,7 @@ export const LiveScoring = () => {
               points={-(sessionData.majorPenalties * POINTS.MAJOR_PENALTY)}
               onChange={v => updateSessionData({ majorPenalties: v })}
             />
-          </>
+          </div>
         )}
       </div>
     </div>

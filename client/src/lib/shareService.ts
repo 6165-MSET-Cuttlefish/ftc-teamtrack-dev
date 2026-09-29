@@ -1,20 +1,23 @@
 import type { Session } from '@/types';
-import { logger } from './logger';
 import { pickScoringFields } from './scoring';
 
 /**
- * Generate a short, safe shareable link for a session.
+ * Generate a short, safe shareable link for a saved session.
  *
- * Stores the session snapshot in Firestore (`sharedSessions` collection) under a
+ * Stores a snapshot in Firestore (`sharedSessions` collection) under a
  * 7-character base62 short ID and returns `${origin}/shared/preview?id=<shortId>`.
  *
- * Falls back to the legacy base64-in-URL approach if the Firestore write fails
- * (e.g. the user is unauthenticated or rules are not yet deployed).
+ * The snapshot records which session it came from and who owns that session,
+ * so the owner can take every link down again (and deleting the session does
+ * so automatically). There is deliberately no fallback that encodes the
+ * session into the URL itself: a link like that could never be revoked.
  */
 export const generateShareableLink = async (
-  session: Partial<Session>
+  session: Partial<Session> & Pick<Session, 'id' | 'userId'>
 ): Promise<string> => {
   const shareData = {
+    sessionId: session.id,
+    sessionOwnerId: session.userId,
     sessionName: session.sessionName,
     sessionType: session.sessionType,
     sessionDuration: session.sessionDuration,
@@ -30,35 +33,14 @@ export const generateShareableLink = async (
     })),
   };
 
-  try {
-    const { firebaseService } = await import('@/services');
-    const { getFirebase } = await import('@/lib/firebase');
-    const firebase = await getFirebase();
-    const uid = firebase?.auth?.currentUser?.uid;
-    if (!uid) throw new Error('Not authenticated');
-    const shortId = await firebaseService.createSharedSession(shareData, uid);
-    return `${window.location.origin}/shared/preview?id=${shortId}`;
-  } catch (primaryError) {
-    logger.warn(
-      'Firestore share link failed, falling back to base64 URL',
-      { error: String(primaryError) }
-    );
-  }
-
-  // Fallback: base64-encoded URL
-  try {
-    const jsonStr = JSON.stringify(shareData);
-    const bytes = new TextEncoder().encode(jsonStr);
-    const binary = Array.from(bytes, b => String.fromCharCode(b)).join('');
-    const encodedData = btoa(binary);
-    return `${window.location.origin}/shared/preview?data=${encodedData}`;
-  } catch (fallbackError) {
-    logger.error('Error generating shareable link (fallback)', { error: String(fallbackError) });
-    throw new Error('Failed to generate shareable link');
-  }
+  const { firebaseService } = await import('@/services');
+  const { getFirebase } = await import('@/lib/firebase');
+  const firebase = await getFirebase();
+  const uid = firebase?.auth?.currentUser?.uid;
+  if (!uid) throw new Error('Sign in to share sessions');
+  const shortId = await firebaseService.createSharedSession(shareData, uid);
+  return `${window.location.origin}/shared/preview?id=${shortId}`;
 };
-
-
 
 /**
  * Copy text to clipboard with fallback for older browsers

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Info, Minus, Plus } from 'lucide-react';
 import { useTheme } from '@/contexts';
 
 interface ScoreFieldProps {
@@ -13,6 +13,11 @@ interface ScoreFieldProps {
   /** Render larger, for the live-scoring panel */
   size?: 'default' | 'large';
   hint?: string;
+  /**
+   * Rules reminder behind an (i) icon beside the label. Shows on hover, and
+   * toggles open on tap since phones have no hover.
+   */
+  info?: string;
   /** Show +/- buttons for quick tap adjustment without opening the keyboard */
   stepper?: boolean;
 }
@@ -34,9 +39,11 @@ export const ScoreField = memo(
     max = 999,
     size = 'default',
     hint,
+    info,
     stepper = false,
   }: ScoreFieldProps) => {
     const { isDarkMode } = useTheme();
+    const [showInfo, setShowInfo] = useState(false);
     const [local, setLocal] = useState(String(value));
     const [focused, setFocused] = useState(false);
     const prev = useRef(value);
@@ -87,19 +94,44 @@ export const ScoreField = memo(
               disabled
                 ? isDarkMode
                   ? 'text-gray-600'
-                  : 'text-gray-400'
+                  : 'text-gray-500'
                 : isDarkMode
                   ? 'text-gray-200'
                   : 'text-gray-800'
             }`}
           >
-            {label}
+            <span className="inline-flex items-center gap-1.5">
+              {label}
+              {info && (
+                <button
+                  type="button"
+                  title={info}
+                  aria-label={`About ${label}`}
+                  aria-expanded={showInfo}
+                  onClick={() => setShowInfo(v => !v)}
+                  className={`rounded-full p-0.5 transition-colors ${
+                    isDarkMode
+                      ? 'text-gray-400 hover:text-team-blue'
+                      : 'text-gray-500 hover:text-team-blue'
+                  }`}
+                >
+                  <Info size={16} />
+                </button>
+              )}
+            </span>
           </div>
           {hint && (
             <div
-              className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+              className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
             >
               {hint}
+            </div>
+          )}
+          {info && showInfo && (
+            <div
+              className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+            >
+              {info}
             </div>
           )}
         </div>
@@ -168,7 +200,7 @@ export const ScoreField = memo(
               disabled
                 ? isDarkMode
                   ? 'text-gray-600'
-                  : 'text-gray-400'
+                  : 'text-gray-500'
                 : points < 0
                   ? 'text-red-400'
                   : 'text-team-blue'

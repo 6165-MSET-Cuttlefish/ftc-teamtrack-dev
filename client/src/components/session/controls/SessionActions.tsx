@@ -1,5 +1,4 @@
 import { Check, X } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { useLiveControls } from './liveControlsContext';
 import { swallowEnter } from './swallowEnter';
@@ -15,62 +14,38 @@ import { swallowEnter } from './swallowEnter';
 export const SessionActions = () => {
   const {
     loading,
-    isTimerRunning,
-    setIsTimerRunning,
-    hasStarted,
     sessionLimitReached,
     cancelConfirm,
-    setCancelConfirm,
-    sessionWasCancelled,
-    setSessionWasCancelled,
-    onSessionReset,
-    resetSession,
     handleCompleteSession,
+    handleRequestCancelSession,
+    handleConfirmCancelSession,
+    handleKeepSession,
   } = useLiveControls();
 
   return (
     <>
-      {sessionWasCancelled ? (
-        <button
-          type="button"
-          onKeyDown={swallowEnter}
-          onClick={() => {
-            resetSession();
-            onSessionReset?.();
-            setSessionWasCancelled(false);
-          }}
-          className="shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors flex items-center justify-center"
-          title="Start a new session"
-        >
-          New Session
-        </button>
-      ) : (
-        <button
-          type="button"
-          onKeyDown={swallowEnter}
-          onClick={handleCompleteSession}
-          disabled={loading || sessionLimitReached}
-          className="shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-          title={
-            loading
-              ? 'Saving...'
-              : sessionLimitReached
-                ? 'Session Limit Reached'
-                : 'Complete Session'
-          }
-        >
-          {loading ? 'Saving...' : 'Complete Session'}
-        </button>
-      )}
+      <button
+        type="button"
+        onKeyDown={swallowEnter}
+        onClick={handleCompleteSession}
+        disabled={loading || sessionLimitReached}
+        className="shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+        title={
+          loading
+            ? 'Saving...'
+            : sessionLimitReached
+              ? 'Session Limit Reached'
+              : 'Complete Session'
+        }
+      >
+        {loading ? 'Saving...' : 'Complete Session'}
+      </button>
 
       {!cancelConfirm ? (
         <button
           type="button"
           onKeyDown={swallowEnter}
-          onClick={() => {
-            setCancelConfirm(true);
-            if (isTimerRunning) setIsTimerRunning(false);
-          }}
+          onClick={handleRequestCancelSession}
           className="shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/30 text-red-600 text-base font-bold transition-colors flex items-center justify-center"
           title="Cancel Session"
         >
@@ -81,26 +56,20 @@ export const SessionActions = () => {
           <button
             type="button"
             onKeyDown={swallowEnter}
-            onClick={() => {
-              resetSession();
-              setSessionWasCancelled(true);
-              setCancelConfirm(false);
-              toast.success('Session cancelled');
-            }}
+            onClick={handleConfirmCancelSession}
             className="h-12 px-4 rounded-xl bg-red-500 hover:bg-red-600 transition-colors"
             title="Confirm cancel — discard session"
+            aria-label="Confirm cancel — discard session"
           >
             <Check className="h-5 w-5 text-white" />
           </button>
           <button
             type="button"
             onKeyDown={swallowEnter}
-            onClick={() => {
-              setCancelConfirm(false);
-              if (hasStarted) setIsTimerRunning(true);
-            }}
+            onClick={handleKeepSession}
             className="h-12 px-4 rounded-xl bg-gray-500 hover:bg-gray-600 transition-colors"
             title="Keep session"
+            aria-label="Keep session"
           >
             <X className="h-5 w-5 text-white" />
           </button>

@@ -55,6 +55,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         const teams = await teamService.getUserTeams(user.uid);
         if (teams.length > 0) {
           setTeam(teams[0]);
+          // Fire-and-forget: backfills the owner fields and invite lookup
+          // that older teams are missing.
+          teamService.ensureOwnerSetup(teams[0], user.uid);
         } else {
           setTeam(null);
         }
@@ -94,6 +97,13 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     if (!user) return null;
 
     try {
+      // Opening your own team's invite link is a no-op, not a reason to
+      // leave the team and rejoin it.
+      const invite = await teamService.getInviteByCode(inviteCode);
+      if (team && invite?.teamId === team.id) {
+        return team;
+      }
+
       // If already in a team, require confirmation before leaving
       if (team && !skipConfirmation) {
         const confirmed = await new Promise<boolean>((resolve) => {

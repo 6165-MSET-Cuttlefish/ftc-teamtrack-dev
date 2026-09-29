@@ -22,7 +22,12 @@ import {
 } from '@/components';
 import { TUTORIAL_OPEN_SESSION_SETUP_EVENT } from '@/constants/events';
 import { useTheme, useSession } from '@/contexts';
-import { useMatchAudio, useNavigationGuard, useIsCompact } from '@/hooks';
+import {
+  useEscapeKey,
+  useMatchAudio,
+  useNavigationGuard,
+  useIsCompact,
+} from '@/hooks';
 import { APP_CONFIG, GAME_TIMING, ROUTES } from '@/constants';
 
 const Active = () => {
@@ -74,6 +79,7 @@ const Active = () => {
     hasUnsavedWork,
     'You have an active session in progress. Are you sure you want to leave? Your current match data may be lost.'
   );
+  useEscapeKey(navGuard.isBlocked, navGuard.reset);
 
   useEffect(() => {
     if (!sessionData.sessionName?.trim()) {
@@ -84,9 +90,24 @@ const Active = () => {
 
   const getTimerColor = () => {
     if (matchPhase === 'controller_pickup') {
-      return 'text-yellow-400';
+      // yellow-400 is unreadable on the light background
+      return isDarkMode ? 'text-yellow-400' : 'text-amber-600';
     }
     return isDarkMode ? 'text-white' : 'text-team-blue';
+  };
+
+  /**
+   * Controller pickup and the post-buzzer window both have the match clock
+   * stopped without the user pausing anything, so neither may fall through
+   * to "Paused". (Pickup is already named in the phase label beside this.)
+   */
+  const matchStatus = () => {
+    if (!matchActive) return 'Not Started';
+    if (matchPhase === 'controller_pickup') return 'Active';
+    if (matchPhase === 'ended' || (timer === 0 && !isTimerRunning))
+      return 'Ended';
+    if (isTimerRunning || isPreMatchDelay) return 'Active';
+    return 'Paused';
   };
 
   const isCompleted = Boolean(sessionData.isSessionCompleted);
@@ -108,6 +129,7 @@ const Active = () => {
       <div
         role="timer"
         aria-label="Match timer"
+        data-match-timer
         className={`text-center tracking-wider leading-none transition-colors font-righteous text-[clamp(3.5rem,20vw,5.5rem)] ${getTimerColor()}`}
         style={{ letterSpacing: '0.05em' }}
       >
@@ -138,11 +160,7 @@ const Active = () => {
         <div
           className={`text-xs sm:text-sm font-semibold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
         >
-          {!matchActive
-            ? `Match ${matchNumber} Not Started`
-            : isTimerRunning
-              ? `Match ${matchNumber} Active`
-              : `Match ${matchNumber} Paused`}
+          Match {matchNumber} {matchStatus()}
         </div>
       </div>
     ),

@@ -270,7 +270,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       throw new Error('Password is required to delete your account.');
     }
 
+    // Remove the user's data while they are still signed in — the rules only
+    // let an account delete its own documents. Leaving the team first hands
+    // it to another member (or deletes it if they were the only one).
+    const uid = currentUser.uid;
+    const [{ firebaseService }, { teamService }] = await Promise.all([
+      import('@/services/firebaseService'),
+      import('@/services/teamService'),
+    ]);
+    const teams = await teamService.getUserTeams(uid);
+    for (const team of teams) {
+      await teamService.leaveTeam(team.id, uid);
+    }
+    await firebaseService.deleteAllUserData(uid);
+
     await rawModule.deleteUser(currentUser);
+    clearSessionFromStorage();
+    clearHasCompletedSession();
     setUser(null);
   };
 

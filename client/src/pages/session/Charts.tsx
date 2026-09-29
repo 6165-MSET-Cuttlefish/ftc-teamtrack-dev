@@ -3,7 +3,13 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme, useSession, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { ROUTES, APP_CONFIG } from '@/constants';
-import { isAbortError, toDate, calculateScore, cycleTimesOf } from '@/lib';
+import {
+  isAbortError,
+  toDate,
+  calculateScore,
+  cycleTimesOf,
+  robotRates,
+} from '@/lib';
 import type { Session, Match, ChartDataPoint, ScoreBreakdown } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,11 +39,19 @@ import {
   Legend,
   ResponsiveContainer,
   Area,
-  AreaChart,
   LineChart,
   Line,
   ComposedChart,
 } from 'recharts';
+
+/** Per-element series drawn under the Final Score area on Score Trends. */
+const SCORE_TREND_ELEMENTS = [
+  { key: 'Garden', color: '#10b981' },
+  { key: 'Tipping', color: '#f59e0b' },
+  { key: 'Flower', color: '#a855f7' },
+  { key: 'Hive', color: '#0ea5e9' },
+  { key: 'Leave & Park', color: '#14b8a6' },
+] as const;
 
 const Charts = () => {
   const { user, isGuest } = useAuth();
@@ -119,8 +133,9 @@ const Charts = () => {
           'Final Score': avgOf(b => b.total),
           Garden: avgOf(b => b.garden),
           Tipping: avgOf(b => b.tipping),
-          Flower: avgOf(b => b.flower),
+          Flower: avgOf(b => b.flower + b.flowerBonus),
           Hive: avgOf(b => b.hive),
+          'Leave & Park': avgOf(b => b.leave + b.park),
         };
       });
   };
@@ -456,12 +471,21 @@ const Charts = () => {
                         {
                           label: 'Flower',
                           avg:
-                            breakdowns.reduce((s, b) => s + b.flower, 0) / count,
+                            breakdowns.reduce(
+                              (s, b) => s + b.flower + b.flowerBonus,
+                              0
+                            ) / count,
                         },
                         {
                           label: 'Balls in Hive',
                           avg:
                             breakdowns.reduce((s, b) => s + b.hive, 0) / count,
+                        },
+                        {
+                          label: 'Leave & Park',
+                          avg:
+                            breakdowns.reduce((s, b) => s + b.leave + b.park, 0) /
+                            count,
                         },
                       ].sort((a, b) => b.avg - a.avg);
 
@@ -471,22 +495,7 @@ const Charts = () => {
                           ? ((best.avg / avgScore) * 100).toFixed(0)
                           : '0';
 
-                      // Park is scored separately for AUTO and TELEOP, so
-                      // each robot contributes two park opportunities.
-                      const parkSlots = allMatches.length * 4 || 1;
-                      const parkRate = Math.round(
-                        (allMatches.reduce(
-                          (s, m) =>
-                            s +
-                            (m.robot1ParkAuto ? 1 : 0) +
-                            (m.robot1ParkTeleop ? 1 : 0) +
-                            (m.robot2ParkAuto ? 1 : 0) +
-                            (m.robot2ParkTeleop ? 1 : 0),
-                          0
-                        ) /
-                          parkSlots) *
-                          100
-                      );
+                      const { parkRate } = robotRates(allMatches);
 
                       return (
                         <>
@@ -501,7 +510,9 @@ const Charts = () => {
                             <span className="font-semibold text-team-blue">
                               Endgame:
                             </span>{' '}
-                            Parked in {parkRate}% of robot-matches
+                            {parkRate === null
+                              ? 'No park chances recorded'
+                              : `Parked in ${parkRate}% of park chances`}
                           </div>
                           <div>
                             <span className="font-semibold text-team-blue">
@@ -642,13 +653,14 @@ const Charts = () => {
               <CardDescription
                 className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
-                Track your progress across all scoring phases
+                Average match score per session, and the points each
+                scoring element contributed
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="w-full overflow-x-auto">
                 <ResponsiveContainer width="100%" height={250} minWidth={300}>
-                  <AreaChart data={scoreTrendData}>
+                  <ComposedChart data={scoreTrendData}>
                     <defs>
                       <linearGradient
                         id="colorFinal"
@@ -665,42 +677,6 @@ const Charts = () => {
                         <stop
                           offset="95%"
                           stopColor={COLORS.primary}
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="colorAuto"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={COLORS.success}
-                          stopOpacity={0.8}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={COLORS.success}
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="colorTele"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={COLORS.warning}
-                          stopOpacity={0.8}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={COLORS.warning}
                           stopOpacity={0}
                         />
                       </linearGradient>
@@ -732,25 +708,18 @@ const Charts = () => {
                       fill="url(#colorFinal)"
                       animationDuration={1500}
                     />
-                    <Area
-                      type="monotone"
-                      dataKey="Autonomous"
-                      stroke={COLORS.success}
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorAuto)"
-                      animationDuration={1500}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="Teleop"
-                      stroke={COLORS.warning}
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorTele)"
-                      animationDuration={1500}
-                    />
-                  </AreaChart>
+                    {SCORE_TREND_ELEMENTS.map(({ key, color }) => (
+                      <Line
+                        key={key}
+                        type="monotone"
+                        dataKey={key}
+                        stroke={color}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        animationDuration={1500}
+                      />
+                    ))}
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>

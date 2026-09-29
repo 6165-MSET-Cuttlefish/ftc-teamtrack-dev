@@ -4,6 +4,53 @@ import { useLiveControls } from './liveControlsContext';
 import { swallowEnter } from './swallowEnter';
 
 /**
+ * Save / Cancel for a logged match that is open for editing.
+ *
+ * Rendered beside the timer (the primary action slot) and, on a phone, right
+ * under the match in the log that was tapped — so the controls are next to
+ * whichever part of the page the user was looking at.
+ */
+export const EditMatchActions = () => {
+  const {
+    isDarkMode,
+    setShowUnsavedEditWarning,
+    setPendingEditMatch,
+    saveEditedMatch,
+    returnToCurrentMatch,
+  } = useLiveControls();
+
+  return (
+    <>
+      <button
+        type="button"
+        onKeyDown={swallowEnter}
+        onClick={() => {
+          saveEditedMatch();
+          toast.success('Match changes saved!');
+          setShowUnsavedEditWarning(false);
+          setPendingEditMatch(null);
+        }}
+        className="flex-1 py-2 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors flex items-center justify-center"
+      >
+        Save Changes
+      </button>
+      <button
+        type="button"
+        onKeyDown={swallowEnter}
+        onClick={() => {
+          returnToCurrentMatch();
+          setShowUnsavedEditWarning(false);
+          setPendingEditMatch(null);
+        }}
+        className={`flex-1 py-2 h-12 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 ${isDarkMode ? 'text-yellow-500' : 'text-yellow-700'} text-base font-bold transition-colors flex items-center justify-center`}
+      >
+        Cancel
+      </button>
+    </>
+  );
+};
+
+/**
  * The one button that drives a match forward: Start, Save, the teleop
  * transition pair, or the save/cancel pair while editing a logged match.
  *
@@ -18,9 +65,6 @@ export const PrimaryAction = () => {
     editingMatchId,
     showTeleopTransition,
     showUnsavedEditWarning,
-    setShowUnsavedEditWarning,
-    setPendingEditMatch,
-    saveEditedMatch,
     isSessionSetupSaved,
     handleStartMatch,
     handleSaveMatch,
@@ -74,34 +118,7 @@ export const PrimaryAction = () => {
         </>
       )}
 
-      {editingMatchId && (
-        <>
-          <button
-            type="button"
-            onKeyDown={swallowEnter}
-            onClick={() => {
-              saveEditedMatch();
-              toast.success('Match changes saved!');
-              setShowUnsavedEditWarning(false);
-              setPendingEditMatch(null);
-            }}
-            className="flex-1 py-2 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors flex items-center justify-center"
-          >
-            Save Changes
-          </button>
-          <button
-            type="button"
-            onKeyDown={swallowEnter}
-            onClick={() => {
-              setPendingEditMatch(null);
-              setShowUnsavedEditWarning(true);
-            }}
-            className="flex-1 py-2 h-12 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 text-base font-bold transition-colors flex items-center justify-center"
-          >
-            Cancel
-          </button>
-        </>
-      )}
+      {editingMatchId && <EditMatchActions />}
 
       {showUnsavedEditWarning && (
         <div className="rounded-2xl border-2 border-orange-500/60 bg-orange-500/15 px-4 py-4 min-h-12 flex items-center">

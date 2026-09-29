@@ -129,7 +129,7 @@ export const MatchForm = ({
       </span>
       {hint && (
         <span
-          className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+          className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}
         >
           {hint}
         </span>
@@ -262,7 +262,7 @@ export const MatchForm = ({
               `${POINTS.PARK} pts`
             )}
             {checkToggle(
-              'Robot 1 Park (Teleop)',
+              'Robot 1 Park (End)',
               formData.robot1ParkTeleop ?? false,
               v => setField('robot1ParkTeleop', v),
               `${POINTS.PARK} pts`
@@ -280,7 +280,7 @@ export const MatchForm = ({
               `${POINTS.PARK} pts`
             )}
             {checkToggle(
-              'Robot 2 Park (Teleop)',
+              'Robot 2 Park (End)',
               formData.robot2ParkTeleop ?? false,
               v => setField('robot2ParkTeleop', v),
               `${POINTS.PARK} pts`

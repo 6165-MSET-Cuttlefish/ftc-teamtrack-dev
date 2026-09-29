@@ -16,7 +16,7 @@ import {
 
 const SESSION_TYPES: Array<{ value: SessionType; hint: string }> = [
   { value: 'Practice', hint: 'Solo drilling and repetition' },
-  { value: 'Scrim', hint: 'Full matches against another alliance' },
+  { value: 'Scrim', hint: 'Matches vs. another alliance — adds penalties' },
 ];
 
 interface SessionSetupProps {
@@ -186,7 +186,7 @@ export const SessionSetup = ({
                     {type.value}
                   </div>
                   <div
-                    className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                    className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                   >
                     {type.hint}
                   </div>

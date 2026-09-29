@@ -11,6 +11,7 @@
  */
 
 import type { MatchScoringFields, ScoreBreakdown } from '@/types';
+import { CURRENT_SEASON } from '@/constants';
 
 export const POINTS = {
   /** HIVE TIP — scored live, worth the same in auton or teleop */
@@ -158,6 +159,76 @@ export const pickScoringFields = (
     majorPenalties: source.majorPenalties ?? empty.majorPenalties,
     phaseLog: source.phaseLog ? [...source.phaseLog] : [],
   };
+};
+
+/**
+ * BIOBUZZ ranking point thresholds, per match.
+ *
+ * SWARM is earned on LEAVE + PARK points; POLLINATOR is earned once at each
+ * HIVE TIP threshold.
+ */
+export const RANKING_POINTS = {
+  SWARM_ROBOT_POINTS: 16,
+  POLLINATOR_TIPS: [4, 7],
+} as const;
+
+/** Whether a match of this type runs an autonomous period. */
+export const includesAuto = (matchType?: string): boolean =>
+  matchType !== 'Teleop';
+
+/** Whether a match of this type runs a teleop period. */
+export const includesTeleop = (matchType?: string): boolean =>
+  matchType !== 'Autonomous';
+
+/**
+ * Leave and park conversion across matches, as whole percentages.
+ *
+ * Only periods that were actually run count as opportunities: a teleop-only
+ * match has no LEAVE or AUTO PARK to miss, and an auto-only match has no
+ * end-of-match PARK. A rate is `null` when there were no opportunities.
+ */
+export const robotRates = (
+  matches: Array<Partial<MatchScoringFields> & { matchType?: string }>,
+  fallbackMatchType?: string
+): { leaveRate: number | null; parkRate: number | null } => {
+  let leaveSlots = 0;
+  let leaves = 0;
+  let parkSlots = 0;
+  let parks = 0;
+
+  for (const m of matches) {
+    const type = m.matchType ?? fallbackMatchType;
+    if (includesAuto(type)) {
+      leaveSlots += 2;
+      leaves += (m.robot1Leave ? 1 : 0) + (m.robot2Leave ? 1 : 0);
+      parkSlots += 2;
+      parks += (m.robot1ParkAuto ? 1 : 0) + (m.robot2ParkAuto ? 1 : 0);
+    }
+    if (includesTeleop(type)) {
+      parkSlots += 2;
+      parks += (m.robot1ParkTeleop ? 1 : 0) + (m.robot2ParkTeleop ? 1 : 0);
+    }
+  }
+
+  const pct = (n: number, d: number) =>
+    d > 0 ? Math.round((n / d) * 100) : null;
+  return { leaveRate: pct(leaves, leaveSlots), parkRate: pct(parks, parkSlots) };
+};
+
+/**
+ * Whether a stored session belongs to the current season.
+ *
+ * Sessions saved before the season tag existed are classified by shape:
+ * DECODE matches carry none of the BIOBUZZ scoring fields.
+ */
+export const isCurrentSeasonSession = (session: {
+  season?: string;
+  matches?: ReadonlyArray<object>;
+}): boolean => {
+  if (session.season) return session.season === CURRENT_SEASON;
+  const matches = session.matches ?? [];
+  if (matches.length === 0) return true;
+  return matches.some(m => 'garden' in m || 'tipping' in m);
 };
 
 /** Cycle times (seconds between live scoring actions) recorded in a match. */

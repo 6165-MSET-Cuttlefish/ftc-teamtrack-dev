@@ -32,7 +32,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import type { Match } from '@/types';
-import { calculateScore, cycleTimesOf, scoreRows } from '@/lib';
+import { calculateScore, cycleTimesOf, robotRates, scoreRows } from '@/lib';
 
 /** Compute +/- diff string */
 const formatDiff = (val: number) => (val > 0 ? `+${val}` : `${val}`);
@@ -248,7 +248,7 @@ const EmptyChart = ({
 }) => (
   <div
     className={`h-[260px] flex items-center justify-center text-sm ${
-      isDarkMode ? 'text-team-white-60' : 'text-gray-400'
+      isDarkMode ? 'text-team-white-60' : 'text-gray-500'
     }`}
   >
     {message}
@@ -265,12 +265,14 @@ export interface SessionStats {
   avgFlower: number;
   avgFlowerBonus: number;
   avgHive: number;
+  avgLeave: number;
+  avgPark: number;
   /** Average points lost to penalties per match */
   avgPenalties: number;
-  /** Percentage of robot-matches that left in autonomous */
-  leaveRate: number;
-  /** Percentage of robot-park opportunities (auto + teleop) that were converted */
-  parkRate: number;
+  /** Percentage of robot-matches with an auto that left; null if no auto was run */
+  leaveRate: number | null;
+  /** Percentage of park opportunities converted, counting only periods that were run */
+  parkRate: number | null;
   /** Average seconds between live scoring actions, or null if never recorded */
   avgCycle: number | null;
   consistency: number;
@@ -285,6 +287,9 @@ const scoreOf = (m: Match): number => m.finalScore ?? calculateScore(m).total;
 const mean = (values: number[]) =>
   values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length;
 
+/** One decimal place, so per-element averages still add up to the total. */
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
 export const computeStats = (matches: Match[]): SessionStats | null => {
   if (matches.length === 0) return null;
 
@@ -295,23 +300,7 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
 
   const breakdowns = matches.map(m => calculateScore(m));
 
-  // Leave is one opportunity per robot; park is scored separately for AUTO
-  // and TELEOP, so each robot contributes two park opportunities per match.
-  const leaveSlots = matches.length * 2;
-  const parkSlots = matches.length * 4;
-  const leaveCount = matches.reduce(
-    (s, m) => s + (m.robot1Leave ? 1 : 0) + (m.robot2Leave ? 1 : 0),
-    0
-  );
-  const parkCount = matches.reduce(
-    (s, m) =>
-      s +
-      (m.robot1ParkAuto ? 1 : 0) +
-      (m.robot1ParkTeleop ? 1 : 0) +
-      (m.robot2ParkAuto ? 1 : 0) +
-      (m.robot2ParkTeleop ? 1 : 0),
-    0
-  );
+  const { leaveRate, parkRate } = robotRates(matches);
 
   const allCycles = matches.flatMap(cycleTimesOf);
 
@@ -322,14 +311,16 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
     avgScore: Math.round(avgScore),
     maxScore,
     minScore,
-    avgGarden: Math.round(mean(breakdowns.map(b => b.garden))),
-    avgTipping: Math.round(mean(breakdowns.map(b => b.tipping))),
-    avgFlower: Math.round(mean(breakdowns.map(b => b.flower))),
-    avgFlowerBonus: Math.round(mean(breakdowns.map(b => b.flowerBonus))),
-    avgHive: Math.round(mean(breakdowns.map(b => b.hive))),
-    avgPenalties: Math.round(mean(breakdowns.map(b => b.penalties)) * 10) / 10,
-    leaveRate: leaveSlots > 0 ? Math.round((leaveCount / leaveSlots) * 100) : 0,
-    parkRate: parkSlots > 0 ? Math.round((parkCount / parkSlots) * 100) : 0,
+    avgGarden: round1(mean(breakdowns.map(b => b.garden))),
+    avgTipping: round1(mean(breakdowns.map(b => b.tipping))),
+    avgFlower: round1(mean(breakdowns.map(b => b.flower))),
+    avgFlowerBonus: round1(mean(breakdowns.map(b => b.flowerBonus))),
+    avgHive: round1(mean(breakdowns.map(b => b.hive))),
+    avgLeave: round1(mean(breakdowns.map(b => b.leave))),
+    avgPark: round1(mean(breakdowns.map(b => b.park))),
+    avgPenalties: round1(mean(breakdowns.map(b => b.penalties))),
+    leaveRate,
+    parkRate,
     avgCycle:
       allCycles.length > 0
         ? Math.round(mean(allCycles) * 100) / 100
@@ -445,6 +436,8 @@ export const SummaryTab = ({
       color: CHART_COLORS.flower,
     },
     { label: 'Left in Hive', value: stats.avgHive, color: CHART_COLORS.hive },
+    { label: 'Leave', value: stats.avgLeave, color: CHART_COLORS.robots },
+    { label: 'Park', value: stats.avgPark, color: CHART_COLORS.robots },
     {
       label: 'Penalties',
       value: -stats.avgPenalties,
@@ -492,14 +485,16 @@ export const SummaryTab = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           label="Leave Rate"
-          value={`${stats.leaveRate}%`}
-          sublabel="of robot-matches"
+          value={stats.leaveRate === null ? '-' : `${stats.leaveRate}%`}
+          sublabel={
+            stats.leaveRate === null ? 'no autonomous run' : 'of robot-matches with auto'
+          }
           isDarkMode={isDarkMode}
         />
         <StatCard
           label="Park Rate"
-          value={`${stats.parkRate}%`}
-          sublabel="of robot-matches"
+          value={stats.parkRate === null ? '-' : `${stats.parkRate}%`}
+          sublabel="of park chances (auto + end)"
           isDarkMode={isDarkMode}
         />
         <StatCard
@@ -829,7 +824,7 @@ export const MatchDetailTab = ({
             >
               <span>{row.label}</span>
               <span className="flex items-center gap-4 tabular-nums">
-                <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>
+                <span className={isDarkMode ? 'text-gray-500' : 'text-gray-500'}>
                   x{row.count}
                 </span>
                 <span
@@ -959,7 +954,7 @@ export const CompareTab = ({
         {picker('Left', leftIdx, setLeftIdx)}
         <ArrowRightLeft
           size={18}
-          className={isDarkMode ? 'text-team-white-60' : 'text-gray-400'}
+          className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}
         />
         {picker('Right', rightIdx, setRightIdx)}
       </div>
@@ -1034,7 +1029,7 @@ export const CompareTab = ({
                           ? 'text-red-500'
                           : isDarkMode
                             ? 'text-gray-500'
-                            : 'text-gray-400'
+                            : 'text-gray-500'
                     }
                   >
                     {formatDiff(delta)}

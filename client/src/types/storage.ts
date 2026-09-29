@@ -24,4 +24,6 @@ export interface SessionTimerState {
   sessionStartTime: number;
   matchStartTime: number;
   matchPhase?: MatchPhase;
+  /** Whether a match was in progress (started and not yet saved/discarded) */
+  matchActive?: boolean;
 }

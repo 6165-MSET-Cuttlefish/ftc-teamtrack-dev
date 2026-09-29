@@ -9,8 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useSession, useTheme, useAuth, useTeam } from '@/contexts';
-import { useFirebase } from '@/hooks';
-import { GAME_TIMING, ROUTES, STORAGE_KEYS } from '@/constants';
+import { useEscapeKey, useFirebase } from '@/hooks';
+import { GAME_TIMING, ROUTES, STORAGE_KEYS, UI_TIMING } from '@/constants';
 import {
   calculateScore,
   emptyScoringFields,
@@ -55,6 +55,7 @@ export const useLiveControlsState = ({
     editingMatchId,
     saveEditedMatch,
     startEditingMatch,
+    returnToCurrentMatch,
     matchActive,
     setMatchActive,
     skipToTeleop,
@@ -71,11 +72,19 @@ export const useLiveControlsState = ({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
-  const [sessionWasCancelled, setSessionWasCancelled] = useState<boolean>(false);
+  /** ID the completed session was saved under, so analysis can open (and share) it */
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  /** Whether the match clock was running when Cancel Session was pressed */
+  const [resumeAfterCancel, setResumeAfterCancel] = useState<boolean>(false);
   const [, setPendingEditMatch] = useState<Match | null>(null);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] =
     useState<boolean>(false);
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Latest session data, for undo callbacks that fire after later edits */
+  const sessionDataRef = useRef(sessionData);
+  useEffect(() => {
+    sessionDataRef.current = sessionData;
+  }, [sessionData]);
 
   useEffect(() => {
     const ref = preMatchDelayRef;
@@ -180,7 +189,11 @@ export const useLiveControlsState = ({
   };
 
   const handleViewAnalysis = () => {
-    navigate(ROUTES.ANALYSIS);
+    navigate(
+      savedSessionId
+        ? `${ROUTES.ANALYSIS}?sessionId=${encodeURIComponent(savedSessionId)}`
+        : ROUTES.ANALYSIS
+    );
   };
 
   const handleNewSession = () => {
@@ -193,19 +206,42 @@ export const useLiveControlsState = ({
       return;
     }
 
+    setSavedSessionId(null);
     resetSession();
     onSessionReset?.();
     setCancelConfirm(false);
     setNewSessionConfirm(false);
-    setSessionWasCancelled(false);
   };
 
   const handleConfirmNewSession = () => {
+    setSavedSessionId(null);
     resetSession();
     onSessionReset?.();
     setCancelConfirm(false);
     setNewSessionConfirm(false);
-    setSessionWasCancelled(false);
+  };
+
+  /** First tap on Cancel Session: pause, and remember whether to resume. */
+  const handleRequestCancelSession = () => {
+    setResumeAfterCancel(isTimerRunning);
+    if (isTimerRunning) setIsTimerRunning(false);
+    setCancelConfirm(true);
+  };
+
+  /** Confirmed: discard everything and go straight back to a fresh setup. */
+  const handleConfirmCancelSession = () => {
+    resetSession();
+    onSessionReset?.();
+    setCancelConfirm(false);
+    setResumeAfterCancel(false);
+    toast.success('Session cancelled');
+  };
+
+  /** Backed out: only restart the clock if it was running before. */
+  const handleKeepSession = () => {
+    setCancelConfirm(false);
+    if (resumeAfterCancel) setIsTimerRunning(true);
+    setResumeAfterCancel(false);
   };
 
   /** Split out of the Start/Save button so both layouts share one code path */
@@ -343,6 +379,7 @@ export const useLiveControlsState = ({
       if (user?.uid) {
         const result = await createSession(sessionToSave);
         if (result && result.id) {
+          setSavedSessionId(result.id);
           completeSession(totalSessionTime);
           toast.success('Session saved successfully!');
         } else {
@@ -360,6 +397,7 @@ export const useLiveControlsState = ({
           createdAt: new Date().toISOString(),
         };
         existing.unshift(guestSession);
+        setSavedSessionId(guestSession.id);
         localStorage.setItem(
           STORAGE_KEYS.GUEST_SESSIONS,
           JSON.stringify(existing)
@@ -380,17 +418,35 @@ export const useLiveControlsState = ({
   };
 
   const handleDeleteMatch = (matchId: string) => {
-    const updatedMatches = (sessionData.matches || []).filter(
-      m => m.id !== matchId
-    );
-    const renumbered = updatedMatches.map((m, i) => ({
-      ...m,
-      matchNumber: i + 1,
-    }));
-    updateSessionData({ matches: renumbered });
+    const before = sessionData.matches || [];
+    const index = before.findIndex(m => m.id === matchId);
+    if (index === -1) return;
+    const deleted = before[index];
+
+    const renumber = (matches: Match[]) =>
+      matches.map((m, i) => ({ ...m, matchNumber: i + 1 }));
+
+    updateSessionData({ matches: renumber(before.filter(m => m.id !== matchId)) });
     setDeleteConfirmId(null);
-    toast.success('Match deleted');
+    toast.success(`Match ${deleted.matchNumber} deleted`, {
+      duration: UI_TIMING.UNDO_WINDOW,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          const current = sessionDataRef.current.matches || [];
+          if (current.some(m => m.id === matchId)) return;
+          const restored = [...current];
+          restored.splice(Math.min(index, restored.length), 0, deleted);
+          updateSessionData({ matches: renumber(restored) });
+        },
+      },
+    });
   };
+
+  useEscapeKey(cancelConfirm, () => handleKeepSession());
+  useEscapeKey(cancelMatchConfirm, () => setCancelMatchConfirm(false));
+  useEscapeKey(deleteConfirmId !== null, () => setDeleteConfirmId(null));
+  useEscapeKey(newSessionConfirm, () => setNewSessionConfirm(false));
 
   const handleCancelCurrentMatch = () => {
     updateSessionData(emptyScoringFields());
@@ -416,6 +472,7 @@ export const useLiveControlsState = ({
     showTeleopTransition,
     startEditingMatch,
     saveEditedMatch,
+    returnToCurrentMatch,
     skipToTeleop,
     resetSession,
 
@@ -428,8 +485,6 @@ export const useLiveControlsState = ({
     setCancelMatchConfirm,
     newSessionConfirm,
     setNewSessionConfirm,
-    sessionWasCancelled,
-    setSessionWasCancelled,
     setPendingEditMatch,
     showUnsavedEditWarning,
     setShowUnsavedEditWarning,
@@ -443,6 +498,9 @@ export const useLiveControlsState = ({
     handleViewAnalysis,
     handleNewSession,
     handleConfirmNewSession,
+    handleRequestCancelSession,
+    handleConfirmCancelSession,
+    handleKeepSession,
     handleStartMatch,
     handleSaveMatch,
     handleCompleteSession,

@@ -56,15 +56,14 @@ const SharedSession = () => {
           return;
         }
 
-        // Legacy base64 format: ?data=<base64> (backwards compat)
-        const encoded = params.get('data');
-        if (encoded) {
-          const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
-          setSession(decoded as SharedData);
-          return;
-        }
-
-        setError('No session data found in this link.');
+        // The old ?data=<base64> links are no longer read: their contents came
+        // straight from the URL, so anyone could craft one that looked like a
+        // real shared session, and they could never be taken down.
+        setError(
+          params.has('data')
+            ? 'This is an old-style share link, which is no longer supported. Ask for a new link.'
+            : 'No session data found in this link.'
+        );
       } catch (err) {
         const { logger } = await import('@/lib/logger');
         logger.error('Error loading shared session', err);

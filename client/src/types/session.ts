@@ -112,6 +112,8 @@ export interface Session {
   selectedFeature?: string;
   notes?: string;
   matches: Match[];
+  /** Game season the session was recorded in (absent on pre-tag sessions) */
+  season?: string;
 }
 
 /** Session data for creating new sessions (without id and createdAt) */

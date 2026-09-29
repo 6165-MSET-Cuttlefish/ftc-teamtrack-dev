@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useSession } from '@/contexts';
-import { STORAGE_KEYS } from '@/constants';
+import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
 
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
@@ -72,6 +72,48 @@ const clearAudioState = () => {
   } catch { /* storage unavailable */ }
 };
 
+/**
+ * The match audio track has no cue at 1:00, but that is when BIOBUZZ
+ * endgame (and flower scoring) opens, so a short chime is synthesized on top.
+ */
+let chimeContext: AudioContext | null = null;
+
+const getChimeContext = (): AudioContext | null => {
+  if (chimeContext) return chimeContext;
+  const Ctor =
+    window.AudioContext ??
+    (window as Window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!Ctor) return null;
+  chimeContext = new Ctor();
+  return chimeContext;
+};
+
+/** Browsers only allow audio started from a tap, so wake the context then. */
+const unlockChime = () => {
+  getChimeContext()?.resume().catch(() => {});
+};
+
+const playEndgameChime = () => {
+  const ctx = getChimeContext();
+  if (!ctx) return;
+  ctx.resume().catch(() => {});
+  const start = ctx.currentTime;
+  [880, 1175].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const t = start + i * 0.18;
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.4);
+  });
+};
+
 const FULL_GAME_AUDIO_OFFSET = 0.8;
 const AUTON_AUDIO_OFFSET = FULL_GAME_AUDIO_OFFSET + 3;
 const TELEOP_AUDIO_OFFSET = 42;
@@ -80,6 +122,7 @@ export const useMatchAudio = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedRef = useRef<boolean>(false);
   const audioTailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const endgameChimedRef = useRef(false);
   const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay, timer, isTutorialActive, sessionData } = useSession();
 
   const getExpectedAudioTime = useCallback(() => {
@@ -174,6 +217,28 @@ export const useMatchAudio = () => {
       }, tailDuration);
     }
   }, [matchActive, timer, sessionData.matchType]);
+
+  useEffect(() => {
+    window.addEventListener('teamtrack-match-started', unlockChime);
+    return () => window.removeEventListener('teamtrack-match-started', unlockChime);
+  }, []);
+
+  // Endgame chime at 1:00, once per match.
+  useEffect(() => {
+    if (!matchActive) {
+      endgameChimedRef.current = false;
+      return;
+    }
+    if (
+      matchPhase === 'teleop' &&
+      isTimerRunning &&
+      timer === GAME_TIMING.ENDGAME_REMAINING &&
+      !endgameChimedRef.current
+    ) {
+      endgameChimedRef.current = true;
+      if (!isTutorialActive) playEndgameChime();
+    }
+  }, [matchActive, matchPhase, isTimerRunning, timer, isTutorialActive]);
 
   useEffect(() => {
     const audio = audioRef.current;

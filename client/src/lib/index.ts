@@ -24,6 +24,11 @@ export {
 export { generateShareableLink, copyToClipboard } from './shareService';
 export { sanitizeHtml } from './sanitize';
 export {
+  isGuestSessionId,
+  readGuestSessions,
+  writeGuestSessions,
+} from './guestSessions';
+export {
   POINTS,
   calculateScore,
   calculateTotal,
@@ -31,4 +36,9 @@ export {
   emptyScoringFields,
   pickScoringFields,
   cycleTimesOf,
+  RANKING_POINTS,
+  includesAuto,
+  includesTeleop,
+  robotRates,
+  isCurrentSeasonSession,
 } from './scoring';

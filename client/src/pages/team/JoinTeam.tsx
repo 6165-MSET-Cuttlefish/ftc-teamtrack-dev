@@ -21,7 +21,6 @@ const JoinTeam = () => {
   const [status, setStatus] = useState<'loading' | 'preview' | 'joining' | 'success' | 'error'>('loading');
   const [teamName, setTeamName] = useState('');
   const [teamId, setTeamId] = useState('');
-  const [memberCount, setMemberCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [importing, setImporting] = useState(false);
   const [importableSessions, setImportableSessions] = useState<Session[]>([]);
@@ -66,10 +65,9 @@ const JoinTeam = () => {
     const doLookup = async () => {
       setStatus('loading');
       try {
-        const team = await teamService.getTeamByInviteCode(codeToUse);
-        if (team) {
-          setTeamName(team.name);
-          setMemberCount(team.members?.length ?? 0);
+        const invite = await teamService.getInviteByCode(codeToUse);
+        if (invite) {
+          setTeamName(invite.teamName);
           setStatus('preview');
         } else {
           setStatus('error');
@@ -158,14 +156,9 @@ const JoinTeam = () => {
             >
               Join {teamName}?
             </h2>
-            <p className={`mb-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+            <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
               You've been invited to join this team.
             </p>
-            {memberCount > 0 && (
-              <p className={`text-sm mb-6 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}>
-                {memberCount} member{memberCount !== 1 ? 's' : ''}
-              </p>
-            )}
             <div className="flex gap-3 justify-center flex-wrap">
               <Button
                 onClick={() => navigate(ROUTES.SESSIONS)}

@@ -2,6 +2,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
 import { ROUTES, TUTORIAL_RESTART_EVENT } from '@/constants';
 import { getInitials } from '@/lib';
+import { useIsCompact } from '@/hooks';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -323,11 +324,14 @@ const NavigationMenu = () => {
 
 const CompactTimer = () => {
   const { isDarkMode } = useTheme();
-  const { timer, formatTime, matchPhase, phaseTimer } = useSession();
+  const { timer, formatTime, matchPhase, phaseTimer, getDisplayTimer } =
+    useSession();
 
   const timerColor =
     matchPhase === 'controller_pickup'
-      ? 'text-yellow-400'
+      ? isDarkMode
+        ? 'text-yellow-400'
+        : 'text-amber-600'
       : isDarkMode
         ? 'text-white'
         : 'text-team-blue';
@@ -338,7 +342,9 @@ const CompactTimer = () => {
     >
       {matchPhase === 'controller_pickup'
         ? formatTime(phaseTimer)
-        : formatTime(timer)}
+        : matchPhase === 'auton'
+          ? formatTime(getDisplayTimer(timer, matchPhase))
+          : formatTime(timer)}
     </span>
   );
 };
@@ -352,6 +358,7 @@ export const Header = () => {
   const isOnActivePage = location.pathname.includes('/active');
   const [timerScrolledPast, setTimerScrolledPast] = useState(false);
   const [headerEl, setHeaderEl] = useState<HTMLElement | null>(null);
+  const isCompact = useIsCompact();
 
   const showCompactTimer =
     !sessionData.isSessionCompleted &&
@@ -363,22 +370,26 @@ export const Header = () => {
       return;
     }
 
+    // Track the big match clock itself (not the block around it), and only
+    // swap in the header copy once it has fully scrolled under the header.
     const check = () => {
-      const timerEl = document.querySelector<HTMLElement>('[data-tutorial="timer"]');
-      if (!timerEl || !headerEl) return;
-      const headerBottom = headerEl.offsetHeight;
-      const timerTop = timerEl.getBoundingClientRect().top;
-      setTimerScrolledPast(timerTop < headerBottom);
+      const timerEl = document.querySelector<HTMLElement>('[data-match-timer]');
+      if (!timerEl || !headerEl) {
+        setTimerScrolledPast(false);
+        return;
+      }
+      const headerBottom = headerEl.getBoundingClientRect().bottom;
+      setTimerScrolledPast(timerEl.getBoundingClientRect().bottom < headerBottom);
     };
 
-    const timeout = setTimeout(() => {
-      check(); // run immediately after mount
-      window.addEventListener('scroll', check, { passive: true });
-    }, 100);
+    const timeout = setTimeout(check, 100);
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
 
     return () => {
       clearTimeout(timeout);
       window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
     };
   }, [isOnActivePage, location.pathname, headerEl]);
 
@@ -410,7 +421,7 @@ export const Header = () => {
           space is narrower than the timer itself on very small screens.
         */}
         <div className="min-w-0 flex items-center justify-center overflow-hidden">
-          {showCompactTimer && (
+          {showCompactTimer && !isCompact && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-200">
               <CompactTimer />
             </div>
@@ -421,6 +432,17 @@ export const Header = () => {
           <NavigationMenu />
         </div>
       </div>
+
+      {/*
+        On a phone the nav icons (plus Sign in / Sign up for guests) leave
+        the middle track too narrow to show the clock, so it gets its own row
+        inside the sticky header instead.
+      */}
+      {showCompactTimer && isCompact && (
+        <div className="flex justify-center pt-1 animate-in fade-in slide-in-from-top-2 duration-200">
+          <CompactTimer />
+        </div>
+      )}
     </header>
   );
 };

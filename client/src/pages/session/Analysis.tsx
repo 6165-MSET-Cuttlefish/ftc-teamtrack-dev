@@ -9,8 +9,11 @@ import {
   calculateTotal,
   emptyScoringFields,
   pickScoringFields,
+  isGuestSessionId,
+  readGuestSessions,
+  writeGuestSessions,
 } from '@/lib';
-import { APP_CONFIG, STORAGE_KEYS } from '@/constants';
+import { APP_CONFIG, STORAGE_KEYS, UI_TIMING } from '@/constants';
 import type { Match } from '@/types';
 import { MatchForm } from '@/components';
 import { toast } from 'sonner';
@@ -40,6 +43,11 @@ const Analysis = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCopyingLink, setIsCopyingLink] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  /** The saved session this page shows, needed to make a revocable share link */
+  const [savedSession, setSavedSession] = useState<{
+    id: string;
+    userId: string;
+  } | null>(null);
 
   useEffect(() => {
     document.title = `Analysis - ${APP_CONFIG.name}`;
@@ -82,6 +90,9 @@ const Analysis = () => {
           }
           if (!session) {
             session = await firebaseService.getSession(sessionId);
+            if (mounted && session) {
+              setSavedSession({ id: session.id, userId: session.userId });
+            }
           }
           if (mounted && session) {
             // The scoring fields on a loaded session are only placeholders —
@@ -117,24 +128,26 @@ const Analysis = () => {
 
   const handleCopyLink = useCallback(async () => {
     if (!sessionData) return;
+    if (!savedSession) {
+      toast.error(
+        user
+          ? 'Open this session from My Sessions to share it'
+          : 'Create an account to share sessions'
+      );
+      return;
+    }
     setIsCopyingLink(true);
     try {
-      const sharePayload = {
+      const link = await generateShareableLink({
+        ...savedSession,
         sessionName: sessionData.sessionName,
+        sessionType: sessionData.sessionType,
         sessionDuration: sessionData.sessionDuration,
         matchType: sessionData.matchType,
         selectedFeature: sessionData.selectedFeature,
         notes: sessionData.notes || '',
-        matches: (sessionData.matches || []).map(m => ({
-          ...pickScoringFields(m),
-          id: m.id,
-          matchNumber: m.matchNumber,
-          matchType: m.matchType,
-          finalScore: m.finalScore,
-        })),
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const link = await generateShareableLink(sharePayload as any);
+        matches: sessionData.matches || [],
+      });
       await copyToClipboard(link);
       setLinkCopied(true);
       toast.success('Share link copied to clipboard!');
@@ -144,7 +157,7 @@ const Analysis = () => {
     } finally {
       setIsCopyingLink(false);
     }
-  }, [sessionData]);
+  }, [sessionData, savedSession, user]);
 
   const handleAddMatch = () => {
     setEditingMatch(null);
@@ -162,24 +175,49 @@ const Analysis = () => {
 
     setIsUpdating(true);
     try {
-      const updatedMatches = sessionData.matches.filter(m => m.id !== matchId);
+      const before = sessionData.matches;
+      const index = before.findIndex(m => m.id === matchId);
+      const deleted = before[index];
+      const updatedMatches = before.filter(m => m.id !== matchId);
 
-      if (sessionId.startsWith('guest_')) {
-        const stored = JSON.parse(
-          localStorage.getItem(STORAGE_KEYS.GUEST_SESSIONS) || '[]'
-        );
-        const updated = stored.map((s: { id: string; matches?: Match[] }) =>
-          s.id === sessionId ? { ...s, matches: updatedMatches } : s
-        );
-        localStorage.setItem(STORAGE_KEYS.GUEST_SESSIONS, JSON.stringify(updated));
-      } else {
-        await firebaseService.updateSession(sessionId, {
-          matches: updatedMatches,
-        });
-      }
+      const writeMatches = async (matches: Match[]) => {
+        if (isGuestSessionId(sessionId)) {
+          writeGuestSessions(
+            readGuestSessions().map(s =>
+              s.id === sessionId ? { ...s, matches } : s
+            )
+          );
+        } else {
+          await firebaseService.updateSession(sessionId, { matches });
+        }
+      };
 
+      await writeMatches(updatedMatches);
       setLocalSessionData({ ...sessionData, matches: updatedMatches });
-      toast.success('Match deleted successfully');
+
+      toast.success('Match deleted', {
+        duration: UI_TIMING.UNDO_WINDOW,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            if (!deleted) return;
+            try {
+              // Re-read so edits made since the delete aren't overwritten.
+              const current = isGuestSessionId(sessionId)
+                ? readGuestSessions().find(s => s.id === sessionId)?.matches
+                : (await firebaseService.getSession(sessionId))?.matches;
+              const matches = [...(current ?? [])];
+              if (matches.some(m => m.id === matchId)) return;
+              matches.splice(Math.min(index, matches.length), 0, deleted);
+              await writeMatches(matches);
+              setLocalSessionData(prev => ({ ...prev, matches }));
+              toast.success('Match restored');
+            } catch {
+              toast.error('Failed to restore match');
+            }
+          },
+        },
+      });
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error deleting match', error);

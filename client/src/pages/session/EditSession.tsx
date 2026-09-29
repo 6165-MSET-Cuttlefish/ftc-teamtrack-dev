@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { useNavigationGuard } from '@/hooks';
+import { useEscapeKey, useNavigationGuard } from '@/hooks';
 import { firebaseService } from '@/services';
 import { formatDate, calculateTotal, pickScoringFields } from '@/lib';
-import { ROUTES, APP_CONFIG } from '@/constants';
+import { ROUTES, APP_CONFIG, UI_TIMING } from '@/constants';
 import type { Session, Match } from '@/types';
 import { MatchForm } from '@/components';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,8 @@ const EditSession = () => {
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const navGuard = useNavigationGuard(isFormOpen, 'You have an unsaved match. Are you sure you want to leave?');
+  useEscapeKey(navGuard.isBlocked, navGuard.reset);
+  useEscapeKey(confirmDeleteId !== null, () => setConfirmDeleteId(null));
 
   useEffect(() => {
     return () => {
@@ -149,9 +151,10 @@ const EditSession = () => {
 
     try {
       setDeletingMatchId(matchId);
-      const updatedMatches = (session.matches || []).filter(
-        m => m.id !== matchId
-      );
+      const before = session.matches || [];
+      const index = before.findIndex(m => m.id === matchId);
+      const deleted = before[index];
+      const updatedMatches = before.filter(m => m.id !== matchId);
 
       await firebaseService.updateSession(session.id, {
         matches: updatedMatches,
@@ -159,7 +162,28 @@ const EditSession = () => {
 
       setSession(prev => (prev ? { ...prev, matches: updatedMatches } : null));
 
-      toast.success('Match deleted successfully');
+      const sessionId = session.id;
+      toast.success('Match deleted', {
+        duration: UI_TIMING.UNDO_WINDOW,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              // Re-read so edits made since the delete aren't overwritten.
+              const fresh = await firebaseService.getSession(sessionId);
+              if (!fresh || !deleted) return;
+              const matches = [...(fresh.matches || [])];
+              if (matches.some(m => m.id === matchId)) return;
+              matches.splice(Math.min(index, matches.length), 0, deleted);
+              await firebaseService.updateSession(sessionId, { matches });
+              setSession(prev => (prev ? { ...prev, matches } : null));
+              toast.success('Match restored');
+            } catch {
+              toast.error('Failed to restore match');
+            }
+          },
+        },
+      });
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error deleting match', error);

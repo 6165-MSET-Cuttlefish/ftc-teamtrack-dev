@@ -5,14 +5,17 @@ import { ScoreField } from './ScoreField';
 
 const Section = ({
   title,
+  tutorialId,
   children,
 }: {
   title: string;
+  /** `data-tutorial` hook so the walkthrough can spotlight this section */
+  tutorialId?: string;
   children: React.ReactNode;
 }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-tutorial={tutorialId}>
       <h3
         className={`text-lg font-bold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
       >
@@ -23,15 +26,20 @@ const Section = ({
   );
 };
 
+const FLOWER_INFO = 'Top NECTAR owns the flower; bottom NECTAR gets the bonus.';
+
 /** A large tap-target toggle, used in place of a small checkbox. */
 const Toggle = ({
   checked,
   onChange,
   label,
+  ariaLabel,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
+  /** Full name for screen readers when the visible label is abbreviated */
+  ariaLabel?: string;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -39,6 +47,7 @@ const Toggle = ({
       type="button"
       role="checkbox"
       aria-checked={checked}
+      aria-label={ariaLabel ?? label}
       onClick={() => onChange(!checked)}
       className={`h-11 px-2 rounded-lg border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 select-none ${
         checked
@@ -84,9 +93,46 @@ const RobotRow = ({
       >
         {label}
       </div>
-      <Toggle checked={leave} onChange={onLeave} label="Leave" />
-      <Toggle checked={parkAuto} onChange={onParkAuto} label="Park Auto" />
-      <Toggle checked={parkTeleop} onChange={onParkTeleop} label="Park Tele" />
+      <Toggle
+        checked={leave}
+        onChange={onLeave}
+        label="Leave"
+        ariaLabel={`${label} leave`}
+      />
+      <Toggle
+        checked={parkAuto}
+        onChange={onParkAuto}
+        label="Auto"
+        ariaLabel={`${label} parked at end of auto`}
+      />
+      <Toggle
+        checked={parkTeleop}
+        onChange={onParkTeleop}
+        label="End"
+        ariaLabel={`${label} parked at end of match`}
+      />
+    </div>
+  );
+};
+
+/**
+ * Column headings for the robot rows. The toggles themselves say "Auto" and
+ * "End" — short enough to survive a phone-width column once the check mark
+ * is added — and this row says what they are.
+ */
+const RobotHeader = () => {
+  const { isDarkMode } = useTheme();
+  const cls = `text-xs font-semibold uppercase tracking-wide text-center ${
+    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+  }`;
+  return (
+    <div
+      className="grid grid-cols-[5rem_1fr_1fr_1fr] items-end gap-2"
+      aria-hidden
+    >
+      <div />
+      <div />
+      <div className={`${cls} col-span-2`}>Park</div>
     </div>
   );
 };
@@ -115,7 +161,8 @@ export const MatchEntry = () => {
         Match Entry
       </h2>
 
-      <Section title="Robots">
+      <Section title="Robots" tutorialId="robots">
+        <RobotHeader />
         <RobotRow
           label="Robot 1"
           leave={sessionData.robot1Leave}
@@ -136,11 +183,12 @@ export const MatchEntry = () => {
         />
       </Section>
 
-      <Section title="End of Match">
+      <Section title="End of Match" tutorialId="end-of-match">
         <ScoreField
           size="large"
           stepper
           label="Flower"
+          info={FLOWER_INFO}
           value={sessionData.flower}
           points={breakdown.flower}
           disabled={!matchOver}
@@ -150,6 +198,7 @@ export const MatchEntry = () => {
           size="large"
           stepper
           label="Flower Bonus"
+          info={FLOWER_INFO}
           max={4}
           value={sessionData.flowerBonus}
           points={breakdown.flowerBonus}

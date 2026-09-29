@@ -16,6 +16,7 @@ export type {
 export type {
   Team,
   TeamMember,
+  TeamInvite,
   CreateTeamData,
 } from './team';
 

@@ -118,7 +118,7 @@ const createInitialSessionData = (): SessionFormData => {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [sessionData, setSessionData] = useState<SessionFormData>(() => {
     const stored = loadSessionFromStorage();
     const storedTimer = loadTimerStateFromStorage();
@@ -177,28 +177,42 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [currentMatchData, setCurrentMatchData] =
     useState<MatchScoringFields | null>(null);
 
-  const [matchActive, setMatchActive] = useState<boolean>(false);
+  const [matchActive, setMatchActive] = useState<boolean>(
+    () => storedTimerState?.matchActive ?? false
+  );
   const [isPreMatchDelay, setIsPreMatchDelay] = useState<boolean>(false);
   const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isTutorialActive, setIsTutorialActive] = useState<boolean>(false);
 
+  /**
+   * Wipe the in-progress session when the signed-in account goes away (sign
+   * out, or a different account signs in). Auth starts out null on every page
+   * load, so only a change away from a known account counts — reacting to the
+   * initial null would erase the session a reload just restored.
+   */
+  const prevUidRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    if (!user) {
-      const newData = createInitialSessionData();
-      setSessionData(newData);
-      setHasStarted(false);
-      setIsTimerRunning(false);
-      setIsPreMatchDelay(false);
-      if (preMatchDelayRef.current) {
-        clearTimeout(preMatchDelayRef.current);
-        preMatchDelayRef.current = null;
-      }
-      setTimer(getInitialTimerDuration(newData.matchType));
-      setMatchPhase('auton');
-      clearSessionFromStorage();
+    if (authLoading) return;
+    const uid = user?.uid ?? null;
+    const prevUid = prevUidRef.current;
+    prevUidRef.current = uid;
+    if (!prevUid || prevUid === uid) return;
+
+    const newData = createInitialSessionData();
+    setSessionData(newData);
+    setHasStarted(false);
+    setMatchActive(false);
+    setIsTimerRunning(false);
+    setIsPreMatchDelay(false);
+    if (preMatchDelayRef.current) {
+      clearTimeout(preMatchDelayRef.current);
+      preMatchDelayRef.current = null;
     }
-  }, [user]);
+    setTimer(getInitialTimerDuration(newData.matchType));
+    setMatchPhase('auton');
+    clearSessionFromStorage();
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (!hasStarted && !isTimerRunning) {
@@ -327,6 +341,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         sessionStartTime: 0,
         matchStartTime: 0,
         matchPhase,
+        matchActive,
       };
 
       saveSessionToStorage(sessionData, timerState);
@@ -347,6 +362,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     hasTransitionedToTeleop,
     showTeleopTransition,
     matchPhase,
+    matchActive,
   ]);
 
   const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {

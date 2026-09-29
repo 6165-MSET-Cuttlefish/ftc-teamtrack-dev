@@ -8,6 +8,7 @@ import {
 } from '@/constants/events';
 import { STORAGE_KEYS } from '@/constants';
 import { POINTS } from '@/lib';
+import type { SessionType } from '@/types';
 
 const PreviewBox = ({
   children,
@@ -137,16 +138,16 @@ const RobotsPreview = ({ dark }: { dark: boolean }) => {
           <span style={{ color: dark ? '#e5e5e5' : '#333' }}>Robot 1</span>
           <span className="flex items-center gap-2">
             {pill('Leave', true)}
-            {pill('Park (Auto)', true)}
-            {pill('Park (Teleop)', false)}
+            {pill('Auto', true)}
+            {pill('End', false)}
           </span>
         </div>
         <div className="flex items-center justify-between text-xs">
           <span style={{ color: dark ? '#e5e5e5' : '#333' }}>Robot 2</span>
           <span className="flex items-center gap-2">
             {pill('Leave', false)}
-            {pill('Park (Auto)', false)}
-            {pill('Park (Teleop)', true)}
+            {pill('Auto', false)}
+            {pill('End', true)}
           </span>
         </div>
       </div>
@@ -191,7 +192,9 @@ const STEPS: StepDef[] = [
           minute.
         </div>
         <div className="text-xs opacity-60">
-          You can restart it anytime from the (?) button in the header.
+          Anything you enter while the walkthrough is open is just practice —
+          when it closes, your session goes back to exactly how it was. You can
+          restart it anytime from the (?) button in the header.
         </div>
       </div>
     ),
@@ -200,7 +203,7 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Name Your Session',
-    body: 'Give the session a name and pick whether it is a Practice or a Scrim. Scrims are full matches against another alliance; practice is solo drilling.',
+    body: 'Give the session a name and pick Practice or Scrim. Practice is solo drilling; Scrim is for matches against another alliance and adds penalty tracking. Either way you only score your own alliance.',
     target: 'session-setup',
     preview: null,
     pageAction: 'Enter a session name above',
@@ -208,7 +211,7 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Start the Match',
-    body: 'Press Start Match to run the real 2:30 clock — 30 seconds of autonomous, then teleop. Save Match stores the result and resets for the next one.',
+    body: 'Press Start Match to run the real 2:30 clock — 30 seconds of autonomous, then teleop, with endgame (and flower scoring) opening at 1:00. Save Match stores the result and resets for the next one.',
     target: 'controls',
     preview: null,
   },
@@ -221,21 +224,21 @@ const STEPS: StepDef[] = [
     watchKey: 'garden',
   },
   {
-    title: 'After the Buzzer',
-    body: 'Flower and balls left in the hive can only be judged once the match ends, so those fields stay locked until the clock runs out.',
-    target: 'metrics',
-    preview: d => <EndOfMatchPreview dark={d} />,
-  },
-  {
     title: 'Leave and Park',
-    body: `Tick Leave for each robot that left its starting zone in autonomous (${POINTS.LEAVE} points each). Park is scored twice per robot — once if it's in the loading zone at the end of AUTO, once if it's there at the end of the match (${POINTS.PARK} points each).`,
-    target: 'metrics',
+    body: `Tick Leave for each robot that left its starting zone in autonomous (${POINTS.LEAVE} points each). Park is scored twice per robot — Auto if it's in the loading zone at the end of AUTO, End if it's there at the end of the match (${POINTS.PARK} points each).`,
+    target: 'robots',
     preview: d => <RobotsPreview dark={d} />,
   },
   {
+    title: 'After the Buzzer',
+    body: 'Flower and balls left in the hive can only be judged once the match ends, so those fields stay locked until the clock runs out.',
+    target: 'end-of-match',
+    preview: d => <EndOfMatchPreview dark={d} />,
+  },
+  {
     title: 'Penalties',
-    body: `Log minor and major penalties as they happen. They come straight off the match score, so you can see what fouls actually cost you.`,
-    target: 'metrics',
+    body: `In a Scrim, count minor and major penalties under Live Scoring as they're called. They come straight off the match score, so you can see what fouls actually cost you.`,
+    target: 'penalties',
     preview: d => <PenaltyPreview dark={d} />,
   },
   {
@@ -330,6 +333,10 @@ export const ActiveTutorial = () => {
   /** True when the user has finished the tutorial before — tasks are pre-skipped */
   const [isReplay, setIsReplay] = useState(false);
   const prevElRef = useRef<HTMLElement | null>(null);
+  /** Session type to put back after the penalties step previewed a scrim */
+  const forcedScrimFromRef = useRef<SessionType | null>(null);
+  /** Bumped per highlight request so a late retry never lands on a stale step */
+  const highlightRequestRef = useRef(0);
 
   /** Session state captured before the tutorial ran, restored on dismiss */
   const snapshotRef = useRef<{
@@ -411,6 +418,22 @@ export const ActiveTutorial = () => {
     }
   }, [visible, step, matchActive, sessionData.matchType, setMatchActive, setMatchPhase]);
 
+  // Penalties only exist in a scrim, so preview one while that step is up —
+  // otherwise there would be nothing on the page to point at.
+  useEffect(() => {
+    if (!visible) return;
+    const onPenaltiesStep = STEPS[step]?.target === 'penalties';
+    if (onPenaltiesStep && sessionData.sessionType !== 'Scrim') {
+      if (forcedScrimFromRef.current === null) {
+        forcedScrimFromRef.current = sessionData.sessionType;
+      }
+      updateSessionData({ sessionType: 'Scrim' });
+    } else if (!onPenaltiesStep && forcedScrimFromRef.current !== null) {
+      updateSessionData({ sessionType: forcedScrimFromRef.current });
+      forcedScrimFromRef.current = null;
+    }
+  }, [visible, step, sessionData.sessionType, updateSessionData]);
+
   // Keep the match audio muted for the duration of the tutorial.
   useEffect(() => {
     setIsTutorialActive(visible);
@@ -443,6 +466,7 @@ export const ActiveTutorial = () => {
 
   const applyHighlight = useCallback(
     (targetAttr: string | null, dark = isDarkMode) => {
+      const request = ++highlightRequestRef.current;
       if (prevElRef.current) {
         dropElement(prevElRef.current);
         prevElRef.current = null;
@@ -467,20 +491,23 @@ export const ActiveTutorial = () => {
         return;
       }
 
-      // The session setup panel collapses once saved — ask it to reopen, then
-      // re-query after React has had a frame to render it.
+      // The target may be about to render: the session setup panel collapses
+      // once saved (ask it to reopen), and the penalties box only appears
+      // once the step above switches the session to a scrim. Re-query after
+      // React has had a moment to render it.
       if (targetAttr === 'session-setup') {
         window.dispatchEvent(new CustomEvent(TUTORIAL_OPEN_SESSION_SETUP_EVENT));
-        setTimeout(() => {
-          const reopened = query();
-          if (reopened) focus(reopened);
-        }, 50);
       }
+      setTimeout(() => {
+        const appeared = query();
+        if (appeared && request === highlightRequestRef.current) focus(appeared);
+      }, 50);
     },
     [isDarkMode]
   );
 
   const clearHighlight = useCallback(() => {
+    highlightRequestRef.current++;
     if (prevElRef.current) {
       dropElement(prevElRef.current);
       prevElRef.current = null;
@@ -517,6 +544,7 @@ export const ActiveTutorial = () => {
       setShowTeleopTransition(snapshot.showTeleopTransition);
       setPhaseTimer(snapshot.phaseTimer);
       snapshotRef.current = null;
+      forcedScrimFromRef.current = null;
     } else {
       resetSession();
     }

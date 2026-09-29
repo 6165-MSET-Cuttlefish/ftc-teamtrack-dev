@@ -59,6 +59,7 @@ export const saveSessionToStorage = (
         hasTransitionedToTeleop: timerState.hasTransitionedToTeleop,
         showTeleopTransition: timerState.showTeleopTransition,
         matchPhase: timerState.matchPhase ?? 'auton',
+        matchActive: timerState.matchActive ?? false,
       })
     );
 
@@ -143,6 +144,7 @@ export const loadTimerStateFromStorage = (): SessionTimerState | null => {
       sessionStartTime: parseInt(sessionStartTime || '0', 10),
       matchStartTime: parseInt(matchStartTime || '0', 10),
       matchPhase: matchState.matchPhase ?? 'auton',
+      matchActive: matchState.matchActive ?? false,
     };
   } catch (error) {
     logger.error('Failed to load timer state from storage:', error);
