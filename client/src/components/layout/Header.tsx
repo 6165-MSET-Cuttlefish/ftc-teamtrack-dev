@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useAuth, useSession } from '@/contexts';
 import { ROUTES, TUTORIAL_RESTART_EVENT } from '@/constants';
-import { getInitials } from '@/lib';
+import { calculateScore, getInitials } from '@/lib';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -321,9 +321,12 @@ const NavigationMenu = () => {
   );
 };
 
+/** Timer plus the current match's running total, shown in the top bar. */
 const CompactTimer = () => {
   const { isDarkMode } = useTheme();
-  const { timer, formatTime, matchPhase, phaseTimer } = useSession();
+  const { timer, formatTime, matchPhase, phaseTimer, sessionData } =
+    useSession();
+  const total = calculateScore(sessionData).total;
 
   const timerColor =
     matchPhase === 'controller_pickup'
@@ -333,12 +336,29 @@ const CompactTimer = () => {
         : 'text-team-blue';
 
   return (
-    <span
-      className={`text-xl sm:text-3xl md:text-4xl font-righteous tracking-wider leading-none transition-colors ${timerColor}`}
-    >
-      {matchPhase === 'controller_pickup'
-        ? formatTime(phaseTimer)
-        : formatTime(timer)}
+    <span className="flex items-center gap-2 sm:gap-3 whitespace-nowrap">
+      <span
+        className={`text-xl sm:text-3xl md:text-4xl font-righteous tracking-wider leading-none transition-colors ${timerColor}`}
+      >
+        {matchPhase === 'controller_pickup'
+          ? formatTime(phaseTimer)
+          : formatTime(timer)}
+      </span>
+      <span
+        aria-hidden="true"
+        className={`h-6 sm:h-8 w-px ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+      />
+      <span
+        aria-label={`Total score ${total} points`}
+        className="text-lg sm:text-2xl md:text-3xl font-bold text-team-blue tabular-nums leading-none"
+      >
+        {total}
+        <span
+          className={`ml-1 text-xs sm:text-sm font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+        >
+          pts
+        </span>
+      </span>
     </span>
   );
 };
@@ -387,7 +407,7 @@ export const Header = () => {
       ref={setHeaderEl}
       className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:gap-4 md:gap-6">
+      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4 md:gap-6">
         <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
           {!isOnSessionsPage && (
             <button
@@ -402,11 +422,13 @@ export const Header = () => {
         </div>
 
         {/*
-          A real grid track, not an absolute overlay: the timer can only ever
-          take the space left over between the two side groups, so it cannot
-          render on top of the nav icons no matter how wide either side gets
-          (e.g. the extra "Sign in" / "Sign up" buttons in guest mode).
-          `overflow-hidden` is a last-resort clamp for when even that leftover
+          A real grid track, not an absolute overlay. The two side tracks are
+          equal `1fr` columns, so the timer sits in the true center of the bar
+          even though the logo and nav groups differ in width. A `1fr` track
+          never shrinks below its content, so when one side is too wide to
+          allow that (e.g. the extra "Sign in" / "Sign up" buttons in guest
+          mode) the timer shifts off-center rather than overlapping the nav.
+          `overflow-hidden` is a last-resort clamp for when even the leftover
           space is narrower than the timer itself on very small screens.
         */}
         <div className="min-w-0 flex items-center justify-center overflow-hidden">

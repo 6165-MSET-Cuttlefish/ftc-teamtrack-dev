@@ -28,10 +28,12 @@ const Toggle = ({
   checked,
   onChange,
   label,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
+  disabled?: boolean;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -39,13 +41,16 @@ const Toggle = ({
       type="button"
       role="checkbox"
       aria-checked={checked}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`h-11 px-2 rounded-lg border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 select-none ${
-        checked
-          ? 'border-team-blue bg-team-blue/15 text-team-blue'
-          : isDarkMode
-            ? 'border-team-blue-40 bg-team-dark text-gray-300 hover:bg-team-white-10'
-            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'
+        disabled
+          ? 'opacity-40 cursor-not-allowed border-gray-400 bg-gray-200 text-gray-500 dark:border-gray-700 dark:bg-gray-800'
+          : checked
+            ? 'border-team-blue bg-team-blue/15 text-team-blue'
+            : isDarkMode
+              ? 'border-team-blue-40 bg-team-dark text-gray-300 hover:bg-team-white-10'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'
       }`}
     >
       {checked && <Check size={16} className="shrink-0" />}
@@ -67,6 +72,7 @@ const RobotRow = ({
   onLeave,
   onParkAuto,
   onParkTeleop,
+  parkTeleopDisabled,
 }: {
   label: string;
   leave: boolean;
@@ -75,6 +81,7 @@ const RobotRow = ({
   onLeave: (v: boolean) => void;
   onParkAuto: (v: boolean) => void;
   onParkTeleop: (v: boolean) => void;
+  parkTeleopDisabled: boolean;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -86,7 +93,12 @@ const RobotRow = ({
       </div>
       <Toggle checked={leave} onChange={onLeave} label="Leave" />
       <Toggle checked={parkAuto} onChange={onParkAuto} label="Park Auto" />
-      <Toggle checked={parkTeleop} onChange={onParkTeleop} label="Park Tele" />
+      <Toggle
+        checked={parkTeleop}
+        onChange={onParkTeleop}
+        label="Park Tele"
+        disabled={parkTeleopDisabled}
+      />
     </div>
   );
 };
@@ -109,6 +121,9 @@ export const MatchEntry = () => {
    */
   const matchOver = !matchActive || matchPhase === 'ended';
 
+  /** End-of-match park can't be known while AUTO is still running. */
+  const inAuto = matchActive && matchPhase === 'auton';
+
   return (
     <div className="space-y-4">
       <h2 className="text-team-blue text-xl font-semibold leading-6">
@@ -124,6 +139,7 @@ export const MatchEntry = () => {
           onLeave={v => updateSessionData({ robot1Leave: v })}
           onParkAuto={v => updateSessionData({ robot1ParkAuto: v })}
           onParkTeleop={v => updateSessionData({ robot1ParkTeleop: v })}
+          parkTeleopDisabled={inAuto}
         />
         <RobotRow
           label="Robot 2"
@@ -133,6 +149,7 @@ export const MatchEntry = () => {
           onLeave={v => updateSessionData({ robot2Leave: v })}
           onParkAuto={v => updateSessionData({ robot2ParkAuto: v })}
           onParkTeleop={v => updateSessionData({ robot2ParkTeleop: v })}
+          parkTeleopDisabled={inAuto}
         />
       </Section>
 

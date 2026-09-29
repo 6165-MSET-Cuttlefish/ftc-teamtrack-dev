@@ -275,8 +275,10 @@ const Active = () => {
         }}
         isSessionSetupSaved={isSessionSetupSaved}
         onSessionReset={() => {
-          setIsSessionSetupSaved(false);
-          setShowSessionSetup(true);
+          // A reset session comes back with default settings already filled
+          // in, so go straight to Start rather than the settings panel.
+          setIsSessionSetupSaved(true);
+          setShowSessionSetup(false);
           setShouldFlashSetup(false);
         }}
       >

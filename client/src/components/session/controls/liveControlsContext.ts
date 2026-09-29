@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -71,7 +65,10 @@ export const useLiveControlsState = ({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
-  const [sessionWasCancelled, setSessionWasCancelled] = useState<boolean>(false);
+  const [showSaveSessionDialog, setShowSaveSessionDialog] =
+    useState<boolean>(false);
+  const [sessionWasCancelled, setSessionWasCancelled] =
+    useState<boolean>(false);
   const [, setPendingEditMatch] = useState<Match | null>(null);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] =
     useState<boolean>(false);
@@ -95,8 +92,7 @@ export const useLiveControlsState = ({
     !sessionData.isSessionCompleted &&
     ((sessionData.matches && sessionData.matches.length > 0) ||
       hasUnsavedMatchData ||
-      (sessionData.notes && sessionData.notes.trim().length > 0) ||
-      (sessionData.sessionName && sessionData.sessionName.trim().length > 0));
+      (sessionData.notes && sessionData.notes.trim().length > 0));
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -263,7 +259,11 @@ export const useLiveControlsState = ({
     toast.success(`Match ${updatedMatches.length} saved successfully!`);
   };
 
-  const handleCompleteSession = async () => {
+  /**
+   * Checks the session can be saved, then asks the user to confirm its name.
+   * The save itself happens in handleCompleteSession once they confirm.
+   */
+  const handleRequestCompleteSession = () => {
     if (!sessionData.matches || sessionData.matches.length === 0) {
       toast.error(
         'Please save at least one match before completing the session'
@@ -277,6 +277,13 @@ export const useLiveControlsState = ({
       );
       return;
     }
+
+    setShowSaveSessionDialog(true);
+  };
+
+  const handleCompleteSession = async (confirmedName: string) => {
+    setShowSaveSessionDialog(false);
+    updateSessionData({ sessionName: confirmedName });
 
     let userSessions: { sessionName?: string }[] = [];
     if (user?.uid) {
@@ -307,7 +314,7 @@ export const useLiveControlsState = ({
     const totalSessionTime = formatTime(sessionTimer);
     setIsTimerRunning(false);
 
-    let finalSessionName = sessionData.sessionName?.trim();
+    let finalSessionName = confirmedName.trim();
     if (!finalSessionName) {
       const untitledSessions = userSessions.filter(s =>
         s.sessionName?.startsWith('Untitled Session #')
@@ -328,7 +335,8 @@ export const useLiveControlsState = ({
       matchType: sessionData.matchType || 'Full Game',
       sessionDuration: totalSessionTime,
 
-      userId: user?.uid || localStorage.getItem('teamtrack-guest-id') || 'guest',
+      userId:
+        user?.uid || localStorage.getItem('teamtrack-guest-id') || 'guest',
       userEmail: user?.email || '',
       ...(team ? { teamId: team.id } : {}),
 
@@ -428,6 +436,8 @@ export const useLiveControlsState = ({
     setCancelMatchConfirm,
     newSessionConfirm,
     setNewSessionConfirm,
+    showSaveSessionDialog,
+    setShowSaveSessionDialog,
     sessionWasCancelled,
     setSessionWasCancelled,
     setPendingEditMatch,
@@ -445,6 +455,7 @@ export const useLiveControlsState = ({
     handleConfirmNewSession,
     handleStartMatch,
     handleSaveMatch,
+    handleRequestCompleteSession,
     handleCompleteSession,
     handleDeleteMatch,
     handleCancelCurrentMatch,
@@ -453,8 +464,9 @@ export const useLiveControlsState = ({
 
 type LiveControlsValue = ReturnType<typeof useLiveControlsState>;
 
-export const LiveControlsContext = createContext<LiveControlsValue | null>(null);
-
+export const LiveControlsContext = createContext<LiveControlsValue | null>(
+  null
+);
 
 export const useLiveControls = (): LiveControlsValue => {
   const value = useContext(LiveControlsContext);
@@ -465,4 +477,3 @@ export const useLiveControls = (): LiveControlsValue => {
   }
   return value;
 };
-

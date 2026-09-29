@@ -28,9 +28,7 @@ import type {
   SessionTimerState,
   MatchPhase,
   MatchScoringFields,
-  SessionType,
 } from '@/types';
-import { STORAGE_KEYS } from '@/constants';
 
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
@@ -98,15 +96,17 @@ const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
   }
 };
 
+/**
+ * A new session is ready to start as-is: named and set to Practice, so the
+ * first thing a user can do is press Start. The name is confirmed when the
+ * session is saved.
+ */
 const createInitialSessionData = (): SessionFormData => {
-  const storedType = localStorage.getItem(STORAGE_KEYS.SESSION_TYPE);
-  const sessionType: SessionType = storedType === 'Scrim' ? 'Scrim' : 'Practice';
-
   return {
     ...emptyScoringFields(),
-    sessionName: '',
+    sessionName: 'Default Session',
     sessionDuration: '',
-    sessionType,
+    sessionType: 'Practice',
     matchType: 'Full Game',
     isSessionCompleted: false,
     selectedFeature: 'Cycle Times',
