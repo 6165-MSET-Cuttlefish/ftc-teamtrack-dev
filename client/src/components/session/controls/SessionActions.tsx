@@ -1,6 +1,7 @@
 import { Check, X } from 'lucide-react';
 
 import { useLiveControls } from './liveControlsContext';
+import { SaveSessionDialog } from './SaveSessionDialog';
 import { swallowEnter } from './swallowEnter';
 
 /**
@@ -16,7 +17,8 @@ export const SessionActions = () => {
     loading,
     sessionLimitReached,
     cancelConfirm,
-    handleCompleteSession,
+    showSaveSessionDialog,
+    handleRequestCompleteSession,
     handleRequestCancelSession,
     handleConfirmCancelSession,
     handleKeepSession,
@@ -24,10 +26,11 @@ export const SessionActions = () => {
 
   return (
     <>
+      {showSaveSessionDialog && <SaveSessionDialog />}
       <button
         type="button"
         onKeyDown={swallowEnter}
-        onClick={handleCompleteSession}
+        onClick={handleRequestCompleteSession}
         disabled={loading || sessionLimitReached}
         className="shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         title={

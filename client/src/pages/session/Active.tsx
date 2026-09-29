@@ -20,7 +20,10 @@ import {
   ActiveMobileLayout,
   type ActiveSlots,
 } from '@/components';
-import { TUTORIAL_OPEN_SESSION_SETUP_EVENT } from '@/constants/events';
+import {
+  TUTORIAL_ENDED_EVENT,
+  TUTORIAL_OPEN_SESSION_SETUP_EVENT,
+} from '@/constants/events';
 import { useTheme, useSession } from '@/contexts';
 import {
   useEscapeKey,
@@ -65,12 +68,19 @@ const Active = () => {
     const handleOpenSetup = () => {
       setShowSessionSetup(true);
     };
+    // The tutorial opens settings near its end; close them again so the user
+    // lands back on Start Session.
+    const handleTutorialEnded = () => {
+      setShowSessionSetup(false);
+    };
     window.addEventListener(TUTORIAL_OPEN_SESSION_SETUP_EVENT, handleOpenSetup);
+    window.addEventListener(TUTORIAL_ENDED_EVENT, handleTutorialEnded);
     return () => {
       window.removeEventListener(
         TUTORIAL_OPEN_SESSION_SETUP_EVENT,
         handleOpenSetup
       );
+      window.removeEventListener(TUTORIAL_ENDED_EVENT, handleTutorialEnded);
     };
   }, []);
 
@@ -293,8 +303,10 @@ const Active = () => {
         }}
         isSessionSetupSaved={isSessionSetupSaved}
         onSessionReset={() => {
-          setIsSessionSetupSaved(false);
-          setShowSessionSetup(true);
+          // A reset session comes back with default settings already filled
+          // in, so go straight to Start rather than the settings panel.
+          setIsSessionSetupSaved(true);
+          setShowSessionSetup(false);
           setShouldFlashSetup(false);
         }}
       >

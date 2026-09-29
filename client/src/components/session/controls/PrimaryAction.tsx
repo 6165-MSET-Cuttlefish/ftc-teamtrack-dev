@@ -62,6 +62,7 @@ export const PrimaryAction = () => {
     sessionData,
     isDarkMode,
     matchActive,
+    hasStarted,
     editingMatchId,
     showTeleopTransition,
     showUnsavedEditWarning,
@@ -71,6 +72,9 @@ export const PrimaryAction = () => {
     handleContinueToTeleop,
     handleSkipTeleop,
   } = useLiveControls();
+
+  /** Nothing has been played yet, so this press starts the whole session. */
+  const isFirstStart = !hasStarted && !sessionData.matches?.length;
 
   return (
     <>
@@ -93,7 +97,11 @@ export const PrimaryAction = () => {
               : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
           }`}
         >
-          {!matchActive ? 'Start Match' : 'Save Match'}
+          {matchActive
+            ? 'Save Match'
+            : isFirstStart
+              ? 'Start Session'
+              : 'Start Match'}
         </button>
       )}
 
