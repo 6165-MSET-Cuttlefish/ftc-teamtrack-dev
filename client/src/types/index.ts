@@ -1,20 +1,24 @@
 export type {
   Session,
+  SessionType,
   Match,
   CreateSessionData,
-  ScoringFields,
-  ShotEntry,
+  MatchScoringFields,
+  ScoreEvent,
+  ScoreBreakdown,
   FirebaseTimestamp,
   TimestampValue,
   User,
   ChartDataPoint,
   MatchPhase,
-  MotifColor,
 } from './session';
 
 export type {
   Team,
   TeamMember,
+  TeamInvite,
+  JoinedTeam,
+  JoinTeamResult,
   CreateTeamData,
 } from './team';
 

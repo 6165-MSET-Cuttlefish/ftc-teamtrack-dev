@@ -5,6 +5,7 @@ export {
   formatDate,
   formatTime,
   getDisplayTimer,
+  generateId,
   getInitials,
   isAbortError,
   getErrorMessage,
@@ -14,19 +15,64 @@ export {
   hasCompletedASession,
   markSessionCompleted,
   saveSessionToStorage,
-  loadSessionFromStorage,
-  loadTimerStateFromStorage,
   clearSessionFromStorage,
   clearHasCompletedSession,
   hasActiveSession,
 } from './sessionPersistence';
-export { generateShareableLink, copyToClipboard } from './shareService';
+export {
+  generateShareableLink,
+  copyToClipboard,
+  copyShareLink,
+} from './shareService';
 export { sanitizeHtml } from './sanitize';
-export { buildSessionsCsv, downloadSessionsCsv } from './csvExport';
+export {
+  isGuestSessionId,
+  readGuestSessions,
+  writeGuestSessions,
+} from './guestSessions';
+export {
+  POINTS,
+  calculateScore,
+  calculateTotal,
+  matchScore,
+  scoreRows,
+  emptyScoringFields,
+  pickScoringFields,
+  normalizeForMatchType,
+  cycleTimesOf,
+  RANKING_POINTS,
+  rankingPoints,
+  rankingPointNames,
+  rankingPointTally,
+  FIELD_LIMITS,
+  FIELD_HINTS,
+  MIXED_MATCH_TYPE,
+  sessionMatchType,
+  liveMatchType,
+  includesAuto,
+  includesTeleop,
+  robotRates,
+} from './scoring';
+export { isCurrentSeasonSession } from './sessionNormalize';
+export type {
+  ScoringInput,
+  ScoreRow,
+  RankingPoints,
+  RankingPointTally,
+} from './scoring';
+export {
+  buildSessionsCsv,
+  buildLegacySessionsCsv,
+  csvFileName,
+  downloadCsv,
+  htmlToText,
+} from './csv';
 export {
   SORT_LABELS,
-  sessionComparators,
-  filterAndSortSessions,
+  DEFAULT_SORT,
+  sortSessions,
   bestScore,
+  isArchived,
+  inArchiveView,
 } from './sessionFilters';
-export type { SortOption, SessionListOptions } from './sessionFilters';
+export type { SortOption } from './sessionFilters';

@@ -1,16 +1,30 @@
 export { GuestPrompt, HomeRedirect, ProtectedRoute } from './auth';
 
-export { ErrorBoundary, Header, DeepSeaBubbles, MobileWarning } from './layout';
+export { ErrorBoundary, Header, DeepSeaBubbles } from './layout';
 
 export {
   ActiveTutorial,
-  GateVisual,
-  LivePreview,
+  LiveCounters,
+  MatchEntry,
   MatchForm,
   Notes,
-  ScoringMetrics,
-  ScoringUI,
+  ScoreBreakdown,
+  ScoreField,
   SessionSetup,
+  LiveControlsProvider,
+  useLiveControls,
+  OpenSetupButton,
+  PrimaryAction,
+  SessionActions,
+  PlayPauseControl,
+  CancelMatchButton,
+  MatchExtras,
+  MatchLog,
+  CompletedActions,
+  ViewSessionsLink,
+  ActiveDesktopLayout,
+  ActiveMobileLayout,
+  type ActiveSlots,
 } from './session';
 
 export { TeamManager } from './team';

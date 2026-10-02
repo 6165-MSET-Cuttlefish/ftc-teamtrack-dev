@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { useAuth, useTheme, useTeam } from '@/contexts';
+import { useAuth, useSessionCore, useTheme, useTeam } from '@/contexts';
 import { getInitials } from '@/lib';
+import { flushPendingDeletes } from '@/lib/pendingSessionDeletes';
+import { describeSignOutLoss } from '@/lib/signOutLoss';
 import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -17,6 +19,13 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   User,
   Mail,
   Shield,
@@ -28,7 +37,9 @@ import {
   Eye,
   EyeOff,
   ArrowLeft,
+  Link2,
 } from 'lucide-react';
+import { ShareLinks } from './ShareLinks';
 
 const PROVIDER_LABELS: Record<string, string> = {
   'google.com': 'Google',
@@ -72,7 +83,7 @@ const Section = ({
       <CardHeader className="pb-4 px-5 sm:px-6 pt-5 sm:pt-6">
         <div className="flex items-center gap-3">
           <div
-            className={`flex items-center justify-center h-9 w-9 rounded-lg ${
+            className={`flex items-center justify-center h-9 w-9 shrink-0 rounded-lg ${
               variant === 'danger'
                 ? 'bg-red-500/10'
                 : isDarkMode
@@ -93,7 +104,10 @@ const Section = ({
             <CardTitle
               className={`text-base font-semibold ${
                 variant === 'danger'
-                  ? 'text-red-500'
+                  ? // red-500 is under 4.5:1 on the light background
+                    isDarkMode
+                    ? 'text-red-400'
+                    : 'text-red-700'
                   : isDarkMode
                     ? 'text-white'
                     : 'text-gray-900'
@@ -132,7 +146,7 @@ const Field = ({
   <div className="space-y-1.5">
     <Label
       className={`text-xs font-medium uppercase tracking-wider ${
-        isDarkMode ? 'text-team-white-40' : 'text-gray-500'
+        isDarkMode ? 'text-team-white-60' : 'text-gray-500'
       }`}
     >
       {label}
@@ -155,6 +169,7 @@ const Profile = () => {
   } = useAuth();
   const { isDarkMode } = useTheme();
   const { updateMemberDisplayName } = useTeam();
+  const { sessionData, matchActive } = useSessionCore();
 
   useEffect(() => {
     document.title = `Profile - ${APP_CONFIG.name}`;
@@ -190,6 +205,14 @@ const Profile = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  /** Set while the user is signing out or deleting their account on purpose */
+  const leavingRef = useRef(false);
+
+  // Matches only reach the server when the session is completed; signing out
+  // clears the one in progress, a match that is still being scored included.
+  const signOutLoss = describeSignOutLoss(sessionData, matchActive);
+
   const isPasswordProvider =
     user?.providerId === 'password' || !user?.providerId;
 
@@ -212,18 +235,39 @@ const Profile = () => {
       return 'Too many attempts. Please try again later.';
     if (msg.includes('requires-recent-login'))
       return 'For security, please sign out and sign back in before making this change.';
+    if (msg.includes('network-request-failed'))
+      return "Couldn't reach the server. Check your connection and try again.";
     return msg;
   };
 
-  const handleLogout = async () => {
+  const signOut = async () => {
+    setShowLogoutConfirm(false);
     try {
       setLoading(true);
+      leavingRef.current = true;
+      // Session deletes still inside their undo window can only go through
+      // while signed in.
+      try {
+        await flushPendingDeletes();
+      } catch {
+        /* sign out regardless */
+      }
       await logout();
+      toast.success('Logged out successfully');
     } catch {
-      /* non-critical */
+      leavingRef.current = false;
+      toast.error('Failed to sign out. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    if (signOutLoss) {
+      setShowLogoutConfirm(true);
+      return;
+    }
+    signOut();
   };
 
   const saveName = async () => {
@@ -298,8 +342,11 @@ const Profile = () => {
   const handleDeleteAccount = async () => {
     try {
       setDeleteLoading(true);
+      leavingRef.current = true;
       await deleteAccount(isPasswordProvider ? deletePassword : undefined);
+      toast.success('Your account and its data have been deleted');
     } catch (err) {
+      leavingRef.current = false;
       showMessage(friendlyAuthError(err), 'error');
     } finally {
       setDeleteLoading(false);
@@ -308,6 +355,8 @@ const Profile = () => {
 
   const guestRedirectToastShown = useRef(false);
   if (isGuest || !user) {
+    // Signed out or deleted from this page: that isn't "please sign in".
+    if (leavingRef.current) return <Navigate to={ROUTES.LOGIN} replace />;
     if (!guestRedirectToastShown.current) {
       guestRedirectToastShown.current = true;
       setTimeout(() => toast.error('Please sign in to view your profile'), 0);
@@ -322,7 +371,7 @@ const Profile = () => {
 
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-4 sm:px-6 lg:px-8`}
+      className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-2xl mx-auto space-y-6">
         <Link
@@ -345,7 +394,13 @@ const Profile = () => {
           >
             <AlertDescription
               className={
-                message.type === 'error' ? 'text-red-500' : 'text-emerald-600'
+                message.type === 'error'
+                  ? isDarkMode
+                    ? 'text-red-400'
+                    : 'text-red-700'
+                  : isDarkMode
+                    ? 'text-emerald-400'
+                    : 'text-emerald-700'
               }
             >
               {message.text}
@@ -397,12 +452,16 @@ const Profile = () => {
                     {providerLabel}
                   </span>
                   {user.emailVerified ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">
+                    <span
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}
+                    >
                       <BadgeCheck size={11} />
                       Verified
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
+                    <span
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}
+                    >
                       <AlertCircle size={11} />
                       Unverified
                     </span>
@@ -475,9 +534,9 @@ const Profile = () => {
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <p
-                  className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  className={`text-sm font-medium truncate min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
                   {user.displayName || (
                     <span className="italic opacity-50">Not set</span>
@@ -486,6 +545,7 @@ const Profile = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="shrink-0"
                   onClick={() => {
                     setNameValue(user?.displayName || '');
                     setEditingName(true);
@@ -591,16 +651,30 @@ const Profile = () => {
 
                 {user.emailVerified ? (
                   <div className="flex items-center gap-1.5">
-                    <BadgeCheck size={13} className="text-emerald-500" />
-                    <span className="text-xs text-emerald-500 font-medium">
+                    <BadgeCheck
+                      size={13}
+                      className={
+                        isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
+                      }
+                    />
+                    <span
+                      className={`text-xs font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}
+                    >
                       Email verified
                     </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex items-center gap-1.5">
-                      <AlertCircle size={13} className="text-amber-500" />
-                      <span className="text-xs text-amber-500 font-medium">
+                      <AlertCircle
+                        size={13}
+                        className={
+                          isDarkMode ? 'text-amber-400' : 'text-amber-700'
+                        }
+                      />
+                      <span
+                        className={`text-xs font-medium ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}
+                      >
                         Not verified
                       </span>
                     </div>
@@ -618,7 +692,7 @@ const Profile = () => {
 
                 {!isPasswordProvider && (
                   <p
-                    className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+                    className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
                     Email is managed by {providerLabel} and cannot be changed
                     here.
@@ -652,7 +726,10 @@ const Profile = () => {
                       onClick={() =>
                         setShowCurrentPassword(!showCurrentPassword)
                       }
-                      className={`absolute right-3 top-2.5 transition-colors ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-gray-400 hover:text-gray-600'}`}
+                      aria-label={
+                        showCurrentPassword ? 'Hide password' : 'Show password'
+                      }
+                      className={`absolute inset-y-0 right-0 w-10 inline-flex items-center justify-center transition-colors ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-gray-400 hover:text-gray-600'}`}
                     >
                       {showCurrentPassword ? (
                         <EyeOff size={18} />
@@ -672,7 +749,10 @@ const Profile = () => {
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className={`absolute right-3 top-2.5 transition-colors ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-gray-400 hover:text-gray-600'}`}
+                      aria-label={
+                        showNewPassword ? 'Hide password' : 'Show password'
+                      }
+                      className={`absolute inset-y-0 right-0 w-10 inline-flex items-center justify-center transition-colors ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-gray-400 hover:text-gray-600'}`}
                     >
                       {showNewPassword ? (
                         <EyeOff size={18} />
@@ -698,7 +778,9 @@ const Profile = () => {
                     className="h-10"
                   />
                   {newPassword && confirmPassword && newPassword !== confirmPassword && (
-                    <p className="text-xs text-red-500">
+                    <p
+                      className={`text-xs ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}
+                    >
                       Passwords do not match.
                     </p>
                   )}
@@ -780,6 +862,15 @@ const Profile = () => {
         </Section>
 
         <Section
+          icon={Link2}
+          title="Share Links"
+          description="Public pages made from sessions. Anyone with a link can open it until it is removed."
+          isDarkMode={isDarkMode}
+        >
+          <ShareLinks userId={user.uid} isDarkMode={isDarkMode} />
+        </Section>
+
+        <Section
           icon={Trash2}
           title="Danger Zone"
           isDarkMode={isDarkMode}
@@ -788,16 +879,21 @@ const Profile = () => {
           {showDeleteConfirm ? (
             <div className="space-y-4">
               <Alert className="border-red-500/30 bg-red-500/10">
-                <AlertDescription className="text-red-500 text-sm">
-                  This will permanently delete your account and all associated
-                  data. This action cannot be undone.
+                <AlertDescription
+                  className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}
+                >
+                  This permanently deletes your account, every session you
+                  recorded (including ones your team can see) and your share
+                  links, and removes you from your team. If you own the team
+                  it passes to its longest-standing member, or is deleted if
+                  you are its only member. This action cannot be undone.
                 </AlertDescription>
               </Alert>
 
               {isPasswordProvider && (
                 <div className="space-y-1.5">
                   <Label
-                    className={`text-xs font-medium ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'}`}
+                    className={`text-xs font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
                   >
                     Confirm your password
                   </Label>
@@ -814,10 +910,15 @@ const Profile = () => {
 
               <div className="space-y-1.5">
                 <Label
-                  className={`text-xs font-medium ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'}`}
+                  className={`text-xs font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
                 >
-                  Type <span className="font-bold text-red-500">DELETE</span> to
-                  confirm
+                  Type{' '}
+                  <span
+                    className={`font-bold ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}
+                  >
+                    DELETE
+                  </span>{' '}
+                  to confirm
                 </Label>
                 <Input
                   type="text"
@@ -868,15 +969,19 @@ const Profile = () => {
                   Delete your account
                 </p>
                 <p
-                  className={`text-xs mt-0.5 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+                  className={`text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                 >
-                  Remove all your data permanently
+                  Permanently remove your account, sessions and share links
                 </p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="border-red-500/40 text-red-500 hover:bg-red-500/10 hover:text-red-600 hover:border-red-500/60"
+                className={`border-red-500/40 hover:bg-red-500/10 hover:border-red-500/60 ${
+                  isDarkMode
+                    ? 'text-red-400 hover:text-red-300'
+                    : 'text-red-700 hover:text-red-800'
+                }`}
                 onClick={() => {
                   setShowDeleteConfirm(true);
                   setMessage(null);
@@ -888,6 +993,46 @@ const Profile = () => {
           )}
         </Section>
       </div>
+
+      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <DialogContent
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="logout-confirm-title"
+          className={`max-w-md ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
+        >
+          <DialogHeader
+            className={isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}
+          >
+            <DialogTitle
+              id="logout-confirm-title"
+              className={isDarkMode ? 'text-white' : 'text-gray-900'}
+            >
+              Sign out and lose this session?
+            </DialogTitle>
+            <DialogDescription
+              className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
+            >
+              {signOutLoss}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLogoutConfirm(false)}
+              className={
+                isDarkMode ? 'border-team-blue-40 text-team-white-60' : ''
+              }
+            >
+              Stay Signed In
+            </Button>
+            <Button variant="destructive" size="sm" onClick={signOut}>
+              Sign Out Anyway
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+export * from './layout';
 export * from './events';
 
 export const APP_CONFIG = {
@@ -35,30 +36,34 @@ export const FIREBASE_CONFIG = {
 export const GAME_TIMING = {
   AUTONOMOUS_DURATION_SECONDS: 30,
   TELEOP_DURATION_SECONDS: 120,
-  /** 3s countdown + 30s auto + 120s teleop (1.61s audio intro handled externally) */
+  /** 3s countdown + 30s auto + 120s teleop */
   FULL_GAME_DURATION_SECONDS: 153,
   /** Timer value when autonomous ends and controller pickup begins (= teleop duration) */
   AUTON_END_REMAINING: 120,
   /** Duration of the controller pickup phase (yellow) */
   CONTROLLER_PICKUP_SECONDS: 8,
-  /** Duration of the audio intro before countdown (seconds) */
-  AUDIO_INTRO_SECONDS: 1.15,
-  MAX_THEORETICAL_SCORE: 150,
+  /** Match clock value at which the BIOBUZZ endgame (and flower scoring) begins */
+  ENDGAME_REMAINING: 60,
 } as const;
+
+/** Season tag written on every new session; older seasons are hidden. */
+export const CURRENT_SEASON = 'biobuzz';
 
 export const SESSION_LIMITS = {
   MAX_SESSIONS_PER_USER: 50,
   MAX_CYCLE_TIMES: 100,
+  /** Longest session name the name inputs accept */
+  MAX_SESSION_NAME_LENGTH: 80,
   /** Maximum sessions to fetch in admin/comparison queries */
   ALL_SESSIONS_QUERY_LIMIT: 100,
 } as const;
 
 export const UI_TIMING = {
   DELETE_CONFIRM_TIMEOUT: 5000,
-  TUTORIAL_TRANSITION_DELAY: 100,
   SHORT_DELAY: 1000,
-  SESSION_LIMIT_CHECK_DELAY: 2000,
   MESSAGE_DISPLAY_TIMEOUT: 4000,
+  /** How long a deletion can be undone from its toast */
+  UNDO_WINDOW: 10000,
 } as const;
 
 /**
@@ -67,8 +72,8 @@ export const UI_TIMING = {
  */
 export const STORAGE_KEYS = {
   THEME: 'teamtrack-theme',
-  TUTORIAL_SEEN: 'teamtrack-tutorial-v1-seen',
-  KEYBIND_TUTORIAL_SEEN: 'teamtrack-keybind-tutorial-seen',
+  TUTORIAL_SEEN: 'teamtrack-tutorial-v2-seen',
+
   GUEST_PROMPT_DISMISSED: 'teamtrack-guest-prompt-dismissed',
   GUEST_PROMPT_LAST_SHOWN: 'teamtrack-guest-prompt-last-shown',
   HAS_COMPLETED_SESSION: 'teamtrack-has-completed-session',
@@ -84,6 +89,6 @@ export const STORAGE_KEYS = {
   PENDING_INVITE_EXPIRY: 'teamtrack-pending-invite-expiry',
   START_TUTORIAL: 'teamtrack-start-tutorial',
   GUEST_SESSIONS: 'teamtrack-guest-sessions',
-  GATE_SCORING_ENABLED: 'teamtrack-gate-scoring-enabled',
-  MOTIF_SCORING_ENABLED: 'teamtrack-motif-scoring-enabled',
+  /** Session deletes still inside their undo window, to finish after a reload */
+  PENDING_SESSION_DELETES: 'teamtrack-pending-session-deletes',
 } as const;

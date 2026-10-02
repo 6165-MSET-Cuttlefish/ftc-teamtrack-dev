@@ -1,10 +1,25 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RotateCcw, RefreshCw, Home } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  RotateCcw,
+  RefreshCw,
+  Home,
+  WifiOff,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { isChunkLoadError } from '@/lib/lazyWithRetry';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
+  /**
+   * Clears the error when this value changes. The route boundary passes the
+   * pathname, so navigating away from a broken page shows the next one.
+   */
+  resetKey?: string;
+  /** Fill the page area under the header instead of the whole screen. */
+  inline?: boolean;
 }
 
 interface ErrorBoundaryState {
@@ -12,16 +27,31 @@ interface ErrorBoundaryState {
   error?: Error;
   errorInfo?: ErrorInfo;
   retryCount: number;
+  resetKey?: string;
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, retryCount: 0 };
+    this.state = { hasError: false, retryCount: 0, resetKey: props.resetKey };
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
+  }
+
+  static getDerivedStateFromProps(
+    props: ErrorBoundaryProps,
+    state: ErrorBoundaryState
+  ): Partial<ErrorBoundaryState> | null {
+    if (props.resetKey === state.resetKey) return null;
+    return {
+      hasError: false,
+      error: undefined,
+      errorInfo: undefined,
+      retryCount: 0,
+      resetKey: props.resetKey,
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -49,8 +79,55 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
 
+      const frame = `${this.props.inline ? 'min-h-[70vh]' : 'min-h-screen'} flex items-center justify-center p-4 bg-background`;
+
+      // A page whose code could not be downloaded (offline, or the app was
+      // updated while this tab was open). React.lazy never retries a failed
+      // import, so "Try Again" cannot help here — only a reload can.
+      if (isChunkLoadError(this.state.error)) {
+        return (
+          <div className={frame} role="alert">
+            <div className="max-w-md w-full text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center bg-team-blue/10 mb-6">
+                <WifiOff className="h-8 w-8 text-team-blue" />
+              </div>
+
+              <h1 className="text-2xl font-bold text-foreground mb-2">
+                This page couldn't load
+              </h1>
+              <p className="text-sm text-muted-foreground mb-6">
+                The connection dropped or the app was updated while this
+                tab was open. Check your connection, then reload. Going back
+                keeps you on the page you were using.
+              </p>
+
+              <div className="flex gap-3 justify-center">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => window.location.reload()}
+                  className="gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Reload
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.history.back()}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Go Back
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <div className={frame}>
           <div className="max-w-md w-full text-center">
             <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center bg-destructive/10 mb-6">
               <AlertTriangle className="h-8 w-8 text-destructive" />

@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useTeam, useTheme } from '@/contexts';
 import { firebaseService, teamService } from '@/services';
 import { ROUTES, APP_CONFIG, STORAGE_KEYS } from '@/constants';
+import { clearPendingInvite } from '@/lib/pendingInvite';
 import { Users, Check, AlertCircle, Upload, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { sessionSummary } from '@/components/team/sessionSummary';
 import { toast } from 'sonner';
 import type { Session } from '@/types';
 import { logger } from '@/lib';
@@ -21,8 +23,11 @@ const JoinTeam = () => {
   const [status, setStatus] = useState<'loading' | 'preview' | 'joining' | 'success' | 'error'>('loading');
   const [teamName, setTeamName] = useState('');
   const [teamId, setTeamId] = useState('');
-  const [memberCount, setMemberCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  /** Shown on the preview after the user declines to leave their team */
+  const [stayedInTeam, setStayedInTeam] = useState('');
+  /** Joined, but the team itself could not be read back yet */
+  const [teamUnloaded, setTeamUnloaded] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importableSessions, setImportableSessions] = useState<Session[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
@@ -66,12 +71,12 @@ const JoinTeam = () => {
     const doLookup = async () => {
       setStatus('loading');
       try {
-        const team = await teamService.getTeamByInviteCode(codeToUse);
-        if (team) {
-          setTeamName(team.name);
-          setMemberCount(team.members?.length ?? 0);
+        const invite = await teamService.getInviteByCode(codeToUse);
+        if (invite) {
+          setTeamName(invite.teamName);
           setStatus('preview');
         } else {
+          clearPendingInvite();
           setStatus('error');
           setErrorMessage('Invalid invite code. Please check the link and try again.');
         }
@@ -87,27 +92,42 @@ const JoinTeam = () => {
   const handleJoin = async () => {
     if (!resolvedCode) return;
     setStatus('joining');
+    setStayedInTeam('');
     try {
-      const team = await joinTeam(resolvedCode);
-      if (team) {
-        setTeamName(team.name);
-        setTeamId(team.id);
-        setStatus('success');
-        localStorage.removeItem(STORAGE_KEYS.PENDING_INVITE_CODE);
+      const result = await joinTeam(resolvedCode);
 
-        if (user?.uid) {
-          try {
-            const allSessions = await firebaseService.getUserSessions(user.uid);
-            const importable = allSessions.filter(s => s.teamId !== team.id);
-            setImportableSessions(importable as Session[]);
-            setSelectedSessionIds(new Set(importable.map(s => s.id)));
-          } catch (err) {
-            logger.warn('Could not fetch sessions for import', err instanceof Error ? { message: err.message } : undefined);
-          }
-        }
-      } else {
+      if (result.status === 'cancelled') {
+        // They chose to keep their current team: back to the invite, which
+        // is not an error and not an invalid code.
+        clearPendingInvite();
+        setStayedInTeam(result.teamName);
+        setStatus('preview');
+        return;
+      }
+
+      if (result.status === 'invalid') {
+        clearPendingInvite();
         setStatus('error');
         setErrorMessage('Invalid invite code. Please check the link and try again.');
+        return;
+      }
+
+      const { team } = result;
+      setTeamName(team.name);
+      setTeamId(team.id);
+      setTeamUnloaded(result.status === 'joined-unloaded');
+      setStatus('success');
+      clearPendingInvite();
+
+      if (user?.uid) {
+        try {
+          const allSessions = await firebaseService.getUserSessions(user.uid);
+          const importable = allSessions.filter(s => s.teamId !== team.id);
+          setImportableSessions(importable as Session[]);
+          setSelectedSessionIds(new Set(importable.map(s => s.id)));
+        } catch (err) {
+          logger.warn('Could not fetch sessions for import', err instanceof Error ? { message: err.message } : undefined);
+        }
       }
     } catch {
       setStatus('error');
@@ -115,14 +135,20 @@ const JoinTeam = () => {
     }
   };
 
+  /** Turn the invite down from the preview */
+  const handleDecline = () => {
+    clearPendingInvite();
+    navigate(ROUTES.SESSIONS);
+  };
+
   return (
     <div
-      className={`min-h-screen flex items-center justify-center px-4 ${
+      className={`min-h-[100dvh] flex items-center justify-center px-4 ${
         isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
       }`}
     >
       <div
-        className={`max-w-md w-full rounded-2xl border shadow-xl p-8 text-center ${
+        className={`max-w-md w-full rounded-2xl border shadow-xl p-6 sm:p-8 text-center ${
           isDarkMode
             ? 'bg-team-dark-20 border-team-blue-40'
             : 'bg-white border-gray-200'
@@ -158,17 +184,24 @@ const JoinTeam = () => {
             >
               Join {teamName}?
             </h2>
-            <p className={`mb-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+            <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
               You've been invited to join this team.
             </p>
-            {memberCount > 0 && (
-              <p className={`text-sm mb-6 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}>
-                {memberCount} member{memberCount !== 1 ? 's' : ''}
+            {stayedInTeam && (
+              <p
+                role="status"
+                className={`mb-6 text-sm rounded-lg px-3 py-2 ${
+                  isDarkMode
+                    ? 'bg-team-blue/10 text-team-white-60'
+                    : 'bg-team-blue/5 text-gray-600'
+                }`}
+              >
+                You stayed in {stayedInTeam}.
               </p>
             )}
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center flex-wrap">
               <Button
-                onClick={() => navigate(ROUTES.SESSIONS)}
+                onClick={handleDecline}
                 variant="outline"
                 className={
                   isDarkMode
@@ -204,6 +237,19 @@ const JoinTeam = () => {
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
               You've successfully joined the team.
             </p>
+            {teamUnloaded && (
+              <p
+                role="status"
+                className={`mb-6 text-sm rounded-lg px-3 py-2 ${
+                  isDarkMode
+                    ? 'bg-amber-500/10 text-amber-300'
+                    : 'bg-amber-50 text-amber-700'
+                }`}
+              >
+                Joined, but couldn't load the team. Reload the page if it
+                doesn't show up.
+              </p>
+            )}
 
             {importableSessions.length > 0 && (
               <div
@@ -220,7 +266,8 @@ const JoinTeam = () => {
                 >
                   You have <strong>{importableSessions.length}</strong> session
                   {importableSessions.length !== 1 ? 's' : ''} that can be imported
-                  into <strong>{teamName}</strong>.
+                  into <strong>{teamName}</strong>. Any you skip stay private and
+                  can be imported later from the team panel.
                 </p>
 
                 <button
@@ -247,14 +294,6 @@ const JoinTeam = () => {
                 <div className="max-h-48 overflow-y-auto space-y-1 mb-3">
                   {importableSessions.map(session => {
                     const isSelected = selectedSessionIds.has(session.id);
-                    const matchCount = session.matches?.length ?? 0;
-                    const dateStr = session.createdAt
-                      ? new Date(
-                          typeof session.createdAt === 'object' && 'seconds' in session.createdAt
-                            ? session.createdAt.seconds * 1000
-                            : session.createdAt as string | number
-                        ).toLocaleDateString()
-                      : '';
                     return (
                       <button
                         key={session.id}
@@ -285,13 +324,17 @@ const JoinTeam = () => {
                         ) : (
                           <Square className={`h-4 w-4 shrink-0 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`} />
                         )}
-                        <span className="truncate font-medium">{session.sessionName}</span>
-                        <span
-                          className={`ml-auto shrink-0 text-xs ${
-                            isDarkMode ? 'text-team-white-40' : 'text-gray-400'
-                          }`}
-                        >
-                          {matchCount} match{matchCount !== 1 ? 'es' : ''}{dateStr ? ` · ${dateStr}` : ''}
+                        <span className="flex-1 min-w-0">
+                          <span className="block truncate font-medium">
+                            {session.sessionName || 'Untitled Session'}
+                          </span>
+                          <span
+                            className={`block truncate text-xs ${
+                              isDarkMode ? 'text-team-white-40' : 'text-gray-400'
+                            }`}
+                          >
+                            {sessionSummary(session)}
+                          </span>
                         </span>
                       </button>
                     );
@@ -309,7 +352,7 @@ const JoinTeam = () => {
                       setImportableSessions(prev => prev.filter(s => !selectedSessionIds.has(s.id)));
                       setSelectedSessionIds(new Set());
                     } catch {
-                      toast.error('Failed to import sessions. You can try again from the sessions page.');
+                      toast.error('Failed to import sessions. They stay private; you can import them later from the team panel.');
                     } finally {
                       setImporting(false);
                     }
@@ -350,7 +393,7 @@ const JoinTeam = () => {
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
               {errorMessage}
             </p>
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center flex-wrap">
               <Button
                 onClick={() => navigate(ROUTES.SESSIONS)}
                 variant="outline"

@@ -1,14 +1,14 @@
-import type { Session } from '@/types';
-import { toDate } from './utils';
-
 /**
- * Filtering and sorting for the sessions list.
+ * Archive view and ordering for the sessions list.
  *
- * Kept out of the page component so the rules are pure and testable — the list
- * page is ~900 lines and the ordering logic is easy to get subtly wrong
- * (mutating state with .sort(), unstable ties, archived leaking into the
- * default view).
+ * Kept out of the page so the rules stay pure: nothing here mutates the list
+ * it is given (it is React state), ties always fall back to the same order,
+ * and an archived session can't leak into the default view.
  */
+
+import type { Session } from '@/types';
+import { matchScore } from './scoring';
+import { toDate } from './utils';
 
 /** Sort options, in the order they're offered to the user. */
 export type SortOption =
@@ -30,73 +30,87 @@ export const SORT_LABELS: Record<SortOption, string> = {
   'matches-desc': 'Most matches',
 };
 
-/** A session's best match score; 0 when it has no matches. */
+export const DEFAULT_SORT: SortOption = 'date-desc';
+
+/**
+ * Whether a session has been archived. Only a stored `true` counts, so a
+ * session saved before the field existed reads as active.
+ */
+export const isArchived = (session: Pick<Session, 'archived'>): boolean =>
+  session.archived === true;
+
+/**
+ * A session's best match score — the figure on its card — or 0 with no
+ * matches. Recomputed from each match's fields like every other score:
+ * the cached `finalScore` can be stale.
+ */
 export const bestScore = (session: Session): number =>
   (session.matches ?? []).reduce(
-    (max, m) => Math.max(max, m.finalScore || 0),
+    (max, match) => Math.max(max, matchScore(match, session.matchType)),
     0
   );
 
-const byName = (a: Session, b: Session) =>
-  (a.sessionName || '').localeCompare(b.sessionName || '', undefined, {
+/** When a session was recorded, in ms; 0 when it has no readable date. */
+const recordedAt = (session: Session): number => {
+  if (!session.createdAt) return 0;
+  const time = toDate(session.createdAt).getTime();
+  return Number.isNaN(time) ? 0 : time;
+};
+
+/** What a session is ordered by, worked out once per sort. */
+interface SortKeys {
+  session: Session;
+  name: string;
+  date: number;
+  score: number;
+  matches: number;
+}
+
+const byDate = (a: SortKeys, b: SortKeys) => a.date - b.date;
+
+const byName = (a: SortKeys, b: SortKeys) =>
+  a.name.localeCompare(b.name, undefined, {
     numeric: true,
     sensitivity: 'base',
   });
 
-const byDate = (a: Session, b: Session) =>
-  toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime();
-
-export const sessionComparators: Record<
-  SortOption,
-  (a: Session, b: Session) => number
-> = {
+/** Ties fall back to newest first, so equal sessions keep a stable order. */
+const COMPARATORS: Record<SortOption, (a: SortKeys, b: SortKeys) => number> = {
   'date-desc': (a, b) => byDate(b, a),
   'date-asc': byDate,
-  'name-asc': byName,
-  'name-desc': (a, b) => byName(b, a),
-  // Ties fall back to newest-first so equal scores keep a stable, sensible order.
-  'score-desc': (a, b) => bestScore(b) - bestScore(a) || byDate(b, a),
-  'score-asc': (a, b) => bestScore(a) - bestScore(b) || byDate(b, a),
-  'matches-desc': (a, b) =>
-    (b.matches?.length ?? 0) - (a.matches?.length ?? 0) || byDate(b, a),
+  'name-asc': (a, b) => byName(a, b) || byDate(b, a),
+  'name-desc': (a, b) => byName(b, a) || byDate(b, a),
+  'score-desc': (a, b) => b.score - a.score || byDate(b, a),
+  'score-asc': (a, b) => a.score - b.score || byDate(b, a),
+  'matches-desc': (a, b) => b.matches - a.matches || byDate(b, a),
 };
 
-export interface SessionListOptions {
-  searchTerm: string;
-  /** 'all', or a match type to filter to (compared case-insensitively). */
-  matchType: string;
-  sortBy: SortOption;
-  /** true shows only archived sessions; false shows only active ones. */
-  showArchived: boolean;
-}
+/** A sorted copy of `sessions`; the list passed in is left as it was. */
+export const sortSessions = (
+  sessions: readonly Session[],
+  sortBy: SortOption
+): Session[] => {
+  const byScore = sortBy === 'score-desc' || sortBy === 'score-asc';
+  return sessions
+    .map(
+      (session): SortKeys => ({
+        session,
+        name: session.sessionName || '',
+        date: recordedAt(session),
+        // Scoring every match is the only costly key; skip it when unused.
+        score: byScore ? bestScore(session) : 0,
+        matches: session.matches?.length ?? 0,
+      })
+    )
+    .sort(COMPARATORS[sortBy])
+    .map(keys => keys.session);
+};
 
 /**
- * Apply the archive view, search, match-type filter and sort.
- * Returns a new array — never mutates the input, since it's React state.
+ * The sessions one view of the list holds: the archived ones, or the rest.
  */
-export const filterAndSortSessions = (
-  sessions: Session[],
-  { searchTerm, matchType, sortBy, showArchived }: SessionListOptions
-): Session[] => {
-  // `archived` is optional, so sessions predating the field read as active.
-  let out = sessions.filter(session =>
-    showArchived ? session.archived === true : session.archived !== true
-  );
-
-  const term = searchTerm.trim().toLowerCase();
-  if (term) {
-    out = out.filter(
-      session =>
-        session.sessionName?.toLowerCase().includes(term) ||
-        session.matchType?.toLowerCase().includes(term)
-    );
-  }
-
-  if (matchType !== 'all') {
-    out = out.filter(
-      session => session.matchType?.toLowerCase() === matchType.toLowerCase()
-    );
-  }
-
-  return [...out].sort(sessionComparators[sortBy]);
-};
+export const inArchiveView = (
+  sessions: readonly Session[],
+  showArchived: boolean
+): Session[] =>
+  sessions.filter(session => isArchived(session) === showArchived);

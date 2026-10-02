@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTeam, useTheme, useAuth } from '@/contexts';
-import { firebaseService } from '@/services';
-import { formatDate, logger, copyToClipboard } from '@/lib';
+import { firebaseService, teamService } from '@/services';
+import { logger, copyToClipboard } from '@/lib';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -30,10 +30,14 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Session } from '@/types';
+import { sessionSummary } from './sessionSummary';
 
 interface TeamManagerProps {
   onTeamChange?: () => void;
 }
+
+/** Longest team name the UI accepts, for both create and rename. */
+const MAX_TEAM_NAME_LENGTH = 50;
 
 export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const { isDarkMode } = useTheme();
@@ -144,15 +148,28 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     setPendingTeamId(null);
   };
 
+  /** Reopen the import step for the current team, from the team panel. */
+  const handleOpenImport = () => {
+    setPendingTeamId(null);
+    setShowTeamInfo(false);
+    handleCancelRename();
+    setShowImportDialog(true);
+  };
+
   const handleCreateTeam = async () => {
-    if (!teamName.trim()) {
+    const name = teamName.trim();
+    if (!name) {
       toast.error('Please enter a team name');
+      return;
+    }
+    if (name.length > MAX_TEAM_NAME_LENGTH) {
+      toast.error(`Team names can be up to ${MAX_TEAM_NAME_LENGTH} characters`);
       return;
     }
 
     setCreating(true);
     try {
-      const newTeam = await createTeam(teamName.trim());
+      const newTeam = await createTeam(name);
       if (newTeam) {
         toast.success(`Team "${newTeam.name}" created!`);
         onTeamChange?.();
@@ -164,9 +181,10 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
         toast.error('Failed to create team. Please try again.');
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      logger.error('Create team error', err instanceof Error ? err : undefined);
-      toast.error(`Failed to create team: ${message}`);
+      // The raw error (often a bare Firestore permission message) goes to
+      // the log; it means nothing to the person creating the team.
+      logger.error('Create team error', err);
+      toast.error('Failed to create team. Please try again.');
     } finally {
       setCreating(false);
     }
@@ -180,21 +198,26 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
 
     setJoining(true);
     try {
-      const joinedTeam = await joinTeam(inviteCode.trim().toUpperCase());
-      if (joinedTeam) {
-        toast.success(`Joined team "${joinedTeam.name}"!`);
+      const result = await joinTeam(inviteCode.trim().toUpperCase());
+      if (result.status === 'invalid') {
+        toast.error('Invalid invite code');
+      } else if (result.status === 'joined' || result.status === 'joined-unloaded') {
+        if (result.status === 'joined') {
+          toast.success(`Joined team "${result.team.name}"!`);
+        } else {
+          toast.warning("Joined, but couldn't load the team. Reload the page to see it.");
+        }
         onTeamChange?.();
         setShowJoinDialog(false);
         setInviteCode('');
-        setPendingTeamId(joinedTeam.id);
+        setPendingTeamId(result.team.id);
         setShowImportDialog(true);
-      } else {
-        toast.error('Invalid invite code');
       }
+      // 'cancelled': they chose to stay in their team. Nothing went wrong,
+      // so the dialog just stays open.
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      logger.error('Join team error', err instanceof Error ? err : undefined);
-      toast.error(`Failed to join team: ${message}`);
+      logger.error('Join team error', err);
+      toast.error('Failed to join team. The invite code may be invalid or expired.');
     } finally {
       setJoining(false);
     }
@@ -285,6 +308,9 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       const success = await kickMember(targetUserId);
       if (success) {
         toast.success(`${memberName} has been removed from the team`);
+        // Removing someone replaces the invite code, so the link they had
+        // can't let them back in.
+        toast.info('Invite link changed. Share the new one to invite people.');
       } else {
         toast.error('Failed to remove member');
       }
@@ -329,7 +355,11 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     }
   };
 
-  const isOwner = team?.members.some(m => m.userId === user?.uid && m.role === 'owner') ?? false;
+  // Same test the Firestore rules apply, so the UI never offers an owner
+  // action the server would reject. On teams saved before `ownerId` existed
+  // that is the member holding the 'owner' role, not whoever created it.
+  const isOwner =
+    !!team && !!user?.uid && teamService.ownerOf(team) === user.uid;
 
   return (
     <>
@@ -431,7 +461,8 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
             </DialogTitle>
             <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
               Create a team to share sessions with other members.
-              All your sessions will be shared with the team.
+              You choose which of your existing sessions to share; the rest
+              stay private and can be imported later from the team panel.
             </DialogDescription>
           </DialogHeader>
 
@@ -448,6 +479,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 value={teamName}
                 onChange={e => setTeamName(e.target.value)}
                 placeholder="e.g., Robotics Team 1234"
+                maxLength={MAX_TEAM_NAME_LENGTH}
                 className={`h-12 rounded-xl ${
                   isDarkMode
                     ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
@@ -516,8 +548,9 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 value={inviteCode}
                 onChange={e => {
                   let val = e.target.value;
-                  // If user pastes a join link, extract just the code
-                  const joinMatch = val.match(/\/join\/([A-Za-z0-9]+)/);
+                  // If user pastes (or types) a join link, extract just the
+                  // code. Case-insensitive: the field upper-cases as you type.
+                  const joinMatch = val.match(/\/join\/([A-Za-z0-9]+)/i);
                   if (joinMatch) {
                     val = joinMatch[1];
                   }
@@ -599,7 +632,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                           ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
                           : 'bg-gray-50 border-gray-200 text-team-blue'
                       }`}
-                      maxLength={50}
+                      maxLength={MAX_TEAM_NAME_LENGTH}
                       autoFocus
                       onKeyDown={e => {
                         if (e.key === 'Enter') handleRenameTeam();
@@ -645,7 +678,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                     <button
                       onClick={handleStartRename}
                       title="Rename team"
-                      className={`p-1.5 rounded-lg transition-colors ${
+                      className={`inline-flex items-center justify-center p-1.5 rounded-lg transition-colors ${
                         isDarkMode
                           ? 'text-team-white-40 hover:text-team-blue hover:bg-team-dark'
                           : 'text-gray-400 hover:text-team-blue hover:bg-gray-100'
@@ -689,23 +722,25 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                     <Copy className="h-4 w-4" />
                   )}
                 </Button>
-                <Button
-                  onClick={handleRegenerateCode}
-                  size="sm"
-                  disabled={regenerating}
-                  variant="outline"
-                  className={`h-11 px-3 rounded-xl ${
-                    isDarkMode
-                      ? 'border-team-blue-40 text-team-white-60 hover:bg-team-dark-20'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                  title="Generate new invite code (old code will stop working)"
-                >
-                  <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
-                </Button>
+                {isOwner && (
+                  <Button
+                    onClick={handleRegenerateCode}
+                    size="sm"
+                    disabled={regenerating}
+                    variant="outline"
+                    className={`h-11 px-3 rounded-xl ${
+                      isDarkMode
+                        ? 'border-team-blue-40 text-team-white-60 hover:bg-team-dark-20'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                    title="Generate new invite code (old code will stop working)"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
+                  </Button>
+                )}
               </div>
               <p
-                className={`text-xs mt-2 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+                className={`text-xs mt-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
               >
                 Share this link to invite others. All members can invite new people.
               </p>
@@ -799,7 +834,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                           onClick={() => handleTransferOwnership(member.userId, member.displayName || member.email)}
                           disabled={transferring === member.userId}
                           title="Transfer ownership"
-                          className={`flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
+                          className={`flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
                             transferConfirm === member.userId
                               ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 px-2 py-1'
                               : isDarkMode
@@ -824,7 +859,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                           onClick={() => handleKickMember(member.userId, member.displayName || member.email)}
                           disabled={kicking === member.userId}
                           title="Remove member"
-                          className={`flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
+                          className={`flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all ${
                             kickConfirm === member.userId
                               ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 px-2 py-1'
                               : isDarkMode
@@ -860,6 +895,27 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 ))}
                 </div>
               </div>
+            </div>
+
+            <div>
+              <Button
+                onClick={handleOpenImport}
+                variant="outline"
+                className={`w-full h-11 rounded-xl ${
+                  isDarkMode
+                    ? 'border-team-blue-40 text-team-blue hover:bg-team-dark-20'
+                    : 'border-gray-200 text-team-blue hover:bg-gray-50'
+                }`}
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                Import my sessions
+              </Button>
+              <p
+                className={`text-xs mt-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+              >
+                Share sessions you recorded on your own with the team. Sessions
+                you don't import stay private to you.
+              </p>
             </div>
 
             <div className="flex gap-3">
@@ -904,7 +960,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               Import Sessions to Team
             </DialogTitle>
             <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              Select which of your existing sessions to add to the team. Future sessions will be saved to the team automatically.
+              Select which of your existing sessions to add to the team. Sessions you skip stay private and can be imported later from the team panel. Future sessions will be saved to the team automatically.
             </DialogDescription>
           </DialogHeader>
 
@@ -965,7 +1021,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                         <div className={`text-xs ${
                           isDarkMode ? 'text-team-white-40' : 'text-gray-400'
                         }`}>
-                          {formatDate(session.createdAt)} · {session.matches?.length || 0} match{(session.matches?.length || 0) !== 1 ? 'es' : ''}
+                          {sessionSummary(session)}
                         </div>
                       </div>
                     </button>

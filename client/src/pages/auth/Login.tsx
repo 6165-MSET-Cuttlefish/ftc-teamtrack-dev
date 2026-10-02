@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib';
-import { APP_CONFIG, ROUTES, STORAGE_KEYS } from '@/constants';
+import { getPendingInviteDestination } from '@/lib/pendingInvite';
+import { APP_CONFIG, ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,21 +36,13 @@ const Login = () => {
 
   const from = location.state?.from?.pathname || '/sessions';
 
-  /** Return the best post-login destination, consuming any pending invite. */
-  const getPostLoginDestination = useCallback((): string => {
-    const pendingCode = localStorage.getItem(STORAGE_KEYS.PENDING_INVITE_CODE);
-    const pendingExpiry = localStorage.getItem(STORAGE_KEYS.PENDING_INVITE_EXPIRY);
-    if (pendingCode && pendingExpiry && Date.now() <= Number(pendingExpiry)) {
-      return ROUTES.TEAM_INVITE.replace(':inviteCode', pendingCode);
-    }
-    return from;
-  }, [from]);
-
+  // An invite opened while signed out comes first, then wherever they were
+  // headed.
   useEffect(() => {
     if (!authLoading && user) {
-      navigate(getPostLoginDestination(), { replace: true });
+      navigate(getPendingInviteDestination(from), { replace: true });
     }
-  }, [authLoading, user, navigate, from, getPostLoginDestination]);
+  }, [authLoading, user, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +56,7 @@ const Login = () => {
       setError('');
       setLoading(true);
       await login(email, password);
-      navigate(getPostLoginDestination(), { replace: true });
+      navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -76,7 +69,7 @@ const Login = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      navigate(getPostLoginDestination(), { replace: true });
+      navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -86,13 +79,14 @@ const Login = () => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center py-8 sm:py-12 px-3 sm:px-4 md:px-6 lg:px-8 ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
+      className={`min-h-[100dvh] flex items-center justify-center py-8 sm:py-12 px-3 sm:px-4 md:px-6 lg:px-8 ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
     >
       <Card
         className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
           <CardTitle
+            as="h1"
             className={`text-2xl sm:text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
           >
             Welcome Back
@@ -171,9 +165,13 @@ const Login = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className={`absolute right-4 top-3.5 h-5 w-5 transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
+                  className={`absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
                 >
-                  {showPassword ? <EyeOff /> : <Eye />}
+                  {showPassword ? (
+                    <EyeOff aria-hidden="true" className="h-5 w-5" />
+                  ) : (
+                    <Eye aria-hidden="true" className="h-5 w-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -190,7 +188,7 @@ const Login = () => {
           <div className="flex items-center gap-4">
             <div className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-300'}`} />
             <span
-              className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'}`}
+              className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
             >
               Or continue with
             </span>
@@ -244,7 +242,7 @@ const Login = () => {
           <div className="text-sm text-center">
             <Link
               to="/forgot-password"
-              className="text-team-blue hover:underline"
+              className="inline-flex min-h-[44px] items-center text-team-blue hover:underline sm:min-h-0"
             >
               Forgot your password?
             </Link>
@@ -253,9 +251,11 @@ const Login = () => {
             className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
             Don't have an account?{' '}
+            {/* Carries where they were headed, so signing up lands there too */}
             <Link
-              to="/signup"
-              className="text-team-blue hover:underline font-medium"
+              to={ROUTES.SIGNUP}
+              state={location.state}
+              className="inline-flex min-h-[44px] items-center text-team-blue hover:underline font-medium sm:min-h-0"
             >
               Sign up
             </Link>

@@ -4,36 +4,88 @@ import {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   type ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
-import { formatTime as formatTimeUtil, getDisplayTimer as getDisplayTimerUtil } from '@/lib';
+import {
+  formatTime as formatTimeUtil,
+  getDisplayTimer as getDisplayTimerUtil,
+  calculateTotal,
+  emptyScoringFields,
+  pickScoringFields,
+} from '@/lib';
 import {
   saveSessionToStorage,
-  loadSessionFromStorage,
-  loadTimerStateFromStorage,
-  clearSessionFromStorage,
-  hasActiveSession,
-} from '@/lib';
-import type { Match, SessionFormData, SessionTimerState, MatchPhase } from '@/types';
-import { STORAGE_KEYS } from '@/constants';
+  loadStoredSession,
+  removeStoredSession,
+  readSessionToken,
+  markStoredSessionSeen,
+  SESSION_REV_KEY,
+  SESSION_STORAGE_CLEARED_EVENT,
+  type StoredSession,
+} from '@/lib/sessionPersistence';
+import {
+  advanceClock,
+  anchorClock,
+  clocksEqual,
+  idleClock,
+  idleMatchClock,
+  matchSecondsLeft,
+  msUntilNextChange,
+  pickupSecondsLeft,
+  resyncClock,
+  sessionSeconds,
+  type ClockEnv,
+} from '@/lib/matchClock';
+import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
+import type {
+  Match,
+  SessionFormData,
+  MatchPhase,
+  MatchScoringFields,
+} from '@/types';
+import type { SessionClockState } from '@/types/storage';
 
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
 }
 
-interface SessionContextType {
+/**
+ * The three clocks as they read now, in whole seconds. They are republished
+ * every second while a session is running, so they live in a context of
+ * their own: only components that show a clock re-render on a tick.
+ */
+interface SessionTimers {
+  /** Match timer counts DOWN from 150 → 0 */
+  timer: number;
+  sessionTimer: number;
+  /** Countdown for controller_pickup (8→0) phase */
+  phaseTimer: number;
+}
+
+/** Everything about the session that does not change just because time passed */
+interface SessionCoreContextType {
   sessionData: SessionFormData;
   updateSessionData: (updates: Partial<SessionFormData>) => void;
   /** Full replacement of session data (not a merge) */
   replaceSessionData: (data: SessionFormData) => void;
   completeSession: (timerValue: string) => void;
   resetSession: () => void;
-  /** Match timer counts DOWN from 150 → 0 */
-  timer: number;
+  /**
+   * Counts sessions: goes up whenever the session is reset (New Session,
+   * Cancel Session, an account switch) or completed. Per-session UI state
+   * can key off it.
+   */
+  sessionEpoch: number;
+  /**
+   * What the clocks read as of the last tick, for code that needs a clock
+   * value at the moment something happens (a tap, a save) without
+   * re-rendering every second to have it.
+   */
+  getTimers: () => SessionTimers;
   setTimer: (timer: number) => void;
-  sessionTimer: number;
   setSessionTimer: (timer: number) => void;
   isTimerRunning: boolean;
   setIsTimerRunning: (running: boolean) => void;
@@ -42,20 +94,20 @@ interface SessionContextType {
   /** Current FTC match phase */
   matchPhase: MatchPhase;
   setMatchPhase: (phase: MatchPhase) => void;
-  /** Countdown for controller_pickup (8→0) phase */
-  phaseTimer: number;
   setPhaseTimer: (timer: number) => void;
-  expandedSection: string | null;
-  setExpandedSection: (section: string | null) => void;
+  /** True while the controller-pickup countdown is frozen */
+  isPickupPaused: boolean;
+  /** Freeze or resume the controller-pickup countdown (no effect outside pickup) */
+  setIsPickupPaused: (paused: boolean) => void;
+  /**
+   * True while the match clock is still above the playing time: the 3-2-1
+   * before AUTO of a Full Game.
+   */
+  isMatchCountdown: boolean;
   hasActiveSession: boolean;
   hasStarted: boolean;
   setHasStarted: (started: boolean) => void;
-  hasTransitionedToTeleop: boolean;
-  setHasTransitionedToTeleop: (transitioned: boolean) => void;
-  showTeleopTransition: boolean;
-  setShowTeleopTransition: (show: boolean) => void;
   editingMatchId: string | null;
-  setEditingMatchId: (id: string | null) => void;
   startEditingMatch: (match: Match) => void;
   returnToCurrentMatch: () => void;
   saveEditedMatch: () => void;
@@ -63,9 +115,6 @@ interface SessionContextType {
   matchActive: boolean;
   setMatchActive: (active: boolean) => void;
   skipToTeleop: () => void;
-  /** True during the 1.15s audio intro before the countdown begins (Full Game only) */
-  isPreMatchDelay: boolean;
-  setIsPreMatchDelay: (delay: boolean) => void;
   /** Convert raw countdown timer to display timer for a given phase */
   getDisplayTimer: (timer: number, phase: MatchPhase) => number;
   /** True when tutorial is active - prevents audio from playing */
@@ -73,288 +122,731 @@ interface SessionContextType {
   setIsTutorialActive: (active: boolean) => void;
 }
 
-const getInitialTimerDuration = (matchType: string = 'Full Game'): number => {
-  switch (matchType) {
-    case 'Autonomous':
-      return 30; // 0:30
-    case 'Teleop':
-      return 120; // 2:00
-    case 'Full Game':
-    default:
-      return 153; // 3s countdown + 30s auto + 120s teleop (1.15s audio intro handled externally)
-  }
-};
+type SessionContextType = SessionCoreContextType & SessionTimers;
 
+/** Match clock values above this are the countdown before play starts */
+const PLAYING_SECONDS =
+  GAME_TIMING.AUTONOMOUS_DURATION_SECONDS + GAME_TIMING.TELEOP_DURATION_SECONDS;
+
+/** Longest the clocks go without being re-read from the wall clock, in ms */
+const CLOCK_TICK_MS = 1000;
+/** Shortest gap between two re-reads, in ms */
+const CLOCK_MIN_TICK_MS = 10;
+/** Quiet time after a change before it is written to localStorage, in ms */
+const PERSIST_DELAY_MS = 300;
+
+/**
+ * A new session is ready to start as-is: named and set to Practice, so the
+ * first thing a user can do is press Start. The name is confirmed when the
+ * session is saved.
+ */
 const createInitialSessionData = (): SessionFormData => {
-  const storedGate = localStorage.getItem(STORAGE_KEYS.GATE_SCORING_ENABLED);
-  const storedMotif = localStorage.getItem(STORAGE_KEYS.MOTIF_SCORING_ENABLED);
-  const gateEnabled = storedGate !== null ? storedGate === 'true' : true;
-  const motifEnabled = storedMotif !== null ? storedMotif === 'true' : true;
-
   return {
-    sessionName: '',
+    ...emptyScoringFields(),
+    sessionName: 'Default Session',
     sessionDuration: '',
+    sessionType: 'Practice',
     matchType: 'Full Game',
-    finalScore: 0,
-    autonomousScore: 0,
-    teleopScore: 0,
-    endGameScore: 0,
     isSessionCompleted: false,
-    autonLeave: 0,
-    autonClassifiedArtifact: 0,
-    autonOverflowArtifact: 0,
-    autonMotif: 0,
-    autonBallsMissed: 0,
-    teleClassifiedArtifact: 0,
-    teleOverflowArtifact: 0,
-    teleMotif: 0,
-    teleBallsMissed: 0,
-    gateBallCount: 0,
-    robot1Park: 'none',
-    robot2Park: 'none',
     selectedFeature: 'Cycle Times',
     notes: '',
-    cycleTimes: [],
-    autonShots: [],
-    teleopShots: [],
     matches: [],
-    gateEnabled,
-    motifPattern: motifEnabled ? ['empty', 'empty', 'empty'] : undefined,
   };
 };
 
-const SessionContext = createContext<SessionContextType | undefined>(undefined);
+/** Session flags that are stored alongside the session data and clocks */
+interface SessionFlags {
+  hasStarted: boolean;
+  matchActive: boolean;
+}
+
+const flagsOf = (stored: StoredSession | null): SessionFlags => ({
+  hasStarted: stored?.timerState.hasStarted ?? false,
+  matchActive: stored?.timerState.matchActive ?? false,
+});
+
+/**
+ * Everything a save would write, as one comparable string. Clocks appear as
+ * their anchors, so the string only changes when this tab changes something,
+ * never because time passed.
+ */
+const signatureOf = (
+  data: SessionFormData,
+  clock: SessionClockState,
+  flags: SessionFlags
+): string =>
+  JSON.stringify([
+    data,
+    [
+      clock.phase,
+      clock.running,
+      clock.remainingMs,
+      clock.deadline,
+      clock.pickupRemainingMs,
+      clock.pickupDeadline,
+      clock.pickupPaused,
+      clock.sessionAccumulatedMs,
+      clock.sessionResumedAt,
+    ],
+    [flags.hasStarted, flags.matchActive],
+  ]);
+
+/**
+ * Stop the match audio. /active does this itself while it is open; this is
+ * for a match that goes away while another page is showing (sign-out, or
+ * another tab ending it), where the track would otherwise play on.
+ */
+const stopMatchAudio = () => {
+  const audio = (window as TeamTrackWindow).__teamtrack_match_audio__;
+  if (audio) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+  try {
+    sessionStorage.removeItem(STORAGE_KEYS.AUDIO_STATE);
+  } catch {
+    /* storage unavailable */
+  }
+};
+
+const SessionCoreContext = createContext<SessionCoreContextType | undefined>(
+  undefined
+);
+const SessionTimerContext = createContext<SessionTimers | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
-  const [sessionData, setSessionData] = useState<SessionFormData>(() => {
-    const stored = loadSessionFromStorage();
-    const storedTimer = loadTimerStateFromStorage();
-    if (stored && !stored.isSessionCompleted && (storedTimer?.hasStarted || stored.matches?.length > 0)) {
-      return stored;
-    }
-    clearSessionFromStorage();
-    return createInitialSessionData();
+  const { user, loading: authLoading } = useAuth();
+
+  // One read of storage per mount; every initial value below comes from it.
+  const [initial] = useState(() => {
+    const stored = loadStoredSession();
+    const data = stored?.sessionData ?? createInitialSessionData();
+    const clock = stored?.clock ?? idleClock(data.matchType);
+    const flags = flagsOf(stored);
+    return {
+      data,
+      clock,
+      flags,
+      now: Date.now(),
+      token: readSessionToken(),
+      // A clock that had to be corrected on the way in is stored again
+      signature: stored?.clockCorrected
+        ? null
+        : signatureOf(data, clock, flags),
+      restored: stored !== null,
+      sessionStartTime: stored?.timerState.sessionStartTime ?? 0,
+      matchStartTime: stored?.timerState.matchStartTime ?? 0,
+    };
   });
 
-  const storedTimerState = (() => {
-    if (sessionData && !sessionData.isSessionCompleted) {
-      return loadTimerStateFromStorage();
-    }
-    return null;
-  })();
+  const [sessionData, setSessionData] = useState<SessionFormData>(initial.data);
 
-  const [timer, setTimer] = useState<number>(
-    () => storedTimerState?.matchTimer ?? 150
+  /**
+   * The clocks. These anchors are the source of truth; `timer`, `phaseTimer`,
+   * `sessionTimer`, `matchPhase`, `isTimerRunning` and `isPickupPaused` below
+   * are what they currently read, republished on every tick.
+   */
+  const clockRef = useRef<SessionClockState>(initial.clock);
+  const envRef = useRef<ClockEnv>({
+    matchType: initial.data.matchType,
+    completed: false,
+    sessionRunning: initial.flags.hasStarted,
+  });
+  /**
+   * Bumped when this tab changes a clock (start, pause, skip, reset), never
+   * by a tick. Re-arms the tick and makes the session get stored again.
+   */
+  const [clockNonce, setClockNonce] = useState(0);
+
+  const [timer, setTimerState] = useState<number>(() =>
+    matchSecondsLeft(initial.clock, initial.now)
+  );
+  const [matchPhase, setMatchPhaseState] = useState<MatchPhase>(
+    initial.clock.phase
+  );
+  const [phaseTimer, setPhaseTimerState] = useState<number>(() =>
+    pickupSecondsLeft(initial.clock, initial.now)
+  );
+  const [sessionTimer, setSessionTimerState] = useState<number>(() =>
+    sessionSeconds(initial.clock, initial.now)
+  );
+  const [isTimerRunning, setIsTimerRunningState] = useState(
+    initial.clock.running
+  );
+  const [isPickupPaused, setIsPickupPausedState] = useState(
+    initial.clock.pickupPaused
   );
 
-  const [matchPhase, setMatchPhase] = useState<MatchPhase>(
-    () => (storedTimerState?.matchPhase as MatchPhase) ?? 'auton'
-  );
-  const [phaseTimer, setPhaseTimer] = useState<number>(0);
-
-  const [sessionTimer, setSessionTimer] = useState<number>(
-    () => storedTimerState?.sessionTimer ?? 0
-  );
-
-  const [isTimerRunning, setIsTimerRunning] = useState(
-    storedTimerState?.isTimerRunning ?? false
-  );
-
-  const [expandedSection, setExpandedSection] = useState<string | null>(
-    'Autonomous Score'
-  );
-
-  const [hasStarted, setHasStarted] = useState(
-    storedTimerState?.hasStarted ?? false
-  );
-
-  const [hasTransitionedToTeleop, setHasTransitionedToTeleop] = useState(
-    storedTimerState?.hasTransitionedToTeleop ?? false
-  );
-
-  const [showTeleopTransition, setShowTeleopTransition] = useState(
-    storedTimerState?.showTeleopTransition ?? false
-  );
-
-  const [hasActiveSessionLocal, setHasActiveSessionLocal] = useState(() =>
-    hasActiveSession()
-  );
+  const [hasStarted, setHasStarted] = useState(initial.flags.hasStarted);
 
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [currentMatchData, setCurrentMatchData] =
-    useState<Partial<SessionFormData> | null>(null);
+    useState<MatchScoringFields | null>(null);
 
-  const [matchActive, setMatchActive] = useState<boolean>(false);
-  const [isPreMatchDelay, setIsPreMatchDelay] = useState<boolean>(false);
-  const preMatchDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [matchActive, setMatchActive] = useState<boolean>(
+    initial.flags.matchActive
+  );
 
-  const [isTutorialActive, setIsTutorialActive] = useState<boolean>(false);
+  const [isTutorialActive, setTutorialActive] = useState<boolean>(false);
+  const tutorialActiveRef = useRef(false);
 
-  useEffect(() => {
-    if (!user) {
-      const newData = createInitialSessionData();
-      setSessionData(newData);
-      setHasStarted(false);
-      setIsTimerRunning(false);
-      setIsPreMatchDelay(false);
-      if (preMatchDelayRef.current) {
-        clearTimeout(preMatchDelayRef.current);
-        preMatchDelayRef.current = null;
-      }
-      setTimer(getInitialTimerDuration(newData.matchType));
-      setMatchPhase('auton');
-      clearSessionFromStorage();
-    }
-  }, [user]);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
 
-  useEffect(() => {
-    if (!hasStarted && !isTimerRunning) {
-      const newDuration = getInitialTimerDuration(sessionData.matchType);
-      setTimer(newDuration);
-      if (sessionData.matchType === 'Teleop') {
-        setMatchPhase('teleop');
-      } else {
-        setMatchPhase('auton');
-      }
-    }
-  }, [sessionData.matchType, hasStarted, isTimerRunning]);
+  const sessionStartTimeRef = useRef(initial.sessionStartTime);
+  const matchStartTimeRef = useRef(initial.matchStartTime);
 
-  useEffect(() => {
-    if (!isTimerRunning || sessionData.isSessionCompleted) {
-      return;
-    }
-    if (matchPhase !== 'auton' && matchPhase !== 'teleop') {
-      return;
-    }
+  /**
+   * Multi-tab bookkeeping. `lastSeenTokenRef` is the stored revision this tab
+   * last wrote or read (null: nothing stored); if storage holds a different
+   * one, another tab has written since. `lastSyncedRef` is the signature of
+   * what this tab last wrote or loaded, so it only writes its own changes.
+   * `holdsStoredSessionRef` says whether the session on screen is one that
+   * was in storage, and so goes away if another tab removes it from there.
+   */
+  const lastSeenTokenRef = useRef<string | null>(initial.token);
+  const lastSyncedRef = useRef<string | null>(initial.signature);
+  const holdsStoredSessionRef = useRef(initial.restored);
+  /** Flushes the write that is waiting out PERSIST_DELAY_MS, if any */
+  const pendingPersistRef = useRef<(() => void) | null>(null);
+  /**
+   * The wall clock as of the last time the clocks were read against it, and
+   * the page's own steady clock at that moment.
+   */
+  const lastReadRef = useRef({ wall: initial.now, steady: performance.now() });
 
-    const interval = setInterval(() => {
-      setTimer(prev => {
-        if (prev <= 0) {
-          clearInterval(interval);
-          setIsTimerRunning(false);
-          if (matchPhase === 'teleop') {
-            setMatchPhase('ended');
-          }
-          if (matchPhase === 'auton' && sessionData.matchType === 'Autonomous') {
-            setMatchPhase('ended');
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  /** The clock readings last published, for `getTimers` */
+  const timersRef = useRef<SessionTimers>({
+    timer: matchSecondsLeft(initial.clock, initial.now),
+    sessionTimer: sessionSeconds(initial.clock, initial.now),
+    phaseTimer: pickupSecondsLeft(initial.clock, initial.now),
+  });
 
-    return () => {
-      clearInterval(interval);
+  /** Push what the clocks read at `now` into state (no-ops when unchanged). */
+  const publishClock = useCallback((now: number) => {
+    const clock = clockRef.current;
+    const timers: SessionTimers = {
+      timer: matchSecondsLeft(clock, now),
+      sessionTimer: sessionSeconds(clock, now),
+      phaseTimer: pickupSecondsLeft(clock, now),
     };
-  }, [isTimerRunning, matchPhase, sessionData.isSessionCompleted, sessionData.matchType]);
+    timersRef.current = timers;
+    setTimerState(timers.timer);
+    setPhaseTimerState(timers.phaseTimer);
+    setSessionTimerState(timers.sessionTimer);
+    setMatchPhaseState(clock.phase);
+    setIsTimerRunningState(clock.running);
+    setIsPickupPausedState(clock.pickupPaused);
+  }, []);
 
-  useEffect(() => {
-    if (matchPhase !== 'controller_pickup') {
-      return;
+  const getTimers = useCallback(() => timersRef.current, []);
+
+  /**
+   * Read the wall clock for the clocks. The anchors assume it only moves
+   * forward, a second or so at a time; when it has been set back, or the
+   * page was asleep for longer than counts as session time, they are put
+   * right first (and stored again).
+   */
+  const readWallClock = useCallback((): number => {
+    const now = Date.now();
+    const steady = performance.now();
+    const last = lastReadRef.current;
+    lastReadRef.current = { wall: now, steady };
+    const resynced = resyncClock(
+      clockRef.current,
+      // Set back: measure from where it would have been by now if left alone
+      now < last.wall ? last.wall + (steady - last.steady) : last.wall,
+      now
+    );
+    if (resynced !== clockRef.current) {
+      clockRef.current = resynced;
+      lastSyncedRef.current = null;
+      setClockNonce(n => n + 1);
     }
+    return now;
+  }, []);
 
-    const interval = setInterval(() => {
-      setPhaseTimer(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setMatchPhase('teleop');
-            setPhaseTimer(0);
-            setTimer(120);
-            setIsTimerRunning(true);
-          }, 0);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  /**
+   * Install the clock `update` makes of the current one. A change made by
+   * this tab (`own`) is only re-anchored here: callers set several values in
+   * a row, and phase changes must wait until they are all in. They are
+   * replayed by the tick that follows the render.
+   */
+  const commitClock = useCallback(
+    (
+      update: (clock: SessionClockState, now: number) => SessionClockState,
+      own: boolean
+    ) => {
+      const now = readWallClock();
+      const next = update(clockRef.current, now);
+      const settled = own
+        ? anchorClock(next, envRef.current, now)
+        : advanceClock(next, envRef.current, now);
+      const changed = !clocksEqual(settled, clockRef.current);
+      if (changed) clockRef.current = settled;
+      publishClock(now);
+      if (changed && own) setClockNonce(n => n + 1);
+    },
+    [readWallClock, publishClock]
+  );
 
-    return () => {
-      clearInterval(interval);
+  /** Catch every clock up to the wall clock, replaying any phase change that was due. */
+  const tick = useCallback(() => {
+    commitClock(clock => clock, false);
+  }, [commitClock]);
+
+  const setTimer = useCallback(
+    (seconds: number) => {
+      commitClock(
+        clock => ({ ...clock, remainingMs: seconds * 1000, deadline: null }),
+        true
+      );
+    },
+    [commitClock]
+  );
+
+  const setIsTimerRunning = useCallback(
+    (running: boolean) => {
+      commitClock((clock, now) => {
+        const next = anchorClock({ ...clock, running }, envRef.current, now);
+        // A pause holds the second that was on screen, so the clock and the
+        // match audio (which is cued in whole seconds) resume together.
+        return running
+          ? next
+          : { ...next, remainingMs: Math.ceil(next.remainingMs / 1000) * 1000 };
+      }, true);
+    },
+    [commitClock]
+  );
+
+  const setMatchPhase = useCallback(
+    (phase: MatchPhase) => {
+      commitClock(clock => {
+        if (phase === clock.phase) return clock;
+        return {
+          ...clock,
+          phase,
+          pickupRemainingMs:
+            phase === 'controller_pickup'
+              ? GAME_TIMING.CONTROLLER_PICKUP_SECONDS * 1000
+              : 0,
+          pickupDeadline: null,
+          pickupPaused: false,
+        };
+      }, true);
+    },
+    [commitClock]
+  );
+
+  const setPhaseTimer = useCallback(
+    (seconds: number) => {
+      commitClock(
+        clock => ({
+          ...clock,
+          pickupRemainingMs: seconds * 1000,
+          pickupDeadline: null,
+        }),
+        true
+      );
+    },
+    [commitClock]
+  );
+
+  const setIsPickupPaused = useCallback(
+    (paused: boolean) => {
+      commitClock(
+        clock =>
+          clock.phase === 'controller_pickup'
+            ? { ...clock, pickupPaused: paused }
+            : clock,
+        true
+      );
+    },
+    [commitClock]
+  );
+
+  const setSessionTimer = useCallback(
+    (seconds: number) => {
+      commitClock(
+        clock => ({
+          ...clock,
+          sessionAccumulatedMs: seconds * 1000,
+          sessionResumedAt: null,
+        }),
+        true
+      );
+    },
+    [commitClock]
+  );
+
+  /** Put every piece of in-memory session state back to a brand-new session. */
+  const resetState = useCallback(() => {
+    const newSessionData = createInitialSessionData();
+    const clock = idleClock(newSessionData.matchType);
+    envRef.current = {
+      matchType: newSessionData.matchType,
+      completed: false,
+      sessionRunning: false,
     };
-  }, [matchPhase]);
+    clockRef.current = clock;
+    const now = Date.now();
+    lastReadRef.current = { wall: now, steady: performance.now() };
+    publishClock(now);
+    setSessionData(newSessionData);
+    setHasStarted(false);
+    setMatchActive(false);
+    setEditingMatchId(null);
+    setCurrentMatchData(null);
+    sessionStartTimeRef.current = 0;
+    matchStartTimeRef.current = 0;
+    holdsStoredSessionRef.current = false;
+    lastSyncedRef.current = signatureOf(newSessionData, clock, flagsOf(null));
+    setSessionEpoch(epoch => epoch + 1);
+  }, [publishClock]);
 
-  useEffect(() => {
-    if (sessionData.isSessionCompleted) {
-      return;
-    }
-
-    if (!hasStarted) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setSessionTimer(prev => prev + 1);
-    }, 1000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [hasStarted, sessionData.isSessionCompleted]);
-
-  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (sessionData.isSessionCompleted) {
-      if (persistTimeoutRef.current) {
-        clearTimeout(persistTimeoutRef.current);
-        persistTimeoutRef.current = null;
-      }
-      return;
-    }
-
-    const hasSessionData =
-      sessionData.sessionName ||
-      sessionData.matches.length > 0;
-    const hasActiveTimers =
-      isTimerRunning || hasStarted || sessionTimer > 0;
-
-    if (!hasSessionData && !hasActiveTimers) {
-      if (persistTimeoutRef.current) {
-        clearTimeout(persistTimeoutRef.current);
-        persistTimeoutRef.current = null;
-      }
-      clearSessionFromStorage();
-      return;
-    }
-
-    if (persistTimeoutRef.current) {
-      clearTimeout(persistTimeoutRef.current);
-    }
-
-    persistTimeoutRef.current = setTimeout(() => {
-      const timerState: SessionTimerState = {
-        sessionTimer,
-        matchTimer: timer,
-        isTimerRunning,
-        hasStarted,
-        hasTransitionedToTeleop,
-        showTeleopTransition,
-        sessionStartTime: 0,
-        matchStartTime: 0,
-        matchPhase,
+  /** Replace this tab's session with the one another tab stored. */
+  const adoptStoredSession = useCallback(
+    (stored: StoredSession, token: string | null) => {
+      const flags = flagsOf(stored);
+      envRef.current = {
+        matchType: stored.sessionData.matchType,
+        completed: false,
+        sessionRunning: flags.hasStarted,
       };
+      clockRef.current = stored.clock;
+      // Already brought up to this moment when it was read
+      const now = Date.now();
+      lastReadRef.current = { wall: now, steady: performance.now() };
+      publishClock(now);
+      setSessionData(stored.sessionData);
+      setHasStarted(flags.hasStarted);
+      setMatchActive(flags.matchActive);
+      // Storage always holds the live match, never an edit in progress
+      setEditingMatchId(null);
+      setCurrentMatchData(null);
+      sessionStartTimeRef.current = stored.timerState.sessionStartTime;
+      matchStartTimeRef.current = stored.timerState.matchStartTime;
+      lastSeenTokenRef.current = token;
+      holdsStoredSessionRef.current = true;
+      lastSyncedRef.current = stored.clockCorrected
+        ? null
+        : signatureOf(stored.sessionData, stored.clock, flags);
+      setClockNonce(n => n + 1);
+    },
+    [publishClock]
+  );
 
-      saveSessionToStorage(sessionData, timerState);
-      setHasActiveSessionLocal(hasStarted || sessionData.matches.length > 0);
-    }, 300);
+  /**
+   * Catch up with what another tab has stored since this tab last looked:
+   * take its session, or go back to a fresh one if the session this tab was
+   * showing has been completed, cancelled or signed out of there. A tab that
+   * is showing a completed session, or running the tutorial, is left alone.
+   */
+  const syncFromStorage = useCallback(():
+    | 'unchanged'
+    | 'adopted'
+    | 'reset'
+    | 'kept' => {
+    if (tutorialActiveRef.current || envRef.current.completed)
+      return 'unchanged';
+    const token = readSessionToken();
+    if (token === lastSeenTokenRef.current) return 'unchanged';
+
+    const stored = token === null ? null : loadStoredSession(false);
+    if (stored) {
+      adoptStoredSession(stored, token);
+      return 'adopted';
+    }
+
+    lastSeenTokenRef.current = token;
+    if (!holdsStoredSessionRef.current) return 'kept';
+    resetState();
+    return 'reset';
+  }, [adoptStoredSession, resetState]);
+
+  // The tutorial plays with real session state and puts it back when it
+  // closes; other tabs' changes are picked up once it has.
+  useEffect(() => {
+    tutorialActiveRef.current = isTutorialActive;
+    if (!isTutorialActive) syncFromStorage();
+  }, [isTutorialActive, syncFromStorage]);
+
+  /**
+   * Nothing is stored while the tutorial has the session, so a write still
+   * waiting out its delay is made first. Storage then holds the session as
+   * the tutorial found it, which is what a reload mid-tutorial comes back to.
+   */
+  const setIsTutorialActive = useCallback((active: boolean) => {
+    if (active) pendingPersistRef.current?.();
+    setTutorialActive(active);
+  }, []);
+
+  /**
+   * Wipe the in-progress session when the signed-in account goes away (sign
+   * out, or a different account signs in). Auth starts out null on every page
+   * load, so only a change away from a known account counts — reacting to the
+   * initial null would erase the session a reload just restored.
+   */
+  const prevUidRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (authLoading) return;
+    const uid = user?.uid ?? null;
+    const prevUid = prevUidRef.current;
+    prevUidRef.current = uid;
+    if (prevUid === uid) return;
+
+    if (prevUid) {
+      resetState();
+      lastSeenTokenRef.current = null;
+      removeStoredSession();
+      return;
+    }
+
+    // A guest signed in and keeps the session they were running. Sign-up
+    // clears storage on its way in, so make sure it is stored again.
+    if (prevUid === null) setClockNonce(n => n + 1);
+  }, [user, authLoading, resetState]);
+
+  // Keep the clocks in step with the session they belong to, and replay any
+  // phase change that fell due — after a start, pause or skip in this tab,
+  // or once the session is started or completed.
+  useEffect(() => {
+    envRef.current = {
+      matchType: sessionData.matchType,
+      completed: sessionData.isSessionCompleted,
+      sessionRunning: hasStarted,
+    };
+    tick();
+  }, [
+    sessionData.matchType,
+    sessionData.isSessionCompleted,
+    hasStarted,
+    clockNonce,
+    tick,
+  ]);
+
+  // Between matches the clock is sized for the selected match type, so every
+  // Start Match begins with the right length and phase.
+  useEffect(() => {
+    if (matchActive || isTimerRunning || sessionData.isSessionCompleted) {
+      return;
+    }
+    commitClock(
+      clock => ({ ...clock, ...idleMatchClock(sessionData.matchType) }),
+      true
+    );
+  }, [
+    sessionData.matchType,
+    sessionData.isSessionCompleted,
+    matchActive,
+    isTimerRunning,
+    commitClock,
+  ]);
+
+  const clockIsLive =
+    !sessionData.isSessionCompleted &&
+    (hasStarted || isTimerRunning || matchPhase === 'controller_pickup');
+
+  // Re-read the clocks each time one of them is due to show a new second.
+  // Timed against the wall clock, so the display never drifts and each
+  // period ends on the tick that reaches 0:00.
+  useEffect(() => {
+    if (!clockIsLive) {
+      return;
+    }
+
+    let timeout: ReturnType<typeof setTimeout>;
+    const run = () => {
+      tick();
+      const wait = msUntilNextChange(clockRef.current, Date.now());
+      timeout = setTimeout(
+        run,
+        Math.min(
+          Math.max(wait ?? CLOCK_TICK_MS, CLOCK_MIN_TICK_MS),
+          CLOCK_TICK_MS
+        )
+      );
+    };
+    run();
 
     return () => {
-      if (persistTimeoutRef.current) {
-        clearTimeout(persistTimeoutRef.current);
+      clearTimeout(timeout);
+    };
+  }, [clockIsLive, clockNonce, tick]);
+
+  useEffect(() => {
+    if (hasStarted && !sessionStartTimeRef.current) {
+      sessionStartTimeRef.current = Date.now();
+    }
+  }, [hasStarted]);
+
+  useEffect(() => {
+    if (!matchActive) {
+      matchStartTimeRef.current = 0;
+    } else if (!matchStartTimeRef.current) {
+      matchStartTimeRef.current = Date.now();
+    }
+  }, [matchActive]);
+
+  // No match, no match audio, whichever page is showing when the match goes.
+  useEffect(() => {
+    if (!matchActive) stopMatchAudio();
+  }, [matchActive]);
+
+  useEffect(() => {
+    // Going out of sight may be the last this page runs: store what is
+    // pending, and note that the stored session was still open at this
+    // point (unless what is stored is not this tab's clock as it now stands).
+    const handleHide = () => {
+      tick();
+      pendingPersistRef.current?.();
+      if (
+        holdsStoredSessionRef.current &&
+        lastSyncedRef.current !== null &&
+        readSessionToken() === lastSeenTokenRef.current
+      ) {
+        markStoredSessionSeen();
+      }
+    };
+    // Timers are throttled or stopped while the page is hidden or frozen;
+    // catch up the moment it is back, and pick up other tabs' changes.
+    const handleWake = () => {
+      if (document.visibilityState === 'hidden') {
+        handleHide();
+        return;
+      }
+      tick();
+      syncFromStorage();
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage) return;
+      if (event.key === null || event.key === SESSION_REV_KEY) {
+        syncFromStorage();
+      }
+    };
+    // Sign-out and sign-up clear the stored session from outside this
+    // provider. What is in memory is now unsaved: store it again on the
+    // next change instead of mistaking the gap for another tab's doing.
+    const handleClearedHere = () => {
+      lastSeenTokenRef.current = null;
+      lastSyncedRef.current = null;
+      holdsStoredSessionRef.current = false;
+    };
+
+    document.addEventListener('visibilitychange', handleWake);
+    window.addEventListener('pageshow', handleWake);
+    window.addEventListener('pagehide', handleHide);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener(SESSION_STORAGE_CLEARED_EVENT, handleClearedHere);
+    return () => {
+      document.removeEventListener('visibilitychange', handleWake);
+      window.removeEventListener('pageshow', handleWake);
+      window.removeEventListener('pagehide', handleHide);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener(
+        SESSION_STORAGE_CLEARED_EVENT,
+        handleClearedHere
+      );
+    };
+  }, [tick, syncFromStorage]);
+
+  /**
+   * While a saved match is open for editing, `sessionData` holds that match's
+   * values and the real in-progress match waits in `currentMatchData`. What
+   * gets stored is always the in-progress match, so a reload can never turn
+   * the match being edited into the current one.
+   */
+  const liveSessionData = useMemo<SessionFormData>(
+    () =>
+      editingMatchId && currentMatchData
+        ? { ...sessionData, ...currentMatchData }
+        : sessionData,
+    [sessionData, editingMatchId, currentMatchData]
+  );
+
+  const persistNow = useCallback(
+    (data: SessionFormData, flags: SessionFlags) => {
+      // Never store anchors that are out of step with the wall clock
+      readWallClock();
+      const clock = clockRef.current;
+      const signature = signatureOf(data, clock, flags);
+      if (signature === lastSyncedRef.current) return;
+
+      // Another tab has written since this one last looked: take its
+      // version rather than overwrite it with a stale copy.
+      if (
+        readSessionToken() !== lastSeenTokenRef.current &&
+        syncFromStorage() !== 'kept'
+      ) {
+        return;
+      }
+
+      // Only a session that was started or has saved matches is restored on
+      // load, so nothing else is worth keeping.
+      if (!flags.hasStarted && data.matches.length === 0) {
+        if (lastSeenTokenRef.current !== null) {
+          lastSeenTokenRef.current = null;
+          removeStoredSession();
+        }
+        holdsStoredSessionRef.current = false;
+        lastSyncedRef.current = signature;
+        return;
+      }
+
+      const now = Date.now();
+      const token = saveSessionToStorage(data, {
+        sessionTimer: sessionSeconds(clock, now),
+        matchTimer: matchSecondsLeft(clock, now),
+        isTimerRunning: clock.running,
+        hasStarted: flags.hasStarted,
+        sessionStartTime: sessionStartTimeRef.current,
+        matchStartTime: matchStartTimeRef.current,
+        matchPhase: clock.phase,
+        matchActive: flags.matchActive,
+        phaseTimer: pickupSecondsLeft(clock, now),
+        isPickupPaused: clock.pickupPaused,
+        clock,
+      });
+      if (token === null) return;
+      lastSeenTokenRef.current = token;
+      holdsStoredSessionRef.current = true;
+      lastSyncedRef.current = signature;
+    },
+    [readWallClock, syncFromStorage]
+  );
+
+  // Store the session after this tab changes it. Running clocks are stored
+  // as deadlines, so a tick is not a change and never writes; nothing is
+  // written once the session is completed, or while the tutorial is using
+  // the session state for practice.
+  useEffect(() => {
+    if (sessionData.isSessionCompleted || isTutorialActive) {
+      return;
+    }
+
+    const flags: SessionFlags = { hasStarted, matchActive };
+    const write = () => {
+      clearTimeout(timeout);
+      if (pendingPersistRef.current !== write) return;
+      pendingPersistRef.current = null;
+      persistNow(liveSessionData, flags);
+    };
+    const timeout = setTimeout(write, PERSIST_DELAY_MS);
+    pendingPersistRef.current = write;
+
+    return () => {
+      clearTimeout(timeout);
+      if (pendingPersistRef.current === write) {
+        pendingPersistRef.current = null;
       }
     };
   }, [
-    sessionData,
-    timer,
-    sessionTimer,
-    isTimerRunning,
+    liveSessionData,
+    sessionData.isSessionCompleted,
+    isTutorialActive,
     hasStarted,
-    hasTransitionedToTeleop,
-    showTeleopTransition,
-    matchPhase,
+    matchActive,
+    clockNonce,
+    persistNow,
   ]);
 
   const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {
@@ -365,76 +857,50 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setSessionData(data);
   }, []);
 
-  const completeSession = useCallback((timerValue: string) => {
-    setSessionData(prev => ({
-      ...prev,
-      sessionDuration: timerValue,
-      isSessionCompleted: true,
-    }));
-    setIsTimerRunning(false);
-    clearSessionFromStorage();
-    setHasActiveSessionLocal(false);
-  }, []);
+  const completeSession = useCallback(
+    (timerValue: string) => {
+      setSessionData(prev => ({
+        ...prev,
+        sessionDuration: timerValue,
+        isSessionCompleted: true,
+      }));
+      // Stop every clock now, including a controller pickup that would
+      // otherwise roll on into TELEOP. The match clock goes back to its
+      // between-matches reading, as no match is in progress any more.
+      envRef.current = { ...envRef.current, completed: true };
+      commitClock(
+        clock => ({ ...clock, ...idleMatchClock(envRef.current.matchType) }),
+        true
+      );
+      setMatchActive(false);
+      lastSeenTokenRef.current = null;
+      removeStoredSession();
+      setSessionEpoch(epoch => epoch + 1);
+    },
+    [commitClock]
+  );
 
   const resetTimer = useCallback(() => {
-    const duration = getInitialTimerDuration(sessionData.matchType);
-    setTimer(duration);
-    if (sessionData.matchType === 'Teleop') {
-      setMatchPhase('teleop');
-    } else {
-      setMatchPhase('auton');
-    }
-    setPhaseTimer(0);
-  }, [sessionData.matchType]);
+    commitClock(
+      clock => ({
+        ...clock,
+        ...idleMatchClock(sessionData.matchType),
+        running: clock.running,
+      }),
+      true
+    );
+  }, [sessionData.matchType, commitClock]);
 
   const startEditingMatch = useCallback(
     (match: Match) => {
-      setCurrentMatchData({
-        finalScore: sessionData.finalScore,
-        autonomousScore: sessionData.autonomousScore,
-        teleopScore: sessionData.teleopScore,
-        endGameScore: sessionData.endGameScore,
-        autonClassifiedArtifact: sessionData.autonClassifiedArtifact,
-        autonOverflowArtifact: sessionData.autonOverflowArtifact,
-        autonMotif: sessionData.autonMotif,
-        autonBallsMissed: sessionData.autonBallsMissed,
-        autonLeave: sessionData.autonLeave,
-        teleClassifiedArtifact: sessionData.teleClassifiedArtifact,
-        teleOverflowArtifact: sessionData.teleOverflowArtifact,
-        teleMotif: sessionData.teleMotif,
-        teleBallsMissed: sessionData.teleBallsMissed,
-        robot1Park: sessionData.robot1Park,
-        robot2Park: sessionData.robot2Park,
-        cycleTimes: sessionData.cycleTimes,
-        autonShots: sessionData.autonShots,
-        teleopShots: sessionData.teleopShots,
-      });
-
-      setSessionData(prev => ({
-        ...prev,
-        finalScore: match.finalScore || 0,
-        autonomousScore: match.autonomousScore || 0,
-        teleopScore: match.teleopScore || 0,
-        endGameScore: match.endGameScore || 0,
-        autonClassifiedArtifact: match.autonClassifiedArtifact || 0,
-        autonOverflowArtifact: match.autonOverflowArtifact || 0,
-        autonMotif: match.autonMotif || 0,
-        autonBallsMissed: match.autonBallsMissed || 0,
-        autonLeave: match.autonLeave || 0,
-        teleClassifiedArtifact: match.teleClassifiedArtifact || 0,
-        teleOverflowArtifact: match.teleOverflowArtifact || 0,
-        teleMotif: match.teleMotif || 0,
-        teleBallsMissed: match.teleBallsMissed || 0,
-        robot1Park: match.robot1Park || 'none',
-        robot2Park: match.robot2Park || 'none',
-        cycleTimes: match.cycleTimes || [],
-        autonShots: match.autonShots || [],
-        teleopShots: match.teleopShots || [],
-      }));
-
+      // The tutorial puts the session data back when it closes, but not
+      // this: an edit opened under it would be left over the wrong fields.
+      if (isTutorialActive) return;
+      setCurrentMatchData(pickScoringFields(sessionData));
+      setSessionData(prev => ({ ...prev, ...pickScoringFields(match) }));
       setEditingMatchId(match.id);
     },
-    [sessionData]
+    [sessionData, isTutorialActive]
   );
 
   const returnToCurrentMatch = useCallback(() => {
@@ -449,59 +915,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     if (!editingMatchId) return;
 
     setSessionData(prev => {
-      const updatedMatches = prev.matches.map(match =>
-        match.id === editingMatchId
-          ? {
-              ...match,
-              finalScore: prev.finalScore,
-              autonomousScore: prev.autonomousScore,
-              teleopScore: prev.teleopScore,
-              endGameScore: prev.endGameScore,
-              autonClassifiedArtifact: prev.autonClassifiedArtifact,
-              autonOverflowArtifact: prev.autonOverflowArtifact,
-              autonMotif: prev.autonMotif,
-              autonBallsMissed: prev.autonBallsMissed,
-              autonLeave: prev.autonLeave,
-              teleClassifiedArtifact: prev.teleClassifiedArtifact,
-              teleOverflowArtifact: prev.teleOverflowArtifact,
-              teleMotif: prev.teleMotif,
-              teleBallsMissed: prev.teleBallsMissed,
-              robot1Park: prev.robot1Park,
-              robot2Park: prev.robot2Park,
-              cycleTimes: prev.cycleTimes,
-              autonShots: prev.autonShots,
-              teleopShots: prev.teleopShots,
-            }
-          : match
-      );
-
-      if (currentMatchData) {
-        return {
-          ...prev,
-          matches: updatedMatches,
-          ...currentMatchData,
-        };
-      }
+      const edited = pickScoringFields(prev);
+      const updatedMatches = prev.matches.map(match => {
+        if (match.id !== editingMatchId) return match;
+        // Scored as the kind of match it was, not the type selected now
+        const scored = { ...edited, matchType: match.matchType };
+        return { ...match, ...edited, finalScore: calculateTotal(scored) };
+      });
 
       return {
         ...prev,
         matches: updatedMatches,
-        finalScore: 0,
-        autonomousScore: 0,
-        teleopScore: 0,
-        endGameScore: 0,
-        autonClassifiedArtifact: 0,
-        autonOverflowArtifact: 0,
-        autonMotif: 0,
-        autonBallsMissed: 0,
-        autonLeave: 0,
-        teleClassifiedArtifact: 0,
-        teleOverflowArtifact: 0,
-        teleMotif: 0,
-        teleBallsMissed: 0,
-        robot1Park: 'none',
-        robot2Park: 'none',
-        cycleTimes: [],
+        ...(currentMatchData ?? emptyScoringFields()),
       };
     });
 
@@ -510,92 +935,160 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, [editingMatchId, currentMatchData]);
 
   const resetSession = useCallback(() => {
-    const newSessionData = createInitialSessionData();
-    setSessionData(newSessionData);
-    setTimer(getInitialTimerDuration(newSessionData.matchType));
-    setMatchPhase('auton');
-    setPhaseTimer(0);
-    setSessionTimer(0);
-    setIsTimerRunning(false);
-    setHasStarted(false);
-    setMatchActive(false);
-    setHasTransitionedToTeleop(false);
-    setShowTeleopTransition(false);
-    clearSessionFromStorage();
-    setHasActiveSessionLocal(false);
-  }, []);
+    resetState();
+    const token = readSessionToken();
+    if (token !== null && token !== lastSeenTokenRef.current) {
+      // Another tab has a session going that this one never loaded (this tab
+      // was showing a completed one). Join it instead of wiping it.
+      syncFromStorage();
+      return;
+    }
+    lastSeenTokenRef.current = null;
+    removeStoredSession();
+  }, [resetState, syncFromStorage]);
 
   const skipToTeleop = useCallback(() => {
-    if (sessionData.matchType === 'Full Game' && 
-        (matchPhase === 'auton' || matchPhase === 'controller_pickup')) {
-      const globalAudio = (window as TeamTrackWindow)['__teamtrack_match_audio__'];
+    if (
+      sessionData.matchType === 'Full Game' &&
+      (matchPhase === 'auton' || matchPhase === 'controller_pickup')
+    ) {
+      const globalAudio = (window as TeamTrackWindow)[
+        '__teamtrack_match_audio__'
+      ];
       if (globalAudio) {
         globalAudio.currentTime = 42;
         if (globalAudio.paused) {
           globalAudio.play().catch(() => {});
         }
       }
-      
-      setMatchPhase('teleop');
-      setTimer(120);
-      setPhaseTimer(0);
-      if (!isTimerRunning) {
-        setIsTimerRunning(true);
-      }
-    }
-  }, [sessionData.matchType, matchPhase, isTimerRunning]);
 
-  const value: SessionContextType = {
-    sessionData,
-    updateSessionData,
-    replaceSessionData,
-    completeSession,
-    resetSession,
-    timer,
-    setTimer,
-    sessionTimer,
-    setSessionTimer,
-    isTimerRunning,
-    setIsTimerRunning,
-    resetTimer,
-    formatTime: formatTimeUtil,
-    matchPhase,
-    setMatchPhase,
-    phaseTimer,
-    setPhaseTimer,
-    expandedSection,
-    setExpandedSection,
-    hasActiveSession: hasActiveSessionLocal,
-    hasStarted,
-    setHasStarted,
-    hasTransitionedToTeleop,
-    setHasTransitionedToTeleop,
-    showTeleopTransition,
-    setShowTeleopTransition,
-    editingMatchId,
-    setEditingMatchId,
-    startEditingMatch,
-    returnToCurrentMatch,
-    saveEditedMatch,
-    matchActive,
-    setMatchActive,
-    skipToTeleop,
-    isPreMatchDelay,
-    setIsPreMatchDelay,
-    getDisplayTimer: getDisplayTimerUtil,
-    isTutorialActive,
-    setIsTutorialActive,
-  };
+      commitClock(
+        clock => ({
+          ...clock,
+          phase: 'teleop',
+          running: true,
+          remainingMs: GAME_TIMING.TELEOP_DURATION_SECONDS * 1000,
+          deadline: null,
+          pickupRemainingMs: 0,
+          pickupDeadline: null,
+          pickupPaused: false,
+        }),
+        true
+      );
+    }
+  }, [sessionData.matchType, matchPhase, commitClock]);
+
+  const hasActiveSession =
+    !sessionData.isSessionCompleted &&
+    (hasStarted || sessionData.matches.length > 0);
+
+  const isMatchCountdown = timer > PLAYING_SECONDS;
+
+  // Rebuilt only when something other than a clock reading changes, so the
+  // components that read it are left alone by the once-a-second tick.
+  const core = useMemo<SessionCoreContextType>(
+    () => ({
+      sessionData,
+      updateSessionData,
+      replaceSessionData,
+      completeSession,
+      resetSession,
+      sessionEpoch,
+      getTimers,
+      setTimer,
+      setSessionTimer,
+      isTimerRunning,
+      setIsTimerRunning,
+      resetTimer,
+      formatTime: formatTimeUtil,
+      matchPhase,
+      setMatchPhase,
+      setPhaseTimer,
+      isPickupPaused,
+      setIsPickupPaused,
+      isMatchCountdown,
+      hasActiveSession,
+      hasStarted,
+      setHasStarted,
+      editingMatchId,
+      startEditingMatch,
+      returnToCurrentMatch,
+      saveEditedMatch,
+      matchActive,
+      setMatchActive,
+      skipToTeleop,
+      getDisplayTimer: getDisplayTimerUtil,
+      isTutorialActive,
+      setIsTutorialActive,
+    }),
+    [
+      sessionData,
+      updateSessionData,
+      replaceSessionData,
+      completeSession,
+      resetSession,
+      sessionEpoch,
+      getTimers,
+      setTimer,
+      setSessionTimer,
+      isTimerRunning,
+      setIsTimerRunning,
+      resetTimer,
+      matchPhase,
+      setMatchPhase,
+      setPhaseTimer,
+      isPickupPaused,
+      setIsPickupPaused,
+      isMatchCountdown,
+      hasActiveSession,
+      hasStarted,
+      editingMatchId,
+      startEditingMatch,
+      returnToCurrentMatch,
+      saveEditedMatch,
+      matchActive,
+      skipToTeleop,
+      isTutorialActive,
+      setIsTutorialActive,
+    ]
+  );
+
+  const timers = useMemo<SessionTimers>(
+    () => ({ timer, sessionTimer, phaseTimer }),
+    [timer, sessionTimer, phaseTimer]
+  );
 
   return (
-    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+    <SessionCoreContext.Provider value={core}>
+      <SessionTimerContext.Provider value={timers}>
+        {children}
+      </SessionTimerContext.Provider>
+    </SessionCoreContext.Provider>
   );
 };
 
-export const useSession = () => {
-  const context = useContext(SessionContext);
+/**
+ * The session without its clocks. Use this wherever no clock is shown: the
+ * value only changes when the session itself does, never on a tick.
+ */
+export const useSessionCore = (): SessionCoreContextType => {
+  const context = useContext(SessionCoreContext);
   if (!context) {
-    throw new Error('useSession must be used within a SessionProvider');
+    throw new Error('useSessionCore must be used within a SessionProvider');
   }
   return context;
+};
+
+/**
+ * The session and its clocks. A component that calls this re-renders every
+ * second while a clock is counting; one that shows no clock should use
+ * `useSessionCore` instead.
+ */
+export const useSession = (): SessionContextType => {
+  const core = useContext(SessionCoreContext);
+  const timers = useContext(SessionTimerContext);
+  if (!core || !timers) {
+    throw new Error('useSession must be used within a SessionProvider');
+  }
+  return useMemo(() => ({ ...core, ...timers }), [core, timers]);
 };

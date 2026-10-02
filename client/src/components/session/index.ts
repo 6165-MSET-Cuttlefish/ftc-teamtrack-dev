@@ -1,10 +1,29 @@
 export { ActiveTutorial } from './ActiveTutorial';
 export { SummaryTab, MatchDetailTab, CompareTab, StatCard, computeStats, TABS, type TabId, type SessionStats } from './AnalysisTabs';
-export { GateVisual } from './GateVisual';
-export { LivePreview } from './LivePreview';
+export { LiveCounters } from './LiveCounters';
+export { MatchEntry } from './MatchEntry';
 export { MatchForm } from './MatchForm';
-export { MatchInsights } from './MatchInsights';
 export { Notes } from './Notes';
-export { ScoringMetrics } from './ScoringMetrics';
-export { ScoringUI } from './ScoringUI';
+export { ScoreBreakdown } from './ScoreBreakdown';
+export { ScoreField } from './ScoreField';
 export { SessionSetup } from './SessionSetup';
+export {
+  LiveControlsProvider,
+  useLiveControls,
+  OpenSetupButton,
+  PrimaryAction,
+  SessionActions,
+  PlayPauseControl,
+  CancelMatchButton,
+  MatchExtras,
+  MatchLog,
+  CompletedActions,
+  ViewSessionsLink,
+  type LiveControlsProps,
+} from './controls';
+export {
+  ActiveDesktopLayout,
+  ActiveMobileLayout,
+  type ActiveSlotKey,
+  type ActiveSlots,
+} from './layout';

@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Yarn is the package manager; yarn.lock is the only lockfile
+package-lock.json
+
 # Build output
 dist/
 dist-ssr/

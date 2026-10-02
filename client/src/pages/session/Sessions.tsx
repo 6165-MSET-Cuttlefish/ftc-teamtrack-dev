@@ -1,23 +1,57 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useSession, useTheme, useTeam } from '@/contexts';
-import { firebaseService } from '@/services';
+import { useAuth, useSessionCore, useTheme, useTeam } from '@/contexts';
+import { firebaseService, teamService } from '@/services';
 import { TeamManager } from '@/components';
+import { useEscapeKey } from '@/hooks';
 import {
   formatDate,
+  toDate,
   isAbortError,
   generateShareableLink,
-  copyToClipboard,
+  copyShareLink,
   logger,
-  downloadSessionsCsv,
-  filterAndSortSessions,
+  matchScore,
+  rankingPointTally,
+  sessionMatchType,
+  MIXED_MATCH_TYPE,
+  buildSessionsCsv,
+  buildLegacySessionsCsv,
+  csvFileName,
+  downloadCsv,
   SORT_LABELS,
+  DEFAULT_SORT,
+  sortSessions,
+  isArchived,
+  inArchiveView,
+  isGuestSessionId,
+  readGuestSessions,
+  writeGuestSessions,
 } from '@/lib';
-import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
-import type { Session } from '@/types';
+import {
+  getPendingDeleteIds,
+  subscribePendingDeletes,
+  onSessionDeleted,
+  scheduleSessionDelete,
+} from '@/lib/pendingSessionDeletes';
+import { readAllGuestSessions } from '@/lib/guestSessions';
+import { LEGACY_SEASON } from '@/lib/sessionNormalize';
+import {
+  UI_TIMING,
+  APP_CONFIG,
+  ROUTES,
+  SESSION_LIMITS,
+  CURRENT_SEASON,
+} from '@/constants';
+import type { CreateSessionData, Session } from '@/types';
 import type { SortOption } from '@/lib';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Tooltip,
@@ -34,6 +68,7 @@ import {
 import {
   Search,
   Plus,
+  Award,
   Calendar,
   Trophy,
   Clock,
@@ -44,39 +79,71 @@ import {
   TrendingUp,
   Hash,
   Share2,
+  Upload,
+  X,
   ArrowUpDown,
   Archive,
   ArchiveRestore,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+/** Match types offered by the filter, as the lower-case values it stores. */
+const MATCH_TYPE_FILTERS = [
+  { value: 'full game', label: 'Full Game' },
+  { value: 'autonomous', label: 'Autonomous' },
+  { value: 'teleop', label: 'Teleop' },
+  { value: MIXED_MATCH_TYPE.toLowerCase(), label: MIXED_MATCH_TYPE },
+] as const;
+
+/** The type each of a session's matches was run as, lower-cased. */
+const matchTypesOf = (session: Session): string[] =>
+  (session.matches || []).map(match =>
+    (match.matchType || session.matchType || 'Full Game').toLowerCase()
+  );
+
+/** A session's own label: the type its matches share, or 'Mixed'. */
+const matchTypeLabel = (session: Session): string =>
+  sessionMatchType(session.matches, session.matchType);
+
+/** Every match score in a session, recomputed from the match's fields. */
+const scoresOf = (session: Session): number[] =>
+  (session.matches || []).map(match => matchScore(match, session.matchType));
+
 /**
- * Session match type shown on each card. Colors follow the phase convention
- * used by the analysis charts: emerald for Autonomous, amber for Teleop.
+ * Badge colours for a session's match type, as light / dark class pairs:
+ * emerald for Autonomous and amber for Teleop, the team colour for a Full
+ * Game, neutral for a session whose matches were not all the same type.
  */
 const MATCH_TYPE_STYLES: Record<string, { light: string; dark: string }> = {
   'Full Game': {
-    light: 'bg-team-blue/15 text-team-blue',
-    dark: 'bg-team-blue/25 text-team-blue',
+    light: 'border-team-blue/40 bg-team-blue/10 text-gray-700',
+    dark: 'border-team-blue-40 bg-team-blue/15 text-team-blue',
   },
   Autonomous: {
-    light: 'bg-emerald-500/15 text-emerald-700',
-    dark: 'bg-emerald-500/20 text-emerald-400',
+    light: 'border-emerald-200 bg-emerald-100 text-emerald-900',
+    dark: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300',
   },
   Teleop: {
-    light: 'bg-amber-500/15 text-amber-700',
-    dark: 'bg-amber-500/20 text-amber-400',
+    light: 'border-amber-200 bg-amber-100 text-amber-900',
+    dark: 'border-amber-500/30 bg-amber-500/15 text-amber-300',
+  },
+  [MIXED_MATCH_TYPE]: {
+    light: 'border-gray-300 bg-gray-100 text-gray-700',
+    dark: 'border-white/20 bg-white/10 text-team-white-60',
   },
 };
 
-const MatchTypeBadge = ({ matchType }: { matchType?: string }) => {
+/** The session's match type (the one its matches share, or 'Mixed'). */
+const MatchTypeBadge = ({ session }: { session: Session }) => {
   const { isDarkMode } = useTheme();
-  const label = matchType || 'Full Game';
-  const style = MATCH_TYPE_STYLES[label] ?? MATCH_TYPE_STYLES['Full Game'];
+  const label = matchTypeLabel(session);
+  // A type this build doesn't know still shows, in the neutral colours.
+  const style = MATCH_TYPE_STYLES[label] ?? MATCH_TYPE_STYLES[MIXED_MATCH_TYPE];
 
   return (
     <span
-      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
+      data-testid="session-match-type"
+      className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${
         isDarkMode ? style.dark : style.light
       }`}
     >
@@ -85,15 +152,33 @@ const MatchTypeBadge = ({ matchType }: { matchType?: string }) => {
   );
 };
 
+/**
+ * The guest sessions in this browser that an account can take in. One the
+ * guest deleted but can still bring back is left out: it is on its way out,
+ * and Undo puts it back on offer.
+ */
+const importableGuestSessions = (): Session[] => {
+  const pendingIds = getPendingDeleteIds();
+  return readGuestSessions().filter(session => !pendingIds.has(session.id));
+};
+
 interface SessionCardProps {
   session: Session;
   onView: () => void;
-  onNameChange: (newName: string) => void;
-  onDelete: () => void;
+  /** Rename the session. Left out when the viewer can't change it. */
+  onNameChange?: (newName: string) => void;
+  /** Delete the session. Left out when the viewer can't delete it. */
+  onDelete?: () => void;
   onShare: () => void;
-  onToggleArchive: () => void;
+  /**
+   * Archive the session, or bring an archived one back. Left out when the
+   * viewer can't change it.
+   */
+  onToggleArchive?: () => void;
   isDeleting?: boolean;
   ownerName?: string;
+  /** Name of the viewer's team when this session isn't filed under it */
+  notSharedWith?: string;
 }
 
 const SessionCard = ({
@@ -105,6 +190,7 @@ const SessionCard = ({
   onToggleArchive,
   isDeleting = false,
   ownerName,
+  notSharedWith,
 }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
@@ -116,8 +202,7 @@ const SessionCard = ({
 
   useEffect(() => {
     if (titleRef.current && !isEditing) {
-      const isTruncated =
-        titleRef.current.scrollHeight > titleRef.current.clientHeight;
+      const isTruncated = titleRef.current.scrollHeight > titleRef.current.clientHeight;
       setIsTitleTruncated(isTruncated);
     } else {
       setIsTitleTruncated(false);
@@ -126,13 +211,11 @@ const SessionCard = ({
 
   useEffect(() => {
     if (deleteConfirm) {
-      const timeout = setTimeout(
-        () => setDeleteConfirm(false),
-        UI_TIMING.DELETE_CONFIRM_TIMEOUT
-      );
+      const timeout = setTimeout(() => setDeleteConfirm(false), UI_TIMING.DELETE_CONFIRM_TIMEOUT);
       return () => clearTimeout(timeout);
     }
   }, [deleteConfirm]);
+  useEscapeKey(deleteConfirm, () => setDeleteConfirm(false));
 
   const handleSaveName = async () => {
     if (!editedName.trim()) {
@@ -142,7 +225,7 @@ const SessionCard = ({
       return;
     }
     setIsSavingName(true);
-    await onNameChange(editedName.trim());
+    await onNameChange?.(editedName.trim());
     setIsSavingName(false);
     setIsEditing(false);
   };
@@ -160,7 +243,7 @@ const SessionCard = ({
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (deleteConfirm) {
-      onDelete();
+      onDelete?.();
       setDeleteConfirm(false);
     } else {
       setDeleteConfirm(true);
@@ -174,31 +257,23 @@ const SessionCard = ({
 
   const getSessionScores = () => {
     const matches = session.matches || [];
-    const scores = matches.map(match => match.finalScore || 0);
+    const scores = scoresOf(session);
 
     if (scores.length === 0) {
-      return {
-        highestScore: 0,
-        averageScore: 0,
-        totalScore: 0,
-        matchCount: matches.length,
-      };
+      return { highestScore: 0, averageScore: 0, totalScore: 0, matchCount: matches.length };
     }
 
     const totalScore = scores.reduce((a, b) => a + b, 0);
     const highestScore = Math.max(...scores);
     const averageScore = Math.round(totalScore / scores.length);
-
-    return {
-      highestScore,
-      averageScore,
-      totalScore,
-      matchCount: matches.length,
-    };
+    
+    return { highestScore, averageScore, totalScore, matchCount: matches.length };
   };
 
-  const { highestScore, averageScore, totalScore, matchCount } =
-    getSessionScores();
+  const { highestScore, averageScore, totalScore, matchCount } = getSessionScores();
+  const rp = rankingPointTally(session.matches || [], session.matchType);
+  const archived = isArchived(session);
+  const archiveLabel = archived ? 'Unarchive session' : 'Archive session';
 
   const cardContent = (
     <Card
@@ -210,8 +285,10 @@ const SessionCard = ({
       onClick={onView}
     >
       <CardHeader className="pb-4 pt-6 px-6">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="flex-1 min-w-0">
+        {/* Where the buttons would leave the name under 10rem beside them
+            (a phone, a three-column grid), it gets the row above */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
+          <div className="flex-1 min-w-0 basis-full sm:basis-40">
             {isEditing ? (
               <div
                 className="flex items-center gap-3"
@@ -220,10 +297,12 @@ const SessionCard = ({
                 <Input
                   value={editedName}
                   onChange={e => setEditedName(e.target.value)}
+                  maxLength={SESSION_LIMITS.MAX_SESSION_NAME_LENGTH}
+                  aria-label="Session name"
                   className={`h-10 text-xl font-semibold ${
                     isDarkMode
                       ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                      : 'bg-gray-50 border-team-blue/60 text-team-blue placeholder-team-blue-40'
+                      : 'bg-gray-50 border-team-blue/60 text-team-blue placeholder-gray-500'
                   }`}
                   autoFocus
                   onBlur={handleSaveName}
@@ -239,100 +318,102 @@ const SessionCard = ({
             ) : (
               <CardTitle
                 ref={titleRef}
-                className={`text-lg font-semibold line-clamp-3 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+                className={`text-lg font-semibold line-clamp-3 break-words [overflow-wrap:anywhere] ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
               >
                 {session.sessionName || 'Untitled Session'}
               </CardTitle>
             )}
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Four 44px touch targets and the score don't fit one row on the
+              narrowest phones: there the score drops to a row of its own */}
+          <div className="flex flex-wrap items-center justify-end gap-x-2 sm:gap-x-3 gap-y-2 min-w-0 max-w-full ml-auto">
             {!isEditing && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 {isSavingName ? (
                   <div className="h-4 w-4 border-2 border-team-blue border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
                     <button
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         onShare();
                       }}
-                      className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
+                      className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                        isDarkMode ? 'text-team-white-60' : 'text-gray-500'
                       } hover:text-team-blue`}
                       title="Share session"
                     >
                       <Share2 className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        onToggleArchive();
-                      }}
-                      className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                      } hover:text-team-blue`}
-                      title={
-                        session.archived ? 'Restore session' : 'Archive session'
-                      }
-                      aria-label={
-                        session.archived ? 'Restore session' : 'Archive session'
-                      }
-                    >
-                      {session.archived ? (
-                        <ArchiveRestore className="h-4 w-4" />
-                      ) : (
-                        <Archive className="h-4 w-4" />
-                      )}
-                    </button>
-                    <button
-                      onClick={handleEditClick}
-                      className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                        isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'
-                      } hover:text-team-blue`}
-                      title="Edit session name"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <div className="flex items-center gap-1">
+                    {onToggleArchive && (
                       <button
-                        onClick={handleDeleteClick}
-                        disabled={isDeleting}
-                        className={`p-1.5 rounded-lg transition-all transform hover:scale-110 ${
-                          isDeleting
-                            ? 'opacity-50 cursor-not-allowed'
-                            : deleteConfirm
-                              ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg'
-                              : `${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'} hover:bg-red-500/20 hover:text-red-500`
-                        }`}
-                        title={
-                          isDeleting
-                            ? 'Deleting...'
-                            : deleteConfirm
-                              ? 'Click again to confirm delete'
-                              : 'Delete session'
-                        }
+                        onClick={e => {
+                          e.stopPropagation();
+                          onToggleArchive();
+                        }}
+                        className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                          isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                        } hover:text-team-blue`}
+                        title={archiveLabel}
+                        aria-label={archiveLabel}
                       >
-                        {isDeleting ? (
-                          <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        {archived ? (
+                          <ArchiveRestore className="h-4 w-4" />
                         ) : (
-                          <Trash2 className="h-4 w-4" />
+                          <Archive className="h-4 w-4" />
                         )}
                       </button>
-                      {deleteConfirm && !isDeleting && (
+                    )}
+                    {onNameChange && (
+                      <button
+                        onClick={handleEditClick}
+                        className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                          isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                        } hover:text-team-blue`}
+                        title="Edit session name"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    {onDelete && (
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={handleDeleteCancel}
-                          className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                            isDarkMode
-                              ? 'text-team-white-60'
-                              : 'text-team-blue-40'
+                          onClick={handleDeleteClick}
+                          disabled={isDeleting}
+                          className={`inline-flex items-center justify-center p-1.5 rounded-lg transition-all transform hover:scale-110 ${
+                            isDeleting
+                              ? 'opacity-50 cursor-not-allowed'
+                              : deleteConfirm
+                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg'
+                                : `${isDarkMode ? 'text-team-white-60' : 'text-gray-500'} hover:bg-red-500/20 hover:text-red-500`
                           }`}
-                          title="Cancel delete"
+                          title={
+                            isDeleting
+                              ? 'Deleting...'
+                              : deleteConfirm
+                                ? 'Click again to confirm delete'
+                                : 'Delete session'
+                          }
                         >
-                          ✕
+                          {isDeleting ? (
+                            <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </button>
-                      )}
-                    </div>
+                        {deleteConfirm && !isDeleting && (
+                          <button
+                            onClick={handleDeleteCancel}
+                            className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                              isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                            }`}
+                            title="Cancel delete"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -347,20 +428,40 @@ const SessionCard = ({
         </div>
 
         <div
-          className={`flex items-center gap-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+          className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
         >
-          <MatchTypeBadge matchType={session.matchType} />
-          <Calendar className="h-4 w-4" />
-          <span>{formatDate(session.createdAt)}</span>
+          <MatchTypeBadge session={session} />
+          <span className="inline-flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <span>{formatDate(session.createdAt)}</span>
+          </span>
+          {/* Each separator stays with the item after it when the row wraps */}
           {ownerName && (
-            <>
-              <span
-                className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
+            <span className="inline-flex items-center gap-2 min-w-0">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
                 ·
               </span>
-              <span>{ownerName}</span>
-            </>
+              <span className="break-words [overflow-wrap:anywhere]">
+                {ownerName}
+              </span>
+            </span>
+          )}
+          {notSharedWith && (
+            <span
+              className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+                isDarkMode
+                  ? 'border-team-blue-40 text-team-white-60'
+                  : 'border-gray-300 text-gray-600'
+              }`}
+              title={
+                // Leaving a team doesn't take a session out of it.
+                session.teamId
+                  ? `Still filed under another team, whose members can see it. It isn't shared with ${notSharedWith}.`
+                  : `Only you can see this session. It isn't shared with ${notSharedWith}.`
+              }
+            >
+              {session.teamId ? 'Other team' : 'Not shared'}
+            </span>
           )}
         </div>
       </CardHeader>
@@ -438,6 +539,28 @@ const SessionCard = ({
               </span>
             </div>
           </div>
+
+          {/* SWARM and POLLINATOR only: a win or tie needs the opponent's score */}
+          <div className="col-span-2 flex items-center gap-3">
+            <Award
+              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            />
+            <div className="flex flex-col">
+              <span
+                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
+                Ranking Points
+              </span>
+              <span
+                data-testid="session-ranking-points"
+                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
+                {rp.rate === null
+                  ? 'N/A'
+                  : `${rp.earned} of ${rp.possible} RP (${rp.rate}%)`}
+              </span>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -446,7 +569,9 @@ const SessionCard = ({
   if (isTitleTruncated) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{cardContent}</TooltipTrigger>
+        <TooltipTrigger asChild>
+          {cardContent}
+        </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs break-words">
           {session.sessionName || 'Untitled Session'}
         </TooltipContent>
@@ -488,133 +613,311 @@ const LoadingCard = () => {
 const Sessions = () => {
   const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
-  const { resetSession, hasActiveSession } = useSession();
-  const { team } = useTeam();
+  const { resetSession, hasActiveSession } = useSessionCore();
+  const { team, refreshTeam } = useTeam();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  /** The list couldn't be read, so an empty one doesn't mean "no sessions" */
+  const [loadFailed, setLoadFailed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
-  const [showArchived, setShowArchived] = useState(false);
   const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
-    null
-  );
+  const [sortBy, setSortBy] = useState<SortOption>(DEFAULT_SORT);
+  /** Which half of the list is on screen: the archived sessions, or the rest */
+  const [showArchived, setShowArchived] = useState(false);
+  /** Sessions deleted but still inside their undo window */
+  const [hiddenIds, setHiddenIds] = useState(getPendingDeleteIds);
+  /** Sessions a guest saved in this browser that the account doesn't have */
+  const [guestSessionCount, setGuestSessionCount] = useState(0);
+  const [importingGuestSessions, setImportingGuestSessions] = useState(false);
+  const [importBannerDismissed, setImportBannerDismissed] = useState(false);
+  /** Last season's sessions exist: they aren't listed, but can be exported */
+  const [hasOlderSeasons, setHasOlderSeasons] = useState(false);
+  const [exportingOlder, setExportingOlder] = useState(false);
+
+  const uid = user?.uid;
+  const teamId = team?.id;
+
+  // Earlier seasons are left out of the list (their scoring isn't this
+  // season's), so say they are still there, and offer them as a CSV.
+  useEffect(() => {
+    let active = true;
+    setHasOlderSeasons(false);
+    if (isGuest) {
+      setHasOlderSeasons(
+        readAllGuestSessions().some(s => s.season !== CURRENT_SEASON)
+      );
+    } else if (uid) {
+      firebaseService
+        .hasOlderSeasonSessions(uid, teamId)
+        .then(found => {
+          if (active) setHasOlderSeasons(found);
+        })
+        .catch(error => {
+          if (!isAbortError(error)) {
+            logger.warn('Could not check for older-season sessions', error);
+          }
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [uid, teamId, isGuest]);
+
+  // Pending deletes outlive this page (see lib/pendingSessionDeletes), so
+  // the list follows them rather than keeping its own.
+  useEffect(() => {
+    const sync = () => setHiddenIds(getPendingDeleteIds());
+    sync();
+    const stopChanges = subscribePendingDeletes(sync);
+    const stopDeleted = onSessionDeleted(sessionId =>
+      setSessions(prev => prev.filter(s => s.id !== sessionId))
+    );
+    return () => {
+      stopChanges();
+      stopDeleted();
+    };
+  }, []);
 
   useEffect(() => {
     document.title = `Sessions - ${APP_CONFIG.name}`;
   }, []);
 
+  // Sessions recorded as a guest stay in this browser when the guest signs
+  // up or logs in; offer to bring them into the account. Counted again
+  // whenever a delete the guest left waiting is finished or undone.
+  useEffect(() => {
+    if (!uid || isGuest) {
+      setGuestSessionCount(0);
+      return;
+    }
+    const recount = () =>
+      setGuestSessionCount(importableGuestSessions().length);
+    recount();
+    return subscribePendingDeletes(recount);
+  }, [uid, isGuest]);
+
   const loadPersonalSessions = useCallback(async () => {
     if (isGuest) {
+      setSessions(readGuestSessions());
       setLoading(false);
       return;
     }
 
-    if (!user?.uid) return;
+    if (!uid) return;
 
     setLoading(true);
     try {
-      const fetchedSessions = await firebaseService.getUserSessions(user.uid);
+      const fetchedSessions = await firebaseService.getUserSessions(uid);
       setSessions(fetchedSessions);
-      setFilteredSessions(fetchedSessions);
+      setLoadFailed(false);
     } catch (error) {
       if (isAbortError(error)) return;
-      const { logger } = await import('@/lib/logger');
       logger.error('Error loading sessions', error);
+      setLoadFailed(true);
       toast.error('Failed to load sessions');
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, isGuest]);
+  }, [uid, isGuest]);
 
   const loadSessions = useCallback(async () => {
-    if (!user?.uid) return;
-    if (!team) {
+    if (!uid) return;
+    if (!teamId) {
       await loadPersonalSessions();
     }
-  }, [user?.uid, team, loadPersonalSessions]);
+  }, [uid, teamId, loadPersonalSessions]);
+
+  /** The latest refreshTeam, for a listener that outlives its render. */
+  const refreshTeamRef = useRef(refreshTeam);
+  useEffect(() => {
+    refreshTeamRef.current = refreshTeam;
+  }, [refreshTeam]);
 
   useEffect(() => {
-    if (!team) return;
+    if (!teamId) return;
 
     setLoading(true);
     let unsubscribe: (() => void) | undefined;
     let subscribed = false;
+    let active = true;
+    let deniedNotice: ReturnType<typeof setTimeout> | undefined;
+
+    const syncFailed = () =>
+      toast.error(
+        "Couldn't sync your team's sessions. Check your connection and reload."
+      );
 
     firebaseService
       .subscribeTeamSessions(
-        team.id,
+        teamId,
         teamSessions => {
+          if (!active) return;
           subscribed = true;
           setSessions(teamSessions);
-          setFilteredSessions(teamSessions);
+          setLoadFailed(false);
           setLoading(false);
         },
         async error => {
+          // A listener this effect has already let go of has nothing to say.
+          if (!active) return;
           logger.error('Team sessions listener error:', {
             error: String(error),
           });
-          const errorMessage = error?.message || 'Unknown error';
-          if (errorMessage.includes('index')) {
+
+          if (
+            (error as { code?: string } | null)?.code === 'permission-denied'
+          ) {
+            // Almost always means the user is no longer in this team (removed,
+            // or left on another device). Re-checking membership clears the
+            // stale team and says so, which tears this effect down and loads
+            // the personal list. If the team is still here a moment later,
+            // they are a member after all and the list just couldn't load.
+            await refreshTeamRef.current();
+            deniedNotice = setTimeout(() => {
+              if (!active) return;
+              syncFailed();
+              setLoadFailed(true);
+              setLoading(false);
+            }, UI_TIMING.SHORT_DELAY);
+            return;
+          }
+
+          if ((error?.message || '').includes('index')) {
             toast.error(
               'Firestore needs a composite index for team sessions. Check the browser console for the creation link.',
               { duration: 10000 }
             );
           } else {
-            toast.error(`Team sync error: ${errorMessage}`);
+            syncFailed();
           }
           if (!subscribed) {
             try {
-              const fetched = await firebaseService.getTeamSessions(team.id);
-              setSessions(fetched);
-              setFilteredSessions(fetched);
+              const fetched = await firebaseService.getTeamSessions(teamId);
+              if (active) setSessions(fetched);
             } catch {
-              /* fallback fetch already attempted */
+              if (active) setLoadFailed(true);
             }
           }
-          setLoading(false);
+          if (active) setLoading(false);
         }
       )
       .then(unsub => {
-        unsubscribe = unsub;
+        if (active) unsubscribe = unsub;
+        else unsub();
       });
 
     return () => {
+      active = false;
+      clearTimeout(deniedNotice);
       unsubscribe?.();
     };
-  }, [team]);
+  }, [teamId]);
 
   useEffect(() => {
-    if (!team) {
+    if (!teamId) {
       loadPersonalSessions();
     }
-  }, [team, loadPersonalSessions]);
+  }, [teamId, loadPersonalSessions]);
 
-  useEffect(() => {
-    setFilteredSessions(
-      filterAndSortSessions(sessions, {
-        searchTerm,
-        matchType: selectedMatchType,
-        sortBy,
-        showArchived,
-      })
-    );
-  }, [searchTerm, sessions, selectedMatchType, sortBy, showArchived]);
+  /** Every loaded session except ones waiting out their undo window */
+  const visibleSessions = useMemo(
+    () => sessions.filter(session => !hiddenIds.has(session.id)),
+    [sessions, hiddenIds]
+  );
 
-  const archivedCount = sessions.filter(s => s.archived === true).length;
+  const filtersActive = searchTerm.trim() !== '' || selectedMatchType !== 'all';
+
+  const archivedCount = useMemo(
+    () => visibleSessions.filter(isArchived).length,
+    [visibleSessions]
+  );
+
+  const filteredSessions = useMemo(() => {
+    // Archived sessions never show in the default list, nor active ones
+    // under Archived, whatever the search and filter say.
+    let filtered = inArchiveView(visibleSessions, showArchived);
+
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
+      filtered = filtered.filter(
+        session =>
+          session.sessionName?.toLowerCase().includes(term) ||
+          matchTypeLabel(session).toLowerCase().includes(term) ||
+          matchTypesOf(session).some(type => type.includes(term))
+      );
+    }
+
+    if (selectedMatchType !== 'all') {
+      // A session belongs under every type any of its matches was run as,
+      // and under 'Mixed' when they weren't all the same.
+      filtered = filtered.filter(
+        session =>
+          matchTypeLabel(session).toLowerCase() === selectedMatchType ||
+          matchTypesOf(session).includes(selectedMatchType)
+      );
+    }
+
+    return sortSessions(filtered, sortBy);
+  }, [visibleSessions, searchTerm, selectedMatchType, sortBy, showArchived]);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedMatchType('all');
+  };
+
+  /**
+   * The view is empty only because of which half it shows: nothing archived
+   * yet, or everything archived. The way out is the other view, not a new
+   * session.
+   */
+  const archiveEmpty = showArchived || archivedCount > 0;
+
+  /**
+   * Quick Stats, over the same sessions the list can show — archived ones
+   * included: archiving tidies the list, it doesn't take results away.
+   */
+  const quickStats = useMemo(() => {
+    const scores = visibleSessions.flatMap(scoresOf);
+    return {
+      sessionCount: visibleSessions.length,
+      matchCount: scores.length,
+      averageScore:
+        scores.length > 0
+          ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+          : 0,
+      bestScore: scores.length > 0 ? Math.max(...scores) : 0,
+    };
+  }, [visibleSessions]);
+
+  /** The author of a session (and a guest, of their own) can rename it. */
+  const canRename = (session: Session): boolean =>
+    isGuest || (!!uid && session.userId === uid);
+
+  /**
+   * Archiving is an edit like renaming, so the same people can do it: the
+   * Firestore rules let nobody but the author update a session.
+   */
+  const canArchive = canRename;
+
+  /**
+   * The author can delete a session, and so can the owner of the team it is
+   * filed under — the same two people the Firestore rules allow.
+   */
+  const canDelete = (session: Session): boolean =>
+    canRename(session) ||
+    (!!uid &&
+      !!team &&
+      session.teamId === team.id &&
+      teamService.ownerOf(team) === uid);
 
   const handleViewSession = (sessionId: string) => {
     navigate(`/analysis?sessionId=${sessionId}`);
   };
 
-  const handleUpdateSessionName = async (
-    sessionId: string,
-    newName: string
-  ) => {
+  const handleUpdateSessionName = async (sessionId: string, newName: string) => {
     const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
-
+    
     try {
       setSessions(prevSessions =>
         prevSessions.map(session =>
@@ -623,11 +926,21 @@ const Sessions = () => {
             : session
         )
       );
-
-      const success = await firebaseService.updateSession(sessionId, {
-        sessionName: newName,
-      });
-
+      
+      let success: boolean;
+      if (isGuestSessionId(sessionId)) {
+        writeGuestSessions(
+          readGuestSessions().map(s =>
+            s.id === sessionId ? { ...s, sessionName: newName } : s
+          )
+        );
+        success = true;
+      } else {
+        success = await firebaseService.updateSession(sessionId, {
+          sessionName: newName,
+        });
+      }
+      
       if (!success) {
         setSessions(prevSessions =>
           prevSessions.map(session =>
@@ -641,7 +954,6 @@ const Sessions = () => {
         toast.success('Session name updated');
       }
     } catch (error) {
-      const { logger } = await import('@/lib/logger');
       logger.error('Error updating session name', error);
       setSessions(prevSessions =>
         prevSessions.map(session =>
@@ -654,59 +966,210 @@ const Sessions = () => {
     }
   };
 
-  const handleDeleteSession = async (sessionId: string) => {
-    try {
-      setDeletingSessionId(sessionId);
-      await firebaseService.deleteSession(sessionId);
-      setSessions(prevSessions => prevSessions.filter(s => s.id !== sessionId));
-      setFilteredSessions(prevSessions =>
-        prevSessions.filter(s => s.id !== sessionId)
+  /**
+   * Hide the session straight away, but only delete it for real once the
+   * undo window has passed.
+   */
+  const handleDeleteSession = (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    scheduleSessionDelete(session, isGuest ? null : (uid ?? null));
+  };
+
+  /**
+   * Archive a session, or bring it back. The card moves to the other view
+   * at once and moves back if the change couldn't be saved.
+   */
+  const handleToggleArchive = async (
+    sessionId: string,
+    archived: boolean,
+    isUndo = false
+  ) => {
+    const setArchived = (value: boolean) =>
+      setSessions(prev =>
+        prev.map(session =>
+          session.id === sessionId ? { ...session, archived: value } : session
+        )
       );
-      toast.success('Session deleted');
+
+    setArchived(archived);
+    try {
+      if (isGuestSessionId(sessionId)) {
+        writeGuestSessions(
+          readGuestSessions().map(session =>
+            session.id === sessionId ? { ...session, archived } : session
+          )
+        );
+      } else if (
+        !(await firebaseService.updateSession(sessionId, { archived }))
+      ) {
+        throw new Error('Session was not updated');
+      }
     } catch (error) {
-      const { logger } = await import('@/lib/logger');
-      logger.error('Error deleting session', error);
-      toast.error('Failed to delete session');
-    } finally {
-      setDeletingSessionId(null);
+      logger.error('Error archiving session', error);
+      setArchived(!archived);
+      toast.error(`Failed to ${archived ? 'archive' : 'unarchive'} session`);
+      return;
+    }
+
+    toast.success(archived ? 'Session archived' : 'Session unarchived', {
+      action: isUndo
+        ? undefined
+        : {
+            label: 'Undo',
+            onClick: () => handleToggleArchive(sessionId, !archived, true),
+          },
+    });
+  };
+
+  const handleShareSession = async (session: Session) => {
+    if (isGuest) {
+      toast.error('Create an account to share sessions');
+      return;
+    }
+    try {
+      const shareLink = await generateShareableLink(session);
+      await copyShareLink(shareLink, () =>
+        toast.success('Share link copied to clipboard!', {
+          duration: UI_TIMING.UNDO_WINDOW,
+          action: {
+            label: 'Turn off sharing',
+            onClick: async () => {
+              try {
+                const removed = await firebaseService.deleteSharedSessions(
+                  session.id
+                );
+                // Only the person who recorded a session can take down
+                // every link to it; anyone else removes the ones they made.
+                if (session.userId === uid) {
+                  if (removed > 0) {
+                    toast.success(
+                      'Share links for this session no longer work'
+                    );
+                  } else {
+                    toast.info('No active share links for this session');
+                  }
+                } else if (removed > 0) {
+                  toast.success(
+                    `The share link${removed === 1 ? '' : 's'} you made no longer work${removed === 1 ? 's' : ''}`,
+                    {
+                      description:
+                        'Links made by others in your team are not affected.',
+                    }
+                  );
+                } else {
+                  toast.info("You haven't shared this session");
+                }
+              } catch (error) {
+                logger.error('Error revoking share links', error);
+                toast.error('Failed to turn off sharing');
+              }
+            },
+          },
+        })
+      );
+    } catch (error) {
+      logger.error('Error sharing session', error);
+      toast.error('Failed to generate share link');
     }
   };
 
   /**
-   * Archive / unarchive. Optimistic: flip it locally first so the card leaves
-   * the list immediately, and roll back if Firestore rejects the write.
-   *
-   * Note the Firestore rule only allows the session's owner to update it, so a
-   * teammate viewing a shared team session will get a failure here rather than
-   * a silent no-op — hence the explicit error toast.
+   * Copy the sessions this browser saved for a guest into the signed-in
+   * account, as personal sessions. Each one leaves guest storage only once
+   * its upload has succeeded, so a failure part-way loses nothing and a
+   * retry can't duplicate what already went up.
    */
-  const handleToggleArchive = async (sessionId: string, archived: boolean) => {
-    setSessions(prev =>
-      prev.map(s => (s.id === sessionId ? { ...s, archived } : s))
-    );
+  const handleImportGuestSessions = async () => {
+    if (!uid || importingGuestSessions) return;
+    setImportingGuestSessions(true);
 
-    const ok = await firebaseService.updateSession(sessionId, { archived });
-
-    if (!ok) {
-      setSessions(prev =>
-        prev.map(s => (s.id === sessionId ? { ...s, archived: !archived } : s))
-      );
-      toast.error(`Failed to ${archived ? 'archive' : 'restore'} session`);
-      return;
-    }
-
-    toast.success(archived ? 'Session archived' : 'Session restored');
-  };
-
-  const handleShareSession = async (session: Session) => {
     try {
-      const shareLink = await generateShareableLink(session);
-      await copyToClipboard(shareLink);
-      toast.success('Share link copied to clipboard!');
-    } catch (error) {
-      const { logger } = await import('@/lib/logger');
-      logger.error('Error sharing session', error);
-      toast.error('Failed to generate share link');
+      // Oldest first, so the account's list ends up in the original order
+      // even if a session's date can't be carried over.
+      let toImport = importableGuestSessions().sort(
+        (a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime()
+      );
+      let overLimit = 0;
+      try {
+        const room = Math.max(
+          0,
+          SESSION_LIMITS.MAX_SESSIONS_PER_USER -
+            (await firebaseService.countUserSessions(uid))
+        );
+        if (toImport.length > room) {
+          overLimit = toImport.length - room;
+          // Keep the most recent ones.
+          toImport = toImport.slice(overLimit);
+        }
+      } catch (error) {
+        // The count needs the server; the uploads below will say so too.
+        logger.warn('Could not check the session limit before importing', {
+          error: String(error),
+        });
+      }
+
+      let imported = 0;
+      let failed = 0;
+      for (const guestSession of toImport) {
+        const {
+          id: guestId,
+          createdAt: recordedAt,
+          teamId: _teamId,
+          ...rest
+        } = guestSession;
+        const data: CreateSessionData = {
+          ...rest,
+          userId: uid,
+          userEmail: user?.email || '',
+          matchType: matchTypeLabel(guestSession),
+          matches: guestSession.matches.map(match => ({
+            ...match,
+            finalScore: matchScore(match, guestSession.matchType),
+          })),
+        };
+
+        try {
+          const created = await firebaseService.createSession(data);
+          if (!created?.id) throw new Error('Session was not saved');
+          writeGuestSessions(readGuestSessions().filter(s => s.id !== guestId));
+          imported++;
+          // createSession stamps the upload time; put back when the session
+          // was actually recorded.
+          const recorded = recordedAt ? toDate(recordedAt) : null;
+          if (recorded && !Number.isNaN(recorded.getTime())) {
+            await firebaseService
+              .updateSession(created.id, { createdAt: recorded })
+              .catch(error =>
+                logger.warn('Could not keep the date of an imported session', {
+                  error: String(error),
+                })
+              );
+          }
+        } catch (error) {
+          failed++;
+          logger.error('Error importing guest session', error);
+        }
+      }
+
+      setGuestSessionCount(importableGuestSessions().length);
+      const plural = (n: number) => `${n} session${n === 1 ? '' : 's'}`;
+      if (imported > 0) toast.success(`Imported ${plural(imported)}`);
+      if (failed > 0) {
+        toast.error(
+          `Couldn't import ${plural(failed)}. ${failed === 1 ? 'It is' : 'They are'} still saved on this device - try again.`
+        );
+      }
+      if (overLimit > 0) {
+        toast.error(
+          `${plural(overLimit)} not imported: accounts hold ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Delete some of your own old sessions, then import again.`,
+          { duration: UI_TIMING.UNDO_WINDOW }
+        );
+      }
+      // A team's list updates by itself; the personal one is fetched.
+      if (imported > 0 && !teamId) await loadPersonalSessions();
+    } finally {
+      setImportingGuestSessions(false);
     }
   };
 
@@ -714,27 +1177,60 @@ const Sessions = () => {
   const getSessionOwnerName = (session: Session): string | undefined => {
     if (!team) return undefined;
     const member = team.members.find(m => m.userId === session.userId);
-    return (
-      member?.displayName || member?.email || session.userEmail || undefined
-    );
+    return member?.displayName || member?.email || session.userEmail || undefined;
   };
 
+  /**
+   * Export what is on screen — the current view, search, filter and order —
+   * so the file never contradicts the list it was made from.
+   */
   const handleExportCSV = () => {
     if (filteredSessions.length === 0) {
       toast.error('No sessions to export');
       return;
     }
-    // Export what's on screen, not everything — otherwise the button silently
-    // contradicts the search/filter/archive state the user just set up.
-    downloadSessionsCsv(filteredSessions, 'sessions-export');
+
+    downloadCsv(
+      csvFileName('sessions-export'),
+      buildSessionsCsv(filteredSessions)
+    );
     toast.success(
       `Exported ${filteredSessions.length} session${filteredSessions.length === 1 ? '' : 's'} to CSV`
     );
   };
 
+  /** Export last season's sessions, in that season's columns. */
+  const handleExportOlderSeasons = async () => {
+    setExportingOlder(true);
+    try {
+      const older = isGuest
+        ? readAllGuestSessions().filter(s => s.season !== CURRENT_SEASON)
+        : uid
+          ? await firebaseService.getOlderSeasonSessions(uid, teamId)
+          : [];
+      if (older.length === 0) {
+        toast.info('No sessions from earlier seasons to export');
+        return;
+      }
+      downloadCsv(
+        csvFileName(`${LEGACY_SEASON}-sessions-export`),
+        buildLegacySessionsCsv(older)
+      );
+      toast.success(
+        `Exported ${older.length} ${LEGACY_SEASON.toUpperCase()} session${older.length === 1 ? '' : 's'} to CSV`
+      );
+    } catch (error) {
+      if (isAbortError(error)) return;
+      logger.error('Error exporting older-season sessions', error);
+      toast.error("Couldn't export last season's sessions. Please try again.");
+    } finally {
+      setExportingOlder(false);
+    }
+  };
+
   return (
     <div
-      className={`min-h-screen page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-[100dvh] page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 md:py-8 lg:py-12">
         <div className="mb-4 sm:mb-6 md:mb-8">
@@ -748,7 +1244,7 @@ const Sessions = () => {
               {!isGuest && <TeamManager onTeamChange={() => loadSessions()} />}
             </div>
             <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
-              {sessions.length > 0 && (
+              {visibleSessions.length > 0 && (
                 <Button
                   onClick={() => navigate(ROUTES.CHARTS)}
                   className={`bg-team-blue hover:bg-team-blue/90 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
@@ -760,7 +1256,7 @@ const Sessions = () => {
                   <span className="sm:hidden">Stats</span>
                 </Button>
               )}
-              {sessions.length > 1 && (
+              {visibleSessions.length > 1 && (
                 <Button
                   onClick={() => navigate(ROUTES.COMPARE)}
                   className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
@@ -775,7 +1271,7 @@ const Sessions = () => {
                   <span className="sm:hidden">Comp</span>
                 </Button>
               )}
-              {sessions.length > 0 && (
+              {visibleSessions.length > 0 && (
                 <Button
                   onClick={handleExportCSV}
                   className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
@@ -794,7 +1290,60 @@ const Sessions = () => {
           </div>
         </div>
 
-        {!loading && sessions.length > 0 && (
+        {!isGuest && guestSessionCount > 0 && !importBannerDismissed && (
+          <div
+            role="region"
+            aria-label="Import sessions saved on this device"
+            className={`mb-6 p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-3 ${
+              isDarkMode
+                ? 'bg-team-blue/10 border-team-blue-40'
+                : 'bg-team-blue/5 border-team-blue/40'
+            }`}
+          >
+            <div className="flex-1 min-w-0">
+              <p
+                className={`font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+              >
+                {guestSessionCount} session{guestSessionCount === 1 ? '' : 's'}{' '}
+                saved on this device
+              </p>
+              <p
+                className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+              >
+                Recorded here before you signed in. Import{' '}
+                {guestSessionCount === 1 ? 'it' : 'them'} to keep{' '}
+                {guestSessionCount === 1 ? 'it' : 'them'} in your account.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                onClick={handleImportGuestSessions}
+                disabled={importingGuestSessions}
+                className={`bg-team-blue hover:bg-team-blue/90 min-h-[44px] flex items-center gap-1.5 ${
+                  isDarkMode ? '!text-black' : '!text-white'
+                }`}
+              >
+                <Upload className="h-4 w-4" />
+                {importingGuestSessions
+                  ? 'Importing...'
+                  : `Import ${guestSessionCount} session${guestSessionCount === 1 ? '' : 's'}`}
+              </Button>
+              <button
+                onClick={() => setImportBannerDismissed(true)}
+                disabled={importingGuestSessions}
+                className={`inline-flex items-center justify-center p-2 rounded-lg hover:bg-team-blue/20 transition-colors disabled:opacity-50 ${
+                  isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                }`}
+                aria-label="Not now"
+                title="Not now"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && visibleSessions.length > 0 && (
           <div
             className={`mb-6 p-4 sm:p-6 lg:p-8 rounded-2xl border shadow-lg ${
               isDarkMode
@@ -813,7 +1362,7 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {sessions.length}
+                  {quickStats.sessionCount}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
@@ -825,17 +1374,7 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {(() => {
-                    const allScores = sessions.flatMap(s =>
-                      (s.matches || []).map(m => m.finalScore || 0)
-                    );
-                    return allScores.length > 0
-                      ? Math.round(
-                          allScores.reduce((a, b) => a + b, 0) /
-                            allScores.length
-                        )
-                      : 0;
-                  })()}
+                  {quickStats.averageScore}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
@@ -847,12 +1386,7 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {(() => {
-                    const allScores = sessions.flatMap(s =>
-                      (s.matches || []).map(m => m.finalScore || 0)
-                    );
-                    return allScores.length > 0 ? Math.max(...allScores) : 0;
-                  })()}
+                  {quickStats.bestScore}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
@@ -864,10 +1398,7 @@ const Sessions = () => {
                 className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
               >
                 <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {sessions.reduce(
-                    (total, s) => total + (s.matches?.length || 0),
-                    0
-                  )}
+                  {quickStats.matchCount}
                 </div>
                 <div
                   className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
@@ -880,8 +1411,8 @@ const Sessions = () => {
         )}
 
         <div className="mb-6">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="flex-1 relative">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4">
+            <div className="flex-1 relative sm:min-w-[220px]">
               <Search
                 className={`absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
               />
@@ -901,6 +1432,7 @@ const Sessions = () => {
               onValueChange={setSelectedMatchType}
             >
               <SelectTrigger
+                aria-label="Filter by match type"
                 className={`w-full sm:w-[180px] h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm border ${
                   isDarkMode
                     ? 'bg-team-dark border-team-blue-40 text-white'
@@ -913,66 +1445,69 @@ const Sessions = () => {
                 className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
               >
                 <SelectItem value="all">All Match Types</SelectItem>
-                <SelectItem value="full game">Full Game</SelectItem>
-                <SelectItem value="autonomous">Autonomous</SelectItem>
-                <SelectItem value="teleop">Teleop</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={sortBy}
-              onValueChange={value => setSortBy(value as SortOption)}
-            >
-              <SelectTrigger
-                aria-label="Sort sessions"
-                className={`w-full sm:w-[180px] h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm border ${
-                  isDarkMode
-                    ? 'bg-team-dark border-team-blue-40 text-white'
-                    : 'bg-white border-gray-200 text-gray-900'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <ArrowUpDown className="h-4 w-4 shrink-0 opacity-70" />
-                  <SelectValue placeholder="Sort" />
-                </div>
-              </SelectTrigger>
-              <SelectContent
-                className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
-              >
-                {(Object.keys(SORT_LABELS) as SortOption[]).map(option => (
-                  <SelectItem key={option} value={option}>
-                    {SORT_LABELS[option]}
+                {MATCH_TYPE_FILTERS.map(({ value, label }) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowArchived(prev => !prev)}
-              aria-pressed={showArchived}
-              title={
-                showArchived ? 'Show active sessions' : 'Show archived sessions'
-              }
-              className={`h-10 md:h-11 rounded-xl shadow-sm text-sm md:text-base px-3 flex items-center gap-2 shrink-0 ${
-                showArchived
-                  ? 'bg-team-blue/10 border-team-blue text-team-blue'
-                  : isDarkMode
-                    ? 'bg-team-dark border-team-blue-40 text-team-white-60'
-                    : 'bg-white border-gray-200 text-gray-600'
-              }`}
-            >
-              {showArchived ? (
-                <ArchiveRestore className="h-4 w-4" />
-              ) : (
+            {/* Sort and the archive view share a row on a phone */}
+            <div className="flex gap-3 sm:gap-4">
+              <Select
+                value={sortBy}
+                onValueChange={value => setSortBy(value as SortOption)}
+              >
+                <SelectTrigger
+                  aria-label="Sort sessions"
+                  className={`flex-1 min-w-0 sm:flex-none sm:w-[180px] h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm border ${
+                    isDarkMode
+                      ? 'bg-team-dark border-team-blue-40 text-white'
+                      : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <ArrowUpDown className="h-4 w-4 shrink-0 opacity-70" />
+                    <SelectValue placeholder="Sort" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent
+                  className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
+                >
+                  {(Object.keys(SORT_LABELS) as SortOption[]).map(option => (
+                    <SelectItem key={option} value={option}>
+                      {SORT_LABELS[option]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowArchived(prev => !prev)}
+                aria-pressed={showArchived}
+                title={
+                  showArchived
+                    ? 'Back to your active sessions'
+                    : 'Show archived sessions'
+                }
+                className={`h-10 md:h-11 rounded-xl shadow-sm text-sm md:text-base px-3 flex items-center gap-2 shrink-0 ${
+                  showArchived
+                    ? 'bg-team-blue/10 border-team-blue text-team-blue hover:bg-team-blue/20 hover:text-team-blue'
+                    : isDarkMode
+                      ? 'bg-team-dark border-team-blue-40 text-team-white-60 hover:bg-team-blue-10 hover:text-white'
+                      : 'bg-white border-gray-200 text-gray-600'
+                }`}
+              >
                 <Archive className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">
-                {showArchived ? 'Archived' : 'Active'}
-              </span>
-              {archivedCount > 0 && !showArchived && (
-                <span className="text-xs opacity-70">({archivedCount})</span>
-              )}
-            </Button>
+                <span>Archived</span>
+                {archivedCount > 0 && (
+                  <span data-testid="archived-count" className="text-xs">
+                    ({archivedCount})
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -990,42 +1525,80 @@ const Sessions = () => {
               }`}
             >
               <BarChart3
-                className={`h-8 sm:h-12 w-8 sm:w-12 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+                className={`h-8 sm:h-12 w-8 sm:w-12 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
               />
             </div>
             <h3
               className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
             >
-              {searchTerm ? 'No sessions found' : 'No sessions yet'}
+              {loadFailed
+                ? "Couldn't load your sessions"
+                : filtersActive
+                  ? `No ${showArchived ? 'archived ' : ''}sessions match these filters`
+                  : showArchived
+                    ? 'No archived sessions'
+                    : archivedCount > 0
+                      ? 'No active sessions'
+                      : 'No sessions yet'}
             </h3>
             <p
-              className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+              className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
             >
-              {searchTerm
-                ? 'Try adjusting your search terms'
-                : isGuest
-                  ? 'Create an account to save your practice sessions'
-                  : 'Start tracking your practice sessions to see them here'}
+              {loadFailed
+                ? 'Check your connection, then reload the page'
+                : filtersActive
+                  ? 'Try a different search or match type'
+                  : showArchived
+                    ? 'Sessions you archive are kept here, out of your main list'
+                    : archivedCount > 0
+                      ? archivedCount === 1
+                        ? 'The only session here is archived'
+                        : `All ${archivedCount} sessions here are archived`
+                      : isGuest
+                        ? 'Create an account to save your practice sessions'
+                        : 'Start tracking your practice sessions to see them here'}
             </p>
-            {!searchTerm && !isGuest && (
+            {!loadFailed && filtersActive && (
+              <Button
+                onClick={clearFilters}
+                variant="outline"
+                className={
+                  isDarkMode
+                    ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
+                    : 'border-gray-300'
+                }
+              >
+                Clear filters
+              </Button>
+            )}
+            {!loadFailed && !filtersActive && archiveEmpty && (
+              <Button
+                onClick={() => setShowArchived(prev => !prev)}
+                variant="outline"
+                className={
+                  isDarkMode
+                    ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
+                    : 'border-gray-300'
+                }
+              >
+                {showArchived ? 'Back to sessions' : 'Show archived sessions'}
+              </Button>
+            )}
+            {!loadFailed && !filtersActive && !archiveEmpty && !isGuest && (
               <Button
                 onClick={() => {
                   resetSession();
                   navigate(ROUTES.ACTIVE);
                 }}
                 disabled={hasActiveSession}
-                title={
-                  hasActiveSession
-                    ? 'Complete or cancel the active session first'
-                    : undefined
-                }
+                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
                 className={`bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Session
               </Button>
             )}
-            {!searchTerm && isGuest && (
+            {!loadFailed && !filtersActive && !archiveEmpty && isGuest && (
               <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
                 <Button
                   onClick={() => navigate('/signup')}
@@ -1054,19 +1627,47 @@ const Sessions = () => {
                 key={session.id}
                 session={session}
                 onView={() => handleViewSession(session.id)}
-                onNameChange={newName =>
-                  handleUpdateSessionName(session.id, newName)
+                onNameChange={
+                  canRename(session)
+                    ? newName => handleUpdateSessionName(session.id, newName)
+                    : undefined
                 }
                 onShare={() => handleShareSession(session)}
-                onDelete={() => handleDeleteSession(session.id)}
-                onToggleArchive={() =>
-                  handleToggleArchive(session.id, !session.archived)
+                onToggleArchive={
+                  canArchive(session)
+                    ? () =>
+                        handleToggleArchive(session.id, !isArchived(session))
+                    : undefined
                 }
-                isDeleting={deletingSessionId === session.id}
+                onDelete={
+                  canDelete(session)
+                    ? () => handleDeleteSession(session.id)
+                    : undefined
+                }
                 ownerName={getSessionOwnerName(session)}
+                notSharedWith={
+                  team && session.teamId !== team.id ? team.name : undefined
+                }
               />
             ))}
           </div>
+        )}
+
+        {hasOlderSeasons && !loading && (
+          <p
+            className={`mt-8 text-center text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+          >
+            Sessions from last season ({LEGACY_SEASON.toUpperCase()}) aren't
+            listed here.{' '}
+            <button
+              type="button"
+              onClick={handleExportOlderSeasons}
+              disabled={exportingOlder}
+              className="inline-flex min-h-[44px] items-center font-medium text-team-blue underline underline-offset-4 disabled:opacity-50 sm:min-h-0"
+            >
+              {exportingOlder ? 'Exporting...' : 'Export them as CSV'}
+            </button>
+          </p>
         )}
       </div>
     </div>

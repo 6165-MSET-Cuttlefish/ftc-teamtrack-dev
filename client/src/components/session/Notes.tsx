@@ -1,5 +1,5 @@
-import { useTheme, useSession } from '@/contexts';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useTheme, useSessionCore } from '@/contexts';
+import { useState, useRef, useCallback, useEffect, useId } from 'react';
 import { Bold, Italic, Highlighter, List, ListOrdered, ChevronDown } from 'lucide-react';
 
 const HIGHLIGHT_COLORS = [
@@ -11,20 +11,34 @@ const HIGHLIGHT_COLORS = [
   { name: 'Purple', hex: '#DDA0DD', bg: 'bg-purple-200', darkBg: 'bg-purple-500/40' },
 ];
 
+/** Toolbar buttons: compact with a mouse, a full 44px target on touch */
+const TOOL_BUTTON =
+  'p-2 rounded transition-colors inline-flex items-center justify-center [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
+
 export const Notes = () => {
   const { isDarkMode } = useTheme();
-  const { sessionData, updateSessionData } = useSession();
+  const { sessionData, updateSessionData, sessionEpoch } = useSessionCore();
   const editorRef = useRef<HTMLDivElement>(null);
-  const [initialized, setInitialized] = useState(false);
+  const shownEpochRef = useRef<number | null>(null);
   const [highlightDropdownOpen, setHighlightDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const labelId = useId();
 
+  // The editor is uncontrolled (React re-rendering it would lose the caret),
+  // so notes that change from outside it have to be pushed in by hand: the
+  // stored notes on arrival, and '' when the session is cancelled or reset —
+  // otherwise the old text stays on screen and is saved into the next session.
+  // While the user is typing, the editor is the newer of the two; leave it.
   useEffect(() => {
-    if (editorRef.current && !initialized) {
-      editorRef.current.innerHTML = sessionData.notes ?? '';
-      setInitialized(true);
-    }
-  }, [initialized, sessionData.notes]);
+    const editor = editorRef.current;
+    if (!editor) return;
+    const isNewSession = shownEpochRef.current !== sessionEpoch;
+    shownEpochRef.current = sessionEpoch;
+    const notes = sessionData.notes ?? '';
+    if (editor.innerHTML === notes) return;
+    if (!isNewSession && document.activeElement === editor) return;
+    editor.innerHTML = notes;
+  }, [sessionData.notes, sessionEpoch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -72,13 +86,16 @@ export const Notes = () => {
       <h2 className="text-team-blue text-2xl font-semibold leading-6">Session Notes</h2>
 
       <div className="flex flex-col gap-4 w-full">
-        <label
+        <span
+          id={labelId}
           className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}
         >
           Performance Notes & Observations
-        </label>
+        </span>
 
         <div
+          role="toolbar"
+          aria-label="Text formatting"
           className={`flex flex-wrap gap-2 p-3 rounded border-2 ${
             isDarkMode
               ? 'bg-team-dark border-gray-700'
@@ -89,26 +106,28 @@ export const Notes = () => {
             type="button"
             onClick={() => applyFormat('bold')}
             title="Bold (Ctrl+B)"
-            className={`p-2 rounded transition-colors ${
+            aria-label="Bold"
+            className={`${TOOL_BUTTON} ${
               isDarkMode
                 ? 'hover:bg-gray-700 text-white'
                 : 'hover:bg-gray-200 text-black'
             }`}
           >
-            <Bold size={18} strokeWidth={2.5} />
+            <Bold size={18} strokeWidth={2.5} aria-hidden />
           </button>
 
           <button
             type="button"
             onClick={() => applyFormat('italic')}
             title="Italic (Ctrl+I)"
-            className={`p-2 rounded transition-colors ${
+            aria-label="Italic"
+            className={`${TOOL_BUTTON} ${
               isDarkMode
                 ? 'hover:bg-gray-700 text-white'
                 : 'hover:bg-gray-200 text-black'
             }`}
           >
-            <Italic size={18} strokeWidth={2.5} />
+            <Italic size={18} strokeWidth={2.5} aria-hidden />
           </button>
 
           <div ref={dropdownRef} className="relative">
@@ -116,14 +135,17 @@ export const Notes = () => {
               type="button"
               onClick={() => setHighlightDropdownOpen(!highlightDropdownOpen)}
               title="Highlight Color"
-              className={`p-2 rounded transition-colors flex items-center gap-1 ${
+              aria-label="Highlight Color"
+              aria-haspopup="true"
+              aria-expanded={highlightDropdownOpen}
+              className={`${TOOL_BUTTON} gap-1 ${
                 isDarkMode
                   ? 'hover:bg-gray-700 text-white'
                   : 'hover:bg-gray-200 text-black'
               }`}
             >
-              <Highlighter size={18} strokeWidth={2.5} />
-              <ChevronDown size={14} />
+              <Highlighter size={18} strokeWidth={2.5} aria-hidden />
+              <ChevronDown size={14} aria-hidden />
             </button>
 
             {highlightDropdownOpen && (
@@ -140,7 +162,7 @@ export const Notes = () => {
                     type="button"
                     onClick={() => applyHighlight(color.hex)}
                     title={`Highlight: ${color.name}`}
-                    className={`w-full px-4 py-2 text-left text-sm font-medium transition-colors flex items-center gap-2 ${
+                    className={`w-full px-4 py-2 [@media(pointer:coarse)]:min-h-11 text-left text-sm font-medium transition-colors flex items-center gap-2 ${
                       isDarkMode
                         ? 'hover:bg-gray-700 text-white border-b last:border-b-0 border-gray-700'
                         : 'hover:bg-gray-100 text-black border-b last:border-b-0 border-gray-200'
@@ -165,13 +187,19 @@ export const Notes = () => {
               handleEditorChange();
             }}
             title="Remove Highlight"
-            className={`p-2 rounded transition-colors ${
+            aria-label="Remove Highlight"
+            className={`${TOOL_BUTTON} ${
               isDarkMode
                 ? 'hover:bg-gray-700 text-white'
                 : 'hover:bg-gray-200 text-black'
             }`}
           >
-            <Highlighter size={18} strokeWidth={2.5} style={{ opacity: 0.5 }} />
+            <Highlighter
+              size={18}
+              strokeWidth={2.5}
+              style={{ opacity: 0.5 }}
+              aria-hidden
+            />
           </button>
 
           <div
@@ -182,26 +210,28 @@ export const Notes = () => {
             type="button"
             onClick={insertBulletList}
             title="Bullet List"
-            className={`p-2 rounded transition-colors ${
+            aria-label="Bullet List"
+            className={`${TOOL_BUTTON} ${
               isDarkMode
                 ? 'hover:bg-gray-700 text-white'
                 : 'hover:bg-gray-200 text-black'
             }`}
           >
-            <List size={18} strokeWidth={2.5} />
+            <List size={18} strokeWidth={2.5} aria-hidden />
           </button>
 
           <button
             type="button"
             onClick={insertNumberedList}
             title="Numbered List"
-            className={`p-2 rounded transition-colors ${
+            aria-label="Numbered List"
+            className={`${TOOL_BUTTON} ${
               isDarkMode
                 ? 'hover:bg-gray-700 text-white'
                 : 'hover:bg-gray-200 text-black'
             }`}
           >
-            <ListOrdered size={18} strokeWidth={2.5} />
+            <ListOrdered size={18} strokeWidth={2.5} aria-hidden />
           </button>
         </div>
 
@@ -211,7 +241,9 @@ export const Notes = () => {
           suppressContentEditableWarning
           onBlur={handleEditorChange}
           onInput={handleInput}
-          aria-label="Notes editor"
+          role="textbox"
+          aria-multiline="true"
+          aria-labelledby={labelId}
           className={`px-4 py-3 rounded border-2 border-team-blue-40 text-base font-normal leading-6 focus:outline-none focus:border-team-blue focus:ring-1 focus:ring-team-blue min-h-[120px] max-h-[400px] overflow-y-auto [&_ul]:ml-6 [&_ul]:list-disc [&_ol]:ml-6 [&_ol]:list-decimal [&_li]:mb-1 ${
             isDarkMode
               ? 'bg-team-dark text-white [&_mark]:bg-yellow-500/40'
@@ -221,7 +253,7 @@ export const Notes = () => {
 
         <p
           className={`text-xs ${
-            isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
           }`}
         >
           ✓ Formatting is automatically saved as you type

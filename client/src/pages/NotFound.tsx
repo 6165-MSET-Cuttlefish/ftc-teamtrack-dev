@@ -14,7 +14,7 @@ const NotFound = () => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center px-4 page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`min-h-[100dvh] flex items-center justify-center px-4 page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="text-center max-w-md">
         <div className="mb-6 flex justify-center">

@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { getFirebase, logger, clearSessionFromStorage, clearHasCompletedSession } from '@/lib';
+import { STORAGE_KEYS } from '@/constants';
 import type { User } from '@/types';
 import type {
   Auth,
@@ -137,6 +138,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     );
     if (userCredential.user && authModule.updateProfile) {
       await authModule.updateProfile(userCredential.user, { displayName });
+      // The auth listener has usually stored this user already, from before
+      // the name was set, and a profile update does not fire it again.
+      const { uid } = userCredential.user;
+      setUser(prev => (prev?.uid === uid ? { ...prev, displayName } : prev));
     }
   };
 
@@ -270,7 +275,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       throw new Error('Password is required to delete your account.');
     }
 
+    // Remove the user's data while they are still signed in — the rules only
+    // let an account delete its own documents. Then leave the team, which
+    // hands it to another member (or deletes it if they were the only one).
+    //
+    // The data goes first because it is the step that can be retried:
+    // leaving gives the team away for good, so it only happens once the data
+    // is gone. If leaving then fails, nothing is lost that the user hadn't
+    // asked to delete, and trying again finishes the job.
+    //
+    // Every step either finishes or throws: the login is only deleted once
+    // the data is confirmed gone and the team left, because afterwards
+    // nobody is left who is allowed to do either. The team list is asked of
+    // the server directly (a cached or failed lookup reads as "no teams"),
+    // and checked again after leaving in case a step reported success
+    // without doing anything.
+    const uid = currentUser.uid;
+    const [{ firebaseService }, { teamService }] = await Promise.all([
+      import('@/services/firebaseService'),
+      import('@/services/teamService'),
+    ]);
+    await firebaseService.deleteAllUserData(uid);
+    const notLeft =
+      "Your sessions and share links were deleted, but you couldn't be " +
+      'removed from your team, so your account is still here. Please try again.';
+    try {
+      for (const teamId of await firebaseService.getUserTeamIds(uid)) {
+        await teamService.leaveTeam(teamId, uid);
+      }
+    } catch (error) {
+      logger.error('Error leaving team while deleting account', error);
+      throw new Error(notLeft);
+    }
+    if ((await firebaseService.getUserTeamIds(uid)).length > 0) {
+      throw new Error(notLeft);
+    }
+
     await rawModule.deleteUser(currentUser);
+    clearSessionFromStorage();
+    clearHasCompletedSession();
     setUser(null);
   };
 
@@ -339,6 +382,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 emailVerified: u.emailVerified,
               };
               setUser(user);
+              // A guest who signs in has already been shown around in this
+              // browser, so the account doesn't get the first-run tutorial
+              // again.
+              const convertedGuestId =
+                localStorage.getItem(GUEST_MODE_KEY) === 'true'
+                  ? localStorage.getItem(GUEST_ID_KEY)
+                  : null;
+              if (
+                convertedGuestId &&
+                localStorage.getItem(
+                  `${STORAGE_KEYS.TUTORIAL_SEEN}-guest-${convertedGuestId}`
+                )
+              ) {
+                localStorage.setItem(
+                  `${STORAGE_KEYS.TUTORIAL_SEEN}-${u.uid}`,
+                  'true'
+                );
+              }
               localStorage.removeItem(GUEST_MODE_KEY);
               setIsGuest(false);
               setGuestId(null);

@@ -8,96 +8,385 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function teamData(teamId) {
+      return get(/databases/$(database)/documents/teams/$(teamId)).data;
+    }
+
+    function isMemberOf(team) {
+      return team.get('memberIds', []).hasAny([request.auth.uid]);
+    }
+
     function isTeamMember(teamId) {
-      return isAuthenticated() &&
-        'memberIds' in get(/databases/$(database)/documents/teams/$(teamId)).data &&
-        get(/databases/$(database)/documents/teams/$(teamId)).data.memberIds.hasAny([request.auth.uid]);
+      return isAuthenticated() && isMemberOf(teamData(teamId));
+    }
+
+    // The owner is `ownerId`, and has to still be in the team. Teams saved
+    // before `ownerId` existed recorded ownership only as a member's role,
+    // which transfers and owner-leaves kept up to date while `createdBy`
+    // went stale. Rules cannot loop, so the role is read from the first ten
+    // member slots; `createdBy` counts only when none of them holds it. A
+    // creator who has left the team therefore has no power over it.
+    // scripts/backfill-teams.mjs writes `ownerId` on every team so this
+    // fallback stops mattering.
+    function ownerSlot(members, i) {
+      return members.size() > i && members[i].get('role', '') == 'owner';
+    }
+
+    function myOwnerSlot(members, i) {
+      return ownerSlot(members, i)
+        && members[i].get('userId', '') == request.auth.uid;
+    }
+
+    function isLegacyOwner(team) {
+      let m = team.get('members', []);
+      return myOwnerSlot(m, 0) || myOwnerSlot(m, 1) || myOwnerSlot(m, 2)
+        || myOwnerSlot(m, 3) || myOwnerSlot(m, 4) || myOwnerSlot(m, 5)
+        || myOwnerSlot(m, 6) || myOwnerSlot(m, 7) || myOwnerSlot(m, 8)
+        || myOwnerSlot(m, 9)
+        || (team.createdBy == request.auth.uid
+            && !(ownerSlot(m, 0) || ownerSlot(m, 1) || ownerSlot(m, 2)
+              || ownerSlot(m, 3) || ownerSlot(m, 4) || ownerSlot(m, 5)
+              || ownerSlot(m, 6) || ownerSlot(m, 7) || ownerSlot(m, 8)
+              || ownerSlot(m, 9)));
+    }
+
+    function isOwnerOf(team) {
+      return isMemberOf(team) && (
+        team.get('ownerId', null) != null
+          ? team.ownerId == request.auth.uid
+          : isLegacyOwner(team)
+      );
+    }
+
+    function isTeamOwner(teamId) {
+      return isAuthenticated() && isOwnerOf(teamData(teamId));
     }
 
     // ── Sessions ──────────────────────────────────────────────────────
-    // Owner can read/write; team members can read team sessions.
-    // Field validation: userId must match auth UID on create, and cannot
-    // be changed on update. Notes limited to 50 000 chars; matches to 200.
+    // The author can read/write; members of the session's team can read.
+    // userId must match the writer and never changes. A session can only be
+    // filed under a team the writer belongs to, and once it is, only someone
+    // still in that team can change it: a removed member can take their
+    // session out of the team (or delete it), nothing else. The team owner
+    // can delete a team session, or take it out of the team.
+    // Shapes are checked as far as rules can (they cannot loop over
+    // matches): notes limited to 50 000 chars, matches to 200, names to 200.
+    // `archived` is the author's own flag (it only hides the session from
+    // the default list) and must be a boolean when present.
     match /sessions/{sessionId} {
+      function validSession(d) {
+        return d.userId is string
+          && (!('sessionName' in d)
+              || (d.sessionName is string && d.sessionName.size() <= 200))
+          && (!('season' in d) || d.season is string)
+          && (!('archived' in d) || d.archived is bool)
+          && (!('notes' in d) || (d.notes is string && d.notes.size() < 50000))
+          && (!('matches' in d) || (
+            d.matches is list
+            && d.matches.size() <= 200
+            && (d.matches.size() == 0 || (
+              d.matches[0] is map && d.matches[d.matches.size() - 1] is map
+            ))
+          ));
+      }
+
+      // An update may not drop a field the views depend on.
+      function keeps(field) {
+        return (field in request.resource.data) || !(field in resource.data);
+      }
+
+      function teamAllowed(d) {
+        return d.get('teamId', null) == null || isTeamMember(d.teamId);
+      }
+
+      function ownsSessionTeam(d) {
+        return d.get('teamId', null) != null && isTeamOwner(d.teamId);
+      }
+
       allow read: if isAuthenticated() && (
         request.auth.uid == resource.data.userId ||
-        (resource.data.teamId != null && (
-          // Legacy team without memberIds — allow any authenticated user
-          !('memberIds' in get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data) ||
-          // Team has memberIds — verify the reader is a member
-          isTeamMember(resource.data.teamId)
-        ))
+        (resource.data.teamId != null && isTeamMember(resource.data.teamId))
       );
-      allow update: if isAuthenticated()
-        && request.auth.uid == resource.data.userId
-        // userId cannot be changed
-        && request.resource.data.userId == resource.data.userId
-        // Field size limits
-        && (!('notes' in request.resource.data) || request.resource.data.notes.size() < 50000)
-        && (!('matches' in request.resource.data) || request.resource.data.matches.size() <= 200);
       allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid
-        && (!('notes' in request.resource.data) || request.resource.data.notes.size() < 50000)
-        && (!('matches' in request.resource.data) || request.resource.data.matches.size() <= 200);
-      allow delete: if isAuthenticated()
-        && request.auth.uid == resource.data.userId;
+        && request.resource.data.keys().hasAll(['sessionName', 'matches'])
+        && validSession(request.resource.data)
+        && teamAllowed(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (
+          request.auth.uid == resource.data.userId
+          && request.resource.data.userId == resource.data.userId
+          && validSession(request.resource.data)
+          && keeps('sessionName') && keeps('matches') && keeps('season')
+          // The result is either in no team, or in one the author is in now.
+          && teamAllowed(request.resource.data)
+        ) || (
+          ownsSessionTeam(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teamId'])
+          && !('teamId' in request.resource.data)
+        )
+      );
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId
+        || ownsSessionTeam(resource.data)
+      );
     }
 
     // ── Shared session snapshots ──────────────────────────────────────
-    // Anyone can read. Authenticated users can create (with createdBy).
-    // Only the creator can delete their own shared session.
+    // Anyone with the link can open one (get), but nobody can list them
+    // except the people allowed to take them down: whoever made the link,
+    // the owner of the session it was made from, and the owner of the team
+    // that session is filed under — who can delete the session, and its
+    // links have to go with it.
     match /sharedSessions/{shortId} {
-      allow read: if true;
+      function canShare(d) {
+        let source = get(/databases/$(database)/documents/sessions/$(d.sessionId)).data;
+        return source.userId == d.sessionOwnerId && (
+          source.userId == request.auth.uid ||
+          (source.get('teamId', null) != null && isTeamMember(source.teamId))
+        );
+      }
+
+      // Read from the session as it is now, not from the link, so it
+      // follows the session in and out of teams. A link whose session is
+      // gone has no team owner.
+      function ownsSourceTeam(d) {
+        let source = get(/databases/$(database)/documents/sessions/$(d.sessionId)).data;
+        return source.get('teamId', null) != null && isTeamOwner(source.teamId);
+      }
+
+      function canTakeDown(d) {
+        return d.createdBy == request.auth.uid
+          || d.get('sessionOwnerId', null) == request.auth.uid
+          || (d.get('sessionId', null) is string && ownsSourceTeam(d));
+      }
+
+      allow get: if true;
+      allow list: if isAuthenticated() && canTakeDown(resource.data);
       allow create: if isAuthenticated()
-        && request.resource.data.createdBy == request.auth.uid;
-      allow delete: if isAuthenticated()
-        && resource.data.createdBy == request.auth.uid;
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.sessionId is string
+        && request.resource.data.sessionOwnerId is string
+        && canShare(request.resource.data)
+        && (!('notes' in request.resource.data)
+            || (request.resource.data.notes is string && request.resource.data.notes.size() < 50000))
+        && (!('matches' in request.resource.data)
+            || (request.resource.data.matches is list && request.resource.data.matches.size() <= 200));
+      allow delete: if isAuthenticated() && canTakeDown(resource.data);
+    }
+
+    // ── Team invites ──────────────────────────────────────────────────
+    // teamInvites/{code} → { teamId, teamName }. Any signed-in user can
+    // fetch one by its exact code (that is what an invite link is), but they
+    // cannot be listed, so codes cannot be discovered. Only the team owner
+    // writes one, only for the team's current code and name, and a code that
+    // points at one team can never be re-pointed at another.
+    // A code a team stops using is retired, not freed: its invite stays,
+    // still naming the team, marked `revoked`. It is never live again and
+    // never deleted — a freed code could be claimed by anyone who remembers
+    // it, and every copy of the old link would then lead to their team.
+    match /teamInvites/{code} {
+      // getAfter: the invite is written in the same batch as the team
+      // document that claims the code.
+      function validInvite(d) {
+        let team = getAfter(/databases/$(database)/documents/teams/$(d.teamId)).data;
+        return d.keys().hasOnly(['teamId', 'teamName'])
+          && d.teamId is string
+          && d.teamName is string
+          && d.teamName.size() <= 100
+          && isOwnerOf(team)
+          && team.inviteCode == code
+          && team.name == d.teamName;
+      }
+
+      // Retired by the team's owner, in the same batch that takes the code
+      // off the team (a new code) or deletes the team: get for who owned it
+      // before, getAfter for the code being gone afterwards.
+      function retiredInvite(d) {
+        let team = /databases/$(database)/documents/teams/$(d.teamId);
+        return d.keys().hasOnly(['teamId', 'teamName', 'revoked'])
+          && d.teamId is string
+          && d.teamName is string
+          && d.teamName.size() <= 100
+          && d.revoked == true
+          && isOwnerOf(get(team).data)
+          && (!existsAfter(team) || getAfter(team).data.inviteCode != code);
+      }
+
+      // A team saved before invites existed has no document to retire, so
+      // its owner creates the retired one — only for the code it had.
+      function heldBy(d) {
+        return get(/databases/$(database)/documents/teams/$(d.teamId)).data.inviteCode == code;
+      }
+
+      allow get: if isAuthenticated();
+      allow list: if false;
+      allow create: if isAuthenticated() && (
+        validInvite(request.resource.data)
+        || (retiredInvite(request.resource.data) && heldBy(request.resource.data))
+      );
+      allow update: if isAuthenticated()
+        && request.resource.data.teamId == resource.data.teamId
+        && (
+          (resource.data.get('revoked', false) != true
+            && validInvite(request.resource.data))
+          || retiredInvite(request.resource.data)
+        );
+      allow delete: if false;
     }
 
     // ── Teams ─────────────────────────────────────────────────────────
-    // Members can read their own team. Invite-code lookups use a
-    // separate query limited to the inviteCode field (see docs).
-    // Only members can update. New members can only add themselves to
-    // memberIds/members if nothing else in the document changes besides
-    // those two fields.
+    // Only members can read a team. Writes are split by who is asking:
+    //   owner  — rename, remove members, hand over ownership, change the
+    //            invite code. Never add members: joining is the joiner's
+    //            own act, so nobody can be put into a team.
+    //   member — remove themselves, or change their own display name;
+    //   anyone else — add only themselves, as a plain member, and only by
+    //                 presenting the team's current invite code, bound to
+    //                 their own uid, as joinCode.
+    // Knowing a team's ID therefore grants nothing.
     match /teams/{teamId} {
-      // Read: team members or legacy teams without memberIds.
-      // Invite-code lookups use a where() query on inviteCode; Firestore
-      // evaluates this rule per-document, so the query naturally only
-      // returns documents whose inviteCode matches the filter, and the
-      // rule below still permits the read because every team carries an
-      // inviteCode field. To prevent any authenticated user from reading
-      // arbitrary teams by ID, we restrict non-member reads to list
-      // queries only (request.method == 'list' is implied for where()
-      // queries). get‐by‐ID requires membership.
-      allow get: if isAuthenticated() && (
-        !('memberIds' in resource.data) ||
-        resource.data.memberIds.hasAny([request.auth.uid])
-      );
-      allow list: if isAuthenticated()
+      // A team taking a new invite code must write teamInvites/{code} in
+      // the same batch, and the code must be one no invite exists for yet.
+      // An existing invite is never adopted, whoever it names: not another
+      // team's, not a retired one, and not one naming this team's own ID —
+      // a team deleted without retiring its invite leaves that behind, and
+      // a new team created under the same ID would inherit the link.
+      function claimsInvite(c) {
+        let invite = /databases/$(database)/documents/teamInvites/$(c);
+        return c is string
+          && c.matches('^[A-Z0-9]{6,32}$')
+          && !exists(invite)
+          && getAfter(invite).data.teamId == teamId
+          && getAfter(invite).data.get('revoked', false) != true;
+      }
+
+      // A team goes together with its invite link: the owner retires the
+      // invite in the batch that deletes the team, so no live link is left
+      // offering to join a team that is gone. There is nothing to retire
+      // when the code has no invite, or resolves to another team.
+      function retiresInvite(c) {
+        let invite = /databases/$(database)/documents/teamInvites/$(c);
+        return !exists(invite)
+          || get(invite).data.get('teamId', null) != teamId
+          || getAfter(invite).data.get('revoked', false) == true;
+      }
+
+      function inviteSettled(team) {
+        let c = team.get('inviteCode', null);
+        return !(c is string && c.matches('^[A-Z0-9]{6,32}$'))
+          || retiresInvite(c);
+      }
+
+      // Every owner write records ownerId, so a legacy team is brought up
+      // to date by its owner's first change.
+      // Removing anyone but yourself takes a new invite code in the same
+      // write: every member has seen the old one, so leaving it valid would
+      // let the removed member straight back in. (An owner who leaves keeps
+      // the code; they chose to go.)
+      function ownerUpdate(before, after) {
+        return isOwnerOf(before)
+          && after.diff(before).affectedKeys().hasOnly(
+            ['name', 'inviteCode', 'members', 'memberIds', 'ownerId', 'joinCode'])
+          && after.get('ownerId', null) is string
+          && after.memberIds.hasAny([after.ownerId])
+          && after.memberIds.removeAll(before.memberIds).size() == 0
+          && after.members.size() == after.memberIds.size()
+          && (after.inviteCode == before.inviteCode || claimsInvite(after.inviteCode))
+          && (before.memberIds.removeAll(after.memberIds)
+                .removeAll([request.auth.uid]).size() == 0
+              || after.inviteCode != before.inviteCode)
+          && (!('joinCode' in after) || after.joinCode == before.get('joinCode', null));
+      }
+
+      function memberLeaves(before, after) {
+        let removed = before.members.removeAll(after.members);
+        return isMemberOf(before)
+          && !isOwnerOf(before)
+          && after.diff(before).affectedKeys().hasOnly(['members', 'memberIds'])
+          && before.memberIds.removeAll(after.memberIds) == [request.auth.uid]
+          && after.memberIds.removeAll(before.memberIds).size() == 0
+          && removed.size() == 1
+          && removed[0].userId == request.auth.uid
+          && after.members.removeAll(before.members).size() == 0;
+      }
+
+      // Only the display name: email, role and joinedAt (which decides who
+      // inherits the team when the owner leaves) stay as they were.
+      function memberEditsSelf(before, after) {
+        let removed = before.members.removeAll(after.members);
+        let added = after.members.removeAll(before.members);
+        return isMemberOf(before)
+          && after.diff(before).affectedKeys().hasOnly(['members'])
+          && after.members.size() == before.members.size()
+          && removed.size() == 1
+          && added.size() == 1
+          && removed[0].userId == request.auth.uid
+          && added[0].userId == request.auth.uid
+          && added[0].diff(removed[0]).affectedKeys().hasOnly(['displayName'])
+          && added[0].displayName is string
+          && added[0].displayName.size() <= 50;
+      }
+
+      // joinCode is the invite code plus the joiner's uid, so a value left
+      // behind by one join admits nobody else, and stops admitting its
+      // author once the code changes (removing a member changes it).
+      // serverTimestamp() cannot sit inside an array element, so joinedAt is
+      // the joiner's reading of the time, held to within a day of the
+      // server's. (teamService takes it from the sign-in token when the
+      // device clock is wrong, so a bad clock does not keep anyone out.)
+      function joinWithCode(before, after) {
+        let added = after.members.removeAll(before.members);
+        return !isMemberOf(before)
+          && after.diff(before).affectedKeys().hasOnly(['members', 'memberIds', 'joinCode'])
+          && after.joinCode == before.inviteCode + ':' + request.auth.uid
+          && after.memberIds.removeAll(before.memberIds) == [request.auth.uid]
+          && before.memberIds.removeAll(after.memberIds).size() == 0
+          && after.memberIds.size() == before.memberIds.size() + 1
+          && before.members.removeAll(after.members).size() == 0
+          && after.members.size() == before.members.size() + 1
+          && added.size() == 1
+          && added[0].keys().hasOnly(['userId', 'email', 'displayName', 'joinedAt', 'role'])
+          && added[0].userId == request.auth.uid
+          && added[0].role == 'member'
+          && added[0].email == request.auth.token.get('email', '')
+          && added[0].displayName is string
+          && added[0].displayName.size() <= 50
+          && added[0].joinedAt is timestamp
+          && added[0].joinedAt > request.time - duration.value(1, 'd')
+          && added[0].joinedAt < request.time + duration.value(1, 'd');
+      }
+
+      // Written directly against the field so an array-contains query on
+      // memberIds can be proven safe.
+      allow get, list: if isAuthenticated()
         && resource.data.memberIds.hasAny([request.auth.uid]);
       allow create: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(
+          ['name', 'createdBy', 'ownerId', 'createdAt', 'inviteCode', 'memberIds', 'members'])
         && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.memberIds.hasAny([request.auth.uid])
-        && request.resource.data.name.size() <= 100;
-      allow update: if isAuthenticated() && (
-        // Legacy teams without memberIds — permissive fallback
-        !('memberIds' in resource.data) ||
-        // Existing member (leave, kick, transfer, rename, etc.)
-        resource.data.memberIds.hasAny([request.auth.uid]) ||
-        // New member joining: can ONLY add themselves to memberIds/members
-        (
-          request.resource.data.memberIds.hasAny([request.auth.uid]) &&
-          // All other fields must remain unchanged
-          request.resource.data.name == resource.data.name &&
-          request.resource.data.createdBy == resource.data.createdBy &&
-          request.resource.data.inviteCode == resource.data.inviteCode
-        )
-      )
-        // Team name length limit
-        && request.resource.data.name.size() <= 100;
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.members.size() == 1
+        && request.resource.data.members[0].userId == request.auth.uid
+        && request.resource.data.members[0].role == 'owner'
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && claimsInvite(request.resource.data.inviteCode);
+      allow update: if isAuthenticated()
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 100
+        && (
+          ownerUpdate(resource.data, request.resource.data) ||
+          memberLeaves(resource.data, request.resource.data) ||
+          memberEditsSelf(resource.data, request.resource.data) ||
+          joinWithCode(resource.data, request.resource.data)
+        );
       allow delete: if isAuthenticated()
-        && resource.data.createdBy == request.auth.uid;
+        && isOwnerOf(resource.data)
+        && inviteSettled(resource.data);
     }
   }
 }

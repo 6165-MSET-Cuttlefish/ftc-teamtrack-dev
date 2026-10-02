@@ -1,6 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Righteous:wght@400&display=swap');
+/* Inter, Montserrat and Righteous are loaded from index.html (non-blocking). */
 
 @tailwind base;
 @tailwind components;
@@ -194,11 +192,25 @@
 @layer utilities {
   /* Mobile optimizations */
   @media (max-width: 640px) {
-    /* Increase touch target size for mobile */
-    button,
-    a {
+    /*
+     * Increase touch target size for mobile. Sizes only: forcing a display
+     * mode here re-laid-out every button and link. `:where()` keeps the
+     * specificity at zero so a component's own min-h-* / min-w-* wins.
+     */
+    :where(button, a) {
       min-height: 44px;
       min-width: 44px;
+    }
+
+    /*
+     * A lone icon is a block-level svg, so it would sit at the left edge of
+     * that 44px box. Centre it, unless the button sets its own display
+     * (`:has()` counts towards specificity, hence the second `:where()`).
+     * Only a safety net: browsers before `:has()` (iOS Safari < 15.4) skip
+     * this rule, so icon-only buttons carry their own
+     * `inline-flex items-center justify-center`.
+     */
+    :where(button, a):where(:has(> svg:only-child)) {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -332,6 +344,19 @@
   .border-glow:hover {
     box-shadow: 0 0 20px rgb(var(--team-blue) / 0.3);
   }
+}
+
+/*
+ * Chart legends: the swatch beside each label carries the series colour.
+ * Recharts also paints the label in it (inline, hence !important), and most
+ * series colours are under 4.5:1 as text.
+ */
+.recharts-legend-item-text {
+  color: #374151 !important; /* gray-700 */
+}
+
+.dark .recharts-legend-item-text {
+  color: rgb(255 255 255 / 0.8) !important;
 }
 
 /* Honeycomb theme background */

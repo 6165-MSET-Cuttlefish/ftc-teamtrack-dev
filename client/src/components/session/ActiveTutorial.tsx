@@ -1,20 +1,21 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+} from 'react';
 import { createPortal } from 'react-dom';
-import { useTheme, useAuth, useSession } from '@/contexts';
+import { toast } from 'sonner';
+import { useTheme, useAuth, useSessionCore } from '@/contexts';
 import {
   TUTORIAL_RESTART_EVENT,
   TUTORIAL_OPEN_SESSION_SETUP_EVENT,
-  TUTORIAL_KEYBOARD_SCORE_EVENT,
-  TUTORIAL_GATE_CYCLE_EVENT,
   TUTORIAL_ENDED_EVENT,
-  TUTORIAL_METRICS_AUTON_TAB_EVENT,
-  TUTORIAL_METRICS_LEAVE_EVENT,
-  TUTORIAL_METRICS_SHOT_EDIT_EVENT,
-  TUTORIAL_METRICS_MOTIF_EDIT_EVENT,
 } from '@/constants/events';
-
 import { STORAGE_KEYS } from '@/constants';
-import type { SessionFormData } from '@/types';
+import { POINTS } from '@/lib';
+import type { MatchPhase, SessionFormData, SessionType } from '@/types';
 
 const PreviewBox = ({
   children,
@@ -34,708 +35,329 @@ const PreviewBox = ({
   </div>
 );
 
-const SCORE_SEQUENCE: [number, number][] = [
-  [0, 1],
-  [1, 2],
-  [2, 3],
-];
-const ScoringPreview = ({ dark }: { dark: boolean }) => {
-  const borderCol = dark ? 'rgb(var(--team-blue) / 0.4)' : 'rgba(0,0,0,0.15)';
-  const circleBorder = dark ? '#fff' : '#000';
-  const [seqIdx, setSeqIdx] = useState(0);
+/** A mock scoring field, used to show what typing into one looks like. */
+const FieldRow = ({
+  label,
+  value,
+  points,
+  dark,
+  dimmed = false,
+}: {
+  label: string;
+  value: string;
+  points: string;
+  dark: boolean;
+  dimmed?: boolean;
+}) => (
+  <div
+    className="flex items-center gap-3"
+    style={{ opacity: dimmed ? 0.4 : 1 }}
+  >
+    <span
+      className="flex-1 text-xs font-semibold"
+      style={{ color: dark ? '#e5e5e5' : '#333' }}
+    >
+      {label}
+    </span>
+    <span
+      className="w-14 h-8 rounded-lg border-2 flex items-center justify-center text-sm font-bold"
+      style={{
+        borderColor: 'rgb(var(--team-blue) / 0.4)',
+        color: dark ? '#fff' : '#000',
+      }}
+    >
+      {value}
+    </span>
+    <span
+      className="min-w-14 text-right text-xs font-semibold whitespace-nowrap"
+      style={{ color: 'rgb(var(--team-blue))' }}
+    >
+      {points}
+    </span>
+  </div>
+);
 
+/** Cycles a count upward so the live-scoring step reads as "live". */
+const LiveScoringPreview = ({ dark }: { dark: boolean }) => {
+  const [n, setN] = useState(3);
   useEffect(() => {
-    const id = setInterval(
-      () => setSeqIdx(i => (i + 1) % SCORE_SEQUENCE.length),
-      1800
-    );
+    const id = setInterval(() => setN(v => (v >= 9 ? 3 : v + 1)), 1200);
     return () => clearInterval(id);
   }, []);
-
-  const [hRow, hCol] = SCORE_SEQUENCE[seqIdx];
-
-  const cellBorder = (r: number, c: number) => ({
-    borderColor: r === hRow && c === hCol ? 'rgb(34,197,94)' : borderCol,
-    backgroundColor:
-      r === hRow && c === hCol ? 'rgba(34,197,94,0.2)' : 'transparent',
-    transition: 'border-color 0.3s, background-color 0.3s',
-  });
-
   return (
     <PreviewBox dark={dark}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-team-blue font-semibold text-sm">Scoring</span>
-        <span
-          className="text-xs"
-          style={{ color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}
-        >
-          AUTON Score: <span className="text-team-blue font-bold">0</span>
-        </span>
-      </div>
-      {[1, 2, 3].map((balls, rowIdx) => (
-        <div key={balls} className="flex items-center gap-2 mb-2">
-          <span
-            className="text-xs w-12 text-center"
-            style={{
-              color: dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)',
-            }}
-          >
-            {balls} {balls === 1 ? 'ball' : 'balls'}
-          </span>
-          <div
-            className="flex-1 flex flex-col items-center justify-center rounded-lg border py-2"
-            style={cellBorder(rowIdx, 0)}
-          >
-            <div className="flex gap-1">
-              {Array.from({ length: balls }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-3.5 h-3.5 rounded-full border-2 border-dashed"
-                  style={{ borderColor: circleBorder }}
-                />
-              ))}
-            </div>
-            <span
-              className="text-[9px] mt-0.5"
-              style={{
-                color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
-              }}
-            >
-              scored
-            </span>
-          </div>
-          {Array.from({ length: balls }).map((_, idx) => (
-            <div
-              key={idx}
-              className="flex-1 flex flex-col items-center justify-center rounded-lg border py-2"
-              style={cellBorder(rowIdx, idx + 1)}
-            >
-              <div className="flex gap-1">
-                {Array.from({ length: idx + 1 }).map((_, j) => (
-                  <div
-                    key={j}
-                    className="w-3.5 h-3.5 rounded-full border-2"
-                    style={{ borderColor: circleBorder }}
-                  />
-                ))}
-              </div>
-              <span
-                className="text-[9px] mt-0.5"
-                style={{
-                  color: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
-                }}
-              >
-                scored
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </PreviewBox>
-  );
-};
-
-const KeybindsPreview = ({ dark }: { dark: boolean }) => {
-  const [step, setStep] = useState(0);
-  // 0 = idle, 1 = pressed "2" (attempted), 2 = pressed "1" (made), 3 = pressed Enter, 4 = brief pause
-  
-  useEffect(() => {
-    const durations = [1200, 1400, 1400, 1600, 800];
-    const timeout = setTimeout(() => {
-      setStep(s => (s + 1) % 5);
-    }, durations[step]);
-    return () => clearTimeout(timeout);
-  }, [step]);
-
-  const accent = dark ? '#a855f7' : '#9333ea';
-  const keyInactive = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-  const keyBorder = dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
-  const textDim = dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)';
-  const textMain = dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)';
-  const successGreen = '#22c55e';
-
-  const exampleAttempted = '2';
-  const exampleMade = '1';
-
-  const isActive = step >= 1 && step <= 3;
-  const attemptedDone = step >= 1;
-  const madeDone = step >= 2;
-  const confirmed = step >= 3;
-
-  const keyStyle = (active: boolean, highlight: boolean) => ({
-    backgroundColor: highlight ? accent : active ? (dark ? 'rgba(168,85,247,0.15)' : 'rgba(147,51,234,0.1)') : keyInactive,
-    color: highlight ? '#fff' : active ? accent : textDim,
-    border: `1.5px solid ${highlight ? accent : active ? `${accent}40` : keyBorder}`,
-    boxShadow: highlight ? `0 0 16px ${accent}44` : 'none',
-    transform: highlight ? 'scale(1.08)' : 'scale(1)',
-    transition: 'all 0.25s ease',
-  });
-
-  return (
-    <PreviewBox dark={dark}>
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-team-blue font-semibold text-sm">Keyboard Shortcut Flow</span>
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{
-          backgroundColor: dark ? 'rgba(168,85,247,0.15)' : 'rgba(147,51,234,0.08)',
-          color: accent,
-        }}>Example: {exampleAttempted} shot, {exampleMade} scored</span>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="flex flex-col items-center gap-2">
-          <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: attemptedDone ? accent : textDim }}>Step 1</div>
-          <div className="text-[10px]" style={{ color: textDim }}>Balls shot</div>
-          <div className="flex gap-1">
-            {['1', '2', '3'].map(k => (
-              <kbd
-                key={k}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-mono font-bold"
-                style={keyStyle(attemptedDone, step === 1 && k === exampleAttempted)}
-              >{k}</kbd>
-            ))}
-          </div>
-          {attemptedDone && (
-            <div className="text-[10px] font-bold transition-opacity duration-300" style={{ color: accent }}>
-              Pressed {exampleAttempted}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col items-center gap-2">
-          <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: madeDone ? accent : textDim }}>Step 2</div>
-          <div className="text-[10px]" style={{ color: textDim }}>Balls scored</div>
-          <div className="flex gap-1">
-            {['0', '1', '2'].map(k => (
-              <kbd
-                key={k}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-mono font-bold"
-                style={keyStyle(madeDone, step === 2 && k === exampleMade)}
-              >{k}</kbd>
-            ))}
-          </div>
-          {madeDone && (
-            <div className="text-[10px] font-bold transition-opacity duration-300" style={{ color: accent }}>
-              Pressed {exampleMade}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col items-center gap-2">
-          <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: confirmed ? successGreen : textDim }}>Step 3</div>
-          <div className="text-[10px]" style={{ color: textDim }}>Confirm</div>
-          <kbd
-            className="w-full h-8 flex items-center justify-center rounded-lg text-xs font-mono font-bold"
-            style={keyStyle(confirmed, step === 3)}
-          >Enter</kbd>
-          {confirmed && (
-            <div className="text-[10px] font-bold transition-opacity duration-300" style={{ color: successGreen }}>
-              ✓ Saved!
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div
-        className="mt-4 rounded-lg px-3 py-2 flex items-center justify-between transition-all duration-300"
-        style={{
-          backgroundColor: confirmed
-            ? (dark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.06)')
-            : (dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
-          border: `1px solid ${confirmed ? `${successGreen}30` : (dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)')}`,
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-[10px]" style={{ color: textDim }}>Result:</span>
-          <span className="text-xs font-semibold" style={{ color: isActive ? textMain : textDim }}>
-            {attemptedDone ? exampleAttempted : '—'} attempted
-          </span>
-          <span className="text-[10px]" style={{ color: textDim }}>·</span>
-          <span className="text-xs font-semibold" style={{ color: isActive ? textMain : textDim }}>
-            {madeDone ? exampleMade : '—'} scored
-          </span>
-        </div>
-        {confirmed && (
-          <span className="text-xs font-bold" style={{ color: successGreen }}>✓</span>
-        )}
-      </div>
-
-      <div className="flex justify-center gap-1.5 mt-3">
-        {[1, 2, 3].map(i => (
-          <div
-            key={i}
-            className="h-1 rounded-full transition-all duration-400"
-            style={{
-              width: step === i ? '16px' : '6px',
-              backgroundColor: step === i ? accent : step > i || confirmed ? successGreen : (dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
-            }}
-          />
-        ))}
+      <div className="space-y-2.5">
+        <FieldRow
+          label="Tipping"
+          value={String(n)}
+          points={`${n * POINTS.HIVE_TIP} pts`}
+          dark={dark}
+        />
       </div>
     </PreviewBox>
   );
 };
 
-const MetricsPreview = ({ dark }: { dark: boolean }) => {
-  const borderCol = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const textDim = dark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)';
-  const cardBg = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
-  const accent = 'rgb(var(--team-blue))';
+const EndOfMatchPreview = ({ dark }: { dark: boolean }) => (
+  <PreviewBox dark={dark}>
+    <div className="space-y-2.5">
+      <FieldRow
+        label="Flower"
+        value="4"
+        points={`${4 * POINTS.FLOWER_ELEMENT} pts`}
+        dark={dark}
+      />
+      <FieldRow
+        label="Left in Hive"
+        value="3"
+        points={`${3 * POINTS.CELL_REMAINING} pts`}
+        dark={dark}
+      />
+      <FieldRow
+        label="Garden"
+        value="6"
+        points={`${6 * POINTS.GARDEN} pts`}
+        dark={dark}
+      />
+      <div className="text-[10px] pt-1" style={{ color: 'var(--tt-muted)' }}>
+        Locked while the clock is running
+      </div>
+    </div>
+  </PreviewBox>
+);
 
-  const SLIDE_COUNT = 4;
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [direction, setDirection] = useState<'left' | 'right'>('right');
-  const [isAnimating, setIsAnimating] = useState(false);
-  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const goToSlide = useCallback((idx: number) => {
-    if (isAnimating || idx === activeSlide) return;
-    setDirection(idx > activeSlide ? 'right' : 'left');
-    setIsAnimating(true);
-    setActiveSlide(idx);
-    if (animTimerRef.current) clearTimeout(animTimerRef.current);
-    animTimerRef.current = setTimeout(() => setIsAnimating(false), 400);
-  }, [isAnimating, activeSlide]);
-
-  useEffect(() => {
-    autoTimerRef.current = setTimeout(() => {
-      const next = (activeSlide + 1) % SLIDE_COUNT;
-      setDirection('right');
-      setIsAnimating(true);
-      setActiveSlide(next);
-      if (animTimerRef.current) clearTimeout(animTimerRef.current);
-      animTimerRef.current = setTimeout(() => setIsAnimating(false), 400);
-    }, 3500);
-    return () => {
-      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
-      if (animTimerRef.current) clearTimeout(animTimerRef.current);
-    };
-  }, [activeSlide]);
-
-  const slideLabels = ['Autonomous', 'Shot Editing', 'Teleop', 'Endgame'];
-
-  const Checkbox = ({ checked }: { checked: boolean }) => (
-    <div
-      className="w-4 h-4 rounded flex items-center justify-center transition-all duration-300"
+const RobotsPreview = ({ dark }: { dark: boolean }) => {
+  const pill = (text: string, on: boolean) => (
+    <span
+      className="px-2 py-1 rounded-lg border text-[11px]"
       style={{
-        backgroundColor: checked ? accent : 'transparent',
-        border: `2px solid ${checked ? accent : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)')}`,
+        borderColor: on ? 'rgb(34,197,94)' : 'rgb(var(--team-blue) / 0.4)',
+        color: on ? 'rgb(34,197,94)' : dark ? '#fff' : '#000',
       }}
     >
-      {checked && (
-        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-          <path d="M1 4l3 3 5-6" stroke={dark ? '#000' : '#fff'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
-    </div>
+      {text}
+    </span>
   );
-
-  const SegmentedButtons = ({ options, selected }: { options: string[]; selected: number }) => (
-    <div className="flex gap-0 rounded overflow-hidden" style={{ border: `1px solid ${borderCol}` }}>
-      {options.map((val, vi) => (
-        <div
-          key={val}
-          className="px-2 py-1 text-[10px] font-medium transition-all duration-300"
-          style={{
-            backgroundColor: vi === selected ? accent : (dark ? '#1a1a1a' : '#f5f5f5'),
-            color: vi === selected ? (dark ? '#000' : '#fff') : textDim,
-          }}
-        >
-          {val}
-        </div>
-      ))}
-    </div>
-  );
-
-  const slides = [
-    // Slide 0: Autonomous — Leave + Motif
-    <div key="auton" className="rounded-lg p-3 flex flex-col gap-2.5" style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}>
-      <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Autonomous</div>
-      <label className="flex items-center gap-2 cursor-default select-none">
-        <Checkbox checked={true} />
-        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)' }}>
-          Robot left starting zone
-        </span>
-        <span className="text-xs font-bold ml-auto" style={{ color: accent }}>+3 pts</span>
-      </label>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}>Auton Motif</span>
-        <div className="flex gap-1">
-          {[true, true, false].map((on, i) => (
-            <div
-              key={i}
-              className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all duration-300"
-              style={{
-                backgroundColor: on ? (dark ? 'rgba(168,85,247,0.3)' : 'rgba(147,51,234,0.15)') : 'transparent',
-                border: `1.5px solid ${on ? '#a855f7' : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')}`,
-                color: on ? '#a855f7' : textDim,
-              }}
-            >M</div>
-          ))}
-        </div>
-        <span className="text-xs font-bold" style={{ color: accent }}>+4 pts</span>
-      </div>
-    </div>,
-
-    // Slide 1: Shot Editing table
-    <div key="shots" className="rounded-lg p-3 flex flex-col gap-2" style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}>
-      <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Shot Log — Editable</div>
-      <div className="rounded overflow-hidden" style={{ border: `1px solid ${borderCol}` }}>
-        <div className="grid grid-cols-5 text-[9px] font-semibold" style={{ color: textDim, backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-          <div className="px-2 py-1.5 text-center">#</div>
-          <div className="px-2 py-1.5 text-center">Att</div>
-          <div className="px-2 py-1.5 text-center">Cls</div>
-          <div className="px-2 py-1.5 text-center">Ovfl</div>
-          <div className="px-2 py-1.5 text-center">Pts</div>
-        </div>
-        {[
-          { n: 1, att: 2, cls: 1, ovfl: 1, pts: 4 },
-          { n: 2, att: 3, cls: 2, ovfl: 0, pts: 6 },
-          { n: 3, att: 1, cls: 1, ovfl: 0, pts: 3 },
-        ].map((row, ri) => (
-          <div
-            key={ri}
-            className="grid grid-cols-5 text-[10px] transition-all duration-300"
-            style={{
-              borderTop: `1px solid ${borderCol}`,
-              color: dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.75)',
-              backgroundColor: ri === 1 ? (dark ? 'rgba(var(--team-blue) / 0.08)' : 'rgba(var(--team-blue) / 0.05)') : 'transparent',
-            }}
-          >
-            <div className="px-2 py-1.5 text-center font-medium" style={{ color: textDim }}>{row.n}</div>
-            <div className="px-2 py-1.5 text-center font-semibold">{row.att}</div>
-            <div className="px-2 py-1.5 text-center font-semibold">{row.cls}</div>
-            <div className="px-2 py-1.5 text-center font-semibold">{row.ovfl}</div>
-            <div className="px-2 py-1.5 text-center font-bold" style={{ color: accent }}>{row.pts}</div>
-          </div>
-        ))}
-      </div>
-      <div className="text-[10px] text-center" style={{ color: textDim }}>Tap any value to edit it</div>
-    </div>,
-
-    // Slide 2: Teleop — shots + motif summary
-    <div key="teleop" className="rounded-lg p-3 flex flex-col gap-2.5" style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}>
-      <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Teleop</div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}>Shots Scored</span>
-        <span className="text-sm font-bold" style={{ color: accent }}>5 classified · 2 overflow</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}>Teleop Motif</span>
-        <div className="flex gap-1">
-          {(['purple', false, true] as (boolean | string)[]).map((on, i) => {
-            const isPurple = on === 'purple';
-            const isOn = !!on;
-            const ballColor = isPurple ? '#a855f7' : '#22c55e';
-            const bgOn = isPurple
-              ? (dark ? 'rgba(168,85,247,0.25)' : 'rgba(168,85,247,0.12)')
-              : (dark ? 'rgba(34,197,94,0.25)' : 'rgba(34,197,94,0.12)');
-            return (
-            <div
-              key={i}
-              className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all duration-300"
-              style={{
-                backgroundColor: isOn ? bgOn : 'transparent',
-                border: `1.5px solid ${isOn ? ballColor : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')}`,
-                color: isOn ? ballColor : textDim,
-              }}
-            >M</div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ backgroundColor: dark ? 'rgba(var(--team-blue) / 0.08)' : 'rgba(var(--team-blue) / 0.05)', border: `1px solid rgba(var(--team-blue) / 0.15)` }}>
-        <span className="text-[10px] font-medium" style={{ color: textDim }}>Teleop Score</span>
-        <span className="text-sm font-bold" style={{ color: accent }}>21 pts</span>
-      </div>
-    </div>,
-
-    // Slide 3: Endgame — Parking
-    <div key="endgame" className="rounded-lg p-3 flex flex-col gap-2.5" style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}` }}>
-      <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>Endgame</div>
-      {(['Robot 1', 'Robot 2'] as const).map(robot => (
-        <div key={robot} className="flex items-center justify-between gap-2">
-          <span className="text-xs" style={{ color: dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>{robot}</span>
-          <SegmentedButtons
-            options={['None', 'Partial', 'Full']}
-            selected={robot === 'Robot 1' ? 2 : 1}
-          />
-          <span className="text-xs font-bold" style={{ color: accent }}>
-            {robot === 'Robot 1' ? '10' : '5'} pts
+  return (
+    <PreviewBox dark={dark}>
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between text-xs">
+          <span style={{ color: dark ? '#e5e5e5' : '#333' }}>Robot 1</span>
+          <span className="flex items-center gap-2">
+            {pill('Leave', true)}
+            {pill('Auto', true)}
+            {pill('End', false)}
           </span>
         </div>
-      ))}
-      <div
-        className="rounded-lg px-3 py-2 flex items-center justify-between"
-        style={{
-          backgroundColor: dark ? 'rgba(34,197,94,0.08)' : 'rgba(34,197,94,0.05)',
-          border: '1px solid rgba(34,197,94,0.2)',
-        }}
-      >
-        <span className="text-[10px] font-medium" style={{ color: textDim }}>Both full park bonus</span>
-        <span className="text-xs font-bold" style={{ color: '#22c55e' }}>+30 pts</span>
-      </div>
-    </div>,
-  ];
-
-  return (
-    <PreviewBox dark={dark}>
-      {/* Slide container with overflow hidden for slide animation */}
-      <div className="relative overflow-hidden" style={{ minHeight: 130 }}>
-        <div
-          key={activeSlide}
-          style={{
-            animation: `ttSlide${direction === 'right' ? 'Right' : 'Left'} 0.4s ease-out forwards`,
-          }}
-        >
-          {slides[activeSlide]}
+        <div className="flex items-center justify-between text-xs">
+          <span style={{ color: dark ? '#e5e5e5' : '#333' }}>Robot 2</span>
+          <span className="flex items-center gap-2">
+            {pill('Leave', false)}
+            {pill('Auto', false)}
+            {pill('End', true)}
+          </span>
         </div>
       </div>
-
-      {/* Dot navigation */}
-      <div className="flex items-center justify-center gap-2 mt-3">
-        {slideLabels.map((label, i) => (
-          <button
-            key={i}
-            onClick={() => goToSlide(i)}
-            className="group flex flex-col items-center gap-1 transition-all"
-            title={label}
-          >
-            <div
-              className="rounded-full transition-all duration-300"
-              style={{
-                width: i === activeSlide ? 18 : 7,
-                height: 7,
-                backgroundColor: i === activeSlide
-                  ? accent
-                  : (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
-              }}
-            />
-            <span
-              className="text-[8px] font-medium transition-opacity duration-300"
-              style={{
-                color: i === activeSlide ? accent : textDim,
-                opacity: i === activeSlide ? 1 : 0,
-              }}
-            >
-              {label}
-            </span>
-          </button>
-        ))}
-      </div>
     </PreviewBox>
   );
 };
 
-const GatePreview = ({ dark }: { dark: boolean }) => {
-  const [released, setReleased] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setReleased(!released), 1600);
-    return () => clearTimeout(t);
-  }, [released]);
-
-  const GATE_CAPACITY = 9;
-  const ballsInGate = 6;
-  const ballsKept = 2;
-  const ballsRemaining = released ? ballsKept : ballsInGate;
-
-  return (
-    <PreviewBox dark={dark}>
-      <div className="flex items-center gap-2 mb-3">
-        <div className="text-team-blue font-semibold text-sm">Gate Mechanic</div>
-        <span className="text-xs font-bold text-white bg-blue-500/40 px-1.5 py-0.5 rounded">
-          G
-        </span>
-      </div>
-      <div className="flex items-center justify-center gap-3 -mx-4 px-4 py-2">
-        {Array.from({ length: GATE_CAPACITY }).map((_, i) => (
-          <div
-            key={i}
-            className="w-6 h-6 rounded-full border-2 transition-all duration-500"
-            style={{
-              backgroundColor:
-                i < ballsRemaining
-                  ? i % 2 === 0
-                    ? dark
-                      ? '#a855f7'
-                      : '#c084fc'
-                    : dark
-                      ? '#10b981'
-                      : '#34d399'
-                  : dark
-                    ? '#374151'
-                    : '#e5e7eb',
-              borderColor:
-                i < ballsRemaining
-                  ? i % 2 === 0
-                    ? dark
-                      ? '#9333ea'
-                      : '#a855f7'
-                    : dark
-                      ? '#059669'
-                      : '#10b981'
-                  : dark
-                    ? '#4b5563'
-                    : '#d1d5db',
-              transform: released && i >= ballsKept && i < ballsInGate ? 'scale(0) translateY(20px)' : 'scale(1) translateY(0)',
-              opacity: released && i >= ballsKept && i < ballsInGate ? 0 : 1,
-            }}
-          />
-        ))}
-      </div>
-      <div
-        className="text-xs mt-3 text-center"
-        style={{
-          color: dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-        }}
-      >
-        {released ? `Released 4, keeping ${ballsKept}` : `Holding ${ballsInGate} balls`}
-      </div>
-    </PreviewBox>
-  );
-};
-
-const MotifSnapshot = ({ dark }: { dark: boolean }) => {
-  const { sessionData } = useSession();
-  const pattern = sessionData.motifPattern ?? ['empty', 'empty', 'empty'];
-  const allSet = pattern.every(c => c !== 'empty');
-
-  const slotColor = (color: string) => {
-    if (color === 'purple') return dark ? '#a855f7' : '#9333ea';
-    if (color === 'green') return dark ? '#22c55e' : '#16a34a';
-    return dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)';
-  };
-
-  return (
-    <div
-      className="mt-3 rounded-xl px-3 py-2.5 flex items-center gap-3"
-      style={{
-        backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-        border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-      }}
-    >
-      <span className="text-xs font-medium opacity-50 shrink-0" style={{ color: dark ? '#fff' : '#000' }}>
-        Your motif
-      </span>
-      <div className="flex gap-2">
-        {pattern.map((color, i) => (
-          <div
-            key={i}
-            className="w-5 h-5 rounded-full border-2 transition-colors duration-300"
-            style={{
-              backgroundColor: slotColor(color),
-              borderColor: color === 'empty'
-                ? (dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)')
-                : slotColor(color),
-              opacity: color === 'empty' ? 0.4 : 1,
-            }}
-          />
-        ))}
-      </div>
-      <span
-        className="text-xs font-semibold ml-auto"
-        style={{ color: allSet ? '#22c55e' : (dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.35)') }}
-      >
-        {allSet ? '✓ Set' : 'Not set'}
-      </span>
+/** Fouls go to the other alliance, so the mock shows them that way too. */
+const PenaltyPreview = ({ dark }: { dark: boolean }) => (
+  <PreviewBox dark={dark}>
+    <div className="space-y-2.5">
+      <FieldRow
+        label="Minor"
+        value="1"
+        points={`+${POINTS.MINOR_PENALTY} to opponent`}
+        dark={dark}
+      />
+      <FieldRow
+        label="Major"
+        value="0"
+        points="+0 to opponent"
+        dark={dark}
+        dimmed
+      />
     </div>
-  );
-};
+  </PreviewBox>
+);
 
 interface StepDef {
   title: string;
-  body: string | React.ReactNode;
+  body: React.ReactNode;
+  /** `data-tutorial` attribute of the page element to spotlight */
   target: string | null;
+  /** Spotlit instead when the page has no `target` element */
+  fallbackTarget?: string;
   preview: ((dark: boolean) => React.ReactNode) | null;
   /** Prompt shown when the user should interact with the real page element */
   pageAction?: string;
-  /** Watch a sessionData/context field for automatic task completion */
-  watchKey?: 'sessionName' | 'notes' | 'motifPattern' | 'matchActive' | 'shots' | 'motifScore';
-  /** Listen for a custom DOM event for task completion (e.g. keyboard score, gate toggle) */
-  watchEvent?: string;
-  /** How many times the watchEvent must fire before completing (default: 1) */
-  watchEventCount?: number;
+  /** Session field watched for automatic task completion */
+  watchKey?: 'notes' | 'tipping';
 }
 
 const STEPS: StepDef[] = [
   {
-    title: 'Welcome to TeamTrack!',
+    title: 'Welcome to TeamTrack',
     body: (
       <div className="space-y-2">
-        <div>TeamTrack helps you track scoring during FTC matches in real time. This quick walkthrough will show you how to record shots, use the gate, and review your stats.</div>
-        <div className="text-xs opacity-60">You can restart this tutorial anytime from the (?) button in the header.</div>
+        <div>
+          TeamTrack records your BIOBUZZ scoring match by match, then shows you
+          where the points are coming from. This walkthrough takes about a
+          minute.
+        </div>
+        <div className="text-xs" style={{ color: 'var(--tt-muted)' }}>
+          Anything you enter while the walkthrough is open is just practice —
+          when it closes, your session goes back to exactly how it was. You can
+          replay it from the (?) button in the header whenever no match is
+          running.
+        </div>
       </div>
-    ) as React.ReactNode,
+    ),
     target: null,
     preview: null,
   },
   {
-    title: 'Scoring Grid',
+    title: 'Start Your Session',
+    body: 'Every session is ready to go as a Practice session, so just press Start Session. It runs the real match clock — 30 seconds of AUTO, an 8-second transition, then 2:00 of TELEOP, with endgame (and FLOWER scoring) opening at 1:00. Save Match stores the result, and Start Match runs the next one.',
+    target: 'controls',
+    preview: null,
+  },
+  {
+    title: 'Score While You Watch',
+    body: `Tipping, in the Live block, is counted as the match runs. Tap + for each HIVE TIP or type the running total — TeamTrack converts it to points as you go (${POINTS.HIVE_TIP} each).`,
+    target: 'live',
+    fallbackTarget: 'metrics',
+    preview: d => <LiveScoringPreview dark={d} />,
+    pageAction: 'Enter a Tipping count',
+    watchKey: 'tipping',
+  },
+  {
+    title: 'Leave and Park',
+    body: `Tick Leave for each robot that is no longer touching the perimeter wall when AUTO ends (${POINTS.LEAVE} points each). Park is scored twice per robot — Auto if it's parked at the end of AUTO, End if it's parked at the end of the match (${POINTS.PARK} points each). End stays locked while AUTO is running.`,
+    target: 'robots',
+    preview: d => <RobotsPreview dark={d} />,
+  },
+  {
+    title: 'After the Buzzer',
     body: (
       <div className="space-y-2">
-        <div>Tap cells to record each shot attempt. Each row represents how many balls were shot at once, and each column tracks how many of those went in.</div>
-        <div className="text-xs opacity-50">Inspired by <a href="https://heronscout.me/" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">Heron Scout</a>.</div>
+        <div>
+          These can only be judged once play stops, so they stay locked while
+          the clock is running.
+        </div>
+        <ul className="list-disc pl-4 space-y-1 text-xs">
+          <li>
+            Flower: the alliance whose NECTAR is top-most owns a FLOWER and
+            scores every POLLEN/NECTAR in it ({POINTS.FLOWER_ELEMENT} each). The
+            bottom-most NECTAR earns the Flower Bonus ({POINTS.FLOWER_BONUS}).
+          </li>
+          <li>
+            Left in Hive: POLLEN/NECTAR in your upward-facing CELL (
+            {POINTS.CELL_REMAINING} each). The 3 staged NECTAR count until a TIP
+            flips the CELL.
+          </li>
+          <li>
+            Garden: everything in your GARDEN ({POINTS.GARDEN} each), including
+            the 4 pre-staged POLLEN.
+          </li>
+        </ul>
       </div>
-    ) as React.ReactNode,
-    target: 'scoring',
-    preview: d => <ScoringPreview dark={d} />,
-    pageAction: 'Tap to record 3 shots on the grid above',
-    watchKey: 'shots',
+    ),
+    target: 'end-of-match',
+    preview: d => <EndOfMatchPreview dark={d} />,
   },
   {
-    title: 'Keyboard Scoring',
-    body: (
-      <div className="space-y-2">
-        <div>For faster scoring, use keyboard shortcuts: press a number key (1–3) for how many balls were shot, then another number (0–3) for how many scored, then Enter to confirm.</div>
-        <div className="text-xs opacity-50">Inspired by <a href="https://heronscout.me/" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">Heron Scout</a>.</div>
-      </div>
-    ) as React.ReactNode,
-    target: 'scoring',
-    preview: d => <KeybindsPreview dark={d} />,
-    pageAction: 'Record a shot using the keyboard shortcuts above',
-    watchEvent: TUTORIAL_KEYBOARD_SCORE_EVENT,
+    title: 'Penalties',
+    body: `In a Scrim, count your alliance's minor and major fouls in the Live block as they're called. Each one is credited to the opponent (${POINTS.MINOR_PENALTY} for a minor, ${POINTS.MAJOR_PENALTY} for a major) and never reduces your own score, so TeamTrack shows them separately as points given to the opponent.`,
+    target: 'penalties',
+    preview: d => <PenaltyPreview dark={d} />,
   },
   {
-    title: 'Gate Mechanic',
-    body: 'The gate holds balls before release. Click "Open Gate" then confirm how many to keep, or use the shortcut: press G, enter a number, then Enter.',
-    target: 'gate',
-    preview: d => <GatePreview dark={d} />,
-    pageAction: 'Open and close the gate at least 2 times',
-    watchEvent: TUTORIAL_GATE_CYCLE_EVENT,
-    watchEventCount: 2,
+    title: 'Notes',
+    body: 'Jot down anything the numbers miss — a jammed intake, a driver swap, a field fault. Notes are saved with the session.',
+    target: 'notes',
+    preview: null,
   },
   {
-    title: 'Motif Scoring',
-    body: 'After the match ends, the M buttons appear next to balls in the gate. Tap an M button to mark a motif match — each one adds 2 points to your score.',
-    target: 'gate',
-    preview: d => <MotifSnapshot dark={d} />,
-    pageAction: 'Tap at least one M button above to score a motif',
-    watchKey: 'motifScore',
+    title: 'Session Settings',
+    body: 'Open settings with the gear button whenever you need them — rename the session, change the match type, or switch between Practice and Scrim. Practice is solo drilling; Scrim is for matches against another alliance and adds penalty tracking. Either way you only score your own alliance.',
+    target: 'session-setup',
+    preview: null,
   },
   {
-    title: 'Scoring Metrics',
-    body: 'Use the Autonomous, Teleop, and Endgame tabs to review and adjust your match data. You can toggle leave status, edit shot values, and change motif scores at any time before saving.',
-    target: 'metrics',
-    preview: d => <MetricsPreview dark={d} />,
-    pageAction: 'Complete all 3 tasks in the panel above',
-  },
-  {
-    title: "You're Ready!",
-    body: (
-      <div className="space-y-2">
-        <div>You now know how to track shots, use the gate, score motifs, and review your metrics.</div>
-        <div>Hit "Get Started" to begin your first match. After the match ends, you can save or edit your session from the Analysis page.</div>
-      </div>
-    ) as React.ReactNode,
+    title: 'You Are Set',
+    body: "Save each match as you finish it, then press Complete Session — you'll be asked to confirm the session name before it saves. Your Sessions, Analysis, Charts, and Compare pages build on that data.",
     target: null,
     preview: null,
   },
 ];
 
+const SCORING_STEP = STEPS.findIndex(s => s.watchKey === 'tipping');
+
+/**
+ * Stacking order while the walkthrough is up: the page, the dimming backdrop,
+ * the spotlit element, the site header (raised so a spotlit element scrolls
+ * under it like everything else), then the card.
+ */
+const Z_BACKDROP = 9997;
+const Z_SPOTLIGHT = 9999;
+const Z_HEADER = 10000;
+const Z_CARD = 10001;
+
+/** Viewports narrower than this get a card as wide as the screen */
+const NARROW_WIDTH = 640;
+/** Viewports shorter than this (a phone on its side) get the one-row card */
+const SHORT_HEIGHT = 500;
+/** Space kept between the card and the spotlit element, in px */
+const CARD_GAP = 8;
+/** Space kept between the spotlit element and the header or screen edge, in px */
+const TARGET_PAD = 8;
+/** Least body text a shrunken card still shows (two lines), in px */
+const MIN_BODY_HEIGHT = 46;
+/** A height change smaller than this is the URL bar sliding, not a new layout */
+const URL_BAR_HEIGHT = 120;
+
+const cardLayout = (width: number, height: number) => {
+  const short = height < SHORT_HEIGHT;
+  const fullWidth = short || width < NARROW_WIDTH;
+  return { short, fullWidth, gutter: fullWidth ? 12 : 24 };
+};
+
+type Dock = 'top' | 'bottom';
+
+interface CardPlacement {
+  dock: Dock;
+  /** Height the card may take without covering the spotlit element */
+  maxHeight: number | null;
+}
+
+const DEFAULT_PLACEMENT: CardPlacement = { dock: 'bottom', maxHeight: null };
+
+const BLOCKED_TOAST_ID = 'tutorial-blocked';
+
+/**
+ * Session state as it was before the walkthrough started using it. Kept in
+ * memory only, never in storage: SessionProvider stores nothing while the
+ * walkthrough is open, so a reload or a closed tab (which never reach
+ * dismiss) comes back to the stored session as the walkthrough found it —
+ * exactly what a reload without the walkthrough would show.
+ */
+interface TutorialSnapshot {
+  sessionData: SessionFormData;
+  matchActive: boolean;
+  matchPhase: MatchPhase;
+  timer: number;
+  isTimerRunning: boolean;
+  hasStarted: boolean;
+  sessionTimer: number;
+  phaseTimer: number;
+}
+
 const ORIGINAL_STYLES_KEY = '__tt_original_styles__';
 
-function liftElement(el: HTMLElement, _breathing = false, darkMode = true) {
+function liftElement(el: HTMLElement, darkMode = true) {
   (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY] = {
     position: el.style.position,
     zIndex: el.style.zIndex,
@@ -747,23 +369,19 @@ function liftElement(el: HTMLElement, _breathing = false, darkMode = true) {
     border: el.style.border,
   };
   el.style.position = 'relative';
-  el.style.zIndex = '9999';
+  el.style.zIndex = String(Z_SPOTLIGHT);
   el.style.borderRadius = '16px';
   el.style.pointerEvents = 'auto';
-  // In light mode, force a solid white background so the element is fully
-  // opaque against the dark backdrop overlay (same effect dark mode gets for free
-  // from its natural dark background colors).
+  // Light mode needs an opaque background so the lifted element reads clearly
+  // against the dark backdrop; dark mode gets that from its own colors.
   if (!darkMode) {
     el.style.backgroundColor = '#ffffff';
   }
-  // Always apply a static blue border (don't pulse the containers)
-  // Only the clickable elements inside (M buttons, shot numbers, leave text) pulse
   el.style.border = `2px solid rgb(var(--team-blue) / 0.4)`;
   el.style.boxShadow = 'none';
 }
 
 function dropElement(el: HTMLElement) {
-  el.classList.remove('tt-breathe');
   const orig = (el as unknown as Record<string, unknown>)[
     ORIGINAL_STYLES_KEY
   ] as Record<string, string> | undefined;
@@ -780,64 +398,187 @@ function dropElement(el: HTMLElement) {
   }
 }
 
+const queryTarget = (id: string) =>
+  document.querySelector<HTMLElement>(`[data-tutorial="${id}"]`);
+
+/** True for anything that uses the arrow keys itself. */
+const usesArrowKeys = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.closest(
+      'input, textarea, select, [role="radiogroup"], [role="listbox"], [role="slider"], [role="tablist"], [role="menu"]'
+    ) !== null
+  );
+};
+
 export const ActiveTutorial = () => {
   const { isDarkMode } = useTheme();
   const { user, isGuest, guestId, loading } = useAuth();
   const {
-    sessionData, matchActive, setMatchActive, setMatchPhase, setIsTimerRunning,
-    resetSession, updateSessionData, replaceSessionData, setIsTutorialActive,
-    timer, setTimer, matchPhase, isTimerRunning, hasStarted, setHasStarted,
-    sessionTimer, setSessionTimer, hasTransitionedToTeleop, setHasTransitionedToTeleop,
-    showTeleopTransition, setShowTeleopTransition, phaseTimer, setPhaseTimer,
-  } = useSession();
+    sessionData,
+    matchActive,
+    editingMatchId,
+    setMatchActive,
+    setMatchPhase,
+    setIsTimerRunning,
+    updateSessionData,
+    replaceSessionData,
+    setIsTutorialActive,
+    getTimers,
+    setTimer,
+    matchPhase,
+    isTimerRunning,
+    hasStarted,
+    setHasStarted,
+    setSessionTimer,
+    setPhaseTimer,
+  } = useSessionCore();
+
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const [taskCompleted, setTaskCompleted] = useState(false);
-  const [tutorialEventCount, setTutorialEventCount] = useState(0);
-  const [motifStepInitialized, setMotifStepInitialized] = useState(false);
-  // bitmask: bit 0 = leave done, bit 1 = shot edited, bit 2 = motif toggled
-  const [metricsTasksMask, setMetricsTasksMask] = useState(0);
-  /** true when the user has already completed the tutorial once — all tasks are pre-skippable */
+  /** True when the user has finished the tutorial before — tasks are pre-skipped */
   const [isReplay, setIsReplay] = useState(false);
-  const prevElRef = useRef<HTMLElement | null>(null);
+  /** The page element currently spotlit, once it exists */
+  const [targetEl, setTargetEl] = useState<HTMLElement | null>(null);
+  /** Bumped to spotlight the step's element afresh after the page replaced it */
+  const [spotlightEpoch, setSpotlightEpoch] = useState(0);
+  const [placement, setPlacement] = useState<CardPlacement>(DEFAULT_PLACEMENT);
+  const [viewport, setViewport] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }));
+  /** Bottom edge of the sticky site header, in px from the top of the screen */
+  const [headerBottom, setHeaderBottom] = useState(0);
 
-  // Snapshot of session state saved before the tutorial starts (if there was an active session)
-  const preTutorialSnapshotRef = useRef<{
-    sessionData: typeof sessionData;
-    matchActive: boolean;
-    matchPhase: typeof matchPhase;
-    timer: number;
-    isTimerRunning: boolean;
-    hasStarted: boolean;
-    sessionTimer: number;
-    hasTransitionedToTeleop: boolean;
-    showTeleopTransition: boolean;
-    phaseTimer: number;
-  } | null>(null);
+  /** `targetEl` for the placement code, which runs outside of renders too */
+  const targetElRef = useRef<HTMLElement | null>(null);
+  /** True while the page is scrolling because the placement code asked it to */
+  const autoScrollRef = useRef(false);
+  /** True once the current step has asked the settings panel to open */
+  const setupRequestedRef = useRef(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const nextButtonRef = useRef<HTMLButtonElement | null>(null);
+  /** What had focus when the walkthrough opened, to hand it back on close */
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  /** Session type to put back after the penalties step previewed a scrim */
+  const forcedScrimFromRef = useRef<SessionType | null>(null);
+  /** Tutorial key the first-run check has already been made for */
+  const autoOpenCheckedRef = useRef<string | null>(null);
 
-  // Generate a stable tutorial key for both logged-in users and guests
+  /** Session state captured before the tutorial ran, restored when it ends */
+  const snapshotRef = useRef<TutorialSnapshot | null>(null);
+
+  /** What the session is doing right now, for handlers that outlive a render */
+  const liveRef = useRef({
+    visible,
+    matchActive,
+    isTimerRunning,
+    hasStarted,
+    editing: editingMatchId !== null,
+    matchCount: sessionData.matches?.length ?? 0,
+  });
+  useEffect(() => {
+    liveRef.current = {
+      visible,
+      matchActive,
+      isTimerRunning,
+      hasStarted,
+      editing: editingMatchId !== null,
+      matchCount: sessionData.matches?.length ?? 0,
+    };
+  });
+
   const getTutorialKey = useCallback(() => {
     if (user?.uid) return `${STORAGE_KEYS.TUTORIAL_SEEN}-${user.uid}`;
     if (guestId) return `${STORAGE_KEYS.TUTORIAL_SEEN}-guest-${guestId}`;
     return STORAGE_KEYS.TUTORIAL_SEEN;
   }, [user, guestId]);
 
-  useEffect(() => {
-    const shouldStart = sessionStorage.getItem(STORAGE_KEYS.START_TUTORIAL);
-    if (shouldStart) {
-      sessionStorage.removeItem(STORAGE_KEYS.START_TUTORIAL);
-      const t = setTimeout(() => {
-        setStep(0);
-        setVisible(true);
-      }, 500);
-      return () => clearTimeout(t);
-    }
-  }, []); // only on mount — independent of user loading
+  /**
+   * Full replacement, so values typed during the tutorial never leak into the
+   * user's real session.
+   */
+  const restoreSnapshot = useCallback(
+    (snapshot: TutorialSnapshot) => {
+      replaceSessionData(snapshot.sessionData);
+      setMatchActive(snapshot.matchActive);
+      setMatchPhase(snapshot.matchPhase);
+      setTimer(snapshot.timer);
+      setIsTimerRunning(snapshot.isTimerRunning);
+      setHasStarted(snapshot.hasStarted);
+      setSessionTimer(snapshot.sessionTimer);
+      setPhaseTimer(snapshot.phaseTimer);
+    },
+    [
+      replaceSessionData,
+      setMatchActive,
+      setMatchPhase,
+      setTimer,
+      setIsTimerRunning,
+      setHasStarted,
+      setSessionTimer,
+      setPhaseTimer,
+    ]
+  );
 
-  // Snapshot session state when tutorial becomes visible so we can restore it on dismiss
+  /**
+   * Show the walkthrough from its first step. Refused while a match is live:
+   * it borrows the session and puts back what it found when it closes, which
+   * over a running match would undo scoring and rewind the clock. Refused
+   * while a saved match is open for editing too: the fields then hold that
+   * match, and which match they belong to is not part of what is put back.
+   */
+  const open = useCallback((askedFor: boolean) => {
+    const live = liveRef.current;
+    if (live.visible) {
+      setStep(0);
+      setTaskCompleted(false);
+      return;
+    }
+    if (live.matchActive || live.isTimerRunning) {
+      if (askedFor) {
+        toast.info('Finish or cancel the match first', {
+          id: BLOCKED_TOAST_ID,
+        });
+      }
+      return;
+    }
+    if (live.editing) {
+      if (askedFor) {
+        toast.info('Save or cancel your match edit first', {
+          id: BLOCKED_TOAST_ID,
+        });
+      }
+      return;
+    }
+    returnFocusRef.current =
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement !== document.body
+        ? document.activeElement
+        : null;
+    setStep(0);
+    setTaskCompleted(false);
+    setVisible(true);
+  }, []);
+
+  useEffect(() => {
+    if (!sessionStorage.getItem(STORAGE_KEYS.START_TUTORIAL)) return;
+    // The flag is only spent once the timer fires: an effect that is torn
+    // down first (StrictMode runs each one twice) must leave it in place.
+    const t = setTimeout(() => {
+      sessionStorage.removeItem(STORAGE_KEYS.START_TUTORIAL);
+      open(true);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [open]);
+
   useEffect(() => {
     if (!visible) return;
-    preTutorialSnapshotRef.current = {
+    const { timer, sessionTimer, phaseTimer } = getTimers();
+    snapshotRef.current = {
       sessionData: JSON.parse(JSON.stringify(sessionData)),
       matchActive,
       matchPhase,
@@ -845,372 +586,478 @@ export const ActiveTutorial = () => {
       isTimerRunning,
       hasStarted,
       sessionTimer,
-      hasTransitionedToTeleop,
-      showTeleopTransition,
       phaseTimer,
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]); // Only when visibility changes, not on every state update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]); // snapshot once per showing, not on every state change
 
+  // First run for this account or guest: open by itself, once.
   useEffect(() => {
-    // Wait until auth has resolved (not still loading)
     if (loading) return;
-    // Must have some identity (logged-in user OR guest)
     if (!user && !isGuest) return;
-    const tutorialKey = getTutorialKey();
-    const seen = localStorage.getItem(tutorialKey);
-    if (!seen) {
-      const t = setTimeout(() => setVisible(true), 500);
-      return () => clearTimeout(t);
+    const key = getTutorialKey();
+    if (autoOpenCheckedRef.current === key) return;
+    if (localStorage.getItem(key)) {
+      autoOpenCheckedRef.current = key;
+      return;
     }
-  }, [loading, user, isGuest, getTutorialKey]);
+    const t = setTimeout(() => {
+      autoOpenCheckedRef.current = key;
+      const live = liveRef.current;
+      if (
+        live.hasStarted ||
+        live.matchActive ||
+        live.isTimerRunning ||
+        live.matchCount > 0
+      ) {
+        // Someone with a session under way is not a first-time user — a
+        // guest who just signed up brings theirs along under a new identity.
+        // Don't cover it, and don't come back for it later either.
+        localStorage.setItem(key, 'true');
+        return;
+      }
+      open(false);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [loading, user, isGuest, getTutorialKey, open]);
 
   useEffect(() => {
     if (!visible) return;
-    const tutorialKey = getTutorialKey();
-    const seen = localStorage.getItem(tutorialKey);
-    setIsReplay(!!seen);
+    setIsReplay(!!localStorage.getItem(getTutorialKey()));
   }, [visible, getTutorialKey]);
 
-  // When replaying, auto-complete any page task so the user can click Next freely
+  // On a replay every page task is pre-satisfied so Next is always available.
   useEffect(() => {
     if (!visible || !isReplay) return;
-    const current = STEPS[step];
-    if (current?.pageAction) {
-      setTaskCompleted(true);
-      // Also fill the metrics checklist so all items show as done
-      setMetricsTasksMask(0b111);
-    }
+    if (STEPS[step]?.pageAction) setTaskCompleted(true);
   }, [visible, step, isReplay]);
 
-  // Activate match at the Scoring Grid step so the scoring grid becomes editable
+  // Make the live-scoring fields editable once the walkthrough reaches them.
   useEffect(() => {
     if (!visible) return;
-    const SCORING_GRID_STEP_INDEX = STEPS.findIndex(s => s.title === 'Scoring Grid');
-    if (step >= SCORING_GRID_STEP_INDEX && !matchActive) {
+    if (step >= SCORING_STEP && !matchActive) {
       setMatchActive(true);
-      // Set initial phase and timer state for scoring to work
-      if (sessionData.matchType === 'Teleop') {
-        setMatchPhase('teleop');
-      } else {
-        setMatchPhase('auton');
-      }
+      setMatchPhase(sessionData.matchType === 'Teleop' ? 'teleop' : 'auton');
     }
-  }, [visible, step, matchActive, sessionData.matchType, setMatchActive, setMatchPhase]);
+  }, [
+    visible,
+    step,
+    matchActive,
+    sessionData.matchType,
+    setMatchActive,
+    setMatchPhase,
+  ]);
 
-  // Sync tutorial visible state with isTutorialActive to prevent audio playback
+  // Penalties only exist in a scrim, so preview one while that step is up —
+  // otherwise there would be nothing on the page to point at.
+  useEffect(() => {
+    if (!visible) return;
+    const onPenaltiesStep = STEPS[step]?.target === 'penalties';
+    if (onPenaltiesStep && sessionData.sessionType !== 'Scrim') {
+      if (forcedScrimFromRef.current === null) {
+        forcedScrimFromRef.current = sessionData.sessionType;
+      }
+      updateSessionData({ sessionType: 'Scrim' });
+    } else if (!onPenaltiesStep && forcedScrimFromRef.current !== null) {
+      updateSessionData({ sessionType: forcedScrimFromRef.current });
+      forcedScrimFromRef.current = null;
+    }
+  }, [visible, step, sessionData.sessionType, updateSessionData]);
+
+  // Keep the match audio muted for the duration of the tutorial.
   useEffect(() => {
     setIsTutorialActive(visible);
   }, [visible, setIsTutorialActive]);
 
   useEffect(() => {
-    const handle = () => {
-      setStep(0);
-      setVisible(true);
-    };
+    const handle = () => open(true);
     window.addEventListener(TUTORIAL_RESTART_EVENT, handle);
     return () => window.removeEventListener(TUTORIAL_RESTART_EVENT, handle);
-  }, []);
+  }, [open]);
 
-  // Watch real sessionData/context for page-level task completion
+  // Complete the current page task when the watched field gets a value.
   useEffect(() => {
-    if (!visible) return;
-    const current = STEPS[step];
-    if (!current?.watchKey || taskCompleted) return;
-
-    const key = current.watchKey;
-    if (key === 'sessionName' && sessionData.sessionName?.trim()) {
-      setTaskCompleted(true);
-    }
+    if (!visible || taskCompleted) return;
+    const key = STEPS[step]?.watchKey;
+    if (!key) return;
     if (key === 'notes' && sessionData.notes?.trim()) {
       setTaskCompleted(true);
     }
-    if (key === 'motifPattern') {
-      const pattern = sessionData.motifPattern ?? [];
-      if (pattern.length === 3 && pattern.every(s => s !== 'empty')) {
-        setTaskCompleted(true);
-      }
-    }
-    if (key === 'matchActive' && matchActive) {
+    if (key === 'tipping' && sessionData.tipping > 0) {
       setTaskCompleted(true);
     }
-    if (key === 'shots') {
-      const total =
-        (sessionData.autonShots?.length ?? 0) +
-        (sessionData.teleopShots?.length ?? 0);
-      if (total >= 3) setTaskCompleted(true);
-    }
-    if (key === 'motifScore') {
-      if ((sessionData.autonMotif ?? 0) > 0 || (sessionData.teleMotif ?? 0) > 0) {
-        setTaskCompleted(true);
-      }
-    }
-  }, [
-    visible,
-    step,
-    taskCompleted,
-    sessionData.sessionName,
-    sessionData.notes,
-    sessionData.motifPattern,
-    sessionData.autonShots,
-    sessionData.teleopShots,
-    sessionData.autonMotif,
-    sessionData.teleMotif,
-    matchActive,
-  ]);
+  }, [visible, step, taskCompleted, sessionData]);
 
-  // Broadcast current step to dependent components (like SessionSetup)
-  useEffect(() => {
+  // The settings panel is asked to open once per visit to its step, so that
+  // closing it there (Save) doesn't just bring it straight back. A layout
+  // effect, so the reset lands before the next step's spotlight below.
+  useLayoutEffect(
+    () => () => {
+      setupRequestedRef.current = false;
+    },
+    [visible, step]
+  );
+
+  // Spotlight this step's page element, for as long as the step is up.
+  useLayoutEffect(() => {
     if (!visible) return;
-    const current = STEPS[step];
-    window.dispatchEvent(new CustomEvent('teamtrack-tutorial-step-changed', {
-      detail: { step, target: current?.target, taskCompleted, stepTitle: current?.title }
-    }));
-  }, [visible, step, taskCompleted]);
+    const target = STEPS[step]?.target;
+    if (!target) return;
+    const fallbackTarget = STEPS[step].fallbackTarget;
 
-  // When reaching the Gate step, set up 9 balls for the user to interact with
-  const GATE_STEP_INDEX = STEPS.findIndex(s => s.title === 'Gate Mechanic');
-  const [gateStepInitialized, setGateStepInitialized] = useState(false);
-  useEffect(() => {
-    if (!visible || step !== GATE_STEP_INDEX) {
-      setGateStepInitialized(false);
-      return;
-    }
-    if (gateStepInitialized) return; // Only run once per step entry
-    
-    setGateStepInitialized(true);
-    const GATE_CAPACITY = 9;
-    // Set gateBallCount to 9 for gate tutorial step
-    if ((sessionData.gateBallCount ?? 0) !== GATE_CAPACITY) {
-      updateSessionData({ gateBallCount: GATE_CAPACITY });
-    }
-    // Reset match phase from 'ended' if returning from the Motif step,
-    // otherwise the normal showMotifButtons logic in GateVisual stays true
-    // and M buttons persist on the Gate step.
-    if (matchPhase === 'ended') {
-      if (sessionData.matchType === 'Teleop') {
-        setMatchPhase('teleop');
-      } else {
-        setMatchPhase('auton');
+    let lifted: HTMLElement | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let tries = 0;
+
+    const find = () =>
+      queryTarget(target) ??
+      (fallbackTarget ? queryTarget(fallbackTarget) : null);
+
+    const spotlight = () => {
+      const el = find();
+      if (el) {
+        liftElement(el, isDarkMode);
+        lifted = el;
+        setTargetEl(el);
+        return;
       }
-    }
-  }, [visible, step, GATE_STEP_INDEX, sessionData.gateBallCount, sessionData.matchType, matchPhase, gateStepInitialized, updateSessionData, setMatchPhase]);
-
-  // When on the motif scoring step, force match state to 'ended' so real M buttons appear
-  const MOTIF_STEP_INDEX = STEPS.findIndex(s => s.watchKey === 'motifScore');
-  useEffect(() => {
-    if (!visible || step !== MOTIF_STEP_INDEX) {
-      setMotifStepInitialized(false);
-      return;
-    }
-    if (motifStepInitialized) return; // Only run once per step entry
-    
-    setMotifStepInitialized(true);
-    
-    // Ensure motif pattern is set and gate has balls so M buttons are visible
-    const currentPattern = sessionData.motifPattern ?? ['empty', 'empty', 'empty'];
-    const noneSet = currentPattern.every(c => c === 'empty');
-    const updates: Partial<SessionFormData> = {};
-    
-    if (noneSet) {
-      updates.motifPattern = ['purple', 'green', 'purple'];
-    }
-    if ((sessionData.gateBallCount ?? 0) < 3) {
-      updates.gateBallCount = 3;
-    }
-    // Close the gate if left open from the Gate step — motif buttons require
-    // the gate to be closed in the 'ended' phase, and the disabled logic also
-    // depends on this.
-    if (sessionData.gateAddBackMode) {
-      updates.gateAddBackMode = false;
-      updates.gateAddBackCount = 0;
-    }
-    
-    if (Object.keys(updates).length > 0) {
-      updateSessionData(updates);
-    }
-    
-    setMatchActive(true);
-    setMatchPhase('ended');
-    setIsTimerRunning(false);
-  }, [visible, step, MOTIF_STEP_INDEX, sessionData.motifPattern, sessionData.gateBallCount, sessionData.gateAddBackMode, motifStepInitialized, setMatchActive, setMatchPhase, setIsTimerRunning, updateSessionData]);
-
-  const METRICS_STEP_INDEX = STEPS.findIndex(s => s.title === 'Scoring Metrics');
-  useEffect(() => {
-    if (!visible || step !== METRICS_STEP_INDEX) return;
-    window.dispatchEvent(new CustomEvent(TUTORIAL_METRICS_AUTON_TAB_EVENT));
-  }, [visible, step, METRICS_STEP_INDEX]);
-
-  // Listen for the 3 sub-tasks on the Scoring Metrics step
-  useEffect(() => {
-    if (!visible || step !== METRICS_STEP_INDEX || taskCompleted) return;
-    const makeHandler = (bit: number) => () => {
-      setMetricsTasksMask(prev => {
-        const next = prev | bit;
-        if ((next & 0b111) === 0b111) setTaskCompleted(true);
-        return next;
-      });
-    };
-    const leaveHandler = makeHandler(0b001);
-    const shotHandler  = makeHandler(0b010);
-    const motifHandler = makeHandler(0b100);
-    window.addEventListener(TUTORIAL_METRICS_LEAVE_EVENT, leaveHandler);
-    window.addEventListener(TUTORIAL_METRICS_SHOT_EDIT_EVENT, shotHandler);
-    window.addEventListener(TUTORIAL_METRICS_MOTIF_EDIT_EVENT, motifHandler);
-    return () => {
-      window.removeEventListener(TUTORIAL_METRICS_LEAVE_EVENT, leaveHandler);
-      window.removeEventListener(TUTORIAL_METRICS_SHOT_EDIT_EVENT, shotHandler);
-      window.removeEventListener(TUTORIAL_METRICS_MOTIF_EDIT_EVENT, motifHandler);
-    };
-  }, [visible, step, taskCompleted, METRICS_STEP_INDEX]);
-
-  useEffect(() => {
-    setTutorialEventCount(0);
-    setMetricsTasksMask(0);
-  }, [step]);
-
-  // Listen for custom DOM events — supports counted requirements (watchEventCount)
-  useEffect(() => {
-    if (!visible) return;
-    const current = STEPS[step];
-    if (!current?.watchEvent || taskCompleted) return;
-
-    const required = current.watchEventCount ?? 1;
-    const handler = () => {
-      setTutorialEventCount(prev => {
-        const next = prev + 1;
-        if (next >= required) setTaskCompleted(true);
-        return next;
-      });
-    };
-
-    window.addEventListener(current.watchEvent, handler);
-    return () => window.removeEventListener(current.watchEvent!, handler);
-  }, [visible, step, taskCompleted]);
-
-  // Remove lift from previous element + apply to new one
-  const applyHighlight = useCallback((targetAttr: string | null, breathing = false, dark = isDarkMode) => {
-    // Drop previous
-    if (prevElRef.current) {
-      dropElement(prevElRef.current);
-      prevElRef.current = null;
-    }
-    if (!targetAttr) return;
-
-    // Special handling: if targeting session-setup and it's not in DOM,
-    // send event to open it
-    if (targetAttr === 'session-setup') {
-      const el = document.querySelector<HTMLElement>(
-        `[data-tutorial="${targetAttr}"]`
-      );
-      if (!el) {
-        // Panel is closed, emit event to open it
+      // The target may be about to render: the session setup panel collapses
+      // once saved (ask it to reopen), and the penalties box only appears
+      // once the step above switches the session to a scrim. Look again
+      // after React has had a moment to render it.
+      if (target === 'session-setup' && !setupRequestedRef.current) {
+        setupRequestedRef.current = true;
         window.dispatchEvent(
           new CustomEvent(TUTORIAL_OPEN_SESSION_SETUP_EVENT)
         );
-        // Re-query after a small delay to give React time to render
-        setTimeout(() => {
-          const newEl = document.querySelector<HTMLElement>(
-            `[data-tutorial="${targetAttr}"]`
-          );
-          if (newEl) {
-            liftElement(newEl, breathing, dark);
-            prevElRef.current = newEl;
-            const rect = newEl.getBoundingClientRect();
-            const viewH = window.innerHeight;
-            if (rect.top < 80 || rect.bottom > viewH - 80) {
-              newEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }
-        }, 50);
-        return;
       }
+      if (++tries <= 8) retry = setTimeout(spotlight, 50 * tries);
+    };
+    spotlight();
+
+    return () => {
+      clearTimeout(retry);
+      if (lifted) dropElement(lifted);
+      setTargetEl(null);
+    };
+  }, [visible, step, isDarkMode, spotlightEpoch]);
+
+  // The header is sticky and normally sits under the spotlit element, which
+  // would then slide over it when the page scrolls. Raise it for as long as
+  // the walkthrough is up; a strip of backdrop over it keeps it dimmed.
+  useLayoutEffect(() => {
+    if (!visible) return;
+    const header = document.querySelector<HTMLElement>('header');
+    if (!header) return;
+
+    const previousZIndex = header.style.zIndex;
+    header.style.zIndex = String(Z_HEADER);
+    const measure = () =>
+      setHeaderBottom(Math.max(0, header.getBoundingClientRect().bottom));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+
+    return () => {
+      observer.disconnect();
+      header.style.zIndex = previousZIndex;
+    };
+  }, [visible]);
+
+  /**
+   * Put the card where it does not cover the spotlit element: docked to the
+   * bottom with the element scrolled up under the header, or to the top (over
+   * the header) with the element below it — whichever leaves the card more
+   * room — and no taller than the space that is left. `allowScroll` is false
+   * when the user is the one scrolling: then the card only gets out of the
+   * way, and the page is not pulled back.
+   */
+  const place = useCallback((allowScroll: boolean) => {
+    const card = cardRef.current;
+    const target = targetElRef.current;
+    if (!card || !target) {
+      setPlacement(DEFAULT_PLACEMENT);
+      return;
+    }
+    if (!target.isConnected) {
+      // The page has rendered that part again (turning a phone swaps the
+      // whole layout), so the element in hand is gone: find the new one.
+      setSpotlightEpoch(epoch => epoch + 1);
+      return;
     }
 
-    const el = document.querySelector<HTMLElement>(
-      `[data-tutorial="${targetAttr}"]`
+    const viewHeight = window.innerHeight;
+    const { gutter } = cardLayout(window.innerWidth, viewHeight);
+    const header = document.querySelector('header');
+    const headerEdge = header
+      ? Math.max(0, header.getBoundingClientRect().bottom)
+      : 0;
+
+    // Card height with nothing scrolled away, and with its text at the minimum
+    const body = bodyRef.current;
+    const bodyFull = body?.scrollHeight ?? 0;
+    const chrome = card.offsetHeight - (body?.clientHeight ?? 0);
+    const full = Math.min(chrome + bodyFull, viewHeight - 2 * gutter);
+    const minimum = Math.min(
+      chrome + Math.min(bodyFull, MIN_BODY_HEIGHT),
+      full
     );
-    if (!el) return;
 
-    liftElement(el, breathing, dark);
-    prevElRef.current = el;
+    const rect = target.getBoundingClientRect();
+    const apply = (dock: Dock, maxHeight: number) =>
+      setPlacement(prev =>
+        prev.dock === dock && prev.maxHeight === maxHeight
+          ? prev
+          : { dock, maxHeight }
+      );
 
-    const rect = el.getBoundingClientRect();
-    const viewH = window.innerHeight;
-    if (rect.top < 80 || rect.bottom > viewH - 80) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const scrollY = window.scrollY;
+    const maxScroll = Math.max(
+      0,
+      document.documentElement.scrollHeight - viewHeight
+    );
+    const clampScroll = (y: number) => Math.min(maxScroll, Math.max(0, y));
+    const pageTop = rect.top + scrollY;
+    /** Scroll the page so the element's top edge lands `top` px down the screen */
+    const scrollTargetTo = (top: number) => {
+      const to = clampScroll(pageTop - top);
+      if (Math.abs(to - scrollY) <= 1) return;
+      autoScrollRef.current = true;
+      window.scrollTo({ top: to, behavior: 'smooth' });
+    };
+
+    const inView = rect.top >= headerEdge - 1 && rect.bottom <= viewHeight + 1;
+
+    // On a wide screen the card sits beside the element's column, so the two
+    // can't meet: only make sure the element can be seen.
+    const cardRect = card.getBoundingClientRect();
+    if (rect.right <= cardRect.left || rect.left >= cardRect.right) {
+      apply('bottom', full);
+      if (allowScroll && !inView) scrollTargetTo(headerEdge + TARGET_PAD);
+      return;
     }
-  }, [isDarkMode]);
 
-  const clearHighlight = useCallback(() => {
-    if (prevElRef.current) {
-      dropElement(prevElRef.current);
-      prevElRef.current = null;
+    // Already clear of each other where things are: leave the page alone.
+    const roomBelow = viewHeight - gutter - CARD_GAP - rect.bottom;
+    const roomAbove = rect.top - CARD_GAP - gutter;
+    if (inView && (roomBelow >= full || roomAbove >= full)) {
+      // The half of the screen the element is not in, if the card fits there
+      const lowerHalf = rect.top + rect.height / 2 > viewHeight / 2;
+      const dock: Dock = lowerHalf
+        ? roomAbove >= full
+          ? 'top'
+          : 'bottom'
+        : roomBelow >= full
+          ? 'bottom'
+          : 'top';
+      apply(dock, full);
+      return;
     }
+
+    if (!allowScroll) {
+      // What can be seen of the element: the header hides what is above it
+      const shownTop = Math.max(rect.top, headerEdge);
+      const shownBottom = Math.min(rect.bottom, viewHeight);
+      if (cardRect.top >= shownBottom || shownTop >= cardRect.bottom) return;
+      // Whichever end hides less of it, at the height that fits there
+      const fit = (room: number) => Math.min(full, Math.max(minimum, room));
+      const heightBelow = fit(viewHeight - gutter - CARD_GAP - shownBottom);
+      const heightAbove = fit(shownTop - CARD_GAP - gutter);
+      const hiddenBelow = Math.max(
+        0,
+        shownBottom - (viewHeight - gutter - heightBelow)
+      );
+      const hiddenAbove = Math.max(0, gutter + heightAbove - shownTop);
+      if (
+        hiddenBelow < hiddenAbove ||
+        (hiddenBelow === hiddenAbove && heightBelow >= heightAbove)
+      ) {
+        apply('bottom', heightBelow);
+      } else {
+        apply('top', heightAbove);
+      }
+      return;
+    }
+
+    // Card at the bottom: the element goes right under the header.
+    const topIfBottom =
+      pageTop - clampScroll(pageTop - headerEdge - TARGET_PAD);
+    const spaceIfBottom =
+      viewHeight - gutter - CARD_GAP - (topIfBottom + rect.height);
+    // Card at the top: the element goes as low as it can and still be seen.
+    const topIfTop =
+      pageTop -
+      clampScroll(
+        pageTop -
+          Math.max(
+            headerEdge + TARGET_PAD,
+            viewHeight - TARGET_PAD - rect.height
+          )
+      );
+    const spaceIfTop = topIfTop - CARD_GAP - gutter;
+    /** Where the element sits under a top-docked card of this height */
+    const underCard = (height: number) =>
+      Math.max(headerEdge + TARGET_PAD, gutter + height + CARD_GAP);
+
+    let dock: Dock;
+    let height: number;
+    let targetTop: number;
+    if (spaceIfBottom >= full) {
+      dock = 'bottom';
+      height = full;
+      targetTop = topIfBottom;
+    } else if (spaceIfTop >= full) {
+      dock = 'top';
+      height = full;
+      targetTop = underCard(full);
+    } else if (Math.max(spaceIfBottom, spaceIfTop) >= minimum) {
+      // Both fit only if the card gives up some height; its text scrolls.
+      dock = spaceIfBottom >= spaceIfTop ? 'bottom' : 'top';
+      height = Math.floor(Math.max(spaceIfBottom, spaceIfTop));
+      targetTop = dock === 'bottom' ? topIfBottom : underCard(height);
+    } else if (pageTop >= underCard(minimum)) {
+      // The element is too tall to share the screen with the card. Over the
+      // header the card costs it the least room, and nothing of it is ever
+      // under the card: the rest is a scroll away.
+      dock = 'top';
+      height = minimum;
+      targetTop = underCard(minimum);
+    } else {
+      dock = 'bottom';
+      height = minimum;
+      targetTop = topIfBottom;
+    }
+
+    apply(dock, height);
+    scrollTargetTo(targetTop);
   }, []);
 
+  const { short, fullWidth, gutter } = cardLayout(
+    viewport.width,
+    viewport.height
+  );
+
+  // Place the card for each step, once its element is on the page, and again
+  // if the card changes shape.
+  useLayoutEffect(() => {
+    targetElRef.current = targetEl;
+    if (!visible) return;
+    place(true);
+  }, [visible, step, targetEl, short, fullWidth, place]);
+
+  // Keep the placement right as the element, the window or the scroll
+  // position changes under it.
   useEffect(() => {
     if (!visible) return;
-    const current = STEPS[step];
-    const hasPageTask = !!current?.pageAction;
-    applyHighlight(current?.target ?? null, hasPageTask, isDarkMode);
-  }, [visible, step, applyHighlight, isDarkMode]);
 
+    let frame = 0;
+    const schedule = (allowScroll: boolean) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => place(allowScroll));
+    };
+
+    let last = { width: window.innerWidth, height: window.innerHeight };
+    const handleResize = () => {
+      const next = { width: window.innerWidth, height: window.innerHeight };
+      const relayout =
+        next.width !== last.width ||
+        Math.abs(next.height - last.height) > URL_BAR_HEIGHT;
+      last = next;
+      setViewport(next);
+      schedule(relayout);
+    };
+
+    // Once a scroll comes to rest. After one of our own, check the result:
+    // the header grows a clock row once the page clock scrolls away, which
+    // moves the line the element was scrolled up to.
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    const handleScroll = () => {
+      clearTimeout(settle);
+      settle = setTimeout(() => {
+        const ownScroll = autoScrollRef.current;
+        autoScrollRef.current = false;
+        place(ownScroll);
+      }, 150);
+    };
+
+    // The element can change size after it is spotlit: the settings panel
+    // opening, the scrim counters arriving.
+    const observer = new ResizeObserver(() => schedule(true));
+    if (targetEl) observer.observe(targetEl);
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(settle);
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [visible, targetEl, place]);
+
+  // Keyboard users land on Next for every step.
   useEffect(() => {
-    if (!visible) clearHighlight();
-    return () => clearHighlight();
-  }, [visible, clearHighlight]);
+    if (!visible) return;
+    nextButtonRef.current?.focus({ preventScroll: true });
+  }, [visible, step]);
 
   const dismiss = useCallback(() => {
+    // A page field that still has focus (Escape while typing in Notes) hands
+    // in what it holds when it loses it. Have that happen now, so the restore
+    // below is the last word.
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && !cardRef.current?.contains(focused)) {
+      focused.blur();
+    }
+
     setVisible(false);
-    clearHighlight();
     setIsTutorialActive(false);
 
-    // Restore session state from the pre-tutorial snapshot
-    const snapshot = preTutorialSnapshotRef.current;
+    const snapshot = snapshotRef.current;
     if (snapshot) {
-      // Full replacement of session data (not a merge) to ensure tutorial-only
-      // properties like motifPattern/gateBallCount don't leak through
-      replaceSessionData(snapshot.sessionData);
-      // Restore match state
-      setMatchActive(snapshot.matchActive);
-      setMatchPhase(snapshot.matchPhase);
-      setTimer(snapshot.timer);
-      setIsTimerRunning(snapshot.isTimerRunning);
-      setHasStarted(snapshot.hasStarted);
-      setSessionTimer(snapshot.sessionTimer);
-      setHasTransitionedToTeleop(snapshot.hasTransitionedToTeleop);
-      setShowTeleopTransition(snapshot.showTeleopTransition);
-      setPhaseTimer(snapshot.phaseTimer);
-      preTutorialSnapshotRef.current = null;
-    } else {
-      // Fallback: no snapshot available (shouldn't happen normally)
-      resetSession();
+      restoreSnapshot(snapshot);
+      snapshotRef.current = null;
+      forcedScrimFromRef.current = null;
     }
 
-    // Notify other components (e.g. clear keybind popup)
     window.dispatchEvent(new Event(TUTORIAL_ENDED_EVENT));
-    // Scroll back to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    // Mark tutorial as seen for this user/guest
-    const tutorialKey = getTutorialKey();
-    localStorage.setItem(tutorialKey, 'true');
-  }, [getTutorialKey, clearHighlight, resetSession, replaceSessionData, setIsTutorialActive, setMatchActive, setMatchPhase, setTimer, setIsTimerRunning, setHasStarted, setSessionTimer, setHasTransitionedToTeleop, setShowTeleopTransition, setPhaseTimer]);
+    localStorage.setItem(getTutorialKey(), 'true');
+
+    const returnTo = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (returnTo?.isConnected) returnTo.focus({ preventScroll: true });
+  }, [getTutorialKey, restoreSnapshot, setIsTutorialActive]);
+
+  // Leaving /active mid-walkthrough unmounts this without dismiss() having
+  // run. The session lives above the page, so it would keep the practice
+  // match, the forced scrim and the muted audio: put it back on the way out.
+  const abandonRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    abandonRef.current = () => {
+      const snapshot = snapshotRef.current;
+      if (!snapshot) return;
+      snapshotRef.current = null;
+      restoreSnapshot(snapshot);
+      setIsTutorialActive(false);
+    };
+  });
+  useEffect(() => () => abandonRef.current(), []);
 
   const next = useCallback(() => {
-    if (step >= STEPS.length - 1) dismiss();
-    else {
-      setTaskCompleted(false);
-      setStep(s => s + 1);
+    if (step >= STEPS.length - 1) {
+      dismiss();
+      return;
     }
+    setStep(s => s + 1);
+    setTaskCompleted(false);
   }, [step, dismiss]);
 
   const prev = useCallback(() => {
-    if (step > 0) {
-      setTaskCompleted(false);
-      setStep(s => s - 1);
-    }
-  }, [step]);
+    setStep(s => Math.max(0, s - 1));
+    setTaskCompleted(false);
+  }, []);
 
   useEffect(() => {
     if (!visible) return;
@@ -1219,17 +1066,16 @@ export const ActiveTutorial = () => {
         e.stopPropagation();
         e.preventDefault();
         dismiss();
+        return;
       }
-      if (e.key === 'ArrowRight') {
-        e.stopPropagation();
-        e.preventDefault();
-        next();
-      }
-      if (e.key === 'ArrowLeft') {
-        e.stopPropagation();
-        e.preventDefault();
-        prev();
-      }
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      // Several steps ask for typing on the page; the arrows belong to the
+      // caret there, not to the walkthrough.
+      if (usesArrowKeys(e.target)) return;
+      e.stopPropagation();
+      e.preventDefault();
+      if (e.key === 'ArrowRight') next();
+      else prev();
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
@@ -1241,16 +1087,106 @@ export const ActiveTutorial = () => {
   const isLast = step === STEPS.length - 1;
   const isFirst = step === 0;
   const hasTarget = !!current.target;
+  const hasPageTask = !!current.pageAction;
 
   const teamBlue = 'rgb(var(--team-blue))';
-  // Light mode: stronger border opacity so it's visible against white background
-  const teamBlue50 = isDarkMode ? 'rgb(var(--team-blue) / 0.5)' : 'rgb(var(--team-blue) / 0.75)';
+  const teamBlue50 = isDarkMode
+    ? 'rgb(var(--team-blue) / 0.5)'
+    : 'rgb(var(--team-blue) / 0.75)';
   const teamBlue80 = 'rgb(var(--team-blue) / 0.8)';
   const bg = isDarkMode ? '#191919' : '#ffffff';
   const text = isDarkMode ? '#ffffff' : '#111111';
   const subtext = isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+  // Secondary text. Solid enough to stay over 4.5:1 on the card and on the
+  // preview boxes in both themes, which stacked opacity was not.
+  const muted = isDarkMode ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.58)';
 
-  const hasPageTask = !!current.pageAction;
+  const backdrop = {
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    backdropFilter: 'blur(4px)',
+    WebkitBackdropFilter: 'blur(4px)',
+    pointerEvents: 'none',
+  } as const;
+
+  const cardSurface = {
+    zIndex: Z_CARD,
+    backgroundColor: bg,
+    border: `2px solid ${teamBlue50}`,
+    color: text,
+    borderRadius: 20,
+    overflow: 'hidden',
+    '--tt-muted': muted,
+    '--tt-text': text,
+  } as React.CSSProperties;
+
+  const cardStyle: React.CSSProperties = hasTarget
+    ? {
+        ...cardSurface,
+        ...(placement.dock === 'top' ? { top: gutter } : { bottom: gutter }),
+        right: gutter,
+        ...(fullWidth
+          ? { left: gutter }
+          : { width: 'min(400px, calc(100vw - 48px))' }),
+        maxHeight: placement.maxHeight ?? '80vh',
+        padding: fullWidth ? '14px 16px 12px' : '22px 22px 18px',
+      }
+    : {
+        ...cardSurface,
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 'min(420px, 90vw)',
+        maxHeight: '85vh',
+        padding: '24px 24px 20px',
+      };
+
+  // A phone on its side has no height to spare, so the one-row card puts the
+  // buttons beside the title and drops the mock.
+  const compactCard = hasTarget && short;
+  // On a phone every row counts: the step counter shares the title's line.
+  const inlineCounter = hasTarget && fullWidth;
+  const showPreview = current.preview !== null && !(hasTarget && fullWidth);
+
+  const nav = (
+    <div
+      className={`flex items-center gap-2 flex-shrink-0 ${
+        compactCard ? '' : 'justify-between mt-4'
+      }`}
+    >
+      <button
+        onClick={dismiss}
+        className="tt-skip px-1 py-2 text-xs font-medium uppercase tracking-wide transition-colors"
+      >
+        Skip
+      </button>
+      <div className="flex items-center gap-2">
+        {!isFirst && (
+          <button
+            onClick={prev}
+            className="px-4 py-2 text-sm font-semibold rounded-xl transition-colors"
+            style={{
+              border: `1px solid ${teamBlue50}`,
+              color: teamBlue,
+              backgroundColor: 'transparent',
+            }}
+          >
+            Back
+          </button>
+        )}
+        <button
+          ref={nextButtonRef}
+          onClick={next}
+          className="px-5 py-2 text-sm font-bold rounded-xl transition-all duration-200"
+          style={{
+            backgroundColor: teamBlue,
+            color: isDarkMode ? '#000' : '#fff',
+          }}
+        >
+          {isLast ? 'Get Started' : 'Next'}
+        </button>
+      </div>
+    </div>
+  );
 
   return createPortal(
     <>
@@ -1263,90 +1199,31 @@ export const ActiveTutorial = () => {
           from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
           to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
-        @keyframes ttCursorBlink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-        @keyframes ttBreathe {
-          0%, 100% {
-            box-shadow: 0 0 0 4px rgb(var(--team-blue) / 0.35),
-                        0 0 40px rgb(var(--team-blue) / 0.12);
-          }
-          50% {
-            box-shadow: 0 0 0 6px rgb(var(--team-blue) / 0.55),
-                        0 0 70px rgb(var(--team-blue) / 0.25);
-          }
-        }
-        /* Stronger variant for light mode where team-blue is a muted #537788 */
-        @keyframes ttBreatheLight {
-          0%, 100% {
-            box-shadow: 0 0 0 3px rgb(var(--team-blue) / 0.75),
-                        0 0 28px rgb(var(--team-blue) / 0.22);
-          }
-          50% {
-            box-shadow: 0 0 0 5px rgb(var(--team-blue) / 0.95),
-                        0 0 48px rgb(var(--team-blue) / 0.35);
-          }
-        }
         .tt-card-slide { animation: ttCardIn 0.3s ease-out forwards; }
         .tt-card-center { animation: ttCardCenter 0.25s ease-out forwards; }
-        .tt-breathe { animation: ttBreathe 2s ease-in-out infinite; }
-        .tt-breathe[data-tt-dark="0"] { animation: ttBreatheLight 2s ease-in-out infinite; }
-        @keyframes ttSlideRight {
-          from { opacity: 0; transform: translateX(60px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes ttSlideLeft {
-          from { opacity: 0; transform: translateX(-60px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
+        .tt-skip { color: var(--tt-muted); }
+        .tt-skip:hover, .tt-skip:focus-visible { color: var(--tt-text); }
       `}</style>
 
       <div
-        className="fixed inset-0 z-[9997]"
-        style={{
-          backgroundColor: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
-          pointerEvents: 'none',
-        }}
+        className="fixed inset-0"
+        style={{ ...backdrop, zIndex: Z_BACKDROP }}
+      />
+      {/* The raised header is above the backdrop, so it gets its own strip. */}
+      <div
+        className="fixed top-0 left-0 right-0"
+        style={{ ...backdrop, zIndex: Z_HEADER, height: headerBottom }}
       />
 
       <div
         key={step}
-        className={
-          hasTarget
-            ? 'fixed z-[10000] tt-card-slide'
-            : 'fixed z-[10000] tt-card-center'
-        }
-        style={
-          hasTarget
-            ? {
-                bottom: 24,
-                right: 24,
-                width: 'min(400px, calc(100vw - 48px))',
-                maxHeight: '80vh',
-                overflowY: 'auto',
-                backgroundColor: bg,
-                border: `2px solid ${teamBlue50}`,
-                color: text,
-                borderRadius: 20,
-                padding: '22px 22px 18px',
-              }
-            : {
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 'min(420px, 90vw)',
-                maxHeight: '85vh',
-                overflowY: 'auto',
-                backgroundColor: bg,
-                border: `2px solid ${teamBlue50}`,
-                color: text,
-                borderRadius: 20,
-                padding: '24px 24px 20px',
-              }
-        }
+        ref={cardRef}
+        role="dialog"
+        aria-label={`Tutorial: ${current.title}`}
+        className={`fixed flex flex-col ${
+          hasTarget ? 'tt-card-slide' : 'tt-card-center'
+        }`}
+        style={cardStyle}
         onClick={e => e.stopPropagation()}
       >
         <div
@@ -1359,79 +1236,56 @@ export const ActiveTutorial = () => {
         />
 
         <div
-          className="text-xs font-semibold uppercase tracking-widest mb-2"
-          style={{ color: teamBlue }}
+          className={
+            compactCard
+              ? 'flex flex-wrap items-center justify-between gap-x-3 flex-shrink-0'
+              : 'flex-shrink-0'
+          }
         >
-          {step + 1} / {STEPS.length}
-        </div>
-
-        <h3 className="text-lg font-bold mb-1.5" style={{ color: teamBlue }}>
-          {current.title}
-        </h3>
-
-        <div className="text-sm leading-relaxed whitespace-pre-line" style={{ color: subtext }}>
-          {current.body}
-        </div>
-
-        {current.preview && current.preview(isDarkMode)}
-
-        {hasPageTask && step === METRICS_STEP_INDEX ? (
-          <div className="mt-4 flex flex-col gap-2">
-            {[
-              { label: 'Toggle the Autonomous Leave checkbox', bit: 0b001 },
-              { label: 'Edit a shot value in the shots list',  bit: 0b010 },
-              { label: 'Toggle a Motif button (M)',            bit: 0b100 },
-            ].map(({ label, bit }) => {
-              const done = !!(metricsTasksMask & bit);
-              return (
-                <div
-                  key={bit}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300"
-                  style={{
-                    backgroundColor: done
-                      ? isDarkMode ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)'
-                      : isDarkMode ? 'rgba(var(--team-blue) / 0.1)' : 'rgba(var(--team-blue) / 0.08)',
-                    border: `1px solid ${done ? 'rgba(34,197,94,0.3)' : 'rgb(var(--team-blue) / 0.25)'}`,
-                  }}
-                >
-                  {done ? (
-                    <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: 'rgba(34,197,94,0.2)' }}
-                    >
-                      <span className="text-green-500 text-xs font-bold">✓</span>
-                    </div>
-                  ) : (
-                    <div
-                      className="w-5 h-5 rounded-full border-2 flex-shrink-0"
-                      style={{ borderColor: teamBlue, opacity: 0.5 }}
-                    />
-                  )}
-                  <span
-                    className="text-xs font-medium"
-                    style={{ color: done ? (isDarkMode ? 'rgba(34,197,94,0.9)' : 'rgba(34,197,94,1)') : teamBlue }}
-                  >
-                    {label}
-                  </span>
-                </div>
-              );
-            })}
-            {taskCompleted && (
-              <button
-                onClick={() => {
-                  setTaskCompleted(false);
-                  setMetricsTasksMask(0);
-                }}
-                className="text-xs font-medium mt-1 self-start opacity-50 hover:opacity-100 transition-opacity"
-                style={{ color: teamBlue }}
-              >
-                ↻ Try Again
-              </button>
-            )}
-          </div>
-        ) : hasPageTask ? (
           <div
-            className="flex items-center gap-2 mt-4 px-3 py-2.5 rounded-xl transition-all duration-300"
+            className={
+              inlineCounter
+                ? `flex items-baseline gap-3 ${compactCard ? '' : 'mb-1.5'}`
+                : ''
+            }
+          >
+            <div
+              className={`text-xs font-semibold uppercase tracking-widest whitespace-nowrap ${
+                inlineCounter ? '' : 'mb-2'
+              }`}
+              style={{ color: teamBlue }}
+            >
+              {step + 1} / {STEPS.length}
+            </div>
+            <h3
+              className={`text-lg font-bold ${inlineCounter ? '' : 'mb-1.5'}`}
+              style={{ color: teamBlue }}
+            >
+              {current.title}
+            </h3>
+          </div>
+          {compactCard && nav}
+        </div>
+
+        <div
+          ref={bodyRef}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+        >
+          <div
+            className="text-sm leading-relaxed whitespace-pre-line"
+            style={{ color: subtext }}
+          >
+            {current.body}
+          </div>
+
+          {showPreview && current.preview?.(isDarkMode)}
+        </div>
+
+        {hasPageTask && (
+          <div
+            className={`flex items-center gap-2 px-3 rounded-xl transition-all duration-300 flex-shrink-0 ${
+              compactCard ? 'mt-2 py-1.5' : 'mt-4 py-2.5'
+            }`}
             style={{
               backgroundColor: taskCompleted
                 ? isDarkMode
@@ -1466,28 +1320,15 @@ export const ActiveTutorial = () => {
               }}
             >
               {taskCompleted
-                ? 'Done! Click Next to continue '
-                : current.watchEventCount && current.watchEventCount > 1
-                  ? `${current.pageAction} (${Math.min(tutorialEventCount, current.watchEventCount)}/${current.watchEventCount})`
-                  : current.watchKey === 'shots'
-                    ? (() => {
-                        const n = (sessionData.autonShots?.length ?? 0) + (sessionData.teleopShots?.length ?? 0);
-                        return `${current.pageAction} (${Math.min(n, 3)}/3)`;
-                      })()
-                    : current.pageAction}
+                ? 'Done! Click Next to continue'
+                : current.pageAction}
             </span>
-            {taskCompleted && (
+            {taskCompleted && !isReplay && (
               <button
                 onClick={() => {
                   setTaskCompleted(false);
-                  setTutorialEventCount(0);
-                  // Reset sessionData for watchKey-based steps so the watcher
-                  // doesn't immediately re-complete the task
-                  const watchKey = current.watchKey;
-                  if (watchKey === 'shots') {
-                    updateSessionData({ autonShots: [], teleopShots: [] });
-                  } else if (watchKey === 'motifScore') {
-                    updateSessionData({ autonMotif: 0, teleMotif: 0 });
+                  if (current.watchKey === 'tipping') {
+                    updateSessionData({ tipping: 0 });
                   }
                 }}
                 className="ml-auto text-xs font-medium opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
@@ -1497,44 +1338,9 @@ export const ActiveTutorial = () => {
               </button>
             )}
           </div>
-        ) : null}
+        )}
 
-        <div className="flex items-center justify-between mt-5">
-          <button
-            onClick={dismiss}
-            className="text-xs font-medium uppercase tracking-wide opacity-45 hover:opacity-100 transition-opacity"
-            style={{ color: text }}
-          >
-            Skip
-          </button>
-          <div className="flex items-center gap-2">
-            {!isFirst && (
-              <button
-                onClick={prev}
-                className="px-4 py-2 text-sm font-semibold rounded-xl transition-colors"
-                style={{
-                  border: `1px solid ${teamBlue50}`,
-                  color: teamBlue,
-                  backgroundColor: 'transparent',
-                }}
-              >
-                Back
-              </button>
-            )}
-            <button
-              onClick={() => {
-                next();
-              }}
-              className="px-5 py-2 text-sm font-bold rounded-xl transition-all duration-200"
-              style={{
-                backgroundColor: teamBlue,
-                color: isDarkMode ? '#000' : '#fff',
-              }}
-            >
-              {isLast ? 'Get Started' : 'Next'}
-            </button>
-          </div>
-        </div>
+        {!compactCard && nav}
       </div>
     </>,
     document.body
