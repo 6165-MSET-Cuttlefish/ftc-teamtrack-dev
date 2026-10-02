@@ -1,35 +1,77 @@
 import {
   collection,
-  addDoc,
   getDocs,
+  getDocsFromServer,
   doc,
   getDoc,
   setDoc,
   updateDoc,
-  deleteDoc,
+  onSnapshot,
+  writeBatch,
+  type WriteBatch,
   query,
   where,
   Timestamp,
   arrayUnion,
   arrayRemove,
+  deleteField,
+  type DocumentSnapshot,
   type Firestore,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import { getFirebase, isAbortError } from '@/lib';
 import type { Team, CreateTeamData, TeamInvite, TeamMember } from '@/types';
+import type { JoinedTeam } from '@/types/team';
+
+/**
+ * How many leading `members` slots the Firestore rules can inspect when a
+ * legacy team has no `ownerId` (rules cannot loop). Keep in step with
+ * `isLegacyOwner` in firestore.rules.
+ */
+const LEGACY_OWNER_SLOTS = 10;
+
+/** Longest display name the rules accept in a member entry. */
+const MAX_MEMBER_NAME_LENGTH = 50;
+
+/** How long to wait for the team to be read back after joining it. */
+const JOIN_READ_TIMEOUT_MS = 4000;
+
+/**
+ * How far outside its sign-in token's lifetime the device clock may read
+ * before it is taken to be wrong.
+ */
+const CLOCK_SLACK_MS = 5 * 60 * 1000;
+
+/** A stored `teamInvites` document. `revoked` marks a retired code. */
+interface StoredInvite {
+  teamId: string | null;
+  teamName: string;
+  revoked: boolean;
+}
+
+const isPermissionDenied = (error: unknown): boolean =>
+  (error as { code?: string } | null)?.code === 'permission-denied';
 
 /**
  * Teams, and how the Firestore rules police them (see firestore.rules):
  *
- * - The owner is `ownerId` (falling back to `createdBy` on teams made before
- *   the field existed). Only the owner can rename, kick, transfer, or change
- *   the invite code. `members[].role` mirrors it for display.
- * - A member can only remove themselves, or change their own entry.
+ * - The owner is `ownerId`, and must still be a member. Only the owner can
+ *   rename, kick, transfer, or change the invite code — and even the owner
+ *   cannot add members. `members[].role` mirrors it for display. On teams
+ *   saved before `ownerId` existed the role is the record, see `ownerOf`.
+ * - A member can only remove themselves, or change their own display name.
  * - A non-member can only add themselves, and only by writing the team's
- *   current invite code into `joinCode` — so knowing a team's ID is not
- *   enough to get in.
+ *   current invite code together with their own uid into `joinCode` — so
+ *   knowing a team's ID is not enough to get in, and removing a member
+ *   (which changes the code) keeps them out.
  * - Invite codes resolve through `teamInvites/{code}` → `{ teamId, teamName }`,
  *   which any signed-in user can fetch by exact code but nobody can list.
- *   Team documents themselves are readable by members only.
+ *   A code belongs to one team: the team document and its invite are always
+ *   written together, in one batch. Team documents themselves are readable
+ *   by members only.
+ * - A code a team stops using is retired, never freed: its invite stays,
+ *   marked `revoked`, so no other team can take the code over and with it
+ *   every copy of the old link. See `retireInvite`.
  */
 class TeamService {
   private dbInstance: Firestore | null = null;
@@ -82,9 +124,32 @@ class TeamService {
     return code;
   }
 
-  /** The team's owner, allowing for teams saved before `ownerId` existed. */
-  ownerOf(team: Pick<Team, 'ownerId' | 'createdBy'>): string {
-    return team.ownerId ?? team.createdBy;
+  /**
+   * The team's owner: `ownerId`, as long as they are still a member.
+   *
+   * Teams saved before `ownerId` existed recorded ownership only in
+   * `members[].role` (transfers and owner-leaves kept that up to date, while
+   * `createdBy` went stale), so there the owner is the member holding the
+   * 'owner' role, and the creator only when nobody holds it. This is the
+   * same test the Firestore rules apply. Returns '' when the team has no
+   * owner left.
+   */
+  ownerOf(
+    team: Pick<Team, 'createdBy'> &
+      Partial<Pick<Team, 'ownerId' | 'members' | 'memberIds'>>
+  ): string {
+    const members = team.members ?? [];
+    const memberIds = team.memberIds ?? members.map((m) => m.userId);
+    const owner =
+      team.ownerId ??
+      members.slice(0, LEGACY_OWNER_SLOTS).find((m) => m.role === 'owner')
+        ?.userId ??
+      team.createdBy;
+    return memberIds.includes(owner) ? owner : '';
+  }
+
+  private toTeam(snapshot: DocumentSnapshot): Team {
+    return { id: snapshot.id, ...snapshot.data() } as Team;
   }
 
   /** Point an invite code at its team. Owner only. */
@@ -93,21 +158,79 @@ class TeamService {
     await setDoc(doc(db, 'teamInvites', code), { teamId, teamName });
   }
 
-  /**
-   * Ensure a team document has the `memberIds` field.
-   * Legacy teams created before the field existed are backfilled on first read.
-   */
-  private async ensureMemberIds(team: Team): Promise<Team> {
-    if (team.memberIds && team.memberIds.length > 0) return team;
+  /** The invite stored for a code, live or retired; null if there is none. */
+  private async readInvite(db: Firestore, code: string): Promise<StoredInvite | null> {
+    const invite = await getDoc(doc(db, 'teamInvites', code));
+    if (!invite.exists()) return null;
+    const data = invite.data();
+    return {
+      teamId: data.teamId ?? null,
+      teamName: data.teamName ?? '',
+      revoked: data.revoked === true,
+    };
+  }
 
-    const ids = (team.members || []).map((m) => m.userId);
-    try {
-      const db = await this.getDB();
-      await updateDoc(doc(db, 'teams', team.id), { memberIds: ids });
-    } catch {
-      // Non-critical — will retry on next read
+  /**
+   * An invite code no team is using or has used (the rules reject a taken
+   * one, and a retired one).
+   */
+  private async unusedInviteCode(db: Firestore): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = this.generateInviteCode();
+      if ((await this.readInvite(db, code)) === null) return code;
     }
-    return { ...team, memberIds: ids };
+    throw new Error('Could not generate an invite code');
+  }
+
+  /**
+   * Retire the team's current invite code, as part of `batch`. The invite
+   * is kept, marked revoked and still naming the team, rather than deleted:
+   * a deleted one frees the code, and whoever claimed it next would own
+   * every copy of the old link. `current` is what the code resolves to now.
+   * Another team's invite is not ours to write (it would fail the batch).
+   */
+  private retireInvite(
+    batch: WriteBatch,
+    db: Firestore,
+    team: Team,
+    current: StoredInvite | null
+  ) {
+    if (current && current.teamId !== team.id) return;
+    batch.set(doc(db, 'teamInvites', team.inviteCode), {
+      teamId: team.id,
+      teamName: team.name,
+      revoked: true,
+    });
+  }
+
+  /**
+   * Give a team a new invite code. The team document, the new invite and
+   * the retiring of the old one go in a single batch: either the old link
+   * stops and the new one works, or nothing changed. `teamChanges` are
+   * written to the team in the same batch.
+   */
+  private async rotateInviteCode(
+    db: Firestore,
+    team: Team,
+    teamChanges: Record<string, unknown> = {}
+  ): Promise<string> {
+    const newCode = await this.unusedInviteCode(db);
+    const oldInvite = await this.readInvite(db, team.inviteCode);
+
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'teams', team.id), {
+      ...teamChanges,
+      inviteCode: newCode,
+      // Proof left by earlier joins; meaningless once the code changes.
+      joinCode: deleteField(),
+    });
+    batch.set(doc(db, 'teamInvites', newCode), {
+      teamId: team.id,
+      teamName: team.name,
+    });
+    this.retireInvite(batch, db, team, oldInvite);
+    await batch.commit();
+    return newCode;
   }
 
   /**
@@ -123,12 +246,13 @@ class TeamService {
       if (!team.ownerId) {
         await updateDoc(doc(db, 'teams', team.id), { ownerId: userId });
       }
-      const invite = await getDoc(doc(db, 'teamInvites', team.inviteCode));
-      if (
-        !invite.exists() ||
-        invite.data().teamId !== team.id ||
-        invite.data().teamName !== team.name
-      ) {
+      const invite = await this.readInvite(db, team.inviteCode);
+      if (invite && (invite.teamId !== team.id || invite.revoked)) {
+        // The code resolves to another team, or has been retired, and an
+        // invite can never be re-pointed or revived. Take a fresh code so
+        // this team's link works again.
+        await this.rotateInviteCode(db, team, { ownerId: userId });
+      } else if (!invite || invite.teamName !== team.name) {
         await this.writeInvite(team.id, team.inviteCode, team.name);
       }
     } catch (error) {
@@ -144,7 +268,7 @@ class TeamService {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
-        const inviteCode = this.generateInviteCode();
+        const inviteCode = await this.unusedInviteCode(db);
 
         const newTeam = {
           name: teamData.name,
@@ -164,8 +288,16 @@ class TeamService {
           ],
         };
 
-        const docRef = await addDoc(collection(db, 'teams'), newTeam);
-        await this.writeInvite(docRef.id, inviteCode, newTeam.name);
+        // The ID is chosen up front so the team and its invite can be
+        // written together: a team never exists without a working link.
+        const docRef = doc(collection(db, 'teams'));
+        const batch = writeBatch(db);
+        batch.set(docRef, newTeam);
+        batch.set(doc(db, 'teamInvites', inviteCode), {
+          teamId: docRef.id,
+          teamName: newTeam.name,
+        });
+        await batch.commit();
         return { id: docRef.id, ...newTeam } as Team;
       },
       null,
@@ -184,33 +316,95 @@ class TeamService {
 
         if (!docSnap.exists()) return null;
 
-        const team = { id: docSnap.id, ...docSnap.data() } as Team;
-        return this.ensureMemberIds(team);
+        return this.toTeam(docSnap);
       },
       null,
       'Error fetching team:'
     );
   }
 
-  /** Look up which team an invite code belongs to */
+  /**
+   * Read a team the user is expected to be in. Resolves to the team, or to
+   * null when the user is not in it any more (removed, left on another
+   * device, or the team was deleted). Throws when the read itself failed, so
+   * a dropped connection is never mistaken for losing the team.
+   */
+  async getMembership(teamId: string, userId: string): Promise<Team | null> {
+    const db = await this.getDB();
+    try {
+      const snapshot = await getDoc(doc(db, 'teams', teamId));
+      if (!snapshot.exists()) return null;
+      const team = this.toTeam(snapshot);
+      return (team.memberIds ?? []).includes(userId) ? team : null;
+    } catch (error) {
+      // Team documents are members-only: a denied read means "not a member".
+      if (isPermissionDenied(error)) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Watch a team the user is in. `onChange` gets the team each time it
+   * changes, and null once the user is no longer in it (removed, left
+   * elsewhere, or the team was deleted). Returns the unsubscribe function.
+   */
+  async subscribeToTeam(
+    teamId: string,
+    userId: string,
+    onChange: (team: Team | null) => void
+  ): Promise<Unsubscribe> {
+    const db = await this.getDB();
+    return onSnapshot(
+      doc(db, 'teams', teamId),
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          // Nothing cached yet is not the same as deleted.
+          if (!snapshot.metadata.fromCache) onChange(null);
+          return;
+        }
+        const team = this.toTeam(snapshot);
+        onChange((team.memberIds ?? []).includes(userId) ? team : null);
+      },
+      async (error) => {
+        const { logger } = await import('@/lib/logger');
+        if (!isPermissionDenied(error)) {
+          logger.error('Error in team listener', error);
+          return;
+        }
+        // Signing out also cuts the listener off; that is not a removal.
+        const firebase = await getFirebase();
+        if (firebase?.auth.currentUser?.uid === userId) onChange(null);
+      }
+    );
+  }
+
+  /**
+   * Look up which team an invite code belongs to. A retired code (replaced,
+   * or its team deleted) is as invalid as one that never existed.
+   */
   async getInviteByCode(inviteCode: string): Promise<TeamInvite | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
         const code = inviteCode.trim().toUpperCase();
         if (!code) return null;
-        const snap = await getDoc(doc(db, 'teamInvites', code));
-        if (!snap.exists()) return null;
-        const data = snap.data();
-        return { code, teamId: data.teamId, teamName: data.teamName ?? '' };
+        const invite = await this.readInvite(db, code);
+        if (!invite || invite.revoked || !invite.teamId) return null;
+        return { code, teamId: invite.teamId, teamName: invite.teamName };
       },
       null,
       'Error fetching team by invite code:'
     );
   }
 
-  /** Get all teams for a user */
-  async getUserTeams(userId: string): Promise<Team[]> {
+  /**
+   * Get all teams for a user.
+   *
+   * By default a failed lookup reads as "no teams". Pass `strict` to ask the
+   * server directly and throw instead, for callers that must not mistake
+   * being offline for not being in a team.
+   */
+  async getUserTeams(userId: string, strict = false): Promise<Team[]> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -219,32 +413,98 @@ class TeamService {
           collection(db, 'teams'),
           where('memberIds', 'array-contains', userId)
         );
-        const snapshot = await getDocs(memberQuery);
+        const snapshot = strict
+          ? await getDocsFromServer(memberQuery)
+          : await getDocs(memberQuery);
 
-        const teams = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as Team));
-
-        // Backfill memberIds on any legacy teams (fire-and-forget)
-        for (const team of teams) {
-          if (!team.memberIds || team.memberIds.length === 0) {
-            this.ensureMemberIds(team);
-          }
-        }
-
-        return teams;
+        return snapshot.docs.map((teamDoc) => this.toTeam(teamDoc));
       },
       [],
-      'Error fetching user teams:'
+      'Error fetching user teams:',
+      strict
     );
   }
 
-  /** Join a team using invite code */
+  /**
+   * The two things the rules hold a new member entry to: the signed-in
+   * account's email, and a `joinedAt` within a day of the server's clock.
+   *
+   * The device clock is normally that time. But a device whose clock is days
+   * out would be turned away, so it is checked against the sign-in token,
+   * which carries the server's time of issue and lasts an hour: a clock
+   * reading outside the token's lifetime is wrong, and the time a fresh
+   * token was issued (just now, by the server) is used instead.
+   */
+  private async joinProof(
+    fallbackEmail: string
+  ): Promise<Pick<TeamMember, 'email'> & { joinedAt: Timestamp }> {
+    try {
+      const firebase = await getFirebase();
+      const user = firebase?.auth.currentUser;
+      if (!user) return { email: fallbackEmail, joinedAt: Timestamp.now() };
+
+      const token = await user.getIdTokenResult();
+      const claim = token.claims.email;
+      const email = typeof claim === 'string' ? claim : fallbackEmail;
+
+      const now = Date.now();
+      const issued = Date.parse(token.issuedAtTime);
+      const expires = Date.parse(token.expirationTime);
+      if (now >= issued - CLOCK_SLACK_MS && now <= expires + CLOCK_SLACK_MS) {
+        return { email, joinedAt: Timestamp.now() };
+      }
+
+      // If it can't be refreshed, the token in hand is at most an hour old.
+      const fresh = await user.getIdTokenResult(true).catch(() => token);
+      const serverTime = Date.parse(fresh.issuedAtTime);
+      return {
+        email,
+        joinedAt: Number.isFinite(serverTime)
+          ? Timestamp.fromMillis(serverTime)
+          : Timestamp.now(),
+      };
+    } catch {
+      return { email: fallbackEmail, joinedAt: Timestamp.now() };
+    }
+  }
+
+  /** Read a team that was just joined; null if it can't be loaded right now. */
+  private async readJoinedTeam(db: Firestore, teamId: string): Promise<Team | null> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const snapshot = await Promise.race([
+          getDoc(doc(db, 'teams', teamId)),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Timed out reading team')),
+              JOIN_READ_TIMEOUT_MS
+            )
+          ),
+        ]);
+        if (snapshot.exists()) return this.toTeam(snapshot);
+      } catch (error) {
+        const { logger } = await import('@/lib/logger');
+        logger.warn('Could not read team after joining', {
+          attempt: attempt + 1,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Join a team using invite code. Throws if the code is invalid or the
+   * join is rejected. Once the join is written the result is always a team:
+   * if it can't be read back, `loaded` is false and the team is built from
+   * the invite, rather than reporting a join that happened as a failure.
+   */
   async joinTeam(
     inviteCode: string,
     userId: string,
     userEmail: string,
     displayName?: string
-  ): Promise<Team | null> {
+  ): Promise<JoinedTeam | null> {
     return this.safeExecute(
       async () => {
         const invite = await this.getInviteByCode(inviteCode);
@@ -253,35 +513,68 @@ class TeamService {
         }
 
         const db = await this.getDB();
+        const teamRef = doc(db, 'teams', invite.teamId);
 
         // Team documents are members-only, so a successful read means the
         // user is already in this team; a denied read is the normal case.
-        try {
-          const snap = await getDoc(doc(db, 'teams', invite.teamId));
-          if (snap.exists() && (snap.data().memberIds ?? []).includes(userId)) {
-            return { id: snap.id, ...snap.data() } as Team;
+        const currentMembership = async (): Promise<Team | null> => {
+          try {
+            const snap = await getDoc(teamRef);
+            if (snap.exists() && (snap.data().memberIds ?? []).includes(userId)) {
+              return this.toTeam(snap);
+            }
+          } catch {
+            // Not a member
           }
-        } catch {
-          // Not a member yet
-        }
+          return null;
+        };
 
+        const existing = await currentMembership();
+        if (existing) return { team: existing, loaded: true };
+
+        // The rules check every field of this entry: the email is the
+        // signed-in account's, and joinedAt is close to the server's clock.
+        const { email, joinedAt } = await this.joinProof(userEmail);
         const newMember: TeamMember = {
           userId,
-          email: userEmail,
-          displayName: displayName || '',
-          joinedAt: Timestamp.now(),
+          email,
+          displayName: (displayName || '').slice(0, MAX_MEMBER_NAME_LENGTH),
+          joinedAt,
           role: 'member',
         };
 
-        await updateDoc(doc(db, 'teams', invite.teamId), {
-          members: arrayUnion(newMember),
-          memberIds: arrayUnion(userId),
-          // Proof of invite: the rules only admit a new member whose
-          // joinCode matches the team's current invite code.
-          joinCode: invite.code,
-        });
+        try {
+          await updateDoc(teamRef, {
+            members: arrayUnion(newMember),
+            memberIds: arrayUnion(userId),
+            // Proof of invite: the rules only admit a new member whose
+            // joinCode is the team's current invite code plus their own
+            // uid, so one member's proof never admits anyone else.
+            joinCode: `${invite.code}:${userId}`,
+          });
+        } catch (error) {
+          // A write that reached the server but lost its reply is retried
+          // and then rejected ("already a member"). Check before giving up.
+          const joined = await currentMembership();
+          if (joined) return { team: joined, loaded: true };
+          throw error;
+        }
 
-        return this.getTeam(invite.teamId);
+        const team = await this.readJoinedTeam(db, invite.teamId);
+        if (team) return { team, loaded: true };
+
+        return {
+          team: {
+            id: invite.teamId,
+            name: invite.teamName,
+            createdBy: '',
+            createdAt: newMember.joinedAt,
+            inviteCode: invite.code,
+            members: [newMember],
+            memberIds: [userId],
+          },
+          loaded: false,
+        };
       },
       null,
       'Error joining team:',
@@ -295,9 +588,26 @@ class TeamService {
       async () => {
         const db = await this.getDB();
         const docRef = doc(db, 'teams', teamId);
-        await updateDoc(docRef, { name });
-        const team = await this.getTeam(teamId);
-        if (team) await this.writeInvite(teamId, team.inviteCode, name);
+        const teamDoc = await getDoc(docRef);
+        if (!teamDoc.exists()) return false;
+
+        const team = this.toTeam(teamDoc);
+        const owner = this.ownerOf(team);
+        // The invite carries the name shown on the join page, so both
+        // change together. An invite that points at another team, or has
+        // been retired, is not ours to write (ensureOwnerSetup replaces the
+        // code on next load).
+        const invite = await this.readInvite(db, team.inviteCode);
+
+        const batch = writeBatch(db);
+        batch.update(docRef, { name, ...(owner ? { ownerId: owner } : {}) });
+        if (!invite || (invite.teamId === teamId && !invite.revoked)) {
+          batch.set(doc(db, 'teamInvites', team.inviteCode), {
+            teamId,
+            teamName: name,
+          });
+        }
+        await batch.commit();
         return true;
       },
       false,
@@ -311,14 +621,16 @@ class TeamService {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
-        const team = await this.getTeam(teamId);
-        if (!team) return null;
+        const teamDoc = await getDoc(doc(db, 'teams', teamId));
+        if (!teamDoc.exists()) return null;
 
-        const newCode = this.generateInviteCode();
-        await updateDoc(doc(db, 'teams', teamId), { inviteCode: newCode });
-        await this.writeInvite(teamId, newCode, team.name);
-        await deleteDoc(doc(db, 'teamInvites', team.inviteCode)).catch(() => {});
-        return newCode;
+        const team = this.toTeam(teamDoc);
+        const owner = this.ownerOf(team);
+        return this.rotateInviteCode(
+          db,
+          team,
+          owner ? { ownerId: owner } : {}
+        );
       },
       null,
       'Error regenerating invite code:',
@@ -349,7 +661,7 @@ class TeamService {
         const teamDoc = await getDoc(docRef);
         if (!teamDoc.exists()) return false;
 
-        const team = { id: teamDoc.id, ...teamDoc.data() } as Team;
+        const team = this.toTeam(teamDoc);
         const members: TeamMember[] = team.members || [];
         const leavingMember = members.find((m) => m.userId === userId);
         if (!leavingMember) return true;
@@ -366,8 +678,13 @@ class TeamService {
         }
 
         if (remaining.length === 0) {
-          await deleteDoc(doc(db, 'teamInvites', team.inviteCode)).catch(() => {});
-          await deleteDoc(docRef);
+          // The team and its invite go together, so no live link is left
+          // pointing at a team that no longer exists.
+          const invite = await this.readInvite(db, team.inviteCode);
+          const batch = writeBatch(db);
+          this.retireInvite(batch, db, team, invite);
+          batch.delete(docRef);
+          await batch.commit();
           return true;
         }
 
@@ -403,7 +720,7 @@ class TeamService {
         const teamDoc = await getDoc(docRef);
         if (!teamDoc.exists()) return false;
 
-        const team = { id: teamDoc.id, ...teamDoc.data() } as Team;
+        const team = this.toTeam(teamDoc);
         const members: TeamMember[] = team.members || [];
 
         if (this.ownerOf(team) !== currentOwnerId) return false;
@@ -427,7 +744,11 @@ class TeamService {
     );
   }
 
-  /** Kick a member from the team (owner only) */
+  /**
+   * Kick a member from the team (owner only). The invite code changes in
+   * the same write: every member has seen the old one, so leaving it valid
+   * would let the removed member straight back in.
+   */
   async kickMember(teamId: string, ownerUserId: string, targetUserId: string): Promise<boolean> {
     return this.safeExecute(
       async () => {
@@ -436,7 +757,7 @@ class TeamService {
         const teamDoc = await getDoc(docRef);
         if (!teamDoc.exists()) return false;
 
-        const team = { id: teamDoc.id, ...teamDoc.data() } as Team;
+        const team = this.toTeam(teamDoc);
         const members: TeamMember[] = team.members || [];
 
         if (this.ownerOf(team) !== ownerUserId) return false;
@@ -444,7 +765,8 @@ class TeamService {
 
         const remaining = members.filter((m) => m.userId !== targetUserId);
 
-        await updateDoc(docRef, {
+        await this.rotateInviteCode(db, team, {
+          ownerId: ownerUserId,
           members: remaining.map((m) => this.cleanMember(m)),
           memberIds: remaining.map((m) => m.userId),
         });
@@ -466,12 +788,13 @@ class TeamService {
         if (!teamDoc.exists()) return false;
 
         const members: TeamMember[] = teamDoc.data().members || [];
+        const displayName = newDisplayName.slice(0, MAX_MEMBER_NAME_LENGTH);
 
         // Every other entry is written back untouched: the rules let a
-        // member change their own entry and nothing else.
+        // member change their own display name and nothing else.
         await updateDoc(docRef, {
           members: members.map((m) =>
-            m.userId === userId ? { ...m, displayName: newDisplayName } : m
+            m.userId === userId ? { ...m, displayName } : m
           ),
         });
         return true;

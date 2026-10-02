@@ -1,9 +1,10 @@
-import { useRef } from 'react';
+import { memo, useMemo } from 'react';
 import { Check } from 'lucide-react';
-import { useSession, useTheme } from '@/contexts';
-import { POINTS, calculateScore } from '@/lib';
-import type { ScoreEvent } from '@/types';
+import { useSessionCore, useTheme } from '@/contexts';
+import type { MatchScoringFields } from '@/types';
+import { FIELD_HINTS, FIELD_LIMITS, calculateScore } from '@/lib';
 import { ScoreField } from './ScoreField';
+import { useScoringLocks } from './useScoringLocks';
 
 const Section = ({
   title,
@@ -28,8 +29,6 @@ const Section = ({
   );
 };
 
-const FLOWER_INFO = 'Top NECTAR owns the flower; bottom NECTAR gets the bonus.';
-
 /** A large tap-target toggle, used in place of a small checkbox. */
 const Toggle = ({
   checked,
@@ -37,6 +36,7 @@ const Toggle = ({
   label,
   ariaLabel,
   disabled = false,
+  disabledReason,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
@@ -44,6 +44,8 @@ const Toggle = ({
   /** Full name for screen readers when the visible label is abbreviated */
   ariaLabel?: string;
   disabled?: boolean;
+  /** Why the toggle is disabled, as a tooltip */
+  disabledReason?: string;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -53,29 +55,39 @@ const Toggle = ({
       aria-checked={checked}
       aria-label={ariaLabel ?? label}
       disabled={disabled}
+      title={disabled ? disabledReason : undefined}
       onClick={() => onChange(!checked)}
       className={`h-11 px-2 rounded-lg border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 select-none ${
         disabled
           ? 'opacity-40 cursor-not-allowed border-gray-400 bg-gray-200 text-gray-500 dark:border-gray-700 dark:bg-gray-800'
           : checked
-            ? 'border-team-blue bg-team-blue/15 text-team-blue'
+            ? // The tinted fill leaves team-blue text under 4.5:1 on the light
+              // theme, so light uses the solid fill instead.
+              isDarkMode
+              ? 'border-team-blue bg-team-blue/15 text-team-blue'
+              : 'border-team-blue bg-team-blue text-white'
             : isDarkMode
               ? 'border-team-blue-40 bg-team-dark text-gray-300 hover:bg-team-white-10'
               : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'
       }`}
     >
-      {checked && <Check size={16} className="shrink-0" />}
+      {/* No room for the check mark beside the label in a phone-width column */}
+      {checked && <Check size={16} className="hidden shrink-0 sm:block" />}
       <span className="truncate">{label}</span>
     </button>
   );
 };
+
+/** Name column, then Leave / Park: Auto / Park: End. Narrower on a phone. */
+const ROBOT_GRID =
+  'grid grid-cols-[3.5rem_1fr_1fr_1fr] md:grid-cols-[5rem_1fr_1fr_1fr] gap-2';
 
 /**
  * BIOBUZZ scores PARK twice per robot: once for parking by the end of AUTO,
  * once for parking by the end of the match. A robot can leave the loading
  * zone in between and still collect both.
  */
-const RobotRow = ({
+const RobotRow = memo(function RobotRow({
   label,
   leave,
   parkAuto,
@@ -83,7 +95,8 @@ const RobotRow = ({
   onLeave,
   onParkAuto,
   onParkTeleop,
-  parkTeleopDisabled,
+  autoDisabledReason,
+  parkTeleopDisabledReason,
 }: {
   label: string;
   leave: boolean;
@@ -92,13 +105,16 @@ const RobotRow = ({
   onLeave: (v: boolean) => void;
   onParkAuto: (v: boolean) => void;
   onParkTeleop: (v: boolean) => void;
-  parkTeleopDisabled: boolean;
-}) => {
+  /** Set when Leave and Auto park can't be scored; says why */
+  autoDisabledReason?: string;
+  /** Set when End park can't be scored (yet); says why */
+  parkTeleopDisabledReason?: string;
+}) {
   const { isDarkMode } = useTheme();
   return (
-    <div className="grid grid-cols-[5rem_1fr_1fr_1fr] items-center gap-2">
+    <div className={`${ROBOT_GRID} items-center`}>
       <div
-        className={`text-lg font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+        className={`text-sm md:text-lg font-semibold whitespace-nowrap ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
       >
         {label}
       </div>
@@ -107,98 +123,106 @@ const RobotRow = ({
         onChange={onLeave}
         label="Leave"
         ariaLabel={`${label} leave`}
+        disabled={autoDisabledReason !== undefined}
+        disabledReason={autoDisabledReason}
       />
       <Toggle
         checked={parkAuto}
         onChange={onParkAuto}
         label="Auto"
         ariaLabel={`${label} parked at end of auto`}
+        disabled={autoDisabledReason !== undefined}
+        disabledReason={autoDisabledReason}
       />
       <Toggle
         checked={parkTeleop}
         onChange={onParkTeleop}
         label="End"
         ariaLabel={`${label} parked at end of match`}
-        disabled={parkTeleopDisabled}
+        disabled={parkTeleopDisabledReason !== undefined}
+        disabledReason={parkTeleopDisabledReason}
       />
     </div>
   );
-};
+});
 
 /**
  * Column headings for the robot rows. The toggles themselves say "Auto" and
- * "End" — short enough to survive a phone-width column once the check mark
- * is added — and this row says what they are.
+ * "End" — short enough to survive a phone-width column — and this row says
+ * what they are. Screen readers get the full name from each toggle instead.
  */
 const RobotHeader = () => {
   const { isDarkMode } = useTheme();
-  const cls = `text-xs font-semibold uppercase tracking-wide text-center ${
+  const cls = `text-xs font-semibold uppercase tracking-wide text-center whitespace-nowrap ${
     isDarkMode ? 'text-gray-400' : 'text-gray-600'
   }`;
   return (
-    <div
-      className="grid grid-cols-[5rem_1fr_1fr_1fr] items-end gap-2"
-      aria-hidden
-    >
+    <div className={`${ROBOT_GRID} items-end`} aria-hidden>
       <div />
-      <div />
-      <div className={`${cls} col-span-2`}>Park</div>
+      <div className={cls}>Leave</div>
+      <div className={cls}>Park: Auto</div>
+      <div className={cls}>Park: End</div>
     </div>
   );
 };
 
 /**
- * All scoring for the current match: Tipping, robot leave/park, scrim
- * penalties and the end-of-match assessment. The running total lives in
- * ScoreBreakdown.
+ * Everything about the current match that isn't tapped live: robot leave and
+ * park, and the end-of-match assessment. Tipping and the scrim fouls are in
+ * LiveCounters; the running total is in ScoreBreakdown.
  */
 export const MatchEntry = () => {
-  const { sessionData, updateSessionData, matchPhase, matchActive, timer } =
-    useSession();
+  const { sessionData, updateSessionData } = useSessionCore();
+  const {
+    scoring,
+    entryKey,
+    endOfMatchUnlocked,
+    endParkLocked,
+    hasAuto,
+    hasTeleop,
+  } = useScoringLocks();
 
-  const breakdown = calculateScore(sessionData);
-  const isScrim = sessionData.sessionType === 'Scrim';
-
-  /** Timestamp of the last Tipping change, for cycle times */
-  const lastActionRef = useRef<number | null>(null);
-
-  /**
-   * Tipping is counted while the match runs, so each change is logged with
-   * its phase and time for cycle-time analysis. The count is a whole-match
-   * total and stays editable after the buzzer, so a miscount can be
-   * corrected before the match is saved.
-   */
-  const record = (field: ScoreEvent['field'], value: number) => {
-    const now = Date.now();
-    const cycleTime =
-      lastActionRef.current !== null
-        ? parseFloat(((now - lastActionRef.current) / 1000).toFixed(2))
-        : undefined;
-    lastActionRef.current = now;
-
-    const entry: ScoreEvent = {
-      field,
-      value,
-      phase: matchPhase,
-      timeRemaining: timer,
-      cycleTime,
+  // One setter per field, each keeping its identity between renders: the
+  // rows and fields below are memoized, so changing one field re-renders
+  // that one alone.
+  const set = useMemo(() => {
+    const setter =
+      <K extends keyof MatchScoringFields>(field: K) =>
+      (value: MatchScoringFields[K]) =>
+        updateSessionData({ [field]: value });
+    return {
+      robot1Leave: setter('robot1Leave'),
+      robot1ParkAuto: setter('robot1ParkAuto'),
+      robot1ParkTeleop: setter('robot1ParkTeleop'),
+      robot2Leave: setter('robot2Leave'),
+      robot2ParkAuto: setter('robot2ParkAuto'),
+      robot2ParkTeleop: setter('robot2ParkTeleop'),
+      flower: setter('flower'),
+      flowerBonus: setter('flowerBonus'),
+      ballsInHive: setter('ballsInHive'),
+      garden: setter('garden'),
     };
+  }, [updateSessionData]);
 
-    updateSessionData({
-      [field]: value,
-      phaseLog: [...(sessionData.phaseLog ?? []), entry],
-    });
-  };
+  const breakdown = calculateScore(scoring);
 
   /**
-   * Flower, hive and garden contents are only knowable once the buzzer sounds, so
-   * they stay locked while the clock is still running. Before a match starts
-   * they are open, which is what lets a user correct an entry after the fact.
+   * Flower, hive and garden contents are only knowable once play has
+   * stopped, so they stay locked while the clock is running. They open at
+   * the buzzer, whenever the match is paused (a match that ends early still
+   * has to be scored before it is saved) and before a match starts.
    */
-  const matchOver = !matchActive || matchPhase === 'ended';
+  const endDisabled = !endOfMatchUnlocked;
 
-  /** End-of-match park can't be known while AUTO is still running. */
-  const inAuto = matchActive && matchPhase === 'auton';
+  // A period the match never runs can't be scored, for the whole match.
+  const autoDisabledReason = hasAuto
+    ? undefined
+    : 'A Teleop match has no autonomous period';
+  const parkTeleopDisabledReason = !hasTeleop
+    ? 'An Autonomous match has no end-of-match park'
+    : endParkLocked
+      ? 'Opens when autonomous ends'
+      : undefined;
 
   return (
     <div className="space-y-4">
@@ -207,98 +231,79 @@ export const MatchEntry = () => {
       </h2>
 
       <Section title="Robots" tutorialId="robots">
-        <ScoreField
-          label="Tipping"
-          size="large"
-          stepper
-          value={sessionData.tipping}
-          points={breakdown.tipping}
-          disabled={!matchActive}
-          onChange={v => record('tipping', v)}
-        />
         <RobotHeader />
         <RobotRow
           label="Robot 1"
           leave={sessionData.robot1Leave}
           parkAuto={sessionData.robot1ParkAuto}
           parkTeleop={sessionData.robot1ParkTeleop}
-          onLeave={v => updateSessionData({ robot1Leave: v })}
-          onParkAuto={v => updateSessionData({ robot1ParkAuto: v })}
-          onParkTeleop={v => updateSessionData({ robot1ParkTeleop: v })}
-          parkTeleopDisabled={inAuto}
+          onLeave={set.robot1Leave}
+          onParkAuto={set.robot1ParkAuto}
+          onParkTeleop={set.robot1ParkTeleop}
+          autoDisabledReason={autoDisabledReason}
+          parkTeleopDisabledReason={parkTeleopDisabledReason}
         />
         <RobotRow
           label="Robot 2"
           leave={sessionData.robot2Leave}
           parkAuto={sessionData.robot2ParkAuto}
           parkTeleop={sessionData.robot2ParkTeleop}
-          onLeave={v => updateSessionData({ robot2Leave: v })}
-          onParkAuto={v => updateSessionData({ robot2ParkAuto: v })}
-          onParkTeleop={v => updateSessionData({ robot2ParkTeleop: v })}
-          parkTeleopDisabled={inAuto}
+          onLeave={set.robot2Leave}
+          onParkAuto={set.robot2ParkAuto}
+          onParkTeleop={set.robot2ParkTeleop}
+          autoDisabledReason={autoDisabledReason}
+          parkTeleopDisabledReason={parkTeleopDisabledReason}
         />
       </Section>
-
-      {isScrim && (
-        <Section title="Penalties" tutorialId="penalties">
-          <ScoreField
-            label="Minor Penalty"
-            size="large"
-            stepper
-            value={sessionData.minorPenalties}
-            points={-(sessionData.minorPenalties * POINTS.MINOR_PENALTY)}
-            onChange={v => updateSessionData({ minorPenalties: v })}
-          />
-          <ScoreField
-            label="Major Penalty"
-            size="large"
-            stepper
-            value={sessionData.majorPenalties}
-            points={-(sessionData.majorPenalties * POINTS.MAJOR_PENALTY)}
-            onChange={v => updateSessionData({ majorPenalties: v })}
-          />
-        </Section>
-      )}
 
       <Section title="End of Match" tutorialId="end-of-match">
         <ScoreField
           size="large"
           stepper
           label="Flower"
-          info={FLOWER_INFO}
+          hint={FIELD_HINTS.flower}
+          max={FIELD_LIMITS.flower}
           value={sessionData.flower}
           points={breakdown.flower}
-          disabled={!matchOver}
-          onChange={v => updateSessionData({ flower: v })}
+          disabled={endDisabled}
+          resetKey={entryKey}
+          onChange={set.flower}
         />
         <ScoreField
           size="large"
           stepper
           label="Flower Bonus"
-          info={FLOWER_INFO}
-          max={4}
+          hint={FIELD_HINTS.flowerBonus}
+          max={FIELD_LIMITS.flowerBonus}
           value={sessionData.flowerBonus}
           points={breakdown.flowerBonus}
-          disabled={!matchOver}
-          onChange={v => updateSessionData({ flowerBonus: v })}
+          disabled={endDisabled}
+          resetKey={entryKey}
+          onChange={set.flowerBonus}
         />
         <ScoreField
           size="large"
           stepper
           label="Left in Hive"
+          hint={FIELD_HINTS.ballsInHive}
+          max={FIELD_LIMITS.ballsInHive}
           value={sessionData.ballsInHive}
           points={breakdown.hive}
-          disabled={!matchOver}
-          onChange={v => updateSessionData({ ballsInHive: v })}
+          disabled={endDisabled}
+          resetKey={entryKey}
+          onChange={set.ballsInHive}
         />
         <ScoreField
           size="large"
           stepper
           label="Garden"
+          hint={FIELD_HINTS.garden}
+          max={FIELD_LIMITS.garden}
           value={sessionData.garden}
           points={breakdown.garden}
-          disabled={!matchOver}
-          onChange={v => updateSessionData({ garden: v })}
+          disabled={endDisabled}
+          resetKey={entryKey}
+          onChange={set.garden}
         />
       </Section>
     </div>

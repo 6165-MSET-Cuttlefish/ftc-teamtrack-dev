@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { getErrorMessage } from '@/lib';
+import { getPendingInviteDestination } from '@/lib/pendingInvite';
 import { ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,7 +73,7 @@ const Signup = () => {
       const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
       clearSessionFromStorage();
       await signup(formData.email, formData.password, formData.displayName);
-      navigate(from, { replace: true });
+      navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -87,7 +88,7 @@ const Signup = () => {
       const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
       clearSessionFromStorage();
       await loginWithGoogle();
-      navigate(from, { replace: true });
+      navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -104,6 +105,7 @@ const Signup = () => {
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
           <CardTitle
+            as="h1"
             className={`text-2xl sm:text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
           >
             Create Account
@@ -202,12 +204,16 @@ const Signup = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className={`absolute right-4 top-3.5 h-5 w-5 transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
+                  className={`absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
                 >
-                  {showPassword ? <EyeOff /> : <Eye />}
+                  {showPassword ? (
+                    <EyeOff aria-hidden="true" className="h-5 w-5" />
+                  ) : (
+                    <Eye aria-hidden="true" className="h-5 w-5" />
+                  )}
                 </button>
               </div>
-              <p className={`text-xs ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}>
+              <p className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
                 Must be at least 6 characters
               </p>
             </div>
@@ -239,9 +245,13 @@ const Signup = () => {
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                  className={`absolute right-4 top-3.5 h-5 w-5 transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
+                  className={`absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center transition-all ${isDarkMode ? 'text-team-white-40 hover:text-team-blue hover:scale-110' : 'text-gray-400 hover:text-gray-600 hover:scale-110'}`}
                 >
-                  {showConfirmPassword ? <EyeOff /> : <Eye />}
+                  {showConfirmPassword ? (
+                    <EyeOff aria-hidden="true" className="h-5 w-5" />
+                  ) : (
+                    <Eye aria-hidden="true" className="h-5 w-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -258,7 +268,7 @@ const Signup = () => {
           <div className="flex items-center gap-4">
             <div className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`} />
             <span
-              className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-40' : 'text-team-blue-40'}`}
+              className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
             >
               Or continue with
             </span>
@@ -296,12 +306,14 @@ const Signup = () => {
 
         <CardFooter className="flex justify-center">
           <div
-            className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}`}
+            className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
             Already have an account?{' '}
+            {/* Carries where they were headed, so signing in lands there too */}
             <Link
               to={ROUTES.LOGIN}
-              className="text-team-blue hover:underline font-medium"
+              state={location.state}
+              className="inline-flex min-h-[44px] items-center text-team-blue hover:underline font-medium sm:min-h-0"
             >
               Sign in
             </Link>

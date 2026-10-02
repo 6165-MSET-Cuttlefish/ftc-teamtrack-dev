@@ -25,6 +25,7 @@ export type ActiveSlotKey =
   | 'matchExtras'
   | 'matchLog'
   | 'setup'
+  | 'liveScoring'
   | 'matchEntry'
   | 'breakdown'
   | 'notes'

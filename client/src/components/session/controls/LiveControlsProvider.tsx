@@ -5,6 +5,7 @@ import {
   useLiveControlsState,
   type LiveControlsProps,
 } from './liveControlsContext';
+import { SessionLimitBanner } from './SessionLimitBanner';
 
 /**
  * Everything the match-control buttons need, mounted once per page.
@@ -14,8 +15,11 @@ import {
  * sits in the fixed one-screen area beside the timer and scoring, while the
  * session actions, match extras and match log scroll below it. Mounting
  * those pieces separately must not mean mounting the effects twice — the
- * session-limit query and the auton -> teleop phase transition each have to
- * run exactly once per page.
+ * session-limit query and the leave-page guard each have to run exactly once
+ * per page.
+ *
+ * The session-limit banner is rendered here, above whichever layout the page
+ * uses, so it shows on every screen size without either layout knowing.
  */
 export const LiveControlsProvider = ({
   children,
@@ -24,6 +28,7 @@ export const LiveControlsProvider = ({
   const value = useLiveControlsState(props);
   return (
     <LiveControlsContext.Provider value={value}>
+      <SessionLimitBanner />
       {children}
     </LiveControlsContext.Provider>
   );

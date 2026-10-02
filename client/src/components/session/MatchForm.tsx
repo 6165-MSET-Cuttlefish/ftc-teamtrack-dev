@@ -1,10 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts';
-import type { Match, MatchScoringFields } from '@/types';
+import type { Match, MatchScoringFields, SessionType } from '@/types';
 import {
+  FIELD_HINTS,
+  FIELD_LIMITS,
   POINTS,
   calculateScore,
   emptyScoringFields,
+  includesAuto,
+  includesTeleop,
+  normalizeForMatchType,
   pickScoringFields,
   scoreRows,
 } from '@/lib';
@@ -31,9 +36,15 @@ import { ScoreField } from './ScoreField';
 interface MatchFormProps {
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * Save the match. The caller closes the dialog once the save has worked;
+   * a save that fails leaves it open with everything that was typed.
+   */
   onSave: (match: Partial<Match>) => Promise<void>;
   initialMatch?: Match;
   isLoading?: boolean;
+  /** Fouls are only recorded for a Scrim; other sessions don't show them */
+  sessionType?: SessionType;
 }
 
 const Panel = ({
@@ -69,11 +80,17 @@ export const MatchForm = ({
   onSave,
   initialMatch,
   isLoading = false,
+  sessionType,
 }: MatchFormProps) => {
   const { isDarkMode } = useTheme();
+  /** A save is in flight: a second click must not send it twice */
+  const savingRef = useRef(false);
   const [formData, setFormData] = useState<Partial<Match>>(() =>
     initialMatch
-      ? { matchType: initialMatch.matchType || 'Full Game', ...pickScoringFields(initialMatch) }
+      ? {
+          matchType: initialMatch.matchType || 'Full Game',
+          ...pickScoringFields(initialMatch),
+        }
       : blankForm()
   );
 
@@ -93,52 +110,93 @@ export const MatchForm = ({
     value: MatchScoringFields[K]
   ) => setFormData(prev => ({ ...prev, [field]: value }));
 
+  const matchType = formData.matchType || 'Full Game';
+  const hasAuto = includesAuto(matchType);
+  const hasTeleop = includesTeleop(matchType);
+
   const breakdown = calculateScore(formData);
-  const rows = scoreRows(formData);
+  // Fouls are credited to the opponent, so they are not one of the rows
+  // that add up to the score; they get their own line under the total.
+  const rows = scoreRows(formData).filter(row => !row.informational);
+
+  // Fouls belong to a Scrim. A match that already has some keeps the panel
+  // whatever the session type, so they can still be seen and corrected.
+  const showFouls =
+    sessionType === 'Scrim' ||
+    (initialMatch?.minorPenalties ?? 0) + (initialMatch?.majorPenalties ?? 0) >
+      0;
 
   const handleSave = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     try {
-      await onSave({ ...formData, finalScore: breakdown.total });
-      onClose();
-      setFormData(blankForm());
+      // Flags for a period this match type never ran are dropped, not saved.
+      await onSave({
+        ...normalizeForMatchType(formData, matchType),
+        matchType,
+        finalScore: breakdown.total,
+      });
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error saving match', error);
       toast.error('Failed to save match');
+    } finally {
+      savingRef.current = false;
     }
   };
 
+  const mutedTone = isDarkMode ? 'text-gray-400' : 'text-gray-600';
+
+  /**
+   * `available` is false when the match type never ran the period the
+   * toggle belongs to; it then shows unchecked and can't be ticked.
+   */
   const checkToggle = (
     label: string,
     checked: boolean,
     onChange: (v: boolean) => void,
-    hint?: string
+    hint: string,
+    available: boolean
   ) => (
-    <label className="flex items-center gap-3 cursor-pointer select-none">
+    <label
+      className={`flex items-center gap-3 select-none ${
+        available ? 'cursor-pointer' : 'cursor-not-allowed'
+      }`}
+    >
       <input
         type="checkbox"
-        checked={checked}
-        disabled={isLoading}
+        checked={available && checked}
+        disabled={isLoading || !available}
         onChange={e => onChange(e.target.checked)}
-        className="w-4 h-4 accent-team-blue cursor-pointer"
+        className={`w-4 h-4 accent-team-blue ${
+          available ? 'cursor-pointer' : 'cursor-not-allowed'
+        }`}
       />
       <span
-        className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+        className={`text-sm font-semibold ${
+          available
+            ? isDarkMode
+              ? 'text-gray-200'
+              : 'text-gray-800'
+            : mutedTone
+        }`}
       >
         {label}
       </span>
-      {hint && (
-        <span
-          className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}
-        >
-          {hint}
-        </span>
-      )}
+      <span className={`text-xs ${mutedTone}`}>
+        {available ? hint : `not run in ${matchType} matches`}
+      </span>
     </label>
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={open => {
+        // Closing mid-save would throw away the input if the save then fails.
+        if (!open && !isLoading) onClose();
+      }}
+    >
       <DialogContent
         className={`max-w-2xl max-h-[90vh] overflow-y-auto border-2 ${
           isDarkMode
@@ -161,7 +219,7 @@ export const MatchForm = ({
             )}
           </DialogTitle>
           <DialogDescription
-            className={isDarkMode ? 'text-team-white-60' : 'text-team-blue-40'}
+            className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
           >
             {initialMatch
               ? 'Update the match details below'
@@ -207,7 +265,8 @@ export const MatchForm = ({
           <Panel title="Scoring">
             <ScoreField
               label="Tipping"
-              hint={`${POINTS.HIVE_TIP} pts each — hive tips`}
+              hint={FIELD_HINTS.tipping}
+              max={FIELD_LIMITS.tipping}
               value={formData.tipping ?? 0}
               points={breakdown.tipping}
               disabled={isLoading}
@@ -215,7 +274,8 @@ export const MatchForm = ({
             />
             <ScoreField
               label="Garden"
-              hint={`${POINTS.GARDEN} pt each`}
+              hint={FIELD_HINTS.garden}
+              max={FIELD_LIMITS.garden}
               value={formData.garden ?? 0}
               points={breakdown.garden}
               disabled={isLoading}
@@ -223,7 +283,8 @@ export const MatchForm = ({
             />
             <ScoreField
               label="Flower"
-              hint={`${POINTS.FLOWER_ELEMENT} pts each — in an owned flower`}
+              hint={FIELD_HINTS.flower}
+              max={FIELD_LIMITS.flower}
               value={formData.flower ?? 0}
               points={breakdown.flower}
               disabled={isLoading}
@@ -231,8 +292,8 @@ export const MatchForm = ({
             />
             <ScoreField
               label="Flower Bonus"
-              hint={`${POINTS.FLOWER_BONUS} pts each — bottom nectar, max 4`}
-              max={4}
+              hint={FIELD_HINTS.flowerBonus}
+              max={FIELD_LIMITS.flowerBonus}
               value={formData.flowerBonus ?? 0}
               points={breakdown.flowerBonus}
               disabled={isLoading}
@@ -240,7 +301,8 @@ export const MatchForm = ({
             />
             <ScoreField
               label="Left in Hive"
-              hint={`${POINTS.CELL_REMAINING} pts each`}
+              hint={FIELD_HINTS.ballsInHive}
+              max={FIELD_LIMITS.ballsInHive}
               value={formData.ballsInHive ?? 0}
               points={breakdown.hive}
               disabled={isLoading}
@@ -253,58 +315,72 @@ export const MatchForm = ({
               'Robot 1 Leave',
               formData.robot1Leave ?? false,
               v => setField('robot1Leave', v),
-              `${POINTS.LEAVE} pts`
+              `${POINTS.LEAVE} pts`,
+              hasAuto
             )}
             {checkToggle(
               'Robot 1 Park (Auto)',
               formData.robot1ParkAuto ?? false,
               v => setField('robot1ParkAuto', v),
-              `${POINTS.PARK} pts`
+              `${POINTS.PARK} pts`,
+              hasAuto
             )}
             {checkToggle(
               'Robot 1 Park (End)',
               formData.robot1ParkTeleop ?? false,
               v => setField('robot1ParkTeleop', v),
-              `${POINTS.PARK} pts`
+              `${POINTS.PARK} pts`,
+              hasTeleop
             )}
             {checkToggle(
               'Robot 2 Leave',
               formData.robot2Leave ?? false,
               v => setField('robot2Leave', v),
-              `${POINTS.LEAVE} pts`
+              `${POINTS.LEAVE} pts`,
+              hasAuto
             )}
             {checkToggle(
               'Robot 2 Park (Auto)',
               formData.robot2ParkAuto ?? false,
               v => setField('robot2ParkAuto', v),
-              `${POINTS.PARK} pts`
+              `${POINTS.PARK} pts`,
+              hasAuto
             )}
             {checkToggle(
               'Robot 2 Park (End)',
               formData.robot2ParkTeleop ?? false,
               v => setField('robot2ParkTeleop', v),
-              `${POINTS.PARK} pts`
+              `${POINTS.PARK} pts`,
+              hasTeleop
             )}
           </Panel>
 
-          <Panel title="Penalties">
-            <ScoreField
-              label="Minor"
-              hint={`-${POINTS.MINOR_PENALTY} pts each`}
-              value={formData.minorPenalties ?? 0}
-              points={-((formData.minorPenalties ?? 0) * POINTS.MINOR_PENALTY)}
-              disabled={isLoading}
-              onChange={v => setField('minorPenalties', v)}
-            />
-            <ScoreField
-              label="Major"
-              hint={`-${POINTS.MAJOR_PENALTY} pts each`}
-              value={formData.majorPenalties ?? 0}
-              points={-((formData.majorPenalties ?? 0) * POINTS.MAJOR_PENALTY)}
-              disabled={isLoading}
-              onChange={v => setField('majorPenalties', v)}
-            />
-          </Panel>
+          {showFouls && (
+            <Panel title="Your Fouls">
+              <ScoreField
+                label="Minor"
+                hint={FIELD_HINTS.minorPenalties}
+                max={FIELD_LIMITS.minorPenalties}
+                value={formData.minorPenalties ?? 0}
+                opponentPoints={
+                  (formData.minorPenalties ?? 0) * POINTS.MINOR_PENALTY
+                }
+                disabled={isLoading}
+                onChange={v => setField('minorPenalties', v)}
+              />
+              <ScoreField
+                label="Major"
+                hint={FIELD_HINTS.majorPenalties}
+                max={FIELD_LIMITS.majorPenalties}
+                value={formData.majorPenalties ?? 0}
+                opponentPoints={
+                  (formData.majorPenalties ?? 0) * POINTS.MAJOR_PENALTY
+                }
+                disabled={isLoading}
+                onChange={v => setField('majorPenalties', v)}
+              />
+            </Panel>
+          )}
 
           <Panel title="Total">
             <div className="space-y-1">
@@ -314,9 +390,7 @@ export const MatchForm = ({
                   className={`flex items-center justify-between text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
                   <span>{row.label}</span>
-                  <span
-                    className={`tabular-nums font-semibold ${row.points < 0 ? 'text-red-400' : 'text-team-blue'}`}
-                  >
+                  <span className="tabular-nums font-semibold text-team-blue">
                     {row.points}
                   </span>
                 </div>
@@ -333,6 +407,16 @@ export const MatchForm = ({
                   {breakdown.total}
                 </span>
               </div>
+              {showFouls && (
+                <div
+                  className={`flex items-center justify-between text-sm pt-1 ${mutedTone}`}
+                >
+                  <span>Given to opponent (not part of your score)</span>
+                  <span className="tabular-nums font-semibold">
+                    +{breakdown.penalties}
+                  </span>
+                </div>
+              )}
             </div>
           </Panel>
 
@@ -354,7 +438,11 @@ export const MatchForm = ({
               disabled={isLoading}
               className={`bg-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`}
             >
-              {isLoading ? 'Saving...' : initialMatch ? 'Update Match' : 'Add Match'}
+              {isLoading
+                ? 'Saving...'
+                : initialMatch
+                  ? 'Update Match'
+                  : 'Add Match'}
             </Button>
           </div>
         </div>

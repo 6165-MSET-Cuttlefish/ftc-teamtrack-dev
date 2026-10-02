@@ -3,35 +3,32 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { sanitizeHtml } from '@/lib';
+import { sanitizeHtml, sessionMatchType } from '@/lib';
+import { normalizeSession } from '@/lib/sessionNormalize';
+import { CURRENT_SEASON } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
-import type { Match } from '@/types';
+import type { Match, Session } from '@/types';
 import {
   SummaryTab,
   MatchDetailTab,
   CompareTab,
   StatCard,
+  AnalysisTabBar,
+  LegacySeasonView,
   computeStats,
-  TABS,
+  tabButtonId,
+  tabPanelId,
   type TabId,
 } from '@/components/session/AnalysisTabs';
 
-
-interface SharedData {
-  sessionName?: string;
-  sessionDuration?: string;
-  matchType?: string;
-  selectedFeature?: string;
-  notes?: string;
-  matches?: Match[];
-}
+const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
 
 
 const SharedSession = () => {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
-  const [session, setSession] = useState<SharedData | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('summary');
@@ -49,9 +46,13 @@ const SharedSession = () => {
         if (shortId) {
           const data = await firebaseService.getSharedSession(shortId);
           if (data) {
-            setSession(data as SharedData);
+            // The snapshot was written by whoever made the link, not by this
+            // app's own checks, so its shape can't be taken on trust.
+            setSession(normalizeSession(data, shortId));
           } else {
-            setError('Session not found. The link may have expired or be invalid.');
+            setError(
+              'Session not found. The link may have been removed or is invalid.'
+            );
           }
           return;
         }
@@ -67,7 +68,9 @@ const SharedSession = () => {
       } catch (err) {
         const { logger } = await import('@/lib/logger');
         logger.error('Error loading shared session', err);
-        setError('Failed to load session. The link may be invalid or expired.');
+        setError(
+          'Failed to load session. The link may have been removed or is invalid.'
+        );
       } finally {
         setLoading(false);
       }
@@ -76,8 +79,26 @@ const SharedSession = () => {
     load();
   }, []);
 
-  const sessionMatches: Match[] = session?.matches ?? [];
-  const stats = useMemo(() => computeStats(session?.matches ?? []), [session]);
+  // A snapshot of a session recorded before this season has none of this
+  // season's scoring fields: it is shown as saved, not recomputed to zeros.
+  const legacySeason =
+    session && session.season !== CURRENT_SEASON
+      ? session.season || 'decode'
+      : null;
+
+  // Matches saved without a type of their own ran as the session's type,
+  // which decides which periods count toward their score.
+  const sessionMatches = useMemo((): Match[] => {
+    const matches = session?.matches ?? [];
+    const fallback = session?.matchType;
+    if (!fallback || !MATCH_TYPES.includes(fallback)) return matches;
+    return matches.map(m => (m.matchType ? m : { ...m, matchType: fallback }));
+  }, [session]);
+  const stats = useMemo(
+    () => (legacySeason ? null : computeStats(sessionMatches)),
+    [sessionMatches, legacySeason]
+  );
+  const sessionType = session?.sessionType;
 
 
   if (loading) {
@@ -135,6 +156,12 @@ const SharedSession = () => {
   }
 
 
+  const matchCount = `${sessionMatches.length} match${sessionMatches.length === 1 ? '' : 'es'}`;
+  const matchTypeLabel =
+    sessionMatches.length > 0
+      ? sessionMatchType(sessionMatches, session?.matchType)
+      : session?.matchType;
+
   return (
     <div
       className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
@@ -150,18 +177,16 @@ const SharedSession = () => {
           >
             Shared Session
           </div>
-          <h1 className="text-team-blue text-3xl sm:text-4xl font-bold leading-tight">
+          <h1 className="text-team-blue text-3xl sm:text-4xl font-bold leading-tight break-words [overflow-wrap:anywhere] min-w-0">
             {session?.sessionName || 'Session'} Analysis
           </h1>
           <div
             className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
           >
-            {session?.matchType && <span>{session.matchType}</span>}
+            {sessionType && !legacySeason && <span>{sessionType}</span>}
+            {matchTypeLabel && <span>{matchTypeLabel}</span>}
             {session?.sessionDuration && <span>{session.sessionDuration}</span>}
-            <span>
-              {sessionMatches.length} match
-              {sessionMatches.length !== 1 ? 'es' : ''}
-            </span>
+            <span>{matchCount}</span>
           </div>
         </div>
 
@@ -176,7 +201,7 @@ const SharedSession = () => {
               <StatCard
                 label="Avg Score"
                 value={stats.avgScore}
-                sublabel={`${stats.totalMatches} matches`}
+                sublabel={matchCount}
                 isDarkMode={isDarkMode}
               />
               <StatCard
@@ -207,66 +232,60 @@ const SharedSession = () => {
               Notes
             </h3>
             <div
-              className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
+              className={`[contain:paint] relative overflow-hidden text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${isDarkMode ? "text-team-white-60 [&_[style*='background-color']]:text-black" : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(session.notes) }}
             />
           </div>
         )}
 
-        {sessionMatches.length > 0 && (
-          <>
-            <div
-              className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'}`}
-            >
-              {TABS.map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      isActive
-                        ? isDarkMode
-                          ? 'bg-team-dark text-team-blue shadow-sm'
-                          : 'bg-white text-team-blue shadow-sm'
-                        : isDarkMode
-                          ? 'text-team-white-60 hover:text-white'
-                          : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                  >
-                    <Icon size={16} />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+        {legacySeason && (
+          <LegacySeasonView
+            matches={sessionMatches}
+            season={legacySeason}
+            isDarkMode={isDarkMode}
+          />
+        )}
 
-            <div>
+        {!legacySeason && sessionMatches.length > 0 && (
+          <>
+            <AnalysisTabBar
+              active={activeTab}
+              onChange={setActiveTab}
+              isDarkMode={isDarkMode}
+            />
+
+            <div
+              role="tabpanel"
+              id={tabPanelId(activeTab)}
+              aria-labelledby={tabButtonId(activeTab)}
+            >
               {activeTab === 'summary' && stats && (
                 <SummaryTab
                   matches={sessionMatches}
                   stats={stats}
                   isDarkMode={isDarkMode}
+                  sessionType={sessionType}
                 />
               )}
               {activeTab === 'matches' && (
                 <MatchDetailTab
                   matches={sessionMatches}
                   isDarkMode={isDarkMode}
+                  sessionType={sessionType}
                 />
               )}
               {activeTab === 'compare' && (
                 <CompareTab
                   matches={sessionMatches}
                   isDarkMode={isDarkMode}
+                  sessionType={sessionType}
                 />
               )}
             </div>
           </>
         )}
 
-        {sessionMatches.length === 0 && (
+        {!legacySeason && sessionMatches.length === 0 && (
           <div
             className={`text-center py-16 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}
           >

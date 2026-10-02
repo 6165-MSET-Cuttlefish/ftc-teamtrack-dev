@@ -69,6 +69,7 @@ const ForgotPassword = () => {
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
           <CardTitle
+            as="h1"
             className={`text-2xl sm:text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
           >
             Reset Password
@@ -140,7 +141,7 @@ const ForgotPassword = () => {
             </Button>
 
             {submitted && (
-              <p className={`text-xs text-center ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'}`}>
+              <p className={`text-xs text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
                 Redirecting to sign in in a few seconds...
                 <button
                   type="button"

@@ -15,13 +15,15 @@ export {
   hasCompletedASession,
   markSessionCompleted,
   saveSessionToStorage,
-  loadSessionFromStorage,
-  loadTimerStateFromStorage,
   clearSessionFromStorage,
   clearHasCompletedSession,
   hasActiveSession,
 } from './sessionPersistence';
-export { generateShareableLink, copyToClipboard } from './shareService';
+export {
+  generateShareableLink,
+  copyToClipboard,
+  copyShareLink,
+} from './shareService';
 export { sanitizeHtml } from './sanitize';
 export {
   isGuestSessionId,
@@ -32,13 +34,30 @@ export {
   POINTS,
   calculateScore,
   calculateTotal,
+  matchScore,
   scoreRows,
   emptyScoringFields,
   pickScoringFields,
+  normalizeForMatchType,
   cycleTimesOf,
   RANKING_POINTS,
+  rankingPoints,
+  rankingPointNames,
+  rankingPointTally,
+  FIELD_LIMITS,
+  FIELD_HINTS,
+  MIXED_MATCH_TYPE,
+  sessionMatchType,
+  liveMatchType,
   includesAuto,
   includesTeleop,
   robotRates,
-  isCurrentSeasonSession,
 } from './scoring';
+export { isCurrentSeasonSession } from './sessionNormalize';
+export type {
+  ScoringInput,
+  ScoreRow,
+  RankingPoints,
+  RankingPointTally,
+} from './scoring';
+export { buildSessionsCsv, downloadCsv, htmlToText } from './csv';

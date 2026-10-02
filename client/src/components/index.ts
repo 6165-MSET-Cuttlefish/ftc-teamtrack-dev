@@ -1,9 +1,10 @@
 export { GuestPrompt, HomeRedirect, ProtectedRoute } from './auth';
 
-export { ErrorBoundary, Header, DeepSeaBubbles, MobileWarning } from './layout';
+export { ErrorBoundary, Header, DeepSeaBubbles } from './layout';
 
 export {
   ActiveTutorial,
+  LiveCounters,
   MatchEntry,
   MatchForm,
   Notes,
@@ -20,6 +21,7 @@ export {
   MatchExtras,
   MatchLog,
   CompletedActions,
+  ViewSessionsLink,
   ActiveDesktopLayout,
   ActiveMobileLayout,
   type ActiveSlots,

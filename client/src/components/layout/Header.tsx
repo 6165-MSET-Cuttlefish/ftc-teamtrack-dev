@@ -1,8 +1,14 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useTheme, useAuth, useSession } from '@/contexts';
+import { useTheme, useAuth, useSession, useSessionCore } from '@/contexts';
 import { ROUTES, TUTORIAL_RESTART_EVENT } from '@/constants';
-import { calculateScore, getInitials } from '@/lib';
+import { calculateScore, getInitials, liveMatchType } from '@/lib';
+import { flushPendingDeletes } from '@/lib/pendingSessionDeletes';
+import {
+  describeSignOutLoss,
+  describeStoredSignOutLoss,
+} from '@/lib/signOutLoss';
 import { useIsCompact } from '@/hooks';
+import { allowNavigation } from '@/hooks/useNavigationGuard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -13,6 +19,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Sun,
   Moon,
@@ -25,9 +38,12 @@ import {
   ArrowLeft,
   Radio,
   Plus,
+  EllipsisVertical,
+  UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 const TeamTrackLogo = () => {
   const { isDarkMode, isHoneycombMode, isDeepSeaMode } = useTheme();
@@ -44,7 +60,7 @@ const TeamTrackLogo = () => {
     <Link
       to="/sessions"
       aria-label="TeamTrack home"
-      className="flex items-center gap-2 sm:gap-4 focus:outline-none transition-all duration-200 origin-left"
+      className="flex items-center justify-center gap-2 sm:gap-4 focus:outline-none transition-all duration-200 origin-left"
     >
       <div className="flex items-center gap-1.5 sm:gap-2.5">
         <svg
@@ -100,15 +116,61 @@ const TeamTrackLogo = () => {
   );
 };
 
-const NavigationMenu = () => {
-  const { isDarkMode, themeMode, setTheme } = useTheme();
+const THEME_OPTIONS = [
+  { mode: 'dark', label: 'Dark', Icon: Moon },
+  { mode: 'light', label: 'Light', Icon: Sun },
+  { mode: 'honeycomb', label: 'Honeycomb', Icon: Hexagon },
+  { mode: 'deepsea', label: 'Deep Sea', Icon: Waves },
+] as const;
+
+/** The theme choices, for the theme menu and the phone overflow menu. */
+const ThemeMenuItems = () => {
+  const { themeMode, setTheme } = useTheme();
+
+  return (
+    <>
+      {THEME_OPTIONS.map(({ mode, label, Icon }) => (
+        <DropdownMenuItem
+          key={mode}
+          onClick={() => setTheme(mode)}
+          className="flex items-center gap-2 cursor-pointer"
+        >
+          <Icon className="w-4 h-4" />
+          <span>{label}</span>
+          {themeMode === mode && <span className="ml-auto text-xs">✓</span>}
+        </DropdownMenuItem>
+      ))}
+    </>
+  );
+};
+
+/**
+ * Where the "New Session" / "My Sessions" buttons switch from an icon to
+ * their text label. Written out in full so Tailwind sees every class.
+ */
+const NAV_LABEL_CLASSES = {
+  md: { text: 'hidden md:inline', icon: 'md:hidden' },
+  lg: { text: 'hidden lg:inline', icon: 'lg:hidden' },
+  xl: { text: 'hidden xl:inline', icon: 'xl:hidden' },
+} as const;
+
+interface NavigationMenuProps {
+  /** The match clock is sharing the bar, so the nav has less room */
+  timerInBar: boolean;
+}
+
+const NavigationMenu = ({ timerInBar }: NavigationMenuProps) => {
+  const { isDarkMode, themeMode } = useTheme();
   const { user, logout } = useAuth();
-  const { sessionData } = useSession();
+  const { sessionData, hasStarted, matchActive, isTutorialActive } =
+    useSessionCore();
   const navigate = useNavigate();
   const location = useLocation();
   const isOnActivePage = location.pathname.includes('/active');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  /** Sign out was chosen with a session at stake: ask once the menu has closed */
+  const confirmLogoutRef = useRef(false);
 
-  const { hasStarted } = useSession();
   // Not the session name: every new session starts pre-named
   // ("Default Session"), so a name alone doesn't mean one is in progress.
   const hasActiveSession =
@@ -116,12 +178,39 @@ const NavigationMenu = () => {
     !sessionData.isSessionCompleted &&
     (hasStarted || (sessionData.matches && sessionData.matches.length > 0));
 
-  const handleLogout = async () => {
+  // Matches only reach the server when the session is completed; signing out
+  // clears the one in progress, a match that is still being scored included.
+  // Not the tutorial's practice match though: that was never going to be kept.
+  const signOutLoss = isTutorialActive
+    ? describeStoredSignOutLoss()
+    : describeSignOutLoss(sessionData, matchActive);
+
+  // The text labels only fit once the bar is wide enough for everything in
+  // it: guests carry two extra buttons (Sign in / Sign up), and the clock
+  // takes about as much room as they do.
+  const labels =
+    NAV_LABEL_CLASSES[
+      user ? (timerInBar ? 'lg' : 'md') : timerInBar ? 'xl' : 'lg'
+    ];
+
+  const signOut = async () => {
+    setShowLogoutConfirm(false);
     try {
+      // Session deletes still inside their undo window can only go through
+      // while signed in.
+      try {
+        await flushPendingDeletes();
+      } catch {
+        /* sign out regardless */
+      }
+
       const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
       clearSessionFromStorage();
 
       await logout();
+      // They have been asked already; the page's own "leave?" guard may not
+      // have caught up with the session being cleared.
+      allowNavigation();
       navigate(ROUTES.LOGIN);
       toast.success('Logged out successfully');
     } catch (error) {
@@ -131,6 +220,15 @@ const NavigationMenu = () => {
     }
   };
 
+  const handleLogout = () => {
+    if (signOutLoss) {
+      // Opened from the menu's onCloseAutoFocus: while the menu is still
+      // closing it keeps focus to itself, and would take it from the dialog.
+      confirmLogoutRef.current = true;
+      return;
+    }
+    signOut();
+  };
 
   const handleStartInteractiveTutorial = () => {
     if (isOnActivePage) {
@@ -141,9 +239,11 @@ const NavigationMenu = () => {
     }
   };
 
+  const iconButtonClass = `p-2 sm:p-2.5 rounded-full transition-colors items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`;
+
   return (
     <div
-      className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 ${
+      className={`flex items-center gap-0.5 sm:gap-2 lg:px-3 py-1 sm:py-2 ${
         isDarkMode ? 'bg-[rgba(25,25,25,0.2)]' : ''
       }`}
     >
@@ -152,15 +252,17 @@ const NavigationMenu = () => {
           <button
             onClick={() => navigate('/active')}
             aria-label="Active practice session"
-            className={`flex items-center gap-1.5 sm:gap-2 transition-colors ${isDarkMode ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'}`}
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 sm:px-3 sm:py-1.5 rounded-full whitespace-nowrap transition-colors ${isDarkMode ? 'text-green-400 hover:text-green-300 hover:bg-team-white-10' : 'text-green-600 hover:text-green-700 hover:bg-gray-100'}`}
           >
-            {/* Label collapses to an icon on mobile — same pattern as "My
-                Sessions" below — so this doesn't crowd the icons next to it
-                on a phone-width header. */}
-            <span className="hidden sm:inline text-sm font-semibold">
+            {/* Label collapses to an icon when the bar is short of room —
+                same pattern as "My Sessions" below — so this doesn't crowd
+                the buttons next to it. The padding keeps the icon-only
+                button the size of its neighbours (phones get their 44px
+                minimum from global.css). */}
+            <span className={`${labels.text} text-sm font-semibold`}>
               Active Session
             </span>
-            <Radio className="w-4 h-4 sm:hidden" />
+            <Radio className={`w-4 h-4 ${labels.icon}`} />
             <div className="relative w-2 h-2">
               <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse"></div>
               <div className="absolute inset-0 bg-green-500 rounded-full"></div>
@@ -170,32 +272,32 @@ const NavigationMenu = () => {
           <button
             onClick={() => navigate(ROUTES.ACTIVE)}
             aria-label="New session"
-            className={`px-3 sm:px-4 py-1.5 rounded-full flex items-center gap-2 transition-all bg-team-blue hover:opacity-90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+            className={`px-3 sm:px-4 py-1.5 rounded-full flex items-center justify-center gap-2 whitespace-nowrap transition-all bg-team-blue hover:opacity-90 ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
-            <span className="hidden sm:inline text-sm font-semibold">
+            <span className={`${labels.text} text-sm font-semibold`}>
               New Session
             </span>
-            <Plus className="w-4 h-4 sm:hidden" />
+            <Plus className={`w-4 h-4 ${labels.icon}`} />
           </button>
         ))}
 
       <button
         onClick={() => navigate('/sessions')}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+        aria-label="My Sessions"
+        className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
           isDarkMode
             ? 'hover:bg-team-white-10 text-white'
             : 'hover:bg-gray-100 text-black'
         }`}
       >
-        <span className="hidden sm:inline">My Sessions</span>
-        <BarChart3 className="w-4 h-4 sm:hidden" />
+        <span className={labels.text}>My Sessions</span>
+        <BarChart3 className={`w-4 h-4 ${labels.icon}`} />
       </button>
-
 
       <button
         onClick={handleStartInteractiveTutorial}
         aria-label="Start interactive tutorial"
-        className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+        className={`hidden sm:flex ${iconButtonClass}`}
       >
         <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
@@ -204,7 +306,7 @@ const NavigationMenu = () => {
         <DropdownMenuTrigger asChild>
           <button
             aria-label="Select theme"
-            className={`p-2 sm:p-2.5 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10' : 'hover:bg-gray-100'}`}
+            className={`hidden sm:flex ${iconButtonClass}`}
           >
             {themeMode === 'dark' ? (
               <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
@@ -220,39 +322,46 @@ const NavigationMenu = () => {
         <DropdownMenuContent align="end" className="min-w-[140px]">
           <DropdownMenuLabel>Theme</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <ThemeMenuItems />
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* On a phone there is no room for a button each: the tutorial, the
+          theme and (for guests) Sign up share one menu. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            aria-label="More options"
+            className={`flex sm:hidden ${iconButtonClass}`}
+          >
+            <EllipsisVertical className="w-4 h-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[160px]">
           <DropdownMenuItem
-            onClick={() => setTheme('dark')}
+            onClick={handleStartInteractiveTutorial}
             className="flex items-center gap-2 cursor-pointer"
           >
-            <Moon className="w-4 h-4" />
-            <span>Dark</span>
-            {themeMode === 'dark' && <span className="ml-auto text-xs">✓</span>}
+            <HelpCircle className="w-4 h-4" />
+            <span>Tutorial</span>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setTheme('light')}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Sun className="w-4 h-4" />
-            <span>Light</span>
-            {themeMode === 'light' && (
-              <span className="ml-auto text-xs">✓</span>
-            )}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setTheme('honeycomb')}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Hexagon className="w-4 h-4" />
-            <span>Honeycomb</span>
-            {themeMode === 'honeycomb' && (
-              <span className="ml-auto text-xs">✓</span>
-            )}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme('deepsea')} className="flex items-center gap-2 cursor-pointer">
-            <Waves className="w-4 h-4" />
-            <span>Deep Sea</span>
-            {themeMode === 'deepsea' && <span className="ml-auto text-xs">✓</span>}
-          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Theme</DropdownMenuLabel>
+          <ThemeMenuItems />
+          {!user && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link
+                  to={ROUTES.SIGNUP}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Sign up</span>
+                </Link>
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -261,7 +370,7 @@ const NavigationMenu = () => {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="relative h-8 w-8 rounded-full ml-2"
+              className="relative h-8 w-8 rounded-full sm:ml-2"
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage
@@ -279,6 +388,13 @@ const NavigationMenu = () => {
           <DropdownMenuContent
             className={`w-56 ${isDarkMode ? 'bg-[#191919] border-team-black-40' : 'bg-white border-team-blue'}`}
             align="end"
+            onCloseAutoFocus={() => {
+              // Focus is back on the avatar by the time the dialog renders,
+              // which is where the dialog returns it when it closes.
+              if (!confirmLogoutRef.current) return;
+              confirmLogoutRef.current = false;
+              setShowLogoutConfirm(true);
+            }}
           >
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
@@ -309,14 +425,57 @@ const NavigationMenu = () => {
           <Button variant="ghost" size="sm" asChild>
             <Link to="/login">Sign in</Link>
           </Button>
+          {/* On a phone Sign up lives in the overflow menu above */}
           <Button
             size="sm"
             asChild
-            className={isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}
+            className={`hidden sm:inline-flex ${isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}`}
           >
             <Link to="/signup">Sign up</Link>
           </Button>
         </div>
+      )}
+
+      {/* In a portal: the sticky header is its own stacking context, which
+          would trap the dialog under anything later in the page. */}
+      {createPortal(
+        <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+          <DialogContent
+            role="alertdialog"
+            className={`max-w-md ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
+          >
+            <DialogHeader
+              className={isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}
+            >
+              <DialogTitle
+                className={isDarkMode ? 'text-white' : 'text-gray-900'}
+              >
+                Sign out and lose this session?
+              </DialogTitle>
+              <DialogDescription
+                className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
+              >
+                {signOutLoss}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowLogoutConfirm(false)}
+                className={
+                  isDarkMode ? 'border-team-blue-40 text-team-white-60' : ''
+                }
+              >
+                Stay Signed In
+              </Button>
+              <Button variant="destructive" size="sm" onClick={signOut}>
+                Sign Out Anyway
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>,
+        document.body
       )}
     </div>
   );
@@ -332,14 +491,21 @@ const CompactTimer = () => {
     phaseTimer,
     getDisplayTimer,
     sessionData,
+    editingMatchId,
   } = useSession();
-  const total = calculateScore(sessionData).total;
+  // Scored as the match in the fields, like the Breakdown: a saved match
+  // being edited keeps its own type.
+  const total = calculateScore({
+    ...sessionData,
+    matchType: liveMatchType(sessionData, editingMatchId),
+  }).total;
 
   const timerColor =
     matchPhase === 'controller_pickup'
       ? isDarkMode
         ? 'text-yellow-400'
-        : 'text-amber-600'
+        : // amber-600 is under 4.5:1 on white at the phone size
+          'text-amber-700'
       : isDarkMode
         ? 'text-white'
         : 'text-team-blue';
@@ -347,7 +513,7 @@ const CompactTimer = () => {
   return (
     <span className="flex items-center gap-2 sm:gap-3 whitespace-nowrap">
       <span
-        className={`text-xl sm:text-3xl md:text-4xl font-righteous tracking-wider leading-none transition-colors ${timerColor}`}
+        className={`text-xl sm:text-3xl lg:text-4xl font-righteous tracking-wider leading-none transition-colors ${timerColor}`}
       >
         {matchPhase === 'controller_pickup'
           ? formatTime(phaseTimer)
@@ -359,9 +525,11 @@ const CompactTimer = () => {
         aria-hidden="true"
         className={`h-6 sm:h-8 w-px ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
       />
+      {/* Read out in words; an aria-label would need a role to be valid */}
+      <span className="sr-only">{`Total score ${total} points`}</span>
       <span
-        aria-label={`Total score ${total} points`}
-        className="text-lg sm:text-2xl md:text-3xl font-bold text-team-blue tabular-nums leading-none"
+        aria-hidden="true"
+        className="text-lg sm:text-2xl lg:text-3xl font-bold text-team-blue tabular-nums leading-none"
       >
         {total}
         <span
@@ -376,7 +544,7 @@ const CompactTimer = () => {
 
 export const Header = () => {
   const { isDarkMode } = useTheme();
-  const { hasStarted, sessionData } = useSession();
+  const { hasStarted, sessionData } = useSessionCore();
   const location = useLocation();
   const navigate = useNavigate();
   const isOnSessionsPage = location.pathname === '/sessions';
@@ -423,13 +591,15 @@ export const Header = () => {
       ref={setHeaderEl}
       className={`sticky top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 py-2 sm:py-3 md:py-4 border-b z-50 ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1216px] mx-auto px-2 sm:px-3 md:px-6 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4 md:gap-6">
-        <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 min-w-0">
+      <div className="max-w-[1216px] mx-auto sm:px-3 lg:px-6 grid grid-cols-[minmax(max-content,1fr)_auto_minmax(max-content,1fr)] items-center gap-1 sm:gap-4 lg:gap-6">
+        {/* Never narrower than the arrow and logo, so the nav can't sit on
+            top of them. */}
+        <div className="flex items-center justify-start gap-1 sm:gap-2 md:gap-3 shrink-0">
           {!isOnSessionsPage && (
             <button
               onClick={() => navigate('/sessions')}
               aria-label="Back to sessions"
-              className={`p-1.5 sm:p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
+              className={`p-1.5 sm:p-2 rounded-full transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -439,13 +609,17 @@ export const Header = () => {
 
         {/*
           A real grid track, not an absolute overlay. The two side tracks are
-          equal `1fr` columns, so the timer sits in the true center of the bar
-          even though the logo and nav groups differ in width. A `1fr` track
-          never shrinks below its content, so when one side is too wide to
-          allow that (e.g. the extra "Sign in" / "Sign up" buttons in guest
-          mode) the timer shifts off-center rather than overlapping the nav.
-          `overflow-hidden` is a last-resort clamp for when even the leftover
-          space is narrower than the timer itself on very small screens.
+          `minmax(max-content, 1fr)`: equal shares of the spare width, so the
+          timer sits in the true center of the bar even though the logo and
+          nav groups differ in width, but never less than their own content.
+          (A plain `1fr` track only holds that floor while its cell keeps the
+          default `min-width: auto`.) When one side needs more than its share
+          the timer shifts off-center rather than overlapping it. The nav
+          drops to icon-only labels while the timer is here so all three
+          fit; `overflow-hidden` is a last-resort clamp that clips the timer,
+          never the page, if they still don't. On a phone this track is empty
+          (the clock gets its own row below), so the gaps either side of it
+          are small: at 320px the 44px controls only just fit.
         */}
         <div className="min-w-0 flex items-center justify-center overflow-hidden">
           {showCompactTimer && !isCompact && (
@@ -456,14 +630,13 @@ export const Header = () => {
         </div>
 
         <div className="flex items-center justify-end gap-1 sm:gap-2 md:gap-4 lg:gap-6 flex-shrink-0">
-          <NavigationMenu />
+          <NavigationMenu timerInBar={showCompactTimer && !isCompact} />
         </div>
       </div>
 
       {/*
-        On a phone the nav icons (plus Sign in / Sign up for guests) leave
-        the middle track too narrow to show the clock, so it gets its own row
-        inside the sticky header instead.
+        On a phone the nav leaves the middle track too narrow to show the
+        clock, so it gets its own row inside the sticky header instead.
       */}
       {showCompactTimer && isCompact && (
         <div className="flex justify-center pt-1 animate-in fade-in slide-in-from-top-2 duration-200">

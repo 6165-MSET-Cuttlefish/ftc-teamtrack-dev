@@ -17,14 +17,15 @@ export type TimestampValue = Timestamp | FirebaseTimestamp | string | Date;
 /**
  * Every BIOBUZZ scoring input for one match.
  *
- * v1 records whole-match totals rather than splitting garden/tipping by
- * phase. `phaseLog` keeps the raw timeline so an auton/teleop breakdown can
- * be derived later without a data migration.
+ * v1 records whole-match totals rather than splitting anything by phase.
+ * Tipping is the only action logged as it happens: `phaseLog` keeps its raw
+ * timeline so an auton/teleop breakdown of tips can be derived later without
+ * a data migration. Everything else is a count entered at the end.
  */
 export interface MatchScoringFields {
   /** Hive tips — counted live during the match, 20 pts each in either period */
   tipping: number;
-  /** Garden — counted live during the match, assessed at match end */
+  /** Garden — POLLEN/NECTAR in the GARDEN, counted once at match end */
   garden: number;
   /** Flower — POLLEN/NECTAR placed in a FLOWER this alliance owns */
   flower: number;
@@ -43,16 +44,23 @@ export interface MatchScoringFields {
   robot1ParkTeleop: boolean;
   robot2ParkAuto: boolean;
   robot2ParkTeleop: boolean;
-  /** Penalties charged against this alliance */
+  /**
+   * Fouls this alliance committed. Each is credited to the OPPONENT's score
+   * (MINOR 5, MAJOR 20) and never subtracted from this alliance's own.
+   */
   minorPenalties: number;
   majorPenalties: number;
-  /** Timeline of live scoring actions, for cycle-time analysis */
+  /** Timeline of Hive Tips as they were counted, for cycle-time analysis */
   phaseLog?: ScoreEvent[];
 }
 
 /** One live scoring action, timestamped against the match clock */
 export interface ScoreEvent {
-  /** Which live-scored element changed */
+  /**
+   * Which live-scored element changed. New matches only log 'tipping';
+   * 'garden' is legacy, found in sessions recorded while Garden was still
+   * tapped live, and is kept so those logs still type-check.
+   */
   field: 'garden' | 'tipping';
   /** Value the field moved to */
   value: number;
@@ -60,7 +68,11 @@ export interface ScoreEvent {
   phase: MatchPhase;
   /** Seconds remaining on the match clock */
   timeRemaining: number;
-  /** Seconds since the previous scoring action */
+  /**
+   * Seconds since the previous logged action: the previous tip, or in a
+   * legacy log the previous tip or Garden tap. Read cycle times through
+   * `cycleTimesOf`, which turns either into time between Hive Tips.
+   */
   cycleTime?: number;
 }
 
@@ -73,11 +85,14 @@ export interface ScoreBreakdown {
   hive: number;
   leave: number;
   park: number;
-  /** Positive magnitude of points lost to penalties */
+  /**
+   * Points this alliance's fouls gave the OPPONENT (a positive number).
+   * Reported next to the score; not part of `earned` or `total`.
+   */
   penalties: number;
-  /** Points scored before penalties */
+  /** Points this alliance scored: the sum of the components above */
   earned: number;
-  /** Final match score, floored at zero */
+  /** Match score. Equal to `earned` — fouls never reduce it */
   total: number;
 }
 
@@ -88,7 +103,10 @@ export interface Match extends MatchScoringFields {
   /** Which segment of the game was run: Full Game, Autonomous, or Teleop */
   matchType?: string;
   createdAt?: TimestampValue;
-  /** Cached final score; always re-derivable via calculateScore */
+  /**
+   * Cached final score. May be stale on older matches (fouls used to be
+   * subtracted from it) — read scores with `matchScore`, which recomputes.
+   */
   finalScore?: number;
 }
 
@@ -106,6 +124,10 @@ export interface Session {
   sessionName: string;
   /** Practice or Scrim */
   sessionType?: SessionType;
+  /**
+   * The type its matches share, or 'Mixed'. Matches carry their own type;
+   * derive this with `sessionMatchType` rather than trusting the stored value.
+   */
   matchType?: string;
   sessionDuration?: string;
   createdAt: TimestampValue;

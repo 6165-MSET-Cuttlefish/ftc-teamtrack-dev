@@ -37,7 +37,10 @@ export default defineConfig(() => ({
             'firebase/auth',
             'firebase/firestore',
           ],
-          'vendor-charts': ['recharts'],
+          // No recharts entry: naming it pulls shared helpers (clsx, the
+          // use-sync-external-store shim) into the charts chunk, which every
+          // page then has to download. Left alone, Rollup keeps recharts in
+          // chunks that only the chart pages load.
         },
       },
     },

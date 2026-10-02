@@ -1,5 +1,48 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/constants';
+
+/** Marks the duplicate history entry the guard puts on top of the page's own. */
+const GUARD_KEY = '__guard';
+
+/** How long a confirmed leave has to take effect before the guards re-arm. */
+const LEAVE_GRACE_MS = 2000;
+
+/**
+ * A performance.now() reading, not the time of day: setting the device clock
+ * back must not reopen the window and leave the page unguarded.
+ */
+let allowedUntil = 0;
+
+const isNavigationAllowed = (): boolean => performance.now() < allowedUntil;
+
+/**
+ * Let navigation through unasked for the next moment. For when the user has
+ * already confirmed, in this hook's dialog or in one of the caller's own
+ * (signing out, say), so they are never asked twice. It is a window rather
+ * than a single pass because going back through history, and a page unload,
+ * only happen after the code that asked for them has returned.
+ */
+export const allowNavigation = (): void => {
+  allowedUntil = performance.now() + LEAVE_GRACE_MS;
+};
+
+const isGuardEntry = (): boolean =>
+  (window.history.state as Record<string, unknown> | null)?.[GUARD_KEY] ===
+  true;
+
+/**
+ * Put a copy of the current entry on top of the stack, so that Back lands on
+ * the same page (where it can be asked about) instead of leaving it. The copy
+ * keeps the router's own state, `idx` included.
+ */
+const pushGuardEntry = (): void => {
+  window.history.pushState(
+    { ...window.history.state, [GUARD_KEY]: true },
+    '',
+    window.location.href
+  );
+};
 
 /**
  * Hook that blocks navigation when there is unsaved work.
@@ -22,13 +65,13 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
   const shouldBlockRef = useRef(shouldBlock);
   shouldBlockRef.current = shouldBlock;
 
-  const allowNavRef = useRef(false);
-
   // Browser-level guard (refresh / close tab)
   useEffect(() => {
     if (!shouldBlock) return;
 
     const handler = (e: BeforeUnloadEvent) => {
+      // Already confirmed in the app's own dialog; don't ask a second time.
+      if (isNavigationAllowed()) return;
       e.preventDefault();
       e.returnValue = '';
     };
@@ -41,12 +84,24 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
   useEffect(() => {
     if (!shouldBlock) return;
 
-    window.history.pushState(null, '', window.location.href);
+    const guardedPath = location.pathname;
+
+    // One guard entry is enough: when blocking stops and starts again on the
+    // same page (cancel a match, start another) the earlier one is still
+    // there.
+    if (!isGuardEntry()) pushGuardEntry();
 
     const handler = () => {
-      if (!shouldBlockRef.current || allowNavRef.current) return;
+      if (!shouldBlockRef.current || isNavigationAllowed()) return;
+      // A jump straight to another page (history menu): the router has
+      // already left, and there is nothing here to hold on to.
+      if (window.location.pathname !== guardedPath) return;
+      // Landed on a guard entry: still on the page, still protected.
+      if (isGuardEntry()) return;
 
-      window.history.pushState(null, '', window.location.href);
+      // Back from the guard entry onto the page's own: put the guard back
+      // and ask.
+      pushGuardEntry();
 
       setPendingPath(null);
       setIsBlocked(true);
@@ -54,7 +109,7 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
 
     window.addEventListener('popstate', handler);
     return () => window.removeEventListener('popstate', handler);
-  }, [shouldBlock]);
+  }, [shouldBlock, location.pathname]);
 
   // Intercept programmatic in-app navigation (Link / navigate())
   useEffect(() => {
@@ -66,7 +121,7 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     const intercept =
       (original: typeof window.history.pushState) =>
       (data: unknown, unused: string, url?: string | URL | null) => {
-        if (!shouldBlockRef.current || allowNavRef.current) {
+        if (!shouldBlockRef.current || isNavigationAllowed()) {
           return original(data, unused, url);
         }
 
@@ -90,19 +145,24 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
 
   // Dialog actions
   const proceed = useCallback(() => {
-    allowNavRef.current = true;
+    allowNavigation();
     setIsBlocked(false);
 
     if (pendingPath) {
       navigate(pendingPath, { replace: true });
-    } else {
-      // Go back past the two duplicate states we pushed
-      window.history.go(-2);
+      return;
     }
 
-    setTimeout(() => {
-      allowNavRef.current = false;
-    }, 0);
+    // Back was pressed: the guard entry is on top of the page's own entry.
+    // The router numbers its entries from 0, so at 0 (or with no number,
+    // after a full page load) there is nothing of this app to go back to.
+    const idx = (window.history.state as { idx?: unknown } | null)?.idx;
+    if (typeof idx === 'number' && idx > 0) {
+      // Past the guard entry and the page itself
+      window.history.go(-2);
+    } else {
+      navigate(ROUTES.SESSIONS, { replace: true });
+    }
   }, [pendingPath, navigate]);
 
   const reset = useCallback(() => {

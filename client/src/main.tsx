@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './global.css';
 import { isAbortError, getFirebase } from '@/lib';
+import { isChunkLoadError, recoverFromChunkError } from '@/lib/lazyWithRetry';
 
 // Initialize Firebase (including Analytics) eagerly on page load
 getFirebase();
@@ -36,6 +37,13 @@ window.addEventListener(
     }
   }
 );
+
+// Vite fires this when a lazy chunk or its CSS fails to load, which after a
+// deploy means this tab is still running the previous build. Route chunks are
+// also covered by lazyWithRetry; this catches every other dynamic import.
+window.addEventListener('vite:preloadError', event => {
+  if (isChunkLoadError(event.payload)) void recoverFromChunkError();
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode>

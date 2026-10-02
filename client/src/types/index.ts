@@ -17,6 +17,8 @@ export type {
   Team,
   TeamMember,
   TeamInvite,
+  JoinedTeam,
+  JoinTeamResult,
   CreateTeamData,
 } from './team';
 

@@ -1,7 +1,8 @@
 import { Settings } from 'lucide-react';
 
+import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
-import { swallowEnter } from './swallowEnter';
+import { toneText } from './tones';
 
 /**
  * Toggles the session setup panel. Split out of `SessionActions` so it can
@@ -15,7 +16,7 @@ export const OpenSetupButton = () => {
   return (
     <button
       type="button"
-      onKeyDown={swallowEnter}
+      onKeyDown={ignoreHeldEnter}
       onClick={onOpenSessionSetup}
       className={`w-12 h-12 shrink-0 rounded-2xl border-2 transition-colors flex items-center justify-center ${
         !isSessionSetupSaved
@@ -25,9 +26,11 @@ export const OpenSetupButton = () => {
             : 'border-team-blue-40 bg-white hover:bg-gray-50'
       }`}
       title="Edit Session Setup"
+      aria-label="Edit Session Setup"
     >
       <Settings
-        className={`h-5 w-5 ${!isSessionSetupSaved ? 'text-red-500' : isDarkMode ? 'text-white' : 'text-black'}`}
+        aria-hidden
+        className={`h-5 w-5 ${!isSessionSetupSaved ? toneText('red', isDarkMode) : isDarkMode ? 'text-white' : 'text-black'}`}
       />
     </button>
   );

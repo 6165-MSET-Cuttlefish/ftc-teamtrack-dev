@@ -11,7 +11,7 @@
  */
 
 import type { MatchScoringFields, ScoreBreakdown } from '@/types';
-import { CURRENT_SEASON } from '@/constants';
+import { GAME_TIMING } from '@/constants';
 
 export const POINTS = {
   /** HIVE TIP — scored live, worth the same in auton or teleop */
@@ -28,36 +28,99 @@ export const POINTS = {
   LEAVE: 3,
   /** PARK, per robot — awarded once for parking during AUTO and once for TELEOP */
   PARK: 5,
-  /** Penalties are credited to the opponent's score */
+  /**
+   * This alliance's fouls. Each one is credited to the OPPONENT's score and
+   * never taken off this alliance's own.
+   */
   MINOR_PENALTY: 5,
   MAJOR_PENALTY: 20,
 } as const;
 
+/** Scoring inputs plus the match type that says which periods were run. */
+export type ScoringInput = Partial<MatchScoringFields> & { matchType?: string };
+
+/** Whether a match of this type runs an autonomous period. */
+export const includesAuto = (matchType?: string): boolean =>
+  matchType !== 'Teleop';
+
+/** Whether a match of this type runs a teleop period. */
+export const includesTeleop = (matchType?: string): boolean =>
+  matchType !== 'Autonomous';
+
+/**
+ * The same fields with the flags of periods that were not run cleared: a
+ * Teleop-only match has no LEAVE or end-of-AUTO PARK, and an Autonomous-only
+ * match has no end-of-match PARK. Everything else is returned untouched.
+ */
+export const normalizeForMatchType = <T extends Partial<MatchScoringFields>>(
+  fields: T,
+  matchType?: string
+): T => {
+  const auto = includesAuto(matchType);
+  const teleop = includesTeleop(matchType);
+  if (auto && teleop) return fields;
+  return {
+    ...fields,
+    ...(auto
+      ? {}
+      : {
+          robot1Leave: false,
+          robot2Leave: false,
+          robot1ParkAuto: false,
+          robot2ParkAuto: false,
+        }),
+    ...(teleop ? {} : { robot1ParkTeleop: false, robot2ParkTeleop: false }),
+  };
+};
+
+/**
+ * A stored count as a usable number. Anything that isn't a finite, positive
+ * number counts as zero, so one bad field can't turn a score into NaN.
+ */
+const countOf = (value: unknown): number => {
+  const n = typeof value === 'number' ? value : Number(value ?? 0);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+/** Robots that left, and parks earned, in the periods this match ran. */
+const robotCounts = (f: ScoringInput): { leaves: number; parks: number } => {
+  const n = normalizeForMatchType(f, f.matchType);
+  return {
+    leaves: (n.robot1Leave ? 1 : 0) + (n.robot2Leave ? 1 : 0),
+    parks:
+      (n.robot1ParkAuto ? 1 : 0) +
+      (n.robot1ParkTeleop ? 1 : 0) +
+      (n.robot2ParkAuto ? 1 : 0) +
+      (n.robot2ParkTeleop ? 1 : 0),
+  };
+};
+
 /**
  * Compute every score component for a single match.
  *
- * `total` is the number shown as the match score; it is clamped at zero so a
- * penalty-heavy match never reports a negative result.
+ * `total` is the match score: everything this alliance earned. Fouls are not
+ * part of it — `penalties` is the number of points this alliance's fouls
+ * handed to the opponent, reported alongside the score and never subtracted
+ * from it.
+ *
+ * Periods the match type did not run score nothing, whatever the stored
+ * flags say: a Teleop match has no LEAVE or end-of-AUTO PARK, an Autonomous
+ * match has no end-of-match PARK.
  */
-export const calculateScore = (f: Partial<MatchScoringFields>): ScoreBreakdown => {
-  const tipping = (f.tipping ?? 0) * POINTS.HIVE_TIP;
-  const garden = (f.garden ?? 0) * POINTS.GARDEN;
-  const flower = (f.flower ?? 0) * POINTS.FLOWER_ELEMENT;
-  const flowerBonus = (f.flowerBonus ?? 0) * POINTS.FLOWER_BONUS;
-  const hive = (f.ballsInHive ?? 0) * POINTS.CELL_REMAINING;
+export const calculateScore = (f: ScoringInput): ScoreBreakdown => {
+  const tipping = countOf(f.tipping) * POINTS.HIVE_TIP;
+  const garden = countOf(f.garden) * POINTS.GARDEN;
+  const flower = countOf(f.flower) * POINTS.FLOWER_ELEMENT;
+  const flowerBonus = countOf(f.flowerBonus) * POINTS.FLOWER_BONUS;
+  const hive = countOf(f.ballsInHive) * POINTS.CELL_REMAINING;
 
-  const leave =
-    ((f.robot1Leave ? 1 : 0) + (f.robot2Leave ? 1 : 0)) * POINTS.LEAVE;
-  const parkCount =
-    (f.robot1ParkAuto ? 1 : 0) +
-    (f.robot1ParkTeleop ? 1 : 0) +
-    (f.robot2ParkAuto ? 1 : 0) +
-    (f.robot2ParkTeleop ? 1 : 0);
-  const park = parkCount * POINTS.PARK;
+  const { leaves, parks } = robotCounts(f);
+  const leave = leaves * POINTS.LEAVE;
+  const park = parks * POINTS.PARK;
 
   const penalties =
-    (f.minorPenalties ?? 0) * POINTS.MINOR_PENALTY +
-    (f.majorPenalties ?? 0) * POINTS.MAJOR_PENALTY;
+    countOf(f.minorPenalties) * POINTS.MINOR_PENALTY +
+    countOf(f.majorPenalties) * POINTS.MAJOR_PENALTY;
 
   const earned = tipping + garden + flower + flowerBonus + hive + leave + park;
 
@@ -71,51 +134,91 @@ export const calculateScore = (f: Partial<MatchScoringFields>): ScoreBreakdown =
     park,
     penalties,
     earned,
-    total: Math.max(0, earned - penalties),
+    total: earned,
   };
 };
 
 /** Convenience wrapper when only the final number is needed. */
-export const calculateTotal = (f: Partial<MatchScoringFields>): number =>
+export const calculateTotal = (f: ScoringInput): number =>
   calculateScore(f).total;
 
-/** Labelled rows for breakdown tables and charts, in field order. */
-export const scoreRows = (
-  f: Partial<MatchScoringFields>
-): Array<{ key: keyof ScoreBreakdown; label: string; count: number; points: number }> => {
+/**
+ * The score of a stored match, always recomputed from its fields.
+ *
+ * `finalScore` is only a cache and can be stale (matches saved while fouls
+ * were still subtracted, or before the match type decided which periods
+ * count), so every screen reads the score through here instead.
+ * `fallbackMatchType` is the session's type, for matches saved without one.
+ */
+export const matchScore = (
+  m: ScoringInput,
+  fallbackMatchType?: string
+): number =>
+  calculateScore(
+    m.matchType || !fallbackMatchType
+      ? m
+      : { ...m, matchType: fallbackMatchType }
+  ).total;
+
+/** One line of a score breakdown. */
+export interface ScoreRow {
+  key: keyof ScoreBreakdown;
+  label: string;
+  count: number;
+  points: number;
+  /**
+   * Shown for information only and not part of the match total — the points
+   * this alliance's fouls gave the opponent.
+   */
+  informational?: boolean;
+}
+
+/**
+ * Labelled rows for breakdown tables and charts, in field order. Every row
+ * adds up to the total except the last, informational one.
+ */
+export const scoreRows = (f: ScoringInput): ScoreRow[] => {
   const b = calculateScore(f);
+  const { leaves, parks } = robotCounts(f);
   return [
-    { key: 'tipping', label: 'Hive Tips', count: f.tipping ?? 0, points: b.tipping },
-    { key: 'garden', label: 'Garden', count: f.garden ?? 0, points: b.garden },
-    { key: 'flower', label: 'Flower', count: f.flower ?? 0, points: b.flower },
+    {
+      key: 'tipping',
+      label: 'Hive Tips',
+      count: countOf(f.tipping),
+      points: b.tipping,
+    },
+    {
+      key: 'garden',
+      label: 'Garden',
+      count: countOf(f.garden),
+      points: b.garden,
+    },
+    {
+      key: 'flower',
+      label: 'Flower',
+      count: countOf(f.flower),
+      points: b.flower,
+    },
     {
       key: 'flowerBonus',
       label: 'Flower Bonus',
-      count: f.flowerBonus ?? 0,
+      count: countOf(f.flowerBonus),
       points: b.flowerBonus,
     },
-    { key: 'hive', label: 'Left in Hive', count: f.ballsInHive ?? 0, points: b.hive },
     {
-      key: 'leave',
-      label: 'Leave',
-      count: (f.robot1Leave ? 1 : 0) + (f.robot2Leave ? 1 : 0),
-      points: b.leave,
+      key: 'hive',
+      label: 'Left in Hive',
+      count: countOf(f.ballsInHive),
+      points: b.hive,
     },
-    {
-      key: 'park',
-      label: 'Park',
-      count:
-        (f.robot1ParkAuto ? 1 : 0) +
-        (f.robot1ParkTeleop ? 1 : 0) +
-        (f.robot2ParkAuto ? 1 : 0) +
-        (f.robot2ParkTeleop ? 1 : 0),
-      points: b.park,
-    },
+    { key: 'leave', label: 'Leave', count: leaves, points: b.leave },
+    { key: 'park', label: 'Park', count: parks, points: b.park },
     {
       key: 'penalties',
-      label: 'Penalties',
-      count: (f.minorPenalties ?? 0) + (f.majorPenalties ?? 0),
-      points: -b.penalties,
+      label: 'Given to opponent',
+      count: countOf(f.minorPenalties) + countOf(f.majorPenalties),
+      points: b.penalties,
+      informational: true,
     },
   ];
 };
@@ -172,13 +275,139 @@ export const RANKING_POINTS = {
   POLLINATOR_TIPS: [4, 7],
 } as const;
 
-/** Whether a match of this type runs an autonomous period. */
-export const includesAuto = (matchType?: string): boolean =>
-  matchType !== 'Teleop';
+/** Ranking points one match earns from its own scoring. */
+export interface RankingPoints {
+  /** SWARM RP — LEAVE + PARK points reached the threshold */
+  swarm: boolean;
+  /** POLLINATOR RPs — one per HIVE TIP threshold reached */
+  pollinator: 0 | 1 | 2;
+  total: number;
+}
 
-/** Whether a match of this type runs a teleop period. */
-export const includesTeleop = (matchType?: string): boolean =>
-  matchType !== 'Autonomous';
+/**
+ * Ranking points earned by a match. LEAVE and PARK are counted the same way
+ * `calculateScore` counts them, so a period that was not run can't earn
+ * SWARM.
+ */
+export const rankingPoints = (f: ScoringInput): RankingPoints => {
+  const b = calculateScore(f);
+  const swarm = b.leave + b.park >= RANKING_POINTS.SWARM_ROBOT_POINTS;
+  const tips = countOf(f.tipping);
+  const pollinator = RANKING_POINTS.POLLINATOR_TIPS.filter(
+    threshold => tips >= threshold
+  ).length as 0 | 1 | 2;
+  return { swarm, pollinator, total: (swarm ? 1 : 0) + pollinator };
+};
+
+/** Names of the ranking points a match earned, in the order they are listed. */
+export const rankingPointNames = (rp: RankingPoints): string[] => [
+  ...(rp.swarm ? ['SWARM'] : []),
+  ...RANKING_POINTS.POLLINATOR_TIPS.slice(0, rp.pollinator).map(
+    (_, i) => `POLLINATOR ${i + 1}`
+  ),
+];
+
+/** Ranking points a set of matches earned between them. */
+export interface RankingPointTally {
+  /** Matches that earned each one */
+  swarm: number;
+  pollinator1: number;
+  pollinator2: number;
+  earned: number;
+  /** Three per match */
+  possible: number;
+  /** Percentage of the possible ranking points earned; null with no matches */
+  rate: number | null;
+}
+
+/**
+ * Ranking points across matches. `fallbackMatchType` is the session's type,
+ * for matches saved without one.
+ */
+export const rankingPointTally = (
+  matches: ReadonlyArray<ScoringInput>,
+  fallbackMatchType?: string
+): RankingPointTally => {
+  const rps = matches.map(m =>
+    rankingPoints(
+      m.matchType || !fallbackMatchType
+        ? m
+        : { ...m, matchType: fallbackMatchType }
+    )
+  );
+  const earned = rps.reduce((sum, rp) => sum + rp.total, 0);
+  const possible = matches.length * (1 + RANKING_POINTS.POLLINATOR_TIPS.length);
+  return {
+    swarm: rps.filter(rp => rp.swarm).length,
+    pollinator1: rps.filter(rp => rp.pollinator >= 1).length,
+    pollinator2: rps.filter(rp => rp.pollinator >= 2).length,
+    earned,
+    possible,
+    rate: possible > 0 ? Math.round((earned / possible) * 100) : null,
+  };
+};
+
+/**
+ * The most each counter can sensibly hold. 56 is every scoring element on
+ * the field: 40 POLLEN plus 8 NECTAR per alliance.
+ */
+export const FIELD_LIMITS = {
+  tipping: 30,
+  garden: 56,
+  flower: 56,
+  flowerBonus: 4,
+  ballsInHive: 56,
+  minorPenalties: 30,
+  majorPenalties: 30,
+} as const;
+
+/** What each counter counts, as shown beside its input. */
+export const FIELD_HINTS = {
+  tipping: `Each HIVE TIP, in AUTO or TELEOP (${POINTS.HIVE_TIP} pts)`,
+  garden: `Everything in your GARDEN at match end, including the 4 pre-staged POLLEN (${POINTS.GARDEN} pt each)`,
+  flower: `All POLLEN/NECTAR in FLOWERS with your NECTAR on top, including opponent and pre-staged pieces (${POINTS.FLOWER_ELEMENT} pts each)`,
+  flowerBonus: `FLOWERS with your NECTAR at the bottom, max ${FIELD_LIMITS.flowerBonus} (${POINTS.FLOWER_BONUS} pts each)`,
+  ballsInHive: `Upward-facing CELL only. The 3 staged NECTAR count until a TIP flips it (${POINTS.CELL_REMAINING} pts each)`,
+  minorPenalties: `+${POINTS.MINOR_PENALTY} to the opponent each. Your score is not reduced`,
+  majorPenalties: `+${POINTS.MAJOR_PENALTY} to the opponent each. Your score is not reduced`,
+} as const;
+
+/** Label for a session whose matches were not all run as the same type. */
+export const MIXED_MATCH_TYPE = 'Mixed';
+
+/**
+ * The match type of a whole session: the type its matches share, or 'Mixed'
+ * when they differ. `fallback` (the type stored on the session) stands in
+ * for matches saved without one, and for a session with no matches.
+ */
+export const sessionMatchType = (
+  matches: ReadonlyArray<{ matchType?: string }> | undefined,
+  fallback?: string
+): string => {
+  const types = new Set(
+    (matches ?? []).map(m => m.matchType || fallback || 'Full Game')
+  );
+  if (types.size === 0) return fallback || 'Full Game';
+  return types.size === 1 ? [...types][0] : MIXED_MATCH_TYPE;
+};
+
+/**
+ * The match type the fields on the live page are scored as. A saved match
+ * open for editing keeps the type it was run as, whatever type the session
+ * has selected now; otherwise it is the selected type.
+ */
+export const liveMatchType = <T extends string | undefined>(
+  session: {
+    matchType: T;
+    matches?: ReadonlyArray<{ id: string; matchType?: string }>;
+  },
+  editingMatchId: string | null
+): string | T => {
+  const edited = editingMatchId
+    ? session.matches?.find(m => m.id === editingMatchId)
+    : undefined;
+  return edited?.matchType ?? session.matchType;
+};
 
 /**
  * Leave and park conversion across matches, as whole percentages.
@@ -188,7 +417,7 @@ export const includesTeleop = (matchType?: string): boolean =>
  * end-of-match PARK. A rate is `null` when there were no opportunities.
  */
 export const robotRates = (
-  matches: Array<Partial<MatchScoringFields> & { matchType?: string }>,
+  matches: ScoringInput[],
   fallbackMatchType?: string
 ): { leaveRate: number | null; parkRate: number | null } => {
   let leaveSlots = 0;
@@ -212,27 +441,44 @@ export const robotRates = (
 
   const pct = (n: number, d: number) =>
     d > 0 ? Math.round((n / d) * 100) : null;
-  return { leaveRate: pct(leaves, leaveSlots), parkRate: pct(parks, parkSlots) };
+  return {
+    leaveRate: pct(leaves, leaveSlots),
+    parkRate: pct(parks, parkSlots),
+  };
 };
+
+/** A gap longer than a whole match's playing time is not a cycle. */
+const MAX_CYCLE_SECONDS =
+  GAME_TIMING.AUTONOMOUS_DURATION_SECONDS + GAME_TIMING.TELEOP_DURATION_SECONDS;
 
 /**
- * Whether a stored session belongs to the current season.
+ * Cycle times recorded in a match: the time between Hive Tips, in seconds.
  *
- * Sessions saved before the season tag existed are classified by shape:
- * DECODE matches carry none of the BIOBUZZ scoring fields.
+ * Only tip-to-tip gaps count. Sessions recorded while Garden was also tapped
+ * live have Garden events in their log, each timed from whatever action came
+ * before it; those are never cycles themselves, and their time is added back
+ * into the gap between the tips either side. A tip with no earlier tip in
+ * the same match has nothing to be measured from. Gaps that are not positive
+ * or are longer than a match are dropped.
  */
-export const isCurrentSeasonSession = (session: {
-  season?: string;
-  matches?: ReadonlyArray<object>;
-}): boolean => {
-  if (session.season) return session.season === CURRENT_SEASON;
-  const matches = session.matches ?? [];
-  if (matches.length === 0) return true;
-  return matches.some(m => 'garden' in m || 'tipping' in m);
-};
+export const cycleTimesOf = (f: Partial<MatchScoringFields>): number[] => {
+  const times: number[] = [];
+  /** Seconds logged since the last tip; null until the first one */
+  let sinceTip: number | null = null;
 
-/** Cycle times (seconds between live scoring actions) recorded in a match. */
-export const cycleTimesOf = (f: Partial<MatchScoringFields>): number[] =>
-  (f.phaseLog ?? [])
-    .map(e => e.cycleTime)
-    .filter((t): t is number => t !== undefined);
+  for (const event of f.phaseLog ?? []) {
+    if (!event || typeof event !== 'object') continue;
+    const gap = Number.isFinite(event.cycleTime) ? event.cycleTime : undefined;
+    if (event.field !== 'tipping') {
+      if (sinceTip !== null && gap !== undefined) sinceTip += gap;
+      continue;
+    }
+    if (sinceTip !== null && gap !== undefined) {
+      const cycle = Math.round((sinceTip + gap) * 100) / 100;
+      if (cycle > 0 && cycle <= MAX_CYCLE_SECONDS) times.push(cycle);
+    }
+    sinceTip = 0;
+  }
+
+  return times;
+};

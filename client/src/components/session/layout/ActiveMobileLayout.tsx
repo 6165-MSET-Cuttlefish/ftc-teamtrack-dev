@@ -43,10 +43,12 @@ const PAIRED_ROWS: readonly (readonly [ActiveSlotKey, ActiveSlotKey])[] = [
  * open there's nothing to score yet, so it's fine for the pane to grow past
  * one screen for that one pre-match step. Everything else scrolls below.
  *
- * All scoring lives in Match Entry, just below the fixed
- * area, so anything added to `fixed` pushes it further down the page. If a
- * new section is not required *while a match is running*, it belongs in
- * `scroll`.
+ * The live counters (Tipping and, in a scrim, the fouls) are the only
+ * scoring tapped while the clock runs, so they close out the fixed area,
+ * right under the match controls. Robots and the end-of-match assessment
+ * are in Match Entry, one scroll down. Anything added to `fixed` above the
+ * counters pushes them toward the fold on a short phone: if a new section is
+ * not required *while a match is running*, it belongs in `scroll`.
  */
 const PLACEMENT: PlacementMap<Region> = {
   title: { region: 'fixed', order: 0 },
@@ -57,6 +59,7 @@ const PLACEMENT: PlacementMap<Region> = {
   primaryAction: { region: 'fixed', order: 5 },
   playPause: { region: 'fixed', order: 6 },
   cancelMatch: { region: 'fixed', order: 7 },
+  liveScoring: { region: 'fixed', order: 8 },
 
   completedActions: { region: 'scroll', order: 0 },
   completionNotice: { region: 'scroll', order: 1 },
@@ -148,7 +151,10 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
         hand reaching for "Save Match" expects it.
       */}
       {fixed.length > 0 && (
-        <section className="flex flex-col gap-3 px-4 pt-2 pb-3" data-tutorial="timer">
+        <section
+          className="flex flex-col gap-3 px-4 pt-2 pb-3"
+          data-tutorial="timer"
+        >
           {fixed.map(renderUnit)}
         </section>
       )}

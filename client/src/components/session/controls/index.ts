@@ -8,4 +8,4 @@ export { PrimaryAction } from './PrimaryAction';
 export { SessionActions } from './SessionActions';
 export { PlayPauseControl, CancelMatchButton, MatchExtras } from './MatchControls';
 export { MatchLog } from './MatchLog';
-export { CompletedActions } from './CompletedActions';
+export { CompletedActions, ViewSessionsLink } from './CompletedActions';

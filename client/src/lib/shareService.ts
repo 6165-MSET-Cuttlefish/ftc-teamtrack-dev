@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import type { Session } from '@/types';
 import { pickScoringFields } from './scoring';
 
@@ -20,6 +21,7 @@ export const generateShareableLink = async (
     sessionOwnerId: session.userId,
     sessionName: session.sessionName,
     sessionType: session.sessionType,
+    season: session.season,
     sessionDuration: session.sessionDuration,
     matchType: session.matchType,
     selectedFeature: session.selectedFeature,
@@ -66,4 +68,43 @@ export const copyToClipboard = async (text: string): Promise<void> => {
       throw new Error('Failed to copy to clipboard');
     }
   }
+};
+
+/**
+ * Copy a share link that has just been made, then run `onCopied`.
+ *
+ * The link is made over the network before it can be copied, and a browser
+ * may refuse the clipboard once the tap that asked for it is over. The link
+ * is public either way, so that isn't reported as a failed share: the user
+ * gets a button that copies it from a tap of its own, and the link itself to
+ * copy by hand if that is refused as well.
+ */
+export const copyShareLink = async (
+  link: string,
+  onCopied: () => void
+): Promise<void> => {
+  try {
+    await copyToClipboard(link);
+  } catch {
+    toast.message('Share link created', {
+      description: "Your browser didn't let it be copied automatically.",
+      duration: Infinity,
+      cancel: { label: 'Dismiss', onClick: () => {} },
+      action: {
+        label: 'Copy link',
+        onClick: () => {
+          copyToClipboard(link).then(onCopied, () =>
+            toast.error("Couldn't copy the share link", {
+              description: link,
+              descriptionClassName: 'break-all select-text',
+              duration: Infinity,
+              cancel: { label: 'Dismiss', onClick: () => {} },
+            })
+          );
+        },
+      },
+    });
+    return;
+  }
+  onCopied();
 };

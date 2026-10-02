@@ -1,23 +1,235 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { useSession } from '@/contexts';
 import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
 
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
   __teamtrack_audio_persist_interval__?: ReturnType<typeof setInterval> | null;
+  /** Takes this module's listeners back off the shared element (hot reload) */
+  __teamtrack_match_audio_unwire__?: () => void;
 }
 const ttWindow = window as TeamTrackWindow;
 
+const FULL_GAME_AUDIO_OFFSET = 0.8;
+const AUTON_AUDIO_OFFSET = FULL_GAME_AUDIO_OFFSET + 3;
+const TELEOP_AUDIO_OFFSET = 42;
+
+/**
+ * File time of 1:00 remaining, when BIOBUZZ endgame (and flower scoring)
+ * opens. The track is silent there: the manual's "FLOWER Ownership Unlocked"
+ * sound is still TBD, so a short chime is synthesized on top. Once the
+ * official sound is published, splice it into match-audio.mp3 at this file
+ * time and delete the chime. The 0:20 whistle is already in the track.
+ */
+const ENDGAME_CUE_AUDIO_TIME =
+  TELEOP_AUDIO_OFFSET +
+  GAME_TIMING.TELEOP_DURATION_SECONDS -
+  GAME_TIMING.ENDGAME_REMAINING;
+/** How far ahead of the cue the chime is queued, in seconds */
+const ENDGAME_CUE_LEAD = 0.5;
+/** How late the chime may still play if the cue was not seen coming, in seconds */
+const ENDGAME_CUE_GRACE = 1;
+
+/** Furthest the audio may be from the match clock before it is moved, in seconds */
+const MAX_AUDIO_DRIFT = 0.5;
+/** Shortest gap between two attempts to re-download a failed track, in ms */
+const RELOAD_RETRY_MS = 3000;
+
+const SOUND_UNAVAILABLE_TOAST_ID = 'match-sound-unavailable';
+
+let chimeContext: AudioContext | null = null;
+
+const getChimeContext = (): AudioContext | null => {
+  if (chimeContext) return chimeContext;
+  const Ctor =
+    window.AudioContext ??
+    (window as Window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!Ctor) return null;
+  chimeContext = new Ctor();
+  return chimeContext;
+};
+
+/** Browsers only allow audio started from a tap, so wake the context then. */
+const unlockChime = () => {
+  getChimeContext()
+    ?.resume()
+    .catch(() => {});
+};
+
+/** Two rising notes, starting `delay` seconds from now. */
+const playEndgameChime = (delay = 0) => {
+  const ctx = getChimeContext();
+  if (!ctx) return;
+
+  const schedule = (wait: number) => {
+    const start = ctx.currentTime + wait;
+    [880, 1175].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const t = start + i * 0.18;
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    });
+  };
+
+  if (ctx.state === 'running') {
+    schedule(delay);
+    return;
+  }
+  // A context that is still locked would hold the notes until some later
+  // tap, long after 1:00. Only play if it wakes up in time to be on cue.
+  const askedAt = performance.now();
+  ctx
+    .resume()
+    .then(() => {
+      const waited = (performance.now() - askedAt) / 1000;
+      if (waited <= delay + ENDGAME_CUE_GRACE) {
+        schedule(Math.max(0, delay - waited));
+      }
+    })
+    .catch(() => {});
+};
+
+const clearAudioState = () => {
+  try {
+    sessionStorage.removeItem(STORAGE_KEYS.AUDIO_STATE);
+  } catch {
+    /* storage unavailable */
+  }
+};
+
+/**
+ * A download that failed leaves the element with nothing to play. (It also
+ * leaves it in NETWORK_NO_SOURCE, but so does the moment between setting
+ * `src` and the fetch starting, so only the error is a reliable sign.)
+ */
+const isAudioBroken = (audio: HTMLAudioElement) => audio.error !== null;
+
+let lastReloadAt = 0;
+
+/**
+ * The element is created once per visit, so a download that failed (offline
+ * or a blip at that moment) would leave every match silent. Fetch the track
+ * again instead. Returns true if it did: the element starts over from 0.
+ */
+const reloadIfBroken = (audio: HTMLAudioElement, force = false): boolean => {
+  if (!isAudioBroken(audio)) return false;
+  const now = Date.now();
+  if (!force && now - lastReloadAt < RELOAD_RETRY_MS) return false;
+  lastReloadAt = now;
+  audio.load();
+  return true;
+};
+
+/**
+ * Listeners that belong to the element rather than to /active, so they keep
+ * working while the match plays on with another page open.
+ */
+const wireGlobalAudio = (audio: HTMLAudioElement) => {
+  ttWindow.__teamtrack_match_audio_unwire__?.();
+
+  // The endgame chime runs off the audio's own clock, once per play-through.
+  let chimed = false;
+  const handleTimeUpdate = () => {
+    const untilCue = ENDGAME_CUE_AUDIO_TIME - audio.currentTime;
+    if (untilCue > ENDGAME_CUE_LEAD) {
+      chimed = false;
+      return;
+    }
+    if (chimed || audio.paused || untilCue <= -ENDGAME_CUE_GRACE) return;
+    chimed = true;
+    // Muted means the tutorial is running a practice match.
+    if (!audio.muted) playEndgameChime(Math.max(0, untilCue));
+  };
+
+  const handleOnline = () => {
+    reloadIfBroken(audio, true);
+  };
+
+  audio.addEventListener('timeupdate', handleTimeUpdate);
+  audio.addEventListener('ended', clearAudioState);
+  window.addEventListener('online', handleOnline);
+  // A reload mid-match has no Start tap to wake the chime with.
+  window.addEventListener('pointerdown', unlockChime, { once: true });
+  window.addEventListener('keydown', unlockChime, { once: true });
+
+  ttWindow.__teamtrack_match_audio_unwire__ = () => {
+    audio.removeEventListener('timeupdate', handleTimeUpdate);
+    audio.removeEventListener('ended', clearAudioState);
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('pointerdown', unlockChime);
+    window.removeEventListener('keydown', unlockChime);
+  };
+};
+
+let wiredAudio: HTMLAudioElement | null = null;
+
 const getOrCreateGlobalAudio = (): HTMLAudioElement => {
   if (!ttWindow.__teamtrack_match_audio__) {
-    const audio = new Audio('/audio/match-audio.mp3');
+    const audio = new Audio();
+    // Buffer the whole track up front, so Start never waits on the network.
+    audio.preload = 'auto';
+    audio.src = '/audio/match-audio.mp3';
     audio.volume = 0.8;
     ttWindow.__teamtrack_match_audio__ = audio;
   }
-  return ttWindow.__teamtrack_match_audio__;
+  const audio = ttWindow.__teamtrack_match_audio__;
+  if (wiredAudio !== audio) {
+    wiredAudio = audio;
+    wireGlobalAudio(audio);
+  }
+  reloadIfBroken(audio);
+  return audio;
+};
+
+let soundToastShown = false;
+
+/** Start playback, and say so (once) if the track can't be played. */
+const playMatchAudio = (audio: HTMLAudioElement) => {
+  audio.play().then(
+    () => {
+      soundToastShown = false;
+    },
+    (error: unknown) => {
+      const name = error instanceof DOMException ? error.name : '';
+      // AbortError: a pause or seek got in first. NotAllowedError: the
+      // browser wants a tap first (a reload mid-match); the next tick retries.
+      if (name === 'AbortError' || name === 'NotAllowedError') return;
+      if (soundToastShown) return;
+      soundToastShown = true;
+      toast.error('Match sound unavailable', {
+        id: SOUND_UNAVAILABLE_TOAST_ID,
+      });
+    }
+  );
+};
+
+/** True if playback can move to `time` without waiting on the network. */
+const isBuffered = (audio: HTMLAudioElement, time: number) => {
+  for (let i = 0; i < audio.buffered.length; i++) {
+    if (audio.buffered.start(i) <= time && time < audio.buffered.end(i)) {
+      return true;
+    }
+  }
+  return false;
 };
 
 let globalPersistRefCount = 0;
+
+const clearPersistInterval = () => {
+  if (ttWindow.__teamtrack_audio_persist_interval__) {
+    clearInterval(ttWindow.__teamtrack_audio_persist_interval__);
+    ttWindow.__teamtrack_audio_persist_interval__ = null;
+  }
+};
 
 const startGlobalAudioPersistence = () => {
   globalPersistRefCount++;
@@ -28,26 +240,31 @@ const startGlobalAudioPersistence = () => {
   const audio = getOrCreateGlobalAudio();
 
   ttWindow.__teamtrack_audio_persist_interval__ = setInterval(() => {
-    if (audio && !audio.paused) {
-      try {
-        sessionStorage.setItem(
-          STORAGE_KEYS.AUDIO_STATE,
-          JSON.stringify({
-            isPlaying: true,
-            currentTime: audio.currentTime,
-            lastUpdated: Date.now(),
-          })
-        );
-      } catch { /* storage unavailable */ }
+    if (audio.paused) {
+      // Kept alive past /active only for as long as the match played on.
+      if (globalPersistRefCount === 0) clearPersistInterval();
+      return;
+    }
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEYS.AUDIO_STATE,
+        JSON.stringify({
+          isPlaying: true,
+          currentTime: audio.currentTime,
+          lastUpdated: Date.now(),
+        })
+      );
+    } catch {
+      /* storage unavailable */
     }
   }, 500);
 };
 
 const stopGlobalAudioPersistence = () => {
   globalPersistRefCount = Math.max(0, globalPersistRefCount - 1);
-  if (globalPersistRefCount === 0 && ttWindow.__teamtrack_audio_persist_interval__) {
-    clearInterval(ttWindow.__teamtrack_audio_persist_interval__);
-    ttWindow.__teamtrack_audio_persist_interval__ = null;
+  // A match keeps playing after /active is left, so keep storing its place.
+  if (globalPersistRefCount === 0 && getOrCreateGlobalAudio().paused) {
+    clearPersistInterval();
   }
 };
 
@@ -66,64 +283,28 @@ const getAudioState = (): MatchAudioState | null => {
   }
 };
 
-const clearAudioState = () => {
-  try {
-    sessionStorage.removeItem(STORAGE_KEYS.AUDIO_STATE);
-  } catch { /* storage unavailable */ }
-};
-
-/**
- * The match audio track has no cue at 1:00, but that is when BIOBUZZ
- * endgame (and flower scoring) opens, so a short chime is synthesized on top.
- */
-let chimeContext: AudioContext | null = null;
-
-const getChimeContext = (): AudioContext | null => {
-  if (chimeContext) return chimeContext;
-  const Ctor =
-    window.AudioContext ??
-    (window as Window & { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-  if (!Ctor) return null;
-  chimeContext = new Ctor();
-  return chimeContext;
-};
-
-/** Browsers only allow audio started from a tap, so wake the context then. */
-const unlockChime = () => {
-  getChimeContext()?.resume().catch(() => {});
-};
-
-const playEndgameChime = () => {
-  const ctx = getChimeContext();
-  if (!ctx) return;
-  ctx.resume().catch(() => {});
-  const start = ctx.currentTime;
-  [880, 1175].forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const t = start + i * 0.18;
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.4);
-  });
-};
-
-const FULL_GAME_AUDIO_OFFSET = 0.8;
-const AUTON_AUDIO_OFFSET = FULL_GAME_AUDIO_OFFSET + 3;
-const TELEOP_AUDIO_OFFSET = 42;
-
 export const useMatchAudio = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedRef = useRef<boolean>(false);
-  const audioTailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const endgameChimedRef = useRef(false);
-  const { matchActive, matchPhase, isTimerRunning, isPreMatchDelay, timer, isTutorialActive, sessionData } = useSession();
+  const audioTailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  /**
+   * Where the audio belonged at a moment the match clock was exact. The clock
+   * is published in whole seconds, so that is only known as a second starts.
+   */
+  const syncPointRef = useRef<{ audioTime: number; at: number } | null>(null);
+  const lastClockRef = useRef<{ timer: number; counting: boolean } | null>(
+    null
+  );
+  const {
+    matchActive,
+    matchPhase,
+    isTimerRunning,
+    timer,
+    isTutorialActive,
+    sessionData,
+  } = useSession();
 
   const getExpectedAudioTime = useCallback(() => {
     if (sessionData.matchType === 'Autonomous') {
@@ -138,58 +319,125 @@ export const useMatchAudio = () => {
     return FULL_GAME_AUDIO_OFFSET + (153 - timer);
   }, [sessionData.matchType, matchPhase, timer]);
 
-  const getAudioStartTime = useCallback(() => {
-    if (sessionData.matchType === 'Autonomous') return AUTON_AUDIO_OFFSET;
-    if (sessionData.matchType === 'Teleop') return TELEOP_AUDIO_OFFSET;
-    return FULL_GAME_AUDIO_OFFSET;
-  }, [sessionData.matchType]);
-
-  useEffect(() => {
-    audioRef.current = getOrCreateGlobalAudio();
-    startGlobalAudioPersistence();
-
-    const savedState = getAudioState();
-    if (savedState && audioRef.current && savedState.isPlaying) {
-      const timeSinceSave = Date.now() - savedState.lastUpdated;
-      if (timeSinceSave < 10000) {
-        if (audioRef.current.paused) {
-          audioRef.current.currentTime = Math.max(0, savedState.currentTime + timeSinceSave / 1000);
-          audioRef.current.play().catch(() => {});
-        }
-        hasPlayedRef.current = true;
-      }
+  /**
+   * Pull the audio back onto the match clock if it has wandered: it started
+   * before it had buffered, stalled, or was moved from somewhere else. Only
+   * ever to a buffered position, so the fix can't itself stall playback.
+   */
+  const correctDrift = useCallback(() => {
+    const audio = audioRef.current;
+    const sync = syncPointRef.current;
+    if (
+      !audio ||
+      !sync ||
+      audio.paused ||
+      audio.seeking ||
+      audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA
+    ) {
+      return;
     }
-
-    return () => {
-      stopGlobalAudioPersistence();
-    };
+    const expected = sync.audioTime + (performance.now() - sync.at) / 1000;
+    if (
+      Math.abs(audio.currentTime - expected) > MAX_AUDIO_DRIFT &&
+      isBuffered(audio, expected)
+    ) {
+      audio.currentTime = expected;
+    }
   }, []);
 
   useEffect(() => {
-    if (matchActive && (isTimerRunning || isPreMatchDelay) && timer > 0 && audioRef.current) {
-      if (!hasPlayedRef.current) {
-        hasPlayedRef.current = true;
-        audioRef.current.currentTime = getAudioStartTime();
-        audioRef.current.muted = isTutorialActive;
-        audioRef.current.play().catch(() => {});
-      } else {
-        audioRef.current.muted = isTutorialActive;
+    const audio = getOrCreateGlobalAudio();
+    audioRef.current = audio;
+    startGlobalAudioPersistence();
+
+    if (!audio.paused) {
+      // Still playing from before /active was left: it never lost its place,
+      // so it must not be started again from the countdown.
+      hasPlayedRef.current = true;
+    } else {
+      const savedState = getAudioState();
+      if (savedState && savedState.isPlaying) {
+        const timeSinceSave = Date.now() - savedState.lastUpdated;
+        if (timeSinceSave < 10000) {
+          audio.currentTime = Math.max(
+            0,
+            savedState.currentTime + timeSinceSave / 1000
+          );
+          playMatchAudio(audio);
+          hasPlayedRef.current = true;
+        }
       }
     }
-  }, [matchActive, isTimerRunning, isPreMatchDelay, isTutorialActive, timer, getAudioStartTime]);
+
+    // Playback that starts late (still buffering at Start) is behind the
+    // clock from its first sound; catch it up as soon as it gets going.
+    audio.addEventListener('playing', correctDrift);
+    audio.addEventListener('canplay', correctDrift);
+
+    return () => {
+      audio.removeEventListener('playing', correctDrift);
+      audio.removeEventListener('canplay', correctDrift);
+      stopGlobalAudioPersistence();
+    };
+  }, [correctDrift]);
 
   useEffect(() => {
-    if (matchActive && audioRef.current) {
-      if (isTimerRunning || isPreMatchDelay) {
-        if (audioRef.current.paused && timer > 0) {
-          audioRef.current.currentTime = getExpectedAudioTime();
-          audioRef.current.play().catch(() => {});
-        }
-      } else if (timer > 0 && matchPhase !== 'controller_pickup') {
-        audioRef.current.pause();
+    const audio = audioRef.current;
+    if (matchActive && isTimerRunning && timer > 0 && audio) {
+      if (!hasPlayedRef.current) {
+        hasPlayedRef.current = true;
+        reloadIfBroken(audio);
+        // The start of the track for a match that is just starting, and the
+        // right place in it for one that is already under way.
+        audio.currentTime = getExpectedAudioTime();
+        audio.muted = isTutorialActive;
+        playMatchAudio(audio);
+      } else {
+        audio.muted = isTutorialActive;
       }
     }
-  }, [isTimerRunning, matchActive, isPreMatchDelay, matchPhase, timer, getExpectedAudioTime]);
+  }, [
+    matchActive,
+    isTimerRunning,
+    isTutorialActive,
+    timer,
+    getExpectedAudioTime,
+  ]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (matchActive && audio) {
+      if (isTimerRunning) {
+        if ((audio.paused || isAudioBroken(audio)) && timer > 0) {
+          // Nothing to resume if the track is broken and can't be refetched yet
+          if (isAudioBroken(audio) && !reloadIfBroken(audio)) return;
+          audio.currentTime = getExpectedAudioTime();
+          playMatchAudio(audio);
+        }
+      } else if (timer > 0 && matchPhase !== 'controller_pickup') {
+        audio.pause();
+      }
+    }
+  }, [isTimerRunning, matchActive, matchPhase, timer, getExpectedAudioTime]);
+
+  // Once a second, as the clock ticks, check the audio is still with it.
+  useEffect(() => {
+    const last = lastClockRef.current;
+    const counting = matchActive && isTimerRunning && timer > 0;
+    lastClockRef.current = { timer, counting };
+    if (!counting) {
+      syncPointRef.current = null;
+      return;
+    }
+    // Exact only on a tick, a start or a resume. Not on arrival mid-second,
+    // and not when this ran for some other reason.
+    if (last === null || (last.counting && last.timer === timer)) return;
+    syncPointRef.current = {
+      audioTime: getExpectedAudioTime(),
+      at: performance.now(),
+    };
+    correctDrift();
+  }, [matchActive, isTimerRunning, timer, getExpectedAudioTime, correctDrift]);
 
   useEffect(() => {
     if (audioTailTimeoutRef.current) {
@@ -220,25 +468,9 @@ export const useMatchAudio = () => {
 
   useEffect(() => {
     window.addEventListener('teamtrack-match-started', unlockChime);
-    return () => window.removeEventListener('teamtrack-match-started', unlockChime);
+    return () =>
+      window.removeEventListener('teamtrack-match-started', unlockChime);
   }, []);
-
-  // Endgame chime at 1:00, once per match.
-  useEffect(() => {
-    if (!matchActive) {
-      endgameChimedRef.current = false;
-      return;
-    }
-    if (
-      matchPhase === 'teleop' &&
-      isTimerRunning &&
-      timer === GAME_TIMING.ENDGAME_REMAINING &&
-      !endgameChimedRef.current
-    ) {
-      endgameChimedRef.current = true;
-      if (!isTutorialActive) playEndgameChime();
-    }
-  }, [matchActive, matchPhase, isTimerRunning, timer, isTutorialActive]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -246,7 +478,6 @@ export const useMatchAudio = () => {
 
     const handleAudioEnd = () => {
       hasPlayedRef.current = false;
-      clearAudioState();
     };
 
     audio.addEventListener('ended', handleAudioEnd);

@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useSession, useTheme } from '@/contexts';
+import { useState, useEffect, useId, type KeyboardEvent } from 'react';
+import { useSessionCore, useTheme } from '@/contexts';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
-import { STORAGE_KEYS } from '@/constants';
 import type { SessionType } from '@/types';
 import {
   Select,
@@ -13,6 +12,10 @@ import {
   SelectItem,
   SelectValue,
 } from '@/components/ui/select';
+import { toneText } from './controls/tones';
+
+/** Long enough for any real name, short enough not to break page layouts */
+const MAX_NAME_LENGTH = 80;
 
 const SESSION_TYPES: Array<{ value: SessionType; hint: string }> = [
   { value: 'Practice', hint: 'Solo drilling and repetition' },
@@ -30,10 +33,21 @@ export const SessionSetup = ({
   shouldFlash = false,
   isUnsaved = false,
 }: SessionSetupProps) => {
-  const { sessionData, updateSessionData, matchActive } = useSession();
+  const { sessionData, updateSessionData, matchActive, isTutorialActive } =
+    useSessionCore();
+  // The match type and session type are fixed once a match is under way. The
+  // walkthrough's practice match doesn't count: its settings step says they
+  // can be changed, and whatever is changed there is put back when it closes.
+  const settingsLocked = matchActive && !isTutorialActive;
   const { isDarkMode } = useTheme();
   const savedBtnClass = `bg-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`;
   const [isFlashing, setIsFlashing] = useState(shouldFlash);
+  const nameId = useId();
+  const nameErrorId = useId();
+  const matchTypeId = useId();
+  const matchTypeLabelId = useId();
+  const sessionTypeLabelId = useId();
+  const labelClass = `text-sm font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`;
 
   useEffect(() => {
     setIsFlashing(shouldFlash);
@@ -48,11 +62,45 @@ export const SessionSetup = ({
   const setMatchType = (value: string) =>
     updateSessionData({ matchType: value });
   const setSessionType = (value: SessionType) => {
-    updateSessionData({ sessionType: value });
-    localStorage.setItem(STORAGE_KEYS.SESSION_TYPE, value);
+    // Fouls are only tracked in a scrim; ones entered before switching back
+    // to practice would otherwise stay on the match with no field to clear.
+    updateSessionData(
+      value === 'Practice'
+        ? { sessionType: value, minorPenalties: 0, majorPenalties: 0 }
+        : { sessionType: value }
+    );
+  };
+
+  /** Arrow keys move between the session types, as in any radio group. */
+  const handleSessionTypeKey = (
+    e: KeyboardEvent<HTMLButtonElement>,
+    index: number
+  ) => {
+    const step =
+      e.key === 'ArrowRight' || e.key === 'ArrowDown'
+        ? 1
+        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+          ? -1
+          : 0;
+    if (step === 0) return;
+    e.preventDefault();
+    const next =
+      SESSION_TYPES[
+        (index + step + SESSION_TYPES.length) % SESSION_TYPES.length
+      ];
+    setSessionType(next.value);
+    const radios =
+      e.currentTarget.parentElement?.querySelectorAll<HTMLElement>(
+        '[role="radio"]'
+      );
+    radios?.[SESSION_TYPES.indexOf(next)]?.focus();
   };
 
   const hasName = sessionData.sessionName?.trim().length > 0;
+  /** Whichever radio is checked is the group's Tab stop; the first one if none is */
+  const hasSessionType = SESSION_TYPES.some(
+    type => type.value === sessionData.sessionType
+  );
 
   const handleSave = () => {
     if (!hasName) return;
@@ -78,11 +126,18 @@ export const SessionSetup = ({
       >
 
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-team-blue">Session Settings</h3>
+          <h2
+            className={`text-lg font-bold ${isUnsaved ? toneText('blue', isDarkMode) : 'text-team-blue'}`}
+          >
+            Session Settings
+          </h2>
           {isUnsaved && (
-            <div className="flex items-center gap-1.5 text-red-500">
+            <div
+              className={`flex items-center gap-1.5 ${toneText('red', isDarkMode)}`}
+            >
               <AlertTriangle
                 size={16}
+                aria-hidden
                 className={isFlashing ? 'flash-animate' : ''}
               />
               <span className="text-xs font-semibold uppercase tracking-wide">
@@ -94,16 +149,20 @@ export const SessionSetup = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="flex flex-col">
-            <Label
-              className={`text-sm font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            >
+            <Label htmlFor={nameId} className={labelClass}>
               Session Name
             </Label>
             <Input
+              id={nameId}
+              name="sessionName"
               type="text"
+              autoComplete="off"
+              maxLength={MAX_NAME_LENGTH}
               value={sessionData.sessionName}
               onChange={e => setSessionName(e.target.value)}
               placeholder="Sunday Afternoon"
+              aria-invalid={isUnsaved && !hasName}
+              aria-describedby={isUnsaved && !hasName ? nameErrorId : undefined}
               className={`h-14 px-4 rounded-xl border-2 transition-all duration-200 focus:ring-2 focus:ring-team-blue/20 ${
                 isUnsaved && !hasName ? 'border-red-400' : 'border-team-blue-40'
               } ${
@@ -113,7 +172,10 @@ export const SessionSetup = ({
               }`}
             />
             {isUnsaved && !hasName && (
-              <p className="text-xs text-red-400 font-medium mt-2">
+              <p
+                id={nameErrorId}
+                className={`text-xs font-medium mt-2 ${toneText('red', isDarkMode)}`}
+              >
                 Session name is required
               </p>
             )}
@@ -121,21 +183,28 @@ export const SessionSetup = ({
 
           <div className="flex flex-col">
             <Label
-              className={`text-sm font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              id={matchTypeLabelId}
+              htmlFor={matchTypeId}
+              className={labelClass}
             >
               Match Type
             </Label>
             <div
               className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
                 isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
-              } ${matchActive ? 'opacity-60 cursor-not-allowed' : ''}`}
-              style={matchActive ? { pointerEvents: 'none' } : {}}
+              } ${settingsLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+              style={settingsLocked ? { pointerEvents: 'none' } : {}}
             >
               <Select
+                name="matchType"
                 value={sessionData.matchType}
-                onValueChange={matchActive ? () => {} : setMatchType}
+                onValueChange={settingsLocked ? () => {} : setMatchType}
               >
-                <SelectTrigger className="border-0 p-0 h-auto focus:ring-0 bg-transparent">
+                <SelectTrigger
+                  id={matchTypeId}
+                  aria-labelledby={`${matchTypeLabelId} ${matchTypeId}`}
+                  className="border-0 p-0 h-auto focus:ring-0 bg-transparent"
+                >
                   <SelectValue placeholder="Full Game" />
                 </SelectTrigger>
                 <SelectContent
@@ -152,20 +221,30 @@ export const SessionSetup = ({
         </div>
 
         <div className="flex flex-col">
-          <Label
-            className={`text-sm font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+          {/* Not a <label>: it names a group, not a single field */}
+          <span
+            id={sessionTypeLabelId}
+            className={`leading-none ${labelClass}`}
           >
             Session Type
-          </Label>
-          <div className="grid grid-cols-2 gap-3">
-            {SESSION_TYPES.map(type => {
+          </span>
+          <div
+            role="radiogroup"
+            aria-labelledby={sessionTypeLabelId}
+            className="grid grid-cols-2 gap-3"
+          >
+            {SESSION_TYPES.map((type, index) => {
               const isSelected = sessionData.sessionType === type.value;
               return (
                 <button
                   key={type.value}
                   type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={isSelected || (!hasSessionType && index === 0) ? 0 : -1}
                   onClick={() => setSessionType(type.value)}
-                  disabled={matchActive}
+                  onKeyDown={e => handleSessionTypeKey(e, index)}
+                  disabled={settingsLocked}
                   className={`px-4 py-3 rounded-xl border-2 text-left transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                     isSelected
                       ? 'border-team-blue bg-team-blue/10'
@@ -177,7 +256,7 @@ export const SessionSetup = ({
                   <div
                     className={`text-sm font-bold ${
                       isSelected
-                        ? 'text-team-blue'
+                        ? toneText('blue', isDarkMode)
                         : isDarkMode
                           ? 'text-gray-200'
                           : 'text-gray-800'
@@ -202,7 +281,7 @@ export const SessionSetup = ({
             disabled={!hasName}
             className={`px-8 py-3 rounded-xl font-semibold transition-none disabled:opacity-50 disabled:cursor-not-allowed ${
               isUnsaved
-                ? 'bg-red-500 text-white hover:bg-red-600'
+                ? 'bg-red-600 text-white hover:bg-red-700'
                 : savedBtnClass
             }`}
           >

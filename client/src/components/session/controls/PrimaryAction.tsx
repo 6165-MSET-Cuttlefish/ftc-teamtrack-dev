@@ -1,20 +1,20 @@
 import { toast } from 'sonner';
 
+import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
-import { swallowEnter } from './swallowEnter';
+import { toneText } from './tones';
 
 /**
  * Save / Cancel for a logged match that is open for editing.
  *
- * Rendered beside the timer (the primary action slot) and, on a phone, right
- * under the match in the log that was tapped — so the controls are next to
- * whichever part of the page the user was looking at.
+ * Rendered beside the timer (the primary action slot) and in the Match Log,
+ * by the match that was tapped — so the controls are next to whichever part
+ * of the page the user was looking at.
  */
 export const EditMatchActions = () => {
   const {
     isDarkMode,
     setShowUnsavedEditWarning,
-    setPendingEditMatch,
     saveEditedMatch,
     returnToCurrentMatch,
   } = useLiveControls();
@@ -23,26 +23,25 @@ export const EditMatchActions = () => {
     <>
       <button
         type="button"
-        onKeyDown={swallowEnter}
+        onKeyDown={ignoreHeldEnter}
         onClick={() => {
-          saveEditedMatch();
+          // The second tap of a double tap saves nothing, so says nothing.
+          if (!saveEditedMatch()) return;
           toast.success('Match changes saved!');
           setShowUnsavedEditWarning(false);
-          setPendingEditMatch(null);
         }}
-        className="flex-1 py-2 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 text-base font-bold transition-colors flex items-center justify-center"
+        className={`flex-1 py-2 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 ${toneText('green', isDarkMode)} text-base font-bold transition-colors flex items-center justify-center`}
       >
         Save Changes
       </button>
       <button
         type="button"
-        onKeyDown={swallowEnter}
+        onKeyDown={ignoreHeldEnter}
         onClick={() => {
           returnToCurrentMatch();
           setShowUnsavedEditWarning(false);
-          setPendingEditMatch(null);
         }}
-        className={`flex-1 py-2 h-12 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 ${isDarkMode ? 'text-yellow-500' : 'text-yellow-700'} text-base font-bold transition-colors flex items-center justify-center`}
+        className={`flex-1 py-2 h-12 rounded-2xl border-2 border-yellow-500/40 bg-yellow-500/20 hover:bg-yellow-500/30 ${toneText('yellow', isDarkMode)} text-base font-bold transition-colors flex items-center justify-center`}
       >
         Cancel
       </button>
@@ -51,8 +50,8 @@ export const EditMatchActions = () => {
 };
 
 /**
- * The one button that drives a match forward: Start, Save, the teleop
- * transition pair, or the save/cancel pair while editing a logged match.
+ * The one button that drives a match forward: Start, Save, or the
+ * save/cancel pair while editing a logged match.
  *
  * On a phone this is the only control in the fixed one-screen area, so it
  * must always render something actionable for the current state.
@@ -64,13 +63,10 @@ export const PrimaryAction = () => {
     matchActive,
     hasStarted,
     editingMatchId,
-    showTeleopTransition,
     showUnsavedEditWarning,
     isSessionSetupSaved,
     handleStartMatch,
     handleSaveMatch,
-    handleContinueToTeleop,
-    handleSkipTeleop,
   } = useLiveControls();
 
   /** Nothing has been played yet, so this press starts the whole session. */
@@ -78,10 +74,10 @@ export const PrimaryAction = () => {
 
   return (
     <>
-      {!showTeleopTransition && !editingMatchId && (
+      {!editingMatchId && (
         <button
           type="button"
-          onKeyDown={swallowEnter}
+          onKeyDown={ignoreHeldEnter}
           onClick={!matchActive ? handleStartMatch : handleSaveMatch}
           disabled={!matchActive && !sessionData.sessionName?.trim()}
           title={
@@ -93,8 +89,8 @@ export const PrimaryAction = () => {
           }
           className={`w-full px-6 py-2 h-12 rounded-2xl border-2 text-base font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
             !matchActive && isSessionSetupSaved
-              ? 'border-green-500/40 bg-green-500/20 hover:bg-green-500/30 text-green-600 disabled:hover:bg-green-500/20'
-              : 'border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 text-team-blue disabled:hover:bg-team-blue/10'
+              ? `border-green-500/40 bg-green-500/20 hover:bg-green-500/30 ${toneText('green', isDarkMode)} disabled:hover:bg-green-500/20`
+              : `border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 ${toneText('blue', isDarkMode)} disabled:hover:bg-team-blue/10`
           }`}
         >
           {matchActive
@@ -105,33 +101,15 @@ export const PrimaryAction = () => {
         </button>
       )}
 
-      {showTeleopTransition && (
-        <>
-          <button
-            type="button"
-            onKeyDown={swallowEnter}
-            onClick={handleContinueToTeleop}
-            className={`flex-1 px-6 py-2 h-12 rounded-2xl bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'} text-base font-bold transition-colors flex items-center justify-center`}
-          >
-            Continue into Teleop
-          </button>
-          <button
-            type="button"
-            onKeyDown={swallowEnter}
-            onClick={handleSkipTeleop}
-            className={`flex-1 px-6 py-2 h-12 rounded-2xl border-2 border-team-blue bg-transparent text-team-blue text-base font-bold transition-colors flex items-center justify-center ${isDarkMode ? 'hover:bg-team-blue/10' : 'hover:bg-team-blue hover:text-black'}`}
-          >
-            Skip / End Autonomous Only
-          </button>
-        </>
-      )}
-
       {editingMatchId && <EditMatchActions />}
 
       {showUnsavedEditWarning && (
-        <div className="rounded-2xl border-2 border-orange-500/60 bg-orange-500/15 px-4 py-4 min-h-12 flex items-center">
+        <div
+          role="alert"
+          className="rounded-2xl border-2 border-orange-500/60 bg-orange-500/15 px-4 py-4 min-h-12 flex items-center"
+        >
           <p
-            className={`text-xs font-semibold ${isDarkMode ? 'text-orange-300' : 'text-orange-700'}`}
+            className={`text-xs font-semibold ${toneText('orange', isDarkMode)}`}
           >
             You have unsaved changes. Please save or cancel before switching
             matches.

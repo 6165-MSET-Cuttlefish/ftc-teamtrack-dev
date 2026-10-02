@@ -1,6 +1,8 @@
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 import { COMPACT_QUERY } from '@/constants';
+
+const getServerSnapshot = () => false;
 
 /**
  * Subscribes to a CSS media query.
@@ -8,19 +10,29 @@ import { COMPACT_QUERY } from '@/constants';
  * Uses `useSyncExternalStore` so the value is read during render rather than
  * in an effect — a layout that switches on this never paints the wrong
  * variant first and then swaps.
+ *
+ * `subscribe` keeps its identity for as long as the query does: React
+ * re-subscribes whenever it changes, so an inline function would take the
+ * listener off the MediaQueryList and put it back on every render.
  */
 export const useMediaQuery = (query: string): boolean => {
-  const subscribe = (onChange: () => void) => {
-    if (typeof window === 'undefined') return () => {};
-    const list = window.matchMedia(query);
-    list.addEventListener('change', onChange);
-    return () => list.removeEventListener('change', onChange);
-  };
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (typeof window === 'undefined') return () => {};
+      const list = window.matchMedia(query);
+      list.addEventListener('change', onChange);
+      return () => list.removeEventListener('change', onChange);
+    },
+    [query]
+  );
 
-  const getSnapshot = () =>
-    typeof window === 'undefined' ? false : window.matchMedia(query).matches;
+  const getSnapshot = useCallback(
+    () =>
+      typeof window === 'undefined' ? false : window.matchMedia(query).matches,
+    [query]
+  );
 
-  return useSyncExternalStore(subscribe, getSnapshot, () => false);
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 };
 
 /**
