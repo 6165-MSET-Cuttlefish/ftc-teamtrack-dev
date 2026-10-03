@@ -15,7 +15,12 @@ import { useScoringLocks } from './useScoringLocks';
  * this alliance's score, so they show what was given away rather than
  * points.
  */
-export const LiveCounters = () => {
+/**
+ * State and handlers for the live counters, shared by the phone layout's
+ * LiveCounters block and the desktop ScoringPanel so tipping is timed the
+ * same way in both.
+ */
+export const useLiveCounters = () => {
   const { sessionData, updateSessionData, matchPhase, getTimers } =
     useSessionCore();
   const { editing, scoring, entryKey, tippingEnabled, clockRunning } =
@@ -96,6 +101,30 @@ export const LiveCounters = () => {
     (value: number) => updateSessionData({ majorPenalties: value }),
     [updateSessionData]
   );
+
+  return {
+    sessionData,
+    breakdown,
+    isScrim,
+    entryKey,
+    tippingEnabled,
+    handleTipping,
+    handleMinorPenalties,
+    handleMajorPenalties,
+  };
+};
+
+export const LiveCounters = () => {
+  const {
+    sessionData,
+    breakdown,
+    isScrim,
+    entryKey,
+    tippingEnabled,
+    handleTipping,
+    handleMinorPenalties,
+    handleMajorPenalties,
+  } = useLiveCounters();
 
   return (
     // `gap`, not `space-y`: the heading is visually hidden on a phone and

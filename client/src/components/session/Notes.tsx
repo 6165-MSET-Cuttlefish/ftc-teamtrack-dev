@@ -88,7 +88,8 @@ export const Notes = () => {
       <div className="flex flex-col gap-4 w-full">
         <span
           id={labelId}
-          className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}
+          // Read out as the editor's name; on screen the heading says it.
+          className="sr-only"
         >
           Performance Notes & Observations
         </span>
@@ -256,7 +257,7 @@ export const Notes = () => {
             isDarkMode ? 'text-gray-400' : 'text-gray-600'
           }`}
         >
-          ✓ Formatting is automatically saved as you type
+          Saved as you type
         </p>
       </div>
     </div>

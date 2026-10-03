@@ -280,3 +280,114 @@ export const ScoreBreakdown = () => {
     </div>
   );
 };
+
+/** Short labels, in the order the fields sit in the scoring pad. */
+const STRIP_ORDER: ReadonlyArray<readonly [string, string]> = [
+  ['tipping', 'Tips'],
+  ['leave', 'Leave'],
+  ['park', 'Park'],
+  ['flower', 'Flower'],
+  ['flowerBonus', 'Bonus'],
+  ['hive', 'Hive'],
+  ['garden', 'Garden'],
+];
+
+/**
+ * The breakdown as one full-width band, for under the scoring pad on a wide
+ * screen: total, points per field (count beside it), then ranking points.
+ * Same numbers as ScoreBreakdown, laid out across instead of down.
+ */
+export const BreakdownStrip = () => {
+  const { sessionData } = useSessionCore();
+  const { scoring } = useScoringLocks();
+  const { isDarkMode } = useTheme();
+
+  const breakdown = calculateScore(scoring);
+  const rows = scoreRows(scoring);
+  const byKey = new Map(rows.map(row => [row.key as string, row]));
+  const isScrim = sessionData.sessionType === 'Scrim';
+  const foulCount =
+    (sessionData.minorPenalties ?? 0) + (sessionData.majorPenalties ?? 0);
+
+  const announcement = useScoreAnnouncement(sessionData, breakdown.total);
+
+  const muted = isDarkMode ? 'text-white/45' : 'text-gray-500';
+  const strong = isDarkMode ? 'text-white' : 'text-gray-900';
+  const foul = isDarkMode ? 'text-red-400' : 'text-red-700';
+
+  return (
+    <div
+      data-tutorial="breakdown"
+      className={`flex items-center gap-10 rounded-2xl px-7 py-4 ${
+        isDarkMode ? 'bg-white/[0.035]' : 'bg-gray-100'
+      }`}
+    >
+      <div className="sr-only" aria-live="polite">
+        {announcement}
+      </div>
+
+      <div className="shrink-0">
+        <h2 className={`mb-1 text-sm font-semibold ${muted}`}>Total</h2>
+        <div className="text-5xl font-bold leading-none tabular-nums text-team-blue">
+          {breakdown.total}
+        </div>
+      </div>
+
+      <dl
+        className={`grid min-w-0 flex-1 gap-x-5 gap-y-1 ${
+          isScrim ? 'grid-cols-8' : 'grid-cols-7'
+        }`}
+      >
+        {STRIP_ORDER.map(([key, label]) => {
+          const row = byKey.get(key);
+          const points = row?.points ?? 0;
+          return (
+            <div key={key} className="min-w-0">
+              <dt className={`mb-0.5 truncate text-sm font-semibold ${muted}`}>
+                {label}
+              </dt>
+              <dd className="flex items-baseline gap-1.5 tabular-nums">
+                <span
+                  className={`text-2xl font-semibold ${points > 0 ? strong : muted}`}
+                >
+                  {points}
+                </span>
+                <span className={`text-xs ${muted}`}>x{row?.count ?? 0}</span>
+              </dd>
+            </div>
+          );
+        })}
+        {isScrim && (
+          <div className="min-w-0">
+            <dt className={`mb-0.5 truncate text-sm font-semibold ${muted}`}>
+              To opponent
+            </dt>
+            <dd className="flex items-baseline gap-1.5 tabular-nums">
+              <span
+                className={`text-2xl font-semibold ${breakdown.penalties > 0 ? foul : muted}`}
+              >
+                +{breakdown.penalties}
+              </span>
+              <span className={`text-xs ${muted}`}>x{foulCount}</span>
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <div className="w-64 shrink-0 space-y-2">
+        <RankingPointRow
+          name="SWARM"
+          value={breakdown.leave + breakdown.park}
+          marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
+          unit="pts"
+        />
+        <RankingPointRow
+          name="POLLINATOR"
+          value={sessionData.tipping ?? 0}
+          marks={RANKING_POINTS.POLLINATOR_TIPS}
+          unit="tips"
+        />
+      </div>
+    </div>
+  );
+};

@@ -207,18 +207,18 @@ const SessionCard = ({
 
   const cardContent = (
     <Card
-      className={`transition-all duration-300 cursor-pointer group ${
+      className={`cursor-pointer group transition-colors duration-150 ${
         isDarkMode
-          ? 'border-team-blue-40 bg-team-dark hover:border-team-blue'
-          : 'border-gray-200 bg-white hover:border-team-blue'
+          ? 'border-transparent bg-white/[0.035] hover:bg-white/[0.06]'
+          : 'border-transparent bg-gray-100/80 hover:bg-gray-100'
       }`}
       onClick={onView}
     >
       <CardHeader className="pb-4 pt-6 px-6">
-        {/* On a phone the buttons leave the name no width beside them, so
-            it gets the row above */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-2 mb-4">
-          <div className="flex-1 min-w-0 basis-full sm:basis-0">
+        {/* The name gets a row of its own: beside the buttons and the score
+            it was squeezed into a three-line column on every card */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-4">
+          <div className="flex-1 min-w-0 basis-full">
             {isEditing ? (
               <div
                 className="flex items-center gap-3"
@@ -266,7 +266,7 @@ const SessionCard = ({
                         e.stopPropagation();
                         onShare();
                       }}
-                      className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                      className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-[background-color,color,transform] duration-150 active:scale-95 ${
                         isDarkMode ? 'text-team-white-60' : 'text-gray-500'
                       } hover:text-team-blue`}
                       title="Share session"
@@ -276,7 +276,7 @@ const SessionCard = ({
                     {onNameChange && (
                       <button
                         onClick={handleEditClick}
-                        className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                        className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-[background-color,color,transform] duration-150 active:scale-95 ${
                           isDarkMode ? 'text-team-white-60' : 'text-gray-500'
                         } hover:text-team-blue`}
                         title="Edit session name"
@@ -289,7 +289,7 @@ const SessionCard = ({
                         <button
                           onClick={handleDeleteClick}
                           disabled={isDeleting}
-                          className={`inline-flex items-center justify-center p-1.5 rounded-lg transition-all transform hover:scale-110 ${
+                          className={`inline-flex items-center justify-center p-1.5 rounded-lg transition-[background-color,color,transform] duration-150 active:scale-95 ${
                             isDeleting
                               ? 'opacity-50 cursor-not-allowed'
                               : deleteConfirm
@@ -313,7 +313,7 @@ const SessionCard = ({
                         {deleteConfirm && !isDeleting && (
                           <button
                             onClick={handleDeleteCancel}
-                            className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
+                            className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-[background-color,color,transform] duration-150 active:scale-95 ${
                               isDarkMode ? 'text-team-white-60' : 'text-gray-500'
                             }`}
                             title="Cancel delete"
@@ -503,7 +503,7 @@ const LoadingCard = () => {
 
   return (
     <Card
-      className={`${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue/40 bg-white'}`}
+      className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-team-blue/40 bg-white'}`}
     >
       <CardHeader className="pb-4 pt-6 px-6">
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -1124,70 +1124,31 @@ const Sessions = () => {
         )}
 
         {!loading && visibleSessions.length > 0 && (
-          <div
-            className={`mb-6 p-4 sm:p-6 lg:p-8 rounded-2xl border shadow-lg ${
-              isDarkMode
-                ? 'bg-team-dark-20 border-team-blue-40'
-                : 'bg-white border-gray-200'
+          // One band, laid out like the scoring pad's breakdown: label over
+          // number, no heading, no nested cards. Not clickable, so no hover.
+          <dl
+            className={`mb-8 grid grid-cols-2 gap-x-6 gap-y-5 rounded-2xl px-6 py-5 lg:grid-cols-4 ${
+              isDarkMode ? 'bg-white/[0.035]' : 'bg-gray-100/80'
             }`}
           >
-            <h3
-              className={`text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-            >
-              <TrendingUp className="h-4 sm:h-5 w-4 sm:w-5" />
-              Quick Stats
-            </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-              <div
-                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {quickStats.sessionCount}
-                </div>
-                <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+            {[
+              ['Sessions', quickStats.sessionCount],
+              ['Avg score', quickStats.averageScore],
+              ['Best score', quickStats.bestScore],
+              ['Matches', quickStats.matchCount],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt
+                  className={`mb-1 text-sm font-semibold ${isDarkMode ? 'text-white/50' : 'text-gray-500'}`}
                 >
-                  Total Sessions
-                </div>
+                  {label}
+                </dt>
+                <dd className="text-3xl font-bold leading-none tabular-nums text-team-blue">
+                  {value}
+                </dd>
               </div>
-              <div
-                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {quickStats.averageScore}
-                </div>
-                <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Avg Score
-                </div>
-              </div>
-              <div
-                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {quickStats.bestScore}
-                </div>
-                <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Best Score
-                </div>
-              </div>
-              <div
-                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {quickStats.matchCount}
-                </div>
-                <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Total Matches
-                </div>
-              </div>
-            </div>
-          </div>
+            ))}
+          </dl>
         )}
 
         <div className="mb-6">

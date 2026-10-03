@@ -2,8 +2,6 @@ import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { Check, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { SPLIT_QUERY } from '@/constants';
-import { useMediaQuery } from '@/hooks';
 import { matchScore } from '@/lib';
 import type { Match } from '@/types';
 import { absorbDoubleTap } from './doubleTap';
@@ -85,8 +83,12 @@ export const MatchLog = () => {
     setShowUnsavedEditWarning,
     handleDeleteMatch,
   } = useLiveControls();
-  /** Two columns: the log is pinned beside the scoring fields */
-  const isSplit = useMediaQuery(SPLIT_QUERY);
+  /**
+   * Whether the log is pinned in a side column. No layout does that any
+   * more (the wide screen is one column too), so the one-column behavior
+   * always applies.
+   */
+  const isSplit = false;
   const summaryId = useId();
   const listRef = useRef<HTMLDivElement>(null);
   /**

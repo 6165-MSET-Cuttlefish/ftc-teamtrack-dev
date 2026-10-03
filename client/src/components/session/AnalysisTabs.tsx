@@ -138,12 +138,17 @@ const ChartTooltip = ({
   );
 };
 
+/**
+ * One figure on a filled panel, the same surface as the scoring pad's
+ * breakdown band: a short label, the number, and at most one line under it.
+ * `variant` colors only the number; the panel itself stays neutral so a row
+ * of these reads as one band. `icon` and `highlight` are accepted for
+ * existing callers but no longer drawn.
+ */
 export const StatCard = ({
   label,
   value,
   sublabel,
-  icon: Icon,
-  highlight,
   variant = 'default',
   isDarkMode,
 }: {
@@ -155,24 +160,7 @@ export const StatCard = ({
   variant?: 'default' | 'success' | 'danger';
   isDarkMode: boolean;
 }) => {
-  const borderBg =
-    variant === 'success'
-      ? isDarkMode
-        ? 'border-emerald-500/40 bg-emerald-500/10'
-        : 'border-emerald-200 bg-emerald-50'
-      : variant === 'danger'
-        ? isDarkMode
-          ? 'border-red-500/40 bg-red-500/10'
-          : 'border-red-200 bg-red-50'
-        : highlight
-          ? isDarkMode
-            ? 'border-team-blue bg-team-blue/10'
-            : 'border-team-blue bg-team-blue/5'
-          : isDarkMode
-            ? 'border-team-blue-40 bg-team-dark-20'
-            : 'border-gray-200 bg-white';
-
-  // The 500 shades are unreadable on the pale light-theme cards.
+  // The 500 shades are unreadable on the light theme.
   const valueColor =
     variant === 'success'
       ? isDarkMode
@@ -183,35 +171,21 @@ export const StatCard = ({
           ? 'text-red-400'
           : 'text-red-700'
         : 'text-team-blue';
+  const muted = isDarkMode ? 'text-white/50' : 'text-gray-500';
 
   return (
-    <div className={`rounded-xl border p-5 transition-all ${borderBg}`}>
-      <div className="space-y-3">
-        {Icon && (
-          <div
-            className={`inline-flex p-2.5 rounded-lg ${isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'}`}
-          >
-            <Icon size={20} className="text-team-blue" />
-          </div>
-        )}
-        <div>
-          <p
-            className={`text-xs font-medium uppercase tracking-wide ${
-              isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-            }`}
-          >
-            {label}
-          </p>
-          <p className={`text-3xl font-bold ${valueColor} mt-1`}>{value}</p>
-          {sublabel && (
-            <p
-              className={`text-xs mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-            >
-              {sublabel}
-            </p>
-          )}
-        </div>
-      </div>
+    <div
+      className={`rounded-2xl px-5 py-4 ${isDarkMode ? 'bg-white/[0.035]' : 'bg-gray-100/80'}`}
+    >
+      <p className={`text-sm font-semibold ${muted}`}>{label}</p>
+      <p
+        className={`mt-1 text-3xl font-bold leading-none tabular-nums ${valueColor}`}
+      >
+        {value}
+      </p>
+      {sublabel && (
+        <p className={`mt-2 text-xs leading-snug ${muted}`}>{sublabel}</p>
+      )}
     </div>
   );
 };
@@ -266,7 +240,7 @@ const Section = ({
   isDarkMode: boolean;
 }) => (
   <div
-    className={`rounded-xl border p-4 sm:p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
+    className={`rounded-2xl p-4 sm:p-6 ${isDarkMode ? 'bg-white/[0.035]' : 'bg-gray-100/80'}`}
   >
     <h3
       className={`text-lg font-semibold mb-5 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -388,7 +362,7 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
 
 const CHART_COLORS = {
   garden: '#10b981', // emerald - Garden
-  tipping: '#f59e0b', // amber   - Tipping
+  tipping: '#f59e0b', // amber   - Tips
   flower: '#a855f7', // purple  - Flower
   hive: '#0ea5e9', // sky     - Balls in Hive
   robots: '#14b8a6', // teal    - Leave + Park
@@ -396,7 +370,7 @@ const CHART_COLORS = {
   primary: '#537788', // steel  - Final Score
   secondary: '#7ba8ba', // muted steel - session average
   cycle: '#8b5cf6', // violet  - Cycle time
-  flowerBonus: '#d8b4fe', // light purple - Flower Bonus
+  flowerBonus: '#ec4899', // pink - Bonus (same as the Charts page)
 };
 
 export type TabId = 'summary' | 'matches' | 'compare';
@@ -516,9 +490,9 @@ export const SummaryTab = ({
       name: `M${m.matchNumber}`,
       'Final Score': scoreOf(m),
       Garden: b.garden,
-      Tipping: b.tipping,
+      Tips: b.tipping,
       Flower: b.flower,
-      'Flower Bonus': b.flowerBonus,
+      Bonus: b.flowerBonus,
       Hive: b.hive,
     };
   });
@@ -529,9 +503,9 @@ export const SummaryTab = ({
       return {
         name: `M${m.matchNumber}`,
         Garden: b.garden,
-        Tipping: b.tipping,
+        Tips: b.tipping,
         Flower: b.flower,
-        'Flower Bonus': b.flowerBonus,
+        Bonus: b.flowerBonus,
         Hive: b.hive,
         Robots: b.leave + b.park,
       };
@@ -543,9 +517,9 @@ export const SummaryTab = ({
     return {
       name: `M${m.matchNumber}`,
       Garden: m.garden ?? 0,
-      Tipping: m.tipping ?? 0,
+      Tips: m.tipping ?? 0,
       Flower: m.flower ?? 0,
-      'Flower Bonus': m.flowerBonus ?? 0,
+      Bonus: m.flowerBonus ?? 0,
       Hive: m.ballsInHive ?? 0,
       Robots: robots,
     };
@@ -572,14 +546,14 @@ export const SummaryTab = ({
   // Session-average element mix, used for the contribution bars.
   const avgRows = [
     { label: 'Garden', value: stats.avgGarden, color: CHART_COLORS.garden },
-    { label: 'Tipping', value: stats.avgTipping, color: CHART_COLORS.tipping },
+    { label: 'Tips', value: stats.avgTipping, color: CHART_COLORS.tipping },
     { label: 'Flower', value: stats.avgFlower, color: CHART_COLORS.flower },
     {
-      label: 'Flower Bonus',
+      label: 'Bonus',
       value: stats.avgFlowerBonus,
-      color: CHART_COLORS.flower,
+      color: CHART_COLORS.flowerBonus,
     },
-    { label: 'Left in Hive', value: stats.avgHive, color: CHART_COLORS.hive },
+    { label: 'Hive', value: stats.avgHive, color: CHART_COLORS.hive },
     { label: 'Leave', value: stats.avgLeave, color: CHART_COLORS.robots },
     { label: 'Park', value: stats.avgPark, color: CHART_COLORS.robots },
   ];
@@ -754,10 +728,10 @@ export const SummaryTab = ({
             <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
             <Legend />
             <Bar dataKey="Garden" stackId="a" fill={CHART_COLORS.garden} />
-            <Bar dataKey="Tipping" stackId="a" fill={CHART_COLORS.tipping} />
+            <Bar dataKey="Tips" stackId="a" fill={CHART_COLORS.tipping} />
             <Bar dataKey="Flower" stackId="a" fill={CHART_COLORS.flower} />
             <Bar
-              dataKey="Flower Bonus"
+              dataKey="Bonus"
               stackId="a"
               fill={CHART_COLORS.flowerBonus}
             />
@@ -862,10 +836,8 @@ export const MatchDetailTab = ({
   if (matches.length === 0) {
     return (
       <div
-        className={`rounded-xl border p-12 text-center ${
-          isDarkMode
-            ? 'border-team-blue-40 bg-team-dark-20'
-            : 'border-gray-200 bg-white'
+        className={`rounded-2xl p-12 text-center ${
+          isDarkMode ? 'bg-white/[0.035]' : 'bg-gray-100/80'
         }`}
       >
         <p

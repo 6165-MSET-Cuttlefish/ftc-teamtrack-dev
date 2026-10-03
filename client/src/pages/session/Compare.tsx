@@ -19,7 +19,7 @@ import { getPendingDeleteIds } from '@/lib/pendingSessionDeletes';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import type { Session, Match, ScoreBreakdown } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronDown } from 'lucide-react';
+import { BarChart3, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   LineChart,
@@ -70,10 +70,10 @@ type ScoreElement =
 const ELEMENT_LABELS: Record<ScoreElement, string> = {
   total: 'Total',
   garden: 'Garden',
-  tipping: 'Tipping',
+  tipping: 'Tips',
   flower: 'Flower',
-  flowerBonus: 'Flower Bonus',
-  hive: 'Left in Hive (up CELL)',
+  flowerBonus: 'Bonus',
+  hive: 'Hive',
   robots: 'Leave + Park',
 };
 
@@ -556,8 +556,8 @@ const Compare = () => {
   }
 
   const cardClass = isDarkMode
-    ? 'bg-team-dark-20 border-team-blue-40'
-    : 'bg-white border-gray-200';
+    ? 'border-transparent bg-white/[0.035]'
+    : 'border-transparent bg-gray-100/80';
   const mutedText = isDarkMode ? 'text-team-white-60' : 'text-gray-500';
   const elementButtonClass = (active: boolean) =>
     `px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
@@ -577,11 +577,7 @@ const Compare = () => {
           <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold mb-2">
             Comparison
           </h1>
-          <p
-            className={`text-base mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            Compare sessions and matches side-by-side
-          </p>
+          <div className="mb-6" />
 
           <div className="flex flex-wrap gap-2">
             <button
@@ -611,7 +607,7 @@ const Compare = () => {
         <div className="mb-6">
           {sessions.length === 0 ? (
             <div
-              className={`text-center py-12 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}
+              className={`text-center py-12 rounded-xl border ${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
             >
               <p
                 className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
@@ -689,16 +685,16 @@ const Compare = () => {
           <Card className={cardClass}>
             <CardContent className="py-12">
               <div className="text-center">
-                <div className="text-team-blue text-5xl mb-4">📊</div>
+                <BarChart3 size={40} className="mx-auto mb-4 text-team-blue" aria-hidden />
                 <h3
                   className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  Select Sessions to Compare
+                  Select sessions
                 </h3>
                 <p
                   className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                 >
-                  Choose sessions from the list above to see detailed comparison
+                  Pick sessions above
                 </p>
               </div>
             </CardContent>
@@ -722,8 +718,7 @@ const Compare = () => {
               {isScoreChartOpen && (
                 <CardContent>
                   <p className={`text-xs mb-4 ${mutedText}`}>
-                    Average points per match from the chosen element, oldest
-                    session first. Each point = one session.
+                    Per match, oldest session first
                   </p>
                   <div className="flex flex-wrap gap-2 mb-5">
                     {ELEMENTS.map(element => (
@@ -818,8 +813,7 @@ const Compare = () => {
               {isCycleChartOpen && (
                 <CardContent>
                   <p className={`text-xs mb-4 ${mutedText}`}>
-                    Average time between Hive Tips across all matches in each
-                    session, oldest session first. Lower is faster.
+                    Seconds between tips, oldest session first. Lower is faster
                   </p>
                   {(() => {
                     const chartData = selectedSessionsData.flatMap(session => {
@@ -955,11 +949,11 @@ const Compare = () => {
                           s => avgCount(s, m => m.garden || 0),
                           { indent: true, format: formatNumber }
                         )}
-                        {renderSessionRow('Avg Tipping Points', s =>
+                        {renderSessionRow('Avg Tips Points', s =>
                           avgPoints(s, b => b.tipping)
                         )}
                         {renderSessionRow(
-                          'Avg Tipping Scored',
+                          'Avg Tips Scored',
                           s => avgCount(s, m => m.tipping || 0),
                           { indent: true, format: formatNumber }
                         )}
@@ -971,14 +965,14 @@ const Compare = () => {
                           s => avgCount(s, m => m.flower || 0),
                           { indent: true, format: formatNumber }
                         )}
-                        {renderSessionRow('Avg Flower Bonus Points', s =>
+                        {renderSessionRow('Avg Bonus Points', s =>
                           avgPoints(s, b => b.flowerBonus)
                         )}
                         {renderSessionRow('Avg Left in Hive Points', s =>
                           avgPoints(s, b => b.hive)
                         )}
                         {renderSessionRow(
-                          'Avg Left in Hive (up CELL)',
+                          'Avg Hive (up CELL)',
                           s => avgCount(s, m => m.ballsInHive || 0),
                           { indent: true, format: formatNumber }
                         )}
@@ -1120,7 +1114,7 @@ const Compare = () => {
                             key={match.key}
                             onClick={() => toggleMatch(match)}
                             aria-pressed={isChecked}
-                            title={`Garden ${match.garden || 0} · Tipping ${match.tipping || 0} · Flower ${match.flower || 0} · Left in Hive ${match.ballsInHive || 0}`}
+                            title={`Garden ${match.garden || 0} · Tips ${match.tipping || 0} · Flower ${match.flower || 0} · Hive ${match.ballsInHive || 0}`}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                               isChecked
                                 ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
@@ -1494,11 +1488,11 @@ const Compare = () => {
                               { indent: true, format: formatNumber }
                             )}
                             {renderMatchRow(
-                              'Tipping Points',
+                              'Tips Points',
                               m => m.breakdown.tipping
                             )}
                             {renderMatchRow(
-                              'Tipping Scored',
+                              'Tips Scored',
                               m => m.tipping || 0,
                               { indent: true, format: formatNumber }
                             )}
@@ -1512,7 +1506,7 @@ const Compare = () => {
                               { indent: true, format: formatNumber }
                             )}
                             {renderMatchRow(
-                              'Flower Bonus Points',
+                              'Bonus Points',
                               m => m.breakdown.flowerBonus
                             )}
                             {renderMatchRow(
@@ -1520,7 +1514,7 @@ const Compare = () => {
                               m => m.breakdown.hive
                             )}
                             {renderMatchRow(
-                              'Left in Hive (up CELL)',
+                              'Hive (up CELL)',
                               m => m.ballsInHive || 0,
                               { indent: true, format: formatNumber }
                             )}

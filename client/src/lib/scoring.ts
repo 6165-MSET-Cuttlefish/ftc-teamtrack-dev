@@ -183,7 +183,7 @@ export const scoreRows = (f: ScoringInput): ScoreRow[] => {
   return [
     {
       key: 'tipping',
-      label: 'Hive Tips',
+      label: 'Tips',
       count: countOf(f.tipping),
       points: b.tipping,
     },
@@ -201,13 +201,13 @@ export const scoreRows = (f: ScoringInput): ScoreRow[] => {
     },
     {
       key: 'flowerBonus',
-      label: 'Flower Bonus',
+      label: 'Bonus',
       count: countOf(f.flowerBonus),
       points: b.flowerBonus,
     },
     {
       key: 'hive',
-      label: 'Left in Hive',
+      label: 'Hive',
       count: countOf(f.ballsInHive),
       points: b.hive,
     },

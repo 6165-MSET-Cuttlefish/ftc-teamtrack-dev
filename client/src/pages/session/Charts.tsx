@@ -65,10 +65,10 @@ const SCORE_ELEMENTS: ReadonlyArray<{
   points: (b: ScoreBreakdown) => number;
 }> = [
   { label: 'Garden', color: '#10b981', points: b => b.garden },
-  { label: 'Tipping', color: '#f59e0b', points: b => b.tipping },
+  { label: 'Tips', color: '#f59e0b', points: b => b.tipping },
   { label: 'Flower', color: '#a855f7', points: b => b.flower },
-  { label: 'Flower Bonus', color: '#ec4899', points: b => b.flowerBonus },
-  { label: 'Left in Hive (up CELL)', color: '#0ea5e9', points: b => b.hive },
+  { label: 'Bonus', color: '#ec4899', points: b => b.flowerBonus },
+  { label: 'Hive', color: '#0ea5e9', points: b => b.hive },
   { label: 'Leave + Park', color: '#14b8a6', points: b => b.leave + b.park },
 ];
 
@@ -181,9 +181,9 @@ const elementVolumeRows = (
       id: session.id,
       label: labels.get(session.id)?.full,
       Garden: avgCount(m => m.garden || 0),
-      Tipping: avgCount(m => m.tipping || 0),
+      Tips: avgCount(m => m.tipping || 0),
       Flower: avgCount(m => m.flower || 0),
-      'Left in Hive': avgCount(m => m.ballsInHive || 0),
+      Hive: avgCount(m => m.ballsInHive || 0),
     };
   });
 
@@ -406,7 +406,7 @@ const Charts = () => {
       >
         <div className="max-w-[1152px] mx-auto px-4 sm:px-8 py-8">
           <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+            className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
           >
             <CardContent className="py-12">
               <div className="text-center">
@@ -457,7 +457,7 @@ const Charts = () => {
   const tickLabel = (id: string) => labels.get(id)?.tick ?? '';
   const axisStroke = isDarkMode ? '#9ca3af' : '#6b7280';
   const gridStroke = isDarkMode ? '#2a2a2a' : '#e5e7eb';
-  const cardSublabel = `text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`;
+  const cardSublabel = `text-xs mt-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`;
 
   return (
     <div
@@ -497,7 +497,7 @@ const Charts = () => {
 
         {scoredSessions.length === 0 ? (
           <Card
-            className={`${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`}
+            className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
           >
             <CardContent className="py-12">
               <div className="text-center">
@@ -532,7 +532,7 @@ const Charts = () => {
           <>
             {scoredSessions.length >= 3 && (
               <Card
-                className={`mb-6 sm:mb-8 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-r from-blue-50 to-white border-blue-200'}`}
+                className={`mb-6 sm:mb-8 ${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
               >
                 <CardContent className="pt-4 sm:pt-6">
                   <div className="flex items-start gap-3 sm:gap-4">
@@ -621,13 +621,13 @@ const Charts = () => {
               </Card>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6 sm:mb-8">
               <Card
-                className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
               >
-                <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
-                  <div className="text-center">
-                    <div className="text-team-blue text-2xl sm:text-3xl font-bold">
+                <CardContent className="px-5 py-4">
+                  <div className="flex flex-col">
+                    <div className="text-team-blue text-3xl font-bold leading-none tabular-nums">
                       {filteredSessions.length}
                     </div>
                     <div className={cardSublabel}>
@@ -636,56 +636,54 @@ const Charts = () => {
                         ` · ${emptySessionCount} with no matches`}
                     </div>
                     <div
-                      className={`text-xs sm:text-sm font-medium mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                      className={`order-first mb-1 text-sm font-semibold ${isDarkMode ? 'text-white/50' : 'text-gray-500'}`}
                     >
-                      Total Sessions
+                      Sessions
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card
-                className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
               >
-                <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
-                  <div className="text-center">
-                    <div className="text-team-blue text-2xl sm:text-3xl font-bold">
+                <CardContent className="px-5 py-4">
+                  <div className="flex flex-col">
+                    <div className="text-team-blue text-3xl font-bold leading-none tabular-nums">
                       {averageScore}
                     </div>
-                    <div className={cardSublabel}>per match</div>
-                    <div
-                      className={`text-xs sm:text-sm font-medium mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                        <div
+                      className={`order-first mb-1 text-sm font-semibold ${isDarkMode ? 'text-white/50' : 'text-gray-500'}`}
                     >
-                      Average Score
+                      Avg score
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card
-                className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
               >
-                <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
-                  <div className="text-center">
-                    <div className="text-team-blue text-2xl sm:text-3xl font-bold">
+                <CardContent className="px-5 py-4">
+                  <div className="flex flex-col">
+                    <div className="text-team-blue text-3xl font-bold leading-none tabular-nums">
                       {bestScore}
                     </div>
-                    <div className={cardSublabel}>best single match</div>
-                    <div
-                      className={`text-xs sm:text-sm font-medium mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                        <div
+                      className={`order-first mb-1 text-sm font-semibold ${isDarkMode ? 'text-white/50' : 'text-gray-500'}`}
                     >
-                      Best Score
+                      Best score
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card
-                className={`transition-all duration-300 shadow-lg ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
               >
-                <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
-                  <div className="text-center">
+                <CardContent className="px-5 py-4">
+                  <div className="flex flex-col">
                     {(() => {
                       if (scoredSessions.length < 2) {
                         return (
-                          <div className="text-team-blue text-2xl sm:text-3xl font-bold">
+                          <div className="text-team-blue text-3xl font-bold leading-none tabular-nums">
                             —
                           </div>
                         );
@@ -706,7 +704,7 @@ const Charts = () => {
                       return (
                         <>
                           <div
-                            className={`text-2xl sm:text-3xl font-bold ${
+                            className={`text-3xl font-bold leading-none tabular-nums ${
                               isPositive
                                 ? isDarkMode
                                   ? 'text-green-500'
@@ -728,9 +726,9 @@ const Charts = () => {
                       );
                     })()}
                     <div
-                      className={`text-xs sm:text-sm font-medium mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                      className={`order-first mb-1 text-sm font-semibold ${isDarkMode ? 'text-white/50' : 'text-gray-500'}`}
                     >
-                      Last Session vs. Avg (excluding last)
+                      Last session vs. avg
                     </div>
                   </div>
                 </CardContent>
@@ -739,7 +737,7 @@ const Charts = () => {
 
             <div className="space-y-6 sm:space-y-8">
               <Card
-                className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
               >
                 <CardHeader>
                   <CardTitle
@@ -750,8 +748,7 @@ const Charts = () => {
                   <CardDescription
                     className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    Average match score per session, and the points each scoring
-                    element contributed
+                    Per session, by element
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -805,7 +802,7 @@ const Charts = () => {
                           strokeWidth={2}
                           fillOpacity={1}
                           fill="url(#colorFinal)"
-                          animationDuration={1500}
+                          animationDuration={400}
                         />
                         {SCORE_ELEMENTS.map(({ label, color }) => (
                           <Line
@@ -815,7 +812,7 @@ const Charts = () => {
                             stroke={color}
                             strokeWidth={2}
                             dot={{ r: 3 }}
-                            animationDuration={1500}
+                            animationDuration={400}
                           />
                         ))}
                       </ComposedChart>
@@ -826,7 +823,7 @@ const Charts = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Card
-                  className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${foulData.length === 0 ? 'lg:col-span-2' : ''} ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                  className={`${foulData.length === 0 ? 'lg:col-span-2' : ''} ${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
                 >
                   <CardHeader>
                     <CardTitle
@@ -837,8 +834,7 @@ const Charts = () => {
                     <CardDescription
                       className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                     >
-                      Average match score per session with a 3-session moving
-                      average (#1 is the most recent)
+                      Last 10 sessions; #1 is the most recent
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -868,7 +864,7 @@ const Charts = () => {
                             fill={COLORS.primary}
                             opacity={1}
                             radius={[6, 6, 0, 0]}
-                            animationDuration={1000}
+                            animationDuration={400}
                             activeBar={{
                               stroke: isDarkMode ? '#fff' : '#000',
                               strokeWidth: 2,
@@ -885,7 +881,7 @@ const Charts = () => {
                               strokeWidth: 2,
                               stroke: '#fff',
                             }}
-                            animationDuration={1200}
+                            animationDuration={400}
                             animationBegin={300}
                           />
                         </ComposedChart>
@@ -896,7 +892,7 @@ const Charts = () => {
 
                 {foulData.length > 0 && (
                   <Card
-                    className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
+                    className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
                   >
                     <CardHeader>
                       <CardTitle
@@ -907,9 +903,7 @@ const Charts = () => {
                       <CardDescription
                         className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                       >
-                        Points your fouls gave the opponent per match, and the
-                        share of foul-free matches (last {RECENT_SESSIONS} Scrim
-                        sessions). Never taken off your score.
+                        Scrim sessions only. Never taken off your score
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -963,7 +957,7 @@ const Charts = () => {
                                 strokeWidth: 2,
                                 stroke: '#fff',
                               }}
-                              animationDuration={1200}
+                              animationDuration={400}
                             />
                             <Line
                               type="monotone"
@@ -976,7 +970,7 @@ const Charts = () => {
                                 strokeWidth: 2,
                                 stroke: '#fff',
                               }}
-                              animationDuration={1200}
+                              animationDuration={400}
                             />
                           </LineChart>
                         </ResponsiveContainer>
@@ -987,7 +981,7 @@ const Charts = () => {
               </div>
 
               <Card
-                className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
               >
                 <CardHeader>
                   <CardTitle
@@ -998,7 +992,7 @@ const Charts = () => {
                   <CardDescription
                     className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    Average count of each element scored per match
+                    Per match
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1031,16 +1025,16 @@ const Charts = () => {
                           strokeWidth={3}
                           dot={{ fill: COLORS.success, r: 5 }}
                           activeDot={{ r: 8 }}
-                          animationDuration={1500}
+                          animationDuration={400}
                         />
                         <Line
                           type="monotone"
-                          dataKey="Tipping"
+                          dataKey="Tips"
                           stroke={COLORS.warning}
                           strokeWidth={3}
                           dot={{ fill: COLORS.warning, r: 5 }}
                           activeDot={{ r: 8 }}
-                          animationDuration={1500}
+                          animationDuration={400}
                         />
                         <Line
                           type="monotone"
@@ -1049,17 +1043,17 @@ const Charts = () => {
                           strokeWidth={3}
                           dot={{ fill: COLORS.purple, r: 5 }}
                           activeDot={{ r: 8 }}
-                          animationDuration={1500}
+                          animationDuration={400}
                         />
                         <Line
                           type="monotone"
-                          dataKey="Left in Hive"
-                          name="Left in Hive (up CELL)"
+                          dataKey="Hive"
+                          name="Hive"
                           stroke={COLORS.secondary}
                           strokeWidth={3}
                           dot={{ fill: COLORS.secondary, r: 5 }}
                           activeDot={{ r: 8 }}
-                          animationDuration={1500}
+                          animationDuration={400}
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -1068,7 +1062,7 @@ const Charts = () => {
               </Card>
 
               <Card
-                className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
               >
                 <CardHeader>
                   <CardTitle
@@ -1079,9 +1073,7 @@ const Charts = () => {
                   <CardDescription
                     className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    Average ranking points a match earned from scoring in each
-                    session, out of 3: SWARM, POLLINATOR 1 and POLLINATOR 2. A
-                    win or tie is not counted.
+                    Per match
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1133,7 +1125,7 @@ const Charts = () => {
                             dataKey={label}
                             stackId="rp"
                             fill={color}
-                            animationDuration={1000}
+                            animationDuration={400}
                           />
                         ))}
                       </ComposedChart>
@@ -1144,7 +1136,7 @@ const Charts = () => {
 
               {cycleTimeData.length > 0 && (
                 <Card
-                  className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
+                  className={`${isDarkMode ? 'border-transparent bg-white/[0.035]' : 'border-transparent bg-gray-100/80'}`}
                 >
                   <CardHeader>
                     <CardTitle
@@ -1155,8 +1147,7 @@ const Charts = () => {
                     <CardDescription
                       className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                     >
-                      Average, fastest and slowest time between Hive Tips in
-                      each session (seconds)
+                      Seconds between tips
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1208,7 +1199,7 @@ const Charts = () => {
                               stroke: '#fff',
                             }}
                             activeDot={{ r: 8 }}
-                            animationDuration={1200}
+                            animationDuration={400}
                           />
                           <Line
                             type="monotone"
@@ -1222,7 +1213,7 @@ const Charts = () => {
                               strokeWidth: 2,
                               stroke: '#fff',
                             }}
-                            animationDuration={1200}
+                            animationDuration={400}
                             animationBegin={200}
                           />
                           <Line
@@ -1237,7 +1228,7 @@ const Charts = () => {
                               strokeWidth: 2,
                               stroke: '#fff',
                             }}
-                            animationDuration={1200}
+                            animationDuration={400}
                             animationBegin={400}
                           />
                         </LineChart>

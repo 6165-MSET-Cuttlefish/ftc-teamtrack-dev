@@ -37,6 +37,7 @@ const Toggle = ({
   ariaLabel,
   disabled = false,
   disabledReason,
+  dense = false,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
@@ -46,6 +47,8 @@ const Toggle = ({
   disabled?: boolean;
   /** Why the toggle is disabled, as a tooltip */
   disabledReason?: string;
+  /** Shorter, for the desktop scoring panel */
+  dense?: boolean;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -57,7 +60,7 @@ const Toggle = ({
       disabled={disabled}
       title={disabled ? disabledReason : undefined}
       onClick={() => onChange(!checked)}
-      className={`h-11 px-2 rounded-lg border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 select-none ${
+      className={`${dense ? 'h-9' : 'h-11'} px-2 rounded-lg border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 select-none ${
         disabled
           ? 'opacity-40 cursor-not-allowed border-gray-400 bg-gray-200 text-gray-500 dark:border-gray-700 dark:bg-gray-800'
           : checked
@@ -87,7 +90,7 @@ const ROBOT_GRID =
  * once for parking by the end of the match. A robot can leave the loading
  * zone in between and still collect both.
  */
-const RobotRow = memo(function RobotRow({
+export const RobotRow = memo(function RobotRow({
   label,
   leave,
   parkAuto,
@@ -97,6 +100,7 @@ const RobotRow = memo(function RobotRow({
   onParkTeleop,
   autoDisabledReason,
   parkTeleopDisabledReason,
+  dense = false,
 }: {
   label: string;
   leave: boolean;
@@ -109,12 +113,17 @@ const RobotRow = memo(function RobotRow({
   autoDisabledReason?: string;
   /** Set when End park can't be scored (yet); says why */
   parkTeleopDisabledReason?: string;
+  /**
+   * Shorter toggles that name themselves in full ("Park Auto"), so no
+   * header row is needed. For the desktop scoring panel.
+   */
+  dense?: boolean;
 }) {
   const { isDarkMode } = useTheme();
   return (
     <div className={`${ROBOT_GRID} items-center`}>
       <div
-        className={`text-sm md:text-lg font-semibold whitespace-nowrap ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+        className={`text-sm ${dense ? '' : 'md:text-lg'} font-semibold whitespace-nowrap ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
       >
         {label}
       </div>
@@ -123,13 +132,15 @@ const RobotRow = memo(function RobotRow({
         onChange={onLeave}
         label="Leave"
         ariaLabel={`${label} leave`}
+        dense={dense}
         disabled={autoDisabledReason !== undefined}
         disabledReason={autoDisabledReason}
       />
       <Toggle
         checked={parkAuto}
         onChange={onParkAuto}
-        label="Auto"
+        label={dense ? 'Park Auto' : 'Auto'}
+        dense={dense}
         ariaLabel={`${label} parked at end of auto`}
         disabled={autoDisabledReason !== undefined}
         disabledReason={autoDisabledReason}
@@ -137,7 +148,8 @@ const RobotRow = memo(function RobotRow({
       <Toggle
         checked={parkTeleop}
         onChange={onParkTeleop}
-        label="End"
+        label={dense ? 'Park End' : 'End'}
+        dense={dense}
         ariaLabel={`${label} parked at end of match`}
         disabled={parkTeleopDisabledReason !== undefined}
         disabledReason={parkTeleopDisabledReason}
@@ -151,7 +163,7 @@ const RobotRow = memo(function RobotRow({
  * "End" — short enough to survive a phone-width column — and this row says
  * what they are. Screen readers get the full name from each toggle instead.
  */
-const RobotHeader = () => {
+export const RobotHeader = () => {
   const { isDarkMode } = useTheme();
   const cls = `text-xs font-semibold uppercase tracking-wide text-center whitespace-nowrap ${
     isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -171,7 +183,11 @@ const RobotHeader = () => {
  * park, and the end-of-match assessment. Tipping and the scrim fouls are in
  * LiveCounters; the running total is in ScoreBreakdown.
  */
-export const MatchEntry = () => {
+/**
+ * Setters and locks for the robot and end-of-match fields, shared by the
+ * phone layout's MatchEntry and the desktop ScoringPanel.
+ */
+export const useMatchEntry = () => {
   const { sessionData, updateSessionData } = useSessionCore();
   const {
     scoring,
@@ -223,6 +239,28 @@ export const MatchEntry = () => {
     : endParkLocked
       ? 'Opens when autonomous ends'
       : undefined;
+
+  return {
+    sessionData,
+    set,
+    breakdown,
+    entryKey,
+    endDisabled,
+    autoDisabledReason,
+    parkTeleopDisabledReason,
+  };
+};
+
+export const MatchEntry = () => {
+  const {
+    sessionData,
+    set,
+    breakdown,
+    entryKey,
+    endDisabled,
+    autoDisabledReason,
+    parkTeleopDisabledReason,
+  } = useMatchEntry();
 
   return (
     <div className="space-y-4">

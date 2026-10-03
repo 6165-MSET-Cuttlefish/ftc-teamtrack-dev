@@ -4,6 +4,7 @@ import {
   Notes,
   LiveCounters,
   MatchEntry,
+  ScoringPad,
   ScoreBreakdown,
   ActiveTutorial,
   LiveControlsProvider,
@@ -64,7 +65,7 @@ const MatchClock = () => {
       role="timer"
       aria-label="Match timer"
       data-match-timer
-      className={`text-center tracking-wider leading-none transition-colors font-righteous text-[clamp(3.5rem,20vw,5.5rem)] ${timerColor}`}
+      className={`text-center tracking-wider leading-none transition-colors font-righteous text-[clamp(3.5rem,20vw,5.5rem)] lg:text-[3.75rem] ${timerColor}`}
       style={{ letterSpacing: '0.05em' }}
     >
       {matchPhase === 'controller_pickup'
@@ -192,7 +193,7 @@ const Active = () => {
    */
   const slots: ActiveSlots = {
     title: (
-      <h1 className="text-center font-semibold text-team-blue text-[clamp(1.25rem,5vw,2.25rem)] leading-tight break-words [overflow-wrap:anywhere] min-w-0">
+      <h1 className="text-center font-semibold text-team-blue text-[clamp(1.25rem,5vw,2.25rem)] lg:text-3xl leading-tight break-words [overflow-wrap:anywhere] min-w-0">
         {sessionData.sessionName?.trim() || 'Active Practice Session'}
       </h1>
     ),
@@ -230,6 +231,12 @@ const Active = () => {
     matchEntry: isCompleted ? null : (
       <div data-tutorial="metrics">
         <MatchEntry />
+      </div>
+    ),
+
+    scoring: isCompleted ? null : (
+      <div data-tutorial="metrics">
+        <ScoringPad />
       </div>
     ),
 
@@ -330,7 +337,7 @@ const Active = () => {
           setShouldFlashSetup(false);
         }}
       >
-        <div className="max-w-6xl mx-auto md:px-6 lg:px-8 md:pt-6 md:pb-10 relative">
+        <div className="max-w-6xl mx-auto md:px-6 lg:px-8 md:pt-3 md:pb-10 relative">
           <ActiveTutorial />
           {isCompact ? (
             <ActiveMobileLayout slots={slots} />

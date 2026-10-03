@@ -20,8 +20,11 @@ interface ScoreFieldProps {
   /**
    * `stacked` puts the stepper under the label on a phone, so two fields fit
    * side by side. From `md` up it is the same single row as `row`.
+   * `tile` is a compact card: label and points on one line, the stepper
+   * filling the line under it. Used where many fields share one screen.
+   * `segment` is the tile with the stepper drawn as one joined control.
    */
-  layout?: 'row' | 'stacked';
+  layout?: 'row' | 'stacked' | 'tile' | 'segment';
   /** Rules reminder shown under the field and read out with the input */
   hint?: string;
   /**
@@ -169,6 +172,8 @@ export const ScoreField = memo(
 
     const isLarge = size === 'large';
     const isStacked = layout === 'stacked';
+    const isSegment = layout === 'segment';
+    const isTile = layout === 'tile' || isSegment;
 
     const step = (delta: number) => {
       const typedText = editing ? draft.trim() : '';
@@ -183,7 +188,9 @@ export const ScoreField = memo(
     // 48px on a phone keeps the tap target over the 44px minimum while
     // leaving room for the label on a 360px-wide screen. A stacked field
     // gives up 4px of that so the pair still fits on a short phone.
-    const stepBtnSize = isStacked
+    const stepBtnSize = isTile
+      ? 'w-10 h-10'
+      : isStacked
       ? 'w-11 h-11 md:w-12 md:h-12'
       : isLarge
         ? 'w-12 h-12'
@@ -196,6 +203,19 @@ export const ScoreField = memo(
           : isDarkMode
             ? 'border-team-blue-40 bg-team-dark text-white hover:bg-team-white-10 active:bg-team-white-10 cursor-pointer'
             : 'border-gray-300 bg-white text-black hover:bg-gray-100 active:bg-gray-100 cursor-pointer'
+      }`;
+
+    // Buttons inside the joined `segment` control: no box of their own, a
+    // tint on hover and a small press so the tap is felt.
+    const segBtnClass = (atLimit: boolean) =>
+      `flex w-11 shrink-0 items-center justify-center transition-[background-color,transform] duration-150 ease-out active:scale-[0.94] ${
+        disabled || atLimit
+          ? isDarkMode
+            ? 'cursor-not-allowed text-white/20'
+            : 'cursor-not-allowed text-gray-300'
+          : isDarkMode
+            ? 'cursor-pointer text-white/80 hover:bg-white/[0.06] active:bg-team-blue/15'
+            : 'cursor-pointer text-gray-700 hover:bg-gray-100 active:bg-team-blue/15'
       }`;
 
     const labelTone = disabled
@@ -219,6 +239,191 @@ export const ScoreField = memo(
 
     const pointsWidth = isLarge ? 'w-12 md:w-16' : 'w-16';
 
+    const inputEl = (
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        autoComplete="off"
+        name={name ?? label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
+        aria-label={label}
+        aria-describedby={hint ? hintId : undefined}
+        aria-invalid={invalid || undefined}
+        value={text}
+        disabled={disabled}
+        onChange={e => {
+          reselectOnClick.current = false;
+          setDraft(e.target.value);
+        }}
+        onFocus={e => e.target.select()}
+        onBlur={() => {
+          reselectOnClick.current = false;
+          commit();
+        }}
+        onMouseUp={e => {
+          // A click into a field that kept focus after a commit isn't a
+          // focus, so it would only drop a caret into the old number and
+          // the next digits would be appended. Treat it like the click
+          // that focuses the field: select all. The browser places its
+          // caret after this event, so that is cancelled here, and the
+          // selection is put back a frame later for any browser that
+          // places the caret regardless.
+          if (!reselectOnClick.current) return;
+          const input = e.currentTarget;
+          e.preventDefault();
+          input.select();
+          requestAnimationFrame(() => {
+            if (
+              reselectOnClick.current &&
+              document.activeElement === input
+            ) {
+              input.select();
+            }
+            reselectOnClick.current = false;
+          });
+        }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') {
+            // Commit in place: blurring would drop keyboard focus to the
+            // page, losing the scorer's place mid-match.
+            e.preventDefault();
+            commit();
+            selectAll();
+          }
+        }}
+        className={isSegment ? `h-full w-full min-w-0 border-x text-center text-lg font-semibold tabular-nums bg-transparent focus:outline-none rounded-none ${
+          isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-900'
+        } ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${invalid ? 'text-red-500' : ''}` : `text-center font-bold rounded-lg border-2 transition-colors tabular-nums ${
+          isTile
+            ? 'h-10 w-full min-w-0 text-xl'
+            : isStacked
+              ? 'h-11 w-full text-xl md:h-12 md:w-20'
+              : isLarge
+              ? 'h-12 w-16 text-xl md:w-20'
+              : 'h-10 w-20 text-lg'
+        } ${
+          disabled
+            ? 'opacity-40 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-700 dark:bg-gray-800'
+            : `${invalid ? 'border-red-500' : isDarkMode ? 'border-team-blue-40 focus:border-team-blue' : 'border-gray-300 focus:border-team-blue'} focus:outline-none ${
+                isDarkMode
+                  ? 'bg-team-dark text-white'
+                  : 'bg-white text-black'
+              }`
+        }`}
+      />
+    );
+
+    if (isTile) {
+      return (
+        <div
+          ref={rootRef}
+          className={
+            isSegment
+              ? 'space-y-2 min-w-0'
+              : `rounded-xl border p-2.5 space-y-2 min-w-0 ${
+                  isDarkMode
+                    ? 'border-gray-700/70 bg-white/[0.02]'
+                    : 'border-gray-200 bg-gray-50/60'
+                }`
+          }
+        >
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span
+              className={`inline-flex items-center gap-1 min-w-0 text-sm font-semibold leading-5 ${labelTone}`}
+            >
+              <span className="truncate">{label}</span>
+              {info && (
+                <button
+                  type="button"
+                  title={info}
+                  aria-label={`About ${label}`}
+                  aria-expanded={showInfo}
+                  onClick={() => setShowInfo(v => !v)}
+                  className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors ${
+                    isDarkMode
+                      ? 'text-gray-500 hover:text-team-blue'
+                      : 'text-gray-400 hover:text-team-blue'
+                  }`}
+                >
+                  <Info size={14} />
+                </button>
+              )}
+            </span>
+            {points !== undefined ? (
+              <span
+                className={`shrink-0 text-xs font-semibold tabular-nums ${pointsTone}`}
+              >
+                {points} pts
+              </span>
+            ) : (
+              opponentPoints !== undefined && (
+                <span
+                  className={`shrink-0 text-xs font-semibold tabular-nums ${
+                    opponentPoints > 0 ? foulTone : mutedTone
+                  }`}
+                  title="Credited to the opponent"
+                >
+                  +{opponentPoints} opp
+                </span>
+              )
+            )}
+          </div>
+          <div
+            className={
+              isSegment
+                ? `flex h-10 items-stretch overflow-hidden rounded-xl border transition-colors ${
+                    disabled
+                      ? isDarkMode
+                        ? 'border-white/5 bg-white/[0.02]'
+                        : 'border-gray-200 bg-gray-100'
+                      : invalid
+                        ? 'border-red-500'
+                        : isDarkMode
+                          ? 'border-white/15 bg-black/30 focus-within:border-team-blue'
+                          : 'border-gray-300 bg-white focus-within:border-team-blue'
+                  }`
+                : 'flex items-center gap-1.5'
+            }
+          >
+            {stepper && (
+              <button
+                type="button"
+                aria-label={`Decrease ${label}`}
+                disabled={disabled || value <= 0}
+                onClick={() => step(-1)}
+                className={
+                  isSegment ? segBtnClass(value <= 0) : stepBtnClass(value <= 0)
+                }
+              >
+                <Minus size={stepIconSize} />
+              </button>
+            )}
+            {inputEl}
+            {stepper && (
+              <button
+                type="button"
+                aria-label={`Increase ${label}`}
+                disabled={disabled || value >= max}
+                onClick={() => step(1)}
+                className={
+                  isSegment ? segBtnClass(value >= max) : stepBtnClass(value >= max)
+                }
+              >
+                <Plus size={stepIconSize} />
+              </button>
+            )}
+          </div>
+          {info && showInfo && (
+            <p
+              className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+            >
+              {info}
+            </p>
+          )}
+        </div>
+      );
+    }
     return (
       <div ref={rootRef} className="space-y-1">
         <div
@@ -290,74 +495,7 @@ export const ScoreField = memo(
             </button>
           )}
 
-          <input
-            ref={inputRef}
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            autoComplete="off"
-            name={name ?? label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
-            aria-label={label}
-            aria-describedby={hint ? hintId : undefined}
-            aria-invalid={invalid || undefined}
-            value={text}
-            disabled={disabled}
-            onChange={e => {
-              reselectOnClick.current = false;
-              setDraft(e.target.value);
-            }}
-            onFocus={e => e.target.select()}
-            onBlur={() => {
-              reselectOnClick.current = false;
-              commit();
-            }}
-            onMouseUp={e => {
-              // A click into a field that kept focus after a commit isn't a
-              // focus, so it would only drop a caret into the old number and
-              // the next digits would be appended. Treat it like the click
-              // that focuses the field: select all. The browser places its
-              // caret after this event, so that is cancelled here, and the
-              // selection is put back a frame later for any browser that
-              // places the caret regardless.
-              if (!reselectOnClick.current) return;
-              const input = e.currentTarget;
-              e.preventDefault();
-              input.select();
-              requestAnimationFrame(() => {
-                if (
-                  reselectOnClick.current &&
-                  document.activeElement === input
-                ) {
-                  input.select();
-                }
-                reselectOnClick.current = false;
-              });
-            }}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                // Commit in place: blurring would drop keyboard focus to the
-                // page, losing the scorer's place mid-match.
-                e.preventDefault();
-                commit();
-                selectAll();
-              }
-            }}
-            className={`text-center font-bold rounded-lg border-2 transition-colors tabular-nums ${
-              isStacked
-                ? 'h-11 w-full text-xl md:h-12 md:w-20'
-                : isLarge
-                  ? 'h-12 w-16 text-xl md:w-20'
-                  : 'h-10 w-20 text-lg'
-            } ${
-              disabled
-                ? 'opacity-40 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-700 dark:bg-gray-800'
-                : `${invalid ? 'border-red-500' : isDarkMode ? 'border-team-blue-40 focus:border-team-blue' : 'border-gray-300 focus:border-team-blue'} focus:outline-none ${
-                    isDarkMode
-                      ? 'bg-team-dark text-white'
-                      : 'bg-white text-black'
-                  }`
-            }`}
-          />
+          {inputEl}
 
           {stepper && (
             <button

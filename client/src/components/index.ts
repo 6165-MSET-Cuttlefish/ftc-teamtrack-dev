@@ -10,6 +10,7 @@ export {
   Notes,
   ScoreBreakdown,
   ScoreField,
+  ScoringPad,
   SessionSetup,
   LiveControlsProvider,
   useLiveControls,

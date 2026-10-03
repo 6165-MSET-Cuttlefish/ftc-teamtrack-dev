@@ -226,7 +226,7 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Score While You Watch',
-    body: `Tipping, in the Live block, is counted as the match runs. Tap + for each HIVE TIP or type the running total — TeamTrack converts it to points as you go (${POINTS.HIVE_TIP} each).`,
+    body: `Tipping is counted as the match runs. Tap + for each HIVE TIP or type the running total — TeamTrack converts it to points as you go (${POINTS.HIVE_TIP} each).`,
     target: 'live',
     fallbackTarget: 'metrics',
     preview: d => <LiveScoringPreview dark={d} />,
@@ -270,7 +270,7 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Penalties',
-    body: `In a Scrim, count your alliance's minor and major fouls in the Live block as they're called. Each one is credited to the opponent (${POINTS.MINOR_PENALTY} for a minor, ${POINTS.MAJOR_PENALTY} for a major) and never reduces your own score, so TeamTrack shows them separately as points given to the opponent.`,
+    body: `In a Scrim, count your alliance's minor and major fouls as they're called. Each one is credited to the opponent (${POINTS.MINOR_PENALTY} for a minor, ${POINTS.MAJOR_PENALTY} for a major) and never reduces your own score, so TeamTrack shows them separately as points given to the opponent.`,
     target: 'penalties',
     preview: d => <PenaltyPreview dark={d} />,
   },

@@ -420,10 +420,8 @@ const Analysis = () => {
         className={`min-h-[100dvh] flex items-center justify-center p-6 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div
-          className={`max-w-md w-full rounded-2xl border p-8 text-center space-y-4 ${
-            isDarkMode
-              ? 'bg-team-dark-20 border-team-blue-40'
-              : 'bg-white border-gray-200'
+          className={`max-w-md w-full rounded-2xl p-8 text-center space-y-4 ${
+            isDarkMode ? 'bg-white/[0.035]' : 'bg-gray-100/80'
           }`}
         >
           <AlertTriangle size={40} className="mx-auto text-amber-500" />
@@ -554,7 +552,11 @@ const Analysis = () => {
           )}
         </div>
 
-        {stats && (
+        {/*
+          The Summary tab opens with the same average and best figures, so
+          the overview only shows where that tab doesn't (older seasons).
+        */}
+        {stats && legacySeason && (
           <div className="space-y-3">
             <h2
               className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -588,7 +590,7 @@ const Analysis = () => {
 
         {sessionData.notes && (
           <div
-            className={`rounded-xl border p-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
+            className={`rounded-2xl p-5 ${isDarkMode ? 'bg-white/[0.035]' : 'bg-gray-100/80'}`}
           >
             <h3
               className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -659,7 +661,7 @@ const Analysis = () => {
 
         {!legacySeason && sessionMatches.length === 0 && (
           <div
-            className={`text-center py-16 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}
+            className={`text-center py-16 rounded-2xl ${isDarkMode ? 'bg-white/[0.035]' : 'bg-gray-100/80'}`}
           >
             <BarChart3
               size={40}

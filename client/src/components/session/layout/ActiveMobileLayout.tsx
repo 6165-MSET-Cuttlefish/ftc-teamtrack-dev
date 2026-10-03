@@ -69,6 +69,10 @@ const PLACEMENT: PlacementMap<Region> = {
   notes: { region: 'scroll', order: 5 },
   matchLog: { region: 'scroll', order: 6 },
   sessionActions: { region: 'scroll', order: 7 },
+
+  // The desktop's combined panel; a phone keeps the live counters in the
+  // fixed area and the rest one scroll down instead.
+  scoring: { region: 'hidden', order: 0 },
 };
 
 /** A single slot, or a `PAIRED_ROWS` group rendered together. */
