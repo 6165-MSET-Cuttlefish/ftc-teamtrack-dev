@@ -32,6 +32,12 @@ export const ELEMENT_LABELS = {
 } as const;
 
 /**
+ * Flower and Flower Bonus together, where the scoring page and its running
+ * breakdown show the two as one group.
+ */
+export const FLOWERS_LABEL = 'Flowers';
+
+/**
  * A chart colour: `dark` on the dark cards (default, Honeycomb, Deep Sea),
  * `light` where the same hue has to hold 3:1 against a white one.
  */

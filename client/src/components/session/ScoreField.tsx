@@ -4,6 +4,21 @@ import { useTheme } from '@/contexts';
 
 interface ScoreFieldProps {
   label: string;
+  /**
+   * The element's name for screen readers and the form ("Increase Flower"),
+   * where the visible label says what to count instead. Defaults to `label`.
+   */
+  ariaName?: string;
+  /** A small picture before the visible label */
+  icon?: React.ReactNode;
+  /**
+   * Draw only the input and its steppers: the caller lays out the label,
+   * points and rules itself (a group of counters under one heading). Name
+   * the element in `label` and point `describedBy` at the visible text.
+   */
+  hideLabel?: boolean;
+  /** Ids of visible text elsewhere that describes the field */
+  describedBy?: string;
   value: number;
   onChange: (value: number) => void;
   /** Points this field currently contributes, shown beside the input */
@@ -91,6 +106,10 @@ const WHOLE_NUMBER = /^\d+$/;
 export const ScoreField = memo(
   ({
     label,
+    ariaName,
+    icon,
+    hideLabel = false,
+    describedBy: extraDescribedBy,
     value,
     onChange,
     points,
@@ -328,8 +347,11 @@ export const ScoreField = memo(
     const showLockedReason = disabled && lockedReason !== undefined;
     // Read out with the box and with the steppers, so a locked or maxed-out
     // button still says what it belongs to and why it won't move.
+    /** What the input and steppers are called to a screen reader */
+    const a11yName = ariaName ?? label;
     const describedBy =
       [
+        extraDescribedBy ?? null,
         opponentPoints !== undefined ? opponentId : null,
         hint ? hintId : null,
         showLockedReason ? reasonId : null,
@@ -345,8 +367,8 @@ export const ScoreField = memo(
         inputMode="numeric"
         pattern="[0-9]*"
         autoComplete="off"
-        name={name ?? label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
-        aria-label={label}
+        name={name ?? a11yName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
+        aria-label={a11yName}
         aria-describedby={describedBy}
         aria-invalid={invalid || undefined}
         value={text}
@@ -408,50 +430,53 @@ export const ScoreField = memo(
 
       return (
         <div ref={rootRef} className="min-w-0 space-y-1.5">
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <span
-              className={`inline-flex min-w-0 items-center gap-1 text-sm font-semibold leading-5 ${labelTone}`}
-            >
-              <span className="truncate">{label}</span>
-              {info && (
-                <button
-                  type="button"
-                  title={info}
-                  aria-label={`About ${label}`}
-                  aria-expanded={showInfo}
-                  onClick={() => setShowInfo(v => !v)}
-                  // 44px under a finger, without making the line taller
-                  className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors [@media(pointer:coarse)]:-mx-3 [@media(pointer:coarse)]:-my-3 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
-                    isDarkMode
-                      ? 'text-gray-400 hover:text-team-blue'
-                      : 'text-gray-500 hover:text-team-blue'
-                  }`}
-                >
-                  <Info size={14} />
-                </button>
-              )}
-            </span>
-            {points !== undefined ? (
+          {!hideLabel && (
+            <div className="flex min-w-0 items-center justify-between gap-2">
               <span
-                className={`shrink-0 text-xs font-semibold tabular-nums ${pointsTone}`}
+                className={`inline-flex min-w-0 items-center gap-1 text-sm font-semibold leading-5 ${labelTone}`}
               >
-                {points} pts
+                {icon}
+                <span className="truncate">{label}</span>
+                {info && (
+                  <button
+                    type="button"
+                    title={info}
+                    aria-label={`About ${a11yName}`}
+                    aria-expanded={showInfo}
+                    onClick={() => setShowInfo(v => !v)}
+                    // 44px under a finger, without making the line taller
+                    className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors [@media(pointer:coarse)]:-mx-3 [@media(pointer:coarse)]:-my-3 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
+                      isDarkMode
+                        ? 'text-gray-400 hover:text-team-blue'
+                        : 'text-gray-500 hover:text-team-blue'
+                    }`}
+                  >
+                    <Info size={14} />
+                  </button>
+                )}
               </span>
-            ) : (
-              opponentPoints !== undefined && (
+              {points !== undefined ? (
                 <span
-                  id={opponentId}
-                  className={`shrink-0 truncate text-xs font-semibold tabular-nums ${
-                    opponentPoints > 0 ? foulTone : mutedTone
-                  }`}
+                  className={`shrink-0 text-xs font-semibold tabular-nums ${pointsTone}`}
                 >
-                  +{opponentPoints} to opponent
+                  {points} pts
                 </span>
-              )
-            )}
-          </div>
+              ) : (
+                opponentPoints !== undefined && (
+                  <span
+                    id={opponentId}
+                    className={`shrink-0 truncate text-xs font-semibold tabular-nums ${
+                      opponentPoints > 0 ? foulTone : mutedTone
+                    }`}
+                  >
+                    +{opponentPoints} to opponent
+                  </span>
+                )
+              )}
+            </div>
+          )}
           <div
-            className={`flex h-11 items-stretch overflow-hidden rounded-xl border transition-colors ${
+            className={`flex h-11 items-stretch overflow-hidden rounded-xl border transition-colors [@media(pointer:coarse)]:h-[2.875rem] ${
               disabled
                 ? isDarkMode
                   ? 'border-white/10 bg-white/[0.02]'
@@ -466,7 +491,7 @@ export const ScoreField = memo(
             {stepper && (
               <button
                 type="button"
-                aria-label={`Decrease ${label}`}
+                aria-label={`Decrease ${a11yName}`}
                 aria-describedby={describedBy}
                 disabled={disabled || value <= 0}
                 onClick={() => step(-1)}
@@ -489,7 +514,7 @@ export const ScoreField = memo(
             {stepper && (
               <button
                 type="button"
-                aria-label={`Increase ${label}`}
+                aria-label={`Increase ${a11yName}`}
                 aria-describedby={describedBy}
                 disabled={disabled || value >= max}
                 onClick={() => step(1)}
@@ -521,62 +546,65 @@ export const ScoreField = memo(
                 : 'flex items-center gap-2 md:gap-3'
           }
         >
-          <div
-            className={`min-w-0 ${
-              isStacked
-                ? 'col-span-3 md:flex-1'
-                : hasLiveAction
-                  ? 'flex-none md:flex-1'
-                  : 'flex-1'
-            }`}
-          >
-            <div className={`font-semibold ${labelSize} ${labelTone}`}>
-              <span className="inline-flex items-center gap-1.5">
-                {label}
-                {info && (
-                  <button
-                    type="button"
-                    title={info}
-                    aria-label={`About ${label}`}
-                    aria-expanded={showInfo}
-                    onClick={() => setShowInfo(v => !v)}
-                    className={`inline-flex items-center justify-center rounded-full p-0.5 transition-colors ${
-                      isDarkMode
-                        ? 'text-gray-400 hover:text-team-blue'
-                        : 'text-gray-500 hover:text-team-blue'
-                    }`}
-                  >
-                    <Info size={16} />
-                  </button>
-                )}
-              </span>
-            </div>
-            {opponentPoints !== undefined && (
-              <div
-                id={opponentId}
-                className={`text-xs leading-4 font-semibold tabular-nums ${
-                  opponentPoints > 0 ? foulTone : mutedTone
-                }`}
-              >
-                +{opponentPoints} to opponent
+          {!hideLabel && (
+            <div
+              className={`min-w-0 ${
+                isStacked
+                  ? 'col-span-3 md:flex-1'
+                  : hasLiveAction
+                    ? 'flex-none md:flex-1'
+                    : 'flex-1'
+              }`}
+            >
+              <div className={`font-semibold ${labelSize} ${labelTone}`}>
+                <span className="inline-flex items-center gap-1.5">
+                  {icon}
+                  {label}
+                  {info && (
+                    <button
+                      type="button"
+                      title={info}
+                      aria-label={`About ${a11yName}`}
+                      aria-expanded={showInfo}
+                      onClick={() => setShowInfo(v => !v)}
+                      className={`inline-flex items-center justify-center rounded-full p-0.5 transition-colors ${
+                        isDarkMode
+                          ? 'text-gray-400 hover:text-team-blue'
+                          : 'text-gray-500 hover:text-team-blue'
+                      }`}
+                    >
+                      <Info size={16} />
+                    </button>
+                  )}
+                </span>
               </div>
-            )}
-            {(pointsUnderLabel || pointsUnderOnNarrow) &&
-              points !== undefined && (
+              {opponentPoints !== undefined && (
                 <div
+                  id={opponentId}
                   className={`text-xs leading-4 font-semibold tabular-nums ${
-                    pointsUnderOnNarrow ? 'min-[360px]:hidden' : 'md:hidden'
-                  } ${pointsTone}`}
+                    opponentPoints > 0 ? foulTone : mutedTone
+                  }`}
                 >
-                  {points} pts
+                  +{opponentPoints} to opponent
                 </div>
               )}
-          </div>
+              {(pointsUnderLabel || pointsUnderOnNarrow) &&
+                points !== undefined && (
+                  <div
+                    className={`text-xs leading-4 font-semibold tabular-nums ${
+                      pointsUnderOnNarrow ? 'min-[360px]:hidden' : 'md:hidden'
+                    } ${pointsTone}`}
+                  >
+                    {points} pts
+                  </div>
+                )}
+            </div>
+          )}
 
           {stepper && (
             <button
               type="button"
-              aria-label={`Decrease ${label}`}
+              aria-label={`Decrease ${a11yName}`}
               aria-describedby={describedBy}
               disabled={disabled || value <= 0}
               onClick={() => step(-1)}
@@ -604,7 +632,7 @@ export const ScoreField = memo(
                   : ''
               }`}
             >
-              <span className="sr-only">{label}: </span>
+              <span className="sr-only">{a11yName}: </span>
               {value}
             </div>
           ) : (
@@ -644,7 +672,7 @@ export const ScoreField = memo(
             ) : (
               <button
                 type="button"
-                aria-label={`Increase ${label}`}
+                aria-label={`Increase ${a11yName}`}
                 aria-describedby={describedBy}
                 disabled={disabled || value >= max}
                 onClick={() => step(1)}

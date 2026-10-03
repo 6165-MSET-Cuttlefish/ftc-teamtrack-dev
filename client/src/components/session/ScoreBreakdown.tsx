@@ -3,27 +3,95 @@ import { Check } from 'lucide-react';
 import { useSessionCore, useTheme } from '@/contexts';
 import {
   ELEMENT_LABELS,
-  POINTS,
+  FLOWERS_LABEL,
   RANKING_POINTS,
   calculateScore,
   scoreRows,
   type ScoreRow,
+  type ScoringInput,
 } from '@/lib';
 import type { MatchScoringFields } from '@/types';
 import { useScoringLocks } from './useScoringLocks';
 
+/** "1 tip", "3 tips" */
+const countOf = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
+
+/** One line of the running breakdown: points, and what earned them */
+interface BreakdownItem {
+  key: string;
+  label: string;
+  points: number;
+  /**
+   * What was counted, in words ("3 pieces + 2 bonus"); empty when nothing
+   * was. Never a multiplication: a growing "×N" beside the points reads as
+   * a multiplier.
+   */
+  detail: string;
+}
+
 /**
- * What one of each row is worth, so a row can show its sum ("3 × 20")
- * instead of a bare count.
+ * The breakdown's lines in the order the page is scored: Hive Tips, the
+ * robots, then the end-of-match counts. Flower and Flower Bonus are one
+ * line, Flowers, as they are one group on the scoring page.
  */
-const ROW_UNIT_POINTS: Partial<Record<ScoreRow['key'], number>> = {
-  tipping: POINTS.HIVE_TIP,
-  garden: POINTS.GARDEN,
-  flower: POINTS.FLOWER_ELEMENT,
-  flowerBonus: POINTS.FLOWER_BONUS,
-  hive: POINTS.CELL_REMAINING,
-  leave: POINTS.LEAVE,
-  park: POINTS.PARK,
+const breakdownItems = (scoring: ScoringInput): BreakdownItem[] => {
+  const rows = new Map(scoreRows(scoring).map(row => [row.key, row]));
+  const line = (key: ScoreRow['key']) => ({
+    count: rows.get(key)?.count ?? 0,
+    points: rows.get(key)?.points ?? 0,
+  });
+  const tips = line('tipping');
+  const leave = line('leave');
+  const park = line('park');
+  const flower = line('flower');
+  const bonus = line('flowerBonus');
+  const hive = line('hive');
+  const garden = line('garden');
+  const counted = (n: number, one: string) => (n > 0 ? countOf(n, one) : '');
+  return [
+    {
+      key: 'tipping',
+      label: ELEMENT_LABELS.tipping,
+      points: tips.points,
+      detail: counted(tips.count, 'tip'),
+    },
+    {
+      key: 'leave',
+      label: ELEMENT_LABELS.leave,
+      points: leave.points,
+      detail: counted(leave.count, 'robot'),
+    },
+    {
+      key: 'park',
+      label: ELEMENT_LABELS.park,
+      points: park.points,
+      detail: counted(park.count, 'park'),
+    },
+    {
+      key: 'flowers',
+      label: FLOWERS_LABEL,
+      points: flower.points + bonus.points,
+      detail: [
+        counted(flower.count, 'piece'),
+        bonus.count > 0 ? `${bonus.count} bonus` : '',
+      ]
+        .filter(Boolean)
+        .join(' + '),
+    },
+    {
+      key: 'hive',
+      label: ELEMENT_LABELS.hive,
+      points: hive.points,
+      detail: counted(hive.count, 'piece'),
+    },
+    {
+      key: 'garden',
+      label: ELEMENT_LABELS.garden,
+      points: garden.points,
+      detail: counted(garden.count, 'piece'),
+    },
+  ];
 };
 
 /**
@@ -192,7 +260,7 @@ export const ScoreBreakdown = () => {
   const breakdown = calculateScore(scoring);
   // Fouls are credited to the opponent, so they are not one of this
   // alliance's scoring rows; a scrim shows them on their own line below.
-  const rows = scoreRows(scoring).filter(row => row.key !== 'penalties');
+  const rows = breakdownItems(scoring);
   const isScrim = sessionData.sessionType === 'Scrim';
   const foulCount =
     (sessionData.minorPenalties ?? 0) + (sessionData.majorPenalties ?? 0);
@@ -240,14 +308,12 @@ export const ScoreBreakdown = () => {
               isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}
           >
-            <span>{row.label}</span>
-            <span className="flex items-center gap-3 tabular-nums">
-              <span className={countTone}>
-                {row.count}
-                {ROW_UNIT_POINTS[row.key] !== undefined &&
-                  ` × ${ROW_UNIT_POINTS[row.key]}`}
+            <span className="shrink-0">{row.label}</span>
+            <span className="flex min-w-0 items-center gap-3 tabular-nums">
+              <span className={`truncate text-xs ${countTone}`}>
+                {row.detail}
               </span>
-              <span className="w-12 text-right font-semibold text-team-blue">
+              <span className="w-12 shrink-0 text-right font-semibold text-team-blue">
                 {row.points}
               </span>
             </span>
@@ -265,8 +331,8 @@ export const ScoreBreakdown = () => {
         >
           <span>{ELEMENT_LABELS.penalties}</span>
           <span className="flex items-center gap-3 tabular-nums">
-            <span className={countTone}>
-              {foulCount} {foulCount === 1 ? 'foul' : 'fouls'}
+            <span className={`text-xs ${countTone}`}>
+              {countOf(foulCount, 'foul')}
             </span>
             <span
               className={`w-12 text-right font-semibold ${
@@ -308,20 +374,10 @@ export const ScoreBreakdown = () => {
   );
 };
 
-/** The rows in the order their fields sit in the desktop scoring pad */
-const STRIP_ORDER: ReadonlyArray<ScoreRow['key']> = [
-  'tipping',
-  'leave',
-  'park',
-  'flower',
-  'flowerBonus',
-  'hive',
-  'garden',
-];
-
 /**
  * The breakdown as one band across the bottom of the desktop scoring pad:
- * the total, points per element (count beside it), then ranking points.
+ * the total, points per element (what was counted under them, in words),
+ * then ranking points.
  * Same numbers as ScoreBreakdown, laid out across instead of down. Under
  * the `lg` breakpoint the ranking points move up beside the total and the
  * elements take a row of their own.
@@ -332,7 +388,7 @@ export const BreakdownStrip = () => {
   const { isDarkMode } = useTheme();
 
   const breakdown = calculateScore(scoring);
-  const byKey = new Map(scoreRows(scoring).map(row => [row.key, row]));
+  const items = breakdownItems(scoring);
   const isScrim = sessionData.sessionType === 'Scrim';
   const foulCount =
     (sessionData.minorPenalties ?? 0) + (sessionData.majorPenalties ?? 0);
@@ -343,22 +399,32 @@ export const BreakdownStrip = () => {
   const strong = isDarkMode ? 'text-white' : 'text-gray-900';
   const foul = isDarkMode ? 'text-red-400' : 'text-red-700';
 
+  // Points are the number; what was counted sits on its own line under
+  // them, so it can't be read as a multiplier. Flowers takes two columns
+  // on a wide screen so "3 pieces + 2 bonus" fits on one line.
   const cell = (
     key: string,
     label: string,
     points: string,
-    count: number,
-    tone: string
+    detail: string,
+    tone: string,
+    wide = false
   ) => (
-    <div key={key} className="flex min-w-0 flex-col justify-end">
+    <div
+      key={key}
+      className={`flex min-w-0 flex-col justify-end ${wide ? 'lg:col-span-2' : ''}`}
+    >
       <dt className={`mb-0.5 text-xs font-semibold leading-4 ${muted}`}>
         {label}
       </dt>
-      <dd className="flex items-baseline gap-1 tabular-nums">
-        <span className={`text-2xl font-semibold leading-8 ${tone}`}>
+      <dd className="tabular-nums">
+        <span className={`block text-2xl font-semibold leading-8 ${tone}`}>
           {points}
+          <span className="sr-only"> points</span>
         </span>
-        <span className={`text-xs ${muted}`}>×{count}</span>
+        <span className={`block min-h-4 truncate text-xs leading-4 ${muted}`}>
+          {detail}
+        </span>
       </dd>
     </div>
   );
@@ -389,23 +455,22 @@ export const BreakdownStrip = () => {
           isScrim ? 'lg:grid-cols-8' : 'lg:grid-cols-7'
         }`}
       >
-        {STRIP_ORDER.map(key => {
-          const row = byKey.get(key);
-          const points = row?.points ?? 0;
-          return cell(
-            key,
-            row?.label ?? key,
-            String(points),
-            row?.count ?? 0,
-            points > 0 ? strong : muted
-          );
-        })}
+        {items.map(item =>
+          cell(
+            item.key,
+            item.label,
+            String(item.points),
+            item.detail,
+            item.points > 0 ? strong : muted,
+            item.key === 'flowers'
+          )
+        )}
         {isScrim &&
           cell(
             'penalties',
             ELEMENT_LABELS.penalties,
             `+${breakdown.penalties}`,
-            foulCount,
+            foulCount > 0 ? countOf(foulCount, 'foul') : '',
             breakdown.penalties > 0 ? foul : muted
           )}
       </dl>

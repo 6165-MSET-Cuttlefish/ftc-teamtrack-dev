@@ -5,6 +5,7 @@ import {
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
+  FLOWERS_LABEL,
   POINTS,
   calculateScore,
   emptyScoringFields,
@@ -32,6 +33,7 @@ import {
 } from '@/components/ui/dialog';
 import { ChevronDown, Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { FlowerSlots } from './EndOfMatchParts';
 import { Toggle } from './MatchEntry';
 import { ScoreField } from './ScoreField';
 
@@ -118,6 +120,7 @@ export const MatchForm = ({
   const [showBreakdown, setShowBreakdown] = useState(false);
   const breakdownId = useId();
   const periodNoteId = useId();
+  const flowersId = useId();
   const [formData, setFormData] = useState<Partial<Match>>(() =>
     initialMatch
       ? {
@@ -315,33 +318,49 @@ export const MatchForm = ({
               points={breakdown.tipping}
               onChange={v => setField('tipping', v)}
             />
-            <ScoreField
-              {...stepperProps}
-              label={ELEMENT_LABELS.garden}
-              hint={FIELD_HINTS.garden}
-              max={FIELD_LIMITS.garden}
-              value={formData.garden ?? 0}
-              points={breakdown.garden}
-              onChange={v => setField('garden', v)}
-            />
-            <ScoreField
-              {...stepperProps}
-              label={ELEMENT_LABELS.flower}
-              hint={FIELD_HINTS.flower}
-              max={FIELD_LIMITS.flower}
-              value={formData.flower ?? 0}
-              points={breakdown.flower}
-              onChange={v => setField('flower', v)}
-            />
-            <ScoreField
-              {...stepperProps}
-              label={ELEMENT_LABELS.flowerBonus}
-              hint={FIELD_HINTS.flowerBonus}
-              max={FIELD_LIMITS.flowerBonus}
-              value={formData.flowerBonus ?? 0}
-              points={breakdown.flowerBonus}
-              onChange={v => setField('flowerBonus', v)}
-            />
+            {/*
+              Flower and Flower Bonus as one group, as on the scoring page:
+              the picture beside each says where your nectar is.
+            */}
+            <div
+              role="group"
+              aria-labelledby={flowersId}
+              className={`space-y-3 rounded-lg border p-2.5 sm:p-3 ${
+                isDarkMode ? 'border-white/10' : 'border-gray-300 bg-white'
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span
+                  id={flowersId}
+                  className={`text-sm font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}
+                >
+                  {FLOWERS_LABEL}
+                </span>
+                <span className="text-sm font-semibold tabular-nums text-team-blue">
+                  {breakdown.flower + breakdown.flowerBonus} pts
+                </span>
+              </div>
+              <ScoreField
+                {...stepperProps}
+                label={ELEMENT_LABELS.flower}
+                icon={<FlowerSlots nectar="top" />}
+                hint={FIELD_HINTS.flower}
+                max={FIELD_LIMITS.flower}
+                value={formData.flower ?? 0}
+                points={breakdown.flower}
+                onChange={v => setField('flower', v)}
+              />
+              <ScoreField
+                {...stepperProps}
+                label={ELEMENT_LABELS.flowerBonus}
+                icon={<FlowerSlots nectar="bottom" />}
+                hint={FIELD_HINTS.flowerBonus}
+                max={FIELD_LIMITS.flowerBonus}
+                value={formData.flowerBonus ?? 0}
+                points={breakdown.flowerBonus}
+                onChange={v => setField('flowerBonus', v)}
+              />
+            </div>
             <ScoreField
               {...stepperProps}
               label={ELEMENT_LABELS.hive}
@@ -350,6 +369,15 @@ export const MatchForm = ({
               value={formData.ballsInHive ?? 0}
               points={breakdown.hive}
               onChange={v => setField('ballsInHive', v)}
+            />
+            <ScoreField
+              {...stepperProps}
+              label={ELEMENT_LABELS.garden}
+              hint={FIELD_HINTS.garden}
+              max={FIELD_LIMITS.garden}
+              value={formData.garden ?? 0}
+              points={breakdown.garden}
+              onChange={v => setField('garden', v)}
             />
           </Panel>
 

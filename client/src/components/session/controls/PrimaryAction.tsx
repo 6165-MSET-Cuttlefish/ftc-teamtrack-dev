@@ -130,7 +130,7 @@ const PrimaryQuestion = ({ pending }: { pending: PendingConfirm }) => {
         <ConfirmInline
           {...matchLayout}
           tone="save"
-          question={`Flower, Left in Hive and Garden are all 0. Save Match ${matchNumber} anyway?`}
+          question={`Flowers, Left in Hive and Garden are all 0. Save Match ${matchNumber} anyway?`}
           keepLabel="Count them first"
           confirmLabel="Save"
           onKeep={handleCountFirst}
@@ -315,7 +315,7 @@ export const PrimaryAction = () => {
         role="status"
         className={`text-sm font-semibold leading-snug ${isCompact ? '' : 'flex-1 min-w-0 line-clamp-2'} ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}
       >
-        Match {matchNumber} over: count Flower, Left in Hive and Garden, then
+        Match {matchNumber} over: count Flowers, Left in Hive and Garden, then
         save
       </p>
       <button

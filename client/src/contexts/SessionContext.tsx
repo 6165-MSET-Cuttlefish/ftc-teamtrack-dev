@@ -42,6 +42,7 @@ import {
   SESSION_AWAY_LIMIT_MS,
   type ClockEnv,
 } from '@/lib/matchClock';
+import { matchAudioTime, TELEOP_AUDIO_OFFSET } from '@/lib/matchAudioTime';
 import {
   defaultSessionName,
   retypeDefaultSessionName,
@@ -121,7 +122,18 @@ interface SessionCoreContextType {
   /** Whether the current match has been explicitly started (resets between matches) */
   matchActive: boolean;
   setMatchActive: (active: boolean) => void;
+  /** AUTO (or controller pickup) of a Full Game straight to the start of TELEOP */
   skipToTeleop: () => void;
+  /**
+   * TELEOP straight to the start of ENDGAME (GAME_TIMING.ENDGAME_REMAINING
+   * left). A paused clock stays paused.
+   */
+  skipToEndgame: () => void;
+  /**
+   * The last period (TELEOP, or AUTO of an Autonomous match) straight to the
+   * buzzer: the match ends just as if its clock had run out.
+   */
+  skipToEnd: () => void;
   /** Convert raw countdown timer to display timer for a given phase */
   getDisplayTimer: (timer: number, phase: MatchPhase) => number;
   /** True when tutorial is active - prevents audio from playing */
@@ -233,6 +245,19 @@ const stopMatchAudio = () => {
   } catch {
     /* storage unavailable */
   }
+};
+
+/**
+ * Move the match audio to `time` in the track, for a match clock that has
+ * jumped there, and start it from there if `play`. Otherwise a playing
+ * track plays on from there and a paused one is picked up from there on
+ * Resume.
+ */
+const cueMatchAudio = (time: number, play: boolean) => {
+  const audio = (window as TeamTrackWindow).__teamtrack_match_audio__;
+  if (!audio) return;
+  audio.currentTime = time;
+  if (play && audio.paused) audio.play().catch(() => {});
 };
 
 const SessionCoreContext = createContext<SessionCoreContextType | undefined>(
@@ -1073,15 +1098,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       sessionData.matchType === 'Full Game' &&
       (matchPhase === 'auton' || matchPhase === 'controller_pickup')
     ) {
-      const globalAudio = (window as TeamTrackWindow)[
-        '__teamtrack_match_audio__'
-      ];
-      if (globalAudio) {
-        globalAudio.currentTime = 42;
-        if (globalAudio.paused) {
-          globalAudio.play().catch(() => {});
-        }
-      }
+      cueMatchAudio(TELEOP_AUDIO_OFFSET, true);
 
       commitClock(
         clock => ({
@@ -1098,6 +1115,59 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       );
     }
   }, [sessionData.matchType, matchPhase, commitClock]);
+
+  const skipToEndgame = useCallback(() => {
+    const clock = clockRef.current;
+    const endgameMs = GAME_TIMING.ENDGAME_REMAINING * 1000;
+    // Only ever forward: once ENDGAME is on, the skip is to the end.
+    if (
+      clock.phase !== 'teleop' ||
+      matchSecondsLeft(clock, Date.now()) <= GAME_TIMING.ENDGAME_REMAINING
+    ) {
+      return;
+    }
+    // The endgame chime is cued off the track, so it sounds as the clock
+    // lands there (or on Resume, if paused).
+    cueMatchAudio(
+      matchAudioTime(
+        envRef.current.matchType,
+        'teleop',
+        GAME_TIMING.ENDGAME_REMAINING
+      ),
+      false
+    );
+    commitClock(
+      current => ({ ...current, remainingMs: endgameMs, deadline: null }),
+      true
+    );
+  }, [commitClock]);
+
+  const skipToEnd = useCallback(() => {
+    const { phase } = clockRef.current;
+    const { matchType } = envRef.current;
+    if (
+      phase !== 'teleop' &&
+      !(phase === 'auton' && matchType === 'Autonomous')
+    ) {
+      return;
+    }
+    // The buzzer, from the track, as at a natural end; the match audio
+    // stops after its tail as usual.
+    cueMatchAudio(matchAudioTime(matchType, phase, 0), true);
+    // Run the clock out now, then let the tick end the match: the same
+    // phase change (and the same stored clock for other tabs) as a match
+    // whose time ran out.
+    commitClock(
+      current => ({
+        ...current,
+        running: true,
+        remainingMs: 0,
+        deadline: null,
+      }),
+      true
+    );
+    tick();
+  }, [commitClock, tick]);
 
   const hasActiveSession =
     !sessionData.isSessionCompleted &&
@@ -1138,6 +1208,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       matchActive,
       setMatchActive,
       skipToTeleop,
+      skipToEndgame,
+      skipToEnd,
       getDisplayTimer: getDisplayTimerUtil,
       isTutorialActive,
       setIsTutorialActive,
@@ -1169,6 +1241,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       saveEditedMatch,
       matchActive,
       skipToTeleop,
+      skipToEndgame,
+      skipToEnd,
       isTutorialActive,
       setIsTutorialActive,
     ]

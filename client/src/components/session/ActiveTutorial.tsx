@@ -13,7 +13,7 @@ import {
   TUTORIAL_ENDED_EVENT,
 } from '@/constants/events';
 import { STORAGE_KEYS } from '@/constants';
-import { ELEMENT_LABELS, POINTS } from '@/lib';
+import { COUNT_LABELS, ELEMENT_LABELS, POINTS } from '@/lib';
 import { setWalkthroughSession } from '@/lib/signOutLoss';
 import type { MatchPhase, SessionFormData } from '@/types';
 import { useActiveCompact } from './layout/useActiveCompact';
@@ -98,9 +98,15 @@ const EndOfMatchPreview = ({ dark }: { dark: boolean }) => (
   <PreviewBox dark={dark}>
     <div className="space-y-2.5">
       <FieldRow
-        label={ELEMENT_LABELS.flower}
+        label={COUNT_LABELS.flower}
         value="4"
         points={`${4 * POINTS.FLOWER_ELEMENT} pts`}
+        dark={dark}
+      />
+      <FieldRow
+        label={COUNT_LABELS.flowerBonus}
+        value="1"
+        points={`${1 * POINTS.FLOWER_BONUS} pts`}
         dark={dark}
       />
       <FieldRow
@@ -209,23 +215,24 @@ const STEPS: StepDef[] = [
     body: () => (
       <div className="space-y-2">
         <div>
-          Judged after play stops. In a match they stay locked while the clock
-          runs, and unlock at the buzzer or when you pause.
+          Count these once play stops. In a match they stay locked while the
+          clock runs, and unlock at the buzzer or when you pause.
         </div>
         <ul className="list-disc pl-4 space-y-1 text-xs">
           <li>
-            Flower: everything in FLOWERS with your NECTAR on top (
-            {POINTS.FLOWER_ELEMENT} each). Flower Bonus: your NECTAR at the
-            bottom ({POINTS.FLOWER_BONUS} per FLOWER).
+            Flowers: you own a flower when your nectar is on top. Count every
+            piece in it, opponent pieces too ({POINTS.FLOWER_ELEMENT} pts each).
+            Then count the flowers with your nectar at the bottom (
+            {POINTS.FLOWER_BONUS} pts each, up to 4).
           </li>
           <li>
-            Left in Hive: POLLEN/NECTAR in your upward CELL (
-            {POINTS.CELL_REMAINING} each); the 3 staged NECTAR count until a
-            TIP.
+            Left in Hive: pieces still in the hive&apos;s upward-facing cell (
+            {POINTS.CELL_REMAINING} pts each). The 3 nectar that start there
+            count unless a hive tip flipped the cell.
           </li>
           <li>
-            Garden: everything in your GARDEN ({POINTS.GARDEN} each), pre-staged
-            POLLEN included.
+            Garden: every piece in your garden ({POINTS.GARDEN} pt each),
+            including the 4 pollen that start there.
           </li>
         </ul>
       </div>

@@ -79,7 +79,7 @@ const BETWEEN_MATCHES_TOAST_IDS = [
 const EDIT_OPEN_TOAST_ID = 'match-edit-open';
 /** An Undo that waits for the Save Session dialog to be closed */
 const SAVE_DIALOG_OPEN_TOAST_ID = 'save-dialog-open';
-/** The Match Entry section that holds Flower, Left in Hive and Garden */
+/** The Match Entry section that holds Flowers, Left in Hive and Garden */
 const END_OF_MATCH_SECTION = '[data-tutorial="end-of-match"]';
 
 /**
@@ -333,6 +333,8 @@ export const useLiveControlsState = ({
     matchActive,
     setMatchActive,
     skipToTeleop,
+    skipToEndgame,
+    skipToEnd,
     sessionEpoch,
     isTutorialActive,
     replaceSessionData,
@@ -1714,6 +1716,8 @@ export const useLiveControlsState = ({
     saveEditedMatch: handleSaveEditedMatch,
     returnToCurrentMatch: handleCancelEditedMatch,
     skipToTeleop,
+    skipToEndgame,
+    skipToEnd,
 
     /** Match number the fields will be saved under */
     matchNumber,

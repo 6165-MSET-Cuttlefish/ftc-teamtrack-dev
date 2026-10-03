@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/contexts';
 import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
+import { matchAudioTime, TELEOP_AUDIO_OFFSET } from '@/lib/matchAudioTime';
 
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
@@ -10,10 +11,6 @@ interface TeamTrackWindow extends Window {
   __teamtrack_match_audio_unwire__?: () => void;
 }
 const ttWindow = window as TeamTrackWindow;
-
-const FULL_GAME_AUDIO_OFFSET = 0.8;
-const AUTON_AUDIO_OFFSET = FULL_GAME_AUDIO_OFFSET + 3;
-const TELEOP_AUDIO_OFFSET = 42;
 
 /**
  * File time of 1:00 remaining, when BIOBUZZ endgame (and flower scoring)
@@ -306,18 +303,10 @@ export const useMatchAudio = () => {
     sessionData,
   } = useSession();
 
-  const getExpectedAudioTime = useCallback(() => {
-    if (sessionData.matchType === 'Autonomous') {
-      return AUTON_AUDIO_OFFSET + (30 - timer);
-    }
-    if (sessionData.matchType === 'Teleop') {
-      return TELEOP_AUDIO_OFFSET + (120 - timer);
-    }
-    if (matchPhase === 'teleop') {
-      return TELEOP_AUDIO_OFFSET + (120 - timer);
-    }
-    return FULL_GAME_AUDIO_OFFSET + (153 - timer);
-  }, [sessionData.matchType, matchPhase, timer]);
+  const getExpectedAudioTime = useCallback(
+    () => matchAudioTime(sessionData.matchType, matchPhase, timer),
+    [sessionData.matchType, matchPhase, timer]
+  );
 
   /**
    * Pull the audio back onto the match clock if it has wandered: it started
@@ -452,7 +441,12 @@ export const useMatchAudio = () => {
       }
       hasPlayedRef.current = false;
       clearAudioState();
-    } else if (timer === 0 && hasPlayedRef.current) {
+    } else if (
+      timer === 0 &&
+      // Or the buzzer was cued by a skip to the end, on a match that had
+      // not played yet (reloaded while paused)
+      (hasPlayedRef.current || audioRef.current?.paused === false)
+    ) {
       const tailDuration = sessionData.matchType === 'Autonomous' ? 3000 : 5000;
       audioTailTimeoutRef.current = setTimeout(() => {
         if (audioRef.current) {

@@ -1,7 +1,16 @@
-import { memo } from 'react';
+import { memo, useId } from 'react';
 import { Check } from 'lucide-react';
 import { useTheme } from '@/contexts';
-import { ELEMENT_LABELS, FIELD_HINTS, FIELD_LIMITS } from '@/lib';
+import {
+  COUNT_LABELS,
+  EACH_LABELS,
+  ELEMENT_LABELS,
+  FIELD_HINTS,
+  FIELD_LIMITS,
+  FLOWERS_HINT,
+  FLOWERS_LABEL,
+} from '@/lib';
+import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
 import { PenaltyCounters } from './PenaltyCounters';
 import { ScoreField } from './ScoreField';
 import { SectionNote } from './SectionNote';
@@ -224,6 +233,11 @@ export const MatchEntry = () => {
     justUnlocked,
     endSectionRef,
   } = useMatchEntry();
+  const { isDarkMode } = useTheme();
+  const flowersId = useId();
+  const flowerLineId = useId();
+  const bonusLineId = useId();
+  const flowersHintId = useId();
 
   return (
     // `gap`, not `space-y`: the heading is visually hidden on a phone and
@@ -286,32 +300,89 @@ export const MatchEntry = () => {
         highlight={justUnlocked}
         sectionRef={endSectionRef}
       >
-        <ScoreField
-          size="large"
-          stepper
-          label={ELEMENT_LABELS.flower}
-          hint={FIELD_HINTS.flower}
-          max={FIELD_LIMITS.flower}
-          value={sessionData.flower}
-          points={breakdown.flower}
-          disabled={endDisabled}
-          lockedReasonId={endReasonId}
-          resetKey={entryKey}
-          onChange={set.flower}
-        />
-        <ScoreField
-          size="large"
-          stepper
-          label={ELEMENT_LABELS.flowerBonus}
-          hint={FIELD_HINTS.flowerBonus}
-          max={FIELD_LIMITS.flowerBonus}
-          value={sessionData.flowerBonus}
-          points={breakdown.flowerBonus}
-          disabled={endDisabled}
-          lockedReasonId={endReasonId}
-          resetKey={entryKey}
-          onChange={set.flowerBonus}
-        />
+        {/*
+          Flower and Flower Bonus as one group, side by side so the
+          difference is the first thing seen: what is counted (pieces, or
+          flowers) and where your nectar is. One column under 360px, where
+          two steppers would crush their counts. Each counter spans the
+          group's two rows (subgrid), so the steppers stay level however
+          the lines above them wrap.
+        */}
+        <div
+          role="group"
+          aria-labelledby={flowersId}
+          aria-describedby={flowersHintId}
+          className={`space-y-2 rounded-xl border p-3 ${
+            isDarkMode
+              ? 'border-white/10 bg-white/[0.02]'
+              : 'border-gray-200 bg-gray-50'
+          }`}
+        >
+          <CounterHead
+            id={flowersId}
+            title={FLOWERS_LABEL}
+            points={breakdown.flower + breakdown.flowerBonus}
+            dim={endDisabled}
+          />
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2 min-[360px]:grid-cols-2">
+            {(
+              [
+                {
+                  key: 'flower',
+                  lineId: flowerLineId,
+                  nectar: 'top',
+                  points: breakdown.flower,
+                  value: sessionData.flower,
+                  onChange: set.flower,
+                },
+                {
+                  key: 'flowerBonus',
+                  lineId: bonusLineId,
+                  nectar: 'bottom',
+                  points: breakdown.flowerBonus,
+                  value: sessionData.flowerBonus,
+                  onChange: set.flowerBonus,
+                },
+              ] as const
+            ).map(f => (
+              <div
+                key={f.key}
+                className="row-span-2 grid grid-rows-subgrid gap-y-1.5"
+              >
+                <CountLine
+                  id={f.lineId}
+                  icon={<FlowerSlots nectar={f.nectar} dim={endDisabled} />}
+                  label={COUNT_LABELS[f.key]}
+                  each={EACH_LABELS[f.key]}
+                  points={f.points}
+                  dim={endDisabled}
+                  // Under its label: in a phone-width column a label can
+                  // run to three lines, and the gap goes over the stepper.
+                  footAligned={false}
+                />
+                <ScoreField
+                  layout="stacked"
+                  stepper
+                  hideLabel
+                  label={ELEMENT_LABELS[f.key]}
+                  describedBy={f.lineId}
+                  max={FIELD_LIMITS[f.key]}
+                  value={f.value}
+                  disabled={endDisabled}
+                  lockedReasonId={endReasonId}
+                  resetKey={entryKey}
+                  onChange={f.onChange}
+                />
+              </div>
+            ))}
+          </div>
+          <p
+            id={flowersHintId}
+            className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+          >
+            {FLOWERS_HINT}
+          </p>
+        </div>
         <ScoreField
           size="large"
           stepper

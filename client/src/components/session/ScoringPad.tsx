@@ -1,7 +1,17 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { Check, Lock, Minus } from 'lucide-react';
 import { useTheme } from '@/contexts';
-import { ELEMENT_LABELS, FIELD_HINTS, FIELD_LIMITS, POINTS } from '@/lib';
+import {
+  COUNT_LABELS,
+  EACH_LABELS,
+  ELEMENT_LABELS,
+  FIELD_HINTS,
+  FIELD_LIMITS,
+  FLOWERS_HINT,
+  FLOWERS_LABEL,
+  POINTS,
+} from '@/lib';
+import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
 import { PenaltyHint } from './PenaltyCounters';
 import { BreakdownStrip } from './ScoreBreakdown';
 import { ScoreField } from './ScoreField';
@@ -16,11 +26,13 @@ import { usePenaltyCounters } from './usePenaltyCounters';
  *    so the whole surface is the +1; T on a keyboard does the same), the
  *    robot leave/park matrix beside it, and in a scrim the two foul
  *    counters.
- *  - After the buzzer: Flower, Flower Bonus, Left in Hive and Garden as
- *    joined steppers, locked until the clock stops (see `useScoringLocks`).
+ *  - After the buzzer: Flowers (its two counters, Flower and Flower Bonus,
+ *    under one heading), Left in Hive and Garden as joined steppers, each
+ *    under a line that says what to count, locked until the clock stops
+ *    (see `useScoringLocks`).
  *  - Then the breakdown as one band across the bottom.
  *
- * The rules sit behind each field's (i). The phone layout uses LiveCounters
+ * The full rules sit behind each heading's (i). The phone layout uses LiveCounters
  * and MatchEntry instead, which share their state and locks with this
  * through `useLiveCounters`, `useMatchEntry` and `usePenaltyCounters`.
  */
@@ -255,44 +267,57 @@ export const ScoringPad = () => {
     },
   ];
 
-  const endFields = [
-    {
-      label: ELEMENT_LABELS.flower,
-      name: 'flower',
-      info: FIELD_HINTS.flower,
-      max: FIELD_LIMITS.flower,
-      value: sessionData.flower,
-      points: breakdown.flower,
-      onChange: set.flower,
-    },
-    {
-      label: ELEMENT_LABELS.flowerBonus,
-      name: 'flower-bonus',
-      info: FIELD_HINTS.flowerBonus,
-      max: FIELD_LIMITS.flowerBonus,
-      value: sessionData.flowerBonus,
-      points: breakdown.flowerBonus,
-      onChange: set.flowerBonus,
-    },
-    {
-      label: ELEMENT_LABELS.hive,
-      name: 'left-in-hive',
-      info: FIELD_HINTS.ballsInHive,
-      max: FIELD_LIMITS.ballsInHive,
-      value: sessionData.ballsInHive,
-      points: breakdown.hive,
-      onChange: set.ballsInHive,
-    },
-    {
-      label: ELEMENT_LABELS.garden,
-      name: 'garden',
-      info: FIELD_HINTS.garden,
-      max: FIELD_LIMITS.garden,
-      value: sessionData.garden,
-      points: breakdown.garden,
-      onChange: set.garden,
-    },
-  ];
+  const ids = {
+    flowers: useId(),
+    flower: useId(),
+    flowerBonus: useId(),
+    hive: useId(),
+    hiveLine: useId(),
+    garden: useId(),
+    gardenLine: useId(),
+    info: useId(),
+  };
+  /** Which heading's (i) is open; its rule shows under the row */
+  const [infoOpen, setInfoOpen] = useState<
+    'flowers' | 'hive' | 'garden' | null
+  >(null);
+  const toggleInfo = (which: 'flowers' | 'hive' | 'garden') =>
+    setInfoOpen(v => (v === which ? null : which));
+  // The counters' own lines say what each is worth; the Flowers (i) adds
+  // the rule that tells them apart.
+  const infoText =
+    infoOpen === 'flowers'
+      ? FLOWERS_HINT
+      : infoOpen === 'hive'
+        ? FIELD_HINTS.ballsInHive
+        : infoOpen === 'garden'
+          ? FIELD_HINTS.garden
+          : null;
+
+  /** The stepper of one end-of-match counter; its label is drawn above it */
+  const counter = (
+    label: string,
+    name: string,
+    describedBy: string,
+    max: number,
+    value: number,
+    onChange: (v: number) => void
+  ) => (
+    <ScoreField
+      label={label}
+      name={name}
+      hideLabel
+      describedBy={describedBy}
+      layout="segment"
+      stepper
+      max={max}
+      value={value}
+      disabled={endDisabled}
+      lockedReasonId={endReasonId}
+      resetKey={entryKey}
+      onChange={onChange}
+    />
+  );
 
   return (
     <section aria-label="Scoring" className="flex flex-col gap-4 lg:gap-5">
@@ -407,25 +432,135 @@ export const ScoringPad = () => {
         >
           {endCaption}
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
-          {endFields.map(f => (
-            <ScoreField
-              key={f.name}
-              label={f.label}
-              name={f.name}
-              layout="segment"
-              stepper
-              info={f.info}
-              max={f.max}
-              value={f.value}
-              points={f.points}
-              disabled={endDisabled}
-              lockedReasonId={endReasonId}
-              resetKey={entryKey}
-              onChange={f.onChange}
+        {/*
+          Three rows shared across the groups (subgrid), so every heading,
+          every "what to count" line and every stepper sits level with its
+          neighbours however the lines wrap: the Flowers pair under one
+          heading, then Left in Hive and Garden. Below `lg` the pair takes
+          the first row and the other two the next.
+        */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 lg:grid-cols-4 lg:gap-x-5">
+          <div
+            role="group"
+            aria-labelledby={ids.flowers}
+            className="col-span-2 row-span-3 grid grid-cols-subgrid grid-rows-subgrid"
+          >
+            <div className="col-span-2">
+              <CounterHead
+                id={ids.flowers}
+                title={FLOWERS_LABEL}
+                points={breakdown.flower + breakdown.flowerBonus}
+                info={FLOWERS_HINT}
+                infoId={ids.info}
+                infoOpen={infoOpen === 'flowers'}
+                onInfo={() => toggleInfo('flowers')}
+                dim={endDisabled}
+              />
+            </div>
+            <CountLine
+              id={ids.flower}
+              icon={<FlowerSlots nectar="top" dim={endDisabled} />}
+              label={COUNT_LABELS.flower}
+              each={EACH_LABELS.flower}
+              points={breakdown.flower}
+              dim={endDisabled}
             />
-          ))}
+            <CountLine
+              id={ids.flowerBonus}
+              icon={<FlowerSlots nectar="bottom" dim={endDisabled} />}
+              label={COUNT_LABELS.flowerBonus}
+              each={EACH_LABELS.flowerBonus}
+              points={breakdown.flowerBonus}
+              dim={endDisabled}
+            />
+            {counter(
+              ELEMENT_LABELS.flower,
+              'flower',
+              ids.flower,
+              FIELD_LIMITS.flower,
+              sessionData.flower,
+              set.flower
+            )}
+            {counter(
+              ELEMENT_LABELS.flowerBonus,
+              'flower-bonus',
+              ids.flowerBonus,
+              FIELD_LIMITS.flowerBonus,
+              sessionData.flowerBonus,
+              set.flowerBonus
+            )}
+          </div>
+
+          <div
+            role="group"
+            aria-labelledby={ids.hive}
+            className="row-span-3 grid grid-rows-subgrid md:max-lg:mt-3"
+          >
+            <CounterHead
+              id={ids.hive}
+              title={ELEMENT_LABELS.hive}
+              info={FIELD_HINTS.ballsInHive}
+              infoId={ids.info}
+              infoOpen={infoOpen === 'hive'}
+              onInfo={() => toggleInfo('hive')}
+              dim={endDisabled}
+            />
+            <CountLine
+              id={ids.hiveLine}
+              label={COUNT_LABELS.ballsInHive}
+              each={EACH_LABELS.ballsInHive}
+              points={breakdown.hive}
+              dim={endDisabled}
+            />
+            {counter(
+              ELEMENT_LABELS.hive,
+              'left-in-hive',
+              ids.hiveLine,
+              FIELD_LIMITS.ballsInHive,
+              sessionData.ballsInHive,
+              set.ballsInHive
+            )}
+          </div>
+
+          <div
+            role="group"
+            aria-labelledby={ids.garden}
+            className="row-span-3 grid grid-rows-subgrid md:max-lg:mt-3"
+          >
+            <CounterHead
+              id={ids.garden}
+              title={ELEMENT_LABELS.garden}
+              info={FIELD_HINTS.garden}
+              infoId={ids.info}
+              infoOpen={infoOpen === 'garden'}
+              onInfo={() => toggleInfo('garden')}
+              dim={endDisabled}
+            />
+            <CountLine
+              id={ids.gardenLine}
+              label={COUNT_LABELS.garden}
+              each={EACH_LABELS.garden}
+              points={breakdown.garden}
+              dim={endDisabled}
+            />
+            {counter(
+              ELEMENT_LABELS.garden,
+              'garden',
+              ids.gardenLine,
+              FIELD_LIMITS.garden,
+              sessionData.garden,
+              set.garden
+            )}
+          </div>
         </div>
+        {infoText && (
+          <p
+            id={ids.info}
+            className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+          >
+            {infoText}
+          </p>
+        )}
       </div>
 
       <BreakdownStrip />

@@ -1,9 +1,12 @@
 import { Pause, Play, SkipForward, X } from 'lucide-react';
 
-import { useSessionCore } from '@/contexts';
+import { GAME_TIMING } from '@/constants';
+import { useSession, useSessionCore } from '@/contexts';
+import type { MatchPhase } from '@/types';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { isPrimarySlotConfirm, useLiveControls } from './liveControlsContext';
 import { actionClass } from './tones';
+import { useArmed } from './useArmed';
 import { useCompactControls } from './useCompactControls';
 
 /**
@@ -89,7 +92,55 @@ export const CancelMatchButton = () => {
   );
 };
 
-/** Skip to teleop — a deliberate, between-action control. */
+/** The next point of the match that Skip jumps to */
+type SkipTarget = 'teleop' | 'endgame' | 'end';
+
+const SKIP_LABELS: Record<SkipTarget, { full: string; short: string }> = {
+  teleop: { full: 'Skip to Teleop', short: 'Teleop' },
+  endgame: { full: 'Skip to Endgame', short: 'Endgame' },
+  end: { full: 'Skip to Buzzer', short: 'Buzzer' },
+};
+
+/** Every target a match of this type gets to, in the order it gets there */
+const skipTargetsFor = (matchType: string): SkipTarget[] => {
+  switch (matchType) {
+    case 'Full Game':
+      return ['teleop', 'endgame', 'end'];
+    case 'Teleop':
+      return ['endgame', 'end'];
+    default:
+      return ['end'];
+  }
+};
+
+/**
+ * Where Skip goes from here: TELEOP from AUTO (and controller pickup) of a
+ * Full Game, ENDGAME from earlier in TELEOP, and the buzzer from ENDGAME or
+ * from AUTO of an Autonomous match. Null once the match is over.
+ */
+const skipTargetOf = (
+  matchType: string,
+  matchPhase: MatchPhase,
+  timer: number
+): SkipTarget | null => {
+  if (matchPhase === 'teleop') {
+    return timer > GAME_TIMING.ENDGAME_REMAINING ? 'endgame' : 'end';
+  }
+  if (matchPhase === 'auton' || matchPhase === 'controller_pickup') {
+    if (matchType === 'Full Game') return 'teleop';
+    if (matchType === 'Autonomous' && matchPhase === 'auton') return 'end';
+  }
+  return null;
+};
+
+/** A press this soon after Skip changed where it goes is ignored */
+const SKIP_ARM_DELAY_MS = 1000;
+
+/**
+ * Skip ahead to the next point of the match — a deliberate, between-action
+ * control. One button whose target moves on with the match, so it never
+ * adds a second one to the row.
+ */
 export const MatchExtras = () => {
   const {
     sessionData,
@@ -98,28 +149,48 @@ export const MatchExtras = () => {
     matchActive,
     editingMatchId,
     skipToTeleop,
+    skipToEndgame,
+    skipToEnd,
   } = useLiveControls();
+  const { timer } = useSession();
   const isCompact = useCompactControls();
+  const target =
+    editingMatchId || !matchActive
+      ? null
+      : skipTargetOf(sessionData.matchType, matchPhase, timer);
+  // The label changes in place under the pointer: the second tap of a
+  // double tap (or a press right as ENDGAME starts) must not skip again.
+  const armed = useArmed(SKIP_ARM_DELAY_MS, target);
 
-  if (editingMatchId || !matchActive) return null;
+  if (!target) return null;
 
-  if (
-    sessionData.matchType !== 'Full Game' ||
-    (matchPhase !== 'auton' && matchPhase !== 'controller_pickup')
-  ) {
-    return null;
-  }
+  const skip = { teleop: skipToTeleop, endgame: skipToEndgame, end: skipToEnd };
+  const labelOf = (t: SkipTarget) =>
+    isCompact ? SKIP_LABELS[t].short : SKIP_LABELS[t].full;
 
   return (
     <button
       type="button"
       onKeyDown={ignoreHeldEnter}
-      onClick={skipToTeleop}
-      aria-label="Skip to Teleop"
-      className={`shrink-0 h-11 px-3 rounded-xl text-sm gap-2 whitespace-nowrap ${actionClass('neutral', isDarkMode)}`}
+      onClick={() => {
+        if (armed) skip[target]();
+      }}
+      aria-label={SKIP_LABELS[target].full}
+      className={`shrink-0 h-11 px-3 rounded-xl text-sm whitespace-nowrap ${actionClass('neutral', isDarkMode)}`}
     >
-      <SkipForward className="h-4 w-4 shrink-0" aria-hidden />
-      {isCompact ? 'Skip' : 'Skip to Teleop'}
+      {/* As wide as the longest label this match will show, so the row
+          doesn't shift when the target moves on */}
+      <span className="grid justify-items-center" aria-hidden>
+        {skipTargetsFor(sessionData.matchType).map(t => (
+          <span
+            key={t}
+            className={`col-start-1 row-start-1 flex items-center gap-2 ${t === target ? '' : 'invisible'}`}
+          >
+            <SkipForward className="h-4 w-4 shrink-0" />
+            {labelOf(t)}
+          </span>
+        ))}
+      </span>
     </button>
   );
 };

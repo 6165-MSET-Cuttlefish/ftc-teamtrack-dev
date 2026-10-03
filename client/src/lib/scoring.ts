@@ -367,15 +367,46 @@ export const FIELD_LIMITS = {
   majorPenalties: 30,
 } as const;
 
-/** What each counter counts, as shown beside its input. */
+/**
+ * What each counter counts and what one is worth, in plain words, as shown
+ * beside its input or behind its (i).
+ */
 export const FIELD_HINTS = {
-  tipping: `Each HIVE TIP, in AUTO or TELEOP (${POINTS.HIVE_TIP} pts)`,
-  garden: `Everything in your GARDEN at match end, including the 4 pre-staged POLLEN (${POINTS.GARDEN} pt each)`,
-  flower: `All POLLEN/NECTAR in FLOWERS with your NECTAR on top, including opponent and pre-staged pieces (${POINTS.FLOWER_ELEMENT} pts each)`,
-  flowerBonus: `FLOWERS with your NECTAR at the bottom, max ${FIELD_LIMITS.flowerBonus} (${POINTS.FLOWER_BONUS} pts each)`,
-  ballsInHive: `Upward-facing CELL only. The 3 staged NECTAR count until a TIP flips it (${POINTS.CELL_REMAINING} pts each)`,
+  tipping: `Count every hive tip, in auto or teleop. ${POINTS.HIVE_TIP} pts each.`,
+  garden: `Count every piece in your garden when the match ends, including the 4 pollen that start there. ${POINTS.GARDEN} pt each.`,
+  flower: `Count every piece in each flower you own, including opponent and pre-staged pieces. You own a flower when your nectar is on top. ${POINTS.FLOWER_ELEMENT} pts each.`,
+  flowerBonus: `Count the flowers with your nectar at the bottom, up to ${FIELD_LIMITS.flowerBonus}. ${POINTS.FLOWER_BONUS} pts each.`,
+  ballsInHive: `Count pieces still in the hive's upward-facing cell when the match ends. The 3 nectar that start there count, unless a hive tip flipped the cell. ${POINTS.CELL_REMAINING} pts each.`,
   minorPenalties: `+${POINTS.MINOR_PENALTY} to the opponent each. Your score is not reduced`,
   majorPenalties: `+${POINTS.MAJOR_PENALTY} to the opponent each. Your score is not reduced`,
+} as const;
+
+/**
+ * Flower and Flower Bonus as one group: the rule that tells the two apart,
+ * shown with the pair on the scoring page.
+ */
+export const FLOWERS_HINT =
+  'You own a flower when your nectar is on top: every piece in it counts, opponent and pre-staged pieces too. Your nectar at the bottom earns the bonus.';
+
+/**
+ * What to count for each end-of-match counter, in a few words. The scoring
+ * page shows these under a heading that names the element; everywhere else
+ * (Analysis, Charts, CSV) the element keeps its ELEMENT_LABELS name.
+ */
+export const COUNT_LABELS = {
+  flower: 'Pieces in flowers you own',
+  flowerBonus: 'Flowers with your nectar at the bottom',
+  ballsInHive: "Pieces in the hive's upward-facing cell",
+  garden: 'Every piece in your garden',
+} as const;
+
+/** What one of each end-of-match counter is worth, beside its count */
+export const EACH_LABELS = {
+  flower: `${POINTS.FLOWER_ELEMENT} pts each`,
+  // No break inside "max 4" when the line has to wrap
+  flowerBonus: `${POINTS.FLOWER_BONUS} pts each, max\u00a0${FIELD_LIMITS.flowerBonus}`,
+  ballsInHive: `${POINTS.CELL_REMAINING} pts each`,
+  garden: `${POINTS.GARDEN} pt each`,
 } as const;
 
 /** Label for a session whose matches were not all run as the same type. */
