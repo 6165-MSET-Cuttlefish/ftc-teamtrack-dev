@@ -4,6 +4,7 @@ import { useAuth, useSessionCore, useTheme } from '@/contexts';
 import { Button } from '@/components/ui/button';
 import { X, UserPlus } from 'lucide-react';
 import { ROUTES, STORAGE_KEYS } from '@/constants';
+import { readGuestSessions } from '@/lib/guestSessions';
 
 const PROMPT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Show once per day
 
@@ -20,6 +21,8 @@ export const GuestPrompt = () => {
   /** Due to be shown: not dismissed for good, and not shown in the last day */
   const [isDue, setIsDue] = useState(false);
   const [tutorialSeen, setTutorialSeen] = useState(false);
+  /** The guest has at least one saved session, i.e. something to back up */
+  const [hasSavedSession, setHasSavedSession] = useState(false);
   const [cardEl, setCardEl] = useState<HTMLDivElement | null>(null);
   const [cardHeight, setCardHeight] = useState(0);
 
@@ -28,6 +31,7 @@ export const GuestPrompt = () => {
     location.pathname
   );
   const isOnActivePage = location.pathname.startsWith(ROUTES.ACTIVE);
+  const isOnSessionsPage = location.pathname.startsWith(ROUTES.SESSIONS);
 
   useEffect(() => {
     if (!isGuest) {
@@ -47,28 +51,42 @@ export const GuestPrompt = () => {
     }
   }, [isGuest]);
 
+  // Asked on value, not on arrival: there is nothing to back up until a
+  // session has been saved. Completing one leads to another page, so looking
+  // again on each page change is enough to notice it.
+  useEffect(() => {
+    setHasSavedSession(isGuest && readGuestSessions().length > 0);
+  }, [isGuest, location.pathname]);
+
   // A first-time guest gets the tutorial before anything else. The tutorial
   // records that it has been seen as it closes, so look again once it does
-  // (same key as ActiveTutorial).
+  // (same keys as ActiveTutorial). Seen on this device by anyone counts too:
+  // the tutorial does not open again for a new guest on the same phone.
   useEffect(() => {
     if (isTutorialActive) return;
     const key = guestId
       ? `${STORAGE_KEYS.TUTORIAL_SEEN}-guest-${guestId}`
       : STORAGE_KEYS.TUTORIAL_SEEN;
-    setTutorialSeen(!!localStorage.getItem(key));
+    setTutorialSeen(
+      !!localStorage.getItem(key) ||
+        !!localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN)
+    );
   }, [isTutorialActive, guestId, location.pathname]);
 
   // Held back while it would be in the way: on the sign-in pages, before a
   // new guest has been shown around, while a match is running, and anywhere
   // on the scoring page. That page is controls from top to bottom, and the
   // card sat on the setup's Save button and on Complete Session. It waits
-  // for the next page instead, e.g. the sessions list or the analysis the
-  // finished session leads to (it only counts as shown once it is on screen).
+  // for the next page instead, e.g. the analysis the finished session leads
+  // to (it only counts as shown once it is on screen). The sessions list
+  // says the same thing in a line of its own, above the sessions.
   const isVisible =
     isDue &&
     isGuest &&
+    hasSavedSession &&
     !isOnAuthPage &&
     !isOnActivePage &&
+    !isOnSessionsPage &&
     !isTutorialActive &&
     tutorialSeen &&
     !matchActive;
@@ -146,38 +164,42 @@ export const GuestPrompt = () => {
           aria-label="Dismiss"
         >
           <X
+            aria-hidden="true"
             className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           />
         </button>
 
         <div className="flex items-start gap-3 mb-3">
+          {/* Decoration only, and a phone has no width to spare for it */}
           <div
-            className={`p-2 rounded-lg ${
+            className={`max-sm:hidden p-2 rounded-lg ${
               isDarkMode ? 'bg-team-blue-20' : 'bg-blue-100'
             }`}
           >
-            <UserPlus className="h-5 w-5 text-team-blue" />
+            <UserPlus aria-hidden="true" className="h-5 w-5 text-team-blue" />
           </div>
-          <div>
+          <div className="min-w-0">
+            {/* pr-9: clear of the dismiss button, a 44px target on a phone */}
             <h3
-              className={`font-semibold text-base mb-1 ${
+              className={`font-semibold text-base mb-1 pr-9 text-balance ${
                 isDarkMode ? 'text-team-white' : 'text-gray-900'
               }`}
             >
-              Save Your Progress!
+              Your sessions live in this browser
             </h3>
             <p
-              className={`text-sm ${
+              className={`text-sm text-pretty ${
                 isDarkMode ? 'text-team-white-60' : 'text-gray-600'
               }`}
             >
-              Guest sessions are stored only in this browser and will be lost if
-              you clear your data. Create an account to save them permanently.
+              Guest sessions are stored only in this browser and are lost if
+              its data is cleared. Sign up to back them up. You'll be offered
+              to import them.
             </p>
           </div>
         </div>
 
-        <div className="flex gap-2 ml-11">
+        <div className="flex gap-2 sm:ml-11">
           <Button
             asChild
             className={`flex-1 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}

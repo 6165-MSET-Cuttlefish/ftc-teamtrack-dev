@@ -3,7 +3,13 @@
  * analyse, and how a session, a date or a number is written on them.
  */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { toast } from 'sonner';
 import { useAuth, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
@@ -20,6 +26,8 @@ import {
   subscribePendingDeletes,
 } from '@/lib/pendingSessionDeletes';
 import type { Match, ScoreBreakdown, Session } from '@/types';
+import { inSessionScope, SESSION_SCOPES } from './sessionList';
+import type { SessionScope } from './sessionList';
 
 /**
  * The sessions the signed-in user (or their team, or this browser's guest)
@@ -86,6 +94,65 @@ export const useLifetimeSessions = (): {
   );
 
   return { sessions, loading };
+};
+
+/**
+ * In a team the list is the team's sessions plus the user's own unshared
+ * ones. This narrows it to either half and says in words what is on screen.
+ * Outside a team there is one list, so no choices and no label.
+ */
+export const useSessionScope = (
+  sessions: Session[]
+): {
+  scope: SessionScope;
+  setScope: (scope: SessionScope) => void;
+  /** Whether a session belongs to the chosen scope */
+  inScope: (session: Session) => boolean;
+  /** The choices with how many sessions each holds; empty outside a team */
+  choices: Array<{ value: SessionScope; label: string; count: number }>;
+  /** 'shared with <team>' and the like; null outside a team */
+  scopeLabel: string | null;
+} => {
+  const { user, isGuest } = useAuth();
+  const { team } = useTeam();
+  const [picked, setScope] = useState<SessionScope>('all');
+
+  const uid = user?.uid;
+  const teamId = isGuest ? undefined : team?.id;
+  const teamName = team?.name;
+  // Leaving the team takes the choice away with it.
+  const scope = teamId ? picked : 'all';
+
+  // The same rule and the same All / Team / Mine as the Sessions page.
+  const inScope = useCallback(
+    (session: Session): boolean =>
+      inSessionScope(session, scope, { teamId, uid }),
+    [scope, teamId, uid]
+  );
+
+  const choices = useMemo(
+    () =>
+      teamId
+        ? SESSION_SCOPES.map(({ value, label }) => ({
+            value,
+            label,
+            count: sessions.filter(session =>
+              inSessionScope(session, value, { teamId, uid })
+            ).length,
+          }))
+        : [],
+    [sessions, teamId, uid]
+  );
+
+  const scopeLabel = !teamId
+    ? null
+    : scope === 'team'
+      ? `shared with ${teamName}`
+      : scope === 'mine'
+        ? 'recorded by you'
+        : `${teamName} + your own`;
+
+  return { scope, setScope, inScope, choices, scopeLabel };
 };
 
 /** Sort comparator: oldest session first. */

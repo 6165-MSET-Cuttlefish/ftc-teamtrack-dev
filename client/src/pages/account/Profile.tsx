@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth, useSessionCore, useTheme, useTeam } from '@/contexts';
 import { getInitials } from '@/lib';
+import { mapAuthError, isWrongPasswordError } from '@/lib/authErrors';
 import { flushPendingDeletes } from '@/lib/pendingSessionDeletes';
 import { describeSignOutLoss } from '@/lib/signOutLoss';
-import { UI_TIMING, APP_CONFIG, ROUTES } from '@/constants';
+import { teamService } from '@/services';
+import { APP_CONFIG, ROUTES } from '@/constants';
+import type { Team, TeamMember } from '@/types';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +25,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -38,7 +42,9 @@ import {
   EyeOff,
   ArrowLeft,
   Link2,
+  Users,
 } from 'lucide-react';
+import { TeamManager } from '@/components/team/TeamManager';
 import { ShareLinks } from './ShareLinks';
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -155,6 +161,59 @@ const Field = ({
   </div>
 );
 
+const MIN_PASSWORD_LENGTH = 6;
+
+/** The inputs that can carry an error of their own */
+type FieldErrorKey =
+  | 'email'
+  | 'emailPassword'
+  | 'currentPassword'
+  | 'newPassword'
+  | 'deletePassword';
+
+/** An error written under the field that caused it; stays until the field is edited. */
+const FieldError = ({
+  id,
+  children,
+  isDarkMode,
+}: {
+  id: string;
+  children: React.ReactNode;
+  isDarkMode: boolean;
+}) => (
+  <p
+    id={id}
+    role="alert"
+    className={`text-xs font-medium ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}
+  >
+    {children}
+  </p>
+);
+
+/**
+ * What deleting the account does to the user's team: once the user's data
+ * is gone, deleting leaves the team, so this is the rule in
+ * `teamService.leaveTeam`, in words.
+ */
+const describeTeamAfterDelete = (team: Team, uid: string): string => {
+  if (teamService.ownerOf(team) !== uid) {
+    return `You will be removed from ${team.name}.`;
+  }
+  const others = team.members.filter(member => member.userId !== uid);
+  if (others.length === 0) {
+    return `${team.name} and its invite link are deleted.`;
+  }
+  const joinedSeconds = (member: TeamMember) =>
+    member.joinedAt &&
+    typeof member.joinedAt === 'object' &&
+    'seconds' in member.joinedAt
+      ? (member.joinedAt as { seconds: number }).seconds
+      : 0;
+  const next = [...others].sort(
+    (a, b) => joinedSeconds(a) - joinedSeconds(b)
+  )[0];
+  return `${next.displayName || next.email} becomes the owner of ${team.name}.`;
+};
 
 const Profile = () => {
   const {
@@ -168,18 +227,26 @@ const Profile = () => {
     deleteAccount,
   } = useAuth();
   const { isDarkMode } = useTheme();
-  const { updateMemberDisplayName } = useTeam();
+  const { team, updateMemberDisplayName } = useTeam();
   const { sessionData, matchActive } = useSessionCore();
 
   useEffect(() => {
     document.title = `Profile - ${APP_CONFIG.name}`;
   }, []);
 
+  // The account menu sends someone without a team to the Team card. Every
+  // navigation has its own key, so asking again from here (scrolled away
+  // from the card since) goes back to it too.
+  const { hash, key: locationKey } = useLocation();
+  useEffect(() => {
+    if (hash !== '#team') return;
+    document.getElementById('team')?.scrollIntoView({ block: 'start' });
+  }, [hash, locationKey]);
+
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{
-    text: string;
-    type: 'success' | 'error';
-  } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<FieldErrorKey, string>>
+  >({});
 
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -216,28 +283,55 @@ const Profile = () => {
   const isPasswordProvider =
     user?.providerId === 'password' || !user?.providerId;
 
+  /** Both new-password fields are filled in and disagree (shown as it is typed) */
+  const passwordsDiffer =
+    !!newPassword && !!confirmPassword && newPassword !== confirmPassword;
+
+  // A toast is in view wherever the page is scrolled to; the banner this
+  // replaces sat at the top of the page, above the fold from Security down.
   const showMessage = (text: string, type: 'success' | 'error') => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), UI_TIMING.MESSAGE_DISPLAY_TIMEOUT);
+    if (type === 'error') toast.error(text);
+    else toast.success(text);
   };
 
-  const friendlyAuthError = (err: unknown): string => {
-    const msg = err instanceof Error ? err.message : 'An error occurred.';
-    if (msg.includes('wrong-password') || msg.includes('invalid-credential'))
-      return 'Incorrect password. Please try again.';
-    if (msg.includes('email-already-in-use'))
-      return 'That email is already in use by another account.';
-    if (msg.includes('invalid-email'))
-      return 'Please enter a valid email address.';
-    if (msg.includes('weak-password'))
-      return 'Password is too weak. Use at least 6 characters.';
-    if (msg.includes('too-many-requests'))
-      return 'Too many attempts. Please try again later.';
-    if (msg.includes('requires-recent-login'))
-      return 'For security, please sign out and sign back in before making this change.';
-    if (msg.includes('network-request-failed'))
-      return "Couldn't reach the server. Check your connection and try again.";
-    return msg;
+  const setFieldError = (field: FieldErrorKey, text: string) =>
+    setFieldErrors(prev => ({ ...prev, [field]: text }));
+
+  const clearFieldError = (...fields: FieldErrorKey[]) =>
+    setFieldErrors(prev => {
+      if (!fields.some(field => prev[field])) return prev;
+      const next = { ...prev };
+      for (const field of fields) delete next[field];
+      return next;
+    });
+
+  /**
+   * Report a failed account change. An error one field caused (the wrong
+   * current password, an email already taken, a weak new password) is also
+   * written under that field, where it stays until the field is edited or
+   * the form is sent again.
+   */
+  const showAuthError = (
+    err: unknown,
+    fields: {
+      password?: FieldErrorKey;
+      email?: FieldErrorKey;
+      newPassword?: FieldErrorKey;
+    } = {}
+  ) => {
+    const info = mapAuthError(err, 'reauth');
+    // Nothing to say: they closed the Google window themselves.
+    if (!info) return;
+    const field = isWrongPasswordError(err)
+      ? fields.password
+      : info.code === 'auth/email-already-in-use' ||
+          info.code === 'auth/invalid-email'
+        ? fields.email
+        : info.code === 'auth/weak-password'
+          ? fields.newPassword
+          : undefined;
+    if (field) setFieldError(field, info.message);
+    showMessage(info.message, 'error');
   };
 
   const signOut = async () => {
@@ -253,7 +347,7 @@ const Profile = () => {
         /* sign out regardless */
       }
       await logout();
-      toast.success('Logged out successfully');
+      toast.success('Signed out');
     } catch {
       leavingRef.current = false;
       toast.error('Failed to sign out. Please try again.');
@@ -277,9 +371,9 @@ const Profile = () => {
       await updateDisplayName(nameValue.trim());
       await updateMemberDisplayName(nameValue.trim());
       setEditingName(false);
-      showMessage('Display name updated.', 'success');
+      showMessage('Display name updated', 'success');
     } catch (err) {
-      showMessage(friendlyAuthError(err), 'error');
+      showAuthError(err);
     } finally {
       setNameLoading(false);
     }
@@ -287,13 +381,14 @@ const Profile = () => {
 
   const saveEmail = async () => {
     if (!emailValue.trim() || !emailPasswordValue) return;
+    clearFieldError('email', 'emailPassword');
     try {
       setEmailLoading(true);
       await updateUserEmail(emailValue.trim(), emailPasswordValue);
       setEditingEmail(false);
-      showMessage('Email updated successfully.', 'success');
+      showMessage('Email updated', 'success');
     } catch (err) {
-      showMessage(friendlyAuthError(err), 'error');
+      showAuthError(err, { password: 'emailPassword', email: 'email' });
     } finally {
       setEmailLoading(false);
     }
@@ -304,11 +399,11 @@ const Profile = () => {
       setVerificationLoading(true);
       await sendVerificationEmail();
       showMessage(
-        'Verification email sent! Check your inbox and refresh after verifying.',
+        'Verification email sent. Check your inbox, then refresh this page.',
         'success'
       );
     } catch (err) {
-      showMessage(friendlyAuthError(err), 'error');
+      showAuthError(err);
     } finally {
       setVerificationLoading(false);
     }
@@ -316,12 +411,16 @@ const Profile = () => {
 
   const savePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) return;
+    clearFieldError('currentPassword', 'newPassword');
     if (newPassword !== confirmPassword) {
+      // Already said under Confirm new password, as it is typed.
       showMessage('New passwords do not match.', 'error');
       return;
     }
-    if (newPassword.length < 6) {
-      showMessage('Password must be at least 6 characters.', 'error');
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      const text = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+      setFieldError('newPassword', text);
+      showMessage(text, 'error');
       return;
     }
     try {
@@ -331,23 +430,27 @@ const Profile = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      showMessage('Password updated successfully.', 'success');
+      showMessage('Password updated', 'success');
     } catch (err) {
-      showMessage(friendlyAuthError(err), 'error');
+      showAuthError(err, {
+        password: 'currentPassword',
+        newPassword: 'newPassword',
+      });
     } finally {
       setPasswordLoading(false);
     }
   };
 
   const handleDeleteAccount = async () => {
+    clearFieldError('deletePassword');
     try {
       setDeleteLoading(true);
       leavingRef.current = true;
       await deleteAccount(isPasswordProvider ? deletePassword : undefined);
-      toast.success('Your account and its data have been deleted');
+      toast.success('Your account and data were deleted');
     } catch (err) {
       leavingRef.current = false;
-      showMessage(friendlyAuthError(err), 'error');
+      showAuthError(err, { password: 'deletePassword' });
     } finally {
       setDeleteLoading(false);
     }
@@ -383,30 +486,6 @@ const Profile = () => {
           <ArrowLeft className="h-4 w-4" />
           Back to Sessions
         </Link>
-
-        {message && (
-          <Alert
-            className={`shadow-sm ${
-              message.type === 'error'
-                ? 'border-red-500/50 bg-red-500/10'
-                : 'border-emerald-500/50 bg-emerald-500/10'
-            }`}
-          >
-            <AlertDescription
-              className={
-                message.type === 'error'
-                  ? isDarkMode
-                    ? 'text-red-400'
-                    : 'text-red-700'
-                  : isDarkMode
-                    ? 'text-emerald-400'
-                    : 'text-emerald-700'
-              }
-            >
-              {message.text}
-            </AlertDescription>
-          </Alert>
-        )}
 
         <Card
           className={`shadow-lg border-2 transition-all duration-300 overflow-hidden ${
@@ -507,6 +586,8 @@ const Profile = () => {
                   }}
                   autoFocus
                   placeholder="Enter display name"
+                  aria-label="Display name"
+                  autoComplete="name"
                   className="h-10"
                 />
                 <Button
@@ -549,7 +630,6 @@ const Profile = () => {
                   onClick={() => {
                     setNameValue(user?.displayName || '');
                     setEditingName(true);
-                    setMessage(null);
                   }}
                 >
                   Edit
@@ -564,16 +644,33 @@ const Profile = () => {
                 <Input
                   type="email"
                   value={emailValue}
-                  onChange={e => setEmailValue(e.target.value)}
+                  onChange={e => {
+                    setEmailValue(e.target.value);
+                    clearFieldError('email');
+                  }}
                   placeholder="New email address"
+                  aria-label="New email address"
+                  autoComplete="email"
+                  aria-invalid={!!fieldErrors.email || undefined}
+                  aria-describedby={
+                    fieldErrors.email ? 'profile-email-error' : undefined
+                  }
                   autoFocus
                   className="h-10"
                 />
+                {fieldErrors.email && (
+                  <FieldError id="profile-email-error" isDarkMode={isDarkMode}>
+                    {fieldErrors.email}
+                  </FieldError>
+                )}
                 <div className="relative">
                   <Input
                     type="password"
                     value={emailPasswordValue}
-                    onChange={e => setEmailPasswordValue(e.target.value)}
+                    onChange={e => {
+                      setEmailPasswordValue(e.target.value);
+                      clearFieldError('emailPassword');
+                    }}
                     onKeyDown={e => {
                       if (e.key === 'Enter') saveEmail();
                       if (e.key === 'Escape') {
@@ -583,9 +680,25 @@ const Profile = () => {
                       }
                     }}
                     placeholder="Current password to confirm"
+                    aria-label="Current password"
+                    autoComplete="current-password"
+                    aria-invalid={!!fieldErrors.emailPassword || undefined}
+                    aria-describedby={
+                      fieldErrors.emailPassword
+                        ? 'profile-email-password-error'
+                        : undefined
+                    }
                     className="h-10"
                   />
                 </div>
+                {fieldErrors.emailPassword && (
+                  <FieldError
+                    id="profile-email-password-error"
+                    isDarkMode={isDarkMode}
+                  >
+                    {fieldErrors.emailPassword}
+                  </FieldError>
+                )}
                 <div className="flex gap-2">
                   <Button
                     size="sm"
@@ -641,7 +754,7 @@ const Profile = () => {
                         setEmailValue(user?.email || '');
                         setEmailPasswordValue('');
                         setEditingEmail(true);
-                        setMessage(null);
+                        clearFieldError('email', 'emailPassword');
                       }}
                     >
                       Edit
@@ -703,6 +816,25 @@ const Profile = () => {
           </Field>
         </Section>
 
+        <div id="team" className="scroll-mt-24">
+          <Section
+            icon={Users}
+            title="Team"
+            description={
+              team
+                ? `${
+                    teamService.ownerOf(team) === user.uid
+                      ? "You're the owner"
+                      : "You're a member"
+                  } · ${team.members.length} member${team.members.length === 1 ? '' : 's'}`
+                : 'Share sessions with teammates. You can be in one team at a time.'
+            }
+            isDarkMode={isDarkMode}
+          >
+            <TeamManager />
+          </Section>
+        </div>
+
         <Section
           icon={Lock}
           title="Security"
@@ -716,8 +848,19 @@ const Profile = () => {
                     <Input
                       type={showCurrentPassword ? 'text' : 'password'}
                       value={currentPassword}
-                      onChange={e => setCurrentPassword(e.target.value)}
+                      onChange={e => {
+                        setCurrentPassword(e.target.value);
+                        clearFieldError('currentPassword');
+                      }}
                       placeholder="Current password"
+                      aria-label="Current password"
+                      autoComplete="current-password"
+                      aria-invalid={!!fieldErrors.currentPassword || undefined}
+                      aria-describedby={
+                        fieldErrors.currentPassword
+                          ? 'profile-current-password-error'
+                          : undefined
+                      }
                       autoFocus
                       className="h-10 pr-10"
                     />
@@ -738,12 +881,31 @@ const Profile = () => {
                       )}
                     </button>
                   </div>
+                  {fieldErrors.currentPassword && (
+                    <FieldError
+                      id="profile-current-password-error"
+                      isDarkMode={isDarkMode}
+                    >
+                      {fieldErrors.currentPassword}
+                    </FieldError>
+                  )}
                   <div className="relative">
                     <Input
                       type={showNewPassword ? 'text' : 'password'}
                       value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      placeholder="New password (min. 6 characters)"
+                      onChange={e => {
+                        setNewPassword(e.target.value);
+                        clearFieldError('newPassword');
+                      }}
+                      placeholder={`New password (min. ${MIN_PASSWORD_LENGTH} characters)`}
+                      aria-label="New password"
+                      autoComplete="new-password"
+                      aria-invalid={!!fieldErrors.newPassword || undefined}
+                      aria-describedby={
+                        fieldErrors.newPassword
+                          ? 'profile-new-password-error'
+                          : undefined
+                      }
                       className="h-10 pr-10"
                     />
                     <button
@@ -761,6 +923,14 @@ const Profile = () => {
                       )}
                     </button>
                   </div>
+                  {fieldErrors.newPassword && (
+                    <FieldError
+                      id="profile-new-password-error"
+                      isDarkMode={isDarkMode}
+                    >
+                      {fieldErrors.newPassword}
+                    </FieldError>
+                  )}
                   <Input
                     type="password"
                     value={confirmPassword}
@@ -775,14 +945,23 @@ const Profile = () => {
                       }
                     }}
                     placeholder="Confirm new password"
+                    aria-label="Confirm new password"
+                    autoComplete="new-password"
+                    aria-invalid={passwordsDiffer || undefined}
+                    aria-describedby={
+                      passwordsDiffer
+                        ? 'profile-confirm-password-error'
+                        : undefined
+                    }
                     className="h-10"
                   />
-                  {newPassword && confirmPassword && newPassword !== confirmPassword && (
-                    <p
-                      className={`text-xs ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}
+                  {passwordsDiffer && (
+                    <FieldError
+                      id="profile-confirm-password-error"
+                      isDarkMode={isDarkMode}
                     >
-                      Passwords do not match.
-                    </p>
+                      New passwords do not match.
+                    </FieldError>
                   )}
                   <div className="flex gap-2">
                     <Button
@@ -792,7 +971,7 @@ const Profile = () => {
                         !currentPassword ||
                         !newPassword ||
                         !confirmPassword ||
-                        newPassword !== confirmPassword
+                        passwordsDiffer
                       }
                       onClick={savePassword}
                       className={isDarkMode ? 'text-black' : 'text-white'}
@@ -835,7 +1014,7 @@ const Profile = () => {
                       setNewPassword('');
                       setConfirmPassword('');
                       setEditingPassword(true);
-                      setMessage(null);
+                      clearFieldError('currentPassword', 'newPassword');
                     }}
                   >
                     Change
@@ -878,38 +1057,75 @@ const Profile = () => {
         >
           {showDeleteConfirm ? (
             <div className="space-y-4">
-              <Alert className="border-red-500/30 bg-red-500/10">
-                <AlertDescription
-                  className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}
-                >
-                  This permanently deletes your account, every session you
-                  recorded (including ones your team can see) and your share
-                  links, and removes you from your team. If you own the team
-                  it passes to its longest-standing member, or is deleted if
-                  you are its only member. This action cannot be undone.
+              <Alert variant="destructive">
+                <AlertDescription className="space-y-2">
+                  <p>
+                    This deletes your account, every session you recorded
+                    {team
+                      ? ` (including ones shared with ${team.name}, which teammates will no longer see)`
+                      : ''}{' '}
+                    and your share links.
+                  </p>
+                  {team && (
+                    <p className="font-medium">
+                      {describeTeamAfterDelete(team, user.uid)}
+                    </p>
+                  )}
+                  <p>
+                    This cannot be undone.{' '}
+                    {/* A 44px target on a phone (global.css); the negative
+                        margin keeps that from doubling the space under it */}
+                    <Link
+                      to={ROUTES.SESSIONS}
+                      className="inline-flex items-center font-semibold underline underline-offset-2 hover:no-underline [@media(max-width:640px)]:-mb-3"
+                    >
+                      Export sessions (CSV) first
+                    </Link>
+                  </p>
                 </AlertDescription>
               </Alert>
 
               {isPasswordProvider && (
                 <div className="space-y-1.5">
                   <Label
+                    htmlFor="delete-password"
                     className={`text-xs font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
                   >
                     Confirm your password
                   </Label>
                   <Input
+                    id="delete-password"
                     type="password"
                     value={deletePassword}
-                    onChange={e => setDeletePassword(e.target.value)}
+                    onChange={e => {
+                      setDeletePassword(e.target.value);
+                      clearFieldError('deletePassword');
+                    }}
                     placeholder="Enter your password"
+                    autoComplete="current-password"
+                    aria-invalid={!!fieldErrors.deletePassword || undefined}
+                    aria-describedby={
+                      fieldErrors.deletePassword
+                        ? 'delete-password-error'
+                        : undefined
+                    }
                     autoFocus
                     className="h-10"
                   />
+                  {fieldErrors.deletePassword && (
+                    <FieldError
+                      id="delete-password-error"
+                      isDarkMode={isDarkMode}
+                    >
+                      {fieldErrors.deletePassword}
+                    </FieldError>
+                  )}
                 </div>
               )}
 
               <div className="space-y-1.5">
                 <Label
+                  htmlFor="delete-confirm-text"
                   className={`text-xs font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
                 >
                   Type{' '}
@@ -921,10 +1137,13 @@ const Profile = () => {
                   to confirm
                 </Label>
                 <Input
+                  id="delete-confirm-text"
                   type="text"
                   value={deleteConfirmText}
                   onChange={e => setDeleteConfirmText(e.target.value)}
                   placeholder='Type "DELETE"'
+                  autoComplete="off"
+                  autoCapitalize="characters"
                   className="h-10"
                 />
               </div>
@@ -949,6 +1168,7 @@ const Profile = () => {
                     setShowDeleteConfirm(false);
                     setDeletePassword('');
                     setDeleteConfirmText('');
+                    clearFieldError('deletePassword');
                   }}
                   className={
                     isDarkMode
@@ -961,8 +1181,10 @@ const Profile = () => {
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <div>
+            // The button never shrinks below its label; on the narrowest
+            // phones it drops under the text instead of squeezing it.
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+              <div className="min-w-0 flex-1 basis-44">
                 <p
                   className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
@@ -977,14 +1199,14 @@ const Profile = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className={`border-red-500/40 hover:bg-red-500/10 hover:border-red-500/60 ${
+                className={`shrink-0 whitespace-nowrap border-red-500/40 hover:bg-red-500/10 hover:border-red-500/60 ${
                   isDarkMode
                     ? 'text-red-400 hover:text-red-300'
                     : 'text-red-700 hover:text-red-800'
                 }`}
                 onClick={() => {
                   setShowDeleteConfirm(true);
-                  setMessage(null);
+                  clearFieldError('deletePassword');
                 }}
               >
                 Delete Account
@@ -1016,7 +1238,7 @@ const Profile = () => {
               {signOutLoss}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4">
+          <DialogFooter>
             <Button
               variant="outline"
               size="sm"
@@ -1030,7 +1252,7 @@ const Profile = () => {
             <Button variant="destructive" size="sm" onClick={signOut}>
               Sign Out Anyway
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

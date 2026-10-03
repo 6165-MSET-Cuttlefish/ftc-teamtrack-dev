@@ -1,20 +1,16 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import type { KeyboardEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useSessionCore, useTheme, useTeam } from '@/contexts';
 import { firebaseService, teamService } from '@/services';
 import { TeamManager } from '@/components';
-import { useEscapeKey } from '@/hooks';
 import {
-  formatDate,
   toDate,
   isAbortError,
   generateShareableLink,
   copyShareLink,
   logger,
   matchScore,
-  rankingPointTally,
-  sessionMatchType,
-  MIXED_MATCH_TYPE,
   buildSessionsCsv,
   buildLegacySessionsCsv,
   csvFileName,
@@ -28,6 +24,7 @@ import {
   readGuestSessions,
   writeGuestSessions,
 } from '@/lib';
+import type { SortOption } from '@/lib';
 import {
   getPendingDeleteIds,
   subscribePendingDeletes,
@@ -41,23 +38,21 @@ import {
   APP_CONFIG,
   ROUTES,
   SESSION_LIMITS,
+  STORAGE_KEYS,
+  OPEN_SHARE_SESSIONS_EVENT,
   CURRENT_SEASON,
 } from '@/constants';
 import type { CreateSessionData, Session } from '@/types';
-import type { SortOption } from '@/lib';
+import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -66,91 +61,36 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Archive,
+  ArrowUpDown,
   Search,
   Plus,
-  Award,
-  Calendar,
-  Trophy,
-  Clock,
   BarChart3,
-  Pencil,
-  Trash2,
+  ChevronDown,
   Download,
+  Smartphone,
   TrendingUp,
-  Hash,
-  Share2,
   Upload,
+  Users,
   X,
-  ArrowUpDown,
-  Archive,
-  ArchiveRestore,
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-/** Match types offered by the filter, as the lower-case values it stores. */
-const MATCH_TYPE_FILTERS = [
-  { value: 'full game', label: 'Full Game' },
-  { value: 'autonomous', label: 'Autonomous' },
-  { value: 'teleop', label: 'Teleop' },
-  { value: MIXED_MATCH_TYPE.toLowerCase(), label: MIXED_MATCH_TYPE },
-] as const;
-
-/** The type each of a session's matches was run as, lower-cased. */
-const matchTypesOf = (session: Session): string[] =>
-  (session.matches || []).map(match =>
-    (match.matchType || session.matchType || 'Full Game').toLowerCase()
-  );
-
-/** A session's own label: the type its matches share, or 'Mixed'. */
-const matchTypeLabel = (session: Session): string =>
-  sessionMatchType(session.matches, session.matchType);
-
-/** Every match score in a session, recomputed from the match's fields. */
-const scoresOf = (session: Session): number[] =>
-  (session.matches || []).map(match => matchScore(match, session.matchType));
-
-/**
- * Badge colours for a session's match type, as light / dark class pairs:
- * emerald for Autonomous and amber for Teleop, the team colour for a Full
- * Game, neutral for a session whose matches were not all the same type.
- */
-const MATCH_TYPE_STYLES: Record<string, { light: string; dark: string }> = {
-  'Full Game': {
-    light: 'border-team-blue/40 bg-team-blue/10 text-gray-700',
-    dark: 'border-team-blue-40 bg-team-blue/15 text-team-blue',
-  },
-  Autonomous: {
-    light: 'border-emerald-200 bg-emerald-100 text-emerald-900',
-    dark: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300',
-  },
-  Teleop: {
-    light: 'border-amber-200 bg-amber-100 text-amber-900',
-    dark: 'border-amber-500/30 bg-amber-500/15 text-amber-300',
-  },
-  [MIXED_MATCH_TYPE]: {
-    light: 'border-gray-300 bg-gray-100 text-gray-700',
-    dark: 'border-white/20 bg-white/10 text-team-white-60',
-  },
-};
-
-/** The session's match type (the one its matches share, or 'Mixed'). */
-const MatchTypeBadge = ({ session }: { session: Session }) => {
-  const { isDarkMode } = useTheme();
-  const label = matchTypeLabel(session);
-  // A type this build doesn't know still shows, in the neutral colours.
-  const style = MATCH_TYPE_STYLES[label] ?? MATCH_TYPE_STYLES[MIXED_MATCH_TYPE];
-
-  return (
-    <span
-      data-testid="session-match-type"
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${
-        isDarkMode ? style.dark : style.light
-      }`}
-    >
-      {label}
-    </span>
-  );
-};
+import { SessionCard } from './SessionCard';
+import {
+  ALL_MATCH_TYPES,
+  MATCH_TYPE_FILTERS,
+  SESSION_SCOPES,
+  filterSessions,
+  hasActiveFilters,
+  matchCountOf,
+  matchTypeLabel,
+  oneMatchTypeLabel,
+  plural,
+  quickStatsOf,
+  scopeLabel,
+  sessionsToExport,
+} from './sessionList';
+import type { SessionListFilters, SessionScope } from './sessionList';
 
 /**
  * The guest sessions in this browser that an account can take in. One the
@@ -162,424 +102,41 @@ const importableGuestSessions = (): Session[] => {
   return readGuestSessions().filter(session => !pendingIds.has(session.id));
 };
 
-interface SessionCardProps {
-  session: Session;
-  onView: () => void;
-  /** Rename the session. Left out when the viewer can't change it. */
-  onNameChange?: (newName: string) => void;
-  /** Delete the session. Left out when the viewer can't delete it. */
-  onDelete?: () => void;
-  onShare: () => void;
-  /**
-   * Archive the session, or bring an archived one back. Left out when the
-   * viewer can't change it.
-   */
-  onToggleArchive?: () => void;
-  isDeleting?: boolean;
-  ownerName?: string;
-  /** Name of the viewer's team when this session isn't filed under it */
-  notSharedWith?: string;
-}
-
-const SessionCard = ({
-  session,
-  onView,
-  onNameChange,
-  onDelete,
-  onShare,
-  onToggleArchive,
-  isDeleting = false,
-  ownerName,
-  notSharedWith,
-}: SessionCardProps) => {
-  const { isDarkMode } = useTheme();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedName, setEditedName] = useState(session.sessionName || '');
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [isSavingName, setIsSavingName] = useState(false);
-  const [isTitleTruncated, setIsTitleTruncated] = useState(false);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    if (titleRef.current && !isEditing) {
-      const isTruncated = titleRef.current.scrollHeight > titleRef.current.clientHeight;
-      setIsTitleTruncated(isTruncated);
-    } else {
-      setIsTitleTruncated(false);
+/**
+ * The unshared sessions the user said "Not now" about in this team. Keeping
+ * a session private is a choice, so the banner only comes back for others.
+ */
+const readUnsharedDismissed = (uid: string, teamId: string): Set<string> => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.UNSHARED_BANNER_DISMISSED);
+    const saved: unknown = raw ? JSON.parse(raw) : null;
+    if (
+      saved &&
+      typeof saved === 'object' &&
+      'uid' in saved &&
+      'teamId' in saved &&
+      'ids' in saved &&
+      saved.uid === uid &&
+      saved.teamId === teamId &&
+      Array.isArray(saved.ids)
+    ) {
+      return new Set(saved.ids.filter(id => typeof id === 'string'));
     }
-  }, [session.sessionName, isEditing]);
-
-  useEffect(() => {
-    if (deleteConfirm) {
-      const timeout = setTimeout(() => setDeleteConfirm(false), UI_TIMING.DELETE_CONFIRM_TIMEOUT);
-      return () => clearTimeout(timeout);
-    }
-  }, [deleteConfirm]);
-  useEscapeKey(deleteConfirm, () => setDeleteConfirm(false));
-
-  const handleSaveName = async () => {
-    if (!editedName.trim()) {
-      toast.error('Session name cannot be empty');
-      setEditedName(session.sessionName || '');
-      setIsEditing(false);
-      return;
-    }
-    setIsSavingName(true);
-    await onNameChange?.(editedName.trim());
-    setIsSavingName(false);
-    setIsEditing(false);
-  };
-
-  const handleCancelEdit = () => {
-    setEditedName(session.sessionName || '');
-    setIsEditing(false);
-  };
-
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsEditing(true);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (deleteConfirm) {
-      onDelete?.();
-      setDeleteConfirm(false);
-    } else {
-      setDeleteConfirm(true);
-    }
-  };
-
-  const handleDeleteCancel = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDeleteConfirm(false);
-  };
-
-  const getSessionScores = () => {
-    const matches = session.matches || [];
-    const scores = scoresOf(session);
-
-    if (scores.length === 0) {
-      return { highestScore: 0, averageScore: 0, totalScore: 0, matchCount: matches.length };
-    }
-
-    const totalScore = scores.reduce((a, b) => a + b, 0);
-    const highestScore = Math.max(...scores);
-    const averageScore = Math.round(totalScore / scores.length);
-    
-    return { highestScore, averageScore, totalScore, matchCount: matches.length };
-  };
-
-  const { highestScore, averageScore, totalScore, matchCount } = getSessionScores();
-  const rp = rankingPointTally(session.matches || [], session.matchType);
-  const archived = isArchived(session);
-  const archiveLabel = archived ? 'Unarchive session' : 'Archive session';
-
-  const cardContent = (
-    <Card
-      className={`transition-all duration-300 cursor-pointer group ${
-        isDarkMode
-          ? 'border-team-blue-40 bg-team-dark hover:border-team-blue'
-          : 'border-gray-200 bg-white hover:border-team-blue'
-      }`}
-      onClick={onView}
-    >
-      <CardHeader className="pb-4 pt-6 px-6">
-        {/* Where the buttons would leave the name under 10rem beside them
-            (a phone, a three-column grid), it gets the row above */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
-          <div className="flex-1 min-w-0 basis-full sm:basis-40">
-            {isEditing ? (
-              <div
-                className="flex items-center gap-3"
-                onClick={e => e.stopPropagation()}
-              >
-                <Input
-                  value={editedName}
-                  onChange={e => setEditedName(e.target.value)}
-                  maxLength={SESSION_LIMITS.MAX_SESSION_NAME_LENGTH}
-                  aria-label="Session name"
-                  className={`h-10 text-xl font-semibold ${
-                    isDarkMode
-                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                      : 'bg-gray-50 border-team-blue/60 text-team-blue placeholder-gray-500'
-                  }`}
-                  autoFocus
-                  onBlur={handleSaveName}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      handleSaveName();
-                    } else if (e.key === 'Escape') {
-                      handleCancelEdit();
-                    }
-                  }}
-                />
-              </div>
-            ) : (
-              <CardTitle
-                ref={titleRef}
-                className={`text-lg font-semibold line-clamp-3 break-words [overflow-wrap:anywhere] ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {session.sessionName || 'Untitled Session'}
-              </CardTitle>
-            )}
-          </div>
-          {/* Four 44px touch targets and the score don't fit one row on the
-              narrowest phones: there the score drops to a row of its own */}
-          <div className="flex flex-wrap items-center justify-end gap-x-2 sm:gap-x-3 gap-y-2 min-w-0 max-w-full ml-auto">
-            {!isEditing && (
-              <div className="flex items-center gap-1 sm:gap-2">
-                {isSavingName ? (
-                  <div className="h-4 w-4 border-2 border-team-blue border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onShare();
-                      }}
-                      className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                        isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                      } hover:text-team-blue`}
-                      title="Share session"
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </button>
-                    {onToggleArchive && (
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          onToggleArchive();
-                        }}
-                        className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                          isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                        } hover:text-team-blue`}
-                        title={archiveLabel}
-                        aria-label={archiveLabel}
-                      >
-                        {archived ? (
-                          <ArchiveRestore className="h-4 w-4" />
-                        ) : (
-                          <Archive className="h-4 w-4" />
-                        )}
-                      </button>
-                    )}
-                    {onNameChange && (
-                      <button
-                        onClick={handleEditClick}
-                        className={`inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                          isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                        } hover:text-team-blue`}
-                        title="Edit session name"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    )}
-                    {onDelete && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={handleDeleteClick}
-                          disabled={isDeleting}
-                          className={`inline-flex items-center justify-center p-1.5 rounded-lg transition-all transform hover:scale-110 ${
-                            isDeleting
-                              ? 'opacity-50 cursor-not-allowed'
-                              : deleteConfirm
-                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg'
-                                : `${isDarkMode ? 'text-team-white-60' : 'text-gray-500'} hover:bg-red-500/20 hover:text-red-500`
-                          }`}
-                          title={
-                            isDeleting
-                              ? 'Deleting...'
-                              : deleteConfirm
-                                ? 'Click again to confirm delete'
-                                : 'Delete session'
-                          }
-                        >
-                          {isDeleting ? (
-                            <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
-                        {deleteConfirm && !isDeleting && (
-                          <button
-                            onClick={handleDeleteCancel}
-                            className={`p-1.5 rounded-lg hover:bg-team-blue/20 transition-all transform hover:scale-110 ${
-                              isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                            }`}
-                            title="Cancel delete"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-            <div className="flex items-center gap-2 bg-team-blue/15 px-4 py-2 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
-              <Trophy className="h-5 w-5 text-team-blue group-hover:scale-110 transition-transform duration-300" />
-              <span className="text-xl font-bold text-team-blue">
-                {highestScore}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-        >
-          <MatchTypeBadge session={session} />
-          <span className="inline-flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            <span>{formatDate(session.createdAt)}</span>
-          </span>
-          {/* Each separator stays with the item after it when the row wraps */}
-          {ownerName && (
-            <span className="inline-flex items-center gap-2 min-w-0">
-              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                ·
-              </span>
-              <span className="break-words [overflow-wrap:anywhere]">
-                {ownerName}
-              </span>
-            </span>
-          )}
-          {notSharedWith && (
-            <span
-              className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                isDarkMode
-                  ? 'border-team-blue-40 text-team-white-60'
-                  : 'border-gray-300 text-gray-600'
-              }`}
-              title={
-                // Leaving a team doesn't take a session out of it.
-                session.teamId
-                  ? `Still filed under another team, whose members can see it. It isn't shared with ${notSharedWith}.`
-                  : `Only you can see this session. It isn't shared with ${notSharedWith}.`
-              }
-            >
-              {session.teamId ? 'Other team' : 'Not shared'}
-            </span>
-          )}
-        </div>
-      </CardHeader>
-
-      <CardContent className="pt-0 pb-6 px-6">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-          <div className="flex items-center gap-3">
-            <TrendingUp
-              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                Total Score
-              </span>
-              <span
-                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {totalScore} pts
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Trophy
-              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                Avg Score
-              </span>
-              <span
-                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {averageScore} pts
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Hash
-              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                Matches
-              </span>
-              <span
-                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {matchCount}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Clock
-              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                Duration
-              </span>
-              <span
-                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {session.sessionDuration || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          {/* SWARM and POLLINATOR only: a win or tie needs the opponent's score */}
-          <div className="col-span-2 flex items-center gap-3">
-            <Award
-              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-            />
-            <div className="flex flex-col">
-              <span
-                className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-              >
-                Ranking Points
-              </span>
-              <span
-                data-testid="session-ranking-points"
-                className={`font-medium ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
-                {rp.rate === null
-                  ? 'N/A'
-                  : `${rp.earned} of ${rp.possible} RP (${rp.rate}%)`}
-              </span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  if (isTitleTruncated) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {cardContent}
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs break-words">
-          {session.sessionName || 'Untitled Session'}
-        </TooltipContent>
-      </Tooltip>
-    );
+  } catch {
+    /* unreadable: the banner shows again */
   }
+  return new Set();
+};
 
-  return cardContent;
+const writeUnsharedDismissed = (uid: string, teamId: string, ids: string[]) => {
+  try {
+    localStorage.setItem(
+      STORAGE_KEYS.UNSHARED_BANNER_DISMISSED,
+      JSON.stringify({ uid, teamId, ids })
+    );
+  } catch {
+    /* storage unavailable: dismissed for this visit only */
+  }
 };
 
 const LoadingCard = () => {
@@ -589,23 +146,14 @@ const LoadingCard = () => {
     <Card
       className={`${isDarkMode ? 'border-team-blue-40 bg-team-dark' : 'border-team-blue/40 bg-white'}`}
     >
-      <CardHeader className="pb-4 pt-6 px-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="space-y-3 flex-1">
-            <div className="h-6 bg-muted rounded animate-pulse w-40"></div>
-          </div>
-          <div className="h-8 bg-muted rounded animate-pulse w-16"></div>
+      <div className="flex flex-col gap-2 p-4 sm:gap-3 sm:p-5">
+        <div className="h-6 bg-muted rounded animate-pulse w-3/4"></div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="h-11 bg-muted rounded animate-pulse w-36"></div>
+          <div className="h-9 bg-muted rounded-xl animate-pulse w-24"></div>
         </div>
-        <div className="h-4 bg-muted rounded animate-pulse w-32"></div>
-      </CardHeader>
-
-      <CardContent className="pt-0 pb-6 px-6">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-10 bg-muted rounded animate-pulse"></div>
-          ))}
-        </div>
-      </CardContent>
+        <div className="h-5 sm:h-[5.5rem] bg-muted rounded animate-pulse"></div>
+      </div>
     </Card>
   );
 };
@@ -621,7 +169,10 @@ const Sessions = () => {
   /** The list couldn't be read, so an empty one doesn't mean "no sessions" */
   const [loadFailed, setLoadFailed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMatchType, setSelectedMatchType] = useState<string>('all');
+  const [selectedMatchType, setSelectedMatchType] =
+    useState<string>(ALL_MATCH_TYPES);
+  /** All, Team or Mine; only offered (and only applied) inside a team */
+  const [selectedScope, setSelectedScope] = useState<SessionScope>('all');
   const [sortBy, setSortBy] = useState<SortOption>(DEFAULT_SORT);
   /** Which half of the list is on screen: the archived sessions, or the rest */
   const [showArchived, setShowArchived] = useState(false);
@@ -631,6 +182,10 @@ const Sessions = () => {
   const [guestSessionCount, setGuestSessionCount] = useState(0);
   const [importingGuestSessions, setImportingGuestSessions] = useState(false);
   const [importBannerDismissed, setImportBannerDismissed] = useState(false);
+  /** Unshared sessions already answered "Not now" to, kept across visits */
+  const [unsharedDismissedIds, setUnsharedDismissedIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   /** Last season's sessions exist: they aren't listed, but can be exported */
   const [hasOlderSeasons, setHasOlderSeasons] = useState(false);
   const [exportingOlder, setExportingOlder] = useState(false);
@@ -826,45 +381,36 @@ const Sessions = () => {
     [sessions, hiddenIds]
   );
 
-  const filtersActive = searchTerm.trim() !== '' || selectedMatchType !== 'all';
+  const filters = useMemo<SessionListFilters>(
+    () => ({
+      searchTerm,
+      matchType: selectedMatchType,
+      scope: teamId ? selectedScope : 'all',
+    }),
+    [searchTerm, selectedMatchType, selectedScope, teamId]
+  );
+
+  const filtersActive = hasActiveFilters(filters);
 
   const archivedCount = useMemo(
     () => visibleSessions.filter(isArchived).length,
     [visibleSessions]
   );
 
-  const filteredSessions = useMemo(() => {
-    // Archived sessions never show in the default list, nor active ones
-    // under Archived, whatever the search and filter say.
-    let filtered = inArchiveView(visibleSessions, showArchived);
+  /**
+   * The sessions of the view on screen, in the chosen order: the archived
+   * ones under Archived, the rest otherwise, whatever the search and filter
+   * say. Everything below (the cards, Quick Stats, the export) starts here.
+   */
+  const viewSessions = useMemo(
+    () => sortSessions(inArchiveView(visibleSessions, showArchived), sortBy),
+    [visibleSessions, showArchived, sortBy]
+  );
 
-    const term = searchTerm.trim().toLowerCase();
-    if (term) {
-      filtered = filtered.filter(
-        session =>
-          session.sessionName?.toLowerCase().includes(term) ||
-          matchTypeLabel(session).toLowerCase().includes(term) ||
-          matchTypesOf(session).some(type => type.includes(term))
-      );
-    }
-
-    if (selectedMatchType !== 'all') {
-      // A session belongs under every type any of its matches was run as,
-      // and under 'Mixed' when they weren't all the same.
-      filtered = filtered.filter(
-        session =>
-          matchTypeLabel(session).toLowerCase() === selectedMatchType ||
-          matchTypesOf(session).includes(selectedMatchType)
-      );
-    }
-
-    return sortSessions(filtered, sortBy);
-  }, [visibleSessions, searchTerm, selectedMatchType, sortBy, showArchived]);
-
-  const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedMatchType('all');
-  };
+  const filteredSessions = useMemo(
+    () => filterSessions(viewSessions, filters, { teamId, uid }),
+    [viewSessions, filters, teamId, uid]
+  );
 
   /**
    * The view is empty only because of which half it shows: nothing archived
@@ -873,22 +419,72 @@ const Sessions = () => {
    */
   const archiveEmpty = showArchived || archivedCount > 0;
 
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedMatchType(ALL_MATCH_TYPES);
+    setSelectedScope('all');
+  };
+
   /**
-   * Quick Stats, over the same sessions the list can show — archived ones
-   * included: archiving tidies the list, it doesn't take results away.
+   * Quick Stats, over exactly the sessions the list is showing: archived
+   * ones count under Archived, and still count on Charts and Compare.
    */
-  const quickStats = useMemo(() => {
-    const scores = visibleSessions.flatMap(scoresOf);
-    return {
-      sessionCount: visibleSessions.length,
-      matchCount: scores.length,
-      averageScore:
-        scores.length > 0
-          ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-          : 0,
-      bestScore: scores.length > 0 ? Math.max(...scores) : 0,
-    };
-  }, [visibleSessions]);
+  const quickStats = useMemo(
+    () => quickStatsOf(filteredSessions, filters.matchType),
+    [filteredSessions, filters.matchType]
+  );
+
+  /**
+   * The viewer's own sessions that their team can't see. A team's list only
+   * ever adds the viewer's own to what is filed under the team.
+   */
+  const unsharedIds = useMemo(
+    () =>
+      teamId
+        ? visibleSessions
+            .filter(session => session.teamId !== teamId)
+            .map(session => session.id)
+        : [],
+    [visibleSessions, teamId]
+  );
+  const unsharedCount = unsharedIds.length;
+  const unsharedBannerDismissed = unsharedIds.every(id =>
+    unsharedDismissedIds.has(id)
+  );
+
+  useEffect(() => {
+    setUnsharedDismissedIds(
+      uid && teamId ? readUnsharedDismissed(uid, teamId) : new Set()
+    );
+  }, [uid, teamId]);
+
+  const dismissUnsharedBanner = () => {
+    setUnsharedDismissedIds(new Set(unsharedIds));
+    if (uid && teamId) writeUnsharedDismissed(uid, teamId, unsharedIds);
+  };
+
+  /** Arrow keys move between All, Team and Mine, as in any radio group. */
+  const handleScopeKey = (
+    e: KeyboardEvent<HTMLButtonElement>,
+    index: number
+  ) => {
+    const step =
+      e.key === 'ArrowRight' || e.key === 'ArrowDown'
+        ? 1
+        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+          ? -1
+          : 0;
+    if (step === 0) return;
+    e.preventDefault();
+    const nextIndex =
+      (index + step + SESSION_SCOPES.length) % SESSION_SCOPES.length;
+    setSelectedScope(SESSION_SCOPES[nextIndex].value);
+    const radios =
+      e.currentTarget.parentElement?.querySelectorAll<HTMLElement>(
+        '[role="radio"]'
+      );
+    radios?.[nextIndex]?.focus();
+  };
 
   /** The author of a session (and a guest, of their own) can rename it. */
   const canRename = (session: Session): boolean =>
@@ -911,13 +507,12 @@ const Sessions = () => {
       session.teamId === team.id &&
       teamService.ownerOf(team) === uid);
 
-  const handleViewSession = (sessionId: string) => {
-    navigate(`/analysis?sessionId=${sessionId}`);
-  };
-
-  const handleUpdateSessionName = async (sessionId: string, newName: string) => {
+  const handleUpdateSessionName = async (
+    sessionId: string,
+    newName: string
+  ) => {
     const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
-    
+
     try {
       setSessions(prevSessions =>
         prevSessions.map(session =>
@@ -926,7 +521,7 @@ const Sessions = () => {
             : session
         )
       );
-      
+
       let success: boolean;
       if (isGuestSessionId(sessionId)) {
         writeGuestSessions(
@@ -940,7 +535,7 @@ const Sessions = () => {
           sessionName: newName,
         });
       }
-      
+
       if (!success) {
         setSessions(prevSessions =>
           prevSessions.map(session =>
@@ -1012,21 +607,21 @@ const Sessions = () => {
       return;
     }
 
-    toast.success(archived ? 'Session archived' : 'Session unarchived', {
-      action: isUndo
+    toast.success(
+      archived ? 'Session archived' : 'Session unarchived',
+      isUndo
         ? undefined
         : {
-            label: 'Undo',
-            onClick: () => handleToggleArchive(sessionId, !archived, true),
-          },
-    });
+            duration: UI_TIMING.UNDO_WINDOW,
+            action: {
+              label: 'Undo',
+              onClick: () => handleToggleArchive(sessionId, !archived, true),
+            },
+          }
+    );
   };
 
   const handleShareSession = async (session: Session) => {
-    if (isGuest) {
-      toast.error('Create an account to share sessions');
-      return;
-    }
     try {
       const shareLink = await generateShareableLink(session);
       await copyShareLink(shareLink, () =>
@@ -1153,16 +748,17 @@ const Sessions = () => {
       }
 
       setGuestSessionCount(importableGuestSessions().length);
-      const plural = (n: number) => `${n} session${n === 1 ? '' : 's'}`;
-      if (imported > 0) toast.success(`Imported ${plural(imported)}`);
+      if (imported > 0) {
+        toast.success(`Imported ${plural(imported, 'session')}`);
+      }
       if (failed > 0) {
         toast.error(
-          `Couldn't import ${plural(failed)}. ${failed === 1 ? 'It is' : 'They are'} still saved on this device - try again.`
+          `Couldn't import ${plural(failed, 'session')}. ${failed === 1 ? 'It is' : 'They are'} still saved on this device - try again.`
         );
       }
       if (overLimit > 0) {
         toast.error(
-          `${plural(overLimit)} not imported: accounts hold ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Delete some of your own old sessions, then import again.`,
+          `${plural(overLimit, 'session')} not imported: accounts hold ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Delete some of your own old sessions, then import again.`,
           { duration: UI_TIMING.UNDO_WINDOW }
         );
       }
@@ -1177,27 +773,64 @@ const Sessions = () => {
   const getSessionOwnerName = (session: Session): string | undefined => {
     if (!team) return undefined;
     const member = team.members.find(m => m.userId === session.userId);
-    return member?.displayName || member?.email || session.userEmail || undefined;
+    return (
+      member?.displayName || member?.email || session.userEmail || undefined
+    );
   };
 
   /**
-   * Export what is on screen — the current view, search, filter and order —
-   * so the file never contradicts the list it was made from.
+   * Download `toExport` as one CSV and say how much went into it. Under a
+   * filter that names one match type (`matchType`), only the matches of that
+   * type go in, the ones Quick Stats counts.
    */
-  const handleExportCSV = () => {
-    if (filteredSessions.length === 0) {
+  const exportSessions = (
+    toExport: Session[],
+    matchType: string = ALL_MATCH_TYPES
+  ) => {
+    if (toExport.length === 0) {
       toast.error('No sessions to export');
       return;
     }
 
+    const exported = sessionsToExport(toExport, matchType);
     downloadCsv(
-      csvFileName('sessions-export'),
-      buildSessionsCsv(filteredSessions)
+      csvFileName(
+        showArchived ? 'archived-sessions-export' : 'sessions-export'
+      ),
+      buildSessionsCsv(exported)
     );
+    const matchCount = matchCountOf(exported);
+    const type = oneMatchTypeLabel(matchType);
+    const match = type ? `${type} match` : 'match';
     toast.success(
-      `Exported ${filteredSessions.length} session${filteredSessions.length === 1 ? '' : 's'} to CSV`
+      `Exported ${plural(exported.length, 'session')} (${plural(matchCount, match, `${match}es`)})`
     );
   };
+
+  /**
+   * Export follows the list: when a search, filter or scope leaves anything
+   * out (a session, or under a one-type filter a match of another type), the
+   * button exports what is shown (and what Quick Stats counts) and says
+   * which part that is, and every session of the view is one more choice
+   * away. Plain "Export" always writes the whole view: every active session,
+   * or under Archived every archived one. Rows follow the order on screen.
+   */
+  const canExport = viewSessions.length > 0;
+  const sessionsLeftOut = filteredSessions.length < viewSessions.length;
+  const exportsShown =
+    filtersActive &&
+    filteredSessions.length > 0 &&
+    (sessionsLeftOut ||
+      matchCountOf(sessionsToExport(filteredSessions, filters.matchType)) <
+        matchCountOf(viewSessions));
+  const exportLabel = exportsShown
+    ? sessionsLeftOut
+      ? `Export ${filteredSessions.length} shown`
+      : // Every session is shown; the filter only leaves matches out.
+        `Export ${oneMatchTypeLabel(filters.matchType) ?? 'shown'}`
+    : canExport && filtersActive && filteredSessions.length === 0
+      ? `Export all ${viewSessions.length}`
+      : 'Export';
 
   /** Export last season's sessions, in that season's columns. */
   const handleExportOlderSeasons = async () => {
@@ -1228,88 +861,139 @@ const Sessions = () => {
     }
   };
 
+  const hasSessions = visibleSessions.length > 0;
+  /** Only the Team / Mine scope is narrowing the view */
+  const scopeOnly =
+    filters.scope !== 'all' &&
+    filters.searchTerm.trim() === '' &&
+    filters.matchType === ALL_MATCH_TYPES;
+
+  const headingText = isDarkMode ? 'text-white' : 'text-team-blue';
+  const mutedText = isDarkMode ? 'text-gray-300' : 'text-gray-600';
+  const outlineButton = `border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2.5 sm:px-3 py-2 min-h-11 flex items-center gap-1 sm:gap-1.5 text-team-blue border-team-blue-40`;
+  const bannerTone = isDarkMode
+    ? 'bg-team-blue/10 border-team-blue-40'
+    : 'bg-team-blue/5 border-team-blue/40';
+  const dismissButton = `inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-team-blue/20 transition-colors disabled:opacity-50 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
+    isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+  }`;
+
   return (
     <div
       className={`min-h-[100dvh] page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 md:py-8 lg:py-12">
-        <div className="mb-4 sm:mb-6 md:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
-            <div className="flex flex-col gap-3">
-              <h1
-                className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+        <div className="mb-4 sm:mb-6 flex flex-col gap-3">
+          {/* From 640px the title and the page's actions share a row. On a
+              phone the title has a row of its own, the height of a toast,
+              which drops in over it there: the actions below stay clear.
+              Export sits at the row's end and grows into the space before
+              it when it reads "Export 2 shown" or "Export Autonomous", so
+              typing a search never wraps the row and pushes the search field
+              down; the icons are left out on a phone to make that room.
+              Under 360px Export always has a row of its own. */}
+          <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 md:gap-x-3 gap-y-2">
+            <h1
+              className={`w-full sm:w-auto sm:mr-auto min-h-11 sm:min-h-0 flex items-center ${PAGE_TITLE_CLASS}`}
+            >
+              Sessions
+            </h1>
+            {hasSessions && (
+              <Button
+                onClick={() => navigate(ROUTES.CHARTS)}
+                className={`bg-team-blue hover:bg-team-blue/90 transition-colors text-xs sm:text-sm md:text-base px-2.5 sm:px-3 md:px-4 py-2 min-h-11 flex items-center gap-1 sm:gap-1.5 ${
+                  isDarkMode ? '!text-black' : '!text-white'
+                }`}
               >
-                {team ? team.name : 'My Sessions'}
-              </h1>
-              {!isGuest && <TeamManager onTeamChange={() => loadSessions()} />}
-            </div>
-            <div className="flex gap-1 sm:gap-2 md:gap-3 flex-wrap">
-              {visibleSessions.length > 0 && (
+                <TrendingUp className="max-sm:hidden" />
+                Charts
+              </Button>
+            )}
+            {visibleSessions.length > 1 && (
+              <Button
+                onClick={() => navigate(ROUTES.COMPARE)}
+                className={outlineButton}
+                variant="outline"
+              >
+                <BarChart3 className="max-sm:hidden" />
+                Compare
+              </Button>
+            )}
+            {hasSessions && (
+              <div className="flex ml-auto sm:ml-0 max-[359px]:w-full max-[359px]:justify-end">
                 <Button
-                  onClick={() => navigate(ROUTES.CHARTS)}
-                  className={`bg-team-blue hover:bg-team-blue/90 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
-                    isDarkMode ? '!text-black' : '!text-white'
-                  }`}
-                >
-                  <TrendingUp className="h-3 sm:h-4 w-3 sm:w-4" />
-                  <span className="hidden sm:inline">Charts</span>
-                  <span className="sm:hidden">Stats</span>
-                </Button>
-              )}
-              {visibleSessions.length > 1 && (
-                <Button
-                  onClick={() => navigate(ROUTES.COMPARE)}
-                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
-                    isDarkMode
-                      ? 'text-team-blue border-team-blue-40'
-                      : 'text-team-blue border-team-blue-40'
-                  }`}
+                  onClick={() =>
+                    exportsShown
+                      ? exportSessions(filteredSessions, filters.matchType)
+                      : exportSessions(viewSessions)
+                  }
+                  disabled={!canExport}
+                  className={`${outlineButton} ${exportsShown ? 'rounded-r-none' : ''}`}
                   variant="outline"
                 >
-                  <BarChart3 className="h-3 sm:h-4 w-3 sm:w-4" />
-                  <span className="hidden sm:inline">Compare</span>
-                  <span className="sm:hidden">Comp</span>
+                  <Download className="max-sm:hidden" />
+                  {exportLabel}
                 </Button>
-              )}
-              {visibleSessions.length > 0 && (
-                <Button
-                  onClick={handleExportCSV}
-                  className={`border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2 sm:px-3 py-2 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-1.5 ${
-                    isDarkMode
-                      ? 'text-team-blue border-team-blue-40'
-                      : 'text-team-blue border-team-blue-40'
-                  }`}
-                  variant="outline"
-                >
-                  <Download className="h-3 sm:h-4 w-3 sm:w-4" />
-                  <span className="hidden sm:inline">Export</span>
-                  <span className="sm:hidden">CSV</span>
-                </Button>
-              )}
-            </div>
+                {exportsShown && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        aria-label="More export options"
+                        className={`${outlineButton} -ml-px rounded-l-none px-2 sm:px-2 [@media(pointer:coarse)]:min-w-11`}
+                        variant="outline"
+                      >
+                        <ChevronDown />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={() => exportSessions(viewSessions)}
+                        className="flex items-center gap-2 cursor-pointer [@media(pointer:coarse)]:min-h-11"
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Export all {viewSessions.length}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            )}
           </div>
+          {!isGuest && <TeamManager onTeamChange={() => loadSessions()} />}
         </div>
+
+        {isGuest && !loading && hasSessions && (
+          <p
+            role="note"
+            className={`mb-4 px-3 py-2 rounded-xl border flex items-center gap-2 text-xs sm:text-sm ${bannerTone} ${
+              isDarkMode ? 'text-gray-100' : 'text-gray-900'
+            }`}
+          >
+            <Smartphone aria-hidden="true" className="h-4 w-4 shrink-0" />
+            <span>
+              Stored on this device only ·{' '}
+              <Link
+                to={ROUTES.SIGNUP}
+                className="inline-block -my-3 py-3 font-semibold text-team-blue underline underline-offset-2"
+              >
+                Sign up to back up
+              </Link>
+            </span>
+          </p>
+        )}
 
         {!isGuest && guestSessionCount > 0 && !importBannerDismissed && (
           <div
             role="region"
             aria-label="Import sessions saved on this device"
-            className={`mb-6 p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-3 ${
-              isDarkMode
-                ? 'bg-team-blue/10 border-team-blue-40'
-                : 'bg-team-blue/5 border-team-blue/40'
-            }`}
+            className={`mb-4 sm:mb-6 p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-3 ${bannerTone}`}
           >
             <div className="flex-1 min-w-0">
-              <p
-                className={`font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-              >
+              <p className={`font-semibold ${headingText}`}>
                 {guestSessionCount} session{guestSessionCount === 1 ? '' : 's'}{' '}
                 saved on this device
               </p>
-              <p
-                className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-              >
+              <p className={`text-sm ${mutedText}`}>
                 Recorded here before you signed in. Import{' '}
                 {guestSessionCount === 1 ? 'it' : 'them'} to keep{' '}
                 {guestSessionCount === 1 ? 'it' : 'them'} in your account.
@@ -1331,9 +1015,7 @@ const Sessions = () => {
               <button
                 onClick={() => setImportBannerDismissed(true)}
                 disabled={importingGuestSessions}
-                className={`inline-flex items-center justify-center p-2 rounded-lg hover:bg-team-blue/20 transition-colors disabled:opacity-50 ${
-                  isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                }`}
+                className={dismissButton}
                 aria-label="Not now"
                 title="Not now"
               >
@@ -1343,176 +1025,266 @@ const Sessions = () => {
           </div>
         )}
 
-        {!loading && visibleSessions.length > 0 && (
+        {team && !loading && unsharedCount > 0 && !unsharedBannerDismissed && (
           <div
-            className={`mb-6 p-4 sm:p-6 lg:p-8 rounded-2xl border shadow-lg ${
-              isDarkMode
-                ? 'bg-team-dark-20 border-team-blue-40'
-                : 'bg-white border-gray-200'
-            }`}
+            role="region"
+            aria-label="Sessions your team can't see"
+            className={`mb-4 pl-3 pr-1 py-1 sm:pl-4 sm:pr-2 sm:py-2 rounded-xl border flex items-center gap-2 sm:gap-3 ${bannerTone}`}
           >
-            <h3
-              className={`text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+            <Users
+              aria-hidden="true"
+              className="hidden sm:block h-4 w-4 shrink-0 text-team-blue"
+            />
+            {/* A sentence that ends in its action on a phone; the action
+                moves out to a button of its own from 640px */}
+            <p
+              className={`flex-1 min-w-0 text-sm font-medium break-words sm:flex sm:items-center sm:gap-3 ${
+                isDarkMode ? 'text-gray-100' : 'text-gray-900'
+              }`}
             >
-              <TrendingUp className="h-4 sm:h-5 w-4 sm:w-5" />
-              Quick Stats
-            </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-              <div
-                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
+              <span className="sm:flex-1">
+                {unsharedCount} of your sessions{' '}
+                {unsharedCount === 1 ? "isn't" : "aren't"} shared with{' '}
+                {team.name}.
+              </span>{' '}
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(new Event(OPEN_SHARE_SESSIONS_EVENT))
+                }
+                className="-my-2 py-2 font-semibold text-team-blue underline underline-offset-2 whitespace-nowrap sm:my-0 sm:min-h-11 sm:px-3 sm:rounded-lg sm:border sm:border-team-blue-40 sm:no-underline sm:hover:bg-team-blue/10 sm:transition-colors"
               >
-                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {quickStats.sessionCount}
-                </div>
-                <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Total Sessions
-                </div>
-              </div>
-              <div
-                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {quickStats.averageScore}
-                </div>
-                <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Avg Score
-                </div>
-              </div>
-              <div
-                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {quickStats.bestScore}
-                </div>
-                <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Best Score
-                </div>
-              </div>
-              <div
-                className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode ? 'bg-team-blue/10 hover:bg-team-blue/20' : 'bg-team-blue/5 hover:bg-team-blue/10'}`}
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-team-blue mb-1">
-                  {quickStats.matchCount}
-                </div>
-                <div
-                  className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                >
-                  Total Matches
-                </div>
-              </div>
-            </div>
+                Share {unsharedCount === 1 ? 'it' : 'them'}
+              </button>
+            </p>
+            <button
+              onClick={dismissUnsharedBanner}
+              className={dismissButton}
+              aria-label="Not now"
+              title="Not now"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
 
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4">
-            <div className="flex-1 relative sm:min-w-[220px]">
-              <Search
-                className={`absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
-              />
-              <Input
-                placeholder="Search sessions..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className={`pl-10 md:pl-12 h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm transition-all duration-200 focus:shadow-md ${
-                  isDarkMode
-                    ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue'
-                    : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-team-blue'
-                }`}
-              />
-            </div>
-            <Select
-              value={selectedMatchType}
-              onValueChange={setSelectedMatchType}
-            >
-              <SelectTrigger
-                aria-label="Filter by match type"
-                className={`w-full sm:w-[180px] h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm border ${
-                  isDarkMode
-                    ? 'bg-team-dark border-team-blue-40 text-white'
-                    : 'bg-white border-gray-200 text-gray-900'
-                }`}
-              >
-                <SelectValue placeholder="All Match Types" />
-              </SelectTrigger>
-              <SelectContent
-                className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
-              >
-                <SelectItem value="all">All Match Types</SelectItem>
-                {MATCH_TYPE_FILTERS.map(({ value, label }) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {/* Sort and the archive view share a row on a phone */}
-            <div className="flex gap-3 sm:gap-4">
+        {/* Search, filter, order, view and scope sit above everything they
+            narrow: Quick Stats, the cards and the export. They share one row
+            from 1024px (1280px in a team, where the scope joins them); below
+            that the order and the view have a row of their own, with the
+            scope from 640px. The sort's width never follows its label, so
+            picking an order never moves anything. */}
+        {(loading || hasSessions) && (
+          <div
+            className={`mb-4 sm:mb-6 flex flex-col gap-2 sm:gap-3 ${team ? 'xl:flex-row' : 'lg:flex-row'}`}
+          >
+            <div className="flex flex-1 min-w-0 gap-2 sm:gap-3">
+              <div className="flex-1 min-w-0 relative">
+                <Search
+                  aria-hidden="true"
+                  className={`absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+                />
+                <Input
+                  type="search"
+                  aria-label="Search sessions"
+                  placeholder="Search sessions"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className={`pl-10 md:pl-12 h-11 text-base md:text-base rounded-xl shadow-sm transition-all duration-200 focus:shadow-md ${
+                    isDarkMode
+                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue'
+                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-team-blue'
+                  }`}
+                />
+              </div>
               <Select
-                value={sortBy}
-                onValueChange={value => setSortBy(value as SortOption)}
+                value={selectedMatchType}
+                onValueChange={setSelectedMatchType}
               >
                 <SelectTrigger
-                  aria-label="Sort sessions"
-                  className={`flex-1 min-w-0 sm:flex-none sm:w-[180px] h-10 md:h-11 text-sm md:text-base rounded-xl shadow-sm border ${
+                  aria-label="Filter by match type"
+                  className={`w-[8.75rem] sm:w-[180px] shrink-0 h-11 text-sm md:text-base rounded-xl shadow-sm border ${
                     isDarkMode
                       ? 'bg-team-dark border-team-blue-40 text-white'
                       : 'bg-white border-gray-200 text-gray-900'
                   }`}
                 >
-                  <div className="flex items-center gap-2 truncate">
-                    <ArrowUpDown className="h-4 w-4 shrink-0 opacity-70" />
-                    <SelectValue placeholder="Sort" />
-                  </div>
+                  <SelectValue placeholder="All Match Types" />
                 </SelectTrigger>
                 <SelectContent
                   className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
                 >
-                  {(Object.keys(SORT_LABELS) as SortOption[]).map(option => (
-                    <SelectItem key={option} value={option}>
-                      {SORT_LABELS[option]}
+                  <SelectItem value={ALL_MATCH_TYPES}>
+                    <span className="sm:hidden">All types</span>
+                    <span className="hidden sm:inline">All Match Types</span>
+                  </SelectItem>
+                  {MATCH_TYPE_FILTERS.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowArchived(prev => !prev)}
-                aria-pressed={showArchived}
-                title={
-                  showArchived
-                    ? 'Back to your active sessions'
-                    : 'Show archived sessions'
-                }
-                className={`h-10 md:h-11 rounded-xl shadow-sm text-sm md:text-base px-3 flex items-center gap-2 shrink-0 ${
-                  showArchived
-                    ? 'bg-team-blue/10 border-team-blue text-team-blue hover:bg-team-blue/20 hover:text-team-blue'
-                    : isDarkMode
-                      ? 'bg-team-dark border-team-blue-40 text-team-white-60 hover:bg-team-blue-10 hover:text-white'
-                      : 'bg-white border-gray-200 text-gray-600'
-                }`}
-              >
-                <Archive className="h-4 w-4" />
-                <span>Archived</span>
-                {archivedCount > 0 && (
-                  <span data-testid="archived-count" className="text-xs">
-                    ({archivedCount})
-                  </span>
-                )}
-              </Button>
+            </div>
+            <div
+              className={`flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 ${team ? 'xl:shrink-0' : 'lg:shrink-0'}`}
+            >
+              <div className="flex flex-1 sm:flex-none min-w-0 gap-2 sm:gap-3">
+                <Select
+                  value={sortBy}
+                  onValueChange={value => setSortBy(value as SortOption)}
+                >
+                  <SelectTrigger
+                    aria-label="Sort sessions"
+                    className={`flex-1 min-w-0 sm:flex-none sm:w-[11.5rem] h-11 text-sm md:text-base rounded-xl shadow-sm border ${
+                      isDarkMode
+                        ? 'bg-team-dark border-team-blue-40 text-white'
+                        : 'bg-white border-gray-200 text-gray-900'
+                    }`}
+                  >
+                    {/* A div: the trigger clamps a span child to one line,
+                        which would stack the icon over the label */}
+                    <div className="flex min-w-0 items-center gap-2">
+                      <ArrowUpDown
+                        aria-hidden="true"
+                        className="h-4 w-4 shrink-0 opacity-70"
+                      />
+                      <span className="truncate">
+                        <SelectValue placeholder="Sort" />
+                      </span>
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent
+                    className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white border-gray-200'}`}
+                  >
+                    {(Object.keys(SORT_LABELS) as SortOption[]).map(option => (
+                      <SelectItem key={option} value={option}>
+                        {SORT_LABELS[option]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowArchived(prev => !prev)}
+                  aria-pressed={showArchived}
+                  title={
+                    showArchived
+                      ? 'Back to your active sessions'
+                      : 'Show archived sessions'
+                  }
+                  className={`h-11 shrink-0 rounded-xl shadow-sm text-sm md:text-base px-3 flex items-center gap-1.5 ${
+                    showArchived
+                      ? 'bg-team-blue/10 border-team-blue text-team-blue hover:bg-team-blue/20 hover:text-team-blue'
+                      : isDarkMode
+                        ? 'bg-team-dark border-team-blue-40 text-gray-200 hover:bg-team-blue-10 hover:text-white'
+                        : 'bg-white border-gray-200 text-gray-700'
+                  }`}
+                >
+                  <Archive aria-hidden="true" />
+                  <span>Archived</span>
+                  {archivedCount > 0 && (
+                    <span
+                      data-testid="archived-count"
+                      className="min-w-[1.25rem] rounded-full bg-team-blue/15 px-1.5 text-xs font-semibold tabular-nums text-team-blue"
+                    >
+                      {archivedCount}
+                    </span>
+                  )}
+                </Button>
+              </div>
+              {team && (
+                <div
+                  role="radiogroup"
+                  aria-label="Whose sessions to show"
+                  className={`w-full sm:w-auto grid grid-cols-3 gap-0.5 p-0.5 rounded-xl border shrink-0 ${
+                    isDarkMode
+                      ? 'border-team-blue-40 bg-team-dark'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  {SESSION_SCOPES.map(({ value, label }, index) => {
+                    const isSelected = filters.scope === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        tabIndex={isSelected ? 0 : -1}
+                        onClick={() => setSelectedScope(value)}
+                        onKeyDown={e => handleScopeKey(e, index)}
+                        className={`min-h-10 px-4 lg:px-5 rounded-[0.625rem] text-sm transition-colors [@media(pointer:coarse)]:min-h-11 ${
+                          isSelected
+                            ? `bg-team-blue font-bold ${isDarkMode ? 'text-black' : 'text-white'}`
+                            : `font-medium hover:bg-team-blue/10 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        )}
+
+        {!loading && filteredSessions.length > 0 && (
+          <section
+            aria-labelledby="quick-stats-title"
+            className={`mb-4 sm:mb-6 p-3 sm:p-6 lg:p-8 rounded-2xl border shadow-lg ${
+              isDarkMode
+                ? 'bg-team-dark-20 border-team-blue-40'
+                : 'bg-white border-gray-200'
+            }`}
+          >
+            <h2
+              id="quick-stats-title"
+              className={`text-base sm:text-xl font-semibold mb-2 sm:mb-4 break-words ${headingText}`}
+            >
+              <TrendingUp
+                aria-hidden="true"
+                className="inline-block align-[-0.125em] mr-2 h-4 sm:h-5 w-4 sm:w-5"
+              />
+              Quick Stats{' '}
+              <span
+                data-testid="quick-stats-scope"
+                className={`text-sm sm:text-base font-normal ${mutedText}`}
+              >
+                · {scopeLabel(quickStats.sessionCount, filters, showArchived)}
+              </span>
+            </h2>
+            {/* One row of four at every width, so the first card stays on
+                a phone's first screen */}
+            <dl className="grid grid-cols-4 gap-1.5 sm:gap-4 lg:gap-6">
+              {[
+                { label: 'Sessions', value: quickStats.sessionCount },
+                { label: 'Avg Score', value: quickStats.averageScore ?? '–' },
+                { label: 'Best Score', value: quickStats.bestScore ?? '–' },
+                { label: 'Matches', value: quickStats.matchCount },
+              ].map(({ label, value }) => (
+                <div
+                  key={label}
+                  className={`flex flex-col-reverse min-w-0 px-1.5 py-2 sm:p-4 rounded-xl text-center sm:text-left ${isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'}`}
+                >
+                  <dt
+                    className={`text-[0.6875rem] leading-tight sm:text-sm font-medium ${mutedText}`}
+                  >
+                    {label}
+                  </dt>
+                  <dd className="text-xl sm:text-3xl font-bold text-team-blue tabular-nums sm:mb-1">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
             {[...Array(6)].map((_, i) => (
               <LoadingCard key={i} />
             ))}
@@ -1528,58 +1300,70 @@ const Sessions = () => {
                 className={`h-8 sm:h-12 w-8 sm:w-12 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
               />
             </div>
-            <h3
-              className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-            >
+            <h2 className={`text-lg font-semibold mb-2 ${headingText}`}>
               {loadFailed
                 ? "Couldn't load your sessions"
-                : filtersActive
-                  ? `No ${showArchived ? 'archived ' : ''}sessions match these filters`
-                  : showArchived
-                    ? 'No archived sessions'
-                    : archivedCount > 0
-                      ? 'No active sessions'
-                      : 'No sessions yet'}
-            </h3>
+                : scopeOnly && showArchived
+                  ? filters.scope === 'team'
+                    ? `No archived sessions shared with ${team?.name ?? 'your team'}`
+                    : "You haven't archived any of your sessions"
+                  : scopeOnly
+                    ? filters.scope === 'team'
+                      ? `No sessions shared with ${team?.name ?? 'your team'} yet`
+                      : "You haven't recorded a session yet"
+                    : filtersActive
+                      ? `No ${showArchived ? 'archived ' : ''}sessions match these filters`
+                      : showArchived
+                        ? 'No archived sessions'
+                        : archivedCount > 0
+                          ? 'No active sessions'
+                          : 'No sessions yet'}
+            </h2>
             <p
-              className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+              className={`mb-6 max-w-md mx-auto ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
             >
               {loadFailed
                 ? 'Check your connection, then reload the page'
-                : filtersActive
-                  ? 'Try a different search or match type'
-                  : showArchived
-                    ? 'Sessions you archive are kept here, out of your main list'
-                    : archivedCount > 0
-                      ? archivedCount === 1
-                        ? 'The only session here is archived'
-                        : `All ${archivedCount} sessions here are archived`
-                      : isGuest
-                        ? 'Create an account to save your practice sessions'
-                        : 'Start tracking your practice sessions to see them here'}
+                : scopeOnly && showArchived
+                  ? 'Sessions you archive are kept here, out of your main list.'
+                  : scopeOnly
+                    ? filters.scope === 'team'
+                      ? 'Sessions filed under the team show up here.'
+                      : 'Sessions you score show up here.'
+                    : filtersActive
+                      ? 'Try a different search or match type'
+                      : showArchived
+                        ? 'Sessions you archive are kept here, out of your main list.'
+                        : archivedCount > 0
+                          ? archivedCount === 1
+                            ? 'The only session here is archived.'
+                            : `All ${archivedCount} sessions here are archived.`
+                          : isGuest
+                            ? 'Score a practice and it shows up here. No account needed · sessions are kept in this browser.'
+                            : 'Score a practice and it shows up here.'}
             </p>
             {!loadFailed && filtersActive && (
               <Button
                 onClick={clearFilters}
                 variant="outline"
-                className={
+                className={`min-h-11 ${
                   isDarkMode
                     ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
                     : 'border-gray-300'
-                }
+                }`}
               >
-                Clear filters
+                {scopeOnly ? 'Show all sessions' : 'Clear filters'}
               </Button>
             )}
             {!loadFailed && !filtersActive && archiveEmpty && (
               <Button
                 onClick={() => setShowArchived(prev => !prev)}
                 variant="outline"
-                className={
+                className={`min-h-11 ${
                   isDarkMode
                     ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
                     : 'border-gray-300'
-                }
+                }`}
               >
                 {showArchived ? 'Back to sessions' : 'Show archived sessions'}
               </Button>
@@ -1587,52 +1371,51 @@ const Sessions = () => {
             {!loadFailed && !filtersActive && !archiveEmpty && !isGuest && (
               <Button
                 onClick={() => {
-                  resetSession();
+                  // A session already under way is carried on, not replaced.
+                  if (!hasActiveSession) resetSession();
                   navigate(ROUTES.ACTIVE);
                 }}
-                disabled={hasActiveSession}
-                title={hasActiveSession ? 'Complete or cancel the active session first' : undefined}
-                className={`bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-black' : 'text-white'}`}
+                className={`bg-team-blue hover:bg-team-blue/90 min-h-11 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Session
+                {!hasActiveSession && <Plus className="h-4 w-4" />}
+                {hasActiveSession
+                  ? 'Back to your active session'
+                  : 'Start your first session'}
               </Button>
             )}
             {!loadFailed && !filtersActive && !archiveEmpty && isGuest && (
-              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <div className="flex flex-col gap-2 justify-center items-center">
                 <Button
-                  onClick={() => navigate('/signup')}
-                  className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
+                  onClick={() => navigate(ROUTES.ACTIVE)}
+                  className={`bg-team-blue hover:bg-team-blue/90 min-h-11 ${isDarkMode ? 'text-black' : 'text-white'}`}
                 >
-                  Sign Up to Save Sessions
+                  <Plus className="h-4 w-4" />
+                  Start your first session
                 </Button>
-                <Button
-                  onClick={() => navigate('/active')}
-                  variant="outline"
-                  className={
-                    isDarkMode
-                      ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
-                      : 'border-gray-300'
-                  }
+                <Link
+                  to={ROUTES.SIGNUP}
+                  className="inline-flex min-h-11 items-center text-sm font-medium text-team-blue underline underline-offset-2"
                 >
-                  Start Practice Session
-                </Button>
+                  Sign up to back up and share
+                </Link>
               </div>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
             {filteredSessions.map(session => (
               <SessionCard
                 key={session.id}
                 session={session}
-                onView={() => handleViewSession(session.id)}
+                href={`${ROUTES.ANALYSIS}?sessionId=${session.id}`}
                 onNameChange={
                   canRename(session)
                     ? newName => handleUpdateSessionName(session.id, newName)
                     : undefined
                 }
-                onShare={() => handleShareSession(session)}
+                onShare={
+                  isGuest ? undefined : () => handleShareSession(session)
+                }
                 onToggleArchive={
                   canArchive(session)
                     ? () =>
@@ -1663,7 +1446,7 @@ const Sessions = () => {
               type="button"
               onClick={handleExportOlderSeasons}
               disabled={exportingOlder}
-              className="inline-flex min-h-[44px] items-center font-medium text-team-blue underline underline-offset-4 disabled:opacity-50 sm:min-h-0"
+              className="inline-block -my-3 py-3 font-medium text-team-blue underline underline-offset-4 disabled:opacity-50"
             >
               {exportingOlder ? 'Exporting...' : 'Export them as CSV'}
             </button>

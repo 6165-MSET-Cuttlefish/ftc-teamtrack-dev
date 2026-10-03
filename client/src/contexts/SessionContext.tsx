@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   type ReactNode,
@@ -21,6 +22,7 @@ import {
   loadStoredSession,
   removeStoredSession,
   readSessionToken,
+  readStoredSessionSeenAt,
   markStoredSessionSeen,
   SESSION_REV_KEY,
   SESSION_STORAGE_CLEARED_EVENT,
@@ -37,8 +39,13 @@ import {
   pickupSecondsLeft,
   resyncClock,
   sessionSeconds,
+  SESSION_AWAY_LIMIT_MS,
   type ClockEnv,
 } from '@/lib/matchClock';
+import {
+  defaultSessionName,
+  retypeDefaultSessionName,
+} from '@/lib/sessionName';
 import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
 import type {
   Match,
@@ -134,16 +141,19 @@ const CLOCK_TICK_MS = 1000;
 const CLOCK_MIN_TICK_MS = 10;
 /** Quiet time after a change before it is written to localStorage, in ms */
 const PERSIST_DELAY_MS = 300;
+/** How often a tab with a running clock notes that the stored session is open in it, in ms */
+const SEEN_MARK_INTERVAL_MS = 60 * 1000;
 
 /**
  * A new session is ready to start as-is: named and set to Practice, so the
- * first thing a user can do is press Start. The name is confirmed when the
+ * first thing a user can do is press Start. The name says what kind of
+ * session it is and when ("Practice · Oct 1"), and is confirmed when the
  * session is saved.
  */
 const createInitialSessionData = (): SessionFormData => {
   return {
     ...emptyScoringFields(),
-    sessionName: 'Default Session',
+    sessionName: defaultSessionName('Practice'),
     sessionDuration: '',
     sessionType: 'Practice',
     matchType: 'Full Game',
@@ -192,6 +202,22 @@ const signatureOf = (
   ]);
 
 /**
+ * The same without the clock anchors: what the session is, not when. A tab
+ * that only puts its anchors right (the device clock was set back, time away
+ * was left out) stores a session whose state is still this.
+ */
+const stateSignatureOf = (
+  data: SessionFormData,
+  clock: SessionClockState,
+  flags: SessionFlags
+): string =>
+  JSON.stringify([
+    data,
+    [clock.phase, clock.running, clock.pickupPaused],
+    [flags.hasStarted, flags.matchActive],
+  ]);
+
+/**
  * Stop the match audio. /active does this itself while it is open; this is
  * for a match that goes away while another page is showing (sign-out, or
  * another tab ending it), where the track would otherwise play on.
@@ -233,6 +259,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       signature: stored?.clockCorrected
         ? null
         : signatureOf(data, clock, flags),
+      state: stateSignatureOf(data, clock, flags),
       restored: stored !== null,
       sessionStartTime: stored?.timerState.sessionStartTime ?? 0,
       matchStartTime: stored?.timerState.matchStartTime ?? 0,
@@ -299,13 +326,20 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
    * Multi-tab bookkeeping. `lastSeenTokenRef` is the stored revision this tab
    * last wrote or read (null: nothing stored); if storage holds a different
    * one, another tab has written since. `lastSyncedRef` is the signature of
-   * what this tab last wrote or loaded, so it only writes its own changes.
-   * `holdsStoredSessionRef` says whether the session on screen is one that
-   * was in storage, and so goes away if another tab removes it from there.
+   * what this tab last wrote or loaded, so it only writes its own changes;
+   * `lastSyncedStateRef` is the same without the clock anchors, and is kept
+   * when those are put right. `holdsStoredSessionRef` says whether the
+   * session on screen is one that was in storage, and so goes away if
+   * another tab removes it from there.
    */
   const lastSeenTokenRef = useRef<string | null>(initial.token);
   const lastSyncedRef = useRef<string | null>(initial.signature);
+  const lastSyncedStateRef = useRef(initial.state);
   const holdsStoredSessionRef = useRef(initial.restored);
+  /** What a save would store right now, for handlers that outlive a render */
+  const unsavedRef = useRef({ data: initial.data, flags: initial.flags });
+  /** When this tab last noted that the stored session is open in it */
+  const lastMarkedSeenRef = useRef(0);
   /** Flushes the write that is waiting out PERSIST_DELAY_MS, if any */
   const pendingPersistRef = useRef<(() => void) | null>(null);
   /**
@@ -351,12 +385,21 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const steady = performance.now();
     const last = lastReadRef.current;
     lastReadRef.current = { wall: now, steady };
-    const resynced = resyncClock(
-      clockRef.current,
-      // Set back: measure from where it would have been by now if left alone
-      now < last.wall ? last.wall + (steady - last.steady) : last.wall,
-      now
-    );
+    // Set back: measure from where it would have been by now if left alone
+    let aliveAt =
+      now < last.wall ? last.wall + (steady - last.steady) : last.wall;
+    // This tab has not looked for long enough to count as time away (it was
+    // frozen in the background). The session was not away if another tab
+    // had it open meanwhile.
+    if (
+      now - aliveAt > SESSION_AWAY_LIMIT_MS &&
+      holdsStoredSessionRef.current &&
+      readSessionToken() === lastSeenTokenRef.current
+    ) {
+      const seenAt = readStoredSessionSeenAt();
+      if (seenAt !== null && seenAt <= now) aliveAt = Math.max(aliveAt, seenAt);
+    }
+    const resynced = resyncClock(clockRef.current, aliveAt, now);
     if (resynced !== clockRef.current) {
       clockRef.current = resynced;
       lastSyncedRef.current = null;
@@ -500,6 +543,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     matchStartTimeRef.current = 0;
     holdsStoredSessionRef.current = false;
     lastSyncedRef.current = signatureOf(newSessionData, clock, flagsOf(null));
+    lastSyncedStateRef.current = stateSignatureOf(
+      newSessionData,
+      clock,
+      flagsOf(null)
+    );
+    unsavedRef.current = { data: newSessionData, flags: flagsOf(null) };
     setSessionEpoch(epoch => epoch + 1);
   }, [publishClock]);
 
@@ -530,6 +579,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       lastSyncedRef.current = stored.clockCorrected
         ? null
         : signatureOf(stored.sessionData, stored.clock, flags);
+      lastSyncedStateRef.current = stateSignatureOf(
+        stored.sessionData,
+        stored.clock,
+        flags
+      );
+      unsavedRef.current = { data: stored.sessionData, flags };
       setClockNonce(n => n + 1);
     },
     [publishClock]
@@ -540,12 +595,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
    * take its session, or go back to a fresh one if the session this tab was
    * showing has been completed, cancelled or signed out of there. A tab that
    * is showing a completed session, or running the tutorial, is left alone.
+   *
+   * 'kept' and 'own' both leave this tab's session in place for it to store:
+   * 'kept' because nothing is stored, 'own' because what the other tab
+   * stored is the session this tab already had with only its clocks put
+   * right, while this tab holds a change that is not stored yet.
    */
   const syncFromStorage = useCallback(():
     | 'unchanged'
     | 'adopted'
     | 'reset'
-    | 'kept' => {
+    | 'kept'
+    | 'own' => {
     if (tutorialActiveRef.current || envRef.current.completed)
       return 'unchanged';
     const token = readSessionToken();
@@ -553,6 +614,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     const stored = token === null ? null : loadStoredSession(false);
     if (stored) {
+      const synced = lastSyncedStateRef.current;
+      const { data, flags } = unsavedRef.current;
+      if (
+        holdsStoredSessionRef.current &&
+        stateSignatureOf(stored.sessionData, stored.clock, flagsOf(stored)) ===
+          synced &&
+        stateSignatureOf(data, clockRef.current, flags) !== synced
+      ) {
+        lastSeenTokenRef.current = token;
+        return 'own';
+      }
       adoptStoredSession(stored, token);
       return 'adopted';
     }
@@ -642,6 +714,28 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     commitClock,
   ]);
 
+  /**
+   * A tab whose clock is running is a tab the session is open in, even when
+   * nothing in it changes for an hour. Say so about once a minute, so that
+   * a second window opened then, or a background tab woken up, does not
+   * take the quiet stretch for time away. Not when what is stored is not
+   * this tab's clock as it now stands.
+   */
+  const markSeenIfDue = useCallback(() => {
+    const now = Date.now();
+    if (Math.abs(now - lastMarkedSeenRef.current) < SEEN_MARK_INTERVAL_MS) {
+      return;
+    }
+    if (
+      holdsStoredSessionRef.current &&
+      lastSyncedRef.current !== null &&
+      readSessionToken() === lastSeenTokenRef.current
+    ) {
+      lastMarkedSeenRef.current = now;
+      markStoredSessionSeen();
+    }
+  }, []);
+
   const clockIsLive =
     !sessionData.isSessionCompleted &&
     (hasStarted || isTimerRunning || matchPhase === 'controller_pickup');
@@ -657,6 +751,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     let timeout: ReturnType<typeof setTimeout>;
     const run = () => {
       tick();
+      markSeenIfDue();
       const wait = msUntilNextChange(clockRef.current, Date.now());
       timeout = setTimeout(
         run,
@@ -671,7 +766,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       clearTimeout(timeout);
     };
-  }, [clockIsLive, clockNonce, tick]);
+  }, [clockIsLive, clockNonce, tick, markSeenIfDue]);
 
   useEffect(() => {
     if (hasStarted && !sessionStartTimeRef.current) {
@@ -763,6 +858,15 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     [sessionData, editingMatchId, currentMatchData]
   );
 
+  // On every commit, so that what another tab stores meanwhile is weighed
+  // against the session as it stands, not as it last rendered an effect.
+  useLayoutEffect(() => {
+    unsavedRef.current = {
+      data: liveSessionData,
+      flags: { hasStarted, matchActive },
+    };
+  });
+
   const persistNow = useCallback(
     (data: SessionFormData, flags: SessionFlags) => {
       // Never store anchors that are out of step with the wall clock
@@ -772,12 +876,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       if (signature === lastSyncedRef.current) return;
 
       // Another tab has written since this one last looked: take its
-      // version rather than overwrite it with a stale copy.
-      if (
-        readSessionToken() !== lastSeenTokenRef.current &&
-        syncFromStorage() !== 'kept'
-      ) {
-        return;
+      // version rather than overwrite it with a stale copy, unless all it
+      // did was put its clocks right under a change this tab has yet to store.
+      if (readSessionToken() !== lastSeenTokenRef.current) {
+        const synced = syncFromStorage();
+        if (synced !== 'kept' && synced !== 'own') return;
       }
 
       // Only a session that was started or has saved matches is restored on
@@ -789,6 +892,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         }
         holdsStoredSessionRef.current = false;
         lastSyncedRef.current = signature;
+        lastSyncedStateRef.current = stateSignatureOf(data, clock, flags);
         return;
       }
 
@@ -810,6 +914,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       lastSeenTokenRef.current = token;
       holdsStoredSessionRef.current = true;
       lastSyncedRef.current = signature;
+      lastSyncedStateRef.current = stateSignatureOf(data, clock, flags);
     },
     [readWallClock, syncFromStorage]
   );
@@ -850,7 +955,23 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   ]);
 
   const updateSessionData = useCallback((updates: Partial<SessionFormData>) => {
-    setSessionData(prev => ({ ...prev, ...updates }));
+    setSessionData(prev => {
+      const next = { ...prev, ...updates };
+      // A name the app gave follows the session type; one the user typed
+      // is left alone.
+      if (
+        updates.sessionType &&
+        updates.sessionType !== prev.sessionType &&
+        updates.sessionName === undefined
+      ) {
+        const renamed = retypeDefaultSessionName(
+          prev.sessionName,
+          updates.sessionType
+        );
+        if (renamed) next.sessionName = renamed;
+      }
+      return next;
+    });
   }, []);
 
   const replaceSessionData = useCallback((data: SessionFormData) => {

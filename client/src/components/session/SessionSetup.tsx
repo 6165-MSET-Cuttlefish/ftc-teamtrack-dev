@@ -3,7 +3,7 @@ import { useSessionCore, useTheme } from '@/contexts';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Lock } from 'lucide-react';
 import type { SessionType } from '@/types';
 import {
   Select,
@@ -47,7 +47,20 @@ export const SessionSetup = ({
   const matchTypeId = useId();
   const matchTypeLabelId = useId();
   const sessionTypeLabelId = useId();
+  const matchTypeLockId = useId();
+  const sessionTypeLockId = useId();
   const labelClass = `text-sm font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`;
+  /** Beside the label of each setting a running match holds in place */
+  const lockedNote = (id: string) =>
+    settingsLocked && (
+      <span
+        id={id}
+        className={`mb-2 flex items-center gap-1.5 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+      >
+        <Lock size={12} aria-hidden className="shrink-0" />
+        Locked while a match is running
+      </span>
+    );
 
   useEffect(() => {
     setIsFlashing(shouldFlash);
@@ -182,13 +195,16 @@ export const SessionSetup = ({
           </div>
 
           <div className="flex flex-col">
-            <Label
-              id={matchTypeLabelId}
-              htmlFor={matchTypeId}
-              className={labelClass}
-            >
-              Match Type
-            </Label>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <Label
+                id={matchTypeLabelId}
+                htmlFor={matchTypeId}
+                className={labelClass}
+              >
+                Match Type
+              </Label>
+              {lockedNote(matchTypeLockId)}
+            </div>
             <div
               className={`h-14 px-4 rounded-xl border-2 border-team-blue-40 transition-all duration-200 flex items-center ${
                 isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
@@ -203,6 +219,7 @@ export const SessionSetup = ({
                 <SelectTrigger
                   id={matchTypeId}
                   aria-labelledby={`${matchTypeLabelId} ${matchTypeId}`}
+                  aria-describedby={settingsLocked ? matchTypeLockId : undefined}
                   className="border-0 p-0 h-auto focus:ring-0 bg-transparent"
                 >
                   <SelectValue placeholder="Full Game" />
@@ -222,15 +239,19 @@ export const SessionSetup = ({
 
         <div className="flex flex-col">
           {/* Not a <label>: it names a group, not a single field */}
-          <span
-            id={sessionTypeLabelId}
-            className={`leading-none ${labelClass}`}
-          >
-            Session Type
-          </span>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <span
+              id={sessionTypeLabelId}
+              className={`leading-none ${labelClass}`}
+            >
+              Session Type
+            </span>
+            {lockedNote(sessionTypeLockId)}
+          </div>
           <div
             role="radiogroup"
             aria-labelledby={sessionTypeLabelId}
+            aria-describedby={settingsLocked ? sessionTypeLockId : undefined}
             className="grid grid-cols-2 gap-3"
           >
             {SESSION_TYPES.map((type, index) => {

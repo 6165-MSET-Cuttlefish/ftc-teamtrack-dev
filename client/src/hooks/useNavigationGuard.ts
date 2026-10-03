@@ -27,6 +27,20 @@ export const allowNavigation = (): void => {
   allowedUntil = performance.now() + LEAVE_GRACE_MS;
 };
 
+/** An in-app navigation held back to ask about first. */
+interface PendingNavigation {
+  /** The URL it was going to, search and hash included. */
+  path: string;
+  /** The router state it carried, passed on when it goes ahead. */
+  state: unknown;
+}
+
+/** The router keeps a navigation's own state under `usr` in the entry. */
+const routerStateOf = (data: unknown): unknown =>
+  data && typeof data === 'object'
+    ? (data as { usr?: unknown }).usr
+    : undefined;
+
 const isGuardEntry = (): boolean =>
   (window.history.state as Record<string, unknown> | null)?.[GUARD_KEY] ===
   true;
@@ -60,10 +74,19 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
   const location = useLocation();
 
   const [isBlocked, setIsBlocked] = useState(false);
-  const [pendingPath, setPendingPath] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingNavigation | null>(null);
 
   const shouldBlockRef = useRef(shouldBlock);
   shouldBlockRef.current = shouldBlock;
+
+  // Nothing left to protect (the work was saved or discarded while the
+  // question was up): take the question down rather than leave it over a
+  // page it no longer applies to.
+  useEffect(() => {
+    if (shouldBlock) return;
+    setIsBlocked(false);
+    setPending(null);
+  }, [shouldBlock]);
 
   // Browser-level guard (refresh / close tab)
   useEffect(() => {
@@ -103,7 +126,7 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
       // and ask.
       pushGuardEntry();
 
-      setPendingPath(null);
+      setPending(null);
       setIsBlocked(true);
     };
 
@@ -130,7 +153,11 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
           return original(data, unused, url);
         }
 
-        setPendingPath(target);
+        // Keep what the navigation was for (the account menu's Team item
+        // asks Sessions to open the team dialog), not only where it went.
+        setPending(
+          target ? { path: target, state: routerStateOf(data) } : null
+        );
         setIsBlocked(true);
       };
 
@@ -148,8 +175,8 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     allowNavigation();
     setIsBlocked(false);
 
-    if (pendingPath) {
-      navigate(pendingPath, { replace: true });
+    if (pending) {
+      navigate(pending.path, { replace: true, state: pending.state });
       return;
     }
 
@@ -163,11 +190,11 @@ export const useNavigationGuard = (shouldBlock: boolean, message?: string) => {
     } else {
       navigate(ROUTES.SESSIONS, { replace: true });
     }
-  }, [pendingPath, navigate]);
+  }, [pending, navigate]);
 
   const reset = useCallback(() => {
     setIsBlocked(false);
-    setPendingPath(null);
+    setPending(null);
   }, []);
 
   return {

@@ -1,12 +1,12 @@
 /**
  * Edits to the matches of a saved session, applied to what is stored now.
  *
- * Analysis and EditSession each hold a copy of the session that can be
- * minutes old, and another tab or device may have changed it since. Writing
- * the page's whole array back would silently undo those changes, so every
- * add, update, delete and undo is described as one operation on one match
- * and applied to a fresh read: inside a Firestore transaction for saved
- * sessions, and to a re-read of localStorage for guest ones.
+ * Analysis holds a copy of the session that can be minutes old, and another
+ * tab or device may have changed it since. Writing the page's whole array
+ * back would silently undo those changes, so every add, update, delete and
+ * undo is described as one operation on one match and applied to a fresh
+ * read: inside a Firestore transaction for saved sessions, and to a re-read
+ * of localStorage for guest ones.
  */
 
 import type { Match } from '@/types';

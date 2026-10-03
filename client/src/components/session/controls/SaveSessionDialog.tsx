@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
-import { toneText } from './tones';
+import { actionClass, toneText } from './tones';
 import { useArmed } from './useArmed';
 
 /** Same cap as the name field in session setup */
@@ -12,8 +12,8 @@ const MAX_NAME_LENGTH = 80;
 
 /**
  * Asks the user to confirm the session name before the session is saved.
- * New sessions start out as "Default Session", so this is where most users
- * actually name theirs.
+ * New sessions start out named after their type and date ("Practice · Oct
+ * 1"), so this is where most users actually name theirs.
  *
  * Built on the shared Dialog, which keeps Tab inside it and hands focus back
  * to Complete Session when it closes.
@@ -114,18 +114,14 @@ export const SaveSessionDialog = () => {
               type="button"
               disabled={loading}
               onClick={() => setShowSaveSessionDialog(false)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                isDarkMode
-                  ? 'border-team-blue-40 text-white hover:bg-team-white-10'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`px-4 min-h-11 rounded-xl text-sm ${actionClass('neutral', isDarkMode)}`}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!hasName || loading}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-green-700 text-white hover:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`px-4 min-h-11 rounded-xl text-sm ${actionClass('primary', isDarkMode)}`}
             >
               {loading ? 'Saving...' : 'Save Session'}
             </button>

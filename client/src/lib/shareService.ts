@@ -1,6 +1,14 @@
 import { toast } from 'sonner';
 import type { Session } from '@/types';
 import { pickScoringFields } from './scoring';
+import { toDate } from './utils';
+
+/** When a session was recorded, as an ISO string, if it carries a real date */
+const recordedAt = (createdAt: Session['createdAt'] | undefined) => {
+  if (!createdAt) return undefined;
+  const date = toDate(createdAt);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+};
 
 /**
  * Generate a short, safe shareable link for a saved session.
@@ -12,6 +20,10 @@ import { pickScoringFields } from './scoring';
  * so the owner can take every link down again (and deleting the session does
  * so automatically). There is deliberately no fallback that encodes the
  * session into the URL itself: a link like that could never be revoked.
+ *
+ * `sessionCreatedAt` is when the session was recorded - the snapshot's own
+ * `createdAt` is when the link was made. Links made before it was added
+ * don't have it.
  */
 export const generateShareableLink = async (
   session: Partial<Session> & Pick<Session, 'id' | 'userId'>
@@ -23,6 +35,7 @@ export const generateShareableLink = async (
     sessionType: session.sessionType,
     season: session.season,
     sessionDuration: session.sessionDuration,
+    sessionCreatedAt: recordedAt(session.createdAt),
     matchType: session.matchType,
     selectedFeature: session.selectedFeature,
     notes: session.notes || '',

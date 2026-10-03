@@ -21,6 +21,7 @@ import {
 import {
   calculateScore,
   emptyScoringFields,
+  FIELD_LIMITS,
   generateId,
   liveMatchType,
   logger,
@@ -32,8 +33,16 @@ import {
   writeGuestSessions,
 } from '@/lib';
 import { firebaseService, teamService } from '@/services';
-import type { Match, Session, Team } from '@/types';
+import type {
+  Match,
+  MatchScoringFields,
+  Session,
+  SessionFormData,
+  Team,
+} from '@/types';
 import { absorbDoubleTap, watchTaps } from './doubleTap';
+import { scrollUnderHeader } from './scrollUnderHeader';
+import { useCompactControls } from './useCompactControls';
 
 export interface LiveControlsProps {
   onOpenSessionSetup?: () => void;
@@ -50,12 +59,67 @@ const UNREACHABLE_MESSAGE =
 const RUNNING_MATCH_MESSAGE = 'Save or discard the running match first';
 const SAVING_TOAST_ID = 'saving-session';
 const WALKTHROUGH_TOAST_ID = 'walkthrough-open';
+const CLEARED_TOAST_ID = 'cleared-before-start';
+const DISCARDED_TOAST_ID = 'session-discarded';
+/** One toast per reason Complete Session can't go ahead, however often it is pressed */
+const COMPLETE_BLOCKED_TOAST_ID = 'complete-session-blocked';
+const SESSION_LIMIT_TOAST_ID = 'session-limit';
+const SAVE_BLOCKED_TOAST_ID = 'save-match-blocked';
+const MATCH_SAVED_TOAST_ID = 'match-saved';
+/**
+ * Toasts about the gap between two matches, gone once the next one starts:
+ * on a phone they sit over the header's clock, which counts that match in.
+ */
+const BETWEEN_MATCHES_TOAST_IDS = [
+  MATCH_SAVED_TOAST_ID,
+  SAVE_BLOCKED_TOAST_ID,
+  COMPLETE_BLOCKED_TOAST_ID,
+];
+/** An Undo that waits for the match open for editing to be closed */
+const EDIT_OPEN_TOAST_ID = 'match-edit-open';
+/** An Undo that waits for the Save Session dialog to be closed */
+const SAVE_DIALOG_OPEN_TOAST_ID = 'save-dialog-open';
+/** The Match Entry section that holds Flower, Left in Hive and Garden */
+const END_OF_MATCH_SECTION = '[data-tutorial="end-of-match"]';
+
+/**
+ * The questions /active can ask before it acts. Only one is ever open:
+ * asking another closes the one before it.
+ *
+ * - `saveEarly`: save the running match before the buzzer
+ * - `saveZeroEom`: save a finished match with nothing counted at the end
+ * - `discardMatch`: throw the running match away
+ * - `discardSession`: throw the whole session away
+ * - `completeWithStray`: finish the session with numbers in Match Entry
+ *   that belong to no saved match
+ */
+export type PendingConfirm =
+  | 'saveEarly'
+  | 'saveZeroEom'
+  | 'discardMatch'
+  | 'discardSession'
+  | 'completeWithStray';
+
+/**
+ * Whether a question takes the place of the Start / Save button. Questions
+ * about the match always do. The two about the session are asked where
+ * their own button is: Discard Session's with the session buttons, and
+ * Complete Session's wherever that button is on this screen (in the bar on
+ * a phone).
+ */
+export const isPrimarySlotConfirm = (
+  pending: PendingConfirm | null,
+  isCompact: boolean
+): boolean =>
+  pending === 'saveEarly' ||
+  pending === 'saveZeroEom' ||
+  pending === 'discardMatch' ||
+  (pending === 'completeWithStray' && isCompact);
 
 /** How long the whole signed-in save (checks + write) may take before giving up */
 const SAVE_TIMEOUT_MS = 12000;
 /** Taps on the Start/Save button closer together than this are one tap */
 const PRIMARY_ACTION_DEBOUNCE_MS = 500;
-const ZERO_MATCH_TOAST_ID = 'save-zero-point-match';
 
 /** Limits enforced by firestore.rules (name, notes, matches) and by Firestore itself (1 MiB) */
 const MAX_SESSION_NAME_LENGTH = 200;
@@ -95,6 +159,10 @@ interface PendingSave {
 let pendingSave: PendingSave | null = null;
 
 class SaveTimeoutError extends Error {}
+
+/** "178 pts", "1 pt": kept on one line wherever it lands in a sentence */
+export const formatPoints = (points: number): string =>
+  `${points}\u00A0${points === 1 ? 'pt' : 'pts'}`;
 
 /**
  * Reject with SaveTimeoutError if `promise` hasn't settled by `deadline`, a
@@ -173,6 +241,62 @@ export const saveErrorMessage = (error: unknown): string => {
   }
 };
 
+/**
+ * `extra` scored on top of `current`: each count adds up (to its field's
+ * limit), and a robot's LEAVE or PARK holds if either has it.
+ */
+const addScoring = (current: SessionFormData, extra: MatchScoringFields) => {
+  const count = (field: keyof typeof FIELD_LIMITS) =>
+    Math.min(FIELD_LIMITS[field], (current[field] ?? 0) + (extra[field] ?? 0));
+  return {
+    tipping: count('tipping'),
+    garden: count('garden'),
+    flower: count('flower'),
+    flowerBonus: count('flowerBonus'),
+    ballsInHive: count('ballsInHive'),
+    minorPenalties: count('minorPenalties'),
+    majorPenalties: count('majorPenalties'),
+    robot1Leave: current.robot1Leave || extra.robot1Leave,
+    robot2Leave: current.robot2Leave || extra.robot2Leave,
+    robot1ParkAuto: current.robot1ParkAuto || extra.robot1ParkAuto,
+    robot2ParkAuto: current.robot2ParkAuto || extra.robot2ParkAuto,
+    robot1ParkTeleop: current.robot1ParkTeleop || extra.robot1ParkTeleop,
+    robot2ParkTeleop: current.robot2ParkTeleop || extra.robot2ParkTeleop,
+  };
+};
+
+/**
+ * A session this tab saved although another tab had discarded it while the
+ * save was on its way: that tab's "Session discarded - Undo" must not put
+ * it back in progress, where completing it again would store it twice.
+ */
+const noteSavedElsewhere = (matches: Match[]) => {
+  try {
+    localStorage.setItem(
+      STORAGE_KEYS.SESSION_SAVED_ELSEWHERE,
+      JSON.stringify(matches.map(match => match.id))
+    );
+  } catch {
+    // Storage full or blocked: the other tab's Undo stays on offer.
+  }
+};
+
+/** Whether another tab has saved the session these matches belong to */
+const wasSavedElsewhere = (matchIds: string[]): boolean => {
+  try {
+    const saved: unknown = JSON.parse(
+      localStorage.getItem(STORAGE_KEYS.SESSION_SAVED_ELSEWHERE) ?? '[]'
+    );
+    return Array.isArray(saved) && matchIds.some(id => saved.includes(id));
+  } catch {
+    return false;
+  }
+};
+
+/** In place of "Session discarded - Undo" once the session turns out to be stored */
+const SAVED_ELSEWHERE_MESSAGE =
+  "Another tab saved this session, so it can't be put back here. Find it in Sessions.";
+
 const localStorageUsage = (): number => {
   let chars = 0;
   for (let i = 0; i < localStorage.length; i++) {
@@ -210,21 +334,37 @@ export const useLiveControlsState = ({
     setMatchActive,
     skipToTeleop,
     sessionEpoch,
+    isTutorialActive,
+    replaceSessionData,
+    setSessionTimer,
+    setTimer,
+    setPhaseTimer,
     isPickupPaused,
     setIsPickupPaused,
-    isTutorialActive,
   } = useSessionCore();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const { team, refreshTeam } = useTeam();
   const navigate = useNavigate();
   const uid = user?.uid;
+  /**
+   * Where toasts go while the walkthrough is open. On a full-size screen
+   * its card docks in the bottom-right corner, under Sonner's toasts, which
+   * covered the card's Skip and Next: the very buttons a "Close the
+   * walkthrough to undo" sends the user to. Those toasts go to the top-right
+   * corner instead. On a phone toasts are at the top already.
+   */
+  const walkthroughToastPosition = useCompactControls()
+    ? undefined
+    : ('top-right' as const);
 
   const [sessionLimitReached, setSessionLimitReached] =
     useState<boolean>(false);
-  const [cancelConfirm, setCancelConfirm] = useState<boolean>(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [cancelMatchConfirm, setCancelMatchConfirm] = useState<boolean>(false);
+  const [pendingConfirmState, setPendingConfirm] =
+    useState<PendingConfirm | null>(null);
+  const [deleteConfirmId, setDeleteConfirmIdState] = useState<string | null>(
+    null
+  );
   const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
   /** ID the completed session was saved under, so analysis can open (and share) it */
   const [savedSessionId, setSavedSessionIdState] = useState<string | null>(
@@ -234,10 +374,6 @@ export const useLiveControlsState = ({
     lastSavedSessionId = id;
     setSavedSessionIdState(id);
   };
-  /** Whether the match clock was running when Cancel Session was pressed */
-  const [resumeAfterCancel, setResumeAfterCancel] = useState<boolean>(false);
-  /** Whether Cancel Session froze the controller-pickup countdown */
-  const pickupPausedByCancelRef = useRef(false);
   const [showSaveSessionDialog, setShowSaveSessionDialog] =
     useState<boolean>(false);
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] =
@@ -255,26 +391,45 @@ export const useLiveControlsState = ({
   /** Latest session data, for undo callbacks that fire after later edits */
   const sessionDataRef = useRef(sessionData);
   const matchActiveRef = useRef(matchActive);
+  const hasStartedRef = useRef(hasStarted);
+  const editingMatchIdRef = useRef(editingMatchId);
   const tutorialActiveRef = useRef(isTutorialActive);
+  const saveSessionDialogRef = useRef(showSaveSessionDialog);
   useEffect(() => {
     sessionDataRef.current = sessionData;
     matchActiveRef.current = matchActive;
+    hasStartedRef.current = hasStarted;
+    editingMatchIdRef.current = editingMatchId;
     tutorialActiveRef.current = isTutorialActive;
-  }, [sessionData, matchActive, isTutorialActive]);
-  /** "Match N deleted - Undo" toasts that may still restore their match */
-  const undoToastIdsRef = useRef(new Set<string>());
-  const zeroMatchToastOpenRef = useRef(false);
+    saveSessionDialogRef.current = showSaveSessionDialog;
+  }, [
+    sessionData,
+    matchActive,
+    hasStarted,
+    editingMatchId,
+    isTutorialActive,
+    showSaveSessionDialog,
+  ]);
+  /**
+   * "Match N deleted - Undo" toasts that may still restore their match, by
+   * toast id, with their text (to show one again somewhere else).
+   */
+  const undoToastIdsRef = useRef(new Map<string, string>());
+  /**
+   * The session epoch a "Session discarded - Undo" toast may still restore
+   * into: the fresh session that replaced the discarded one, for as long as
+   * nothing has been done with it.
+   */
+  const discardUndoEpochRef = useRef<number | null>(null);
+  /** The saved matches of the session that toast would put back */
+  const discardedMatchIdsRef = useRef<string[]>([]);
+  /** The "Match N discarded - Undo" toast still on offer, if any */
+  const matchDiscardToastRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
 
   const dismissUndoToasts = () => {
-    undoToastIdsRef.current.forEach(id => toast.dismiss(id));
+    undoToastIdsRef.current.forEach((_, id) => toast.dismiss(id));
     undoToastIdsRef.current.clear();
-  };
-
-  const dismissZeroMatchToast = () => {
-    if (!zeroMatchToastOpenRef.current) return;
-    zeroMatchToastOpenRef.current = false;
-    toast.dismiss(ZERO_MATCH_TOAST_ID);
   };
 
   useEffect(() => {
@@ -283,9 +438,10 @@ export const useLiveControlsState = ({
     return () => {
       mountedRef.current = false;
       // Their buttons act on this page's state, which is gone once it unmounts.
-      undoToastIds.forEach(id => toast.dismiss(id));
+      undoToastIds.forEach((_, id) => toast.dismiss(id));
       undoToastIds.clear();
-      toast.dismiss(ZERO_MATCH_TOAST_ID);
+      toast.dismiss(CLEARED_TOAST_ID);
+      toast.dismiss(DISCARDED_TOAST_ID);
     };
   }, []);
 
@@ -306,9 +462,85 @@ export const useLiveControlsState = ({
     if (sessionEpochRef.current === sessionEpoch) return;
     sessionEpochRef.current = sessionEpoch;
     sessionTeamRef.current = team;
-    undoToastIdsRef.current.forEach(id => toast.dismiss(id));
+    undoToastIdsRef.current.forEach((_, id) => toast.dismiss(id));
     undoToastIdsRef.current.clear();
+    toast.dismiss(CLEARED_TOAST_ID);
+    // The save dialog and any open question were about the session that is
+    // gone (completed or discarded, here or in another tab). Left open, the
+    // dialog would save the empty session that replaced it.
+    setShowSaveSessionDialog(false);
+    setPendingConfirm(null);
+    setDeleteConfirmIdState(null);
   }, [sessionEpoch, team]);
+
+  // "Session discarded - Undo" only puts the session back over an untouched
+  // fresh one: once that has been started, or replaced in turn, the offer
+  // goes.
+  useEffect(() => {
+    const undoEpoch = discardUndoEpochRef.current;
+    if (undoEpoch === null) return;
+    if (
+      sessionEpoch !== undoEpoch ||
+      hasStarted ||
+      (sessionData.matches?.length ?? 0) > 0
+    ) {
+      discardUndoEpochRef.current = null;
+      toast.dismiss(DISCARDED_TOAST_ID);
+    }
+  }, [sessionEpoch, hasStarted, sessionData.matches]);
+
+  // Nor once another tab, whose save was on its way when the session was
+  // discarded here, has stored it after all: the toast says so instead.
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key !== STORAGE_KEYS.SESSION_SAVED_ELSEWHERE ||
+        discardUndoEpochRef.current === null ||
+        !wasSavedElsewhere(discardedMatchIdsRef.current)
+      ) {
+        return;
+      }
+      discardUndoEpochRef.current = null;
+      toast.message(SAVED_ELSEWHERE_MESSAGE, {
+        id: DISCARDED_TOAST_ID,
+        action: undefined,
+      });
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // An Undo can't be used until the walkthrough is closed, so toasts still
+  // offering one when it opens move clear of its card, and go back to where
+  // toasts normally are when it closes, over the header's own buttons no
+  // longer (shown again with the same id, they keep their Undo and get
+  // their full time back). Once it has closed, "Close the walkthrough to
+  // ..." is done with, and would sit in front of the Undo it sent the user
+  // to.
+  const undoToastsMovedRef = useRef(false);
+  useEffect(() => {
+    const moveUndoToasts = (position: typeof walkthroughToastPosition) => {
+      // `message` keeps each toast's own kind (and icon).
+      undoToastIdsRef.current.forEach((title, id) =>
+        toast.message(title, { id, position })
+      );
+      if (discardUndoEpochRef.current !== null) {
+        toast.message('Session discarded', {
+          id: DISCARDED_TOAST_ID,
+          position,
+        });
+      }
+    };
+    if (!isTutorialActive) toast.dismiss(WALKTHROUGH_TOAST_ID);
+    const position = isTutorialActive ? walkthroughToastPosition : undefined;
+    if (position) {
+      undoToastsMovedRef.current = true;
+      moveUndoToasts(position);
+    } else if (undoToastsMovedRef.current) {
+      undoToastsMovedRef.current = false;
+      moveUndoToasts(undefined);
+    }
+  }, [isTutorialActive, walkthroughToastPosition]);
 
   /**
    * Points in the scoring fields: the current, not-yet-saved match, or the
@@ -408,33 +640,77 @@ export const useLiveControlsState = ({
     );
   };
 
-  /** Close the Cancel Session confirm without resuming anything. */
-  const closeCancelConfirm = () => {
-    setCancelConfirm(false);
-    setResumeAfterCancel(false);
+  const savedMatchCount = sessionData.matches?.length ?? 0;
+  /** The number the match in the fields will be saved under */
+  const matchNumber = savedMatchCount + 1;
+  /** The buzzer has gone and the match is waiting to be saved */
+  const matchEnded = matchActive && matchPhase === 'ended';
+  /** Nothing counted in Flower, Flower Bonus, Left in Hive or Garden */
+  const endOfMatchEmpty =
+    !sessionData.flower &&
+    !sessionData.flowerBonus &&
+    !sessionData.ballsInHive &&
+    !sessionData.garden;
+
+  /**
+   * The open question, for as long as what it asks about is still there: the
+   * buzzer answers "save early?", a count answers "all 0?", and a match that
+   * is saved or discarded takes its questions with it.
+   */
+  const confirmStillApplies = (() => {
+    const liveMatch = matchActive && !editingMatchId;
+    switch (pendingConfirmState) {
+      case 'saveEarly':
+        return liveMatch && !matchEnded;
+      case 'saveZeroEom':
+        return liveMatch && matchEnded && endOfMatchEmpty;
+      case 'discardMatch':
+        return liveMatch;
+      case 'discardSession':
+        return !sessionData.isSessionCompleted;
+      case 'completeWithStray':
+        return (
+          !matchActive &&
+          !editingMatchId &&
+          hasUnsavedMatchData &&
+          savedMatchCount > 0 &&
+          !sessionData.isSessionCompleted
+        );
+      default:
+        return false;
+    }
+  })();
+  const pendingConfirm = confirmStillApplies ? pendingConfirmState : null;
+  // A question that no longer applies is closed for good, not kept back for
+  // the next time its conditions happen to hold.
+  useEffect(() => {
+    if (pendingConfirmState !== null && !confirmStillApplies) {
+      setPendingConfirm(null);
+    }
+  }, [pendingConfirmState, confirmStillApplies]);
+
+  /** Ask `question`, closing whichever other question was open. */
+  const askConfirm = (question: PendingConfirm) => {
+    // The answer buttons appear where the pressed button was.
+    absorbDoubleTap();
+    setDeleteConfirmIdState(null);
+    setNewSessionConfirm(false);
+    setPendingConfirm(question);
   };
 
-  // However the Cancel Session confirm closes (kept, confirmed, match saved
-  // or discarded, page left), let a frozen pickup run again.
-  const setIsPickupPausedRef = useRef(setIsPickupPaused);
-  useEffect(() => {
-    setIsPickupPausedRef.current = setIsPickupPaused;
-  }, [setIsPickupPaused]);
-  useEffect(() => {
-    if (!cancelConfirm && pickupPausedByCancelRef.current) {
-      pickupPausedByCancelRef.current = false;
-      setIsPickupPausedRef.current(false);
-    }
-  }, [cancelConfirm]);
-  useEffect(
-    () => () => {
-      if (pickupPausedByCancelRef.current) {
-        pickupPausedByCancelRef.current = false;
-        setIsPickupPausedRef.current(false);
-      }
-    },
-    []
-  );
+  /** The safe answer to every question: change nothing. */
+  const handleKeepConfirm = () => {
+    // The button that asked comes back where this one was.
+    absorbDoubleTap();
+    setPendingConfirm(null);
+  };
+
+  /** Ask before deleting a logged match (null: stop asking). */
+  const setDeleteConfirmId = (matchId: string | null) => {
+    absorbDoubleTap();
+    if (matchId !== null) setPendingConfirm(null);
+    setDeleteConfirmIdState(matchId);
+  };
 
   /**
    * The walkthrough borrows the session for practice and puts back what it
@@ -447,20 +723,20 @@ export const useLiveControlsState = ({
     if (!isTutorialActive) return false;
     toast.info(`Close the walkthrough to ${action}`, {
       id: WALKTHROUGH_TOAST_ID,
+      position: walkthroughToastPosition,
     });
     return true;
   };
 
   const startFreshSession = () => {
-    // The fresh session's Start Session can land where the pressed button
+    // The fresh session's Start Match can land where the pressed button
     // was: a double tap must not start its first match.
     absorbDoubleTap();
     dismissUndoToasts();
-    dismissZeroMatchToast();
     setSavedSessionId(null);
     resetSession();
     onSessionReset?.();
-    closeCancelConfirm();
+    setPendingConfirm(null);
     setNewSessionConfirm(false);
   };
 
@@ -484,41 +760,100 @@ export const useLiveControlsState = ({
     startFreshSession();
   };
 
-  /** First tap on Cancel Session: pause, and remember whether to resume. */
-  const handleRequestCancelSession = () => {
-    if (isInWalkthrough('cancel the session')) return;
-    setResumeAfterCancel(isTimerRunning);
-    if (isTimerRunning) setIsTimerRunning(false);
-    // The match clock is already stopped during pickup; freeze its countdown
-    // too, or TELEOP starts while the confirm is still open. A pickup the
-    // user paused themselves stays theirs to resume.
-    if (matchActive && matchPhase === 'controller_pickup' && !isPickupPaused) {
-      pickupPausedByCancelRef.current = true;
-      setIsPickupPaused(true);
-    }
-    setCancelConfirm(true);
-  };
-
-  /** Confirmed: discard everything and go straight back to a fresh setup. */
-  const handleConfirmCancelSession = () => {
-    if (isInWalkthrough('cancel the session')) return;
-    startFreshSession();
-    toast.success('Session cancelled');
+  /**
+   * Discard Session only asks. The match clock is left alone: a mis-tap
+   * during a match must not put the app out of step with the field.
+   */
+  const handleRequestDiscardSession = () => {
+    if (isInWalkthrough('discard the session')) return;
+    askConfirm('discardSession');
   };
 
   /**
-   * Backed out: only restart the clock if it was running before, and the
-   * match it belonged to is still being played.
+   * Confirmed: discard everything and go straight back to a fresh setup,
+   * with an Undo that puts the session back for as long as the fresh one
+   * has not been used.
    */
-  const handleKeepSession = () => {
-    if (
-      resumeAfterCancel &&
-      matchActive &&
-      (matchPhase === 'auton' || matchPhase === 'teleop')
-    ) {
-      setIsTimerRunning(true);
+  const handleConfirmDiscardSession = () => {
+    if (isInWalkthrough('discard the session') || isSavingSession()) return;
+
+    const worthKeeping = Boolean(hasUnsavedWork) || hasStarted;
+    // A match that was running comes back un-started, with its numbers in
+    // the fields; one open for editing comes back as it was last saved.
+    const snapshot = {
+      sessionData: JSON.parse(
+        JSON.stringify({
+          ...sessionData,
+          ...(editingMatchId ? emptyScoringFields() : {}),
+        })
+      ) as SessionFormData,
+      sessionTimer: getTimers().sessionTimer,
+      // Without a saved match the session goes back to "not started", as it
+      // does when a first match is discarded.
+      hasStarted: hasStarted && savedMatchCount > 0,
+    };
+
+    startFreshSession();
+
+    if (!worthKeeping) {
+      toast.message('Session discarded', { id: DISCARDED_TOAST_ID });
+      return;
     }
-    closeCancelConfirm();
+    // resetSession moves on to the next epoch: the fresh session's.
+    const undoEpoch = sessionEpoch + 1;
+    discardUndoEpochRef.current = undoEpoch;
+    const discardedMatchIds = (snapshot.sessionData.matches ?? []).map(
+      match => match.id
+    );
+    discardedMatchIdsRef.current = discardedMatchIds;
+    const offerGone = () => {
+      if (discardUndoEpochRef.current === undoEpoch) {
+        discardUndoEpochRef.current = null;
+      }
+    };
+    toast.message('Session discarded', {
+      id: DISCARDED_TOAST_ID,
+      duration: UI_TIMING.UNDO_WINDOW,
+      onAutoClose: offerGone,
+      onDismiss: offerGone,
+      action: {
+        label: 'Undo',
+        onClick: event => {
+          // The walkthrough would put its own snapshot back over this one
+          // when it closes; the toast stays for when it has.
+          if (tutorialActiveRef.current) {
+            event.preventDefault();
+            toast.info('Close the walkthrough to undo', {
+              id: WALKTHROUGH_TOAST_ID,
+              position: walkthroughToastPosition,
+            });
+            return;
+          }
+          const fresh = sessionDataRef.current;
+          if (
+            discardUndoEpochRef.current !== sessionEpochRef.current ||
+            hasStartedRef.current ||
+            matchActiveRef.current ||
+            (fresh.matches?.length ?? 0) > 0 ||
+            fresh.isSessionCompleted
+          ) {
+            return;
+          }
+          discardUndoEpochRef.current = null;
+          if (wasSavedElsewhere(discardedMatchIds)) {
+            event.preventDefault();
+            toast.message(SAVED_ELSEWHERE_MESSAGE, {
+              id: DISCARDED_TOAST_ID,
+              action: undefined,
+            });
+            return;
+          }
+          replaceSessionData(snapshot.sessionData);
+          setSessionTimer(snapshot.sessionTimer);
+          setHasStarted(snapshot.hasStarted);
+        },
+      },
+    });
   };
 
   /**
@@ -533,6 +868,41 @@ export const useLiveControlsState = ({
     return true;
   };
 
+  /**
+   * Say what Start Match cleared, with an Undo that puts it back into the
+   * match that was started, on top of whatever has been scored since. Start
+   * itself stays one tap.
+   */
+  const offerClearedUndo = (stray: MatchScoringFields, points: number) => {
+    const epochAtStart = sessionEpoch;
+    const matchesAtStart = savedMatchCount;
+    toast.message(
+      points > 0
+        ? `Cleared ${formatPoints(points)} entered before the match started`
+        : 'Cleared the penalties entered before the match started',
+      {
+        id: CLEARED_TOAST_ID,
+        duration: UI_TIMING.UNDO_WINDOW,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            const current = sessionDataRef.current;
+            // Only into the match they were cleared for.
+            if (
+              !matchActiveRef.current ||
+              editingMatchIdRef.current ||
+              sessionEpochRef.current !== epochAtStart ||
+              (current.matches?.length ?? 0) !== matchesAtStart
+            ) {
+              return;
+            }
+            updateSessionData(addScoring(current, stray));
+          },
+        },
+      }
+    );
+  };
+
   /** Split out of the Start/Save button so both layouts share one code path */
   const handleStartMatch = () => {
     if (matchActive || isRepeatedPrimaryAction() || isSavingSession()) return;
@@ -542,11 +912,27 @@ export const useLiveControlsState = ({
     }
     // Don't let a whole session be recorded that can't be saved afterwards.
     if (sessionLimitReached && !hasStarted && !sessionData.matches?.length) {
-      toast.error(SESSION_LIMIT_MESSAGE);
+      toast.error(SESSION_LIMIT_MESSAGE, { id: SESSION_LIMIT_TOAST_ID });
       void refreshSessionLimit();
       return;
     }
     lastPrimaryActionAt.current = performance.now();
+    // Pause takes this button's place: a double tap must not pause the
+    // match it has just started.
+    absorbDoubleTap();
+    setPendingConfirm(null);
+    BETWEEN_MATCHES_TOAST_IDS.forEach(id => toast.dismiss(id));
+
+    // A match starts from nothing. Numbers entered between matches belong to
+    // no match: left in, they would be saved as part of this one.
+    const stray = pickScoringFields(sessionData);
+    if (JSON.stringify(stray) !== JSON.stringify(emptyScoringFields())) {
+      updateSessionData(emptyScoringFields());
+    }
+    if (hasUnsavedMatchData) {
+      offerClearedUndo(stray, currentMatchScore.earned);
+    }
+
     setHasStarted(true);
     setMatchActive(true);
     if (sessionData.matchType === 'Teleop') {
@@ -558,18 +944,25 @@ export const useLiveControlsState = ({
     window.dispatchEvent(new Event('teamtrack-match-started'));
   };
 
-  /**
-   * Log the running match. A match with nothing scored is a legitimate
-   * result (a failed run), but is confirmed first in case it's a mis-tap.
-   */
-  const saveCurrentMatch = (confirmedScoreless: boolean) => {
-    if (isRepeatedPrimaryAction()) return;
+  // The "Cleared … - Undo" toast is for the match that was just started,
+  // and goes when that match does. "Match N discarded - Undo" goes when a
+  // match takes the discarded one's place (or it is put back).
+  useEffect(() => {
     if (!matchActive) {
-      if (!confirmedScoreless) {
-        toast.error('Please start the match timer before saving');
-      }
+      toast.dismiss(CLEARED_TOAST_ID);
       return;
     }
+    const discardToast = matchDiscardToastRef.current;
+    if (discardToast) {
+      matchDiscardToastRef.current = null;
+      undoToastIdsRef.current.delete(discardToast);
+      toast.dismiss(discardToast);
+    }
+  }, [matchActive]);
+
+  /** Log the running match as it stands. */
+  const saveCurrentMatch = () => {
+    if (!matchActive) return;
 
     const scoring = normalizeForMatchType(
       pickScoringFields(sessionData),
@@ -577,27 +970,10 @@ export const useLiveControlsState = ({
     );
     const breakdown = calculateScore(scoring);
 
-    if (
-      !confirmedScoreless &&
-      breakdown.earned === 0 &&
-      breakdown.penalties === 0
-    ) {
-      zeroMatchToastOpenRef.current = true;
-      toast.message('No scoring entered - save as a 0-point match?', {
-        id: ZERO_MATCH_TOAST_ID,
-        duration: UI_TIMING.UNDO_WINDOW,
-        action: {
-          label: 'Save 0 pts',
-          onClick: () => saveCurrentMatchRef.current(true),
-        },
-      });
-      return;
-    }
-
     const newMatch: Match = {
       ...scoring,
       id: generateId(),
-      matchNumber: (sessionData.matches?.length || 0) + 1,
+      matchNumber,
       matchType: sessionData.matchType,
       finalScore: breakdown.total,
       createdAt: new Date().toISOString(),
@@ -610,32 +986,55 @@ export const useLiveControlsState = ({
     });
 
     lastPrimaryActionAt.current = performance.now();
+    // Start Match and Complete Session take the place of whatever saved.
+    absorbDoubleTap();
     resetTimer();
     // Keep hasStarted=true to maintain continuous sessionTimer
     setMatchActive(false);
     setIsTimerRunning(false);
-    // The match a pending Cancel Session would have resumed is over.
-    closeCancelConfirm();
-    dismissZeroMatchToast();
+    setPendingConfirm(null);
 
-    toast.success(`Match ${updatedMatches.length} saved successfully!`);
+    toast.success(
+      `Match ${newMatch.matchNumber} saved · ${formatPoints(breakdown.total)}`,
+      { id: MATCH_SAVED_TOAST_ID }
+    );
   };
-  /** Latest version, for the confirm toast's button */
-  const saveCurrentMatchRef = useRef(saveCurrentMatch);
-  useEffect(() => {
-    saveCurrentMatchRef.current = saveCurrentMatch;
-  });
 
-  // The 0-point confirm only makes sense for a running match with no score.
-  useEffect(() => {
-    if (!matchActive || hasUnsavedMatchData) {
-      if (!zeroMatchToastOpenRef.current) return;
-      zeroMatchToastOpenRef.current = false;
-      toast.dismiss(ZERO_MATCH_TOAST_ID);
+  /**
+   * The Save button. A press before the buzzer, or with nothing counted at
+   * the end of the match, is more often a slip than a decision, so those two
+   * are asked about first; never more than one question per save. A match
+   * with nothing scored at all is a legitimate result (a failed run) and is
+   * covered by the same two questions.
+   */
+  const handleSaveMatch = () => {
+    if (isRepeatedPrimaryAction()) return;
+    if (!matchActive) {
+      toast.error('Start the match before saving it', {
+        id: SAVE_BLOCKED_TOAST_ID,
+      });
+      return;
     }
-  }, [matchActive, hasUnsavedMatchData]);
+    if (!matchEnded) {
+      askConfirm('saveEarly');
+      return;
+    }
+    if (endOfMatchEmpty) {
+      askConfirm('saveZeroEom');
+      return;
+    }
+    saveCurrentMatch();
+  };
 
-  const handleSaveMatch = () => saveCurrentMatch(false);
+  /** "Save early" / "Save": the answer that goes ahead with the save. */
+  const handleConfirmSaveMatch = () => saveCurrentMatch();
+
+  /** "Count them first": back to the page, at the End of Match section. */
+  const handleCountFirst = () => {
+    handleKeepConfirm();
+    const section = document.querySelector(END_OF_MATCH_SECTION);
+    if (section) scrollUnderHeader(section, { onlyIfHidden: true });
+  };
 
   /** Open a logged match for editing. */
   const handleStartEditingMatch = (match: Match) => {
@@ -644,7 +1043,7 @@ export const useLiveControlsState = ({
   };
 
   /**
-   * Save Changes on a logged match; a double tap must not also start a match.
+   * Save on a logged match; a double tap must not also start a match.
    * Returns false when nothing was saved: the press was the tail of a double
    * tap, or the session is being saved.
    */
@@ -658,12 +1057,21 @@ export const useLiveControlsState = ({
   };
 
   /**
-   * Cancel on a logged match. Closing the editor puts Start Match, or in the
-   * Match Log the match's own row, where Cancel was.
+   * Discard changes on a logged match. Closing the editor puts Start Match,
+   * or in the Match Log the match's own row, where the button was.
    */
   const handleCancelEditedMatch = () => {
     absorbDoubleTap();
     returnToCurrentMatch();
+  };
+
+  /** Open the dialog that confirms the session's name and saves it. */
+  const openSaveSessionDialog = () => {
+    // The dialog opens over the pressed button: a second press would
+    // dismiss it.
+    absorbDoubleTap();
+    setPendingConfirm(null);
+    setShowSaveSessionDialog(true);
   };
 
   /**
@@ -671,36 +1079,33 @@ export const useLiveControlsState = ({
    * The save itself happens in handleCompleteSession once they confirm.
    */
   const handleRequestCompleteSession = () => {
-    if (completingRef.current) return;
+    // On a phone this button shares the bar with Start Match, where Save
+    // Match was a moment ago.
+    if (completingRef.current || isRepeatedPrimaryAction()) return;
     if (isInWalkthrough('complete the session')) return;
 
     if (matchActive) {
-      toast.error(RUNNING_MATCH_MESSAGE);
+      toast.error(RUNNING_MATCH_MESSAGE, { id: COMPLETE_BLOCKED_TOAST_ID });
       return;
     }
 
     if (editingMatchId) {
-      toast.error('Save or cancel your match edit first');
+      toast.error('Save or discard your match edit first', {
+        id: COMPLETE_BLOCKED_TOAST_ID,
+      });
       return;
     }
 
     if (!sessionData.matches || sessionData.matches.length === 0) {
-      toast.error(
-        'Please save at least one match before completing the session'
-      );
-      return;
-    }
-
-    if (hasUnsavedMatchData) {
-      toast.error(
-        'Please save the current match before completing the session, or reset the scoring fields'
-      );
+      toast.error('Save at least one match before completing the session', {
+        id: COMPLETE_BLOCKED_TOAST_ID,
+      });
       return;
     }
 
     if (uid) {
       if (sessionLimitReached) {
-        toast.error(SESSION_LIMIT_MESSAGE);
+        toast.error(SESSION_LIMIT_MESSAGE, { id: SESSION_LIMIT_TOAST_ID });
         void refreshSessionLimit();
         return;
       }
@@ -710,14 +1115,32 @@ export const useLiveControlsState = ({
         matches: sessionData.matches,
       });
       if (problem) {
-        toast.error(problem, { duration: UI_TIMING.UNDO_WINDOW });
+        toast.error(problem, {
+          id: COMPLETE_BLOCKED_TOAST_ID,
+          duration: UI_TIMING.UNDO_WINDOW,
+        });
         return;
       }
     }
 
-    // The dialog opens over this button: a second press would dismiss it.
-    absorbDoubleTap();
-    setShowSaveSessionDialog(true);
+    // Numbers in Match Entry that belong to no saved match are not part of
+    // the session: say so before finishing without them.
+    if (hasUnsavedMatchData) {
+      askConfirm('completeWithStray');
+      return;
+    }
+
+    openSaveSessionDialog();
+  };
+
+  /**
+   * "Discard them and finish". The numbers stay in the fields until the
+   * session is actually saved, so backing out of the dialog loses nothing.
+   */
+  const handleConfirmCompleteWithStray = () => {
+    if (completingRef.current) return;
+    if (isInWalkthrough('complete the session')) return;
+    openSaveSessionDialog();
   };
 
   /** Everything stored for a completed session, signed in or guest. */
@@ -749,11 +1172,13 @@ export const useLiveControlsState = ({
   /** What a save carries that the user can still change before it lands */
   const sessionContentKey = (session: {
     sessionName?: string;
+    sessionType?: string;
     notes?: string;
     matches?: Match[];
   }) =>
     JSON.stringify([
       session.sessionName || '',
+      session.sessionType || 'Practice',
       session.notes || '',
       session.matches || [],
     ]);
@@ -763,6 +1188,10 @@ export const useLiveControlsState = ({
     lastPrimaryActionAt.current = performance.now();
     dismissUndoToasts();
     setSavedSessionId(id);
+    // A write that lands late gets here with the dialog reopened for a
+    // retry: left open, it would come back over the next session.
+    setShowSaveSessionDialog(false);
+    setPendingConfirm(null);
     completeSession(duration);
     markSessionCompleted();
   };
@@ -786,6 +1215,9 @@ export const useLiveControlsState = ({
       sessionEpochRef.current === pending.epoch &&
       !current.isSessionCompleted &&
       !matchActiveRef.current &&
+      // A match open for editing has changes that are not in `matches` yet:
+      // completing now would drop them and close the editor.
+      !editingMatchIdRef.current &&
       // Completed under the walkthrough, the session would be put back as in
       // progress when it closes, with this copy already saved.
       !tutorialActiveRef.current &&
@@ -907,13 +1339,62 @@ export const useLiveControlsState = ({
       return false;
     }
 
-    finishSavedSession(saved.id, sessionToSave.sessionDuration);
+    // Nothing on this page can be changed while the dialog is up, but the
+    // same session open in another tab can be.
+    //
+    // Edited there: what has just been stored is an older version. Take it
+    // back down and leave the session open, rather than report the old one
+    // as saved.
+    //
+    // Closed there (discarded, or completed) while this save was on its way:
+    // what was stored is what was confirmed here, so it stays. A session
+    // thrown away from a forgotten tab could not be got back; a second copy
+    // can be deleted. This tab now holds that tab's next session, which is
+    // left as it is rather than marked complete, and that tab's Undo of the
+    // discard is withdrawn: it would put a stored session back in progress.
+    //
+    // Discarded there and put back with that Undo before this landed, it is
+    // the session on screen again, and is finished (or not) as if it had
+    // never gone.
+    const current = sessionDataRef.current;
+    const savedMatchIds = new Set(sessionToSave.matches.map(match => match.id));
+    const closedElsewhere =
+      sessionEpochRef.current !== sessionEpoch &&
+      !(current.matches ?? []).some(match => savedMatchIds.has(match.id));
+    if (
+      !closedElsewhere &&
+      // A match started there meanwhile is not in what was stored either.
+      (matchActiveRef.current ||
+        sessionContentKey({
+          ...current,
+          // The name was confirmed in the dialog as this save began.
+          sessionName: sessionToSave.sessionName,
+        }) !== sessionContentKey(sessionToSave))
+    ) {
+      firebaseService.deleteSession(saved.id).catch(() => {});
+      toast.warning(
+        'This session changed while it was being saved, so nothing was saved. Complete it again to save it as it is now.',
+        { duration: UI_TIMING.UNDO_WINDOW }
+      );
+      return false;
+    }
+
+    if (closedElsewhere) {
+      noteSavedElsewhere(sessionToSave.matches);
+    } else {
+      finishSavedSession(saved.id, sessionToSave.sessionDuration);
+    }
     if (savedAsPersonal && sessionTeam) {
       if (team) void refreshTeam();
       toast.warning(
         stillListed
           ? `Couldn't save to ${sessionTeam.name}; saved as a personal session`
           : `You are no longer in ${sessionTeam.name}; saved as a personal session`,
+        { duration: UI_TIMING.UNDO_WINDOW }
+      );
+    } else if (closedElsewhere) {
+      toast.success(
+        'Session saved. Another tab closed it meanwhile, so a new session is open here.',
         { duration: UI_TIMING.UNDO_WINDOW }
       );
     } else {
@@ -968,7 +1449,14 @@ export const useLiveControlsState = ({
     const sessionName = confirmedName.trim();
     if (!sessionName) return;
     if (matchActive) {
-      toast.error(RUNNING_MATCH_MESSAGE);
+      toast.error(RUNNING_MATCH_MESSAGE, { id: COMPLETE_BLOCKED_TOAST_ID });
+      return;
+    }
+    // A dialog left open over a session that has since been completed or
+    // discarded (in another tab) must not save the empty one that replaced
+    // it.
+    if (!sessionData.matches?.length) {
+      setShowSaveSessionDialog(false);
       return;
     }
 
@@ -1018,7 +1506,7 @@ export const useLiveControlsState = ({
       matches.map((m, i) => ({ ...m, matchNumber: i + 1 }));
 
     // Deleting the match that is open for editing closes the editor first,
-    // so Save Changes isn't left pointing at a match that no longer exists.
+    // so its Save isn't left pointing at a match that no longer exists.
     if (matchId === editingMatchId) {
       returnToCurrentMatch();
       setShowUnsavedEditWarning(false);
@@ -1027,13 +1515,16 @@ export const useLiveControlsState = ({
     updateSessionData({
       matches: renumber(before.filter(m => m.id !== matchId)),
     });
-    setDeleteConfirmId(null);
+    // The rows below move up to where the question was.
+    absorbDoubleTap();
+    setDeleteConfirmIdState(null);
 
     const toastId = `undo-match-${matchId}`;
     const epochAtDelete = sessionEpoch;
     const undoToastIds = undoToastIdsRef.current;
-    undoToastIds.add(toastId);
-    toast.success(`Match ${deleted.matchNumber} deleted`, {
+    const title = `Match ${deleted.matchNumber} deleted`;
+    undoToastIds.set(toastId, title);
+    toast.success(title, {
       id: toastId,
       duration: UI_TIMING.UNDO_WINDOW,
       onAutoClose: () => undoToastIds.delete(toastId),
@@ -1044,6 +1535,16 @@ export const useLiveControlsState = ({
           // Not under a save; the toast stays for when the save is done.
           if (isSavingSession()) {
             event.preventDefault();
+            return;
+          }
+          // Nor under the walkthrough, which puts the session back as it
+          // found it when it closes: the restored match would go with it.
+          if (tutorialActiveRef.current) {
+            event.preventDefault();
+            toast.info('Close the walkthrough to undo', {
+              id: WALKTHROUGH_TOAST_ID,
+              position: walkthroughToastPosition,
+            });
             return;
           }
           // Only while the session it was deleted from is still the open one.
@@ -1064,12 +1565,28 @@ export const useLiveControlsState = ({
     });
   };
 
-  useEscapeKey(cancelConfirm, () => handleKeepSession());
-  useEscapeKey(cancelMatchConfirm, () => setCancelMatchConfirm(false));
-  useEscapeKey(deleteConfirmId !== null, () => setDeleteConfirmId(null));
+  // Escape answers any open question with its safe choice.
+  useEscapeKey(pendingConfirm !== null, () => setPendingConfirm(null));
+  useEscapeKey(deleteConfirmId !== null, () => setDeleteConfirmIdState(null));
   useEscapeKey(newSessionConfirm, () => setNewSessionConfirm(false));
 
-  const handleCancelCurrentMatch = () => {
+  /** The X beside the match controls: only asks. The clock keeps running. */
+  const handleRequestDiscardMatch = () => {
+    if (!matchActive || editingMatchId) return;
+    askConfirm('discardMatch');
+  };
+
+  const handleDiscardCurrentMatch = () => {
+    if (!matchActive) return;
+    // What its Undo puts back: the numbers, and the clock as it stood.
+    const discarded = {
+      scoring: pickScoringFields(sessionData),
+      phase: matchPhase,
+      ...getTimers(),
+      running:
+        matchPhase === 'controller_pickup' ? !isPickupPaused : isTimerRunning,
+      at: performance.now(),
+    };
     updateSessionData(emptyScoringFields());
     resetTimer();
     // The session (and its clock) carries on if matches are already logged;
@@ -1079,12 +1596,109 @@ export const useLiveControlsState = ({
     }
     setMatchActive(false);
     setIsTimerRunning(false);
-    setCancelMatchConfirm(false);
-    // The match a pending Cancel Session would have resumed is gone.
-    closeCancelConfirm();
-    dismissZeroMatchToast();
-    toast.success('Current match discarded');
+    setPendingConfirm(null);
+    // Start Match comes back under the button that discarded.
+    lastPrimaryActionAt.current = performance.now();
+    absorbDoubleTap();
+
+    const title = `Match ${matchNumber} discarded`;
+    // The walkthrough's practice match goes back with the walkthrough.
+    if (isTutorialActive) {
+      toast.message(title);
+      return;
+    }
+    // One Undo per discard: a toast id is not reused while the one before
+    // it may still be on its way out.
+    const toastId = `undo-discarded-match-${generateId()}`;
+    const epochAtDiscard = sessionEpoch;
+    const undoToastIds = undoToastIdsRef.current;
+    if (matchDiscardToastRef.current) {
+      undoToastIds.delete(matchDiscardToastRef.current);
+      toast.dismiss(matchDiscardToastRef.current);
+    }
+    matchDiscardToastRef.current = toastId;
+    undoToastIds.set(toastId, title);
+    toast.message(title, {
+      id: toastId,
+      duration: UI_TIMING.UNDO_WINDOW,
+      onAutoClose: () => undoToastIds.delete(toastId),
+      onDismiss: () => undoToastIds.delete(toastId),
+      action: {
+        label: 'Undo',
+        onClick: event => {
+          // The toast stays for when the save, the walkthrough or the edit
+          // is done.
+          if (isSavingSession()) {
+            event.preventDefault();
+            return;
+          }
+          if (tutorialActiveRef.current) {
+            event.preventDefault();
+            toast.info('Close the walkthrough to undo', {
+              id: WALKTHROUGH_TOAST_ID,
+              position: walkthroughToastPosition,
+            });
+            return;
+          }
+          // The fields hold the match being edited.
+          if (editingMatchIdRef.current) {
+            event.preventDefault();
+            toast.info('Save or discard your match edit first', {
+              id: EDIT_OPEN_TOAST_ID,
+            });
+            return;
+          }
+          // The match would run on behind the dialog, which then can't save.
+          if (saveSessionDialogRef.current) {
+            event.preventDefault();
+            toast.info('Close the Save Session dialog to undo', {
+              id: SAVE_DIALOG_OPEN_TOAST_ID,
+            });
+            return;
+          }
+          // Only while no other match has taken its place.
+          if (!undoToastIdsRef.current.delete(toastId)) return;
+          const current = sessionDataRef.current;
+          if (
+            sessionEpochRef.current !== epochAtDiscard ||
+            matchActiveRef.current ||
+            current.isSessionCompleted
+          ) {
+            return;
+          }
+          updateSessionData({
+            ...addScoring(current, discarded.scoring),
+            phaseLog: [
+              ...(discarded.scoring.phaseLog ?? []),
+              ...(current.phaseLog ?? []),
+            ],
+          });
+          setHasStarted(true);
+          setMatchActive(true);
+          setMatchPhase(discarded.phase);
+          // A clock that was running has run on meanwhile, as the one on the
+          // field has: the match comes back where the field is now.
+          const away = discarded.running
+            ? (performance.now() - discarded.at) / 1000
+            : 0;
+          if (discarded.phase === 'controller_pickup') {
+            setTimer(discarded.timer);
+            setPhaseTimer(discarded.phaseTimer - away);
+            setIsPickupPaused(!discarded.running);
+            setIsTimerRunning(false);
+          } else {
+            setTimer(Math.max(0, discarded.timer - away));
+            setIsTimerRunning(discarded.running);
+          }
+        },
+      },
+    });
   };
+
+  /** The saved match open for editing, for the labels that name it */
+  const editingMatchNumber =
+    sessionData.matches?.find(match => match.id === editingMatchId)
+      ?.matchNumber ?? null;
 
   return {
     sessionData,
@@ -1101,12 +1715,20 @@ export const useLiveControlsState = ({
     returnToCurrentMatch: handleCancelEditedMatch,
     skipToTeleop,
 
+    /** Match number the fields will be saved under */
+    matchNumber,
+    savedMatchCount,
+    /** After the buzzer, before the match is saved */
+    matchEnded,
+    /** Points in the scoring fields right now */
+    currentMatchTotal: currentMatchScore.total,
+    editingMatchNumber,
+
     sessionLimitReached,
-    cancelConfirm,
+    pendingConfirm,
+    handleKeepConfirm,
     deleteConfirmId,
     setDeleteConfirmId,
-    cancelMatchConfirm,
-    setCancelMatchConfirm,
     newSessionConfirm,
     setNewSessionConfirm,
     showSaveSessionDialog,
@@ -1120,15 +1742,18 @@ export const useLiveControlsState = ({
     handleViewAnalysis,
     handleNewSession,
     handleConfirmNewSession,
-    handleRequestCancelSession,
-    handleConfirmCancelSession,
-    handleKeepSession,
+    handleRequestDiscardSession,
+    handleConfirmDiscardSession,
     handleStartMatch,
     handleSaveMatch,
+    handleConfirmSaveMatch,
+    handleCountFirst,
     handleRequestCompleteSession,
+    handleConfirmCompleteWithStray,
     handleCompleteSession,
     handleDeleteMatch,
-    handleCancelCurrentMatch,
+    handleRequestDiscardMatch,
+    handleDiscardCurrentMatch,
   };
 };
 

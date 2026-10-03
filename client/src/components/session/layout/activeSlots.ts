@@ -17,6 +17,7 @@ export type ActiveSlotKey =
   | 'title'
   | 'timer'
   | 'status'
+  | 'lastMatch'
   | 'openSetup'
   | 'primaryAction'
   | 'sessionActions'
@@ -26,10 +27,12 @@ export type ActiveSlotKey =
   | 'matchLog'
   | 'setup'
   | 'liveScoring'
+  | 'scoring'
   | 'matchEntry'
   | 'breakdown'
   | 'notes'
   | 'completedActions'
+  | 'completedLinks'
   | 'completionNotice';
 
 /**

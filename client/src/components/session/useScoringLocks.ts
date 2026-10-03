@@ -25,6 +25,7 @@ export const useScoringLocks = () => {
     matchActive,
     matchPhase,
     isTimerRunning,
+    isPickupPaused,
     isMatchCountdown,
     isTutorialActive,
     sessionEpoch,
@@ -63,6 +64,26 @@ export const useScoringLocks = () => {
       isTutorialActive,
     ].join(':'),
     tippingEnabled: editing || (matchActive && !inCountdown),
+    /**
+     * No match is open in the fields: before the first Start and between
+     * matches. Tipping waits for Start; everything else can be filled in.
+     */
+    awaitingStart: !editing && !matchActive,
+    /** The 3-2-1 before a Full Game's AUTO: Start is pressed, play isn't on */
+    inCountdown,
+    /**
+     * The live match is being played: tips are counted by tapping, so the
+     * count is a readout rather than a text box. Controller pickup belongs
+     * to play — the clock stops for it, but nobody has paused. Typing comes
+     * back when the match is paused, after the buzzer and for a saved match.
+     */
+    tippingLive:
+      !editing &&
+      matchActive &&
+      !inCountdown &&
+      matchPhase !== 'ended' &&
+      (isTimerRunning ||
+        (matchPhase === 'controller_pickup' && !isPickupPaused)),
     /** True while a live match's clock is counting AUTO or TELEOP down */
     clockRunning: !editing && matchActive && isTimerRunning && !inCountdown,
     endOfMatchUnlocked:

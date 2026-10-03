@@ -1,83 +1,136 @@
-import { Check, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
+import { ConfirmInline } from './ConfirmInline';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
+import { StrayNumbersQuestion } from './PrimaryAction';
 import { SaveSessionDialog } from './SaveSessionDialog';
-import { toneText } from './tones';
+import { actionClass } from './tones';
+import { useCompactControls } from './useCompactControls';
+
+const BUTTON = 'shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl text-base';
+
+/** "Discard this session and its 2 saved matches?", naming all that goes. */
+const discardQuestion = (savedMatches: number, matchRunning: boolean) => {
+  const lost = [
+    ...(savedMatches > 0
+      ? [
+          savedMatches === 1
+            ? 'its saved match'
+            : `its ${savedMatches} saved matches`,
+        ]
+      : []),
+    ...(matchRunning ? ['the match in progress'] : []),
+  ];
+  if (lost.length === 0) return 'Discard this session?';
+  if (lost.length === 1) return `Discard this session and ${lost[0]}?`;
+  return `Discard this session, ${lost[0]} and ${lost[1]}?`;
+};
 
 /**
- * Session-level actions: complete the session, cancel it.
+ * Session-level actions: complete the session, discard it.
  *
- * These are deliberately outside the fixed pane on a phone — they are
- * between-match actions, and putting them next to the scoring steppers is
- * how you lose a match to a mis-tap. (The setup toggle used to live here too;
- * it's now `OpenSetupButton`, next to the setup panel it controls.)
+ * Neither is filled: the filled button on this page is always the one that
+ * moves the match forward. On a phone these are at the end of the page, away
+ * from the scoring steppers, and Complete Session is offered in the action
+ * bar between matches instead (see `PrimaryAction`), so only Discard Session
+ * shows here. (The setup toggle used to live here too; it's now
+ * `OpenSetupButton`, next to the setup panel it controls.)
+ *
+ * Discard Session asks first, in place of the button, and never touches the
+ * match clock; what it discards can be put back from the toast that follows.
  */
 export const SessionActions = () => {
   const {
     isDarkMode,
     loading,
-    cancelConfirm,
+    matchActive,
+    savedMatchCount,
+    editingMatchId,
+    pendingConfirm,
     showSaveSessionDialog,
     handleRequestCompleteSession,
-    handleRequestCancelSession,
-    handleConfirmCancelSession,
-    handleKeepSession,
+    handleRequestDiscardSession,
+    handleConfirmDiscardSession,
+    handleKeepConfirm,
   } = useLiveControls();
+  const isCompact = useCompactControls();
+  /** How wide Discard Session was when pressed: the safe choice covers it */
+  const [pressedWidth, setPressedWidth] = useState<number>();
+
+  // That width belongs to the layout it was pressed in. Turning the phone
+  // while the question is open lays the page out afresh, where it could be
+  // wider than the screen: the safe choice then takes its own width.
+  useEffect(() => {
+    if (pressedWidth === undefined) return;
+    const pressedAt = window.innerWidth;
+    const forget = () => {
+      if (window.innerWidth !== pressedAt) setPressedWidth(undefined);
+    };
+    window.addEventListener('resize', forget);
+    return () => window.removeEventListener('resize', forget);
+  }, [pressedWidth]);
+
+  // One question at a time, and nothing else to press beside it.
+  const asking =
+    pendingConfirm === 'discardSession' ||
+    (pendingConfirm === 'completeWithStray' && !isCompact);
 
   return (
     <>
       {showSaveSessionDialog && <SaveSessionDialog />}
+
+      {pendingConfirm === 'completeWithStray' && !isCompact && (
+        <StrayNumbersQuestion keepFirst />
+      )}
+      {pendingConfirm === 'discardSession' && (
+        <ConfirmInline
+          // On a phone the button is full width: Keep session takes all of
+          // its spot, and Discard goes up beside the question. On a full
+          // screen the session buttons start a row of their own while a
+          // match is on (or open for editing), where Keep session follows
+          // the narrow question; between matches they end the controls
+          // row, where it is the last button, at least as wide as Discard
+          // Session was.
+          keepBelow={isCompact}
+          keepFirst={matchActive || editingMatchId !== null}
+          keepMinWidth={pressedWidth}
+          reveal
+          question={discardQuestion(savedMatchCount, matchActive)}
+          keepLabel="Keep session"
+          confirmLabel="Discard"
+          onKeep={handleKeepConfirm}
+          onConfirm={handleConfirmDiscardSession}
+        />
+      )}
+
       {/*
         Stays enabled at the session limit: pressing it is what explains why
         the session can't be saved.
       */}
-      <button
-        type="button"
-        onKeyDown={ignoreHeldEnter}
-        onClick={handleRequestCompleteSession}
-        disabled={loading}
-        className={`shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 ${toneText('green', isDarkMode)} text-base font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
-        title={loading ? 'Saving...' : 'Complete Session'}
-      >
-        {loading ? 'Saving...' : 'Complete Session'}
-      </button>
-
-      {!cancelConfirm ? (
+      {!asking && !isCompact && (
         <button
           type="button"
           onKeyDown={ignoreHeldEnter}
-          onClick={handleRequestCancelSession}
-          className={`shrink-0 whitespace-nowrap px-5 h-12 rounded-2xl border-2 border-red-500/40 bg-red-500/20 hover:bg-red-500/25 ${toneText('red', isDarkMode)} text-base font-bold transition-colors flex items-center justify-center`}
-          title="Cancel Session"
+          onClick={handleRequestCompleteSession}
+          disabled={loading}
+          className={`${BUTTON} ${actionClass('neutral', isDarkMode)}`}
         >
-          Cancel Session
+          {loading ? 'Saving...' : 'Complete Session'}
         </button>
-      ) : (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onKeyDown={ignoreHeldEnter}
-            onClick={handleConfirmCancelSession}
-            className="h-12 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-base font-bold transition-colors flex items-center gap-2"
-            title="Discard session"
-            aria-label="Discard session"
-          >
-            <Check className="h-5 w-5" aria-hidden />
-            Discard
-          </button>
-          <button
-            type="button"
-            onKeyDown={ignoreHeldEnter}
-            onClick={handleKeepSession}
-            className="h-12 px-4 rounded-xl bg-gray-600 hover:bg-gray-700 text-white text-base font-bold transition-colors flex items-center gap-2"
-            title="Keep session"
-            aria-label="Keep session"
-          >
-            <X className="h-5 w-5" aria-hidden />
-            Keep
-          </button>
-        </div>
+      )}
+      {!asking && (
+        <button
+          type="button"
+          onKeyDown={ignoreHeldEnter}
+          onClick={event => {
+            setPressedWidth(event.currentTarget.offsetWidth);
+            handleRequestDiscardSession();
+          }}
+          className={`${BUTTON} ${actionClass('dangerOutline', isDarkMode)}`}
+        >
+          Discard Session
+        </button>
       )}
     </>
   );

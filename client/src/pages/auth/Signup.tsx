@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { getErrorMessage } from '@/lib';
+import { mapAuthError, type AuthErrorInfo } from '@/lib/authErrors';
 import { getPendingInviteDestination } from '@/lib/pendingInvite';
 import { ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert';
+import { PendingInviteBanner } from '@/components/auth/PendingInviteBanner';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+
+const MIN_PASSWORD_LENGTH = 6;
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -27,8 +30,15 @@ const Signup = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<AuthErrorInfo | null>(null);
   const [loading, setLoading] = useState(false);
+  /** Fields the user has left (or tried to submit): only those show their own error */
+  const [touched, setTouched] = useState({
+    password: false,
+    confirmPassword: false,
+  });
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   const { signup, loginWithGoogle } = useAuth();
   const { isDarkMode } = useTheme();
@@ -37,11 +47,29 @@ const Signup = () => {
 
   const from = location.state?.from?.pathname || ROUTES.SESSIONS;
 
+  const passwordTooShort =
+    formData.password.length > 0 &&
+    formData.password.length < MIN_PASSWORD_LENGTH;
+  const passwordsDiffer =
+    formData.confirmPassword.length > 0 &&
+    formData.password !== formData.confirmPassword;
+  const showTooShort = touched.password && passwordTooShort;
+  const showMismatch = touched.confirmPassword && passwordsDiffer;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
+    // The alert is about what was submitted, not what is being typed now.
+    if (error) setError(null);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name } = e.target;
+    if (name === 'password' || name === 'confirmPassword') {
+      setTouched(prev => (prev[name] ? prev : { ...prev, [name]: true }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,29 +81,27 @@ const Signup = () => {
       !formData.password ||
       !formData.confirmPassword
     ) {
-      setError('Please fill in all fields');
+      setError({ message: 'Please fill in all fields', code: null });
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password should be at least 6 characters');
+    // Said under the field it is about, which also takes the focus.
+    if (passwordTooShort || passwordsDiffer) {
+      setError(null);
+      setTouched({ password: true, confirmPassword: true });
+      (passwordTooShort ? passwordRef : confirmPasswordRef).current?.focus();
       return;
     }
 
     try {
-      setError('');
+      setError(null);
       setLoading(true);
       const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
       clearSessionFromStorage();
       await signup(formData.email, formData.password, formData.displayName);
       navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      setError(mapAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -83,14 +109,15 @@ const Signup = () => {
 
   const handleGoogleSignUp = async () => {
     try {
-      setError('');
+      setError(null);
       setLoading(true);
       const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
       clearSessionFromStorage();
       await loginWithGoogle();
       navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      // Closing the Google window is not an error: nothing is shown for it.
+      setError(mapAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -118,11 +145,9 @@ const Signup = () => {
         </CardHeader>
 
         <CardContent className="space-y-4 px-4 sm:px-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          <PendingInviteBanner />
+
+          <AuthErrorAlert error={error} actions={['sign-in']} />
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -136,6 +161,7 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <User
+                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -143,6 +169,7 @@ const Signup = () => {
                   name="displayName"
                   type="text"
                   placeholder="Enter your full name"
+                  autoComplete="name"
                   value={formData.displayName}
                   onChange={handleChange}
                   className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
@@ -162,6 +189,7 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Mail
+                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -169,6 +197,7 @@ const Signup = () => {
                   name="email"
                   type="email"
                   placeholder="Enter your email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={handleChange}
                   className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
@@ -188,6 +217,7 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
+                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -195,8 +225,13 @@ const Signup = () => {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Create a password"
+                  autoComplete="new-password"
+                  ref={passwordRef}
                   value={formData.password}
                   onChange={handleChange}
+                  onBlur={handleBlur}
+                  aria-invalid={showTooShort || undefined}
+                  aria-describedby="password-hint"
                   className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
@@ -213,8 +248,17 @@ const Signup = () => {
                   )}
                 </button>
               </div>
-              <p className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-                Must be at least 6 characters
+              <p
+                id="password-hint"
+                className={`text-xs ${
+                  showTooShort
+                    ? `font-medium ${isDarkMode ? 'text-red-400' : 'text-red-700'}`
+                    : isDarkMode
+                      ? 'text-team-white-60'
+                      : 'text-gray-600'
+                }`}
+              >
+                Must be at least {MIN_PASSWORD_LENGTH} characters
               </p>
             </div>
 
@@ -229,6 +273,7 @@ const Signup = () => {
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
               >
                 <Lock
+                  aria-hidden="true"
                   className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
                 />
                 <Input
@@ -236,8 +281,15 @@ const Signup = () => {
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirm your password"
+                  autoComplete="new-password"
+                  ref={confirmPasswordRef}
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  onBlur={handleBlur}
+                  aria-invalid={showMismatch || undefined}
+                  aria-describedby={
+                    showMismatch ? 'confirmPassword-error' : undefined
+                  }
                   className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
@@ -254,6 +306,15 @@ const Signup = () => {
                   )}
                 </button>
               </div>
+              {showMismatch && (
+                <p
+                  id="confirmPassword-error"
+                  role="alert"
+                  className={`text-xs font-medium ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}
+                >
+                  Passwords do not match
+                </p>
+              )}
             </div>
 
             <Button
@@ -313,7 +374,7 @@ const Signup = () => {
             <Link
               to={ROUTES.LOGIN}
               state={location.state}
-              className="inline-flex min-h-[44px] items-center text-team-blue hover:underline font-medium sm:min-h-0"
+              className="inline-flex items-center text-team-blue hover:underline font-medium [@media(pointer:coarse)]:min-h-11"
             >
               Sign in
             </Link>

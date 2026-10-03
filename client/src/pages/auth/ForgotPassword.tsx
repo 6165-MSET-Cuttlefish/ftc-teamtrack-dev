@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { getErrorMessage } from '@/lib';
+import { mapAuthError, type AuthErrorInfo } from '@/lib/authErrors';
 import { APP_CONFIG, ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,12 +15,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<AuthErrorInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -42,19 +43,19 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     if (!email) {
-      setError('Please enter your email address');
+      setError({ message: 'Please enter your email address', code: null });
       return;
     }
 
     try {
       setMessage('');
-      setError('');
+      setError(null);
       setLoading(true);
       await resetPassword(email);
       setMessage('Check your inbox for a password reset link. If you don\'t see it, check your spam or junk folder.');
       setSubmitted(true);
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      setError(mapAuthError(err, 'reset'));
     } finally {
       setLoading(false);
     }
@@ -83,11 +84,7 @@ const ForgotPassword = () => {
         </CardHeader>
 
         <CardContent className="space-y-6 px-4 sm:px-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          <AuthErrorAlert error={error} actions={['sign-up']} />
 
           {message && (
             <Alert
@@ -121,10 +118,11 @@ const ForgotPassword = () => {
                   id="email"
                   type="email"
                   placeholder="Enter your email address"
+                  autoComplete="email"
                   value={email}
                   onChange={e => {
                     setEmail(e.target.value);
-                    if (error) setError('');
+                    if (error) setError(null);
                   }}
                   className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required

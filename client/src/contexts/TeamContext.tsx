@@ -10,8 +10,7 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
 import { teamService } from '@/services';
-import type { Team } from '@/types';
-import type { JoinTeamResult } from '@/types/team';
+import type { JoinTeamResult, LeaveOutcome, Team } from '@/types';
 import { logger, toDate } from '@/lib';
 
 interface TeamContextType {
@@ -24,13 +23,20 @@ interface TeamContextType {
   loading: boolean;
   createTeam: (name: string) => Promise<Team | null>;
   /**
-   * Join the team an invite code belongs to. The current team is only left
-   * once the new one has been joined, so an invalid code, a declined
-   * confirmation or a failed join all leave the user where they were.
+   * Join the team an invite code belongs to. Someone already in another team
+   * is only moved when `leaveCurrent` is set: the caller asks first, in its
+   * own UI, and without it the result is 'cancelled' and nothing changes.
+   * The current team is only left once the new one has been joined, so an
+   * invalid code or a failed join also leave the user where they were.
    */
-  joinTeam: (inviteCode: string, skipConfirmation?: boolean) => Promise<JoinTeamResult>;
-  leaveTeam: () => Promise<void>;
-  refreshTeam: () => Promise<void>;
+  joinTeam: (inviteCode: string, leaveCurrent?: boolean) => Promise<JoinTeamResult>;
+  /** Leave the current team. Resolves to what that did to the team. */
+  leaveTeam: () => Promise<LeaveOutcome | null>;
+  /**
+   * Re-check the team with the server. Resolves to the team the user is in
+   * now, or null when there is none (any more).
+   */
+  refreshTeam: () => Promise<Team | null>;
   regenerateInviteCode: () => Promise<string | null>;
   transferOwnership: (newOwnerId: string) => Promise<boolean>;
   kickMember: (targetUserId: string) => Promise<boolean>;
@@ -79,11 +85,54 @@ const stored = (key: string): string | null => {
   }
 };
 
-const rememberTeam = (uid: string, teamId: string | null) =>
-  store(rememberedTeamKey(uid), teamId);
+/**
+ * The remembered team's name, kept so that someone who was removed while the
+ * app was closed can be told which team they are no longer in.
+ */
+const rememberedTeamNameKey = (uid: string) => `teamtrack-team-name-${uid}`;
+
+const rememberTeam = (uid: string, team: Team | null) => {
+  store(rememberedTeamKey(uid), team?.id ?? null);
+  store(rememberedTeamNameKey(uid), team?.name ?? null);
+};
 
 const rememberedTeam = (uid: string): string | null =>
   stored(rememberedTeamKey(uid));
+
+/** How often, at most, coming back to the app re-checks team membership. */
+const MEMBERSHIP_RECHECK_MS = 30_000;
+
+/**
+ * Tell the user they are no longer in a team they did not choose to leave.
+ * Stays until dismissed: it explains why their session list just changed.
+ */
+const notifyMembershipEnded = (teamId: string, teamName: string) =>
+  toast.info(`You're no longer a member of ${teamName}`, {
+    id: `team-membership-ended-${teamId}`,
+    description: 'Sessions you shared stay with that team.',
+    duration: Infinity,
+    action: { label: 'OK', onClick: () => {} },
+  });
+
+/**
+ * On load the user is in no team, but this browser last showed them one:
+ * they were removed (or the team was deleted) while the app was closed. Say
+ * so once. A lookup that fails proves nothing, so it says nothing.
+ */
+const noticeTeamLostWhileAway = async (uid: string) => {
+  const teamId = rememberedTeam(uid);
+  if (!teamId) return;
+  try {
+    if (await teamService.getMembership(teamId, uid)) return;
+  } catch {
+    return;
+  }
+  // They may have created or joined a team while that was being checked.
+  if (rememberedTeam(uid) !== teamId) return;
+  const teamName = stored(rememberedTeamNameKey(uid));
+  rememberTeam(uid, null);
+  if (teamName) notifyMembershipEnded(teamId, teamName);
+};
 
 /** Finish leaving a team that a previous join could not get the user out of. */
 const finishLeaving = async (uid: string, teams: Team[], current: Team | null) => {
@@ -123,30 +172,6 @@ const pickTeam = (teams: Team[], uid: string): Team | null => {
   );
 };
 
-/** Ask before leaving the current team to join another. */
-const confirmLeaveTeam = (teamName: string): Promise<boolean> =>
-  new Promise<boolean>((resolve) => {
-    const event = new CustomEvent('teamtrack-confirm-leave-team', {
-      detail: {
-        teamName,
-        resolve,
-      },
-    });
-    // If no listener handles it within 100ms, fall back to window.confirm
-    let handled = false;
-    const handler = () => { handled = true; };
-    window.addEventListener('teamtrack-confirm-leave-team-handled', handler, { once: true });
-    window.dispatchEvent(event);
-    setTimeout(() => {
-      window.removeEventListener('teamtrack-confirm-leave-team-handled', handler);
-      if (!handled) {
-        resolve(window.confirm(
-          `You are currently in "${teamName}". Joining a new team will remove you from your current team. Continue?`
-        ));
-      }
-    }, 100);
-  });
-
 export const TeamProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -162,6 +187,13 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     teamRef.current = team;
   }, [team]);
 
+  // A rename (here or by the owner elsewhere) keeps the remembered name
+  // current, for the notice shown if the team is later lost.
+  const teamName = team?.name;
+  useEffect(() => {
+    if (uid && teamId && teamName) store(rememberedTeamNameKey(uid), teamName);
+  }, [uid, teamId, teamName]);
+
   /** A team the user is leaving on purpose: its loss needs no notice. */
   const leavingTeamId = useRef<string | null>(null);
 
@@ -172,7 +204,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
   const showTeam = useCallback((userId: string, next: Team | null) => {
     teamRef.current = next;
     setTeam(next);
-    rememberTeam(userId, next?.id ?? null);
+    rememberTeam(userId, next);
   }, []);
 
   /** The user is no longer in `lost`: clear it, and say so unless they left. */
@@ -184,9 +216,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         leavingTeamId.current = null;
         return;
       }
-      toast.info(`You are no longer a member of ${lost.name}`, {
-        id: `team-membership-ended-${lost.id}`,
-      });
+      notifyMembershipEnded(lost.id, lost.name);
     },
     [showTeam]
   );
@@ -210,10 +240,12 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         teamRef.current = current;
         setTeam(current);
         if (current) {
-          rememberTeam(user.uid, current.id);
+          rememberTeam(user.uid, current);
           // Fire-and-forget: backfills the owner fields and invite lookup
           // that older teams are missing.
           teamService.ensureOwnerSetup(current, user.uid);
+        } else {
+          noticeTeamLostWhileAway(user.uid);
         }
         finishLeaving(user.uid, teams, current);
       } catch (error) {
@@ -299,7 +331,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const joinTeam = async (inviteCode: string, skipConfirmation = false): Promise<JoinTeamResult> => {
+  const joinTeam = async (inviteCode: string, leaveCurrent = false): Promise<JoinTeamResult> => {
     if (!user) return { status: 'invalid' };
     // An invite link can be acted on before the user's current team has
     // loaded; joining then would skip leaving it (and asking first).
@@ -317,10 +349,10 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         return { status: 'joined', team: previous };
       }
 
-      // If already in a team, require confirmation before leaving
-      if (previous && !skipConfirmation) {
-        const confirmed = await confirmLeaveTeam(previous.name);
-        if (!confirmed) return { status: 'cancelled', teamName: previous.name };
+      // Already in a team: it is only left when the caller has asked the
+      // user and been told yes.
+      if (previous && !leaveCurrent) {
+        return { status: 'cancelled', teamName: previous.name };
       }
 
       // Join the new team first. Only once that has worked is the old one
@@ -367,13 +399,14 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const leaveTeam = async (): Promise<void> => {
-    if (!user || !team) return;
+  const leaveTeam = async (): Promise<LeaveOutcome | null> => {
+    if (!user || !team) return null;
 
     try {
       leavingTeamId.current = team.id;
-      await teamService.leaveTeam(team.id, user.uid);
+      const outcome = await teamService.leaveTeam(team.id, user.uid);
       showTeam(user.uid, null);
+      return outcome;
     } catch (error) {
       logger.error('Error leaving team:', error);
       throw error;
@@ -382,8 +415,8 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const refreshTeam = async (): Promise<void> => {
-    if (!user) return;
+  const refreshTeam = async (): Promise<Team | null> => {
+    if (!user) return null;
 
     try {
       const shown = teamRef.current;
@@ -391,23 +424,49 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         // null means "not a member any more"; a failed read throws instead,
         // so a dropped connection doesn't make the team disappear.
         const freshTeam = await teamService.getMembership(shown.id, user.uid);
-        if (teamRef.current?.id !== shown.id) return;
+        if (teamRef.current?.id !== shown.id) return teamRef.current;
         if (freshTeam) {
           teamRef.current = freshTeam;
           setTeam(freshTeam);
         } else {
           membershipEnded(user.uid, shown);
         }
-        return;
+        return teamRef.current;
       }
 
       const teams = await teamService.getUserTeams(user.uid, true);
-      if (teamRef.current) return;
+      if (teamRef.current) return teamRef.current;
       showTeam(user.uid, pickTeam(teams, user.uid));
     } catch (error) {
       logger.error('Error refreshing team:', error);
     }
+    // After a failed lookup this is still the team that was showing.
+    return teamRef.current;
   };
+
+  // The live listener can die quietly while a phone has the app in the
+  // background. Coming back re-checks, so a team the user was removed from
+  // doesn't keep its name on screen (or keep being saved to).
+  const refreshTeamRef = useRef(refreshTeam);
+  useEffect(() => {
+    refreshTeamRef.current = refreshTeam;
+  });
+  useEffect(() => {
+    if (!uid) return;
+    let lastCheck = Date.now();
+    const recheck = () => {
+      if (document.visibilityState !== 'visible' || !teamRef.current) return;
+      if (Date.now() - lastCheck < MEMBERSHIP_RECHECK_MS) return;
+      lastCheck = Date.now();
+      void refreshTeamRef.current();
+    };
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      window.removeEventListener('focus', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  }, [uid]);
 
   const regenerateInviteCode = async (): Promise<string | null> => {
     if (!team) return null;

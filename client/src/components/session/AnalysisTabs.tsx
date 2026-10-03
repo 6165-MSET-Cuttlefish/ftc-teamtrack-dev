@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId, useCallback } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -13,11 +13,8 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
-  Target,
-  Flower2,
-  AlertTriangle,
-  Activity,
   Check,
+  Info,
 } from 'lucide-react';
 import {
   BarChart,
@@ -30,19 +27,30 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceLine,
 } from 'recharts';
 import type { Match, SessionType } from '@/types';
-import type { RankingPointTally } from '@/lib';
+import { useIsCompact } from '@/hooks';
+import type { RankingPointTally, ScoreRow, Tone } from '@/lib';
 import {
+  CHART_COLORS,
+  ELEMENT_COLORS,
+  ELEMENT_LABELS,
+  POINTS,
+  RANKING_POINTS,
+  SERIES_COLORS,
   calculateScore,
   cycleTimesOf,
+  includesAuto,
+  includesTeleop,
   matchScore,
   rankingPoints,
   rankingPointNames,
   rankingPointTally,
   robotRates,
+  sanitizeHtml,
   scoreRows,
+  toDate,
+  toneOf,
 } from '@/lib';
 
 /** Compute +/- diff string */
@@ -58,6 +66,10 @@ const plural = (n: number, one: string, many = `${one}s`) =>
 /** Text on a solid team-blue fill, which is pale in the dark themes. */
 const onTeamBlue = (isDarkMode: boolean) =>
   isDarkMode ? 'text-black' : 'text-white';
+
+/** Small controls grow to a thumb-sized target on touch screens. */
+const TOUCH_TARGET =
+  '[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
 
 /**
  * Whether to show foul figures. Fouls are only recorded in a Scrim; a view
@@ -85,14 +97,36 @@ const ChartTooltip = ({
   label,
   isDarkMode,
   unit,
+  total,
+  hint,
 }: {
   active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
+  payload?: Array<{
+    name: string;
+    value: number;
+    color: string;
+    /** The data row: `title` names the match in full */
+    payload?: { title?: string };
+  }>;
   label?: string;
   isDarkMode?: boolean;
+  /** Written after every value: ' pts', 's' */
   unit?: string;
+  /** Add a row that sums the series, for a stack that adds up to a score */
+  total?: boolean;
+  /** A last quiet line, e.g. what a click on this column does */
+  hint?: string;
 }) => {
   if (!active || !payload?.length) return null;
+  const title = payload[0].payload?.title ?? label;
+  const format = (value: number) => `${formatNumber(value)}${unit ?? ''}`;
+  const sum = payload.reduce(
+    (acc, entry) => acc + (typeof entry.value === 'number' ? entry.value : 0),
+    0
+  );
+  const nameTone = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
+  // The series colour is on the dot: as text most of them are under 4.5:1.
+  const valueTone = isDarkMode ? 'text-white' : 'text-gray-900';
   return (
     <div
       className={`p-3 rounded-lg border shadow-xl backdrop-blur-sm ${
@@ -101,7 +135,7 @@ const ChartTooltip = ({
           : 'bg-white/95 border-gray-200'
       }`}
     >
-      {label && (
+      {title && (
         <p
           className={`font-semibold mb-2 pb-2 border-b text-xs ${
             isDarkMode
@@ -109,7 +143,7 @@ const ChartTooltip = ({
               : 'text-gray-900 border-gray-200'
           }`}
         >
-          {label}
+          {title}
         </p>
       )}
       <div className="space-y-1">
@@ -120,41 +154,67 @@ const ChartTooltip = ({
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: entry.color }}
               />
-              <span
-                className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-              >
-                {entry.name}
-              </span>
+              <span className={`text-xs ${nameTone}`}>{entry.name}</span>
             </div>
-            <span className="text-xs font-bold" style={{ color: entry.color }}>
+            <span className={`text-xs font-bold tabular-nums ${valueTone}`}>
               {typeof entry.value === 'number'
-                ? `${formatNumber(entry.value)}${unit ?? ''}`
+                ? format(entry.value)
                 : entry.value}
             </span>
           </div>
         ))}
+        {total && (
+          <div
+            className={`flex items-center justify-between gap-4 pt-1 mt-1 border-t ${
+              isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
+            }`}
+          >
+            <span className={`text-xs font-semibold ${valueTone}`}>Total</span>
+            <span className={`text-xs font-bold tabular-nums ${valueTone}`}>
+              {format(sum)}
+            </span>
+          </div>
+        )}
       </div>
+      {hint && <p className={`mt-2 text-[11px] ${nameTone}`}>{hint}</p>}
     </div>
   );
 };
 
+/**
+ * One figure with its label above and a line of context below.
+ *
+ * Every tile has the same three rows, and inside a grid they are the grid's
+ * own rows (subgrid), so the figures of neighbouring tiles line up even when
+ * one label wraps. `info` adds an (i) that opens a one-line definition;
+ * `onClick` makes the whole tile a button (and takes the place of `info`).
+ */
 export const StatCard = ({
   label,
   value,
   sublabel,
-  icon: Icon,
+  info,
+  onClick,
   highlight,
   variant = 'default',
   isDarkMode,
+  className = '',
 }: {
   label: string;
   value: string | number;
   sublabel?: string;
-  icon?: React.ElementType;
+  /** What the figure means, in a sentence */
+  info?: string;
+  /** Where the figure leads - the match it names */
+  onClick?: () => void;
   highlight?: boolean;
   variant?: 'default' | 'success' | 'danger';
   isDarkMode: boolean;
+  /** Grid placement, e.g. a column span */
+  className?: string;
 }) => {
+  const [showInfo, setShowInfo] = useState(false);
+
   const borderBg =
     variant === 'success'
       ? isDarkMode
@@ -184,34 +244,80 @@ export const StatCard = ({
           : 'text-red-700'
         : 'text-team-blue';
 
+  const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
+  const box = `relative row-span-3 grid grid-rows-subgrid gap-y-0 content-start min-w-0 rounded-xl border p-3 sm:p-5 text-left ${borderBg} ${className}`;
+
+  // A button may only hold phrasing content, so its rows are spans.
+  const Row = onClick ? 'span' : 'p';
+  const labelRow = (
+    // Room on the right for the (i), which sits in the corner
+    <Row
+      className={`block text-xs font-medium uppercase tracking-wide ${muted} ${info && !onClick ? 'pr-6' : ''}`}
+    >
+      {label}
+    </Row>
+  );
+  const valueRow = (
+    <Row
+      className={`block text-2xl sm:text-3xl font-bold tabular-nums ${valueColor} mt-1`}
+    >
+      {value}
+    </Row>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`${box} cursor-pointer transition-colors ${
+          isDarkMode ? 'hover:bg-white/10' : 'hover:brightness-95'
+        }`}
+      >
+        {labelRow}
+        {valueRow}
+        <span
+          className={`mt-1 self-start justify-self-start inline-flex items-center gap-0.5 text-xs font-semibold underline underline-offset-2 ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}
+        >
+          {sublabel}
+          <ChevronRight size={14} aria-hidden />
+        </span>
+      </button>
+    );
+  }
+
   return (
-    <div className={`rounded-xl border p-5 transition-all ${borderBg}`}>
-      <div className="space-y-3">
-        {Icon && (
-          <div
-            className={`inline-flex p-2.5 rounded-lg ${isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'}`}
-          >
-            <Icon size={20} className="text-team-blue" />
-          </div>
-        )}
-        <div>
+    <div className={box}>
+      {labelRow}
+      {valueRow}
+      <div>
+        {sublabel && <p className={`text-xs mt-1 ${muted}`}>{sublabel}</p>}
+        {info && showInfo && (
           <p
-            className={`text-xs font-medium uppercase tracking-wide ${
-              isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-            }`}
+            className={`text-xs mt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
           >
-            {label}
+            {info}
           </p>
-          <p className={`text-3xl font-bold ${valueColor} mt-1`}>{value}</p>
-          {sublabel && (
-            <p
-              className={`text-xs mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-            >
-              {sublabel}
-            </p>
-          )}
-        </div>
+        )}
       </div>
+      {info && (
+        <button
+          type="button"
+          title={info}
+          aria-label={`About ${label}`}
+          aria-expanded={showInfo}
+          onClick={() => setShowInfo(v => !v)}
+          className={`absolute top-0.5 right-0.5 sm:top-2.5 sm:right-2.5 inline-flex items-center justify-center rounded-full p-2 transition-colors ${TOUCH_TARGET} ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-team-blue'
+              : 'text-gray-500 hover:text-team-blue'
+          }`}
+        >
+          <Info size={15} />
+        </button>
+      )}
     </div>
   );
 };
@@ -258,21 +364,33 @@ const ElementBar = ({
 
 const Section = ({
   title,
+  hint,
   children,
   isDarkMode,
 }: {
   title: string;
+  /** A quiet line beside the title, e.g. what a click does */
+  hint?: string;
   children: React.ReactNode;
   isDarkMode: boolean;
 }) => (
   <div
     className={`rounded-xl border p-4 sm:p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
   >
-    <h3
-      className={`text-lg font-semibold mb-5 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-    >
-      {title}
-    </h3>
+    <div className="flex items-baseline justify-between gap-x-4 gap-y-1 flex-wrap mb-4 sm:mb-5">
+      <h3
+        className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+      >
+        {title}
+      </h3>
+      {hint && (
+        <p
+          className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+        >
+          {hint}
+        </p>
+      )}
+    </div>
     {children}
   </div>
 );
@@ -292,6 +410,12 @@ const EmptyChart = ({
     {message}
   </div>
 );
+
+/** How many of the chances were taken */
+interface Tally {
+  made: number;
+  chances: number;
+}
 
 export interface SessionStats {
   avgScore: number;
@@ -314,13 +438,18 @@ export interface SessionStats {
   leaveRate: number | null;
   /** Percentage of park opportunities converted, counting only periods that were run */
   parkRate: number | null;
+  /** The counts behind `leaveRate` and `parkRate` */
+  leaves: Tally;
+  parks: Tally;
   /** Average seconds between Hive Tips, or null if never recorded */
   avgCycle: number | null;
+  /** How many tip-to-tip gaps `avgCycle` is the average of */
+  cycleCount: number;
   /**
-   * How steady the scores are, 0-100: 100 x (1 - SD / average). Null when
-   * there is nothing to measure - fewer than two matches, or no points.
+   * How far a match typically lands from the average, in points (the
+   * standard deviation of the scores). Null with fewer than two matches.
    */
-  consistency: number | null;
+  scoreSpread: number | null;
   /** Ranking points earned from scoring alone (SWARM, POLLINATOR 1 and 2) */
   rankingPoints: RankingPointTally;
   totalMatches: number;
@@ -340,6 +469,28 @@ const mean = (values: number[]) =>
 /** One decimal place, so per-element averages still add up to the total. */
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+/**
+ * Leaves and parks made, out of the chances the periods that were run gave.
+ * Counted the way `robotRates` counts them, which only reports percentages.
+ */
+const robotTallies = (matches: Match[]): { leaves: Tally; parks: Tally } => {
+  const leaves: Tally = { made: 0, chances: 0 };
+  const parks: Tally = { made: 0, chances: 0 };
+  for (const m of matches) {
+    if (includesAuto(m.matchType)) {
+      leaves.chances += 2;
+      leaves.made += (m.robot1Leave ? 1 : 0) + (m.robot2Leave ? 1 : 0);
+      parks.chances += 2;
+      parks.made += (m.robot1ParkAuto ? 1 : 0) + (m.robot2ParkAuto ? 1 : 0);
+    }
+    if (includesTeleop(m.matchType)) {
+      parks.chances += 2;
+      parks.made += (m.robot1ParkTeleop ? 1 : 0) + (m.robot2ParkTeleop ? 1 : 0);
+    }
+  }
+  return { leaves, parks };
+};
+
 export const computeStats = (matches: Match[]): SessionStats | null => {
   if (matches.length === 0) return null;
 
@@ -354,13 +505,7 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
 
   const allCycles = matches.flatMap(cycleTimesOf);
 
-  // Spread relative to the average, so a 10-point swing counts for less
-  // in a 150-point session than in a 30-point one.
   const variance = mean(scores.map(sc => Math.pow(sc - avgScore, 2)));
-  const consistency =
-    matches.length < 2 || avgScore === 0
-      ? null
-      : Math.round(Math.max(0, 100 * (1 - Math.sqrt(variance) / avgScore)));
 
   return {
     avgScore: Math.round(avgScore),
@@ -376,9 +521,11 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
     avgPenalties: round1(mean(breakdowns.map(b => b.penalties))),
     leaveRate,
     parkRate,
+    ...robotTallies(matches),
     avgCycle:
       allCycles.length > 0 ? Math.round(mean(allCycles) * 100) / 100 : null,
-    consistency,
+    cycleCount: allCycles.length,
+    scoreSpread: matches.length < 2 ? null : Math.round(Math.sqrt(variance)),
     rankingPoints: rankingPointTally(matches),
     totalMatches: matches.length,
     bestMatch: scores.indexOf(maxScore),
@@ -386,24 +533,74 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
   };
 };
 
-const CHART_COLORS = {
-  garden: '#10b981', // emerald - Garden
-  tipping: '#f59e0b', // amber   - Tipping
-  flower: '#a855f7', // purple  - Flower
-  hive: '#0ea5e9', // sky     - Balls in Hive
-  robots: '#14b8a6', // teal    - Leave + Park
-  penalties: '#ef4444', // red  - Fouls
-  primary: '#537788', // steel  - Final Score
-  secondary: '#7ba8ba', // muted steel - session average
-  cycle: '#8b5cf6', // violet  - Cycle time
-  flowerBonus: '#d8b4fe', // light purple - Flower Bonus
+/** The shared chart palette, as the colours one theme draws with. */
+const chartColors = (isDarkMode: boolean) => {
+  const tone = (color: Tone) => toneOf(color, isDarkMode);
+  // Compare's two matches: not green or red, which mean better and worse.
+  const [matchA, matchB] = SERIES_COLORS[isDarkMode ? 'dark' : 'light'];
+  return {
+    tipping: tone(ELEMENT_COLORS.tipping),
+    garden: tone(ELEMENT_COLORS.garden),
+    flower: tone(ELEMENT_COLORS.flower),
+    flowerBonus: tone(ELEMENT_COLORS.flowerBonus),
+    hive: tone(ELEMENT_COLORS.hive),
+    robots: tone(ELEMENT_COLORS.robots),
+    minor: tone(ELEMENT_COLORS.minor),
+    major: tone(ELEMENT_COLORS.major),
+    total: tone(CHART_COLORS.total),
+    average: tone(CHART_COLORS.average),
+    cycle: tone(CHART_COLORS.cycle),
+    matchA,
+    matchB,
+  };
+};
+
+/** The scoring elements a match's bar is stacked from, bottom first */
+const SERIES_KEYS = [
+  'tipping',
+  'garden',
+  'flower',
+  'flowerBonus',
+  'hive',
+  'robots',
+] as const;
+
+/**
+ * What one of each breakdown row is worth, so a row can show its sum
+ * ("3 × 20") instead of a bare count.
+ */
+const ROW_UNIT_POINTS: Partial<Record<ScoreRow['key'], number>> = {
+  tipping: POINTS.HIVE_TIP,
+  garden: POINTS.GARDEN,
+  flower: POINTS.FLOWER_ELEMENT,
+  flowerBonus: POINTS.FLOWER_BONUS,
+  hive: POINTS.CELL_REMAINING,
+  leave: POINTS.LEAVE,
+  park: POINTS.PARK,
+};
+
+/** A row's count as a sum that can be checked against its points: "3 × 20" */
+const rowSum = (row: ScoreRow): string => {
+  const unit = ROW_UNIT_POINTS[row.key];
+  return unit === undefined ? `${row.count}` : `${row.count} × ${unit}`;
+};
+
+/** Fouls come at two values, so their sum has two terms. */
+const foulSum = (m: Match): string => {
+  const minor = m.minorPenalties ?? 0;
+  const major = m.majorPenalties ?? 0;
+  const terms = [
+    ...(minor > 0 ? [`${minor} minor × ${POINTS.MINOR_PENALTY}`] : []),
+    ...(major > 0 ? [`${major} major × ${POINTS.MAJOR_PENALTY}`] : []),
+  ];
+  return terms.join(' + ') || 'none';
 };
 
 export type TabId = 'summary' | 'matches' | 'compare';
 
 export const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'summary', label: 'Summary', icon: BarChart3 },
-  { id: 'matches', label: 'Match Details', icon: LayoutList },
+  { id: 'matches', label: 'Matches', icon: LayoutList },
   { id: 'compare', label: 'Compare', icon: ArrowRightLeft },
 ];
 
@@ -412,9 +609,37 @@ export const tabButtonId = (id: TabId) => `analysis-tab-${id}`;
 export const tabPanelId = (id: TabId) => `analysis-panel-${id}`;
 
 /**
- * The Summary / Match Details / Compare switcher. On a phone the labels are
- * hidden and only the icons show, so each tab carries its name for screen
- * readers. Wrap the content it switches in
+ * Which tab an analysis page shows and which match is selected in it, with
+ * the jump from a figure or chart column that names a match to that match.
+ */
+export const useAnalysisNav = () => {
+  const [activeTab, setActiveTab] = useState<TabId>('summary');
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
+  const openMatch = useCallback((index: number) => {
+    setSelectedIdx(index);
+    setActiveTab('matches');
+    // The tiles and charts that lead here sit at any height on the page;
+    // the match opens under the tabs, so those have to be on screen.
+    requestAnimationFrame(() => {
+      const tabs = document.getElementById(tabButtonId('matches'));
+      if (!tabs) return;
+      const header =
+        document.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
+      const top = tabs.getBoundingClientRect().top;
+      // A jump, not the page's smooth scroll: the content has changed anyway.
+      if (top < header + 8) {
+        window.scrollBy({ top: top - header - 12, behavior: 'instant' });
+      }
+    });
+  }, []);
+
+  return { activeTab, setActiveTab, selectedIdx, setSelectedIdx, openMatch };
+};
+
+/**
+ * The Summary / Matches / Compare switcher: icon over label on a phone,
+ * side by side from `sm` up. Wrap the content it switches in
  * `role="tabpanel" id={tabPanelId(active)} aria-labelledby={tabButtonId(active)}`.
  */
 export const AnalysisTabBar = ({
@@ -455,7 +680,13 @@ export const AnalysisTabBar = ({
       role="tablist"
       aria-label="Analysis sections"
       onKeyDown={onKeyDown}
-      className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-100'}`}
+      // The track is lighter than the page in the dark themes, where the
+      // page's own colour on it would not show at all.
+      className={`flex gap-1 p-1 rounded-xl border ${
+        isDarkMode
+          ? 'bg-white/5 border-team-blue-40'
+          : 'bg-gray-100 border-gray-200'
+      }`}
     >
       {TABS.map(tab => {
         const Icon = tab.icon;
@@ -466,26 +697,198 @@ export const AnalysisTabBar = ({
             type="button"
             role="tab"
             id={tabButtonId(tab.id)}
-            aria-label={tab.label}
             aria-selected={isActive}
             aria-controls={isActive ? tabPanelId(tab.id) : undefined}
             tabIndex={isActive ? 0 : -1}
             onClick={() => onChange(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-colors [@media(pointer:coarse)]:min-h-11 ${
               isActive
-                ? isDarkMode
-                  ? 'bg-team-dark text-team-blue shadow-sm'
-                  : 'bg-white text-team-blue shadow-sm'
-                : isDarkMode
-                  ? 'text-team-white-60 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
+                ? `bg-team-blue font-semibold shadow-sm ${onTeamBlue(isDarkMode)}`
+                : `font-medium ${
+                    isDarkMode
+                      ? 'text-team-white-60 hover:text-white hover:bg-white/5'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/70'
+                  }`
             }`}
           >
             <Icon size={16} aria-hidden />
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span>{tab.label}</span>
           </button>
         );
       })}
+    </div>
+  );
+};
+
+/** A stored timestamp as a date, or null when there isn't a real one */
+const dateOf = (value: unknown): Date | null => {
+  if (!value) return null;
+  const date = toDate(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/**
+ * A recorded session length in words: "48:12" is "48 min", "1:22:40" is
+ * "1 h 23 min". Anything that isn't a clock reading is shown as it is.
+ */
+const durationLabel = (duration: string): string => {
+  const parts = duration.split(':').map(Number);
+  if (
+    parts.length < 2 ||
+    parts.length > 3 ||
+    parts.some(n => !Number.isFinite(n) || n < 0)
+  ) {
+    return duration;
+  }
+  const seconds = parts.reduce((total, n) => total * 60 + n, 0);
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${minutes} min`;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+};
+
+/**
+ * The line under a session's name that says what it was and when:
+ * "Practice · Full Game · Wed, Sep 30, 2026 · 6 matches · 48 min".
+ * Whatever isn't known is left out.
+ */
+export const SessionMeta = ({
+  sessionType,
+  matchType,
+  createdAt,
+  matchCount,
+  duration,
+  isDarkMode,
+}: {
+  sessionType?: SessionType;
+  matchType?: string;
+  /** When the session was recorded: a stored timestamp or an ISO string */
+  createdAt?: unknown;
+  matchCount: number;
+  /** As stored, "MM:SS" or "H:MM:SS" */
+  duration?: string;
+  isDarkMode: boolean;
+}) => {
+  const date = dateOf(createdAt);
+  const parts: { key: string; node: React.ReactNode }[] = [
+    ...(sessionType ? [{ key: 'type', node: sessionType }] : []),
+    ...(matchType ? [{ key: 'matchType', node: matchType }] : []),
+    ...(date
+      ? [
+          {
+            key: 'date',
+            node: (
+              <time
+                dateTime={date.toISOString()}
+                title={date.toLocaleString('en-US', {
+                  dateStyle: 'full',
+                  timeStyle: 'short',
+                })}
+              >
+                {date.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </time>
+            ),
+          },
+        ]
+      : []),
+    { key: 'matches', node: plural(matchCount, 'match', 'matches') },
+    ...(duration && duration !== '00:00'
+      ? [{ key: 'duration', node: durationLabel(duration) }]
+      : []),
+  ];
+
+  return (
+    <p
+      className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+    >
+      {parts.map((part, i) => (
+        // The dot trails its part, so a wrapped line never starts with one
+        <span key={part.key} className="inline-flex items-center gap-x-2">
+          <span className="whitespace-nowrap">{part.node}</span>
+          {i < parts.length - 1 && <span aria-hidden>·</span>}
+        </span>
+      ))}
+    </p>
+  );
+};
+
+/** Lines of notes shown before "Show more" */
+const NOTES_CLAMP_LINES = 3;
+/** Notes this many lines long are shown whole: hiding a line or two saves nothing */
+const NOTES_WHOLE_LINES = 5;
+
+/**
+ * A session's notes. With `clamp` only the first three lines show until
+ * "Show more" is pressed, so long notes don't push the charts down.
+ */
+export const SessionNotes = ({
+  notes,
+  isDarkMode,
+  clamp = false,
+}: {
+  /** Rich-text HTML as stored; sanitized here */
+  notes: string;
+  isDarkMode: boolean;
+  clamp?: boolean;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const [clampHeight, setClampHeight] = useState<number | null>(null);
+  const [overflows, setOverflows] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const bodyId = useId();
+
+  // Whether there is more than three lines can only be measured, and
+  // changes with the width of the page.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body || !clamp) return;
+    const observer = new ResizeObserver(() => {
+      const line = parseFloat(getComputedStyle(body).lineHeight);
+      if (!Number.isFinite(line)) return;
+      setClampHeight(line * NOTES_CLAMP_LINES);
+      setOverflows(body.scrollHeight > line * NOTES_WHOLE_LINES + 2);
+    });
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, [clamp, notes]);
+
+  const clamped = clamp && overflows && !expanded;
+
+  return (
+    <div
+      className={`rounded-xl border p-4 sm:p-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
+    >
+      <h3
+        className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+      >
+        Notes
+      </h3>
+      {/* contain:paint keeps whatever the notes hold inside this box */}
+      <div
+        ref={bodyRef}
+        id={bodyId}
+        style={clamped && clampHeight ? { maxHeight: clampHeight } : undefined}
+        className={`[contain:paint] relative overflow-hidden text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${isDarkMode ? "text-team-white-60 [&_[style*='background-color']]:text-black" : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(notes) }}
+      />
+      {clamp && overflows && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={bodyId}
+          onClick={() => setExpanded(v => !v)}
+          className="mt-1 inline-flex items-center text-sm font-semibold text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
     </div>
   );
 };
@@ -495,45 +898,105 @@ const axisProps = (isDarkMode: boolean) => ({
   fontSize: 12,
 });
 
+/**
+ * The band behind the hovered column of a bar chart. The library's own is a
+ * light grey block, which glares on the dark cards.
+ */
+const barCursor = (isDarkMode: boolean) => ({
+  fill: isDarkMode ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
+});
+
+/** A chart row that stands for one match */
+interface MatchRow {
+  /** Axis tick: "M3" */
+  name: string;
+  /** Tooltip heading: "Match 3" */
+  title: string;
+  /** Position of the match in the session */
+  matchIndex: number;
+}
+
+const matchRow = (m: Match, matchIndex: number): MatchRow => ({
+  name: `M${m.matchNumber}`,
+  title: `Match ${m.matchNumber}`,
+  matchIndex,
+});
+
 export const SummaryTab = ({
   matches,
   stats,
   isDarkMode,
   sessionType,
+  onOpenMatch,
 }: {
   matches: Match[];
   stats: SessionStats;
   isDarkMode: boolean;
   /** Practice sessions leave the foul figures out */
   sessionType?: SessionType;
+  /**
+   * Show one match (by its position in `matches`). With it the Best and
+   * Worst tiles and the chart columns lead to their match.
+   */
+  onOpenMatch?: (index: number) => void;
 }) => {
   const [elementView, setElementView] = useState<'points' | 'counts'>('points');
   const fouls = showsFouls(sessionType, matches);
+  const colors = chartColors(isDarkMode);
+  const chartStyle = onOpenMatch ? { cursor: 'pointer' } : undefined;
 
-  const trendData = matches.map(m => {
-    const b = calculateScore(m);
-    return {
-      name: `M${m.matchNumber}`,
-      'Final Score': scoreOf(m),
-      Garden: b.garden,
-      Tipping: b.tipping,
-      Flower: b.flower,
-      'Flower Bonus': b.flowerBonus,
-      Hive: b.hive,
-    };
-  });
+  // A click anywhere in a match's column of a chart opens that match. On a
+  // touch screen a tap is also how the column's tooltip is read, so there
+  // the first tap shows the tooltip and a second one opens the match.
+  const [tapped, setTapped] = useState<string | null>(null);
+  const canHover =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: hover)').matches;
+  const openHint = !onOpenMatch
+    ? undefined
+    : canHover
+      ? 'Click a match to open it'
+      : 'Tap a match twice to open it';
+  const tooltipHint = !onOpenMatch
+    ? undefined
+    : canHover
+      ? 'Click to open this match'
+      : 'Tap again to open this match';
+  const openFromChart = (chart: string, rows: MatchRow[]) =>
+    onOpenMatch
+      ? (state: { activeTooltipIndex?: number | string | null }) => {
+          const index = state.activeTooltipIndex;
+          if (index === null || index === undefined || index === '') return;
+          const row = rows[Number(index)];
+          if (!row) return;
+          const column = `${chart}:${row.matchIndex}`;
+          if (!canHover && tapped !== column) {
+            setTapped(column);
+            return;
+          }
+          onOpenMatch(row.matchIndex);
+        }
+      : undefined;
 
-  const elementData = matches.map(m => {
+  // The average is a series of its own so the legend and the tooltip name
+  // the dashed line.
+  const trendData = matches.map((m, i) => ({
+    ...matchRow(m, i),
+    score: scoreOf(m),
+    average: stats.avgScore,
+  }));
+
+  const elementData = matches.map((m, i) => {
     const b = calculateScore(m);
     if (elementView === 'points') {
       return {
-        name: `M${m.matchNumber}`,
-        Garden: b.garden,
-        Tipping: b.tipping,
-        Flower: b.flower,
-        'Flower Bonus': b.flowerBonus,
-        Hive: b.hive,
-        Robots: b.leave + b.park,
+        ...matchRow(m, i),
+        tipping: b.tipping,
+        garden: b.garden,
+        flower: b.flower,
+        flowerBonus: b.flowerBonus,
+        hive: b.hive,
+        robots: b.leave + b.park,
       };
     }
     // Leaves and parks as scored: a period the match never ran counts none.
@@ -541,85 +1004,143 @@ export const SummaryTab = ({
       .filter(row => row.key === 'leave' || row.key === 'park')
       .reduce((sum, row) => sum + row.count, 0);
     return {
-      name: `M${m.matchNumber}`,
-      Garden: m.garden ?? 0,
-      Tipping: m.tipping ?? 0,
-      Flower: m.flower ?? 0,
-      'Flower Bonus': m.flowerBonus ?? 0,
-      Hive: m.ballsInHive ?? 0,
-      Robots: robots,
+      ...matchRow(m, i),
+      tipping: m.tipping ?? 0,
+      garden: m.garden ?? 0,
+      flower: m.flower ?? 0,
+      flowerBonus: m.flowerBonus ?? 0,
+      hive: m.ballsInHive ?? 0,
+      robots,
     };
   });
 
-  const penaltyData = matches.map(m => ({
-    name: `M${m.matchNumber}`,
-    Minor: m.minorPenalties ?? 0,
-    Major: m.majorPenalties ?? 0,
+  const penaltyData = matches.map((m, i) => ({
+    ...matchRow(m, i),
+    minor: m.minorPenalties ?? 0,
+    major: m.majorPenalties ?? 0,
   }));
-  const hasPenalties = penaltyData.some(d => d.Minor + d.Major > 0);
+  const hasPenalties = penaltyData.some(d => d.minor + d.major > 0);
 
-  const cycleData = matches
-    .map(m => {
-      const cycles = cycleTimesOf(m);
-      if (cycles.length === 0) return null;
-      return {
-        name: `M${m.matchNumber}`,
-        'Avg Cycle': cycles.reduce((a, b) => a + b, 0) / cycles.length,
-      };
-    })
-    .filter((d): d is { name: string; 'Avg Cycle': number } => d !== null);
+  const cycleData = matches.flatMap((m, i) => {
+    const cycles = cycleTimesOf(m);
+    return cycles.length === 0
+      ? []
+      : [{ ...matchRow(m, i), cycle: mean(cycles) }];
+  });
 
   // Session-average element mix, used for the contribution bars.
   const avgRows = [
-    { label: 'Garden', value: stats.avgGarden, color: CHART_COLORS.garden },
-    { label: 'Tipping', value: stats.avgTipping, color: CHART_COLORS.tipping },
-    { label: 'Flower', value: stats.avgFlower, color: CHART_COLORS.flower },
     {
-      label: 'Flower Bonus',
-      value: stats.avgFlowerBonus,
-      color: CHART_COLORS.flower,
+      label: ELEMENT_LABELS.tipping,
+      value: stats.avgTipping,
+      color: colors.tipping,
     },
-    { label: 'Left in Hive', value: stats.avgHive, color: CHART_COLORS.hive },
-    { label: 'Leave', value: stats.avgLeave, color: CHART_COLORS.robots },
-    { label: 'Park', value: stats.avgPark, color: CHART_COLORS.robots },
+    {
+      label: ELEMENT_LABELS.garden,
+      value: stats.avgGarden,
+      color: colors.garden,
+    },
+    {
+      label: ELEMENT_LABELS.flower,
+      value: stats.avgFlower,
+      color: colors.flower,
+    },
+    {
+      label: ELEMENT_LABELS.flowerBonus,
+      value: stats.avgFlowerBonus,
+      color: colors.flowerBonus,
+    },
+    { label: ELEMENT_LABELS.hive, value: stats.avgHive, color: colors.hive },
+    { label: ELEMENT_LABELS.leave, value: stats.avgLeave, color: colors.robots },
+    { label: ELEMENT_LABELS.park, value: stats.avgPark, color: colors.robots },
   ];
   const avgMax = Math.max(1, ...avgRows.map(r => Math.abs(r.value)));
 
   const rp = stats.rankingPoints;
   const n = stats.totalMatches;
+  const bestNumber = matches[stats.bestMatch]?.matchNumber ?? stats.bestMatch + 1;
+  const worstNumber =
+    matches[stats.worstMatch]?.matchNumber ?? stats.worstMatch + 1;
+  const [pollinator1, pollinator2] = RANKING_POINTS.POLLINATOR_TIPS;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Two tiles a row on a phone; the ninth (fouls) takes a full row there */}
       <div
-        className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${fouls ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}
+        className={`grid grid-cols-2 gap-2 sm:gap-4 ${fouls ? 'sm:grid-cols-3' : 'md:grid-cols-4'}`}
       >
         <StatCard
           label="Average Score"
           value={stats.avgScore}
           sublabel={`across ${plural(n, 'match', 'matches')}`}
-          icon={Target}
           highlight
           isDarkMode={isDarkMode}
         />
         <StatCard
           label="Best Match"
           value={stats.maxScore}
-          sublabel={`Match ${matches[stats.bestMatch]?.matchNumber ?? stats.bestMatch + 1}`}
-          icon={TrendingUp}
+          sublabel={`Match ${bestNumber}`}
           variant="success"
+          onClick={onOpenMatch && (() => onOpenMatch(stats.bestMatch))}
           isDarkMode={isDarkMode}
         />
         <StatCard
-          label="Consistency"
-          value={stats.consistency === null ? '-' : `${stats.consistency}%`}
+          label="Worst Match"
+          value={stats.minScore}
+          sublabel={`Match ${worstNumber}`}
+          variant="danger"
+          onClick={onOpenMatch && (() => onOpenMatch(stats.worstMatch))}
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          label="Typical swing"
+          value={stats.scoreSpread === null ? '-' : `±${stats.scoreSpread} pts`}
           sublabel={
-            stats.consistency !== null
-              ? `range ${stats.minScore}-${stats.maxScore}`
-              : n < 2
-                ? 'needs 2+ matches'
-                : 'no points scored yet'
+            stats.scoreSpread === null
+              ? 'needs 2+ matches'
+              : `range ${stats.minScore}-${stats.maxScore}`
           }
-          icon={Activity}
+          info="How far a match usually lands from the average score (the standard deviation of the match scores)."
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          label="Leave Rate"
+          value={stats.leaveRate === null ? '-' : `${stats.leaveRate}%`}
+          sublabel={
+            stats.leaveRate === null
+              ? 'no autonomous run'
+              : `Leave ${stats.leaves.made} of ${stats.leaves.chances}`
+          }
+          info="Robots that left in auto, out of two for every match that ran an autonomous period."
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          label="Park Rate"
+          value={stats.parkRate === null ? '-' : `${stats.parkRate}%`}
+          sublabel={
+            stats.parkRate === null
+              ? 'no park chances'
+              : `Park ${stats.parks.made} of ${stats.parks.chances}`
+          }
+          info="Parks made out of the chances: two robots at the end of auto and two at the end of the match, for the periods each match ran."
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          label="RP Rate"
+          value={rp.rate === null ? '-' : `${rp.rate}%`}
+          sublabel={`${rp.earned} of ${rp.possible} RP · SWARM ${rp.swarm}/${n} · POLLINATOR 1 ${rp.pollinator1}/${n} · POLLINATOR 2 ${rp.pollinator2}/${n}`}
+          info={`Share of the ranking points scoring can earn, three a match: SWARM at ${RANKING_POINTS.SWARM_ROBOT_POINTS} Leave + Park points, POLLINATOR at ${pollinator1} and at ${pollinator2} Hive Tips.`}
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          label="Avg time between tips"
+          value={stats.avgCycle !== null ? `${stats.avgCycle.toFixed(1)}s` : '-'}
+          sublabel={
+            stats.avgCycle !== null
+              ? `over ${plural(stats.cycleCount, 'gap')}`
+              : 'needs 2+ Hive Tips scored live'
+          }
+          info="Average seconds from one Hive Tip to the next within a match, from tips tapped live."
           isDarkMode={isDarkMode}
         />
         {fouls && (
@@ -627,67 +1148,55 @@ export const SummaryTab = ({
             label="Avg points given to opponent"
             value={stats.avgPenalties}
             sublabel="per match, from your fouls - not taken off your score"
-            icon={AlertTriangle}
             variant={stats.avgPenalties > 0 ? 'danger' : 'default'}
+            className="col-span-2 sm:col-span-1"
             isDarkMode={isDarkMode}
           />
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Leave Rate"
-          value={stats.leaveRate === null ? '-' : `${stats.leaveRate}%`}
-          sublabel={
-            stats.leaveRate === null
-              ? 'no autonomous run'
-              : 'of robots, in matches with auto'
-          }
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Park Rate"
-          value={stats.parkRate === null ? '-' : `${stats.parkRate}%`}
-          sublabel="of park chances (auto + end)"
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="RP Rate"
-          value={rp.rate === null ? '-' : `${rp.rate}%`}
-          sublabel={`${rp.earned} of ${rp.possible} RP - SWARM ${rp.swarm}/${n}, POLLINATOR 1 ${rp.pollinator1}/${n}, POLLINATOR 2 ${rp.pollinator2}/${n}`}
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Avg Cycle"
-          value={stats.avgCycle !== null ? `${stats.avgCycle}s` : '-'}
-          sublabel="time between Hive Tips"
-          icon={Flower2}
-          isDarkMode={isDarkMode}
-        />
-      </div>
-
-      <Section title="Score Trend" isDarkMode={isDarkMode}>
+      <Section title="Score Trend" hint={openHint} isDarkMode={isDarkMode}>
         <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={trendData}>
+          <LineChart
+            data={trendData}
+            onClick={openFromChart('trend', trendData)}
+            style={chartStyle}
+          >
             <CartesianGrid
               strokeDasharray="3 3"
               stroke={isDarkMode ? '#334155' : '#e2e8f0'}
             />
             <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-            <YAxis {...axisProps(isDarkMode)} />
-            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
-            <Legend />
-            <ReferenceLine
-              y={stats.avgScore}
-              stroke={CHART_COLORS.secondary}
-              strokeDasharray="4 4"
+            <YAxis width={40} {...axisProps(isDarkMode)} />
+            <Tooltip
+              content={
+                <ChartTooltip
+                  isDarkMode={isDarkMode}
+                  unit=" pts"
+                  hint={tooltipHint}
+                />
+              }
             />
+            <Legend itemSorter={null} />
             <Line
               type="monotone"
-              dataKey="Final Score"
-              stroke={CHART_COLORS.primary}
+              dataKey="score"
+              name="Final Score"
+              stroke={colors.total}
               strokeWidth={3}
               dot={{ r: 4 }}
+              activeDot={{ r: 7 }}
+            />
+            <Line
+              dataKey="average"
+              name="Session average"
+              stroke={colors.average}
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              legendType="plainline"
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -723,7 +1232,7 @@ export const SummaryTab = ({
         )}
       </Section>
 
-      <Section title="Scoring by Match" isDarkMode={isDarkMode}>
+      <Section title="Scoring by Match" hint={openHint} isDarkMode={isDarkMode}>
         <div className="flex gap-2 mb-4">
           {(['points', 'counts'] as const).map(view => (
             <button
@@ -731,7 +1240,7 @@ export const SummaryTab = ({
               type="button"
               aria-pressed={elementView === view}
               onClick={() => setElementView(view)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:px-4 ${
                 elementView === view
                   ? `bg-team-blue ${onTeamBlue(isDarkMode)}`
                   : isDarkMode
@@ -744,31 +1253,49 @@ export const SummaryTab = ({
           ))}
         </div>
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={elementData}>
+          <BarChart
+            data={elementData}
+            onClick={openFromChart('elements', elementData)}
+            style={chartStyle}
+          >
             <CartesianGrid
               strokeDasharray="3 3"
               stroke={isDarkMode ? '#334155' : '#e2e8f0'}
             />
             <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-            <YAxis {...axisProps(isDarkMode)} />
-            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
-            <Legend />
-            <Bar dataKey="Garden" stackId="a" fill={CHART_COLORS.garden} />
-            <Bar dataKey="Tipping" stackId="a" fill={CHART_COLORS.tipping} />
-            <Bar dataKey="Flower" stackId="a" fill={CHART_COLORS.flower} />
-            <Bar
-              dataKey="Flower Bonus"
-              stackId="a"
-              fill={CHART_COLORS.flowerBonus}
+            <YAxis width={40} {...axisProps(isDarkMode)} />
+            <Tooltip
+              cursor={barCursor(isDarkMode)}
+              content={
+                elementView === 'points' ? (
+                  <ChartTooltip
+                    isDarkMode={isDarkMode}
+                    unit=" pts"
+                    total
+                    hint={tooltipHint}
+                  />
+                ) : (
+                  <ChartTooltip isDarkMode={isDarkMode} hint={tooltipHint} />
+                )
+              }
             />
-            <Bar dataKey="Hive" stackId="a" fill={CHART_COLORS.hive} />
-            <Bar dataKey="Robots" stackId="a" fill={CHART_COLORS.robots} />
+            {/* Unsorted, the legend reads in the order the bars are stacked */}
+            <Legend itemSorter={null} />
+            {SERIES_KEYS.map(key => (
+              <Bar
+                key={key}
+                dataKey={key}
+                name={ELEMENT_LABELS[key]}
+                stackId="a"
+                fill={colors[key]}
+              />
+            ))}
           </BarChart>
         </ResponsiveContainer>
       </Section>
 
       <div
-        className={`grid grid-cols-1 gap-6 ${fouls ? 'lg:grid-cols-2' : ''}`}
+        className={`grid grid-cols-1 gap-4 sm:gap-6 ${fouls ? 'lg:grid-cols-2' : ''}`}
       >
         {fouls && (
           <Section
@@ -777,17 +1304,41 @@ export const SummaryTab = ({
           >
             {hasPenalties ? (
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={penaltyData}>
+                <BarChart
+                  data={penaltyData}
+                  onClick={openFromChart('fouls', penaltyData)}
+                  style={chartStyle}
+                >
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke={isDarkMode ? '#334155' : '#e2e8f0'}
                   />
                   <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-                  <YAxis allowDecimals={false} {...axisProps(isDarkMode)} />
-                  <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
-                  <Legend />
-                  <Bar dataKey="Minor" fill={CHART_COLORS.tipping} />
-                  <Bar dataKey="Major" fill={CHART_COLORS.penalties} />
+                  <YAxis
+                    width={40}
+                    allowDecimals={false}
+                    {...axisProps(isDarkMode)}
+                  />
+                  <Tooltip
+                    cursor={barCursor(isDarkMode)}
+                    content={
+                      <ChartTooltip
+                        isDarkMode={isDarkMode}
+                        hint={tooltipHint}
+                      />
+                    }
+                  />
+                  <Legend itemSorter={null} />
+                  <Bar
+                    dataKey="minor"
+                    name={ELEMENT_LABELS.minor}
+                    fill={colors.minor}
+                  />
+                  <Bar
+                    dataKey="major"
+                    name={ELEMENT_LABELS.major}
+                    fill={colors.major}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -799,31 +1350,43 @@ export const SummaryTab = ({
           </Section>
         )}
 
-        <Section title="Cycle Time (between Hive Tips)" isDarkMode={isDarkMode}>
+        <Section title="Time Between Hive Tips" isDarkMode={isDarkMode}>
           {cycleData.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={cycleData}>
+              <LineChart
+                data={cycleData}
+                onClick={openFromChart('cycle', cycleData)}
+                style={chartStyle}
+              >
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke={isDarkMode ? '#334155' : '#e2e8f0'}
                 />
                 <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-                <YAxis {...axisProps(isDarkMode)} />
+                <YAxis width={40} unit="s" {...axisProps(isDarkMode)} />
                 <Tooltip
-                  content={<ChartTooltip isDarkMode={isDarkMode} unit="s" />}
+                  content={
+                    <ChartTooltip
+                      isDarkMode={isDarkMode}
+                      unit="s"
+                      hint={tooltipHint}
+                    />
+                  }
                 />
                 <Line
                   type="monotone"
-                  dataKey="Avg Cycle"
-                  stroke={CHART_COLORS.cycle}
+                  dataKey="cycle"
+                  name="Avg time between tips"
+                  stroke={colors.cycle}
                   strokeWidth={3}
                   dot={{ r: 4 }}
+                  activeDot={{ r: 7 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           ) : (
             <EmptyChart
-              message="No cycle times yet - needs 2+ Hive Tips scored live"
+              message="No times yet - needs 2+ Hive Tips scored live"
               isDarkMode={isDarkMode}
             />
           )}
@@ -833,9 +1396,130 @@ export const SummaryTab = ({
   );
 };
 
+/** "Best" or "Worst" beside a match: a word and an icon, not colour alone */
+const RankMark = ({
+  rank,
+  isDarkMode,
+  className = '',
+}: {
+  rank: 'best' | 'worst';
+  isDarkMode: boolean;
+  className?: string;
+}) => {
+  const Icon = rank === 'best' ? TrendingUp : TrendingDown;
+  const tone =
+    rank === 'best'
+      ? isDarkMode
+        ? 'text-emerald-400'
+        : 'text-emerald-700'
+      : isDarkMode
+        ? 'text-red-400'
+        : 'text-red-700';
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 text-[11px] font-bold uppercase tracking-wide ${tone} ${className}`}
+    >
+      <Icon size={12} aria-hidden />
+      {rank === 'best' ? 'Best' : 'Worst'}
+    </span>
+  );
+};
+
+/** Which matches scored highest and lowest; neither when every score is equal */
+const rankOf = (matches: Match[]) => {
+  const scores = matches.map(scoreOf);
+  const max = Math.max(...scores);
+  const min = Math.min(...scores);
+  const best = max === min ? -1 : scores.indexOf(max);
+  const worst = max === min ? -1 : scores.indexOf(min);
+  return (index: number): 'best' | 'worst' | null =>
+    index === best ? 'best' : index === worst ? 'worst' : null;
+};
+
+/**
+ * How long the Delete in a just-opened question ignores presses, so the
+ * second tap of a double tap can't answer it.
+ */
+const CONFIRM_ARM_MS = 500;
+
+/**
+ * "Delete Match 3 (31 pts)?" in place of the buttons that asked. Keep sits
+ * on the right, where Delete was, so a second press on the same spot
+ * changes nothing; it also takes the keyboard focus.
+ */
+const DeleteMatchConfirm = ({
+  question,
+  onKeep,
+  onDelete,
+  isDarkMode,
+}: {
+  question: string;
+  onKeep: () => void;
+  onDelete: () => void;
+  isDarkMode: boolean;
+}) => {
+  const questionId = useId();
+  const keepRef = useRef<HTMLButtonElement>(null);
+  const shownAt = useRef(0);
+
+  useEffect(() => {
+    shownAt.current = Date.now();
+    keepRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const button =
+    'inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-semibold transition-colors [@media(pointer:coarse)]:min-h-11';
+
+  return (
+    <div
+      role="group"
+      aria-labelledby={questionId}
+      onKeyDown={e => {
+        if (e.key === 'Escape') onKeep();
+      }}
+      // One row at any width - a long question wraps within itself - so the
+      // buttons stay where the ones they replace were.
+      className="flex items-center justify-end gap-2 ml-auto min-w-0"
+    >
+      <p
+        id={questionId}
+        className={`min-w-0 text-right text-sm font-semibold leading-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+      >
+        {question}
+      </p>
+      <div className="flex gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => {
+            if (Date.now() - shownAt.current >= CONFIRM_ARM_MS) onDelete();
+          }}
+          className={`${button} border-red-600 bg-red-600 text-white hover:bg-red-700`}
+        >
+          Delete
+        </button>
+        <button
+          ref={keepRef}
+          type="button"
+          onClick={onKeep}
+          // As wide as the Delete button it replaces, to cover all of it
+          className={`${button} min-w-[5.75rem] ${
+            isDarkMode
+              ? 'border-team-blue-40 text-white hover:bg-white/5'
+              : 'border-gray-300 text-gray-800 hover:bg-gray-50'
+          }`}
+        >
+          Keep
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const MatchDetailTab = ({
   matches,
   isDarkMode,
+  selectedIdx,
+  onSelect,
   // Edit/delete/add are optional - omit them for a read-only view
   onEdit,
   onDelete,
@@ -844,20 +1528,46 @@ export const MatchDetailTab = ({
 }: {
   matches: Match[];
   isDarkMode: boolean;
+  /**
+   * Which match is shown, when the page decides (so a tile or chart can
+   * open one). Left out, the tab keeps track by itself.
+   */
+  selectedIdx?: number;
+  onSelect?: (index: number) => void;
   onEdit?: (match: Match) => void;
   onDelete?: (matchId: string) => void;
   onAdd?: () => void;
   /** Practice sessions leave the foul line out */
   sessionType?: SessionType;
 }) => {
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [ownIdx, setOwnIdx] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
 
+  // Clamped here rather than stored: the list shrinks under it on a delete.
+  const idx = Math.max(
+    0,
+    Math.min(selectedIdx ?? ownIdx, matches.length - 1)
+  );
+  const select = (index: number) => {
+    setOwnIdx(index);
+    onSelect?.(index);
+  };
+
+  // Keep the selected match's chip in view in the strip, without moving
+  // the page.
   useEffect(() => {
-    if (matches.length > 0 && selectedIdx >= matches.length) {
-      setSelectedIdx(Math.max(0, matches.length - 1));
+    const strip = stripRef.current;
+    const chip = strip?.children[idx] as HTMLElement | undefined;
+    if (!strip || !chip) return;
+    const left = chip.offsetLeft;
+    const right = left + chip.offsetWidth;
+    if (left < strip.scrollLeft) {
+      strip.scrollLeft = left - 8;
+    } else if (right > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollLeft = right - strip.clientWidth + 8;
     }
-  }, [matches.length, selectedIdx]);
+  }, [idx, matches.length]);
 
   if (matches.length === 0) {
     return (
@@ -886,7 +1596,7 @@ export const MatchDetailTab = ({
     );
   }
 
-  const match = matches[Math.min(selectedIdx, matches.length - 1)];
+  const match = matches[idx];
   const breakdown = calculateScore(match);
   // The foul row is not one of the rows that add up to the total.
   const allRows = scoreRows(match);
@@ -894,128 +1604,159 @@ export const MatchDetailTab = ({
   const foulRow = allRows.find(row => row.informational);
   const fouls = showsFouls(sessionType, matches);
   const cycles = cycleTimesOf(match);
+  const score = scoreOf(match);
   const avgScore = mean(matches.map(scoreOf));
-  const diff = Math.round(scoreOf(match) - avgScore);
+  const diff = Math.round(score - avgScore);
   const rp = rankingPoints(match);
   const rpBadges = rankingPointNames(rp);
+  const rank = rankOf(matches);
+  const matchRank = rank(idx);
+  const confirming = confirmDeleteId === match.id;
+
+  const outline = isDarkMode
+    ? 'border-team-blue-40 text-white hover:bg-white/5'
+    : 'border-gray-200 text-gray-700 hover:bg-gray-50';
+  const stepButton = `shrink-0 inline-flex items-center justify-center p-2 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed ${TOUCH_TARGET} ${outline}`;
+  const actionButton = `inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold ${TOUCH_TARGET}`;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
+    <div className="space-y-4 sm:space-y-6">
+      {/* One row however many matches: it scrolls sideways */}
+      <div
+        ref={stripRef}
+        role="group"
+        aria-label="Matches in this session"
+        className="relative flex gap-2 overflow-x-auto p-1 -m-1"
+      >
+        {matches.map((m, i) => {
+          const chipRank = rank(i);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              aria-label={`Match ${m.matchNumber}, ${plural(scoreOf(m), 'point')}${chipRank ? `, ${chipRank} match` : ''}`}
+              aria-pressed={i === idx}
+              onClick={() => select(i)}
+              className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors [@media(pointer:coarse)]:min-h-11 ${
+                i === idx
+                  ? // team-blue itself is 4.2:1 on its own light tint
+                    `border-team-blue bg-team-blue/10 ${isDarkMode ? 'text-team-blue' : 'text-[#42606e]'}`
+                  : isDarkMode
+                    ? 'border-team-blue-40 text-team-white-60 hover:bg-white/5'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              M{m.matchNumber}
+              <span className="font-normal tabular-nums">{scoreOf(m)}</span>
+              {chipRank && <RankMark rank={chipRank} isDarkMode={isDarkMode} />}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Side by side, so neither moves as the heading changes length */}
           <button
             type="button"
             aria-label="Previous match"
-            disabled={selectedIdx === 0}
-            onClick={() => setSelectedIdx(i => Math.max(0, i - 1))}
-            className={`inline-flex items-center justify-center p-2 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed ${
-              isDarkMode
-                ? 'border-team-blue-40 text-white hover:bg-white/5'
-                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-            }`}
+            disabled={idx === 0}
+            onClick={() => select(idx - 1)}
+            className={stepButton}
           >
             <ChevronLeft size={18} />
           </button>
-          <span
-            className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+          <button
+            type="button"
+            aria-label="Next match"
+            disabled={idx >= matches.length - 1}
+            onClick={() => select(idx + 1)}
+            className={stepButton}
+          >
+            <ChevronRight size={18} />
+          </button>
+          <h2
+            className={`flex items-center gap-x-2 flex-wrap min-w-0 ml-1 text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
             Match {match.matchNumber}
             <span
               className={`font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
             >
-              {' '}
-              - {match.matchType || 'Full Game'}
+              · {match.matchType || 'Full Game'}
             </span>
-          </span>
-          <button
-            type="button"
-            aria-label="Next match"
-            disabled={selectedIdx >= matches.length - 1}
-            onClick={() =>
-              setSelectedIdx(i => Math.min(matches.length - 1, i + 1))
-            }
-            className={`inline-flex items-center justify-center p-2 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed ${
-              isDarkMode
-                ? 'border-team-blue-40 text-white hover:bg-white/5'
-                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <ChevronRight size={18} />
-          </button>
+            {matchRank && <RankMark rank={matchRank} isDarkMode={isDarkMode} />}
+          </h2>
         </div>
 
-        <div className="flex items-center gap-2">
-          {onAdd && (
-            <button
-              type="button"
-              onClick={onAdd}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-team-blue text-sm font-semibold ${onTeamBlue(isDarkMode)}`}
-            >
-              <Plus size={15} /> Add
-            </button>
-          )}
-          {onEdit && (
-            <button
-              type="button"
-              onClick={() => onEdit(match)}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold ${
-                isDarkMode
-                  ? 'border-team-blue-40 text-white hover:bg-white/5'
-                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Edit size={15} /> Edit
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              onClick={() => {
-                if (confirmDeleteId === match.id) {
-                  onDelete(match.id);
-                  setConfirmDeleteId(null);
-                } else {
-                  setConfirmDeleteId(match.id);
-                }
-              }}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
-                confirmDeleteId === match.id
-                  ? 'border-red-600 bg-red-600 text-white'
-                  : `border-red-500/40 hover:bg-red-500/10 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`
-              }`}
-            >
-              <Trash2 size={15} />
-              {confirmDeleteId === match.id ? 'Confirm' : 'Delete'}
-            </button>
-          )}
-        </div>
+        {confirming && onDelete ? (
+          <DeleteMatchConfirm
+            question={`Delete Match ${match.matchNumber} (${plural(score, 'pt')})?`}
+            onKeep={() => setConfirmDeleteId(null)}
+            onDelete={() => {
+              setConfirmDeleteId(null);
+              onDelete(match.id);
+            }}
+            isDarkMode={isDarkMode}
+          />
+        ) : (
+          (onAdd || onEdit || onDelete) && (
+            <div className="flex items-center gap-2 ml-auto">
+              {onAdd && (
+                <button
+                  type="button"
+                  onClick={onAdd}
+                  className={`${actionButton} bg-team-blue ${onTeamBlue(isDarkMode)}`}
+                >
+                  <Plus size={15} /> Add
+                </button>
+              )}
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(match)}
+                  className={`${actionButton} border ${outline}`}
+                >
+                  <Edit size={15} /> Edit
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteId(match.id)}
+                  className={`${actionButton} min-w-[5.75rem] border border-red-500/40 hover:bg-red-500/10 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}
+                >
+                  <Trash2 size={15} /> Delete
+                </button>
+              )}
+            </div>
+          )
+        )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
         <StatCard
           label="Final Score"
-          value={scoreOf(match)}
+          value={score}
           highlight
           isDarkMode={isDarkMode}
         />
         <StatCard
           label="vs Session Avg"
           value={formatDiff(diff)}
+          sublabel={`average ${Math.round(avgScore)}`}
           variant={diff >= 0 ? 'success' : 'danger'}
           isDarkMode={isDarkMode}
         />
         <StatCard
-          label="Avg Cycle"
-          value={
-            cycles.length > 0
-              ? `${(cycles.reduce((a, b) => a + b, 0) / cycles.length).toFixed(2)}s`
-              : '-'
-          }
+          label="Avg time between tips"
+          value={cycles.length > 0 ? `${mean(cycles).toFixed(1)}s` : '-'}
           sublabel={
             cycles.length > 0
-              ? `time between Hive Tips, over ${plural(cycles.length, 'gap')}`
-              : 'time between Hive Tips'
+              ? `over ${plural(cycles.length, 'gap')}`
+              : 'needs 2+ Hive Tips scored live'
           }
+          info="Average seconds from one Hive Tip to the next in this match, from tips tapped live."
+          className="col-span-2 sm:col-span-1"
           isDarkMode={isDarkMode}
         />
       </div>
@@ -1073,12 +1814,12 @@ export const MatchDetailTab = ({
               <span className="flex items-center gap-4 tabular-nums">
                 <span
                   className={
-                    isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                    isDarkMode ? 'text-team-white-60' : 'text-gray-600'
                   }
                 >
-                  x{row.count}
+                  {rowSum(row)}
                 </span>
-                <span className="w-16 text-right font-bold text-team-blue">
+                <span className="w-12 sm:w-16 text-right font-bold text-team-blue">
                   {row.points}
                 </span>
               </span>
@@ -1098,15 +1839,21 @@ export const MatchDetailTab = ({
           </div>
           {fouls && foulRow && (
             <div
-              className={`flex items-center justify-between text-sm pt-1 ${
+              className={`flex items-start justify-between gap-3 text-sm pt-1 ${
                 isDarkMode ? 'text-team-white-60' : 'text-gray-600'
               }`}
             >
-              <span>{foulRow.label} (not part of your score)</span>
-              <span className="flex items-center gap-4 tabular-nums">
-                <span>x{foulRow.count}</span>
+              <span>
+                {foulRow.label} (not part of your score)
+                {/* Too long for the count column on a phone */}
+                <span className="block tabular-nums sm:hidden">
+                  {foulSum(match)}
+                </span>
+              </span>
+              <span className="flex items-start gap-4 tabular-nums text-right">
+                <span className="hidden sm:inline">{foulSum(match)}</span>
                 <span
-                  className={`w-16 text-right font-bold ${
+                  className={`w-12 sm:w-16 shrink-0 font-bold ${
                     foulRow.points > 0
                       ? isDarkMode
                         ? 'text-red-400'
@@ -1121,33 +1868,16 @@ export const MatchDetailTab = ({
           )}
         </div>
       </Section>
-
-      <Section title="All Matches" isDarkMode={isDarkMode}>
-        <div className="flex flex-wrap gap-2">
-          {matches.map((m, i) => (
-            <button
-              key={m.id}
-              type="button"
-              aria-label={`Match ${m.matchNumber}, ${plural(scoreOf(m), 'point')}`}
-              aria-pressed={i === selectedIdx}
-              onClick={() => setSelectedIdx(i)}
-              className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
-                i === selectedIdx
-                  ? // team-blue itself is 4.2:1 on its own light tint
-                    `border-team-blue bg-team-blue/10 ${isDarkMode ? 'text-team-blue' : 'text-[#42606e]'}`
-                  : isDarkMode
-                    ? 'border-team-blue-40 text-team-white-60 hover:bg-white/5'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              M{m.matchNumber}
-              <span className="ml-2 font-normal">{scoreOf(m)}</span>
-            </button>
-          ))}
-        </div>
-      </Section>
     </div>
   );
+};
+
+/** The pair worth looking at first: the worst match against the best. */
+const defaultPair = (matches: Match[]): [number, number] => {
+  const scores = matches.map(scoreOf);
+  const worst = scores.indexOf(Math.min(...scores));
+  const best = scores.indexOf(Math.max(...scores));
+  return worst === best ? [0, Math.min(1, matches.length - 1)] : [worst, best];
 };
 
 export const CompareTab = ({
@@ -1160,14 +1890,8 @@ export const CompareTab = ({
   /** Practice sessions leave the foul row out */
   sessionType?: SessionType;
 }) => {
-  const [leftIdx, setLeftIdx] = useState(0);
-  const [rightIdx, setRightIdx] = useState(matches.length > 1 ? 1 : 0);
-
-  useEffect(() => {
-    if (leftIdx >= matches.length) setLeftIdx(0);
-    if (rightIdx >= matches.length)
-      setRightIdx(Math.max(0, matches.length - 1));
-  }, [matches.length, leftIdx, rightIdx]);
+  const [[pickedA, pickedB], setPair] = useState(() => defaultPair(matches));
+  const isCompact = useIsCompact();
 
   if (matches.length < 2) {
     return (
@@ -1183,70 +1907,80 @@ export const CompareTab = ({
     );
   }
 
-  const left = matches[Math.min(leftIdx, matches.length - 1)];
-  const right = matches[Math.min(rightIdx, matches.length - 1)];
+  // Clamped here rather than stored: the list can shrink under the picks.
+  const aIdx = Math.min(pickedA, matches.length - 1);
+  const bIdx = Math.min(pickedB, matches.length - 1);
+  const a = matches[aIdx];
+  const b = matches[bIdx];
   const fouls = showsFouls(sessionType, matches);
+  const colors = chartColors(isDarkMode);
+  const rank = rankOf(matches);
   // Fouls aren't part of either score: off the chart, and in the table only
   // for a Scrim.
-  const leftRows = scoreRows(left).filter(row => fouls || !row.informational);
-  const rightRows = scoreRows(right).filter(row => fouls || !row.informational);
+  const aRows = scoreRows(a).filter(row => fouls || !row.informational);
+  const bRows = scoreRows(b).filter(row => fouls || !row.informational);
 
-  // Two matches can share a number (sessions edited before deletes
-  // renumbered), and the same match can be picked on both sides.
-  const sameNumber = left.matchNumber === right.matchNumber;
-  const leftLabel = `Match ${left.matchNumber}${sameNumber ? ' (left)' : ''}`;
-  const rightLabel = `Match ${right.matchNumber}${sameNumber ? ' (right)' : ''}`;
+  // The letter tells the two sides apart even when they share a match
+  // number (sessions edited before deletes renumbered) or are one match.
+  const aLabel = `A · Match ${a.matchNumber}`;
+  const bLabel = `B · Match ${b.matchNumber}`;
+  const rankLabel = (index: number) => {
+    const r = rank(index);
+    return r ? `${r === 'best' ? 'Best' : 'Worst'} match` : undefined;
+  };
+
+  const cellTone = isDarkMode ? 'text-gray-300' : 'text-gray-700';
+  const mutedTone = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
 
   const picker = (
     label: string,
     value: number,
     onChange: (i: number) => void
   ) => (
-    <div className="flex items-center gap-2">
+    <label className="col-start-1 sm:flex-1 min-w-0 flex flex-col gap-1">
       <span
-        className={`text-xs font-semibold uppercase tracking-wide ${
-          isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-        }`}
+        className={`text-xs font-semibold uppercase tracking-wide ${mutedTone}`}
       >
         {label}
       </span>
       <select
         value={value}
-        aria-label={`${label} match`}
         onChange={e => onChange(Number(e.target.value))}
-        className={`px-3 py-2 rounded-lg border text-sm font-semibold ${
+        className={`w-full min-w-0 px-3 py-2 rounded-lg border text-sm font-semibold [@media(pointer:coarse)]:min-h-11 ${
           isDarkMode
             ? 'bg-team-dark border-team-blue-40 text-white'
             : 'bg-white border-gray-200 text-gray-900'
         }`}
       >
-        {matches.map((m, i) => (
-          <option key={m.id} value={i}>
-            Match {m.matchNumber}
-          </option>
-        ))}
+        {matches.map((m, i) => {
+          const r = rank(i);
+          return (
+            <option key={m.id} value={i}>
+              Match {m.matchNumber} · {plural(scoreOf(m), 'pt')}
+              {r ? ` (${r})` : ''}
+            </option>
+          );
+        })}
       </select>
-    </div>
+    </label>
   );
 
   // Keyed by side, not by match label: two matches with the same number
   // would otherwise collapse into one series.
-  const chartData = leftRows
+  const chartData = aRows
     .map((row, i) => ({
       name: row.label,
-      left: row.points,
-      right: rightRows[i].points,
+      a: row.points,
+      b: bRows[i].points,
       informational: row.informational,
     }))
     .filter(row => !row.informational);
 
-  const leftScore = scoreOf(left);
-  const rightScore = scoreOf(right);
-  const leftRp = rankingPoints(left);
-  const rightRp = rankingPoints(right);
-  const rpDelta = rightRp.total - leftRp.total;
-  const cellTone = isDarkMode ? 'text-gray-300' : 'text-gray-700';
-  const mutedTone = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
+  const aScore = scoreOf(a);
+  const bScore = scoreOf(b);
+  const aRp = rankingPoints(a);
+  const bRp = rankingPoints(b);
+  const rpDelta = bRp.total - aRp.total;
   /** Colour for a difference; the 500 shades are unreadable in light mode */
   const deltaTone = (delta: number) =>
     delta > 0
@@ -1259,45 +1993,101 @@ export const CompareTab = ({
           : 'text-red-700'
         : mutedTone;
 
+  /** Points with the count that made them underneath: "60" over "3 × 20" */
+  const pointsCell = (row: ScoreRow) => (
+    <td className="text-right tabular-nums py-1.5 align-top">
+      <span className="block font-semibold">{row.points}</span>
+      <span className={`block text-xs ${mutedTone}`}>
+        {row.informational ? plural(row.count, 'foul') : rowSum(row)}
+      </span>
+    </td>
+  );
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        {picker('Left', leftIdx, setLeftIdx)}
-        <ArrowRightLeft
-          size={18}
-          className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}
-        />
-        {picker('Right', rightIdx, setRightIdx)}
+    <div className="space-y-4 sm:space-y-6">
+      {/* Stacked on a phone, where two pickers side by side cut their text
+          off, with the swap beside the pair; in one row from `sm` up */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:items-end sm:gap-4">
+        {picker('Match A', aIdx, i => setPair([i, bIdx]))}
+        <button
+          type="button"
+          aria-label="Swap Match A and Match B"
+          title="Swap Match A and Match B"
+          onClick={() => setPair([bIdx, aIdx])}
+          className={`col-start-2 row-start-1 row-span-2 self-center sm:self-end shrink-0 inline-flex items-center justify-center p-2.5 rounded-lg border ${TOUCH_TARGET} ${
+            isDarkMode
+              ? 'border-team-blue-40 text-white hover:bg-white/5'
+              : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <ArrowRightLeft
+            size={18}
+            aria-hidden
+            className="rotate-90 sm:rotate-0"
+          />
+        </button>
+        {picker('Match B', bIdx, i => setPair([aIdx, i]))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label={leftLabel} value={leftScore} isDarkMode={isDarkMode} />
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <StatCard
-          label="Difference"
-          value={formatDiff(rightScore - leftScore)}
-          variant={rightScore >= leftScore ? 'success' : 'danger'}
+          label={aLabel}
+          value={aScore}
+          sublabel={rankLabel(aIdx)}
           isDarkMode={isDarkMode}
         />
         <StatCard
-          label={rightLabel}
-          value={rightScore}
+          label="Change"
+          value={formatDiff(bScore - aScore)}
+          sublabel="B minus A"
+          variant={bScore >= aScore ? 'success' : 'danger'}
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          label={bLabel}
+          value={bScore}
+          sublabel={rankLabel(bIdx)}
           isDarkMode={isDarkMode}
         />
       </div>
 
       <Section title="Element by Element" isDarkMode={isDarkMode}>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
+          {/* On a phone the bars run across with every element named down
+              the side: under columns that narrow the names collide, and the
+              axis drops some of them, the tallest bars' among them. */}
+          <BarChart
+            data={chartData}
+            layout={isCompact ? 'vertical' : 'horizontal'}
+          >
             <CartesianGrid
               strokeDasharray="3 3"
               stroke={isDarkMode ? '#334155' : '#e2e8f0'}
             />
-            <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-            <YAxis {...axisProps(isDarkMode)} />
-            <Tooltip content={<ChartTooltip isDarkMode={isDarkMode} />} />
-            <Legend />
-            <Bar dataKey="left" name={leftLabel} fill={CHART_COLORS.primary} />
-            <Bar dataKey="right" name={rightLabel} fill={CHART_COLORS.garden} />
+            {isCompact ? (
+              <>
+                <XAxis type="number" {...axisProps(isDarkMode)} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={88}
+                  interval={0}
+                  {...axisProps(isDarkMode)}
+                />
+              </>
+            ) : (
+              <>
+                <XAxis dataKey="name" {...axisProps(isDarkMode)} />
+                <YAxis width={40} {...axisProps(isDarkMode)} />
+              </>
+            )}
+            <Tooltip
+              cursor={barCursor(isDarkMode)}
+              content={<ChartTooltip isDarkMode={isDarkMode} unit=" pts" />}
+            />
+            <Legend itemSorter={null} />
+            <Bar dataKey="a" name={aLabel} fill={colors.matchA} />
+            <Bar dataKey="b" name={bLabel} fill={colors.matchB} />
           </BarChart>
         </ResponsiveContainer>
       </Section>
@@ -1306,23 +2096,23 @@ export const CompareTab = ({
         <table className="w-full text-sm table-fixed">
           <thead>
             <tr className={`text-xs uppercase tracking-wide ${mutedTone}`}>
-              <th scope="col" className="w-[40%] text-left font-semibold pb-2">
+              <th scope="col" className="w-[34%] text-left font-semibold pb-2">
                 Element
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
-                {leftLabel}
+                A · M{a.matchNumber}
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
-                {rightLabel}
+                B · M{b.matchNumber}
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
-                Diff
+                Change
               </th>
             </tr>
           </thead>
           <tbody>
-            {leftRows.map((row, i) => {
-              const delta = rightRows[i].points - row.points;
+            {aRows.map((row, i) => {
+              const delta = bRows[i].points - row.points;
               return (
                 <tr
                   key={row.key}
@@ -1330,18 +2120,14 @@ export const CompareTab = ({
                 >
                   <th
                     scope="row"
-                    className="text-left font-normal py-1.5 pr-2 break-words"
+                    className="text-left font-normal py-1.5 pr-2 break-words align-top"
                   >
                     {row.label}
                     {row.informational && ' (not scored)'}
                   </th>
-                  <td className="text-right tabular-nums font-semibold py-1.5">
-                    {row.points}
-                  </td>
-                  <td className="text-right tabular-nums font-semibold py-1.5">
-                    {rightRows[i].points}
-                  </td>
-                  <td className="py-1.5">
+                  {pointsCell(row)}
+                  {pointsCell(bRows[i])}
+                  <td className="py-1.5 align-top">
                     {row.informational ? (
                       // More points handed to the opponent is not a gain,
                       // so this row gets no up/down colouring.
@@ -1372,12 +2158,12 @@ export const CompareTab = ({
               <th scope="row" className="text-left pt-3">
                 Total
               </th>
-              <td className="text-right tabular-nums pt-3">{leftScore}</td>
-              <td className="text-right tabular-nums pt-3">{rightScore}</td>
+              <td className="text-right tabular-nums pt-3">{aScore}</td>
+              <td className="text-right tabular-nums pt-3">{bScore}</td>
               <td
-                className={`text-right tabular-nums pt-3 ${deltaTone(rightScore - leftScore)}`}
+                className={`text-right tabular-nums pt-3 ${deltaTone(bScore - aScore)}`}
               >
-                {formatDiff(rightScore - leftScore)}
+                {formatDiff(bScore - aScore)}
               </td>
             </tr>
             {/* Earned on top of the score, so listed under the total */}
@@ -1389,10 +2175,10 @@ export const CompareTab = ({
                 Ranking Points
               </th>
               <td className="text-right tabular-nums font-semibold pt-2">
-                {leftRp.total}
+                {aRp.total}
               </td>
               <td className="text-right tabular-nums font-semibold pt-2">
-                {rightRp.total}
+                {bRp.total}
               </td>
               <td className="pt-2">
                 <span className="flex items-center justify-end gap-1.5 tabular-nums">
@@ -1407,8 +2193,8 @@ export const CompareTab = ({
         </table>
         <ul className={`mt-3 space-y-0.5 text-xs ${mutedTone}`}>
           {[
-            { label: leftLabel, rp: leftRp },
-            { label: rightLabel, rp: rightRp },
+            { label: aLabel, rp: aRp },
+            { label: bLabel, rp: bRp },
           ].map(({ label, rp }, i) => (
             <li key={i}>
               {label}:{' '}
@@ -1457,7 +2243,7 @@ export const LegacySeasonView = ({
       </div>
 
       {scores.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <StatCard
             label="Avg Score"
             value={Math.round(mean(scores))}

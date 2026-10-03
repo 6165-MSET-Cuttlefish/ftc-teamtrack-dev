@@ -16,6 +16,22 @@ export const clearPendingInvite = (): void => {
 };
 
 /**
+ * True while an invite is remembered and still valid. Only looks: an expired
+ * one is left for `getPendingInviteDestination` to forget.
+ */
+export const hasPendingInvite = (): boolean => {
+  try {
+    const code = localStorage.getItem(STORAGE_KEYS.PENDING_INVITE_CODE);
+    const expiry = Number(
+      localStorage.getItem(STORAGE_KEYS.PENDING_INVITE_EXPIRY)
+    );
+    return !!code && !!expiry && Date.now() <= expiry;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Where to send someone who has just signed in or signed up: the join page
  * of the invite they opened, or `fallback` when there is none. An invite
  * that has expired is forgotten here rather than left to be found later.

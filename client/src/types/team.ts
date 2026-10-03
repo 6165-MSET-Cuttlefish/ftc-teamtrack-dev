@@ -48,10 +48,23 @@ export type JoinTeamResult =
   | { status: 'joined'; team: Team }
   /** Joined, but the team's details could not be loaded yet */
   | { status: 'joined-unloaded'; team: Team }
-  /** The user chose to stay in the team they are already in */
+  /**
+   * Already in another team (`teamName`), and the join was asked for without
+   * `leaveCurrent`: nothing changed. The caller asks the user, then joins
+   * again with it set.
+   */
   | { status: 'cancelled'; teamName: string }
   /** The code does not match any team */
   | { status: 'invalid' };
+
+/** What leaving a team does to it — see `teamService.leaveOutcome`. */
+export type LeaveOutcome =
+  /** A member left; the team carries on as it was. */
+  | { kind: 'left' }
+  /** The owner left, and the team passed to its longest-standing member. */
+  | { kind: 'handed-over'; newOwner: TeamMember }
+  /** The last member left, so the team and its invite link are gone. */
+  | { kind: 'deleted' };
 
 /** Data needed to create a new team */
 export interface CreateTeamData {

@@ -1,4 +1,12 @@
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  type ReactNode,
+} from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
@@ -13,17 +21,23 @@ import {
   robotRates,
   sessionMatchType,
   normalizeForMatchType,
+  ELEMENT_LABELS,
+  SERIES_COLORS,
 } from '@/lib';
 import type { RankingPointTally } from '@/lib';
 import { getPendingDeleteIds } from '@/lib/pendingSessionDeletes';
 import { ROUTES, APP_CONFIG } from '@/constants';
+import { useIsCompact } from '@/hooks';
 import type { Session, Match, ScoreBreakdown } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronDown } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
+import { ChevronDown, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -33,6 +47,7 @@ import {
 } from 'recharts';
 import {
   useLifetimeSessions,
+  useSessionScope,
   byDateAscending,
   sessionTitle,
   isScrim,
@@ -42,6 +57,7 @@ import {
   formatNumber,
   mean,
 } from './lifetime';
+import { Segmented } from './LifetimeControls';
 
 /** A match as a comparison column, with what it needs from its session. */
 interface CompareMatch extends Match {
@@ -59,25 +75,28 @@ interface CompareMatch extends Match {
 /** Which slice of a match score the comparison charts plot. */
 type ScoreElement =
   | 'total'
-  | 'garden'
   | 'tipping'
+  | 'garden'
   | 'flower'
   | 'flowerBonus'
   | 'hive'
   | 'robots';
 
-/** The elements add up to the total; each means the same in the tables. */
-const ELEMENT_LABELS: Record<ScoreElement, string> = {
+/**
+ * The elements add up to the total; each means the same in the tables. In
+ * the order of `scoreRows`, as on Analysis and Charts: the pills follow it.
+ */
+const ELEMENT_NAMES: Record<ScoreElement, string> = {
   total: 'Total',
-  garden: 'Garden',
-  tipping: 'Tipping',
-  flower: 'Flower',
-  flowerBonus: 'Flower Bonus',
-  hive: 'Left in Hive (up CELL)',
-  robots: 'Leave + Park',
+  tipping: ELEMENT_LABELS.tipping,
+  garden: ELEMENT_LABELS.garden,
+  flower: ELEMENT_LABELS.flower,
+  flowerBonus: ELEMENT_LABELS.flowerBonus,
+  hive: ELEMENT_LABELS.hive,
+  robots: ELEMENT_LABELS.robots,
 };
 
-const ELEMENTS = Object.keys(ELEMENT_LABELS) as ScoreElement[];
+const ELEMENTS = Object.keys(ELEMENT_NAMES) as ScoreElement[];
 
 /** Points a match earned from one element (or its full score). */
 const elementPoints = (b: ScoreBreakdown, element: ScoreElement): number => {
@@ -177,14 +196,23 @@ const EARNED_COLUMNS_MAX = 4;
 
 /**
  * X-axis tick drawn as two lines: what the point is, then when. The axis
- * value itself is only the point's unique key.
+ * value itself is only the point's unique key. Recharts reads the font size
+ * it spaces ticks by off its own tick class; without it, it spaces them for
+ * a bigger font and drops ticks that would fit.
  */
 const twoLineTick =
   (lines: Map<string, readonly [string, string]>, fill: string) =>
   ({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
     const [top, bottom] = lines.get(payload.value) ?? ['', ''];
     return (
-      <text x={x} y={y} textAnchor="middle" fill={fill} fontSize={11}>
+      <text
+        className="recharts-cartesian-axis-tick-value"
+        x={x}
+        y={y}
+        textAnchor="middle"
+        fill={fill}
+        fontSize={11}
+      >
         <tspan x={x} dy="0.9em">
           {top}
         </tspan>
@@ -197,12 +225,14 @@ const twoLineTick =
 
 /**
  * Room either side of the plot so the first and last two-line ticks fit
- * under their points instead of being dropped at the chart's edge.
+ * under their points instead of being dropped at the chart's edge. A
+ * phone's ticks are only a date, so they need less.
  */
-const twoLineAxis = {
-  interval: 'preserveStartEnd',
-  padding: { left: 44, right: 44 },
-} as const;
+const twoLineAxis = (compact: boolean) =>
+  ({
+    interval: 'preserveStartEnd',
+    padding: compact ? { left: 24, right: 24 } : { left: 44, right: 44 },
+  }) as const;
 
 /** The wider of a tick's two lines, which is what its spacing is based on. */
 const widerLine = (
@@ -210,20 +240,149 @@ const widerLine = (
   key: string
 ) => [...(lines.get(key) ?? [''])].sort((a, b) => b.length - a.length)[0];
 
+/** Most bars that still get their value written on top. */
+const BAR_LABELS_MAX = 8;
+
+/**
+ * A shadow on a scroller's right edge, painted as the scroller's own
+ * background so it stays on the edge as the table scrolls and the table's
+ * text is always drawn over it, never dimmed by it. On a phone it is as
+ * wide as a cell's side padding, so it only sits behind a value whose
+ * column is already cut off. A tablet or laptop screen, where a band that
+ * thin is easy to miss, gets a wider, darker one.
+ */
+const RIGHT_EDGE_SHADOW = {
+  light:
+    'bg-[linear-gradient(to_left,rgba(0,0,0,0.15),transparent)] md:bg-[linear-gradient(to_left,rgba(0,0,0,0.3),transparent)] bg-[length:0.5rem_100%] md:bg-[length:1.5rem_100%] bg-right bg-no-repeat',
+  dark: 'bg-[linear-gradient(to_left,rgba(255,255,255,0.15),transparent)] md:bg-[linear-gradient(to_left,rgba(255,255,255,0.3),transparent)] bg-[length:0.5rem_100%] md:bg-[length:1.5rem_100%] bg-right bg-no-repeat',
+};
+
+/**
+ * While a table runs past the right edge of its scroller, that edge casts
+ * a shadow, so a cut-off or hidden column reads as "swipe for more" instead
+ * of as the end of the table. Returns the scroller's ref and the class to
+ * give it.
+ */
+const useRightEdgeShadow = (isDarkMode: boolean) => {
+  const [more, setMore] = useState(false);
+  const ref = useCallback((scroller: HTMLDivElement | null) => {
+    if (!scroller) return;
+    const update = () =>
+      setMore(
+        scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1
+      );
+    update();
+    scroller.addEventListener('scroll', update, { passive: true });
+    // The table changes width as columns come and go
+    const observer = new ResizeObserver(update);
+    observer.observe(scroller);
+    if (scroller.firstElementChild)
+      observer.observe(scroller.firstElementChild);
+    return () => {
+      scroller.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
+  }, []);
+  return [
+    ref,
+    more ? RIGHT_EDGE_SHADOW[isDarkMode ? 'dark' : 'light'] : '',
+  ] as const;
+};
+
+/**
+ * Whether a table packs its columns tight: only once, laid out in full, it
+ * runs past the right edge of its scroller. What fits depends on the card's
+ * width and on the row names, so it is measured, not counted, and measured
+ * again whenever the columns or the card's width change. `columns` names the
+ * columns shown. Returns a ref for the table and whether it is packed.
+ */
+const useDenseTable = (columns: string, allowed: boolean) => {
+  const [table, setTable] = useState<HTMLTableElement | null>(null);
+  const [width, setWidth] = useState(0);
+  /** The columns and width the table in full was found too wide for */
+  const [tooWideFor, setTooWideFor] = useState('');
+  const fit = `${width} ${columns}`;
+  const dense = allowed && tooWideFor === fit;
+
+  useLayoutEffect(() => {
+    const scroller = table?.parentElement;
+    if (!scroller) return;
+    const update = () => setWidth(scroller.clientWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [table]);
+
+  // Before paint, so the table in full is never shown cut off first
+  useLayoutEffect(() => {
+    const scroller = table?.parentElement;
+    if (!allowed || dense || !width || !table || !scroller) return;
+    if (table.offsetWidth > scroller.clientWidth + 1) setTooWideFor(fit);
+  }, [allowed, dense, width, table, fit]);
+
+  return [setTable, dense] as const;
+};
+
 interface RowOptions {
   indent?: boolean;
   higherIsBetter?: boolean;
   format?: (v: number) => string;
   highlight?: boolean;
+  /** What the row is called below desktop width, where the full label wraps */
+  short?: string;
+  /** Also mark the worst cell (only points handed to the opponent) */
+  flagWorst?: boolean;
+  /** A row of a table packed tight to fit its card (see useDenseTable) */
+  dense?: boolean;
+  /** Class of the row's value cells */
+  cell?: string;
 }
+
+type CellMark = 'best' | 'worst' | null;
+
+/**
+ * Which cells of a row to mark, judged on what the cells show: two values
+ * that print the same are a tie. Only a best that stands alone is marked,
+ * and with `flagWorst` a worst that stands alone. Columns with no value
+ * (N/A) take no part.
+ */
+const markCells = (
+  values: Array<number | null>,
+  shown: string[],
+  higherIsBetter: boolean,
+  flagWorst: boolean
+): CellMark[] => {
+  const marks: CellMark[] = values.map(() => null);
+  const known = values
+    .flatMap((value, index) =>
+      value !== null && Number.isFinite(value) ? [{ value, index }] : []
+    )
+    .sort((a, b) => a.value - b.value);
+  if (known.length < 2) return marks;
+
+  const lowest = known[0].index;
+  const highest = known[known.length - 1].index;
+  if (shown[lowest] === shown[highest]) return marks;
+
+  const alone = (index: number) =>
+    known.every(k => k.index === index || shown[k.index] !== shown[index]);
+  const best = higherIsBetter ? highest : lowest;
+  const worst = higherIsBetter ? lowest : highest;
+  if (alone(best)) marks[best] = 'best';
+  if (flagWorst && alone(worst)) marks[worst] = 'worst';
+  return marks;
+};
 
 const Compare = () => {
   const { isGuest } = useAuth();
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, isHoneycombMode, isDeepSeaMode } = useTheme();
   const { team } = useTeam();
   const [searchParams] = useSearchParams();
 
   const { sessions: listedSessions, loading } = useLifetimeSessions();
+  const { scope, setScope, inScope, choices, scopeLabel } =
+    useSessionScope(listedSessions);
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const [isDetailedBreakdownOpen, setIsDetailedBreakdownOpen] = useState(true);
   const [isMatchBreakdownOpen, setIsMatchBreakdownOpen] = useState(true);
@@ -234,6 +393,9 @@ const Compare = () => {
     useState<ScoreElement>('total');
   const [isMatchScoreChartOpen, setIsMatchScoreChartOpen] = useState(true);
   const [isMatchCycleChartOpen, setIsMatchCycleChartOpen] = useState(true);
+  const isCompact = useIsCompact();
+  const [sessionTableRef, sessionTableShadow] = useRightEdgeShadow(isDarkMode);
+  const [matchScrollerRef, matchTableShadow] = useRightEdgeShadow(isDarkMode);
 
   const [comparisonMode, setComparisonMode] = useState<'sessions' | 'matches'>(
     'sessions'
@@ -290,15 +452,21 @@ const Compare = () => {
     }
   }, [loading, isGuest, linkedIds, listedSessions]);
 
-  /** Every session that can be picked: the list, then any linked extras. */
+  /**
+   * Every session that can be picked: the list in the chosen scope, then any
+   * linked extras. A picked session stays listed whatever the scope, so
+   * narrowing it never drops something from the comparison unseen.
+   */
   const sessions = useMemo(
     () => [
-      ...listedSessions,
+      ...listedSessions.filter(
+        s => inScope(s) || selectedSessionIds.includes(s.id)
+      ),
       ...linkedSessions.filter(
         linked => !listedSessions.some(s => s.id === linked.id)
       ),
     ],
-    [listedSessions, linkedSessions]
+    [listedSessions, linkedSessions, inScope, selectedSessionIds]
   );
 
   const dateLabels = useMemo(() => sessionDateLabels(sessions), [sessions]);
@@ -370,24 +538,75 @@ const Compare = () => {
   const goodTone = isDarkMode ? 'text-green-500' : 'text-green-700';
   const badTone = isDarkMode ? 'text-red-500' : 'text-red-600';
 
-  /** Best / worst colouring among the cells that actually hold a value. */
-  const getCellColor = (
-    value: number | null,
-    values: Array<number | null>,
-    higherIsBetter = true
-  ): string => {
-    const known = values.filter(
-      (v): v is number => v !== null && Number.isFinite(v)
-    );
-    if (value === null || !Number.isFinite(value) || known.length < 2) {
-      return '';
-    }
-    const max = Math.max(...known);
-    const min = Math.min(...known);
-    if (max === min) return '';
-    if (value === (higherIsBetter ? max : min)) return goodTone;
-    if (value === (higherIsBetter ? min : max)) return badTone;
-    return '';
+  const seriesColors = SERIES_COLORS[isDarkMode ? 'dark' : 'light'];
+
+  /**
+   * The Metric column stays put while the others scroll sideways under it,
+   * so it needs the card's own colour as a solid fill. The default dark card
+   * is see-through over the page; Honeycomb and Deep Sea paint it solid.
+   * Padding is tight on a phone so two columns fit beside it; the left
+   * padding is set per cell, as a sub-row's is deeper.
+   */
+  const metricColumn = `sticky left-0 z-10 py-3 pr-2 sm:pr-4 text-left ${
+    !isDarkMode
+      ? 'bg-white shadow-[1px_0_0_rgba(0,0,0,0.08)]'
+      : `${isHoneycombMode || isDeepSeaMode ? 'bg-team-dark-20' : 'bg-team-dark'} shadow-[1px_0_0_rgba(255,255,255,0.08)]`
+  }`;
+  /**
+   * A laptop has room for each row name on one line, except in a dense
+   * table, where a name wraps once the match columns are at their
+   * narrowest, but no further than the floor that keeps its words whole.
+   */
+  const metricFit = (dense: boolean) =>
+    dense ? 'md:pr-2 lg:min-w-[7.5rem]' : 'lg:whitespace-nowrap';
+  const dataCell = 'text-right py-3 px-2 sm:px-4 text-sm';
+  /**
+   * The match table keeps a phone's padding on a wider screen too: its
+   * columns are many, and the room is better spent on the session names.
+   */
+  const matchCell = `${dataCell} md:px-2`;
+  // A phone already scrolls two matches sideways, so it never packs them.
+  const [matchTableRef, denseMatches] = useDenseTable(
+    matchColumns.map(m => m.key).join(' '),
+    !isCompact
+  );
+
+  /** A row's name, in the Metric column. */
+  const metricCell = (
+    label: string,
+    {
+      indent = false,
+      short,
+      dense = false,
+    }: Pick<RowOptions, 'indent' | 'short' | 'dense'> = {}
+  ) => (
+    <th
+      scope="row"
+      className={`${metricColumn} ${metricFit(dense)} font-normal ${indent ? 'pl-4 sm:pl-8 text-xs sm:text-sm' : 'pl-3 sm:pl-4 text-sm'} ${
+        indent
+          ? isDarkMode
+            ? 'text-team-white-60'
+            : 'text-gray-600'
+          : isDarkMode
+            ? 'text-white'
+            : 'text-gray-900'
+      }`}
+    >
+      {indent && '↳\u00A0'}
+      {short ? (
+        <>
+          <span className="lg:hidden">{short}</span>
+          <span className="hidden lg:inline">{label}</span>
+        </>
+      ) : (
+        label
+      )}
+    </th>
+  );
+
+  const clearSelection = () => {
+    if (comparisonMode === 'sessions') setSelectedSessionIds([]);
+    setSelectedMatches([]);
   };
 
   const toggleSession = (sessionId: string) => {
@@ -427,46 +646,66 @@ const Compare = () => {
       higherIsBetter = true,
       format = v => Math.round(v).toString(),
       highlight = false,
+      short,
+      flagWorst = false,
+      dense = false,
+      cell = dataCell,
     } = opts;
     const values = columns.map(getValue);
     const show = (v: number | null) => (v === null ? 'N/A' : format(v));
+    const shown = values.map(show);
+    const marks = markCells(values, shown, higherIsBetter, flagWorst);
     const avg = mean(values.filter((v): v is number => v !== null));
     return (
       <tr
         className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
       >
-        <td
-          className={`py-3 px-4 text-sm ${indent ? 'pl-8' : ''} ${
-            indent
-              ? isDarkMode
-                ? 'text-team-white-60'
-                : 'text-gray-600'
-              : isDarkMode
-                ? 'text-white'
-                : 'text-gray-900'
-          }`}
-        >
-          {indent ? `↳ ${label}` : label}
-        </td>
+        {metricCell(label, { indent, short, dense })}
         {columns.map((column, i) => (
           <td
             key={keyOf(column)}
-            className={`text-right py-3 px-4 text-sm ${highlight ? 'font-bold text-lg' : 'font-medium'} ${
-              getCellColor(values[i], values, higherIsBetter) ||
-              (highlight && values[i] !== null
-                ? 'text-team-blue'
-                : isDarkMode
-                  ? 'text-white'
-                  : 'text-gray-900')
+            className={`${cell} ${
+              highlight
+                ? 'font-bold text-lg'
+                : marks[i]
+                  ? 'font-semibold'
+                  : 'font-medium'
+            } ${
+              marks[i] === 'best'
+                ? goodTone
+                : marks[i] === 'worst'
+                  ? badTone
+                  : highlight && values[i] !== null
+                    ? 'text-team-blue'
+                    : isDarkMode
+                      ? 'text-white'
+                      : 'text-gray-900'
             }`}
           >
-            {show(values[i])}
+            {marks[i] === 'best' ? (
+              <span
+                data-best
+                className="inline-flex items-center justify-end gap-1"
+              >
+                <Star
+                  aria-hidden="true"
+                  className="w-3 h-3 shrink-0 fill-current"
+                />
+                {shown[i]}
+                <span className="sr-only"> (best)</span>
+              </span>
+            ) : (
+              <>
+                {shown[i]}
+                {marks[i] === 'worst' && (
+                  <span className="sr-only"> (most)</span>
+                )}
+              </>
+            )}
           </td>
         ))}
         {showAvg && (
-          <td
-            className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}
-          >
+          <td className={`${cell} font-semibold text-team-blue`}>
             {show(avg)}
           </td>
         )}
@@ -491,7 +730,7 @@ const Compare = () => {
       label,
       getValue,
       matchColumns.length > 1,
-      opts
+      { ...opts, dense: denseMatches, cell: matchCell }
     );
 
   const tickFill = isDarkMode ? '#9ca3af' : '#6b7280';
@@ -506,15 +745,20 @@ const Compare = () => {
     fontSize: 12,
   };
 
-  /** Session charts: name over date on the axis, both in the tooltip. */
+  /**
+   * Session charts: name over date on the axis, both in the tooltip. A
+   * phone only has room under each point for the date (and under it the
+   * time, when a day has two sessions); the name stays in the tooltip.
+   */
   const sessionTicks = new Map(
-    selectedSessionsData.map(session => [
-      session.id,
-      [
-        shorten(sessionTitle(session)),
-        dateLabels.get(session.id) ?? '',
-      ] as const,
-    ])
+    selectedSessionsData.map(session => {
+      const date = dateLabels.get(session.id) ?? '';
+      if (isCompact) {
+        const [day, time = ''] = date.split(', ');
+        return [session.id, [day, time] as const];
+      }
+      return [session.id, [shorten(sessionTitle(session)), date] as const];
+    })
   );
   const sessionTooltipLabel = (id: string) => {
     const session = selectedSessionsData.find(s => s.id === id);
@@ -545,7 +789,7 @@ const Compare = () => {
   if (loading) {
     return (
       <div
-        className={`min-h-[100dvh] flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
+        className={`min-h-[100dvh] flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
@@ -560,7 +804,7 @@ const Compare = () => {
     : 'bg-white border-gray-200';
   const mutedText = isDarkMode ? 'text-team-white-60' : 'text-gray-500';
   const elementButtonClass = (active: boolean) =>
-    `px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+    `px-4 py-1.5 rounded-full text-xs font-semibold border transition-all [@media(pointer:coarse)]:min-h-11 ${
       active
         ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
         : isDarkMode
@@ -568,45 +812,143 @@ const Compare = () => {
           : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
     }`;
 
+  /** The line under a table's title that says what its marks mean. */
+  const tableKey = (lead: string, withOpponentRow: boolean) => (
+    <p className={`text-xs mb-3 ${mutedText}`}>
+      {lead}
+      <Star
+        aria-hidden="true"
+        className={`inline w-3 h-3 mx-1 -mt-0.5 fill-current ${goodTone}`}
+      />
+      marks the best value in a row. Values that read the same are a tie and are
+      not marked. N/A means that part of the match was not run
+      {withOpponentRow ? (
+        <>
+          , or, for points given to the opponent, that it was not a Scrim.{' '}
+          <span className={`font-semibold ${badTone}`}>Red</span> is the most
+          points given to the opponent.
+        </>
+      ) : (
+        '.'
+      )}
+    </p>
+  );
+
+  /** Shown in place of the comparison until something is picked. */
+  const pickPrompt = (title: string, text: string) => (
+    <Card className={cardClass}>
+      <CardContent className="py-12">
+        <div className="text-center">
+          <div className="text-team-blue text-5xl mb-4">📊</div>
+          <h3
+            className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+          >
+            {title}
+          </h3>
+          <p className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}>
+            {text}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const chipClass = (active: boolean) =>
+    `inline-flex items-center rounded-full text-xs font-medium border transition-all [@media(pointer:coarse)]:min-h-11 ${
+      active
+        ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
+        : isDarkMode
+          ? 'bg-team-dark-20 border-team-blue-40 text-team-white-60 enabled:hover:border-team-blue enabled:hover:text-white'
+          : 'bg-white border-gray-200 text-gray-700 enabled:hover:border-gray-400 enabled:hover:text-gray-900'
+    }`;
+  const chipDetailClass = (active: boolean) =>
+    `shrink-0 ${
+      active
+        ? isDarkMode
+          ? 'text-black/70'
+          : 'text-white'
+        : isDarkMode
+          ? 'text-team-white-60/60'
+          : 'text-gray-500'
+    }`;
+  const modeButtonClass = (active: boolean) =>
+    `px-6 py-2.5 rounded-lg text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+      active
+        ? `bg-team-blue shadow-md ${isDarkMode ? 'text-black' : 'text-white'}`
+        : isDarkMode
+          ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 enabled:hover:text-white enabled:hover:border-team-blue'
+          : 'bg-gray-100 border border-gray-300 text-gray-600 enabled:hover:text-gray-900 enabled:hover:border-gray-400'
+    }`;
+  const selectedCount =
+    comparisonMode === 'sessions'
+      ? selectedSessionsData.length
+      : matchColumns.length;
+
   return (
     <div
-      className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
+      className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1152px] mx-auto px-4 sm:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-team-blue text-3xl lg:text-5xl font-semibold mb-2">
-            Comparison
-          </h1>
-          <p
-            className={`text-base mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            Compare sessions and matches side-by-side
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setComparisonMode('sessions')}
-              className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all ${
-                comparisonMode === 'sessions'
-                  ? `bg-team-blue shadow-md ${isDarkMode ? 'text-black' : 'text-white'}`
-                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900 hover:border-gray-400'}`
-              }`}
+        <PageHeader
+          title="Comparison"
+          subtitle={
+            <>
+              Compare sessions and matches side-by-side
+              {scopeLabel && ` · ${scopeLabel}`}
+            </>
+          }
+        >
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setComparisonMode('sessions')}
+                aria-pressed={comparisonMode === 'sessions'}
+                className={modeButtonClass(comparisonMode === 'sessions')}
+              >
+                Compare Sessions
+              </button>
+              <button
+                onClick={() => setComparisonMode('matches')}
+                aria-pressed={comparisonMode === 'matches'}
+                className={modeButtonClass(comparisonMode === 'matches')}
+                disabled={selectedSessionsData.length === 0}
+              >
+                Compare Matches ({allMatches.length})
+              </button>
+            </div>
+            <p
+              aria-live="polite"
+              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
             >
-              Compare Sessions
-            </button>
-            <button
-              onClick={() => setComparisonMode('matches')}
-              className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all ${
-                comparisonMode === 'matches'
-                  ? `bg-team-blue shadow-md ${isDarkMode ? 'text-black' : 'text-white'}`
-                  : `${isDarkMode ? 'bg-team-dark-20 border border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue' : 'bg-gray-100 border border-gray-300 text-gray-600 hover:text-gray-900 hover:border-gray-400'}`
-              }`}
-              disabled={selectedSessionsData.length === 0}
-            >
-              Compare Matches ({allMatches.length})
-            </button>
+              {selectedCount > 0 && (
+                <>
+                  {comparisonMode === 'sessions'
+                    ? plural(selectedCount, 'session')
+                    : plural(selectedCount, 'match', 'matches')}{' '}
+                  selected ·{' '}
+                  <button
+                    onClick={clearSelection}
+                    className="font-semibold text-team-blue underline underline-offset-2 hover:no-underline [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
+                  >
+                    Clear
+                  </button>
+                </>
+              )}
+            </p>
           </div>
-        </div>
+        </PageHeader>
+
+        {choices.length > 0 && (
+          <div className="mb-4">
+            <Segmented
+              label="Sessions shown"
+              value={scope}
+              options={choices}
+              onChange={setScope}
+              isDarkMode={isDarkMode}
+            />
+          </div>
+        )}
 
         <div className="mb-6">
           {sessions.length === 0 ? (
@@ -616,20 +958,32 @@ const Compare = () => {
               <p
                 className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
               >
-                No sessions available
+                {scope === 'all'
+                  ? 'No sessions available'
+                  : `No sessions ${scopeLabel}`}
               </p>
               <p
                 className={`text-sm mb-4 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
               >
-                Complete some practice sessions first, then come back to compare
-                them.
+                {scope === 'all'
+                  ? 'Complete some practice sessions first, then come back to compare them.'
+                  : `${plural(listedSessions.length, 'session')} under All.`}
               </p>
-              <Link
-                to={ROUTES.ACTIVE}
-                className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
-              >
-                Start New Session
-              </Link>
+              {scope === 'all' ? (
+                <Link
+                  to={ROUTES.ACTIVE}
+                  className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
+                >
+                  Start New Session
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setScope('all')}
+                  className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
+                >
+                  Show all sessions
+                </button>
+              )}
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -651,28 +1005,12 @@ const Compare = () => {
                     disabled={!hasMatches}
                     aria-pressed={isSelected}
                     title={`${sessionTitle(session)} · ${formatDate(session.createdAt)}${owner ? ` · ${owner}` : ''}${hasMatches ? '' : ' · no matches to compare'}`}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                      isSelected
-                        ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
-                        : isDarkMode
-                          ? 'bg-team-dark-20 border-team-blue-40 text-team-white-60 enabled:hover:border-team-blue enabled:hover:text-white'
-                          : 'bg-white border-gray-200 text-gray-700 enabled:hover:border-gray-400 enabled:hover:text-gray-900'
-                    }`}
+                    className={`${chipClass(isSelected)} gap-2 px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <span className="max-w-[140px] truncate">
                       {sessionTitle(session)}
                     </span>
-                    <span
-                      className={`shrink-0 ${
-                        isSelected
-                          ? isDarkMode
-                            ? 'text-black/70'
-                            : 'text-white'
-                          : isDarkMode
-                            ? 'text-team-white-60/60'
-                            : 'text-gray-500'
-                      }`}
-                    >
+                    <span className={chipDetailClass(isSelected)}>
                       {whenAndWho(session)} ·{' '}
                       {hasMatches
                         ? `${plural(session.matches.length, 'match', 'matches')} · avg ${avgScore}`
@@ -686,23 +1024,10 @@ const Compare = () => {
         </div>
 
         {sessions.length === 0 ? null : selectedSessionsData.length === 0 ? (
-          <Card className={cardClass}>
-            <CardContent className="py-12">
-              <div className="text-center">
-                <div className="text-team-blue text-5xl mb-4">📊</div>
-                <h3
-                  className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  Select Sessions to Compare
-                </h3>
-                <p
-                  className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Choose sessions from the list above to see detailed comparison
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          pickPrompt(
+            'Select Sessions to Compare',
+            'Choose sessions from the list above to see detailed comparison'
+          )
         ) : comparisonMode === 'sessions' ? (
           <div className="space-y-6">
             <Card className={cardClass}>
@@ -722,8 +1047,8 @@ const Compare = () => {
               {isScoreChartOpen && (
                 <CardContent>
                   <p className={`text-xs mb-4 ${mutedText}`}>
-                    Average points per match from the chosen element, oldest
-                    session first. Each point = one session.
+                    Pick a scoring element to compare. Average points per match,
+                    oldest session first; each point is one session.
                   </p>
                   <div className="flex flex-wrap gap-2 mb-5">
                     {ELEMENTS.map(element => (
@@ -734,7 +1059,7 @@ const Compare = () => {
                           scoreChartPhase === element
                         )}
                       >
-                        {ELEMENT_LABELS[element]}
+                        {ELEMENT_NAMES[element]}
                       </button>
                     ))}
                   </div>
@@ -766,7 +1091,7 @@ const Compare = () => {
                             <XAxis
                               dataKey="id"
                               height={44}
-                              {...twoLineAxis}
+                              {...twoLineAxis(isCompact)}
                               tick={twoLineTick(sessionTicks, tickFill)}
                               tickFormatter={id => widerLine(sessionTicks, id)}
                               axisLine={axisLine}
@@ -781,16 +1106,20 @@ const Compare = () => {
                             <Tooltip
                               contentStyle={tooltipStyle}
                               labelFormatter={sessionTooltipLabel}
-                              formatter={v => formatNumber(Number(v))}
+                              formatter={v => `${formatNumber(Number(v))} pts`}
                             />
                             <Line
                               dataKey="score"
-                              name={`Avg ${ELEMENT_LABELS[scoreChartPhase]} Points`}
-                              stroke="#3b82f6"
+                              name={`Avg ${ELEMENT_NAMES[scoreChartPhase]} Points`}
+                              stroke={seriesColors[0]}
                               strokeWidth={2.5}
-                              dot={{ r: 5, fill: '#3b82f6', strokeWidth: 0 }}
+                              dot={{
+                                r: 5,
+                                fill: seriesColors[0],
+                                strokeWidth: 0,
+                              }}
                               activeDot={{ r: 7 }}
-                              type="monotone"
+                              type="linear"
                             />
                           </LineChart>
                         </ResponsiveContainer>
@@ -855,7 +1184,7 @@ const Compare = () => {
                             <XAxis
                               dataKey="id"
                               height={44}
-                              {...twoLineAxis}
+                              {...twoLineAxis(isCompact)}
                               tick={twoLineTick(sessionTicks, tickFill)}
                               tickFormatter={id => widerLine(sessionTicks, id)}
                               axisLine={axisLine}
@@ -879,11 +1208,15 @@ const Compare = () => {
                             <Line
                               dataKey="cycleTime"
                               name="Avg Cycle Time"
-                              stroke="#10b981"
+                              stroke={seriesColors[0]}
                               strokeWidth={2.5}
-                              dot={{ r: 5, fill: '#10b981', strokeWidth: 0 }}
+                              dot={{
+                                r: 5,
+                                fill: seriesColors[0],
+                                strokeWidth: 0,
+                              }}
                               activeDot={{ r: 7 }}
-                              type="monotone"
+                              type="linear"
                             />
                           </LineChart>
                         </ResponsiveContainer>
@@ -912,24 +1245,39 @@ const Compare = () => {
               </CardHeader>
               {isDetailedBreakdownOpen && (
                 <CardContent>
-                  <div className="overflow-x-auto">
+                  {tableKey('Averages per match.', anyScrimSession)}
+                  {/* `relative`: a cell's screen-reader text is absolutely
+                      placed, and without a positioned scroller around it
+                      one in an off-screen column would widen the page */}
+                  <div
+                    ref={sessionTableRef}
+                    className={`relative overflow-x-auto ${sessionTableShadow}`}
+                  >
                     <table className="w-full text-sm">
                       <thead>
                         <tr
                           className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
                         >
                           <th
-                            className={`text-left py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                            scope="col"
+                            className={`${metricColumn} ${metricFit(false)} pl-3 sm:pl-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                           >
                             Metric
                           </th>
                           {selectedSessionsData.map(session => (
                             <th
                               key={session.id}
-                              className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                              scope="col"
+                              className={`${dataCell} font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                             >
-                              {/* Capped so one long unspaced name can't stretch the table */}
-                              <div className="ml-auto max-w-[9rem] sm:max-w-[16rem] break-words">
+                              {/* Capped, and breakable anywhere, so one long
+                                  unspaced name can't stretch its column;
+                                  the floor keeps ordinary words whole. Two
+                                  sessions fit a phone only on a lower one;
+                                  more scroll sideways whatever it is. */}
+                              <div
+                                className={`ml-auto ${selectedSessionsData.length > 2 ? 'min-w-[4.5rem]' : 'min-w-[3.5rem]'} max-w-[9rem] sm:max-w-[16rem] [overflow-wrap:anywhere] text-xs sm:text-sm`}
+                              >
                                 {sessionTitle(session)}
                               </div>
                               <div
@@ -945,45 +1293,69 @@ const Compare = () => {
                         {renderSessionRow(
                           'Avg Final Score',
                           s => avgPoints(s, b => b.total),
-                          { highlight: true }
-                        )}
-                        {renderSessionRow('Avg Garden Points', s =>
-                          avgPoints(s, b => b.garden)
+                          { highlight: true, short: 'Final Score' }
                         )}
                         {renderSessionRow(
-                          'Avg Garden Scored',
-                          s => avgCount(s, m => m.garden || 0),
-                          { indent: true, format: formatNumber }
-                        )}
-                        {renderSessionRow('Avg Tipping Points', s =>
-                          avgPoints(s, b => b.tipping)
+                          `Avg ${ELEMENT_LABELS.tipping} Points`,
+                          s => avgPoints(s, b => b.tipping),
+                          { short: `${ELEMENT_LABELS.tipping} pts` }
                         )}
                         {renderSessionRow(
-                          'Avg Tipping Scored',
+                          `Avg ${ELEMENT_LABELS.tipping} Scored`,
                           s => avgCount(s, m => m.tipping || 0),
-                          { indent: true, format: formatNumber }
-                        )}
-                        {renderSessionRow('Avg Flower Points', s =>
-                          avgPoints(s, b => b.flower)
+                          {
+                            indent: true,
+                            format: formatNumber,
+                            short: 'Scored',
+                          }
                         )}
                         {renderSessionRow(
-                          'Avg Flower Scored',
+                          `Avg ${ELEMENT_LABELS.garden} Points`,
+                          s => avgPoints(s, b => b.garden),
+                          { short: `${ELEMENT_LABELS.garden} pts` }
+                        )}
+                        {renderSessionRow(
+                          `Avg ${ELEMENT_LABELS.garden} Scored`,
+                          s => avgCount(s, m => m.garden || 0),
+                          {
+                            indent: true,
+                            format: formatNumber,
+                            short: 'Scored',
+                          }
+                        )}
+                        {renderSessionRow(
+                          `Avg ${ELEMENT_LABELS.flower} Points`,
+                          s => avgPoints(s, b => b.flower),
+                          { short: `${ELEMENT_LABELS.flower} pts` }
+                        )}
+                        {renderSessionRow(
+                          `Avg ${ELEMENT_LABELS.flower} Scored`,
                           s => avgCount(s, m => m.flower || 0),
-                          { indent: true, format: formatNumber }
-                        )}
-                        {renderSessionRow('Avg Flower Bonus Points', s =>
-                          avgPoints(s, b => b.flowerBonus)
-                        )}
-                        {renderSessionRow('Avg Left in Hive Points', s =>
-                          avgPoints(s, b => b.hive)
+                          {
+                            indent: true,
+                            format: formatNumber,
+                            short: 'Scored',
+                          }
                         )}
                         {renderSessionRow(
-                          'Avg Left in Hive (up CELL)',
-                          s => avgCount(s, m => m.ballsInHive || 0),
-                          { indent: true, format: formatNumber }
+                          `Avg ${ELEMENT_LABELS.flowerBonus} Points`,
+                          s => avgPoints(s, b => b.flowerBonus),
+                          { short: `${ELEMENT_LABELS.flowerBonus} pts` }
                         )}
-                        {renderSessionRow('Avg Leave + Park Points', s =>
-                          avgPoints(s, b => b.leave + b.park)
+                        {renderSessionRow(
+                          `Avg ${ELEMENT_LABELS.hive} Points`,
+                          s => avgPoints(s, b => b.hive),
+                          { short: `${ELEMENT_LABELS.hive} pts` }
+                        )}
+                        {renderSessionRow(
+                          `Avg ${ELEMENT_LABELS.hive}`,
+                          s => avgCount(s, m => m.ballsInHive || 0),
+                          { indent: true, format: formatNumber, short: 'Left' }
+                        )}
+                        {renderSessionRow(
+                          `Avg ${ELEMENT_LABELS.robots} Points`,
+                          s => avgPoints(s, b => b.leave + b.park),
+                          { short: `${ELEMENT_LABELS.robots} pts` }
                         )}
                         {renderSessionRow(
                           'Park Rate',
@@ -993,11 +1365,10 @@ const Compare = () => {
                         <tr
                           className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                         >
-                          <td
-                            className={`py-3 px-4 pl-8 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                          >
-                            ↳ Matches with a Park
-                          </td>
+                          {metricCell('Matches with a Park', {
+                            indent: true,
+                            short: 'Parked in',
+                          })}
                           {selectedSessionsData.map(session => {
                             const matches = session.matches.map(m =>
                               normalizeForMatchType(
@@ -1014,7 +1385,7 @@ const Compare = () => {
                             return (
                               <td
                                 key={session.id}
-                                className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                className={`${dataCell} font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                               >
                                 {autoCount > 0 ? `${autoCount} auto` : ''}
                                 {autoCount > 0 && endCount > 0 ? ', ' : ''}
@@ -1036,11 +1407,17 @@ const Compare = () => {
                               isScrim(s)
                                 ? avgPoints(s, b => b.penalties)
                                 : null,
-                            { higherIsBetter: false, format: formatNumber }
+                            {
+                              higherIsBetter: false,
+                              format: formatNumber,
+                              flagWorst: true,
+                              short: 'Given to opponent',
+                            }
                           )}
                         {renderSessionRow('Avg Cycle Time', sessionCycleTime, {
                           higherIsBetter: false,
                           format: formatSeconds,
+                          short: 'Cycle Time',
                         })}
                         {renderSessionRow(
                           'Leave Rate',
@@ -1054,33 +1431,37 @@ const Compare = () => {
                               ? sessionRankingPoints(s).earned /
                                 s.matches.length
                               : null,
-                          { format: formatNumber }
+                          { format: formatNumber, short: 'Ranking Points' }
                         )}
                         {renderSessionRow(
                           'Matches with SWARM',
                           s => rankingPointShare(s, 'swarm'),
-                          { indent: true, format: formatRate }
+                          { indent: true, format: formatRate, short: 'SWARM' }
                         )}
                         {renderSessionRow(
                           'Matches with POLLINATOR 1',
                           s => rankingPointShare(s, 'pollinator1'),
-                          { indent: true, format: formatRate }
+                          {
+                            indent: true,
+                            format: formatRate,
+                            short: 'POLLINATOR\u00A01',
+                          }
                         )}
                         {renderSessionRow(
                           'Matches with POLLINATOR 2',
                           s => rankingPointShare(s, 'pollinator2'),
-                          { indent: true, format: formatRate }
+                          {
+                            indent: true,
+                            format: formatRate,
+                            short: 'POLLINATOR\u00A02',
+                          }
                         )}
                         <tr>
-                          <td
-                            className={`py-3 px-4 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                          >
-                            Match Type
-                          </td>
+                          {metricCell('Match Type')}
                           {selectedSessionsData.map(session => (
                             <td
                               key={session.id}
-                              className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              className={`${dataCell} font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                             >
                               {sessionMatchType(
                                 session.matches,
@@ -1120,27 +1501,11 @@ const Compare = () => {
                             key={match.key}
                             onClick={() => toggleMatch(match)}
                             aria-pressed={isChecked}
-                            title={`Garden ${match.garden || 0} · Tipping ${match.tipping || 0} · Flower ${match.flower || 0} · Left in Hive ${match.ballsInHive || 0}`}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                              isChecked
-                                ? `bg-team-blue border-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
-                                : isDarkMode
-                                  ? 'bg-team-dark-20 border-team-blue-40 text-team-white-60 hover:border-team-blue hover:text-white'
-                                  : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:text-gray-900'
-                            }`}
+                            title={`${ELEMENT_LABELS.tipping} ${match.tipping || 0} · ${ELEMENT_LABELS.garden} ${match.garden || 0} · ${ELEMENT_LABELS.flower} ${match.flower || 0} · ${ELEMENT_LABELS.hive} ${match.ballsInHive || 0}`}
+                            className={`${chipClass(isChecked)} gap-1.5 px-3 py-1.5`}
                           >
                             <span>Match #{match.matchNumber}</span>
-                            <span
-                              className={`shrink-0 ${
-                                isChecked
-                                  ? isDarkMode
-                                    ? 'text-black/70'
-                                    : 'text-white'
-                                  : isDarkMode
-                                    ? 'text-team-white-60/60'
-                                    : 'text-gray-500'
-                              }`}
-                            >
+                            <span className={chipDetailClass(isChecked)}>
                               · {match.breakdown.total}
                             </span>
                           </button>
@@ -1152,7 +1517,12 @@ const Compare = () => {
               })}
             </div>
 
-            {matchColumns.length > 0 && (
+            {matchColumns.length === 0 ? (
+              pickPrompt(
+                'Select Matches to Compare',
+                'Choose matches from the sessions above to see them side by side'
+              )
+            ) : (
               <>
                 <Card className={cardClass}>
                   <CardHeader
@@ -1164,7 +1534,7 @@ const Compare = () => {
                     <CardTitle
                       className={`text-xl flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                     >
-                      <span>Score Trend by Match</span>
+                      <span>Score by match</span>
                       <ChevronDown
                         className={`w-5 h-5 transition-transform duration-200 ${isMatchScoreChartOpen ? 'rotate-180' : ''}`}
                       />
@@ -1173,8 +1543,8 @@ const Compare = () => {
                   {isMatchScoreChartOpen && (
                     <CardContent>
                       <p className={`text-xs mb-4 ${mutedText}`}>
-                        Points from the chosen element for each selected match.
-                        Switch element to compare.
+                        Pick a scoring element to compare. One bar per selected
+                        match.
                       </p>
                       <div className="flex flex-wrap gap-2 mb-5">
                         {ELEMENTS.map(element => (
@@ -1185,7 +1555,7 @@ const Compare = () => {
                               matchScoreChartPhase === element
                             )}
                           >
-                            {ELEMENT_LABELS[element]}
+                            {ELEMENT_NAMES[element]}
                           </button>
                         ))}
                       </div>
@@ -1197,17 +1567,24 @@ const Compare = () => {
                             matchScoreChartPhase
                           ),
                         }));
+                        // Matches have no order between sessions, so each
+                        // is a bar of its own rather than a point on a line.
+                        // Every bar keeps its label: past a screenful the
+                        // chart scrolls inside the card instead.
                         return (
                           <div className="w-full overflow-x-auto">
                             <ResponsiveContainer
                               width="100%"
                               height={280}
-                              minWidth={300}
+                              minWidth={Math.max(
+                                300,
+                                60 + chartData.length * 96
+                              )}
                             >
-                              <LineChart
+                              <BarChart
                                 data={chartData}
                                 margin={{
-                                  top: 8,
+                                  top: 20,
                                   right: 24,
                                   left: 0,
                                   bottom: 0,
@@ -1216,15 +1593,13 @@ const Compare = () => {
                                 <CartesianGrid
                                   strokeDasharray="3 3"
                                   stroke={gridStroke}
+                                  vertical={false}
                                 />
                                 <XAxis
                                   dataKey="key"
                                   height={44}
-                                  {...twoLineAxis}
+                                  interval={0}
                                   tick={twoLineTick(matchTicks, tickFill)}
-                                  tickFormatter={key =>
-                                    widerLine(matchTicks, key)
-                                  }
                                   axisLine={axisLine}
                                   tickLine={false}
                                 />
@@ -1237,21 +1612,30 @@ const Compare = () => {
                                 <Tooltip
                                   contentStyle={tooltipStyle}
                                   labelFormatter={matchTooltipLabel}
-                                />
-                                <Line
-                                  dataKey="score"
-                                  name={`${ELEMENT_LABELS[matchScoreChartPhase]} Points`}
-                                  stroke="#3b82f6"
-                                  strokeWidth={2.5}
-                                  dot={{
-                                    r: 5,
-                                    fill: '#3b82f6',
-                                    strokeWidth: 0,
+                                  formatter={v => `${v} pts`}
+                                  cursor={{
+                                    fill: isDarkMode
+                                      ? 'rgba(255,255,255,0.06)'
+                                      : 'rgba(0,0,0,0.04)',
                                   }}
-                                  activeDot={{ r: 7 }}
-                                  type="monotone"
                                 />
-                              </LineChart>
+                                <Bar
+                                  dataKey="score"
+                                  name={`${ELEMENT_NAMES[matchScoreChartPhase]} Points`}
+                                  fill={seriesColors[0]}
+                                  radius={[4, 4, 0, 0]}
+                                  maxBarSize={56}
+                                  label={
+                                    chartData.length <= BAR_LABELS_MAX
+                                      ? {
+                                          position: 'top',
+                                          fill: tickFill,
+                                          fontSize: 11,
+                                        }
+                                      : false
+                                  }
+                                />
+                              </BarChart>
                             </ResponsiveContainer>
                           </div>
                         );
@@ -1297,13 +1681,6 @@ const Compare = () => {
                         </div>
                       ) : (
                         (() => {
-                          const sessionColors = [
-                            '#3b82f6',
-                            '#10b981',
-                            '#f59e0b',
-                            '#ef4444',
-                            '#8b5cf6',
-                          ];
                           const cycles = matchColumns.map(cycleTimesOf);
                           const maxCycles = Math.max(
                             ...cycles.map(c => c.length),
@@ -1399,20 +1776,18 @@ const Compare = () => {
                                       dataKey={`match${idx}`}
                                       name={`match${idx}`}
                                       stroke={
-                                        sessionColors[
-                                          idx % sessionColors.length
-                                        ]
+                                        seriesColors[idx % seriesColors.length]
                                       }
                                       strokeWidth={2.5}
                                       dot={{
                                         r: 4,
-                                        fill: sessionColors[
-                                          idx % sessionColors.length
+                                        fill: seriesColors[
+                                          idx % seriesColors.length
                                         ],
                                         strokeWidth: 0,
                                       }}
                                       activeDot={{ r: 6 }}
-                                      type="monotone"
+                                      type="linear"
                                       connectNulls={false}
                                     />
                                   ))}
@@ -1444,14 +1819,24 @@ const Compare = () => {
                   </CardHeader>
                   {isMatchBreakdownOpen && (
                     <CardContent>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                      {tableKey('', anyScrimMatch)}
+                      {/* `relative` for the same reason as the sessions
+                          table's wrapper */}
+                      <div
+                        ref={matchScrollerRef}
+                        className={`relative overflow-x-auto ${matchTableShadow}`}
+                      >
+                        <table ref={matchTableRef} className="w-full text-sm">
                           <thead>
                             <tr
                               className={`border-b ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
                             >
+                              {/* Two matches and Avg already scroll on a
+                                  phone, so the floor only stops the row
+                                  names wrapping word by word */}
                               <th
-                                className={`text-left py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                scope="col"
+                                className={`${metricColumn} ${metricFit(denseMatches)} pl-3 sm:pl-4 max-sm:min-w-[8.25rem] text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                               >
                                 Metric
                               </th>
@@ -1459,19 +1844,48 @@ const Compare = () => {
                               {matchColumns.map(match => (
                                 <th
                                   key={match.key}
-                                  className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                                  scope="col"
+                                  className={`${matchCell} ${denseMatches ? 'min-w-[5rem]' : ''} font-semibold ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                                 >
+                                  {/* Breakable anywhere: a long unspaced
+                                      name must not widen its column and
+                                      push Avg out of view. The floor keeps
+                                      ordinary words whole. In a dense
+                                      table the name asks for no width at
+                                      all, so the row names keep theirs,
+                                      and fills whatever its column gets,
+                                      cut to three lines (in full on
+                                      hover) over the date, so a long one
+                                      can't make the header tall. */}
                                   <div
-                                    className={`ml-auto max-w-[9rem] sm:max-w-[16rem] break-words text-xs font-normal mb-0.5 ${mutedText}`}
+                                    className={`ml-auto ${denseMatches ? 'w-0 min-w-full' : 'min-w-[4.5rem] max-w-[9rem] sm:max-w-[16rem]'} [overflow-wrap:anywhere] text-xs font-normal mb-0.5 ${mutedText}`}
                                   >
-                                    {match.sessionName} · {match.sessionDate}
+                                    {denseMatches ? (
+                                      <>
+                                        <span
+                                          title={match.sessionName}
+                                          className="line-clamp-3"
+                                        >
+                                          {match.sessionName}
+                                        </span>
+                                        {match.sessionDate}
+                                      </>
+                                    ) : (
+                                      <>
+                                        {match.sessionName} ·{' '}
+                                        {match.sessionDate}
+                                      </>
+                                    )}
                                   </div>
-                                  Match #{match.matchNumber}
+                                  <span className="whitespace-nowrap">
+                                    Match #{match.matchNumber}
+                                  </span>
                                 </th>
                               ))}
                               {matchColumns.length > 1 && (
                                 <th
-                                  className={`text-right py-3 px-4 text-sm font-semibold ${isDarkMode ? 'text-team-blue' : 'text-team-blue'}`}
+                                  scope="col"
+                                  className={`${matchCell} font-semibold text-team-blue`}
                                 >
                                   Avg
                                 </th>
@@ -1485,91 +1899,112 @@ const Compare = () => {
                               { highlight: true }
                             )}
                             {renderMatchRow(
-                              'Garden Points',
-                              m => m.breakdown.garden
+                              `${ELEMENT_LABELS.tipping} Points`,
+                              m => m.breakdown.tipping,
+                              { short: `${ELEMENT_LABELS.tipping} pts` }
                             )}
                             {renderMatchRow(
-                              'Garden Scored',
-                              m => m.garden || 0,
-                              { indent: true, format: formatNumber }
-                            )}
-                            {renderMatchRow(
-                              'Tipping Points',
-                              m => m.breakdown.tipping
-                            )}
-                            {renderMatchRow(
-                              'Tipping Scored',
+                              `${ELEMENT_LABELS.tipping} Scored`,
                               m => m.tipping || 0,
-                              { indent: true, format: formatNumber }
+                              {
+                                indent: true,
+                                format: formatNumber,
+                                short: 'Scored',
+                              }
                             )}
                             {renderMatchRow(
-                              'Flower Points',
-                              m => m.breakdown.flower
+                              `${ELEMENT_LABELS.garden} Points`,
+                              m => m.breakdown.garden,
+                              { short: `${ELEMENT_LABELS.garden} pts` }
                             )}
                             {renderMatchRow(
-                              'Flower Scored',
+                              `${ELEMENT_LABELS.garden} Scored`,
+                              m => m.garden || 0,
+                              {
+                                indent: true,
+                                format: formatNumber,
+                                short: 'Scored',
+                              }
+                            )}
+                            {renderMatchRow(
+                              `${ELEMENT_LABELS.flower} Points`,
+                              m => m.breakdown.flower,
+                              { short: `${ELEMENT_LABELS.flower} pts` }
+                            )}
+                            {renderMatchRow(
+                              `${ELEMENT_LABELS.flower} Scored`,
                               m => m.flower || 0,
-                              { indent: true, format: formatNumber }
+                              {
+                                indent: true,
+                                format: formatNumber,
+                                short: 'Scored',
+                              }
                             )}
                             {renderMatchRow(
-                              'Flower Bonus Points',
-                              m => m.breakdown.flowerBonus
+                              `${ELEMENT_LABELS.flowerBonus} Points`,
+                              m => m.breakdown.flowerBonus,
+                              { short: `${ELEMENT_LABELS.flowerBonus} pts` }
                             )}
                             {renderMatchRow(
-                              'Left in Hive Points',
-                              m => m.breakdown.hive
+                              `${ELEMENT_LABELS.hive} Points`,
+                              m => m.breakdown.hive,
+                              { short: `${ELEMENT_LABELS.hive} pts` }
                             )}
                             {renderMatchRow(
-                              'Left in Hive (up CELL)',
+                              ELEMENT_LABELS.hive,
                               m => m.ballsInHive || 0,
-                              { indent: true, format: formatNumber }
+                              {
+                                indent: true,
+                                format: formatNumber,
+                                short: 'Left',
+                              }
                             )}
                             {renderMatchRow(
-                              'Leave Points',
-                              m => m.breakdown.leave
+                              `${ELEMENT_LABELS.leave} Points`,
+                              m => m.breakdown.leave,
+                              { short: `${ELEMENT_LABELS.leave} pts` }
                             )}
                             {renderMatchRow(
-                              'Park Points',
-                              m => m.breakdown.park
+                              `${ELEMENT_LABELS.park} Points`,
+                              m => m.breakdown.park,
+                              { short: `${ELEMENT_LABELS.park} pts` }
                             )}
                             <tr
                               className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                             >
-                              <td
-                                className={`py-3 px-4 pl-8 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                              >
-                                ↳ Robot 1 Park
-                              </td>
+                              {metricCell('Robot 1 Park', {
+                                indent: true,
+                                dense: denseMatches,
+                              })}
                               {matchColumns.map(match => (
                                 <td
                                   key={match.key}
-                                  className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                  className={`${matchCell} font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                                 >
                                   {parksOf(match, 1)}
                                 </td>
                               ))}
                               {matchColumns.length > 1 && (
-                                <td className="px-4 py-3" />
+                                <td className="px-3 sm:px-4 py-3" />
                               )}
                             </tr>
                             <tr
                               className={`border-b ${isDarkMode ? 'border-team-blue-40/50' : 'border-gray-100'}`}
                             >
-                              <td
-                                className={`py-3 px-4 pl-8 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                              >
-                                ↳ Robot 2 Park
-                              </td>
+                              {metricCell('Robot 2 Park', {
+                                indent: true,
+                                dense: denseMatches,
+                              })}
                               {matchColumns.map(match => (
                                 <td
                                   key={match.key}
-                                  className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                  className={`${matchCell} font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                                 >
                                   {parksOf(match, 2)}
                                 </td>
                               ))}
                               {matchColumns.length > 1 && (
-                                <td className="px-4 py-3" />
+                                <td className="px-3 sm:px-4 py-3" />
                               )}
                             </tr>
                             {/* Scrim matches only; never part of the score */}
@@ -1577,12 +2012,21 @@ const Compare = () => {
                               renderMatchRow(
                                 'Points Given to Opponent',
                                 m => (m.scrim ? m.breakdown.penalties : null),
-                                { higherIsBetter: false, format: formatNumber }
+                                {
+                                  higherIsBetter: false,
+                                  format: formatNumber,
+                                  flagWorst: true,
+                                  short: 'Given to opponent',
+                                }
                               )}
                             {renderMatchRow(
                               'Avg Cycle Time',
                               m => mean(cycleTimesOf(m)),
-                              { higherIsBetter: false, format: formatSeconds }
+                              {
+                                higherIsBetter: false,
+                                format: formatSeconds,
+                                short: 'Cycle Time',
+                              }
                             )}
                             {renderMatchRow(
                               'Ranking Points',
@@ -1591,21 +2035,20 @@ const Compare = () => {
                             )}
                             {earnedInColumns && (
                               <tr className="hidden md:table-row">
-                                <td
-                                  className={`py-3 px-4 pl-8 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                                >
-                                  ↳ Earned
-                                </td>
+                                {metricCell('Earned', {
+                                  indent: true,
+                                  dense: denseMatches,
+                                })}
                                 {matchColumns.map(match => (
                                   <td
                                     key={match.key}
-                                    className={`text-right py-3 px-4 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                    className={`${matchCell} font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                                   >
                                     {earnedOf(match)}
                                   </td>
                                 ))}
                                 {matchColumns.length > 1 && (
-                                  <td className="px-4 py-3" />
+                                  <td className="px-3 sm:px-4 py-3" />
                                 )}
                               </tr>
                             )}

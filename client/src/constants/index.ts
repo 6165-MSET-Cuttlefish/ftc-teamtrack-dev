@@ -18,7 +18,6 @@ export const ROUTES = {
   COMPARE: '/compare',
   CHARTS: '/charts',
   PROFILE: '/profile',
-  EDIT_SESSION: '/edit-session',
   SHARED_SESSION: '/shared/preview',
   TEAM_INVITE: '/join/:inviteCode',
 } as const;
@@ -42,7 +41,7 @@ export const GAME_TIMING = {
   AUTON_END_REMAINING: 120,
   /** Duration of the controller pickup phase (yellow) */
   CONTROLLER_PICKUP_SECONDS: 8,
-  /** Match clock value at which the BIOBUZZ endgame (and flower scoring) begins */
+  /** Match clock value at which the BIOBUZZ endgame (the last 60 s of teleop) begins */
   ENDGAME_REMAINING: 60,
 } as const;
 
@@ -91,4 +90,11 @@ export const STORAGE_KEYS = {
   GUEST_SESSIONS: 'teamtrack-guest-sessions',
   /** Session deletes still inside their undo window, to finish after a reload */
   PENDING_SESSION_DELETES: 'teamtrack-pending-session-deletes',
+  /** Own sessions kept private with "Not now" on the Sessions page banner */
+  UNSHARED_BANNER_DISMISSED: 'teamtrack-unshared-banner-dismissed',
+  /**
+   * Match ids of the last session one tab saved after another tab had
+   * discarded it, so that tab's Undo can't put a stored session back
+   */
+  SESSION_SAVED_ELSEWHERE: 'teamtrack-session-saved-elsewhere',
 } as const;

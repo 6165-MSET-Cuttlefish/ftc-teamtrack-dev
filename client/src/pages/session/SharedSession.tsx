@@ -1,11 +1,11 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
-import { sanitizeHtml, sessionMatchType } from '@/lib';
+import { sessionMatchType } from '@/lib';
 import { normalizeSession } from '@/lib/sessionNormalize';
 import { CURRENT_SEASON } from '@/constants';
+import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { Match, Session } from '@/types';
@@ -13,17 +13,17 @@ import {
   SummaryTab,
   MatchDetailTab,
   CompareTab,
-  StatCard,
   AnalysisTabBar,
   LegacySeasonView,
+  SessionMeta,
+  SessionNotes,
   computeStats,
   tabButtonId,
   tabPanelId,
-  type TabId,
+  useAnalysisNav,
 } from '@/components/session/AnalysisTabs';
 
 const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
-
 
 const SharedSession = () => {
   const { isDarkMode } = useTheme();
@@ -31,8 +31,8 @@ const SharedSession = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>('summary');
-
+  const { activeTab, setActiveTab, selectedIdx, setSelectedIdx, openMatch } =
+    useAnalysisNav();
 
   useEffect(() => {
     const load = async () => {
@@ -99,7 +99,10 @@ const SharedSession = () => {
     [sessionMatches, legacySeason]
   );
   const sessionType = session?.sessionType;
-
+  // When the session was recorded. Links made before this was saved with
+  // them don't have it (their `createdAt` is when the link was made).
+  const recordedAt = (session as { sessionCreatedAt?: unknown } | null)
+    ?.sessionCreatedAt;
 
   if (loading) {
     return (
@@ -114,7 +117,6 @@ const SharedSession = () => {
     );
   }
 
-
   if (error) {
     return (
       <div
@@ -127,10 +129,7 @@ const SharedSession = () => {
               : 'bg-white border-gray-200'
           }`}
         >
-          <AlertTriangle
-            size={40}
-            className="mx-auto text-amber-500"
-          />
+          <AlertTriangle size={40} className="mx-auto text-amber-500" />
           <h2
             className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
@@ -155,21 +154,21 @@ const SharedSession = () => {
     );
   }
 
-
-  const matchCount = `${sessionMatches.length} match${sessionMatches.length === 1 ? '' : 'es'}`;
   const matchTypeLabel =
     sessionMatches.length > 0
       ? sessionMatchType(sessionMatches, session?.matchType)
       : session?.matchType;
 
+  const hasTabs = !legacySeason && sessionMatches.length > 0;
+
   return (
     <div
       className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
+      <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
         <div className="space-y-2">
           <div
-            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full mb-2 ${
+            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
               isDarkMode
                 ? 'bg-team-blue-40/30 text-team-blue'
                 : 'bg-blue-50 text-team-blue'
@@ -177,65 +176,22 @@ const SharedSession = () => {
           >
             Shared Session
           </div>
-          <h1 className="text-team-blue text-3xl sm:text-4xl font-bold leading-tight break-words [overflow-wrap:anywhere] min-w-0">
-            {session?.sessionName || 'Session'} Analysis
+          <h1 className={`${PAGE_TITLE_CLASS} min-w-0`}>
+            {session?.sessionName || 'Session'}
           </h1>
-          <div
-            className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
-          >
-            {sessionType && !legacySeason && <span>{sessionType}</span>}
-            {matchTypeLabel && <span>{matchTypeLabel}</span>}
-            {session?.sessionDuration && <span>{session.sessionDuration}</span>}
-            <span>{matchCount}</span>
-          </div>
+          <SessionMeta
+            sessionType={legacySeason ? undefined : sessionType}
+            matchType={matchTypeLabel}
+            createdAt={typeof recordedAt === 'string' ? recordedAt : undefined}
+            matchCount={sessionMatches.length}
+            duration={session?.sessionDuration}
+            isDarkMode={isDarkMode}
+          />
         </div>
 
-        {stats && (
-          <div className="space-y-3">
-            <h2
-              className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-            >
-              Session Overview
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard
-                label="Avg Score"
-                value={stats.avgScore}
-                sublabel={matchCount}
-                isDarkMode={isDarkMode}
-              />
-              <StatCard
-                label="Best Score"
-                value={stats.maxScore}
-                sublabel={`Match ${sessionMatches[stats.bestMatch]?.matchNumber ?? ''}`}
-                variant="success"
-                isDarkMode={isDarkMode}
-              />
-              <StatCard
-                label="Worst Score"
-                value={stats.minScore}
-                sublabel={`Match ${sessionMatches[stats.worstMatch]?.matchNumber ?? ''}`}
-                variant="danger"
-                isDarkMode={isDarkMode}
-              />
-            </div>
-          </div>
-        )}
-
-        {session?.notes && (
-          <div
-            className={`rounded-xl border p-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
-          >
-            <h3
-              className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-            >
-              Notes
-            </h3>
-            <div
-              className={`[contain:paint] relative overflow-hidden text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${isDarkMode ? "text-team-white-60 [&_[style*='background-color']]:text-black" : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(session.notes) }}
-            />
-          </div>
+        {/* Without tabs there are no charts for the notes to wait behind */}
+        {!hasTabs && session?.notes && (
+          <SessionNotes notes={session.notes} isDarkMode={isDarkMode} />
         )}
 
         {legacySeason && (
@@ -246,7 +202,7 @@ const SharedSession = () => {
           />
         )}
 
-        {!legacySeason && sessionMatches.length > 0 && (
+        {hasTabs && (
           <>
             <AnalysisTabBar
               active={activeTab}
@@ -265,6 +221,7 @@ const SharedSession = () => {
                   stats={stats}
                   isDarkMode={isDarkMode}
                   sessionType={sessionType}
+                  onOpenMatch={openMatch}
                 />
               )}
               {activeTab === 'matches' && (
@@ -272,6 +229,8 @@ const SharedSession = () => {
                   matches={sessionMatches}
                   isDarkMode={isDarkMode}
                   sessionType={sessionType}
+                  selectedIdx={selectedIdx}
+                  onSelect={setSelectedIdx}
                 />
               )}
               {activeTab === 'compare' && (
@@ -282,6 +241,15 @@ const SharedSession = () => {
                 />
               )}
             </div>
+
+            {/* Under the charts, three lines at first */}
+            {activeTab === 'summary' && session?.notes && (
+              <SessionNotes
+                notes={session.notes}
+                isDarkMode={isDarkMode}
+                clamp
+              />
+            )}
           </>
         )}
 
@@ -315,7 +283,9 @@ const SharedSession = () => {
               >
                 Want to track your own sessions?
               </h3>
-              <p className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}>
+              <p
+                className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
+              >
                 Create a free account to start tracking and analyzing your
                 team's performance.
               </p>

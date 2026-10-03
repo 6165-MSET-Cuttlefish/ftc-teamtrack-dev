@@ -56,33 +56,39 @@
     --team-white: 254 254 254; /* #FEFEFE (slightly off-white) */
   }
 
+  /*
+   * Dark surfaces are the ones the pages paint, so menus, tooltips and plain
+   * toasts are the same charcoal as the page they open over instead of
+   * shadcn's default navy. The border is the header's divider line
+   * (white at 20% on the page colour), which is what outlines them.
+   */
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 0 0% 9.8%; /* #191919 */
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 0 0% 9.8%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 0 0% 9.8%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 0 0% 14.9%; /* #262626 */
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 0 0% 14.9%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 0 0% 18%; /* #2e2e2e */
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 0 0% 28%; /* #474747 */
+    --input: 0 0% 28%;
     --ring: 212.7 26.8% 83.9%;
 
     /* Design tokens for dark mode */
@@ -98,6 +104,16 @@
     --honeycomb-gold-light: #ffd700;
     --honeycomb-gold-dark: #b8860b;
     --honeycomb-bg: #0a0a0a;
+
+    /* Surfaces: the page is #0a0a0a, its cards #141414 */
+    --background: 0 0% 3.9%;
+    --card: 0 0% 7.8%;
+    --popover: 0 0% 7.8%;
+    --secondary: 0 0% 12.2%; /* #1f1f1f */
+    --muted: 0 0% 12.2%;
+    --accent: 0 0% 15%; /* #262626 */
+    --border: 0 0% 23%; /* #3b3b3b */
+    --input: 0 0% 23%;
   }
 
   /* Deep Sea theme - builds on dark mode */
@@ -109,6 +125,16 @@
     --deepsea-accent-glow: #00838F;
     --deepsea-bg: #0a1628;
     --deepsea-bg-deep: #060f1d;
+
+    /* Surfaces: the page is #0a1628, its cards #0d1b2a */
+    --background: 216 60% 9.8%;
+    --card: 211 52.7% 10.8%;
+    --popover: 211 52.7% 10.8%;
+    --secondary: 211 45% 16%; /* #162a3b */
+    --muted: 211 45% 16%;
+    --accent: 211 45% 18%; /* #193043 */
+    --border: 215 17% 28%; /* #3b4553 */
+    --input: 215 17% 28%;
   }
 }
 
@@ -190,7 +216,10 @@
 }
 
 @layer utilities {
-  /* Mobile optimizations */
+  /*
+   * Mobile optimizations. Wider than this, touch sizing goes by
+   * `pointer: coarse` instead (below, and `.tap-target`).
+   */
   @media (max-width: 640px) {
     /*
      * Increase touch target size for mobile. Sizes only: forcing a display
@@ -222,11 +251,32 @@
       font-size: 16px;
       min-height: 44px;
     }
+  }
 
-    /* Prevent zoom on input focus */
-    input:focus,
-    textarea:focus,
-    select:focus {
+  /*
+   * Touch screens of any width (an iPad at the pit, a phone held sideways).
+   * Deliberately no blanket `button, a` rule here: small controls opt in.
+   */
+  @media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  /*
+   * iOS zooms the page when a focused field's text is under 16px. This only
+   * raises small text: a field already set in text-lg or larger (the score
+   * boxes) keeps its size instead of shrinking while it is being typed in.
+   */
+  @media (max-width: 640px), (pointer: coarse) {
+    :is(input, textarea, select):focus:not(
+        [class*='text-lg'],
+        [class*='text-xl'],
+        [class*='text-2xl'],
+        [class*='text-3xl']
+      ) {
       font-size: 16px;
     }
   }
@@ -343,6 +393,18 @@
 
   .border-glow:hover {
     box-shadow: 0 0 20px rgb(var(--team-blue) / 0.3);
+  }
+}
+
+/*
+ * Opt-in 44px minimum for icon buttons and other small controls, on touch
+ * screens only. A mouse keeps the compact size. Outside the utilities layer
+ * so it is always built and wins over an h-* / w-* on the same element.
+ */
+@media (pointer: coarse) {
+  .tap-target {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -516,8 +578,17 @@
     rgba(0, 131, 143, 0.08) 100%
   );
   border: 1px solid rgba(0, 188, 212, 0.15);
-  animation: deepsea-rise linear infinite;
-  will-change: transform;
+}
+
+/*
+ * The bubbles only rise for people who have not asked for less motion. They
+ * start below the bottom edge, so without the animation none are on screen.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .deepsea-bubble {
+    animation: deepsea-rise linear infinite;
+    will-change: transform;
+  }
 }
 
 @keyframes deepsea-rise {
@@ -585,7 +656,49 @@
 .deepsea .border-glow:hover {
   box-shadow: 0 0 20px rgba(0, 188, 212, 0.35);
 }
-/* Tutorial: Ensure Select dropdowns render above the tutorial overlay */
+
+/*
+ * Select lists, menus and tooltips render above the walkthrough (its card is
+ * z-index 10001) and above a Dialog (10050, see ui/dialog.tsx), so one opened
+ * from inside a dialog is not hidden behind it.
+ */
 [data-radix-popper-content-wrapper] {
-  z-index: 10000 !important;
+  z-index: 10060 !important;
+}
+
+/*
+ * While a dialog is open on a desktop, toasts leave the bottom-right corner,
+ * where a wide dialog keeps its buttons, for the top-right one: dialog titles
+ * are on the left, so that end of their header is empty. The toast list is
+ * moved here rather than by changing Sonner's `position`, which would rebuild
+ * it: every toast's timer would start over, and one paused under the cursor
+ * could stay paused. Mirrors Sonner's own rules for a top list.
+ */
+.toaster-over-dialog[data-sonner-toaster][data-y-position='bottom'] {
+  top: var(--offset-top);
+  bottom: auto;
+}
+
+/*
+ * Sonner lifts an expanded stack 10px, which pushes a list at the top of the
+ * screen into its edge: the front toast's close button went half off-screen.
+ * Only this list: a top-centre one (a phone's) is never lifted, as Sonner's
+ * centring transform wins over its lift, and clearing it here would move
+ * the list off-centre.
+ */
+.toaster-over-dialog[data-sonner-toaster][data-lifted='true'] {
+  transform: none;
+}
+
+.toaster-over-dialog [data-sonner-toast][data-y-position='bottom'] {
+  top: 0;
+  bottom: auto;
+  --lift: 1;
+  --lift-amount: var(--gap);
+}
+
+/* A new toast drops in from above rather than rising from below */
+.toaster-over-dialog
+  [data-sonner-toast][data-y-position='bottom'][data-mounted='false'] {
+  --y: translateY(-100%);
 }

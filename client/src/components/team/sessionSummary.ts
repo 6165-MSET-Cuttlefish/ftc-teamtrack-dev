@@ -3,7 +3,7 @@ import type { Session } from '@/types';
 
 /**
  * One line that tells a session apart from others with the same name in the
- * import lists: when it was recorded (with the time — two sessions from the
+ * share-with-team lists: when it was recorded (with the time — two sessions from the
  * same day are common), how many matches it has, and its average score.
  */
 export const sessionSummary = (session: Session): string => {

@@ -11,12 +11,12 @@ import {
 import {
   generateShareableLink,
   copyShareLink,
-  sanitizeHtml,
   calculateTotal,
   emptyScoringFields,
   pickScoringFields,
   isGuestSessionId,
   isCurrentSeasonSession,
+  matchScore,
   sessionMatchType,
   buildSessionsCsv,
   buildLegacySessionsCsv,
@@ -50,18 +50,21 @@ import {
   Check,
   Loader2,
   Download,
+  Lock,
 } from 'lucide-react';
+import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import {
   SummaryTab,
   MatchDetailTab,
   CompareTab,
-  StatCard,
   AnalysisTabBar,
   LegacySeasonView,
+  SessionMeta,
+  SessionNotes,
   computeStats,
   tabButtonId,
   tabPanelId,
-  type TabId,
+  useAnalysisNav,
 } from '@/components/session/AnalysisTabs';
 
 /** What a `sessionId` in the URL turned out to be */
@@ -76,10 +79,11 @@ interface LoadedSession {
   /** As stored - absent on sessions saved before the type was recorded */
   sessionType?: SessionType;
   /**
-   * When it was recorded and by whom. The form-shaped `session` has no place
-   * for these, and a CSV export without them would date every row today.
+   * When it was recorded and by whom, as stored. The form-shaped `session`
+   * has no place for these, and a CSV export without them would date every
+   * row today.
    */
-  createdAt?: TimestampValue;
+  createdAt?: Session['createdAt'];
   userEmail?: string;
   /** Season tag of a session recorded before this season, else null */
   legacySeason: string | null;
@@ -145,7 +149,8 @@ const Analysis = () => {
   const sessionId = searchParams.get('sessionId');
   const viewer = user?.uid ?? null;
   const [loaded, setLoaded] = useState<LoadedSession | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>('summary');
+  const { activeTab, setActiveTab, selectedIdx, setSelectedIdx, openMatch } =
+    useAnalysisNav();
   const [isMatchFormOpen, setIsMatchFormOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -178,6 +183,7 @@ const Analysis = () => {
     ? current?.sessionType
     : sessionData.sessionType;
   const legacySeason = current?.legacySeason ?? null;
+  const createdAt = current?.createdAt;
 
   const isGuestSession = !!sessionId && isGuestSessionId(sessionId);
   /** A saved session this viewer may change: their own, in this season */
@@ -252,15 +258,8 @@ const Analysis = () => {
   }, [sessionId, viewer]);
 
   const handleCopyLink = useCallback(async () => {
-    if (!sessionData) return;
-    if (!savedSession) {
-      toast.error(
-        user
-          ? 'Open this session from My Sessions to share it'
-          : 'Create an account to share sessions'
-      );
-      return;
-    }
+    // Without a saved session the button is locked, with the reason beside it.
+    if (!sessionData || !savedSession) return;
     setIsCopyingLink(true);
     try {
       const link = await generateShareableLink({
@@ -270,6 +269,7 @@ const Analysis = () => {
         sessionName: sessionData.sessionName,
         sessionType,
         sessionDuration: sessionData.sessionDuration,
+        createdAt,
         matchType: sessionData.matchType,
         selectedFeature: sessionData.selectedFeature,
         notes: sessionData.notes || '',
@@ -287,7 +287,7 @@ const Analysis = () => {
     } finally {
       setIsCopyingLink(false);
     }
-  }, [sessionData, sessionType, savedSession, user]);
+  }, [sessionData, sessionType, createdAt, savedSession]);
 
   /**
    * Export just this session, through the same builder as the Sessions
@@ -311,9 +311,7 @@ const Analysis = () => {
       sessionType,
       matchType: sessionData.matchType,
       sessionDuration: sessionData.sessionDuration,
-      createdAt: sessionId
-        ? (current?.createdAt as TimestampValue)
-        : new Date(),
+      createdAt: sessionId ? (createdAt as TimestampValue) : new Date(),
       notes: sessionData.notes,
       matches: sessionData.matches ?? [],
       ...(legacySeason ? { season: legacySeason } : {}),
@@ -405,23 +403,29 @@ const Analysis = () => {
         matchId,
       });
 
-      toast.success('Match deleted', {
-        duration: UI_TIMING.UNDO_WINDOW,
-        action: removed && {
-          label: 'Undo',
-          onClick: async () => {
-            try {
-              await applyEdit(sessionId, { kind: 'restore', ...removed });
-              toast.success('Match restored');
-            } catch (error) {
-              logger.error('Error restoring match', error);
-              toast.error('Failed to restore match', {
-                description: matchEditFailure(error),
-              });
-            }
+      toast.success(
+        removed
+          ? `Match ${removed.match.matchNumber} deleted`
+          : 'Match deleted',
+        {
+          duration: UI_TIMING.UNDO_WINDOW,
+          action: removed && {
+            label: 'Undo',
+            onClick: async () => {
+              try {
+                await applyEdit(sessionId, { kind: 'restore', ...removed });
+                setSelectedIdx(removed.index);
+                toast.success(`Match ${removed.match.matchNumber} restored`);
+              } catch (error) {
+                logger.error('Error restoring match', error);
+                toast.error('Failed to restore match', {
+                  description: matchEditFailure(error),
+                });
+              }
+            },
           },
-        },
-      });
+        }
+      );
     } catch (error) {
       logger.error('Error deleting match', error);
       toast.error('Failed to delete match', {
@@ -440,24 +444,53 @@ const Analysis = () => {
 
     setIsUpdating(true);
     try {
-      await applyEdit(
-        sessionId,
-        editingMatch
-          ? { kind: 'update', matchId: editingMatch.id, changes: matchData }
-          : {
-              kind: 'add',
-              match: {
-                ...pickScoringFields(matchData),
-                id: newMatchId(),
-                matchType: matchData.matchType || 'Full Game',
-                finalScore: calculateTotal(matchData),
+      if (editingMatch) {
+        await applyEdit(sessionId, {
+          kind: 'update',
+          matchId: editingMatch.id,
+          changes: matchData,
+        });
+        toast.success('Match updated successfully');
+      } else {
+        const matchId = newMatchId();
+        const { matches } = await applyEdit(sessionId, {
+          kind: 'add',
+          match: {
+            ...pickScoringFields(matchData),
+            id: matchId,
+            matchType: matchData.matchType || 'Full Game',
+            finalScore: calculateTotal(matchData),
+          },
+        });
+        // Show what was just added, and let a slip be taken straight back.
+        const index = matches.findIndex(m => m.id === matchId);
+        const added = matches[index];
+        if (added) {
+          setSelectedIdx(index);
+          setActiveTab('matches');
+          const points = matchScore(added, sessionData.matchType);
+          toast.success(
+            `Match ${added.matchNumber} added · ${points} ${points === 1 ? 'pt' : 'pts'}`,
+            {
+              duration: UI_TIMING.UNDO_WINDOW,
+              action: {
+                label: 'Undo',
+                onClick: async () => {
+                  try {
+                    await applyEdit(sessionId, { kind: 'delete', matchId });
+                    toast.success(`Match ${added.matchNumber} removed`);
+                  } catch (error) {
+                    logger.error('Error undoing added match', error);
+                    toast.error('Failed to remove the match', {
+                      description: matchEditFailure(error),
+                    });
+                  }
+                },
               },
             }
-      );
-
-      toast.success(
-        editingMatch ? 'Match updated successfully' : 'Match added successfully'
-      );
+          );
+        }
+      }
       setIsMatchFormOpen(false);
       setEditingMatch(null);
     } catch (error) {
@@ -512,14 +545,13 @@ const Analysis = () => {
             to={ROUTES.SESSIONS}
             className={`inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
-            Go to My Sessions
+            Go to Sessions
           </Link>
         </div>
       </div>
     );
   }
 
-  const matchCount = `${sessionMatches.length} match${sessionMatches.length === 1 ? '' : 'es'}`;
   const matchTypeLabel =
     sessionMatches.length > 0
       ? sessionMatchType(sessionMatches, sessionData.matchType)
@@ -530,7 +562,7 @@ const Analysis = () => {
     : legacySeason
       ? null
       : !sessionId
-        ? 'Open this session from My Sessions to edit its matches'
+        ? 'Open this session from Sessions to edit its matches'
         : 'View only - recorded by a teammate';
   const badgeClass = `inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${
     isDarkMode ? 'bg-white/10 text-team-white-60' : 'bg-gray-100 text-gray-600'
@@ -538,13 +570,19 @@ const Analysis = () => {
   const canShare = sessionMatches.length > 0 && !legacySeason;
   // An older session is exported in its own season's columns.
   const canExport = sessionMatches.length > 0;
+  /** Sharing makes a link to a session saved to an account */
+  const shareLocked = canShare && !savedSession;
+  const hasTabs = !legacySeason && sessionMatches.length > 0;
+  const quietButton = isDarkMode
+    ? 'border-team-blue-40 bg-team-dark-20 text-team-white-60 hover:text-white hover:border-team-blue'
+    : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-team-blue';
 
   return (
     <div
       className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div className="space-y-2 min-w-0">
             {legacySeason && (
               <div
@@ -557,19 +595,17 @@ const Analysis = () => {
                 {legacySeason.toUpperCase()} season
               </div>
             )}
-            <h1 className="text-team-blue text-3xl sm:text-4xl font-bold leading-tight break-words [overflow-wrap:anywhere] min-w-0">
-              {sessionData.sessionName || 'Session'} Analysis
+            <h1 className={`${PAGE_TITLE_CLASS} min-w-0`}>
+              {sessionData.sessionName || 'Session'}
             </h1>
-            <div
-              className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-            >
-              {sessionType && !legacySeason && <span>{sessionType}</span>}
-              {matchTypeLabel && <span>{matchTypeLabel}</span>}
-              {sessionData.sessionDuration && (
-                <span>{sessionData.sessionDuration}</span>
-              )}
-              <span>{matchCount}</span>
-            </div>
+            <SessionMeta
+              sessionType={legacySeason ? undefined : sessionType}
+              matchType={matchTypeLabel}
+              createdAt={createdAt}
+              matchCount={sessionMatches.length}
+              duration={sessionData.sessionDuration}
+              isDarkMode={isDarkMode}
+            />
             {readOnlyReason && sessionMatches.length > 0 && (
               <div className={badgeClass}>{readOnlyReason}</div>
             )}
@@ -578,19 +614,68 @@ const Analysis = () => {
           {/* A link outlives what it was made from: it can be taken down
               whatever the session's season, and with no matches left in it. */}
           {(canShare || canExport || savedSession) && (
-            <div className="flex flex-wrap gap-2 shrink-0">
-              {canShare && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 shrink-0 sm:justify-end sm:max-w-[50%]">
+              {/* The reason is beside the locked button, not in a toast after
+                  a press. On a phone the reason alone says it, in one line. */}
+              {shareLocked && (
+                <>
+                  <button
+                    type="button"
+                    disabled
+                    aria-describedby="share-locked-reason"
+                    className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium cursor-not-allowed [@media(pointer:coarse)]:min-h-11 ${
+                      isDarkMode
+                        ? 'border-team-white-20 text-team-white-60'
+                        : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    <Lock size={15} />
+                    Copy Share Link
+                  </button>
+                  <p
+                    id="share-locked-reason"
+                    className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  >
+                    <Lock
+                      size={14}
+                      aria-hidden
+                      className="inline-block align-[-2px] mr-1.5 sm:hidden"
+                    />
+                    {user ? (
+                      <>
+                        Open this session from{' '}
+                        <Link
+                          to={ROUTES.SESSIONS}
+                          className="inline-flex items-center font-semibold text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
+                        >
+                          Sessions
+                        </Link>{' '}
+                        to share it
+                      </>
+                    ) : (
+                      <>
+                        Sharing needs a free account ·{' '}
+                        <Link
+                          to={ROUTES.SIGNUP}
+                          className="inline-flex items-center font-semibold text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
+                        >
+                          Sign up
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                </>
+              )}
+              {canShare && !shareLocked && (
                 <button
                   onClick={handleCopyLink}
                   disabled={isCopyingLink}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all [@media(pointer:coarse)]:min-h-11 ${
                     linkCopied
                       ? isDarkMode
                         ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
                         : 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                      : isDarkMode
-                        ? 'border-team-blue-40 bg-team-dark-20 text-team-white-60 hover:text-white hover:border-team-blue'
-                        : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-team-blue'
+                      : quietButton
                   }`}
                 >
                   {isCopyingLink ? (
@@ -608,11 +693,7 @@ const Analysis = () => {
                   onClick={handleStopSharing}
                   disabled={isRevoking}
                   title="Remove the share links made from this session"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
-                    isDarkMode
-                      ? 'border-team-blue-40 bg-team-dark-20 text-team-white-60 hover:text-white hover:border-team-blue'
-                      : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-team-blue'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all [@media(pointer:coarse)]:min-h-11 ${quietButton}`}
                 >
                   {isRevoking ? (
                     <Loader2 size={15} className="animate-spin" />
@@ -626,11 +707,7 @@ const Analysis = () => {
                 <button
                   onClick={handleExportSession}
                   title="Export this session's matches as CSV"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
-                    isDarkMode
-                      ? 'border-team-blue-40 bg-team-dark-20 text-team-white-60 hover:text-white hover:border-team-blue'
-                      : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-team-blue'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all [@media(pointer:coarse)]:min-h-11 ${quietButton}`}
                 >
                   <Download size={15} />
                   Export CSV
@@ -640,55 +717,9 @@ const Analysis = () => {
           )}
         </div>
 
-        {stats && (
-          <div className="space-y-3">
-            <h2
-              className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-            >
-              Session Overview
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard
-                label="Avg Score"
-                value={stats.avgScore}
-                sublabel={matchCount}
-                isDarkMode={isDarkMode}
-              />
-              <StatCard
-                label="Best Score"
-                value={stats.maxScore}
-                sublabel={`Match ${sessionMatches[stats.bestMatch]?.matchNumber ?? ''}`}
-                variant="success"
-                isDarkMode={isDarkMode}
-              />
-              <StatCard
-                label="Worst Score"
-                value={stats.minScore}
-                sublabel={`Match ${sessionMatches[stats.worstMatch]?.matchNumber ?? ''}`}
-                variant="danger"
-                isDarkMode={isDarkMode}
-              />
-            </div>
-          </div>
-        )}
-
-        {sessionData.notes && (
-          <div
-            className={`rounded-xl border p-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
-          >
-            <h3
-              className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-            >
-              Notes
-            </h3>
-            {/* contain:paint keeps whatever the notes hold inside this box */}
-            <div
-              className={`[contain:paint] relative overflow-hidden text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${isDarkMode ? "text-team-white-60 [&_[style*='background-color']]:text-black" : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
-              dangerouslySetInnerHTML={{
-                __html: sanitizeHtml(sessionData.notes),
-              }}
-            />
-          </div>
+        {/* Without tabs there are no charts for the notes to wait behind */}
+        {!hasTabs && sessionData.notes && (
+          <SessionNotes notes={sessionData.notes} isDarkMode={isDarkMode} />
         )}
 
         {legacySeason && (
@@ -699,7 +730,7 @@ const Analysis = () => {
           />
         )}
 
-        {!legacySeason && sessionMatches.length > 0 && (
+        {hasTabs && (
           <>
             <AnalysisTabBar
               active={activeTab}
@@ -718,6 +749,7 @@ const Analysis = () => {
                   stats={stats}
                   isDarkMode={isDarkMode}
                   sessionType={sessionType}
+                  onOpenMatch={openMatch}
                 />
               )}
               {activeTab === 'matches' && (
@@ -725,6 +757,8 @@ const Analysis = () => {
                   matches={sessionMatches}
                   isDarkMode={isDarkMode}
                   sessionType={sessionType}
+                  selectedIdx={selectedIdx}
+                  onSelect={setSelectedIdx}
                   // No handlers means no buttons: a session this viewer
                   // can't change shows no controls that would only fail.
                   onEdit={canEdit ? handleEditMatch : undefined}
@@ -740,6 +774,15 @@ const Analysis = () => {
                 />
               )}
             </div>
+
+            {/* Under the charts, three lines at first */}
+            {activeTab === 'summary' && sessionData.notes && (
+              <SessionNotes
+                notes={sessionData.notes}
+                isDarkMode={isDarkMode}
+                clamp
+              />
+            )}
           </>
         )}
 
@@ -768,9 +811,9 @@ const Analysis = () => {
               !sessionId && (
                 <Link
                   to={ROUTES.SESSIONS}
-                  className="inline-flex min-h-[44px] items-center text-sm font-medium text-team-blue underline underline-offset-4 sm:min-h-0"
+                  className="inline-flex items-center text-sm font-medium text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
                 >
-                  Open a session from My Sessions
+                  Open a session from Sessions
                 </Link>
               )
             )}
@@ -780,7 +823,7 @@ const Analysis = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <Link
             to="/charts"
-            className={`flex items-center justify-center w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
+            className={`flex items-center justify-center w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors [@media(pointer:coarse)]:min-h-11 ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             View Lifetime Charts
           </Link>

@@ -7,10 +7,12 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type HTMLAttributes,
   type MouseEvent,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +38,12 @@ const focusableIn = (node: HTMLElement): HTMLElement[] =>
 /** Open dialog panels, outermost first: only the last one traps Tab */
 const openPanels: HTMLElement[] = [];
 
+/** Open dialogs, oldest first: only the last one answers Escape */
+const openDialogs: symbol[] = [];
+
+/** Told whenever the first dialog opens or the last one closes */
+const openListeners = new Set<() => void>();
+
 /** The page scrolls again once the last open dialog closes */
 let scrollLocks = 0;
 let overflowBeforeLock = '';
@@ -46,14 +54,32 @@ const lockScroll = () => {
     document.body.style.overflow = 'hidden';
   }
   scrollLocks += 1;
+  if (scrollLocks === 1) openListeners.forEach(listener => listener());
 };
 
 const unlockScroll = () => {
   scrollLocks -= 1;
   if (scrollLocks === 0) {
     document.body.style.overflow = overflowBeforeLock;
+    openListeners.forEach(listener => listener());
   }
 };
+
+const subscribeToOpenDialogs = (listener: () => void) => {
+  openListeners.add(listener);
+  return () => {
+    openListeners.delete(listener);
+  };
+};
+
+const isAnyDialogOpen = () => scrollLocks > 0;
+
+/**
+ * True while at least one Dialog is open. For anything that has to stay
+ * clear of a dialog, like the toasts that would otherwise sit on its footer.
+ */
+export const useIsDialogOpen = (): boolean =>
+  useSyncExternalStore(subscribeToOpenDialogs, isAnyDialogOpen, () => false);
 
 /** Lets DialogTitle / DialogDescription name the panel they sit in */
 interface DialogLabelContextValue {
@@ -70,15 +96,25 @@ export const Dialog = ({
   onOpenChange,
   children,
 }: DialogProps) => {
-  useEscapeKey(open, () => onOpenChange?.(false));
+  const [dialogId] = useState(() => Symbol('dialog'));
+  // One press closes one thing: with two dialogs open, only the one on top.
+  useEscapeKey(open, () => {
+    if (openDialogs[openDialogs.length - 1] !== dialogId) return;
+    onOpenChange?.(false);
+  });
   /** A click only dismisses if it also started on the backdrop (not a text-selection drag) */
   const pressedBackdropRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
+    openDialogs.push(dialogId);
     lockScroll();
-    return unlockScroll;
-  }, [open]);
+    return () => {
+      const index = openDialogs.indexOf(dialogId);
+      if (index !== -1) openDialogs.splice(index, 1);
+      unlockScroll();
+    };
+  }, [open, dialogId]);
 
   if (!open) return null;
 
@@ -90,16 +126,22 @@ export const Dialog = ({
     }
   };
 
-  return (
+  // In a portal at the end of <body>: the dialog opened last is the last one
+  // in the page, so it is both the one on top and the one holding focus, and
+  // no sticky header or other stacking context can trap it underneath. The
+  // z-index clears the walkthrough (its card is 10001); Select lists and
+  // menus opened from a dialog sit above it (see the end of global.css).
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[10050] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
       onMouseDown={e => {
         pressedBackdropRef.current = e.target === e.currentTarget;
       }}
       onClick={handleBackdropClick}
     >
       {children}
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -280,3 +322,24 @@ export const DialogDescription = ({
     </p>
   );
 };
+
+/**
+ * The row of buttons that ends a dialog: the way out first, the main action
+ * last. Side by side and right-aligned from `sm` up; on a phone the buttons
+ * stack full-width with the main action on top.
+ */
+export const DialogFooter = ({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) => (
+  <div
+    {...props}
+    className={cn(
+      'flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4',
+      className
+    )}
+  >
+    {children}
+  </div>
+);

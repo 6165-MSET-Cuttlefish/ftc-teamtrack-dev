@@ -2,8 +2,11 @@
  * Session deletes that are still inside their undo window.
  *
  * Deleting a session hides it at once and only removes it for real when the
- * window closes. The waiting deletes are held here, at module scope, rather
- * than in the page that started them, so that:
+ * window closes: when its toast does, by running out or being closed. The
+ * toast only counts down while it is on screen (see ui/useToastCountdowns),
+ * so a delete whose Undo is hidden behind newer toasts waits for it. The
+ * waiting deletes are held here, at module scope, rather than in the page
+ * that started them, so that:
  *
  * - Undo keeps working from whichever page the toast is still showing on;
  * - leaving the page, closing the tab or reloading finishes the delete
@@ -40,7 +43,8 @@ interface StoredDelete {
   /**
    * When the undo window closes, in ms since the epoch. 0 once the delete
    * has started (or when it was never recorded): there is no Undo to wait
-   * for.
+   * for. The window offering Undo moves it on for as long as its toast is
+   * open.
    */
   expiresAt: number;
   /**
@@ -51,6 +55,10 @@ interface StoredDelete {
 }
 
 interface PendingDelete extends StoredDelete {
+  /**
+   * Another window's delete: when to finish it. This window's own: the
+   * interval that keeps the others waiting (clearTimeout stops either).
+   */
   timer: ReturnType<typeof setTimeout> | null;
   /** Set once the delete has started; settles when it has finished */
   running: Promise<void> | null;
@@ -64,6 +72,13 @@ interface PendingDelete extends StoredDelete {
  * and a delete of its that is still on its way to the server.
  */
 const ORPHAN_GRACE = 5000;
+
+/**
+ * How often the window offering Undo moves the end of its undo window on,
+ * while the toast is still open. Well inside the window, so the others never
+ * give up on it while it is.
+ */
+const KEEP_WAITING_INTERVAL = UI_TIMING.UNDO_WINDOW / 2;
 
 const pending = new Map<string, PendingDelete>();
 
@@ -231,7 +246,10 @@ const adopt = (stored: StoredDelete): void => {
     running: null,
     timer: setTimeout(() => {
       syncWithStorage();
-      void commit(stored.id);
+      // Unless it was settled there, or given more time, meanwhile.
+      if (pending.get(stored.id)?.expiresAt === stored.expiresAt) {
+        void commit(stored.id);
+      }
     }, untilExpiry + ORPHAN_GRACE),
   });
 };
@@ -261,6 +279,9 @@ const reconcile = (stored: StoredDelete[]): void => {
     } else if (other.expiresAt === 0 && entry.expiresAt !== 0) {
       // Another window has started the delete: nothing is left to undo.
       toast.dismiss(toastId(entry.id));
+      adopt(other);
+    } else if (!entry.owned && other.expiresAt > entry.expiresAt) {
+      // Its toast is still open there: wait on.
       adopt(other);
     }
   }
@@ -327,8 +348,9 @@ export const undoSessionDelete = (sessionId: string): boolean => {
 
 /**
  * Hide a session now and delete it once the undo window has passed, with a
- * toast that offers Undo until then. `uid` is the signed-in account, or null
- * for a guest.
+ * toast that offers Undo until then. The window is the toast's own time on
+ * screen: the delete goes through when it runs out or is closed. `uid` is
+ * the signed-in account, or null for a guest.
  */
 export const scheduleSessionDelete = (
   session: Pick<Session, 'id' | 'sessionName' | 'createdAt'>,
@@ -339,22 +361,30 @@ export const scheduleSessionDelete = (
   syncWithStorage();
 
   const name = session.sessionName || 'Untitled Session';
-  pending.set(session.id, {
+  const entry: PendingDelete = {
     id: session.id,
     name,
     uid,
     expiresAt: Date.now() + UI_TIMING.UNDO_WINDOW,
     owned: true,
-    timer: setTimeout(() => void commit(session.id), UI_TIMING.UNDO_WINDOW),
+    timer: null,
     running: null,
-  });
+  };
+  entry.timer = setInterval(() => {
+    entry.expiresAt = Date.now() + UI_TIMING.UNDO_WINDOW;
+    if (storageWorks) persist();
+  }, KEEP_WAITING_INTERVAL);
+  pending.set(session.id, entry);
   persist();
   publish();
 
+  const finish = () => void commit(session.id);
   toast.success(`Deleted "${name}"`, {
     id: toastId(session.id),
     description: formatDate(session.createdAt),
     duration: UI_TIMING.UNDO_WINDOW,
+    onAutoClose: finish,
+    onDismiss: finish,
     action: {
       label: 'Undo',
       onClick: () => {
@@ -437,30 +467,27 @@ const resume = (): void => {
 
   const now = Date.now();
   const signedIn: StoredDelete[] = [];
+  const expiredGuest: string[] = [];
   for (const entry of stored) {
-    if (!isGuestSessionId(entry.id)) {
-      // Hidden until Firebase says whose it is.
-      pending.set(entry.id, {
-        ...entry,
-        owned: false,
-        timer: null,
-        running: null,
-      });
-      signedIn.push(entry);
-    } else if (entry.expiresAt > now) {
+    if (isGuestSessionId(entry.id) && entry.expiresAt > now) {
       adopt(entry);
-    } else {
-      // Guest sessions live in this browser, so they can go straight away —
-      // before any list has read them.
-      pending.set(entry.id, {
-        ...entry,
-        owned: false,
-        timer: null,
-        running: null,
-      });
-      void commit(entry.id);
+      continue;
     }
+    // A signed-in user's stays hidden until Firebase says whose it is.
+    pending.set(entry.id, {
+      ...entry,
+      owned: false,
+      timer: null,
+      running: null,
+    });
+    if (isGuestSessionId(entry.id)) expiredGuest.push(entry.id);
+    else signedIn.push(entry);
   }
+  // Guest sessions live in this browser, so they can go straight away —
+  // before any list has read them. Only once every stored delete is held
+  // here, though: finishing one stores the list again from what is held,
+  // and a delete that was not in it yet would count as brought back.
+  for (const id of expiredGuest) void commit(id);
   publish();
 
   if (signedIn.length > 0) void resumeForSignedInUser(signedIn);

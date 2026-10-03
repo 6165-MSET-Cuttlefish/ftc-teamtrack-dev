@@ -1,12 +1,21 @@
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/constants';
+import { ConfirmInline } from './ConfirmInline';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
-import { toneText } from './tones';
+import { actionClass } from './tones';
 import { useArmed } from './useArmed';
 
-/** Post-session actions, shown once the session has been saved. */
+/** Tall enough for a thumb, and free to grow when the label wraps */
+const BUTTON =
+  'flex-1 min-w-[160px] px-4 md:px-6 py-3 min-h-14 md:min-h-16 rounded-2xl text-lg text-center whitespace-normal';
+
+/**
+ * Post-session actions, shown once the session has been saved. Looking at
+ * what was just recorded is the next step, so that is the filled button;
+ * starting over is the outline.
+ */
 export const CompletedActions = () => {
   const {
     isDarkMode,
@@ -31,9 +40,9 @@ export const CompletedActions = () => {
           if (armed) handleViewAnalysis();
         }}
         disabled={loading}
-        className={`flex-1 min-w-[160px] px-6 py-4 h-14 md:h-16 rounded-2xl border-2 border-team-blue-40 bg-team-blue/10 hover:bg-team-blue/20 ${toneText('blue', isDarkMode)} text-lg font-bold transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed`}
+        className={`${BUTTON} ${actionClass('primary', isDarkMode)}`}
       >
-        {loading ? 'Loading...' : 'View Full Analysis Report'}
+        {loading ? 'Loading...' : 'View analysis'}
       </button>
 
       <button
@@ -42,35 +51,20 @@ export const CompletedActions = () => {
         onClick={() => {
           if (armed) handleNewSession();
         }}
-        className={`flex-1 min-w-[160px] px-6 py-4 h-14 md:h-16 rounded-2xl border-2 border-green-500/40 bg-green-500/20 hover:bg-green-500/30 ${toneText('green', isDarkMode)} text-lg font-bold transition-colors flex items-center justify-center`}
+        className={`${BUTTON} ${actionClass('neutral', isDarkMode)}`}
       >
         New Session
       </button>
 
       {newSessionConfirm && (
-        <div
-          className={`flex-1 min-w-[240px] flex items-center gap-2 flex-wrap px-4 py-2.5 rounded-lg border ${isDarkMode ? 'border-red-500/40 bg-red-500/10' : 'border-red-300 bg-red-50'}`}
-        >
-          <span className={`text-sm ${toneText('red', isDarkMode)}`}>
-            Discard unsaved matches?
-          </span>
-          <button
-            type="button"
-            onKeyDown={ignoreHeldEnter}
-            onClick={handleConfirmNewSession}
-            className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors"
-          >
-            Yes, Discard
-          </button>
-          <button
-            type="button"
-            onKeyDown={ignoreHeldEnter}
-            onClick={() => setNewSessionConfirm(false)}
-            className={`px-3 py-1 rounded border text-xs font-bold transition-colors ${isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
-          >
-            Cancel
-          </button>
-        </div>
+        <ConfirmInline
+          className="basis-full"
+          question="Discard unsaved matches?"
+          keepLabel="Keep"
+          confirmLabel="Discard"
+          onKeep={() => setNewSessionConfirm(false)}
+          onConfirm={handleConfirmNewSession}
+        />
       )}
     </div>
   );

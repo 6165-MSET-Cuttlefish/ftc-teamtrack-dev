@@ -21,7 +21,6 @@ import { ROUTES } from '@/constants';
 
 const Active = lazyWithRetry(() => import('./pages/session/Active'));
 const Analysis = lazyWithRetry(() => import('./pages/session/Analysis'));
-const EditSession = lazyWithRetry(() => import('./pages/session/EditSession'));
 const Login = lazyWithRetry(() => import('./pages/auth/Login'));
 const Signup = lazyWithRetry(() => import('./pages/auth/Signup'));
 const ForgotPassword = lazyWithRetry(() => import('./pages/auth/ForgotPassword'));
@@ -124,14 +123,6 @@ const App = () => (
                         element={
                           <ProtectedRoute>
                             <Analysis />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.EDIT_SESSION}
-                        element={
-                          <ProtectedRoute>
-                            <EditSession />
                           </ProtectedRoute>
                         }
                       />

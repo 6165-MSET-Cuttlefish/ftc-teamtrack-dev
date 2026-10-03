@@ -1,7 +1,7 @@
 /**
  * BIOBUZZ scoring — single source of truth.
  *
- * Every screen (Active, Analysis, Charts, Compare, EditSession, MatchForm)
+ * Every screen (Active, Analysis, Charts, Compare, MatchForm)
  * derives scores from `calculateScore` here. Changing a rule means editing
  * this file and nothing else.
  *
@@ -12,6 +12,7 @@
 
 import type { MatchScoringFields, ScoreBreakdown } from '@/types';
 import { GAME_TIMING } from '@/constants';
+import { ELEMENT_LABELS } from './scoringLabels';
 
 export const POINTS = {
   /** HIVE TIP — scored live, worth the same in auton or teleop */
@@ -183,39 +184,44 @@ export const scoreRows = (f: ScoringInput): ScoreRow[] => {
   return [
     {
       key: 'tipping',
-      label: 'Hive Tips',
+      label: ELEMENT_LABELS.tipping,
       count: countOf(f.tipping),
       points: b.tipping,
     },
     {
       key: 'garden',
-      label: 'Garden',
+      label: ELEMENT_LABELS.garden,
       count: countOf(f.garden),
       points: b.garden,
     },
     {
       key: 'flower',
-      label: 'Flower',
+      label: ELEMENT_LABELS.flower,
       count: countOf(f.flower),
       points: b.flower,
     },
     {
       key: 'flowerBonus',
-      label: 'Flower Bonus',
+      label: ELEMENT_LABELS.flowerBonus,
       count: countOf(f.flowerBonus),
       points: b.flowerBonus,
     },
     {
       key: 'hive',
-      label: 'Left in Hive',
+      label: ELEMENT_LABELS.hive,
       count: countOf(f.ballsInHive),
       points: b.hive,
     },
-    { key: 'leave', label: 'Leave', count: leaves, points: b.leave },
-    { key: 'park', label: 'Park', count: parks, points: b.park },
+    {
+      key: 'leave',
+      label: ELEMENT_LABELS.leave,
+      count: leaves,
+      points: b.leave,
+    },
+    { key: 'park', label: ELEMENT_LABELS.park, count: parks, points: b.park },
     {
       key: 'penalties',
-      label: 'Given to opponent',
+      label: ELEMENT_LABELS.penalties,
       count: countOf(f.minorPenalties) + countOf(f.majorPenalties),
       points: b.penalties,
       informational: true,

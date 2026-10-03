@@ -16,7 +16,8 @@ import {
   rankingPoints,
   sessionMatchType,
 } from './scoring';
-import { formatDate } from './utils';
+import { ELEMENT_LABELS as L } from './scoringLabels';
+import { toDate } from './utils';
 
 /**
  * A text cell: quoted, with quotes doubled and line breaks flattened so each
@@ -46,6 +47,26 @@ export const num = (value: unknown): string => {
         ? Number(value)
         : NaN;
   return Number.isFinite(n) ? String(n) : '0';
+};
+
+/**
+ * A date cell: ISO 8601, in the time zone of whoever exports
+ * (`2026-09-30T16:10:00-07:00`). A spreadsheet can sort and chart it, and it
+ * still reads as the hour the session was run at. Blank when the session has
+ * no usable date.
+ */
+export const isoDate = (timestamp: unknown): string => {
+  if (!timestamp) return '';
+  const date = toDate(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+
+  /** Minutes this time zone is ahead of UTC on that date */
+  const offset = -date.getTimezoneOffset();
+  const pad = (n: number) => String(Math.trunc(Math.abs(n))).padStart(2, '0');
+  const local = new Date(date.getTime() + offset * 60000)
+    .toISOString()
+    .slice(0, 19);
+  return `${local}${offset < 0 ? '-' : '+'}${pad(offset / 60)}:${pad(offset % 60)}`;
 };
 
 /** Elements that start and end on a line of their own. */
@@ -85,26 +106,29 @@ const SESSION_HEADERS = [
   'Match Type',
 ] as const;
 
-/** Columns that describe one match. Blank for a session with no matches. */
+/**
+ * Columns that describe one match. Blank for a session with no matches.
+ * Scoring columns carry the names the app shows (`ELEMENT_LABELS`).
+ */
 const MATCH_HEADERS = [
   'Match Number',
   'Final Score',
-  'Tipping',
-  'Tipping Points',
-  'Garden',
-  'Garden Points',
-  'Flower',
-  'Flower Points',
-  'Flower Bonus',
-  'Flower Bonus Points',
-  'Left in Hive (up CELL)',
-  'Hive Points',
-  'Robot 1 Leave',
-  'Robot 1 Park Auto',
-  'Robot 1 Park (End)',
-  'Robot 2 Leave',
-  'Robot 2 Park Auto',
-  'Robot 2 Park (End)',
+  L.tipping,
+  `${L.tipping} Points`,
+  L.garden,
+  `${L.garden} Points`,
+  L.flower,
+  `${L.flower} Points`,
+  L.flowerBonus,
+  `${L.flowerBonus} Points`,
+  L.hive,
+  `${L.hive} Points`,
+  `Robot 1 ${L.leave}`,
+  `Robot 1 ${L.parkAuto}`,
+  `Robot 1 ${L.parkEnd}`,
+  `Robot 2 ${L.leave}`,
+  `Robot 2 ${L.parkAuto}`,
+  `Robot 2 ${L.parkEnd}`,
   'Minor Penalties',
   'Major Penalties',
   'Points Given to Opponent',
@@ -114,13 +138,15 @@ const MATCH_HEADERS = [
   'Ranking Points',
 ] as const;
 
-/** Session columns that close every row. */
+/** Session columns that close every row. Notes are written once per session. */
 const TRAILING_HEADERS = ['Notes', 'User Email'] as const;
 
 const BLANK = '""';
 
 /**
  * One row per match (one row for a session with none), under a header row.
+ * The session's columns repeat on each of its rows, except its notes, which
+ * are on its first row only.
  *
  * Final Score is recomputed from the match's fields and is what the alliance
  * earned: fouls are never taken off it. They are listed in their own columns
@@ -138,26 +164,27 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
     const isScrim = session.sessionType === 'Scrim';
     const leading = [
       esc(session.sessionName || 'Untitled Session'),
-      esc(formatDate(session.createdAt)),
+      esc(isoDate(session.createdAt)),
       esc(session.sessionType || 'Practice'),
       esc(session.sessionDuration || ''),
     ];
-    const trailing = [
-      esc(htmlToText(typeof session.notes === 'string' ? session.notes : '')),
-      esc(session.userEmail || ''),
-    ];
+    const notes = esc(
+      htmlToText(typeof session.notes === 'string' ? session.notes : '')
+    );
+    const email = esc(session.userEmail || '');
 
     if (matches.length === 0) {
       rows.push([
         ...leading,
         esc(sessionMatchType(matches, session.matchType)),
         ...Array<string>(MATCH_HEADERS.length).fill(BLANK),
-        ...trailing,
+        notes,
+        email,
       ]);
       continue;
     }
 
-    for (const match of matches) {
+    matches.forEach((match, index) => {
       const matchType = match.matchType || session.matchType || 'Full Game';
       const b = calculateScore({ ...match, matchType });
       const rp = rankingPoints({ ...match, matchType });
@@ -195,9 +222,10 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
         esc(rp.swarm ? 'yes' : 'no'),
         num(rp.pollinator),
         num(rp.total),
-        ...trailing,
+        index === 0 ? notes : BLANK,
+        email,
       ]);
-    }
+    });
   }
 
   const headers = [...SESSION_HEADERS, ...MATCH_HEADERS, ...TRAILING_HEADERS];
@@ -244,10 +272,10 @@ const shotsCell = (value: unknown): string =>
   );
 
 /**
- * Sessions from an earlier season (DECODE), as that season's app exported
- * them: one row per match (one for a session with none), the scores and
+ * Sessions from an earlier season (DECODE), in the columns that season's app
+ * exported: one row per match (one for a session with none), the scores and
  * counts as they were saved. Nothing is recomputed - this season's scoring
- * means nothing to them. Same safety as `buildSessionsCsv`.
+ * means nothing to them. Dates, notes and safety as in `buildSessionsCsv`.
  */
 export const buildLegacySessionsCsv = (sessions: Session[]): string => {
   const rows: string[][] = [];
@@ -256,26 +284,27 @@ export const buildLegacySessionsCsv = (sessions: Session[]): string => {
     const matches = Array.isArray(session.matches) ? session.matches : [];
     const leading = [
       esc(session.sessionName || 'Untitled Session'),
-      esc(formatDate(session.createdAt)),
+      esc(isoDate(session.createdAt)),
       esc((session.season || 'decode').toUpperCase()),
       esc(session.sessionDuration || ''),
     ];
-    const trailing = [
-      esc(htmlToText(typeof session.notes === 'string' ? session.notes : '')),
-      esc(session.userEmail || ''),
-    ];
+    const notes = esc(
+      htmlToText(typeof session.notes === 'string' ? session.notes : '')
+    );
+    const email = esc(session.userEmail || '');
 
     if (matches.length === 0) {
       rows.push([
         ...leading,
         esc(session.matchType || 'Full Game'),
         ...Array<string>(LEGACY_MATCH_HEADERS.length).fill(BLANK),
-        ...trailing,
+        notes,
+        email,
       ]);
       continue;
     }
 
-    for (const match of matches) {
+    matches.forEach((match, index) => {
       // Last season's fields aren't part of this season's `Match` type.
       const m = match as unknown as Record<string, unknown>;
       const park = (value: unknown) =>
@@ -306,9 +335,10 @@ export const buildLegacySessionsCsv = (sessions: Session[]): string => {
         esc(cycleTimes),
         shotsCell(m.autonShots),
         shotsCell(m.teleopShots),
-        ...trailing,
+        index === 0 ? notes : BLANK,
+        email,
       ]);
-    }
+    });
   }
 
   const headers = [

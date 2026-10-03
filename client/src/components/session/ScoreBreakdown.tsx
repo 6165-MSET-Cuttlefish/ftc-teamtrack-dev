@@ -1,9 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { useSessionCore, useTheme } from '@/contexts';
-import { RANKING_POINTS, calculateScore, scoreRows } from '@/lib';
+import {
+  ELEMENT_LABELS,
+  POINTS,
+  RANKING_POINTS,
+  calculateScore,
+  scoreRows,
+  type ScoreRow,
+} from '@/lib';
 import type { MatchScoringFields } from '@/types';
 import { useScoringLocks } from './useScoringLocks';
+
+/**
+ * What one of each row is worth, so a row can show its sum ("3 × 20")
+ * instead of a bare count.
+ */
+const ROW_UNIT_POINTS: Partial<Record<ScoreRow['key'], number>> = {
+  tipping: POINTS.HIVE_TIP,
+  garden: POINTS.GARDEN,
+  flower: POINTS.FLOWER_ELEMENT,
+  flowerBonus: POINTS.FLOWER_BONUS,
+  hive: POINTS.CELL_REMAINING,
+  leave: POINTS.LEAVE,
+  park: POINTS.PARK,
+};
 
 /**
  * Progress toward one ranking point. `marks` are the thresholds (a bar can
@@ -89,19 +110,19 @@ const RankingPointRow = ({
 const ANNOUNCED_FIELDS: ReadonlyArray<
   readonly [keyof MatchScoringFields, string]
 > = [
-  ['tipping', 'Tipping'],
-  ['minorPenalties', 'Minor Penalty'],
-  ['majorPenalties', 'Major Penalty'],
+  ['tipping', ELEMENT_LABELS.tipping],
+  ['minorPenalties', ELEMENT_LABELS.minor],
+  ['majorPenalties', ELEMENT_LABELS.major],
   ['robot1Leave', 'Robot 1 leave'],
   ['robot1ParkAuto', 'Robot 1 parked at end of auto'],
   ['robot1ParkTeleop', 'Robot 1 parked at end of match'],
   ['robot2Leave', 'Robot 2 leave'],
   ['robot2ParkAuto', 'Robot 2 parked at end of auto'],
   ['robot2ParkTeleop', 'Robot 2 parked at end of match'],
-  ['flower', 'Flower'],
-  ['flowerBonus', 'Flower Bonus'],
-  ['ballsInHive', 'Left in Hive'],
-  ['garden', 'Garden'],
+  ['flower', ELEMENT_LABELS.flower],
+  ['flowerBonus', ELEMENT_LABELS.flowerBonus],
+  ['ballsInHive', ELEMENT_LABELS.hive],
+  ['garden', ELEMENT_LABELS.garden],
 ];
 
 /** Long enough that a run of quick taps is read out once, at the end */
@@ -221,7 +242,11 @@ export const ScoreBreakdown = () => {
           >
             <span>{row.label}</span>
             <span className="flex items-center gap-3 tabular-nums">
-              <span className={countTone}>x{row.count}</span>
+              <span className={countTone}>
+                {row.count}
+                {ROW_UNIT_POINTS[row.key] !== undefined &&
+                  ` × ${ROW_UNIT_POINTS[row.key]}`}
+              </span>
               <span className="w-12 text-right font-semibold text-team-blue">
                 {row.points}
               </span>
@@ -238,9 +263,11 @@ export const ScoreBreakdown = () => {
               : 'border-gray-200 text-gray-700'
           }`}
         >
-          <span>Given to opponent</span>
+          <span>{ELEMENT_LABELS.penalties}</span>
           <span className="flex items-center gap-3 tabular-nums">
-            <span className={countTone}>x{foulCount}</span>
+            <span className={countTone}>
+              {foulCount} {foulCount === 1 ? 'foul' : 'fouls'}
+            </span>
             <span
               className={`w-12 text-right font-semibold ${
                 breakdown.penalties > 0
@@ -269,6 +296,126 @@ export const ScoreBreakdown = () => {
           value={breakdown.leave + breakdown.park}
           marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
           unit="leave + park pts"
+        />
+        <RankingPointRow
+          name="POLLINATOR"
+          value={sessionData.tipping ?? 0}
+          marks={RANKING_POINTS.POLLINATOR_TIPS}
+          unit="tips"
+        />
+      </div>
+    </div>
+  );
+};
+
+/** The rows in the order their fields sit in the desktop scoring pad */
+const STRIP_ORDER: ReadonlyArray<ScoreRow['key']> = [
+  'tipping',
+  'leave',
+  'park',
+  'flower',
+  'flowerBonus',
+  'hive',
+  'garden',
+];
+
+/**
+ * The breakdown as one band across the bottom of the desktop scoring pad:
+ * the total, points per element (count beside it), then ranking points.
+ * Same numbers as ScoreBreakdown, laid out across instead of down. Under
+ * the `lg` breakpoint the ranking points move up beside the total and the
+ * elements take a row of their own.
+ */
+export const BreakdownStrip = () => {
+  const { sessionData } = useSessionCore();
+  const { scoring } = useScoringLocks();
+  const { isDarkMode } = useTheme();
+
+  const breakdown = calculateScore(scoring);
+  const byKey = new Map(scoreRows(scoring).map(row => [row.key, row]));
+  const isScrim = sessionData.sessionType === 'Scrim';
+  const foulCount =
+    (sessionData.minorPenalties ?? 0) + (sessionData.majorPenalties ?? 0);
+
+  const announcement = useScoreAnnouncement(sessionData, breakdown.total);
+
+  const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
+  const strong = isDarkMode ? 'text-white' : 'text-gray-900';
+  const foul = isDarkMode ? 'text-red-400' : 'text-red-700';
+
+  const cell = (
+    key: string,
+    label: string,
+    points: string,
+    count: number,
+    tone: string
+  ) => (
+    <div key={key} className="flex min-w-0 flex-col justify-end">
+      <dt className={`mb-0.5 text-xs font-semibold leading-4 ${muted}`}>
+        {label}
+      </dt>
+      <dd className="flex items-baseline gap-1 tabular-nums">
+        <span className={`text-2xl font-semibold leading-8 ${tone}`}>
+          {points}
+        </span>
+        <span className={`text-xs ${muted}`}>×{count}</span>
+      </dd>
+    </div>
+  );
+
+  return (
+    <div
+      data-tutorial="breakdown"
+      className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-8 gap-y-4 rounded-2xl px-6 py-4 lg:flex lg:gap-8 ${
+        isDarkMode ? 'bg-white/[0.04]' : 'bg-gray-100'
+      }`}
+    >
+      <div className="sr-only" aria-live="polite">
+        {announcement}
+      </div>
+
+      <div className="shrink-0">
+        <h2 className={`mb-1 text-sm font-semibold ${muted}`}>Total</h2>
+        <div
+          data-breakdown-total
+          className="text-5xl font-bold leading-none tabular-nums text-team-blue"
+        >
+          {breakdown.total}
+        </div>
+      </div>
+
+      <dl
+        className={`col-span-2 row-start-2 grid min-w-0 flex-1 gap-x-4 gap-y-3 grid-cols-4 ${
+          isScrim ? 'lg:grid-cols-8' : 'lg:grid-cols-7'
+        }`}
+      >
+        {STRIP_ORDER.map(key => {
+          const row = byKey.get(key);
+          const points = row?.points ?? 0;
+          return cell(
+            key,
+            row?.label ?? key,
+            String(points),
+            row?.count ?? 0,
+            points > 0 ? strong : muted
+          );
+        })}
+        {isScrim &&
+          cell(
+            'penalties',
+            ELEMENT_LABELS.penalties,
+            `+${breakdown.penalties}`,
+            foulCount,
+            breakdown.penalties > 0 ? foul : muted
+          )}
+      </dl>
+
+      <div className="col-start-2 row-start-1 min-w-0 space-y-2 lg:w-56 lg:shrink-0">
+        <RankingPointRow
+          name="SWARM"
+          value={breakdown.leave + breakdown.park}
+          marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
+          unit="pts"
         />
         <RankingPointRow
           name="POLLINATOR"

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTheme, useSessionCore } from '@/contexts';
 import { ROUTES, APP_CONFIG } from '@/constants';
 import {
@@ -8,9 +8,16 @@ import {
   cycleTimesOf,
   robotRates,
   rankingPointTally,
+  toneOf,
+  CHART_COLORS,
+  ELEMENT_COLORS,
+  ELEMENT_LABELS,
+  RANKING_POINT_COLORS,
 } from '@/lib';
+import type { Tone } from '@/lib';
 import type { Session, Match, ChartDataPoint, ScoreBreakdown } from '@/types';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   Card,
   CardContent,
@@ -37,10 +44,13 @@ import {
   Area,
   LineChart,
   Line,
+  BarChart,
   ComposedChart,
 } from 'recharts';
+import type { MouseHandlerDataParam } from 'recharts';
 import {
   useLifetimeSessions,
+  useSessionScope,
   byDateAscending,
   sessionTitle,
   isScrim,
@@ -50,6 +60,7 @@ import {
   formatNumber,
   mean,
 } from './lifetime';
+import { Segmented } from './LifetimeControls';
 
 type TimeRange = '7' | '30' | '90' | 'all';
 
@@ -57,30 +68,82 @@ type TimeRange = '7' | '30' | '90' | 'all';
  * Everything a match can score points with. Together they add up to the
  * match score, so shares of the score taken from this list add up to 100%.
  * Drawn as the series under the Final Score area on Score Trends and ranked
- * for the "Biggest Scorer" insight.
+ * for the "Biggest Scorer" insight. In the order of the score breakdown
+ * (`scoreRows`), so every legend lists them the same way.
  */
 const SCORE_ELEMENTS: ReadonlyArray<{
   label: string;
-  color: string;
+  color: Tone;
   points: (b: ScoreBreakdown) => number;
+  /** How many were scored, for the elements that are counted */
+  count?: (m: Match) => number;
 }> = [
-  { label: 'Garden', color: '#10b981', points: b => b.garden },
-  { label: 'Tipping', color: '#f59e0b', points: b => b.tipping },
-  { label: 'Flower', color: '#a855f7', points: b => b.flower },
-  { label: 'Flower Bonus', color: '#ec4899', points: b => b.flowerBonus },
-  { label: 'Left in Hive (up CELL)', color: '#0ea5e9', points: b => b.hive },
-  { label: 'Leave + Park', color: '#14b8a6', points: b => b.leave + b.park },
+  {
+    label: ELEMENT_LABELS.tipping,
+    color: ELEMENT_COLORS.tipping,
+    points: b => b.tipping,
+    count: m => m.tipping || 0,
+  },
+  {
+    label: ELEMENT_LABELS.garden,
+    color: ELEMENT_COLORS.garden,
+    points: b => b.garden,
+    count: m => m.garden || 0,
+  },
+  {
+    label: ELEMENT_LABELS.flower,
+    color: ELEMENT_COLORS.flower,
+    points: b => b.flower,
+    count: m => m.flower || 0,
+  },
+  {
+    label: ELEMENT_LABELS.flowerBonus,
+    color: ELEMENT_COLORS.flowerBonus,
+    points: b => b.flowerBonus,
+  },
+  {
+    label: ELEMENT_LABELS.hive,
+    color: ELEMENT_COLORS.hive,
+    points: b => b.hive,
+    count: m => m.ballsInHive || 0,
+  },
+  {
+    label: ELEMENT_LABELS.robots,
+    color: ELEMENT_COLORS.robots,
+    points: b => b.leave + b.park,
+  },
 ];
 
-const COLORS = {
-  primary: '#537788',
-  secondary: '#B0E5FE',
-  success: '#10b981',
-  warning: '#f59e0b',
-  danger: '#ef4444',
-  purple: '#8b5cf6',
-  pink: '#ec4899',
+/** The elements Scoring Volume counts, in the colours they have above. */
+const COUNTED_ELEMENTS = SCORE_ELEMENTS.flatMap(({ label, color, count }) =>
+  count ? [{ label, color, count }] : []
+);
+
+const RANGE_LABELS: Record<TimeRange, string> = {
+  '7': 'last 7 days',
+  '30': 'last 30 days',
+  '90': 'last 90 days',
+  all: 'all time',
 };
+
+/** The order match types are offered in. */
+const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
+
+/** The type a match was run as; one saved without its own has its session's. */
+const matchTypeOf = (match: Match, session: Session): string =>
+  match.matchType || session.matchType || 'Full Game';
+
+/**
+ * Sessions cut down to their matches of one type, so an Autonomous-only run
+ * is never averaged in with full games. A session left with none is dropped.
+ */
+const ofMatchType = (sessions: Session[], type: string): Session[] =>
+  sessions.flatMap(session => {
+    const matches = session.matches.filter(
+      m => matchTypeOf(m, session) === type
+    );
+    return matches.length > 0 ? [{ ...session, matches, matchType: type }] : [];
+  });
 
 /** A session with no usable date is in no day range, only in "All time". */
 const isUndated = (session: Session): boolean =>
@@ -174,18 +237,16 @@ const elementVolumeRows = (
   sessions: Session[],
   labels: SessionLabels
 ): ChartDataPoint[] =>
-  sessions.map(session => {
-    const avgCount = (fn: (m: Match) => number) =>
-      round1(mean(session.matches.map(fn)) ?? 0);
-    return {
-      id: session.id,
-      label: labels.get(session.id)?.full,
-      Garden: avgCount(m => m.garden || 0),
-      Tipping: avgCount(m => m.tipping || 0),
-      Flower: avgCount(m => m.flower || 0),
-      'Left in Hive': avgCount(m => m.ballsInHive || 0),
-    };
-  });
+  sessions.map(session => ({
+    id: session.id,
+    label: labels.get(session.id)?.full,
+    ...Object.fromEntries(
+      COUNTED_ELEMENTS.map(({ label, count }) => [
+        label,
+        round1(mean(session.matches.map(count)) ?? 0),
+      ])
+    ),
+  }));
 
 /**
  * Time between Hive Tips in each session that recorded any. `sessions` is
@@ -209,10 +270,6 @@ const cycleTimeRows = (
     ];
   });
 
-/** `#1` is the most recent session, as the "Last 10" charts number them. */
-const recentName = (index: number, count: number): string =>
-  `#${count - index}`;
-
 /** Session averages with a 3-session moving average, oldest first. */
 const recentTrendRows = (
   sessions: Session[],
@@ -220,7 +277,7 @@ const recentTrendRows = (
 ): ChartDataPoint[] => {
   const recent = sessions.slice(-RECENT_SESSIONS);
   return recent.map((session, index) => ({
-    name: recentName(index, recent.length),
+    id: session.id,
     label: labels.get(session.id)?.full,
     Score: sessionAverage(session),
     'Moving Avg': Math.round(
@@ -232,28 +289,35 @@ const recentTrendRows = (
 };
 
 /**
- * Points our fouls gave the opponent per match, alongside the share of
- * matches without a foul. Scrim sessions only: a Practice session has no
- * opponent. These points are never taken off our own score.
+ * Points our fouls gave the opponent per match in each of the latest Scrim
+ * sessions (a Practice session has no opponent), and how many of those
+ * matches had no foul at all. These points are never taken off our own
+ * score.
  */
-const foulRows = (
+const foulSummary = (
   sessions: Session[],
   labels: SessionLabels
-): ChartDataPoint[] => {
-  const recent = sessions.filter(isScrim).slice(-RECENT_SESSIONS);
-  return recent.map((session, index) => {
-    const given = session.matches.map(
-      m => matchBreakdown(m, session.matchType).penalties
-    );
-    return {
-      name: recentName(index, recent.length),
-      label: labels.get(session.id)?.full,
-      'Given to Opponent': round1(mean(given) ?? 0),
-      'Foul-Free Matches': Math.round(
-        (given.filter(points => points === 0).length / given.length) * 100
-      ),
-    };
-  });
+): { rows: ChartDataPoint[]; clean: number; total: number } => {
+  let clean = 0;
+  let total = 0;
+  const rows = sessions
+    .filter(isScrim)
+    .slice(-RECENT_SESSIONS)
+    .map(session => {
+      const given = session.matches.map(
+        m => matchBreakdown(m, session.matchType).penalties
+      );
+      const foulFree = given.filter(points => points === 0).length;
+      clean += foulFree;
+      total += given.length;
+      return {
+        id: session.id,
+        label: labels.get(session.id)?.full,
+        [ELEMENT_LABELS.penalties]: round1(mean(given) ?? 0),
+        note: `Foul-free: ${foulFree} of ${plural(given.length, 'match', 'matches')}`,
+      };
+    });
+  return { rows, clean, total };
 };
 
 /**
@@ -263,10 +327,30 @@ const foulRows = (
  * from a match's own scoring; a win or tie needs the opponent's score.
  */
 const RANKING_POINT_SERIES = [
-  { label: 'SWARM', color: COLORS.success, key: 'swarm' },
-  { label: 'POLLINATOR 1', color: COLORS.warning, key: 'pollinator1' },
-  { label: 'POLLINATOR 2', color: COLORS.purple, key: 'pollinator2' },
+  { label: 'SWARM', color: RANKING_POINT_COLORS.swarm, key: 'swarm' },
+  {
+    label: 'POLLINATOR 1',
+    color: RANKING_POINT_COLORS.pollinator1,
+    key: 'pollinator1',
+  },
+  {
+    label: 'POLLINATOR 2',
+    color: RANKING_POINT_COLORS.pollinator2,
+    key: 'pollinator2',
+  },
 ] as const;
+
+/** Points are whole or to one decimal, and always say they are points. */
+const formatPoints = (value: number): string => {
+  const shown = formatNumber(value);
+  return `${shown} ${shown === '1' ? 'pt' : 'pts'}`;
+};
+
+/**
+ * Recharts sets its own cursor inline on the chart, so a chart that can be
+ * clicked says so the same way.
+ */
+const CLICKABLE = { cursor: 'pointer' } as const;
 
 const rankingPointRows = (
   sessions: Session[],
@@ -292,6 +376,7 @@ const ChartTooltip = ({
   label,
   isDarkMode,
   formatValue = formatNumber,
+  formatTotal,
 }: {
   active?: boolean;
   payload?: Array<{
@@ -304,38 +389,45 @@ const ChartTooltip = ({
   label?: string;
   isDarkMode?: boolean;
   formatValue?: (value: number, name: string) => string;
+  /** Adds a row that sums the series, for a stack that adds up to a figure */
+  formatTotal?: (sum: number) => string;
 }) => {
   if (!active || !payload || payload.length === 0) return null;
   // The axis value is only the row's key; the row carries its full label.
   const title = payload[0].payload?.label ?? label;
+  const sum = payload.reduce(
+    (acc, entry) => acc + (typeof entry.value === 'number' ? entry.value : 0),
+    0
+  );
   return (
+    // Kept narrower than a phone's chart, or Recharts can't place it inside
+    // and its right-hand values are cut off.
     <div
-      className={`p-4 rounded-lg border ${isDarkMode ? 'bg-team-dark/95 border-team-blue-40 backdrop-blur-sm' : 'bg-white/95 border-gray-200 backdrop-blur-sm'} shadow-xl`}
+      className={`max-w-[min(20rem,calc(100vw-6rem))] p-3 sm:p-4 rounded-lg border ${isDarkMode ? 'bg-team-dark/95 border-team-blue-40 backdrop-blur-sm' : 'bg-white/95 border-gray-200 backdrop-blur-sm'} shadow-xl`}
     >
       {title && (
         <p
-          className={`font-bold mb-3 pb-2 border-b ${isDarkMode ? 'text-white border-team-blue-40' : 'text-gray-900 border-gray-200'}`}
+          className={`text-sm sm:text-base font-bold mb-2 pb-1.5 sm:mb-3 sm:pb-2 border-b [overflow-wrap:anywhere] ${isDarkMode ? 'text-white border-team-blue-40' : 'text-gray-900 border-gray-200'}`}
         >
           {title}
         </p>
       )}
-      <div className="space-y-2">
+      <div className="space-y-1 sm:space-y-2">
         {payload.map((entry, index: number) => (
           <div key={index} className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <div
-                className="w-3 h-3 rounded-full"
+                className="w-3 h-3 shrink-0 rounded-full"
                 style={{ backgroundColor: entry.color }}
               />
               <span
-                className={`text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
               >
                 {entry.name}:
               </span>
             </div>
             <span
-              className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-              style={{ color: entry.color }}
+              className={`shrink-0 text-xs sm:text-sm font-bold tabular-nums ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
             >
               {typeof entry.value === 'number'
                 ? formatValue(entry.value, entry.name)
@@ -343,6 +435,30 @@ const ChartTooltip = ({
             </span>
           </div>
         ))}
+        {formatTotal && (
+          <div
+            className={`flex items-center justify-between gap-4 pt-1 sm:pt-2 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
+          >
+            <span
+              className={`text-xs sm:text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+            >
+              Total
+            </span>
+            <span
+              className={`shrink-0 text-xs sm:text-sm font-bold tabular-nums ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+            >
+              {formatTotal(sum)}
+            </span>
+          </div>
+        )}
+        {/* A line the row carries about itself, under its series */}
+        {payload[0].payload?.note && (
+          <p
+            className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+          >
+            {payload[0].payload.note}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -354,34 +470,75 @@ const Charts = () => {
   const navigate = useNavigate();
 
   const { sessions, loading } = useLifetimeSessions();
+  const { scope, setScope, inScope, choices, scopeLabel } =
+    useSessionScope(sessions);
   const [timeRange, setTimeRange] = useState<TimeRange>('30');
+  /** The match type asked for; null until one is, and the commonest is used */
+  const [pickedType, setPickedType] = useState<string | null>(null);
+  /** The session last tapped on a chart, on a screen with no hover */
+  const [tapped, setTapped] = useState<{ chart: string; id: string } | null>(
+    null
+  );
 
   useEffect(() => {
     document.title = `Charts - ${APP_CONFIG.name}`;
   }, []);
 
+  const scopedSessions = useMemo(
+    () => sessions.filter(inScope),
+    [sessions, inScope]
+  );
+
   const filteredSessions = useMemo((): Session[] => {
-    if (timeRange === 'all') return sessions;
+    if (timeRange === 'all') return scopedSessions;
 
     const days = parseInt(timeRange);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    return sessions.filter(
+    return scopedSessions.filter(
       session => !isUndated(session) && toDate(session.createdAt) >= cutoffDate
     );
-  }, [sessions, timeRange]);
+  }, [scopedSessions, timeRange]);
+
+  /** The match types run in this range, with how many matches each has. */
+  const typeChoices = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const session of filteredSessions) {
+      for (const match of session.matches) {
+        const type = matchTypeOf(match, session);
+        counts.set(type, (counts.get(type) ?? 0) + 1);
+      }
+    }
+    const rank = (type: string) =>
+      MATCH_TYPES.includes(type)
+        ? MATCH_TYPES.indexOf(type)
+        : MATCH_TYPES.length;
+    return [...counts]
+      .map(([value, count]) => ({ value, label: value, count }))
+      .sort((a, b) => rank(a.value) - rank(b.value));
+  }, [filteredSessions]);
+
+  /**
+   * The one match type everything on the page is about. Unless another was
+   * asked for (and is still there to show), it is the type with the most
+   * matches in the range.
+   */
+  const matchType =
+    typeChoices.find(choice => choice.value === pickedType)?.value ??
+    [...typeChoices].sort((a, b) => b.count - a.count)[0]?.value ??
+    MATCH_TYPES[0];
 
   /**
    * The sessions every figure and chart is built from: those with at least
-   * one match, oldest first. A session with no matches has no score, so it
-   * must not count as a session that scored 0. filter() returns a new array,
-   * so sorting it leaves the `sessions` state untouched.
+   * one match of the chosen type, cut down to those matches, oldest first.
+   * A session with no matches has no score, so it must not count as a
+   * session that scored 0. ofMatchType() returns a new array, so sorting it
+   * leaves the `sessions` state untouched.
    */
   const scoredSessions = useMemo(
-    () =>
-      filteredSessions.filter(s => s.matches.length > 0).sort(byDateAscending),
-    [filteredSessions]
+    () => ofMatchType(filteredSessions, matchType).sort(byDateAscending),
+    [filteredSessions, matchType]
   );
 
   const labels = useMemo(() => labelSessions(scoredSessions), [scoredSessions]);
@@ -445,55 +602,119 @@ const Charts = () => {
   const elementVolumeTrendData = elementVolumeRows(scoredSessions, labels);
   const cycleTimeData = cycleTimeRows(scoredSessions, labels);
   const recentTrendData = recentTrendRows(scoredSessions, labels);
-  const foulData = foulRows(scoredSessions, labels);
+  const fouls = foulSummary(scoredSessions, labels);
+  const foulData = fouls.rows;
   const rankingPointData = rankingPointRows(scoredSessions, labels);
 
   // Match-level figures, the same ones Analysis shows for a single session.
   const allScores = scoredSessions.flatMap(matchScores);
   const averageScore = Math.round(mean(allScores) ?? 0);
   const bestScore = Math.max(0, ...allScores);
-  const emptySessionCount = filteredSessions.length - scoredSessions.length;
+  const emptySessionCount = filteredSessions.filter(
+    s => s.matches.length === 0
+  ).length;
 
   const tickLabel = (id: string) => labels.get(id)?.tick ?? '';
   const axisStroke = isDarkMode ? '#9ca3af' : '#6b7280';
   const gridStroke = isDarkMode ? '#2a2a2a' : '#e5e7eb';
   const cardSublabel = `text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`;
+  const tone = (color: Tone) => toneOf(color, isDarkMode);
+
+  /** What the page is looking at, under its title. */
+  const subtitle = [
+    scoredSessions.length > 0
+      ? `${plural(allScores.length, `${matchType} match`, `${matchType} matches`)} · ${plural(scoredSessions.length, 'session')}`
+      : 'No matches',
+    RANGE_LABELS[timeRange],
+    scopeLabel,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const analysisPath = (id: string) =>
+    `${ROUTES.ANALYSIS}?sessionId=${encodeURIComponent(id)}`;
+
+  /**
+   * A click on a chart opens the session under the pointer. A touch screen
+   * has no hover, so there the tap keeps showing the tooltip and the session
+   * is offered as a link under the chart instead.
+   */
+  const openSession = (chart: string) => (state: MouseHandlerDataParam) => {
+    const id = String(state.activeLabel ?? '');
+    if (!labels.has(id)) return;
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      navigate(analysisPath(id));
+    } else {
+      setTapped({ chart, id });
+    }
+  };
+
+  /** The link to the session last tapped on this chart. */
+  const tappedLink = (chart: string) => {
+    const label = tapped?.chart === chart && labels.get(tapped.id);
+    return tapped && label ? (
+      <Link
+        to={analysisPath(tapped.id)}
+        className="mt-3 inline-flex items-center min-h-11 text-sm font-semibold text-team-blue underline underline-offset-2"
+      >
+        Open {label.full}
+      </Link>
+    ) : null;
+  };
 
   return (
     <div
       className={`min-h-[100dvh] page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="max-w-[1152px] mx-auto px-2 sm:px-3 md:px-4 lg:px-8 py-4 sm:py-6 md:py-8">
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div>
-              <h1 className="text-team-blue text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2">
-                Performance Charts
-              </h1>
-            </div>
-            <div className="flex gap-2 sm:gap-3 flex-shrink-0">
-              <Select
-                value={timeRange}
-                onValueChange={value => setTimeRange(value as TimeRange)}
+        <PageHeader
+          title="Performance Charts"
+          subtitle={subtitle}
+          actions={
+            <Select
+              value={timeRange}
+              onValueChange={value => setTimeRange(value as TimeRange)}
+            >
+              <SelectTrigger
+                className={`w-auto text-xs sm:text-sm px-2 h-9 sm:h-10 [@media(pointer:coarse)]:min-h-11 ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
               >
-                <SelectTrigger
-                  className={`w-auto text-xs sm:text-sm px-2 h-9 sm:h-10 ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
-                >
-                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent
-                  className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white'}`}
-                >
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 90 days</SelectItem>
-                  <SelectItem value="all">All time</SelectItem>
-                </SelectContent>
-              </Select>
+                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                className={`${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-white'}`}
+              >
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+        >
+          {(typeChoices.length > 1 || choices.length > 0) && (
+            <div className="flex flex-wrap gap-2">
+              {typeChoices.length > 1 && (
+                <Segmented
+                  label="Match type"
+                  value={matchType}
+                  options={typeChoices}
+                  onChange={setPickedType}
+                  isDarkMode={isDarkMode}
+                />
+              )}
+              {choices.length > 0 && (
+                <Segmented
+                  label="Sessions shown"
+                  value={scope}
+                  options={choices}
+                  onChange={setScope}
+                  isDarkMode={isDarkMode}
+                />
+              )}
             </div>
-          </div>
-        </div>
+          )}
+        </PageHeader>
 
         {scoredSessions.length === 0 ? (
           <Card
@@ -504,26 +725,39 @@ const Charts = () => {
                 <h3
                   className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  {filteredSessions.length === 0
-                    ? `No sessions in the last ${timeRange} days`
-                    : 'No matches to chart'}
+                  {scopedSessions.length === 0
+                    ? `No sessions ${scopeLabel}`
+                    : filteredSessions.length === 0
+                      ? `No sessions in the last ${timeRange} days`
+                      : 'No matches to chart'}
                 </h3>
                 <p
                   className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                 >
-                  {filteredSessions.length === 0
-                    ? outOfRangeMessage(sessions)
-                    : filteredSessions.length === 1
-                      ? 'The only session in this range has no matches recorded.'
-                      : `None of the ${filteredSessions.length} sessions in this range has a match recorded.`}
+                  {scopedSessions.length === 0
+                    ? `${plural(sessions.length, 'session')} under All.`
+                    : filteredSessions.length === 0
+                      ? outOfRangeMessage(scopedSessions)
+                      : filteredSessions.length === 1
+                        ? 'The only session in this range has no matches recorded.'
+                        : `None of the ${filteredSessions.length} sessions in this range has a match recorded.`}
                 </p>
-                {timeRange !== 'all' && (
+                {scopedSessions.length === 0 ? (
                   <Button
-                    onClick={() => setTimeRange('all')}
+                    onClick={() => setScope('all')}
                     className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
                   >
-                    Show all time
+                    Show all sessions
                   </Button>
+                ) : (
+                  timeRange !== 'all' && (
+                    <Button
+                      onClick={() => setTimeRange('all')}
+                      className={`bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
+                    >
+                      Show all time
+                    </Button>
+                  )
                 )}
               </div>
             </CardContent>
@@ -627,13 +861,16 @@ const Charts = () => {
               >
                 <CardContent className="pt-3 pb-3 px-3 sm:pt-4 sm:pb-4 sm:px-4">
                   <div className="text-center">
+                    {/* Sessions of the chosen match type, as the subtitle
+                        counts them. An empty one is in no type, so it is
+                        only noted as left out. */}
                     <div className="text-team-blue text-2xl sm:text-3xl font-bold">
-                      {filteredSessions.length}
+                      {scoredSessions.length}
                     </div>
                     <div className={cardSublabel}>
                       {plural(allScores.length, 'match', 'matches')}
                       {emptySessionCount > 0 &&
-                        ` · ${emptySessionCount} with no matches`}
+                        ` · ${plural(emptySessionCount, 'empty session')} not counted`}
                     </div>
                     <div
                       className={`text-xs sm:text-sm font-medium mt-1 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
@@ -737,6 +974,12 @@ const Charts = () => {
               </Card>
             </div>
 
+            <p
+              className={`text-xs sm:text-sm mb-3 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+            >
+              Select a point or bar to open its session.
+            </p>
+
             <div className="space-y-6 sm:space-y-8">
               <Card
                 className={`shadow-lg hover:shadow-2xl transition-shadow duration-300 ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
@@ -761,7 +1004,11 @@ const Charts = () => {
                       height={250}
                       minWidth={300}
                     >
-                      <ComposedChart data={scoreTrendData}>
+                      <ComposedChart
+                        data={scoreTrendData}
+                        onClick={openSession('trend')}
+                        style={CLICKABLE}
+                      >
                         <defs>
                           <linearGradient
                             id="colorFinal"
@@ -772,12 +1019,14 @@ const Charts = () => {
                           >
                             <stop
                               offset="5%"
-                              stopColor={COLORS.primary}
-                              stopOpacity={0.8}
+                              stopColor={tone(CHART_COLORS.total)}
+                              // The accent is pale in the dark themes: a
+                              // fuller fill hides the lines drawn over it
+                              stopOpacity={isDarkMode ? 0.35 : 0.8}
                             />
                             <stop
                               offset="95%"
-                              stopColor={COLORS.primary}
+                              stopColor={tone(CHART_COLORS.total)}
                               stopOpacity={0}
                             />
                           </linearGradient>
@@ -794,15 +1043,29 @@ const Charts = () => {
                         />
                         <YAxis stroke={axisStroke} tick={{ fontSize: 12 }} />
                         <Tooltip
-                          content={<ChartTooltip isDarkMode={isDarkMode} />}
-                          cursor={{ stroke: COLORS.primary, strokeWidth: 2 }}
+                          content={
+                            <ChartTooltip
+                              isDarkMode={isDarkMode}
+                              formatValue={formatPoints}
+                            />
+                          }
+                          cursor={{
+                            stroke: tone(CHART_COLORS.total),
+                            strokeWidth: 2,
+                          }}
                         />
-                        <Legend wrapperStyle={{ fontSize: '14px' }} />
+                        {/* Listed as drawn: the score, then its parts */}
+                        <Legend
+                          wrapperStyle={{ fontSize: '14px' }}
+                          itemSorter={null}
+                        />
+                        {/* The score is the heaviest line; its parts sit
+                            under it */}
                         <Area
-                          type="monotone"
+                          type="linear"
                           dataKey="Final Score"
-                          stroke={COLORS.primary}
-                          strokeWidth={2}
+                          stroke={tone(CHART_COLORS.total)}
+                          strokeWidth={3}
                           fillOpacity={1}
                           fill="url(#colorFinal)"
                           animationDuration={1500}
@@ -810,9 +1073,9 @@ const Charts = () => {
                         {SCORE_ELEMENTS.map(({ label, color }) => (
                           <Line
                             key={label}
-                            type="monotone"
+                            type="linear"
                             dataKey={label}
-                            stroke={color}
+                            stroke={tone(color)}
                             strokeWidth={2}
                             dot={{ r: 3 }}
                             animationDuration={1500}
@@ -821,6 +1084,7 @@ const Charts = () => {
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
+                  {tappedLink('trend')}
                 </CardContent>
               </Card>
 
@@ -838,7 +1102,7 @@ const Charts = () => {
                       className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                     >
                       Average match score per session with a 3-session moving
-                      average (#1 is the most recent)
+                      average
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -848,24 +1112,37 @@ const Charts = () => {
                         height={220}
                         minWidth={300}
                       >
-                        <ComposedChart data={recentTrendData}>
+                        <ComposedChart
+                          data={recentTrendData}
+                          onClick={openSession('recent')}
+                          style={CLICKABLE}
+                        >
                           <CartesianGrid
                             strokeDasharray="3 3"
                             stroke={gridStroke}
                           />
                           <XAxis
-                            dataKey="name"
+                            dataKey="id"
+                            tickFormatter={tickLabel}
                             stroke={axisStroke}
                             tick={{ fontSize: 12 }}
                           />
                           <YAxis stroke={axisStroke} tick={{ fontSize: 12 }} />
                           <Tooltip
-                            content={<ChartTooltip isDarkMode={isDarkMode} />}
+                            content={
+                              <ChartTooltip
+                                isDarkMode={isDarkMode}
+                                formatValue={formatPoints}
+                              />
+                            }
                           />
-                          <Legend wrapperStyle={{ fontSize: '14px' }} />
+                          <Legend
+                            wrapperStyle={{ fontSize: '14px' }}
+                            itemSorter={null}
+                          />
                           <Bar
                             dataKey="Score"
-                            fill={COLORS.primary}
+                            fill={tone(CHART_COLORS.total)}
                             opacity={1}
                             radius={[6, 6, 0, 0]}
                             animationDuration={1000}
@@ -875,12 +1152,12 @@ const Charts = () => {
                             }}
                           />
                           <Line
-                            type="monotone"
+                            type="linear"
                             dataKey="Moving Avg"
-                            stroke={COLORS.success}
+                            stroke={tone(CHART_COLORS.movingAverage)}
                             strokeWidth={3}
                             dot={{
-                              fill: COLORS.success,
+                              fill: tone(CHART_COLORS.movingAverage),
                               r: 5,
                               strokeWidth: 2,
                               stroke: '#fff',
@@ -891,6 +1168,7 @@ const Charts = () => {
                         </ComposedChart>
                       </ResponsiveContainer>
                     </div>
+                    {tappedLink('recent')}
                   </CardContent>
                 </Card>
 
@@ -907,80 +1185,82 @@ const Charts = () => {
                       <CardDescription
                         className={`text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                       >
-                        Points your fouls gave the opponent per match, and the
-                        share of foul-free matches (last {RECENT_SESSIONS} Scrim
-                        sessions). Never taken off your score.
+                        Points your fouls gave the opponent per match in each
+                        Scrim session (last {RECENT_SESSIONS}). Never taken off
+                        your score.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
+                      {/* A share of matches is a different unit from points
+                          per match, so it is a figure, not a second line */}
+                      <p
+                        className={`mb-3 text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                      >
+                        <span className="mr-2 text-2xl font-bold tabular-nums text-team-blue">
+                          {Math.round((fouls.clean / fouls.total) * 100)}%
+                        </span>
+                        foul-free · {fouls.clean} of{' '}
+                        {plural(fouls.total, 'Scrim match', 'Scrim matches')}
+                      </p>
                       <div className="w-full overflow-x-auto">
                         <ResponsiveContainer
                           width="100%"
-                          height={220}
+                          height={180}
                           minWidth={300}
                         >
-                          <LineChart data={foulData}>
+                          <BarChart
+                            data={foulData}
+                            onClick={openSession('fouls')}
+                            style={CLICKABLE}
+                          >
                             <CartesianGrid
                               strokeDasharray="3 3"
                               stroke={gridStroke}
+                              vertical={false}
                             />
                             <XAxis
-                              dataKey="name"
+                              dataKey="id"
+                              tickFormatter={tickLabel}
                               stroke={axisStroke}
                               tick={{ fontSize: 12 }}
                             />
                             <YAxis
                               stroke={axisStroke}
                               tick={{ fontSize: 12 }}
-                              domain={[
-                                0,
-                                (dataMax: number) => Math.max(100, dataMax),
-                              ]}
+                              allowDecimals={false}
+                              label={{
+                                value: 'pts/match',
+                                angle: -90,
+                                position: 'insideLeft',
+                                style: { fontSize: 12, fill: axisStroke },
+                              }}
                             />
                             <Tooltip
+                              cursor={{
+                                fill: isDarkMode
+                                  ? 'rgba(255,255,255,0.06)'
+                                  : 'rgba(0,0,0,0.04)',
+                              }}
                               content={
                                 <ChartTooltip
                                   isDarkMode={isDarkMode}
-                                  formatValue={(value, name) =>
-                                    name === 'Foul-Free Matches'
-                                      ? `${formatNumber(value)}%`
-                                      : formatNumber(value)
+                                  formatValue={value =>
+                                    `${formatNumber(value)} pts/match`
                                   }
                                 />
                               }
                             />
-                            <Legend wrapperStyle={{ fontSize: '14px' }} />
-                            <Line
-                              type="monotone"
-                              dataKey="Foul-Free Matches"
-                              name="Foul-Free Matches"
-                              unit="%"
-                              stroke={COLORS.success}
-                              strokeWidth={3}
-                              dot={{
-                                fill: COLORS.success,
-                                r: 5,
-                                strokeWidth: 2,
-                                stroke: '#fff',
-                              }}
-                              animationDuration={1200}
+                            <Bar
+                              dataKey={ELEMENT_LABELS.penalties}
+                              fill={tone(ELEMENT_COLORS.penalties)}
+                              radius={[4, 4, 0, 0]}
+                              maxBarSize={48}
+                              animationDuration={1000}
                             />
-                            <Line
-                              type="monotone"
-                              dataKey="Given to Opponent"
-                              stroke={COLORS.danger}
-                              strokeWidth={3}
-                              dot={{
-                                fill: COLORS.danger,
-                                r: 5,
-                                strokeWidth: 2,
-                                stroke: '#fff',
-                              }}
-                              animationDuration={1200}
-                            />
-                          </LineChart>
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
+                      {tappedLink('fouls')}
                     </CardContent>
                   </Card>
                 )}
@@ -1008,7 +1288,11 @@ const Charts = () => {
                       height={240}
                       minWidth={300}
                     >
-                      <LineChart data={elementVolumeTrendData}>
+                      <LineChart
+                        data={elementVolumeTrendData}
+                        onClick={openSession('volume')}
+                        style={CLICKABLE}
+                      >
                         <CartesianGrid
                           strokeDasharray="3 3"
                           stroke={gridStroke}
@@ -1021,49 +1305,35 @@ const Charts = () => {
                         />
                         <YAxis stroke={axisStroke} tick={{ fontSize: 12 }} />
                         <Tooltip
-                          content={<ChartTooltip isDarkMode={isDarkMode} />}
+                          content={
+                            <ChartTooltip
+                              isDarkMode={isDarkMode}
+                              formatValue={value =>
+                                `${formatNumber(value)} per match`
+                              }
+                            />
+                          }
                         />
-                        <Legend wrapperStyle={{ fontSize: '14px' }} />
-                        <Line
-                          type="monotone"
-                          dataKey="Garden"
-                          stroke={COLORS.success}
-                          strokeWidth={3}
-                          dot={{ fill: COLORS.success, r: 5 }}
-                          activeDot={{ r: 8 }}
-                          animationDuration={1500}
+                        <Legend
+                          wrapperStyle={{ fontSize: '14px' }}
+                          itemSorter={null}
                         />
-                        <Line
-                          type="monotone"
-                          dataKey="Tipping"
-                          stroke={COLORS.warning}
-                          strokeWidth={3}
-                          dot={{ fill: COLORS.warning, r: 5 }}
-                          activeDot={{ r: 8 }}
-                          animationDuration={1500}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="Flower"
-                          stroke={COLORS.purple}
-                          strokeWidth={3}
-                          dot={{ fill: COLORS.purple, r: 5 }}
-                          activeDot={{ r: 8 }}
-                          animationDuration={1500}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="Left in Hive"
-                          name="Left in Hive (up CELL)"
-                          stroke={COLORS.secondary}
-                          strokeWidth={3}
-                          dot={{ fill: COLORS.secondary, r: 5 }}
-                          activeDot={{ r: 8 }}
-                          animationDuration={1500}
-                        />
+                        {COUNTED_ELEMENTS.map(({ label, color }) => (
+                          <Line
+                            key={label}
+                            type="linear"
+                            dataKey={label}
+                            stroke={tone(color)}
+                            strokeWidth={3}
+                            dot={{ fill: tone(color), r: 5 }}
+                            activeDot={{ r: 8 }}
+                            animationDuration={1500}
+                          />
+                        ))}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                  {tappedLink('volume')}
                 </CardContent>
               </Card>
 
@@ -1091,7 +1361,11 @@ const Charts = () => {
                       height={240}
                       minWidth={300}
                     >
-                      <ComposedChart data={rankingPointData}>
+                      <ComposedChart
+                        data={rankingPointData}
+                        onClick={openSession('rp')}
+                        style={CLICKABLE}
+                      >
                         <CartesianGrid
                           strokeDasharray="3 3"
                           stroke={gridStroke}
@@ -1115,6 +1389,7 @@ const Charts = () => {
                               formatValue={value =>
                                 `${value.toFixed(2)} RP (${Math.round(value * 100)}% of matches)`
                               }
+                              formatTotal={sum => `${sum.toFixed(2)} RP`}
                             />
                           }
                         />
@@ -1132,13 +1407,14 @@ const Charts = () => {
                             key={label}
                             dataKey={label}
                             stackId="rp"
-                            fill={color}
+                            fill={tone(color)}
                             animationDuration={1000}
                           />
                         ))}
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
+                  {tappedLink('rp')}
                 </CardContent>
               </Card>
 
@@ -1166,7 +1442,11 @@ const Charts = () => {
                         height={240}
                         minWidth={300}
                       >
-                        <LineChart data={cycleTimeData}>
+                        <LineChart
+                          data={cycleTimeData}
+                          onClick={openSession('cycle')}
+                          style={CLICKABLE}
+                        >
                           <CartesianGrid
                             strokeDasharray="3 3"
                             stroke={gridStroke}
@@ -1195,14 +1475,17 @@ const Charts = () => {
                               />
                             }
                           />
-                          <Legend wrapperStyle={{ fontSize: '14px' }} />
+                          <Legend
+                            wrapperStyle={{ fontSize: '14px' }}
+                            itemSorter={null}
+                          />
                           <Line
-                            type="monotone"
+                            type="linear"
                             dataKey="Avg Cycle"
-                            stroke={COLORS.primary}
+                            stroke={tone(CHART_COLORS.cycle)}
                             strokeWidth={3}
                             dot={{
-                              fill: COLORS.primary,
+                              fill: tone(CHART_COLORS.cycle),
                               r: 6,
                               strokeWidth: 2,
                               stroke: '#fff',
@@ -1211,13 +1494,13 @@ const Charts = () => {
                             animationDuration={1200}
                           />
                           <Line
-                            type="monotone"
+                            type="linear"
                             dataKey="Fastest"
-                            stroke={COLORS.success}
+                            stroke={tone(CHART_COLORS.better)}
                             strokeWidth={2}
                             strokeDasharray="5 5"
                             dot={{
-                              fill: COLORS.success,
+                              fill: tone(CHART_COLORS.better),
                               r: 5,
                               strokeWidth: 2,
                               stroke: '#fff',
@@ -1226,13 +1509,13 @@ const Charts = () => {
                             animationBegin={200}
                           />
                           <Line
-                            type="monotone"
+                            type="linear"
                             dataKey="Slowest"
-                            stroke={COLORS.danger}
+                            stroke={tone(CHART_COLORS.worse)}
                             strokeWidth={2}
                             strokeDasharray="5 5"
                             dot={{
-                              fill: COLORS.danger,
+                              fill: tone(CHART_COLORS.worse),
                               r: 5,
                               strokeWidth: 2,
                               stroke: '#fff',
@@ -1243,6 +1526,7 @@ const Charts = () => {
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
+                    {tappedLink('cycle')}
                   </CardContent>
                 </Card>
               )}

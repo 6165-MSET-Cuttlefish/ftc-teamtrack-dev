@@ -38,7 +38,8 @@ export const SESSION_REV_KEY = 'teamtrack-session-rev';
  * Epoch ms at which a tab showing the stored session was last known to be
  * open. Clocks are only written when the session changes, so on the next
  * load this is what tells a page closed a moment ago from one closed since
- * yesterday.
+ * yesterday — and tells a tab that has just woken up whether another one
+ * kept the session going meanwhile.
  */
 const SESSION_SEEN_KEY = 'teamtrack-session-seen-at';
 
@@ -96,6 +97,9 @@ const finiteOr = (value: unknown, fallback: number): number =>
 
 const finiteOrNull = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+/** Whether the storage-full toast is up for the current run of failed saves. */
+let storageFailureShown = false;
 
 /**
  * Save active session data and timers to localStorage.
@@ -190,15 +194,21 @@ export const saveSessionToStorage = (
       savedAt: now,
     });
     localStorage.setItem(SESSION_REV_KEY, token);
+    storageFailureShown = false;
     return token;
   } catch (error) {
     logger.error('Failed to save session to storage:', error);
-    toast.error(
-      'Unable to save session data locally. Your browser storage may be full.',
-      {
-        id: 'storage-full',
-      }
-    );
+    // Once per run of failures: every scoring tap saves, and re-raising the
+    // toast would keep it over the header for as long as the user scores.
+    if (!storageFailureShown) {
+      storageFailureShown = true;
+      toast.error(
+        'Unable to save session data locally. Your browser storage may be full.',
+        {
+          id: 'storage-full',
+        }
+      );
+    }
     return null;
   }
 };
@@ -432,13 +442,27 @@ export const removeStoredSession = (): void => {
 
 /**
  * Record that the stored session is open in a tab right now, without
- * changing what is stored. For the moment a tab is hidden or closed.
+ * changing what is stored. For the moment a tab is hidden or closed, and
+ * every so often while its clock is running.
  */
 export const markStoredSessionSeen = (): void => {
   try {
     localStorage.setItem(SESSION_SEEN_KEY, String(Date.now()));
   } catch {
     /* storage unavailable: the last save stands in */
+  }
+};
+
+/**
+ * When a tab last said the stored session was open in it, or null if none
+ * has since the session was last saved.
+ */
+export const readStoredSessionSeenAt = (): number | null => {
+  try {
+    const seenAt = Number(localStorage.getItem(SESSION_SEEN_KEY));
+    return Number.isFinite(seenAt) && seenAt > 0 ? seenAt : null;
+  } catch {
+    return null;
   }
 };
 

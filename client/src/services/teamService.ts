@@ -20,8 +20,14 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { getFirebase, isAbortError } from '@/lib';
-import type { Team, CreateTeamData, TeamInvite, TeamMember } from '@/types';
-import type { JoinedTeam } from '@/types/team';
+import type {
+  Team,
+  CreateTeamData,
+  JoinedTeam,
+  LeaveOutcome,
+  TeamInvite,
+  TeamMember,
+} from '@/types';
 
 /**
  * How many leading `members` slots the Firestore rules can inspect when a
@@ -650,34 +656,65 @@ class TeamService {
   }
 
   /**
+   * What `userId` leaving `team` would do, so the UI can say it before they
+   * confirm: a member just goes, the owner hands the team to its
+   * longest-standing member, and the last member takes the team with them.
+   * `leaveTeam` acts on the same answer.
+   */
+  leaveOutcome(
+    team: Pick<Team, 'createdBy'> &
+      Partial<Pick<Team, 'ownerId' | 'members' | 'memberIds'>>,
+    userId: string
+  ): LeaveOutcome {
+    if (this.ownerOf(team) !== userId) return { kind: 'left' };
+
+    const remaining = (team.members ?? []).filter((m) => m.userId !== userId);
+    if (remaining.length === 0) return { kind: 'deleted' };
+
+    const joinedSeconds = (m: TeamMember) =>
+      m.joinedAt && typeof m.joinedAt === 'object' && 'seconds' in m.joinedAt
+        ? (m.joinedAt as { seconds: number }).seconds
+        : 0;
+    return {
+      kind: 'handed-over',
+      newOwner: [...remaining].sort(
+        (a, b) => joinedSeconds(a) - joinedSeconds(b)
+      )[0],
+    };
+  }
+
+  /**
    * Leave a team. A member just removes themselves. The owner hands the team
    * to the longest-standing member, or deletes it if they were the last one.
+   * Resolves to what happened (see `leaveOutcome`), or null if the team could
+   * not be found.
    */
-  async leaveTeam(teamId: string, userId: string): Promise<boolean> {
-    return this.safeExecute(
+  async leaveTeam(teamId: string, userId: string): Promise<LeaveOutcome | null> {
+    return this.safeExecute<LeaveOutcome | null>(
       async () => {
         const db = await this.getDB();
         const docRef = doc(db, 'teams', teamId);
         const teamDoc = await getDoc(docRef);
-        if (!teamDoc.exists()) return false;
+        if (!teamDoc.exists()) return null;
 
         const team = this.toTeam(teamDoc);
         const members: TeamMember[] = team.members || [];
         const leavingMember = members.find((m) => m.userId === userId);
-        if (!leavingMember) return true;
+        if (!leavingMember) return { kind: 'left' };
         const remaining = members.filter((m) => m.userId !== userId);
+        const outcome = this.leaveOutcome(team, userId);
 
-        if (this.ownerOf(team) !== userId) {
+        if (outcome.kind === 'left') {
           // Remove exactly the stored entry, so the rules can see nothing
           // else in the member list changed.
           await updateDoc(docRef, {
             members: arrayRemove(leavingMember),
             memberIds: arrayRemove(userId),
           });
-          return true;
+          return outcome;
         }
 
-        if (remaining.length === 0) {
+        if (outcome.kind === 'deleted') {
           // The team and its invite go together, so no live link is left
           // pointing at a team that no longer exists.
           const invite = await this.readInvite(db, team.inviteCode);
@@ -685,17 +722,10 @@ class TeamService {
           this.retireInvite(batch, db, team, invite);
           batch.delete(docRef);
           await batch.commit();
-          return true;
+          return outcome;
         }
 
-        const joinedSeconds = (m: TeamMember) =>
-          m.joinedAt && typeof m.joinedAt === 'object' && 'seconds' in m.joinedAt
-            ? (m.joinedAt as { seconds: number }).seconds
-            : 0;
-        const newOwnerUserId = [...remaining].sort(
-          (a, b) => joinedSeconds(a) - joinedSeconds(b)
-        )[0].userId;
-
+        const newOwnerUserId = outcome.newOwner.userId;
         await updateDoc(docRef, {
           ownerId: newOwnerUserId,
           members: remaining.map((m) =>
@@ -703,9 +733,9 @@ class TeamService {
           ),
           memberIds: remaining.map((m) => m.userId),
         });
-        return true;
+        return outcome;
       },
-      false,
+      null,
       'Error leaving team:',
       true
     );

@@ -1,11 +1,25 @@
 export { ActiveTutorial } from './ActiveTutorial';
-export { SummaryTab, MatchDetailTab, CompareTab, StatCard, computeStats, TABS, type TabId, type SessionStats } from './AnalysisTabs';
+export {
+  SummaryTab,
+  MatchDetailTab,
+  CompareTab,
+  StatCard,
+  SessionMeta,
+  SessionNotes,
+  AnalysisTabBar,
+  useAnalysisNav,
+  computeStats,
+  TABS,
+  type TabId,
+  type SessionStats,
+} from './AnalysisTabs';
 export { LiveCounters } from './LiveCounters';
 export { MatchEntry } from './MatchEntry';
 export { MatchForm } from './MatchForm';
 export { Notes } from './Notes';
 export { ScoreBreakdown } from './ScoreBreakdown';
 export { ScoreField } from './ScoreField';
+export { ScoringPad } from './ScoringPad';
 export { SessionSetup } from './SessionSetup';
 export {
   LiveControlsProvider,

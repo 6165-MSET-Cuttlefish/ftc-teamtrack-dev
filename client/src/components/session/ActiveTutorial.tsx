@@ -10,12 +10,13 @@ import { toast } from 'sonner';
 import { useTheme, useAuth, useSessionCore } from '@/contexts';
 import {
   TUTORIAL_RESTART_EVENT,
-  TUTORIAL_OPEN_SESSION_SETUP_EVENT,
   TUTORIAL_ENDED_EVENT,
 } from '@/constants/events';
 import { STORAGE_KEYS } from '@/constants';
-import { POINTS } from '@/lib';
-import type { MatchPhase, SessionFormData, SessionType } from '@/types';
+import { ELEMENT_LABELS, POINTS } from '@/lib';
+import { setWalkthroughSession } from '@/lib/signOutLoss';
+import type { MatchPhase, SessionFormData } from '@/types';
+import { useActiveCompact } from './layout/useActiveCompact';
 
 const PreviewBox = ({
   children,
@@ -41,18 +42,13 @@ const FieldRow = ({
   value,
   points,
   dark,
-  dimmed = false,
 }: {
   label: string;
   value: string;
   points: string;
   dark: boolean;
-  dimmed?: boolean;
 }) => (
-  <div
-    className="flex items-center gap-3"
-    style={{ opacity: dimmed ? 0.4 : 1 }}
-  >
+  <div className="flex items-center gap-3">
     <span
       className="flex-1 text-xs font-semibold"
       style={{ color: dark ? '#e5e5e5' : '#333' }}
@@ -88,7 +84,7 @@ const LiveScoringPreview = ({ dark }: { dark: boolean }) => {
     <PreviewBox dark={dark}>
       <div className="space-y-2.5">
         <FieldRow
-          label="Tipping"
+          label={ELEMENT_LABELS.tipping}
           value={String(n)}
           points={`${n * POINTS.HIVE_TIP} pts`}
           dark={dark}
@@ -102,165 +98,134 @@ const EndOfMatchPreview = ({ dark }: { dark: boolean }) => (
   <PreviewBox dark={dark}>
     <div className="space-y-2.5">
       <FieldRow
-        label="Flower"
+        label={ELEMENT_LABELS.flower}
         value="4"
         points={`${4 * POINTS.FLOWER_ELEMENT} pts`}
         dark={dark}
       />
       <FieldRow
-        label="Left in Hive"
+        label={ELEMENT_LABELS.hive}
         value="3"
         points={`${3 * POINTS.CELL_REMAINING} pts`}
         dark={dark}
       />
       <FieldRow
-        label="Garden"
+        label={ELEMENT_LABELS.garden}
         value="6"
         points={`${6 * POINTS.GARDEN} pts`}
         dark={dark}
       />
       <div className="text-[10px] pt-1" style={{ color: 'var(--tt-muted)' }}>
-        Locked while the clock is running
+        In a match: locked while the clock runs
       </div>
     </div>
   </PreviewBox>
 );
 
-const RobotsPreview = ({ dark }: { dark: boolean }) => {
-  const pill = (text: string, on: boolean) => (
-    <span
-      className="px-2 py-1 rounded-lg border text-[11px]"
-      style={{
-        borderColor: on ? 'rgb(34,197,94)' : 'rgb(var(--team-blue) / 0.4)',
-        color: on ? 'rgb(34,197,94)' : dark ? '#fff' : '#000',
-      }}
-    >
-      {text}
-    </span>
-  );
-  return (
-    <PreviewBox dark={dark}>
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between text-xs">
-          <span style={{ color: dark ? '#e5e5e5' : '#333' }}>Robot 1</span>
-          <span className="flex items-center gap-2">
-            {pill('Leave', true)}
-            {pill('Auto', true)}
-            {pill('End', false)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-xs">
-          <span style={{ color: dark ? '#e5e5e5' : '#333' }}>Robot 2</span>
-          <span className="flex items-center gap-2">
-            {pill('Leave', false)}
-            {pill('Auto', false)}
-            {pill('End', true)}
-          </span>
-        </div>
-      </div>
-    </PreviewBox>
-  );
-};
-
-/** Fouls go to the other alliance, so the mock shows them that way too. */
-const PenaltyPreview = ({ dark }: { dark: boolean }) => (
-  <PreviewBox dark={dark}>
-    <div className="space-y-2.5">
-      <FieldRow
-        label="Minor"
-        value="1"
-        points={`+${POINTS.MINOR_PENALTY} to opponent`}
-        dark={dark}
-      />
-      <FieldRow
-        label="Major"
-        value="0"
-        points="+0 to opponent"
-        dark={dark}
-        dimmed
-      />
-    </div>
-  </PreviewBox>
-);
+/** What a step's text can say about the page as it is right now */
+interface StepContext {
+  /** What the button that starts a match reads, e.g. "Start Match 1" */
+  startLabel: string;
+  /** True at phone width, where the header folds its buttons into a menu */
+  narrow: boolean;
+  /**
+   * True when the page uses its phone layout, where the robots are below
+   * Hive Tips. The full-size layout has them beside it, with a scrim's
+   * fouls beside the robots.
+   */
+  compact: boolean;
+}
 
 interface StepDef {
   title: string;
-  body: React.ReactNode;
+  body: (context: StepContext) => React.ReactNode;
   /** `data-tutorial` attribute of the page element to spotlight */
   target: string | null;
   /** Spotlit instead when the page has no `target` element */
   fallbackTarget?: string;
+  /**
+   * False when the step only points at its element: it is shown, but can't
+   * be pressed until the walkthrough has moved on.
+   */
+  interactive?: boolean;
   preview: ((dark: boolean) => React.ReactNode) | null;
   /** Prompt shown when the user should interact with the real page element */
   pageAction?: string;
   /** Session field watched for automatic task completion */
-  watchKey?: 'notes' | 'tipping';
+  watchKey?: 'tipping';
 }
 
 const STEPS: StepDef[] = [
   {
-    title: 'Welcome to TeamTrack',
-    body: (
+    title: 'Start a match',
+    body: ({ startLabel, narrow }) => (
       <div className="space-y-2">
         <div>
-          TeamTrack records your BIOBUZZ scoring match by match, then shows you
-          where the points are coming from. This walkthrough takes about a
-          minute.
+          TeamTrack scores BIOBUZZ match by match. You'll press {startLabel}: a
+          3-second countdown, then the 2:30 clock (30 s AUTO, 8 s controller
+          pickup, 2:00 TELEOP, endgame in the last minute).
         </div>
         <div className="text-xs" style={{ color: 'var(--tt-muted)' }}>
-          Anything you enter while the walkthrough is open is just practice —
-          when it closes, your session goes back to exactly how it was. You can
-          replay it from the (?) button in the header whenever no match is
-          running.
+          What you enter here is practice, put back on closing. Replay from{' '}
+          {narrow ? 'Tutorial in the header menu' : 'the (?) in the header'}{' '}
+          when no match is running.
         </div>
       </div>
     ),
-    target: null,
-    preview: null,
-  },
-  {
-    title: 'Start Your Session',
-    body: 'Every session is ready to go as a Practice session, so just press Start Session. It runs the real match clock — 30 seconds of AUTO, an 8-second transition, then 2:00 of TELEOP, with endgame (and FLOWER scoring) opening at 1:00. Save Match stores the result, and Start Match runs the next one.',
     target: 'controls',
+    interactive: false,
     preview: null,
   },
   {
-    title: 'Score While You Watch',
-    body: `Tipping, in the Live block, is counted as the match runs. Tap + for each HIVE TIP or type the running total — TeamTrack converts it to points as you go (${POINTS.HIVE_TIP} each).`,
+    title: 'Score while you watch',
+    body: ({ compact }) => (
+      <div className="space-y-2">
+        <div>
+          {compact
+            ? `Add 1 for each HIVE TIP (${POINTS.HIVE_TIP}), or type the total.`
+            : `Tap the Hive Tips pad, or press T on your keyboard, for each HIVE TIP (${POINTS.HIVE_TIP}).`}
+        </div>
+        <div className="text-xs">
+          {compact ? 'Below' : 'Beside it'}, per robot: Leave ({POINTS.LEAVE})
+          if off the wall when AUTO ends; Park ({POINTS.PARK}) for Auto and End
+          (End unlocks after AUTO).
+        </div>
+        <div className="text-xs">
+          In a Scrim, count your Minor ({POINTS.MINOR_PENALTY}) and Major (
+          {POINTS.MAJOR_PENALTY}) fouls{' '}
+          {compact ? 'under the robots, in Penalties' : 'beside the robots'}:
+          they go to the opponent, never off your score.
+        </div>
+      </div>
+    ),
     target: 'live',
     fallbackTarget: 'metrics',
     preview: d => <LiveScoringPreview dark={d} />,
-    pageAction: 'Enter a Tipping count',
+    pageAction: 'Try it: add a Hive Tip',
     watchKey: 'tipping',
   },
   {
-    title: 'Leave and Park',
-    body: `Tick Leave for each robot that is no longer touching the perimeter wall when AUTO ends (${POINTS.LEAVE} points each). Park is scored twice per robot — Auto if it's parked at the end of AUTO, End if it's parked at the end of the match (${POINTS.PARK} points each). End stays locked while AUTO is running.`,
-    target: 'robots',
-    preview: d => <RobotsPreview dark={d} />,
-  },
-  {
-    title: 'After the Buzzer',
-    body: (
+    title: 'After the buzzer',
+    body: () => (
       <div className="space-y-2">
         <div>
-          These can only be judged once play stops, so they stay locked while
-          the clock is running.
+          Judged after play stops. In a match they stay locked while the clock
+          runs, and unlock at the buzzer or when you pause.
         </div>
         <ul className="list-disc pl-4 space-y-1 text-xs">
           <li>
-            Flower: the alliance whose NECTAR is top-most owns a FLOWER and
-            scores every POLLEN/NECTAR in it ({POINTS.FLOWER_ELEMENT} each). The
-            bottom-most NECTAR earns the Flower Bonus ({POINTS.FLOWER_BONUS}).
+            Flower: everything in FLOWERS with your NECTAR on top (
+            {POINTS.FLOWER_ELEMENT} each). Flower Bonus: your NECTAR at the
+            bottom ({POINTS.FLOWER_BONUS} per FLOWER).
           </li>
           <li>
-            Left in Hive: POLLEN/NECTAR in your upward-facing CELL (
-            {POINTS.CELL_REMAINING} each). The 3 staged NECTAR count until a TIP
-            flips the CELL.
+            Left in Hive: POLLEN/NECTAR in your upward CELL (
+            {POINTS.CELL_REMAINING} each); the 3 staged NECTAR count until a
+            TIP.
           </li>
           <li>
-            Garden: everything in your GARDEN ({POINTS.GARDEN} each), including
-            the 4 pre-staged POLLEN.
+            Garden: everything in your GARDEN ({POINTS.GARDEN} each), pre-staged
+            POLLEN included.
           </li>
         </ul>
       </div>
@@ -269,26 +234,19 @@ const STEPS: StepDef[] = [
     preview: d => <EndOfMatchPreview dark={d} />,
   },
   {
-    title: 'Penalties',
-    body: `In a Scrim, count your alliance's minor and major fouls in the Live block as they're called. Each one is credited to the opponent (${POINTS.MINOR_PENALTY} for a minor, ${POINTS.MAJOR_PENALTY} for a major) and never reduces your own score, so TeamTrack shows them separately as points given to the opponent.`,
-    target: 'penalties',
-    preview: d => <PenaltyPreview dark={d} />,
-  },
-  {
-    title: 'Notes',
-    body: 'Jot down anything the numbers miss — a jammed intake, a driver swap, a field fault. Notes are saved with the session.',
-    target: 'notes',
-    preview: null,
-  },
-  {
-    title: 'Session Settings',
-    body: 'Open settings with the gear button whenever you need them — rename the session, change the match type, or switch between Practice and Scrim. Practice is solo drilling; Scrim is for matches against another alliance and adds penalty tracking. Either way you only score your own alliance.',
-    target: 'session-setup',
-    preview: null,
-  },
-  {
-    title: 'You Are Set',
-    body: "Save each match as you finish it, then press Complete Session — you'll be asked to confirm the session name before it saves. Your Sessions, Analysis, Charts, and Compare pages build on that data.",
+    title: 'Save, then complete the session',
+    body: () => (
+      <div className="space-y-2">
+        <div>
+          Save Match stores it; Start Match runs the next. Notes hold what the
+          numbers miss; the gear sets name, match type and Practice or Scrim.
+        </div>
+        <div>
+          Complete Session asks for a name; Sessions, Analysis, Charts and
+          Compare build on it.
+        </div>
+      </div>
+    ),
     target: null,
     preview: null,
   },
@@ -310,14 +268,20 @@ const Z_CARD = 10001;
 const NARROW_WIDTH = 640;
 /** Viewports shorter than this (a phone on its side) get the one-row card */
 const SHORT_HEIGHT = 500;
-/** Space kept between the card and the spotlit element, in px */
-const CARD_GAP = 8;
+/** How far the spotlight's ring stands off the spotlit element, in px */
+const SPOTLIGHT_RING = 6;
+/** Space kept between the card and the spotlit element, ring included, in px */
+const CARD_GAP = SPOTLIGHT_RING + 8;
 /** Space kept between the spotlit element and the header or screen edge, in px */
-const TARGET_PAD = 8;
+const TARGET_PAD = SPOTLIGHT_RING + 8;
 /** Least body text a shrunken card still shows (two lines), in px */
 const MIN_BODY_HEIGHT = 46;
 /** A height change smaller than this is the URL bar sliding, not a new layout */
 const URL_BAR_HEIGHT = 120;
+/** Scrolls the walkthrough may make for one element: the first and two corrections */
+const MAX_AUTO_SCROLLS = 3;
+/** One of its scrolls that comes to rest within this of where it was sent has arrived, in px */
+const SCROLL_ARRIVED = 24;
 
 const cardLayout = (width: number, height: number) => {
   const short = height < SHORT_HEIGHT;
@@ -357,7 +321,7 @@ interface TutorialSnapshot {
 
 const ORIGINAL_STYLES_KEY = '__tt_original_styles__';
 
-function liftElement(el: HTMLElement, darkMode = true) {
+function liftElement(el: HTMLElement, darkMode = true, interactive = true) {
   (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY] = {
     position: el.style.position,
     zIndex: el.style.zIndex,
@@ -366,26 +330,42 @@ function liftElement(el: HTMLElement, darkMode = true) {
     animation: el.style.animation,
     backgroundColor: el.style.backgroundColor,
     pointerEvents: el.style.pointerEvents,
-    border: el.style.border,
+    outline: el.style.outline,
+    outlineOffset: el.style.outlineOffset,
+    inert: el.inert,
   };
-  el.style.position = 'relative';
+  // Only what is in the normal flow needs positioning for the z-index to
+  // take. A bar pinned to the screen edge (the phone's match controls) must
+  // stay pinned while it is spotlit.
+  const inFlow = getComputedStyle(el).position === 'static';
+  if (inFlow) el.style.position = 'relative';
+  const pinned = !inFlow && isPinned(el);
   el.style.zIndex = String(Z_SPOTLIGHT);
   el.style.borderRadius = '16px';
-  el.style.pointerEvents = 'auto';
+  // An element that is only being pointed at takes no taps and no keys.
+  el.style.pointerEvents = interactive ? 'auto' : 'none';
+  if (!interactive) el.inert = true;
+  // The ring stands off the element, so text at its edge is not against the
+  // line; an outline, so nothing on the page moves to make room for it. A
+  // pinned bar already reaches the screen edges: its ring goes inside.
+  el.style.outline = `2px solid rgb(var(--team-blue) / 0.4)`;
+  el.style.outlineOffset = pinned ? '-2px' : `${SPOTLIGHT_RING}px`;
   // Light mode needs an opaque background so the lifted element reads clearly
   // against the dark backdrop; dark mode gets that from its own colors.
   if (!darkMode) {
     el.style.backgroundColor = '#ffffff';
+    el.style.boxShadow = pinned ? 'none' : `0 0 0 ${SPOTLIGHT_RING}px #ffffff`;
+  } else {
+    el.style.boxShadow = 'none';
   }
-  el.style.border = `2px solid rgb(var(--team-blue) / 0.4)`;
-  el.style.boxShadow = 'none';
 }
 
 function dropElement(el: HTMLElement) {
   const orig = (el as unknown as Record<string, unknown>)[
     ORIGINAL_STYLES_KEY
-  ] as Record<string, string> | undefined;
+  ] as (Record<string, string> & { inert?: boolean }) | undefined;
   if (orig) {
+    el.inert = orig.inert ?? false;
     el.style.position = orig.position ?? '';
     el.style.zIndex = orig.zIndex ?? '';
     el.style.borderRadius = orig.borderRadius ?? '';
@@ -393,13 +373,43 @@ function dropElement(el: HTMLElement) {
     el.style.animation = orig.animation ?? '';
     el.style.backgroundColor = orig.backgroundColor ?? '';
     el.style.pointerEvents = orig.pointerEvents ?? '';
-    el.style.border = orig.border ?? '';
+    el.style.outline = orig.outline ?? '';
+    el.style.outlineOffset = orig.outlineOffset ?? '';
     delete (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY];
   }
 }
 
 const queryTarget = (id: string) =>
   document.querySelector<HTMLElement>(`[data-tutorial="${id}"]`);
+
+/** True for an element that stays where it is on screen as the page scrolls. */
+const isPinned = (el: HTMLElement) => {
+  for (
+    let node: HTMLElement | null = el;
+    node && node !== document.body;
+    node = node.parentElement
+  ) {
+    if (getComputedStyle(node).position === 'fixed') return true;
+  }
+  return false;
+};
+
+/** localStorage, for a browser that may refuse it. */
+const readFlag = (key: string): boolean => {
+  try {
+    return localStorage.getItem(key) !== null;
+  } catch {
+    return false;
+  }
+};
+
+const writeFlag = (key: string): void => {
+  try {
+    localStorage.setItem(key, 'true');
+  } catch {
+    /* storage unavailable: the walkthrough is offered again next time */
+  }
+};
 
 /** True for anything that uses the arrow keys itself. */
 const usesArrowKeys = (target: EventTarget | null) => {
@@ -414,6 +424,7 @@ const usesArrowKeys = (target: EventTarget | null) => {
 
 export const ActiveTutorial = () => {
   const { isDarkMode } = useTheme();
+  const isCompactLayout = useActiveCompact();
   const { user, isGuest, guestId, loading } = useAuth();
   const {
     sessionData,
@@ -454,17 +465,19 @@ export const ActiveTutorial = () => {
 
   /** `targetEl` for the placement code, which runs outside of renders too */
   const targetElRef = useRef<HTMLElement | null>(null);
-  /** True while the page is scrolling because the placement code asked it to */
-  const autoScrollRef = useRef(false);
-  /** True once the current step has asked the settings panel to open */
-  const setupRequestedRef = useRef(false);
+  /** Where the placement code sent the page, while that scroll is under way */
+  const autoScrollRef = useRef<number | null>(null);
+  /** Scrolls the placement code has made for the element now spotlit */
+  const autoScrollCountRef = useRef(0);
+  /** Lowest the header's bottom edge has been while that element was spotlit */
+  const headerEdgeRef = useRef(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const nextButtonRef = useRef<HTMLButtonElement | null>(null);
   /** What had focus when the walkthrough opened, to hand it back on close */
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  /** Session type to put back after the penalties step previewed a scrim */
-  const forcedScrimFromRef = useRef<SessionType | null>(null);
+  /** True while the session holds the practice match the scoring steps use */
+  const practiceMatchRef = useRef(false);
   /** Tutorial key the first-run check has already been made for */
   const autoOpenCheckedRef = useRef<string | null>(null);
 
@@ -496,6 +509,15 @@ export const ActiveTutorial = () => {
     if (guestId) return `${STORAGE_KEYS.TUTORIAL_SEEN}-guest-${guestId}`;
     return STORAGE_KEYS.TUTORIAL_SEEN;
   }, [user, guestId]);
+
+  /**
+   * Seen on this device, by anyone: someone who has been shown around as a
+   * guest is not shown around again for signing up on the same phone.
+   */
+  const hasSeenTutorial = useCallback(
+    () => readFlag(getTutorialKey()) || readFlag(STORAGE_KEYS.TUTORIAL_SEEN),
+    [getTutorialKey]
+  );
 
   /**
    * Full replacement, so values typed during the tutorial never leak into the
@@ -540,7 +562,7 @@ export const ActiveTutorial = () => {
     }
     if (live.matchActive || live.isTimerRunning) {
       if (askedFor) {
-        toast.info('Finish or cancel the match first', {
+        toast.info('Finish or discard this match to replay the tour', {
           id: BLOCKED_TOAST_ID,
         });
       }
@@ -548,7 +570,7 @@ export const ActiveTutorial = () => {
     }
     if (live.editing) {
       if (askedFor) {
-        toast.info('Save or cancel your match edit first', {
+        toast.info('Save or discard your changes first', {
           id: BLOCKED_TOAST_ID,
         });
       }
@@ -578,7 +600,7 @@ export const ActiveTutorial = () => {
   useEffect(() => {
     if (!visible) return;
     const { timer, sessionTimer, phaseTimer } = getTimers();
-    snapshotRef.current = {
+    const snapshot: TutorialSnapshot = {
       sessionData: JSON.parse(JSON.stringify(sessionData)),
       matchActive,
       matchPhase,
@@ -588,6 +610,11 @@ export const ActiveTutorial = () => {
       sessionTimer,
       phaseTimer,
     };
+    snapshotRef.current = snapshot;
+    practiceMatchRef.current = false;
+    // Signing out from here must still ask about the matches in it, even
+    // when storage has no copy of them to ask about.
+    setWalkthroughSession(snapshot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]); // snapshot once per showing, not on every state change
 
@@ -597,7 +624,7 @@ export const ActiveTutorial = () => {
     if (!user && !isGuest) return;
     const key = getTutorialKey();
     if (autoOpenCheckedRef.current === key) return;
-    if (localStorage.getItem(key)) {
+    if (hasSeenTutorial()) {
       autoOpenCheckedRef.current = key;
       return;
     }
@@ -613,18 +640,18 @@ export const ActiveTutorial = () => {
         // Someone with a session under way is not a first-time user — a
         // guest who just signed up brings theirs along under a new identity.
         // Don't cover it, and don't come back for it later either.
-        localStorage.setItem(key, 'true');
+        writeFlag(key);
         return;
       }
       open(false);
     }, 500);
     return () => clearTimeout(t);
-  }, [loading, user, isGuest, getTutorialKey, open]);
+  }, [loading, user, isGuest, getTutorialKey, hasSeenTutorial, open]);
 
   useEffect(() => {
     if (!visible) return;
-    setIsReplay(!!localStorage.getItem(getTutorialKey()));
-  }, [visible, getTutorialKey]);
+    setIsReplay(hasSeenTutorial());
+  }, [visible, hasSeenTutorial]);
 
   // On a replay every page task is pre-satisfied so Next is always available.
   useEffect(() => {
@@ -632,12 +659,20 @@ export const ActiveTutorial = () => {
     if (STEPS[step]?.pageAction) setTaskCompleted(true);
   }, [visible, step, isReplay]);
 
-  // Make the live-scoring fields editable once the walkthrough reaches them.
+  // Make the live-scoring fields editable once the walkthrough reaches them,
+  // with a practice match that never starts its clock. Going back to the
+  // first step puts the session back as it was found: that step shows the
+  // Start button, which a match in progress replaces.
   useEffect(() => {
     if (!visible) return;
-    if (step >= SCORING_STEP && !matchActive) {
+    if (step >= SCORING_STEP) {
+      if (matchActive) return;
+      practiceMatchRef.current = true;
       setMatchActive(true);
       setMatchPhase(sessionData.matchType === 'Teleop' ? 'teleop' : 'auton');
+    } else if (practiceMatchRef.current) {
+      practiceMatchRef.current = false;
+      if (snapshotRef.current) restoreSnapshot(snapshotRef.current);
     }
   }, [
     visible,
@@ -646,23 +681,8 @@ export const ActiveTutorial = () => {
     sessionData.matchType,
     setMatchActive,
     setMatchPhase,
+    restoreSnapshot,
   ]);
-
-  // Penalties only exist in a scrim, so preview one while that step is up —
-  // otherwise there would be nothing on the page to point at.
-  useEffect(() => {
-    if (!visible) return;
-    const onPenaltiesStep = STEPS[step]?.target === 'penalties';
-    if (onPenaltiesStep && sessionData.sessionType !== 'Scrim') {
-      if (forcedScrimFromRef.current === null) {
-        forcedScrimFromRef.current = sessionData.sessionType;
-      }
-      updateSessionData({ sessionType: 'Scrim' });
-    } else if (!onPenaltiesStep && forcedScrimFromRef.current !== null) {
-      updateSessionData({ sessionType: forcedScrimFromRef.current });
-      forcedScrimFromRef.current = null;
-    }
-  }, [visible, step, sessionData.sessionType, updateSessionData]);
 
   // Keep the match audio muted for the duration of the tutorial.
   useEffect(() => {
@@ -678,32 +698,16 @@ export const ActiveTutorial = () => {
   // Complete the current page task when the watched field gets a value.
   useEffect(() => {
     if (!visible || taskCompleted) return;
-    const key = STEPS[step]?.watchKey;
-    if (!key) return;
-    if (key === 'notes' && sessionData.notes?.trim()) {
+    if (STEPS[step]?.watchKey === 'tipping' && sessionData.tipping > 0) {
       setTaskCompleted(true);
     }
-    if (key === 'tipping' && sessionData.tipping > 0) {
-      setTaskCompleted(true);
-    }
-  }, [visible, step, taskCompleted, sessionData]);
-
-  // The settings panel is asked to open once per visit to its step, so that
-  // closing it there (Save) doesn't just bring it straight back. A layout
-  // effect, so the reset lands before the next step's spotlight below.
-  useLayoutEffect(
-    () => () => {
-      setupRequestedRef.current = false;
-    },
-    [visible, step]
-  );
+  }, [visible, step, taskCompleted, sessionData.tipping]);
 
   // Spotlight this step's page element, for as long as the step is up.
   useLayoutEffect(() => {
     if (!visible) return;
-    const target = STEPS[step]?.target;
+    const { target, fallbackTarget, interactive } = STEPS[step] ?? {};
     if (!target) return;
-    const fallbackTarget = STEPS[step].fallbackTarget;
 
     let lifted: HTMLElement | null = null;
     let retry: ReturnType<typeof setTimeout> | undefined;
@@ -716,21 +720,13 @@ export const ActiveTutorial = () => {
     const spotlight = () => {
       const el = find();
       if (el) {
-        liftElement(el, isDarkMode);
+        liftElement(el, isDarkMode, interactive !== false);
         lifted = el;
         setTargetEl(el);
         return;
       }
-      // The target may be about to render: the session setup panel collapses
-      // once saved (ask it to reopen), and the penalties box only appears
-      // once the step above switches the session to a scrim. Look again
-      // after React has had a moment to render it.
-      if (target === 'session-setup' && !setupRequestedRef.current) {
-        setupRequestedRef.current = true;
-        window.dispatchEvent(
-          new CustomEvent(TUTORIAL_OPEN_SESSION_SETUP_EVENT)
-        );
-      }
+      // The target may be about to render (the practice match brings the
+      // live counters with it). Look again after React has had a moment.
       if (++tries <= 8) retry = setTimeout(spotlight, 50 * tries);
     };
     spotlight();
@@ -789,9 +785,14 @@ export const ActiveTutorial = () => {
     const viewHeight = window.innerHeight;
     const { gutter } = cardLayout(window.innerWidth, viewHeight);
     const header = document.querySelector('header');
-    const headerEdge = header
-      ? Math.max(0, header.getBoundingClientRect().bottom)
-      : 0;
+    // The header can change height as the page scrolls under it. The element
+    // is kept clear of the tallest it has been, so that a header growing and
+    // shrinking again never sends the page back and forth.
+    headerEdgeRef.current = Math.max(
+      headerEdgeRef.current,
+      header ? header.getBoundingClientRect().bottom : 0
+    );
+    const headerEdge = headerEdgeRef.current;
 
     // Card height with nothing scrolled away, and with its text at the minimum
     const body = bodyRef.current;
@@ -818,11 +819,24 @@ export const ActiveTutorial = () => {
     );
     const clampScroll = (y: number) => Math.min(maxScroll, Math.max(0, y));
     const pageTop = rect.top + scrollY;
-    /** Scroll the page so the element's top edge lands `top` px down the screen */
+    const pinned = isPinned(target);
+    /**
+     * Scroll the page so the element's top edge lands `top` px down the
+     * screen. The first scroll for an element goes as far as it has to; one
+     * after that only corrects an element still well off, and there are only
+     * so many, so the page always comes to rest.
+     */
     const scrollTargetTo = (top: number) => {
+      if (pinned) return;
       const to = clampScroll(pageTop - top);
-      if (Math.abs(to - scrollY) <= 1) return;
-      autoScrollRef.current = true;
+      const made = autoScrollCountRef.current;
+      if (Math.abs(to - scrollY) <= (made === 0 ? 1 : SCROLL_ARRIVED)) return;
+      // Already on its way there.
+      const under = autoScrollRef.current;
+      if (under !== null && Math.abs(to - under) <= SCROLL_ARRIVED) return;
+      if (made >= MAX_AUTO_SCROLLS) return;
+      autoScrollCountRef.current = made + 1;
+      autoScrollRef.current = to;
       window.scrollTo({ top: to, behavior: 'smooth' });
     };
 
@@ -834,6 +848,18 @@ export const ActiveTutorial = () => {
     if (rect.right <= cardRect.left || rect.left >= cardRect.right) {
       apply('bottom', full);
       if (allowScroll && !inView) scrollTargetTo(headerEdge + TARGET_PAD);
+      return;
+    }
+
+    // An element pinned to the screen (the phone's match controls) stays
+    // put whatever the page does: the card takes the larger space beside it.
+    if (pinned) {
+      const fit = (room: number) =>
+        Math.min(full, Math.max(minimum, Math.floor(room)));
+      const above = rect.top - CARD_GAP - gutter;
+      const below = viewHeight - gutter - CARD_GAP - rect.bottom;
+      if (below > above) apply('bottom', fit(below));
+      else apply('top', fit(above));
       return;
     }
 
@@ -941,9 +967,22 @@ export const ActiveTutorial = () => {
   // if the card changes shape.
   useLayoutEffect(() => {
     targetElRef.current = targetEl;
+    autoScrollRef.current = null;
+    autoScrollCountRef.current = 0;
+    headerEdgeRef.current = 0;
     if (!visible) return;
     place(true);
   }, [visible, step, targetEl, short, fullWidth, place]);
+
+  // The task row grows when its task is done: give the card the height it
+  // now needs, where it is, without moving the page. Not while one of the
+  // walkthrough's own scrolls is under way, which ends in a placement anyway.
+  const placedForTaskRef = useRef(taskCompleted);
+  useLayoutEffect(() => {
+    if (placedForTaskRef.current === taskCompleted) return;
+    placedForTaskRef.current = taskCompleted;
+    if (visible && autoScrollRef.current === null) place(false);
+  }, [visible, taskCompleted, place]);
 
   // Keep the placement right as the element, the window or the scroll
   // position changes under it.
@@ -964,24 +1003,30 @@ export const ActiveTutorial = () => {
         Math.abs(next.height - last.height) > URL_BAR_HEIGHT;
       last = next;
       setViewport(next);
+      if (relayout) {
+        // A new layout is a new start: what was scrolled for is elsewhere.
+        autoScrollCountRef.current = 0;
+        headerEdgeRef.current = 0;
+      }
       schedule(relayout);
     };
 
     // Once a scroll comes to rest. After one of our own, check the result:
-    // the header grows a clock row once the page clock scrolls away, which
-    // moves the line the element was scrolled up to.
+    // the page may have changed under it (the header changes height as the
+    // page clock scrolls away), leaving the element short of where it was
+    // sent. place() allows only a few such corrections per element.
     let settle: ReturnType<typeof setTimeout> | undefined;
     const handleScroll = () => {
       clearTimeout(settle);
       settle = setTimeout(() => {
-        const ownScroll = autoScrollRef.current;
-        autoScrollRef.current = false;
+        const ownScroll = autoScrollRef.current !== null;
+        autoScrollRef.current = null;
         place(ownScroll);
       }, 150);
     };
 
-    // The element can change size after it is spotlit: the settings panel
-    // opening, the scrim counters arriving.
+    // The element can change size after it is spotlit: the live counters
+    // arriving with the practice match.
     const observer = new ResizeObserver(() => schedule(true));
     if (targetEl) observer.observe(targetEl);
 
@@ -1018,12 +1063,16 @@ export const ActiveTutorial = () => {
     if (snapshot) {
       restoreSnapshot(snapshot);
       snapshotRef.current = null;
-      forcedScrimFromRef.current = null;
     }
+    practiceMatchRef.current = false;
+    setWalkthroughSession(null);
 
     window.dispatchEvent(new Event(TUTORIAL_ENDED_EVENT));
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    localStorage.setItem(getTutorialKey(), 'true');
+    // For this identity, and for the device: signing up on the same phone
+    // is not a reason to be shown around again.
+    writeFlag(getTutorialKey());
+    writeFlag(STORAGE_KEYS.TUTORIAL_SEEN);
 
     const returnTo = returnFocusRef.current;
     returnFocusRef.current = null;
@@ -1032,13 +1081,15 @@ export const ActiveTutorial = () => {
 
   // Leaving /active mid-walkthrough unmounts this without dismiss() having
   // run. The session lives above the page, so it would keep the practice
-  // match, the forced scrim and the muted audio: put it back on the way out.
+  // match and the muted audio: put it back on the way out.
   const abandonRef = useRef<() => void>(() => {});
   useEffect(() => {
     abandonRef.current = () => {
       const snapshot = snapshotRef.current;
       if (!snapshot) return;
       snapshotRef.current = null;
+      practiceMatchRef.current = false;
+      setWalkthroughSession(null);
       restoreSnapshot(snapshot);
       setIsTutorialActive(false);
     };
@@ -1084,6 +1135,11 @@ export const ActiveTutorial = () => {
   if (!visible) return null;
 
   const current = STEPS[step];
+  // The button the first step spotlights, as the page words it ("Start
+  // Match 3" on a replay). Worked out from the session rather than read off
+  // the page: going Back to that step puts the session back after this
+  // render, and the button changes with it.
+  const startLabel = `Start Match ${(sessionData.matches?.length ?? 0) + 1}`;
   const isLast = step === STEPS.length - 1;
   const isFirst = step === 0;
   const hasTarget = !!current.target;
@@ -1275,7 +1331,11 @@ export const ActiveTutorial = () => {
             className="text-sm leading-relaxed whitespace-pre-line"
             style={{ color: subtext }}
           >
-            {current.body}
+            {current.body({
+              startLabel,
+              narrow: viewport.width < NARROW_WIDTH,
+              compact: isCompactLayout,
+            })}
           </div>
 
           {showPreview && current.preview?.(isDarkMode)}
@@ -1315,12 +1375,12 @@ export const ActiveTutorial = () => {
                 color: taskCompleted
                   ? isDarkMode
                     ? 'rgba(34,197,94,0.9)'
-                    : 'rgba(34,197,94,1)'
+                    : '#15803d'
                   : teamBlue,
               }}
             >
               {taskCompleted
-                ? 'Done! Click Next to continue'
+                ? 'Done! Press Next to continue'
                 : current.pageAction}
             </span>
             {taskCompleted && !isReplay && (
@@ -1331,7 +1391,7 @@ export const ActiveTutorial = () => {
                     updateSessionData({ tipping: 0 });
                   }
                 }}
-                className="ml-auto text-xs font-medium opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
+                className="ml-auto text-xs font-medium opacity-70 hover:opacity-100 transition-opacity flex-shrink-0"
                 style={{ color: teamBlue }}
               >
                 ↻ Try Again

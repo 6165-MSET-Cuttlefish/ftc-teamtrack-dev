@@ -1,134 +1,90 @@
-import { X } from 'lucide-react';
+import { Pause, Play, SkipForward, X } from 'lucide-react';
 
 import { useSessionCore } from '@/contexts';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
-import { useLiveControls } from './liveControlsContext';
-import { toneText } from './tones';
-
-const CONTROL_CLASS =
-  'px-3 py-1.5 min-h-11 md:min-h-10 rounded-xl border-2 text-sm font-semibold transition-colors flex items-center gap-2';
+import { isPrimarySlotConfirm, useLiveControls } from './liveControlsContext';
+import { actionClass } from './tones';
+import { useCompactControls } from './useCompactControls';
 
 /**
- * Pause / resume only.
+ * Pause / resume: one large button, for as long as there is a match clock
+ * to stop (the 3-2-1, AUTO, controller pickup, TELEOP).
  *
- * Kept apart from the bulkier match actions because this is the one in-match
- * control that has to stay reachable without scrolling on a phone — it sits
- * in the fixed pane beside the timer, while the rest scroll below.
+ * It is the big target while a match runs, where Save used to be, so a
+ * stray thumb pauses rather than ends the match. Pause is an outline in
+ * every theme; Resume is the filled button, the next step once paused.
+ * A question about the match takes its place in the action bar, and on a
+ * phone brings it along (see `PrimaryAction`).
  *
  * Controller pickup has its own countdown (the match clock is stopped for
  * it), so there the button freezes and resumes that countdown instead.
  */
 export const PlayPauseControl = () => {
-  const {
-    isDarkMode,
-    isTimerRunning,
-    setIsTimerRunning,
-    matchPhase,
-    matchActive,
-    editingMatchId,
-  } = useLiveControls();
-  const { isPickupPaused, setIsPickupPaused } = useSessionCore();
+  const { matchPhase, matchActive, editingMatchId, pendingConfirm } =
+    useLiveControls();
+  const isCompact = useCompactControls();
 
-  if (editingMatchId || !matchActive) return null;
+  if (editingMatchId || !matchActive || matchPhase === 'ended') return null;
+  if (isPrimarySlotConfirm(pendingConfirm, isCompact)) return null;
 
-  const inPickup = matchPhase === 'controller_pickup';
-  const running = inPickup ? !isPickupPaused : isTimerRunning;
-
-  if (running) {
-    return (
-      <button
-        type="button"
-        onKeyDown={ignoreHeldEnter}
-        onClick={() =>
-          inPickup ? setIsPickupPaused(true) : setIsTimerRunning(false)
-        }
-        className={`${CONTROL_CLASS} border-yellow-500/40 bg-yellow-500/10 hover:bg-yellow-500/20 ${toneText('yellow', isDarkMode)}`}
-      >
-        <span aria-hidden>⏸</span>
-        Pause Match
-      </button>
-    );
-  }
-
-  if (inPickup || matchPhase === 'auton' || matchPhase === 'teleop') {
-    return (
-      <button
-        type="button"
-        onKeyDown={ignoreHeldEnter}
-        onClick={() =>
-          inPickup ? setIsPickupPaused(false) : setIsTimerRunning(true)
-        }
-        className={`${CONTROL_CLASS} border-team-blue-40 bg-team-blue-10 hover:bg-team-blue/20 ${toneText('blue', isDarkMode)}`}
-      >
-        <span aria-hidden>▶</span>
-        Resume Match
-      </button>
-    );
-  }
-
-  return null;
+  // Discard Session asks at the end of the page: until it is answered,
+  // Resume is an outline, and the question's own buttons are the next step.
+  return <PauseResumeButton quiet={pendingConfirm !== null} />;
 };
 
 /**
- * Discard the in-progress match.
- *
- * Split out of `MatchExtras` so it can sit next to `PlayPauseControl` — on a
- * phone these two are the in-match controls that stay next to the timer,
- * while skip-to-teleop scrolls with the rest of the between-action controls.
+ * The Pause / Resume button itself. `quiet` keeps Resume an outline too,
+ * for when a question beside it is what needs answering first.
  */
-export const CancelMatchButton = () => {
-  const {
-    isDarkMode,
-    matchActive,
-    editingMatchId,
-    cancelMatchConfirm,
-    setCancelMatchConfirm,
-    handleCancelCurrentMatch,
-  } = useLiveControls();
+export const PauseResumeButton = ({ quiet = false }: { quiet?: boolean }) => {
+  const { isDarkMode, isTimerRunning, setIsTimerRunning, matchPhase } =
+    useLiveControls();
+  const { isPickupPaused, setIsPickupPaused, isTutorialActive } =
+    useSessionCore();
 
-  if (editingMatchId || !matchActive) return null;
-
-  if (cancelMatchConfirm) {
-    return (
-      <div className="flex items-center gap-2 flex-wrap">
-        <span
-          className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-        >
-          Discard this match?
-        </span>
-        <button
-          type="button"
-          onKeyDown={ignoreHeldEnter}
-          onClick={handleCancelCurrentMatch}
-          className="px-3 py-1.5 min-h-11 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors"
-        >
-          Yes, Discard
-        </button>
-        <button
-          type="button"
-          onKeyDown={ignoreHeldEnter}
-          onClick={() => setCancelMatchConfirm(false)}
-          className={`px-3 py-1.5 min-h-11 rounded-lg border text-sm font-bold transition-colors ${
-            isDarkMode
-              ? 'border-gray-600 text-gray-300 hover:bg-gray-800'
-              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          No, Keep
-        </button>
-      </div>
-    );
-  }
+  const inPickup = matchPhase === 'controller_pickup';
+  // The walkthrough's practice match never starts its clock, and stands for
+  // a match being played: it is not one the user paused.
+  const running =
+    isTutorialActive || (inPickup ? !isPickupPaused : isTimerRunning);
+  const Icon = running ? Pause : Play;
 
   return (
     <button
       type="button"
       onKeyDown={ignoreHeldEnter}
-      onClick={() => setCancelMatchConfirm(true)}
-      className={`${CONTROL_CLASS} border-red-500/40 bg-red-500/10 hover:bg-red-500/20 ${toneText('red', isDarkMode)}`}
+      onClick={() =>
+        inPickup ? setIsPickupPaused(running) : setIsTimerRunning(!running)
+      }
+      className={`flex-1 min-w-0 px-4 h-12 rounded-2xl text-base gap-2 ${actionClass(running || quiet ? 'neutral' : 'primary', isDarkMode)}`}
     >
-      <X className="h-4 w-4" aria-hidden />
-      Cancel Current Match
+      <Icon className="h-5 w-5 shrink-0" aria-hidden />
+      {running ? 'Pause' : 'Resume'}
+    </button>
+  );
+};
+
+/**
+ * Discard the in-progress match: a small X, out of the way of the scoring
+ * thumb. It only asks; the question, and the button that discards, show in
+ * the action bar.
+ */
+export const CancelMatchButton = () => {
+  const { isDarkMode, matchActive, editingMatchId, handleRequestDiscardMatch } =
+    useLiveControls();
+
+  if (editingMatchId || !matchActive) return null;
+
+  return (
+    <button
+      type="button"
+      onKeyDown={ignoreHeldEnter}
+      onClick={handleRequestDiscardMatch}
+      title="Discard match"
+      aria-label="Discard match"
+      className={`ml-auto h-11 w-11 shrink-0 rounded-xl ${actionClass('dangerOutline', isDarkMode)}`}
+    >
+      <X className="h-5 w-5" aria-hidden />
     </button>
   );
 };
@@ -143,6 +99,7 @@ export const MatchExtras = () => {
     editingMatchId,
     skipToTeleop,
   } = useLiveControls();
+  const isCompact = useCompactControls();
 
   if (editingMatchId || !matchActive) return null;
 
@@ -158,10 +115,11 @@ export const MatchExtras = () => {
       type="button"
       onKeyDown={ignoreHeldEnter}
       onClick={skipToTeleop}
-      className={`${CONTROL_CLASS} border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 ${toneText('purple', isDarkMode)}`}
+      aria-label="Skip to Teleop"
+      className={`shrink-0 h-11 px-3 rounded-xl text-sm gap-2 whitespace-nowrap ${actionClass('neutral', isDarkMode)}`}
     >
-      <span aria-hidden>⏭</span>
-      Skip to Teleop
+      <SkipForward className="h-4 w-4 shrink-0" aria-hidden />
+      {isCompact ? 'Skip' : 'Skip to Teleop'}
     </button>
   );
 };

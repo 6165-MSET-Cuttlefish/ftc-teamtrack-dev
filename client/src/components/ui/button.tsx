@@ -19,12 +19,34 @@ const buttonVariants = cva(
           'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-team-blue-10 hover:text-team-blue',
         link: 'text-team-blue underline-offset-4 hover:underline hover:text-team-blue/80',
+        /*
+         * The looks below carry their own text colour for every theme, so a
+         * caller never passes one: each is at least 4.5:1 in the light, dark,
+         * honeycomb and deep-sea themes (same pairs as session/controls/tones).
+         */
+        // The one filled button of a screen or dialog: the main action.
+        primary:
+          'bg-team-blue text-white dark:text-black shadow-sm hover:opacity-90',
+        // An ordinary choice next to it (Cancel, Back, Keep editing).
+        neutral:
+          'border border-gray-500 bg-transparent text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/10',
+        // Throws something away, but is not the main action of its screen.
+        dangerOutline:
+          'border border-red-600 bg-transparent text-red-700 hover:bg-red-50 dark:border-red-500/70 dark:text-red-400 dark:hover:bg-red-500/10',
+        // Holds things up without losing anything (Pause). Honeycomb's accent
+        // is gold as well, so there it falls back to the neutral outline.
+        warning:
+          'border border-yellow-600 bg-transparent text-yellow-800 hover:bg-yellow-50 dark:border-yellow-500/70 dark:text-yellow-300 dark:hover:bg-yellow-500/10 [.honeycomb_&]:border-gray-500 [.honeycomb_&]:text-gray-100 [.honeycomb_&]:hover:bg-white/10',
       },
       size: {
         default: 'h-10 px-4 py-2',
         sm: 'h-8 px-3 text-xs',
         lg: 'h-12 px-6 text-base',
         icon: 'h-10 w-10',
+        // 44px: the smallest comfortable target for a thumb.
+        touch: 'h-11 px-4',
+        // 48px: the main action of a screen.
+        xl: 'h-12 px-6 text-base',
       },
     },
     defaultVariants: {

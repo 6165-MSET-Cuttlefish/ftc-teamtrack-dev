@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
-import { getErrorMessage } from '@/lib';
+import { mapAuthError, type AuthErrorInfo } from '@/lib/authErrors';
 import { getPendingInviteDestination } from '@/lib/pendingInvite';
 import { APP_CONFIG, ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
@@ -15,14 +15,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert';
+import { PendingInviteBanner } from '@/components/auth/PendingInviteBanner';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<AuthErrorInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
   const { login, loginWithGoogle, continueAsGuest, user, loading: authLoading } = useAuth();
@@ -48,17 +49,17 @@ const Login = () => {
     e.preventDefault();
 
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setError({ message: 'Please fill in all fields', code: null });
       return;
     }
 
     try {
-      setError('');
+      setError(null);
       setLoading(true);
       await login(email, password);
       navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      setError(mapAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -66,12 +67,13 @@ const Login = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      setError('');
+      setError(null);
       setLoading(true);
       await loginWithGoogle();
       navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      // Closing the Google window is not an error: nothing is shown for it.
+      setError(mapAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -99,11 +101,12 @@ const Login = () => {
         </CardHeader>
 
         <CardContent className="space-y-6 px-4 sm:px-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          <PendingInviteBanner />
+
+          <AuthErrorAlert
+            error={error}
+            actions={['forgot-password', 'sign-up']}
+          />
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -124,10 +127,11 @@ const Login = () => {
                   id="email"
                   type="email"
                   placeholder="Enter your email address"
+                  autoComplete="email"
                   value={email}
                   onChange={e => {
                     setEmail(e.target.value);
-                    if (error) setError('');
+                    if (error) setError(null);
                   }}
                   className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
@@ -153,10 +157,11 @@ const Login = () => {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={e => {
                     setPassword(e.target.value);
-                    if (error) setError('');
+                    if (error) setError(null);
                   }}
                   className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
@@ -242,7 +247,7 @@ const Login = () => {
           <div className="text-sm text-center">
             <Link
               to="/forgot-password"
-              className="inline-flex min-h-[44px] items-center text-team-blue hover:underline sm:min-h-0"
+              className="inline-flex items-center text-team-blue hover:underline [@media(pointer:coarse)]:min-h-11"
             >
               Forgot your password?
             </Link>
@@ -255,7 +260,7 @@ const Login = () => {
             <Link
               to={ROUTES.SIGNUP}
               state={location.state}
-              className="inline-flex min-h-[44px] items-center text-team-blue hover:underline font-medium sm:min-h-0"
+              className="inline-flex items-center text-team-blue hover:underline font-medium [@media(pointer:coarse)]:min-h-11"
             >
               Sign up
             </Link>

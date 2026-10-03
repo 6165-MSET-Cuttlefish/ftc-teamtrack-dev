@@ -31,7 +31,7 @@ export const SessionLimitBanner = () => {
               to={ROUTES.SESSIONS}
               className="inline-flex shrink-0 items-center whitespace-nowrap underline font-bold"
             >
-              My Sessions
+              Sessions
             </Link>
           </div>
         </div>

@@ -9,8 +9,10 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: 'bg-background text-foreground',
+        // Not the --destructive token: that is a button fill, and as text
+        // it was 1.75:1 on the dark themes.
         destructive:
-          'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive',
+          'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300 [&>svg]:text-red-700 dark:[&>svg]:text-red-300',
       },
     },
     defaultVariants: {
