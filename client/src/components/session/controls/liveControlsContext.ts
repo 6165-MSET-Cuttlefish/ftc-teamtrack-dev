@@ -86,7 +86,7 @@ const END_OF_MATCH_SECTION = '[data-tutorial="end-of-match"]';
  * The questions /active can ask before it acts. Only one is ever open:
  * asking another closes the one before it.
  *
- * - `saveEarly`: save the running match before the buzzer
+ * - `endEarly`: end the running match before the buzzer
  * - `saveZeroEom`: save a finished match with nothing counted at the end
  * - `discardMatch`: throw the running match away
  * - `discardSession`: throw the whole session away
@@ -94,7 +94,7 @@ const END_OF_MATCH_SECTION = '[data-tutorial="end-of-match"]';
  *   that belong to no saved match
  */
 export type PendingConfirm =
-  | 'saveEarly'
+  | 'endEarly'
   | 'saveZeroEom'
   | 'discardMatch'
   | 'discardSession'
@@ -111,7 +111,7 @@ export const isPrimarySlotConfirm = (
   pending: PendingConfirm | null,
   isCompact: boolean
 ): boolean =>
-  pending === 'saveEarly' ||
+  pending === 'endEarly' ||
   pending === 'saveZeroEom' ||
   pending === 'discardMatch' ||
   (pending === 'completeWithStray' && isCompact);
@@ -384,10 +384,10 @@ export const useLiveControlsState = ({
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
   const completingRef = useRef(false);
   /**
-   * When Start / Save Match / Save Changes / the session save last went
-   * through, to absorb double taps. On the page's own clock
-   * (performance.now()): the device clock can be set back, which would leave
-   * these buttons dead until it caught up.
+   * When Start / Skip to Buzzer / End match / Save Match / Save Changes /
+   * the session save last went through, to absorb double taps. On the
+   * page's own clock (performance.now()): the device clock can be set back,
+   * which would leave these buttons dead until it caught up.
    */
   const lastPrimaryActionAt = useRef(-Infinity);
   /** Latest session data, for undo callbacks that fire after later edits */
@@ -631,6 +631,15 @@ export const useLiveControlsState = ({
     performance.now() - lastPrimaryActionAt.current <
     PRIMARY_ACTION_DEBOUNCE_MS;
 
+  /**
+   * Note that a press has just moved the match or the session on: for a
+   * moment, a press on the button that takes its place (Pause, Save Match,
+   * Start Match, …) is the tail of a double tap and does nothing.
+   */
+  const markPrimaryAction = () => {
+    lastPrimaryActionAt.current = performance.now();
+  };
+
   const handleViewAnalysis = () => {
     // The tail of a double tap on Save Session lands here once the completed
     // screen replaces the dialog.
@@ -656,13 +665,13 @@ export const useLiveControlsState = ({
 
   /**
    * The open question, for as long as what it asks about is still there: the
-   * buzzer answers "save early?", a count answers "all 0?", and a match that
+   * buzzer answers "end early?", a count answers "all 0?", and a match that
    * is saved or discarded takes its questions with it.
    */
   const confirmStillApplies = (() => {
     const liveMatch = matchActive && !editingMatchId;
     switch (pendingConfirmState) {
-      case 'saveEarly':
+      case 'endEarly':
         return liveMatch && !matchEnded;
       case 'saveZeroEom':
         return liveMatch && matchEnded && endOfMatchEmpty;
@@ -918,7 +927,7 @@ export const useLiveControlsState = ({
       void refreshSessionLimit();
       return;
     }
-    lastPrimaryActionAt.current = performance.now();
+    markPrimaryAction();
     // Pause takes this button's place: a double tap must not pause the
     // match it has just started.
     absorbDoubleTap();
@@ -987,7 +996,7 @@ export const useLiveControlsState = ({
       ...emptyScoringFields(),
     });
 
-    lastPrimaryActionAt.current = performance.now();
+    markPrimaryAction();
     // Start Match and Complete Session take the place of whatever saved.
     absorbDoubleTap();
     resetTimer();
@@ -1003,11 +1012,37 @@ export const useLiveControlsState = ({
   };
 
   /**
-   * The Save button. A press before the buzzer, or with nothing counted at
-   * the end of the match, is more often a slip than a decision, so those two
-   * are asked about first; never more than one question per save. A match
-   * with nothing scored at all is a legitimate result (a failed run) and is
-   * covered by the same two questions.
+   * The match straight to its buzzer: Skip to Buzzer, or End match in answer
+   * to End early. It ends as at a natural buzzer (see `skipToEnd`): End of
+   * Match and End park unlock, the page brings them into view, and Save
+   * Match comes up where the pressed button was on a full-size screen. The
+   * second press of a double tap must not save it.
+   */
+  const handleSkipToEnd = () => {
+    if (!matchActive || matchEnded || editingMatchId) return;
+    markPrimaryAction();
+    absorbDoubleTap();
+    // "End Match N now?" closes itself once the match has ended.
+    skipToEnd();
+  };
+
+  /**
+   * End early. A match is only ever saved after its buzzer: what is left on
+   * the field (Flowers, Left in Hive, Garden) can only be counted once play
+   * has stopped. So ending early asks, then ends the match the way the
+   * buzzer does, and it is saved from there like any other.
+   */
+  const handleRequestEndMatch = () => {
+    if (isRepeatedPrimaryAction()) return;
+    if (!matchActive || matchEnded || editingMatchId) return;
+    askConfirm('endEarly');
+  };
+
+  /**
+   * The Save button, after the buzzer. A press with nothing counted at the
+   * end of the match is more often a slip than a decision, so that is asked
+   * about first. A match with nothing scored at all is a legitimate result
+   * (a failed run) and is covered by the same question.
    */
   const handleSaveMatch = () => {
     if (isRepeatedPrimaryAction()) return;
@@ -1018,7 +1053,7 @@ export const useLiveControlsState = ({
       return;
     }
     if (!matchEnded) {
-      askConfirm('saveEarly');
+      handleRequestEndMatch();
       return;
     }
     if (endOfMatchEmpty) {
@@ -1028,7 +1063,7 @@ export const useLiveControlsState = ({
     saveCurrentMatch();
   };
 
-  /** "Save early" / "Save": the answer that goes ahead with the save. */
+  /** "Save": the answer that saves a match with nothing counted at the end. */
   const handleConfirmSaveMatch = () => saveCurrentMatch();
 
   /** "Count them first": back to the page, at the End of Match section. */
@@ -1051,7 +1086,7 @@ export const useLiveControlsState = ({
    */
   const handleSaveEditedMatch = (): boolean => {
     if (isRepeatedPrimaryAction() || isSavingSession()) return false;
-    lastPrimaryActionAt.current = performance.now();
+    markPrimaryAction();
     // In the Match Log the editor closes onto the match's own row.
     absorbDoubleTap();
     saveEditedMatch();
@@ -1187,7 +1222,7 @@ export const useLiveControlsState = ({
 
   /** The session is stored: show the completed screen. */
   const finishSavedSession = (id: string, duration: string) => {
-    lastPrimaryActionAt.current = performance.now();
+    markPrimaryAction();
     dismissUndoToasts();
     setSavedSessionId(id);
     // A write that lands late gets here with the dialog reopened for a
@@ -1600,7 +1635,7 @@ export const useLiveControlsState = ({
     setIsTimerRunning(false);
     setPendingConfirm(null);
     // Start Match comes back under the button that discarded.
-    lastPrimaryActionAt.current = performance.now();
+    markPrimaryAction();
     absorbDoubleTap();
 
     const title = `Match ${matchNumber} discarded`;
@@ -1717,7 +1752,8 @@ export const useLiveControlsState = ({
     returnToCurrentMatch: handleCancelEditedMatch,
     skipToTeleop,
     skipToEndgame,
-    skipToEnd,
+    skipToEnd: handleSkipToEnd,
+    markPrimaryAction,
 
     /** Match number the fields will be saved under */
     matchNumber,
@@ -1749,6 +1785,8 @@ export const useLiveControlsState = ({
     handleRequestDiscardSession,
     handleConfirmDiscardSession,
     handleStartMatch,
+    handleRequestEndMatch,
+    handleConfirmEndMatch: handleSkipToEnd,
     handleSaveMatch,
     handleConfirmSaveMatch,
     handleCountFirst,

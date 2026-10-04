@@ -130,8 +130,10 @@ interface SessionCoreContextType {
    */
   skipToEndgame: () => void;
   /**
-   * The last period (TELEOP, or AUTO of an Autonomous match) straight to the
-   * buzzer: the match ends just as if its clock had run out.
+   * A running match straight to the buzzer, from wherever it is: Skip to
+   * Buzzer in its last period (TELEOP, or AUTO of an Autonomous match), or
+   * ending it early from any point. The match ends just as if its clock had
+   * run out.
    */
   skipToEnd: () => void;
   /** Convert raw countdown timer to display timer for a given phase */
@@ -1143,26 +1145,28 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, [commitClock]);
 
   const skipToEnd = useCallback(() => {
-    const { phase } = clockRef.current;
+    if (clockRef.current.phase === 'ended') return;
     const { matchType } = envRef.current;
-    if (
-      phase !== 'teleop' &&
-      !(phase === 'auton' && matchType === 'Autonomous')
-    ) {
-      return;
-    }
+    // The buzzer ends the match's last period. Earlier in a Full Game (the
+    // 3-2-1, AUTO, controller pickup) the match goes straight there.
+    const lastPeriod: MatchPhase =
+      matchType === 'Autonomous' ? 'auton' : 'teleop';
     // The buzzer, from the track, as at a natural end; the match audio
     // stops after its tail as usual.
-    cueMatchAudio(matchAudioTime(matchType, phase, 0), true);
-    // Run the clock out now, then let the tick end the match: the same
-    // phase change (and the same stored clock for other tabs) as a match
-    // whose time ran out.
+    cueMatchAudio(matchAudioTime(matchType, lastPeriod, 0), true);
+    // Run the last period's clock out now, then let the tick end the match:
+    // the same phase change (and the same stored clock for other tabs) as a
+    // match whose time ran out.
     commitClock(
       current => ({
         ...current,
+        phase: lastPeriod,
         running: true,
         remainingMs: 0,
         deadline: null,
+        pickupRemainingMs: 0,
+        pickupDeadline: null,
+        pickupPaused: false,
       }),
       true
     );

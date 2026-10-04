@@ -3,6 +3,7 @@ import { Pause, Play, SkipForward, X } from 'lucide-react';
 import { GAME_TIMING } from '@/constants';
 import { useSession, useSessionCore } from '@/contexts';
 import type { MatchPhase } from '@/types';
+import { absorbDoubleTap } from './doubleTap';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { isPrimarySlotConfirm, useLiveControls } from './liveControlsContext';
 import { actionClass } from './tones';
@@ -173,7 +174,12 @@ export const MatchExtras = () => {
       type="button"
       onKeyDown={ignoreHeldEnter}
       onClick={() => {
-        if (armed) skip[target]();
+        if (!armed) return;
+        // What comes up in its place (the next Skip, or after the buzzer the
+        // hint and Save Match) must not take the second press of a double
+        // tap. Skip to Buzzer also holds Save Match off for a moment.
+        absorbDoubleTap();
+        skip[target]();
       }}
       aria-label={SKIP_LABELS[target].full}
       className={`shrink-0 h-11 px-3 rounded-xl text-sm whitespace-nowrap ${actionClass('neutral', isDarkMode)}`}

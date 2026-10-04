@@ -88,6 +88,7 @@ const PrimaryQuestion = ({ pending }: { pending: PendingConfirm }) => {
     matchActive,
     matchEnded,
     handleKeepConfirm,
+    handleConfirmEndMatch,
     handleConfirmSaveMatch,
     handleCountFirst,
     handleDiscardCurrentMatch,
@@ -98,7 +99,7 @@ const PrimaryQuestion = ({ pending }: { pending: PendingConfirm }) => {
   // looking. Through a question about the match it keeps Pause on its spot
   // (until the buzzer) and the safe choice on the rest, where End early or
   // the full-width Save Match was: a reach for either can't land on the
-  // button that saves or discards.
+  // button that ends, saves or discards.
   const matchLayout =
     stacked && matchActive
       ? {
@@ -109,20 +110,22 @@ const PrimaryQuestion = ({ pending }: { pending: PendingConfirm }) => {
       : layout;
 
   switch (pending) {
-    case 'saveEarly':
+    case 'endEarly':
+      // Ending stops the clock as the buzzer does; the match is then counted
+      // and saved like any other.
       return (
         <ConfirmInline
           {...matchLayout}
           tone="save"
           question={
             <>
-              Save Match {matchNumber} with <TimeLeft /> left?
+              End Match {matchNumber} now? (<TimeLeft /> left)
             </>
           }
           keepLabel="Keep scoring"
-          confirmLabel="Save early"
+          confirmLabel="End match"
           onKeep={handleKeepConfirm}
-          onConfirm={handleConfirmSaveMatch}
+          onConfirm={handleConfirmEndMatch}
         />
       );
     case 'saveZeroEom':
@@ -200,7 +203,9 @@ export const StrayNumbersQuestion = ({
  *   saved, Complete Session beside it (the session buttons are at the far
  *   end of the page there);
  * - match running or paused: a small "End early", so the one large target
- *   during play is Pause and a stray thumb can't end the match;
+ *   during play is Pause and a stray thumb can't end the match. It asks,
+ *   then ends the match as the buzzer does (it is never saved before the
+ *   end-of-match counts can be made);
  * - after the buzzer: "Save Match N · X pts", under a line that says what
  *   to count first;
  * - a logged match open for editing: Save / Discard changes;
@@ -225,6 +230,7 @@ export const PrimaryAction = () => {
     showUnsavedEditWarning,
     isSessionSetupSaved,
     handleStartMatch,
+    handleRequestEndMatch,
     handleSaveMatch,
     handleRequestCompleteSession,
   } = useLiveControls();
@@ -296,7 +302,7 @@ export const PrimaryAction = () => {
       <button
         type="button"
         onKeyDown={ignoreHeldEnter}
-        onClick={handleSaveMatch}
+        onClick={handleRequestEndMatch}
         className={`shrink-0 px-4 ${BAR_BUTTON} ${actionClass('neutral', isDarkMode)}`}
       >
         End early

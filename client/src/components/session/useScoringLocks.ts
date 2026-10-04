@@ -11,8 +11,8 @@ import { includesAuto, includesTeleop, liveMatchType } from '@/lib';
  *   clock locks it — not even a later match running underneath it.
  * - Tipping is counted while the match runs, but not during the 3-2-1.
  * - Flower, hive and garden contents can only be judged once play has
- *   stopped: after the buzzer, or whenever the clock is paused, which is
- *   what lets a match that ends early be scored before it is saved.
+ *   stopped: after the buzzer (End early ends a match there too), or
+ *   whenever the clock is paused.
  * - A period the match type doesn't run can't be scored at all.
  *
  * Reads the session without its clocks, so the fields it gates are not

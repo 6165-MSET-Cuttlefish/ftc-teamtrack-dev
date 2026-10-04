@@ -67,8 +67,8 @@ export const useMatchEntry = () => {
   /**
    * Flower, hive and garden contents are only knowable once play has
    * stopped, so they stay locked while the clock is running. They open at
-   * the buzzer, whenever the match is paused (a match that ends early still
-   * has to be scored before it is saved) and before a match starts.
+   * the buzzer (End early ends a match there too), whenever the match is
+   * paused, and before a match starts.
    */
   const endDisabled = !endOfMatchUnlocked;
 

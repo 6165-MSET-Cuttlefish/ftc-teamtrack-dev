@@ -23,6 +23,7 @@ import {
 } from '@/lib/signOutLoss';
 import { useIsCompact, useMediaQuery } from '@/hooks';
 import { allowNavigation } from '@/hooks/useNavigationGuard';
+import { useArmedAfterOpen } from '@/hooks/useArmedAfterOpen';
 import {
   useActiveCompact,
   useActiveShort,
@@ -220,6 +221,12 @@ const NavigationMenu = ({
   // go to and nothing to start: the page they were sent is the whole visit.
   const isVisitor = !user && location.pathname.startsWith('/shared');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  /**
+   * On a phone "Sign Out Anyway" opens right under the finger that chose
+   * Sign out, from the scoring bar's menu: the second tap of a double tap
+   * must not throw the session away.
+   */
+  const signOutArmed = useArmedAfterOpen(showLogoutConfirm);
   /** Sign out was chosen with a session at stake: ask once the menu has closed */
   const confirmLogoutRef = useRef(false);
   /** Team was chosen: where it leads, once the menu has let go of focus */
@@ -650,6 +657,7 @@ const NavigationMenu = ({
             <Button
               variant="outline"
               size="sm"
+              data-autofocus
               onClick={() => setShowLogoutConfirm(false)}
               className={
                 isDarkMode ? 'border-team-blue-40 text-team-white-60' : ''
@@ -657,7 +665,13 @@ const NavigationMenu = ({
             >
               Stay Signed In
             </Button>
-            <Button variant="destructive" size="sm" onClick={signOut}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (signOutArmed()) signOut();
+              }}
+            >
               Sign Out Anyway
             </Button>
           </DialogFooter>

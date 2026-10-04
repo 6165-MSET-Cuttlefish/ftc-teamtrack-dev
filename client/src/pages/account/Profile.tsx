@@ -5,6 +5,7 @@ import { getInitials } from '@/lib';
 import { mapAuthError, isWrongPasswordError } from '@/lib/authErrors';
 import { flushPendingDeletes } from '@/lib/pendingSessionDeletes';
 import { describeSignOutLoss } from '@/lib/signOutLoss';
+import { useArmedAfterOpen } from '@/hooks/useArmedAfterOpen';
 import { teamService } from '@/services';
 import { APP_CONFIG, ROUTES } from '@/constants';
 import type { Team, TeamMember } from '@/types';
@@ -273,6 +274,8 @@ const Profile = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  // The tap that opens the dialog must not land on Sign Out Anyway.
+  const signOutArmed = useArmedAfterOpen(showLogoutConfirm);
   /** Set while the user is signing out or deleting their account on purpose */
   const leavingRef = useRef(false);
 
@@ -1249,7 +1252,13 @@ const Profile = () => {
             >
               Stay Signed In
             </Button>
-            <Button variant="destructive" size="sm" onClick={signOut}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (signOutArmed()) signOut();
+              }}
+            >
               Sign Out Anyway
             </Button>
           </DialogFooter>

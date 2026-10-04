@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Check, Lock, Minus } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import {
   COUNT_LABELS,
@@ -15,6 +15,7 @@ import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
 import { PenaltyHint } from './PenaltyCounters';
 import { BreakdownStrip } from './ScoreBreakdown';
 import { ScoreField } from './ScoreField';
+import { SectionNote } from './SectionNote';
 import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
 import { useMatchEntry } from './useMatchEntry';
 import { usePenaltyCounters } from './usePenaltyCounters';
@@ -23,9 +24,9 @@ import { usePenaltyCounters } from './usePenaltyCounters';
  * Scoring on a full-size screen, laid out around how a match is watched.
  *
  *  - During play: a big Hive Tips pad (the one thing tapped over and over,
- *    so the whole surface is the +1; T on a keyboard does the same), the
- *    robot leave/park matrix beside it, and in a scrim the two foul
- *    counters.
+ *    so the whole surface is the +1; T on a keyboard does the same) with
+ *    its -1 under it, the robot leave/park matrix beside it, and in a scrim
+ *    the two foul counters.
  *  - After the buzzer: Flowers (its two counters, Flower and Flower Bonus,
  *    under one heading), Left in Hive and Garden as joined steppers, each
  *    under a line that says what to count, locked until the clock stops
@@ -37,7 +38,7 @@ import { usePenaltyCounters } from './usePenaltyCounters';
  * through `useLiveCounters`, `useMatchEntry` and `usePenaltyCounters`.
  */
 
-/** Width of the pad's "+1 Tip" key; the minus button sits just left of it */
+/** Width of the pad's "+1 Tip" key */
 const KEY_WIDTH = 'w-28';
 
 const TipsPad = () => {
@@ -90,8 +91,22 @@ const TipsPad = () => {
         ? 'border-team-blue-40'
         : 'border-gray-500';
 
+  // Taking one back: an outline, or greyed out with nothing to take back.
+  const canTakeBack = tippingEnabled && value > 0;
+  const minus = canTakeBack
+    ? `cursor-pointer active:scale-[0.94] ${
+        isDarkMode
+          ? 'border-team-blue-40 bg-team-dark text-white [@media(hover:hover)]:hover:bg-team-white-10'
+          : 'border-gray-500 bg-white text-gray-900 [@media(hover:hover)]:hover:bg-gray-100'
+      }`
+    : `cursor-not-allowed ${
+        isDarkMode
+          ? 'border-white/10 bg-white/[0.02] text-gray-500'
+          : 'border-gray-300 bg-gray-50 text-gray-500'
+      }`;
+
   return (
-    <div className="relative h-full min-h-[6.5rem]">
+    <div className="flex h-full flex-col gap-2">
       {/*
         The whole pad is the +1 button: the biggest target on the page for
         the one action repeated all match. The key reads "+1 Tip" and comes
@@ -104,7 +119,7 @@ const TipsPad = () => {
         onClick={() => handleTipping(Math.min(max, value + 1))}
         aria-describedby={describedById}
         aria-keyshortcuts={tippingLive ? TIP_SHORTCUT : undefined}
-        className={`grid h-full w-full grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)] gap-x-3 rounded-2xl border-2 px-5 py-3.5 text-left select-none touch-manipulation transition-[transform,background-color,border-color,box-shadow,filter] duration-150 ease-out ${surface}`}
+        className={`grid min-h-[6.5rem] w-full flex-1 grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)] gap-x-3 rounded-2xl border-2 px-5 py-3.5 text-left select-none touch-manipulation transition-[transform,background-color,border-color,box-shadow,filter] duration-150 ease-out ${surface}`}
       >
         <span
           className={`col-start-2 row-start-2 flex h-12 ${KEY_WIDTH} items-center justify-center gap-2 self-end rounded-xl border-2 text-base font-bold whitespace-nowrap ${key}`}
@@ -122,26 +137,18 @@ const TipsPad = () => {
         </span>
         <span
           aria-hidden
-          className="col-span-2 col-start-1 row-start-1 flex min-w-0 items-baseline justify-between gap-3"
+          className="col-span-2 col-start-1 row-start-1 flex min-w-0 items-baseline gap-2"
         >
-          <span className="flex items-baseline gap-2">
-            <span className="text-base font-semibold">
-              {ELEMENT_LABELS.tipping}
-            </span>
-            <span
-              className={`text-sm font-semibold tabular-nums ${
-                canAdd && !filled ? 'text-team-blue' : ''
-              }`}
-            >
-              {breakdown.tipping} pts
-            </span>
+          <span className="text-base font-semibold">
+            {ELEMENT_LABELS.tipping}
           </span>
-          {!tippingEnabled && lockedReason && (
-            <span className="flex min-w-0 items-center gap-1.5 text-right text-xs font-medium">
-              <Lock size={12} className="shrink-0" />
-              {lockedReason}
-            </span>
-          )}
+          <span
+            className={`text-sm font-semibold tabular-nums ${
+              canAdd && !filled ? 'text-team-blue' : ''
+            }`}
+          >
+            {breakdown.tipping} pts
+          </span>
         </span>
         <span
           aria-hidden
@@ -156,25 +163,34 @@ const TipsPad = () => {
         }`}
       </span>
 
-      {/* Taking one back is its own, quieter button beside the key. */}
-      <button
-        type="button"
-        disabled={!tippingEnabled || value <= 0}
-        onClick={() => handleTipping(Math.max(0, value - 1))}
-        aria-label={`Decrease ${ELEMENT_LABELS.tipping}`}
-        className={`absolute bottom-3.5 right-[8.75rem] flex h-12 w-11 items-center justify-center rounded-xl border-2 touch-manipulation transition-[background-color,transform] duration-150 ease-out active:scale-[0.94] disabled:pointer-events-none disabled:opacity-0 ${
-          filled
-            ? // Sits on the filled pad: drawn like its key, not as a hole
-              isDarkMode
-              ? 'border-black/25 bg-black/10 text-black hover:bg-black/20'
-              : 'border-white/50 bg-black/10 text-white hover:bg-black/20'
-            : isDarkMode
-              ? 'border-team-blue-40 bg-team-dark text-white hover:bg-team-white-10'
-              : 'border-gray-500 bg-white text-gray-900 hover:bg-gray-100'
-        }`}
-      >
-        <Minus size={18} />
-      </button>
+      {/*
+        Taking one back is a button of its own, outside the pad's edge and
+        under its count, far from the +1 key. It is there (greyed out) from
+        the start rather than appearing with the first tip: a button that
+        showed up inside the pad would land under the finger tapping it, and
+        turn the next tap into a -1. Why the pad is locked goes beside it,
+        in the row's spare width: inside the pad the line wrapped on a
+        tablet and made the pad taller until AUTO, so everything under it
+        moved up as play started.
+      */}
+      <div className="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          disabled={!canTakeBack}
+          onClick={() => handleTipping(Math.max(0, value - 1))}
+          aria-label={`Decrease ${ELEMENT_LABELS.tipping}`}
+          title="Take one tip off"
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 text-base font-bold tabular-nums select-none touch-manipulation transition-[background-color,transform] duration-150 ease-out ${minus}`}
+        >
+          <span aria-hidden>&minus;1</span>
+        </button>
+        {!tippingEnabled && lockedReason && (
+          // Read out with the pad, from its description
+          <div aria-hidden className="min-w-0">
+            <SectionNote icon="locked">{lockedReason}</SectionNote>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

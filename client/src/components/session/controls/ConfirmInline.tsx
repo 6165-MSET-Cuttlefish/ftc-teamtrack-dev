@@ -25,8 +25,9 @@ interface ConfirmInlineProps {
   onConfirm: () => void;
   /**
    * `danger`: going ahead throws something away, so that button is red.
-   * `save`: going ahead only saves sooner than usual; the safe choice is the
-   * filled one and going ahead is the quiet one.
+   * `save`: going ahead throws nothing away, it only moves the match on
+   * sooner than usual (ends it early, or saves it as it is); the safe choice
+   * is the filled one and going ahead is the quiet one.
    */
   tone?: 'danger' | 'save';
   /**

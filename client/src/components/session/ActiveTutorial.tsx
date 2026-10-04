@@ -245,8 +245,9 @@ const STEPS: StepDef[] = [
     body: () => (
       <div className="space-y-2">
         <div>
-          Save Match stores it; Start Match runs the next. Notes hold what the
-          numbers miss; the gear sets name, match type and Practice or Scrim.
+          End early stops a match before the buzzer. Save Match stores it; Start
+          Match runs the next. Notes hold what the numbers miss; the gear sets
+          name, match type and Practice or Scrim.
         </div>
         <div>
           Complete Session asks for a name; Sessions, Analysis, Charts and

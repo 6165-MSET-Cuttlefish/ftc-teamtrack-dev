@@ -2,6 +2,7 @@ import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 
 import { useSessionCore, useTheme } from '@/contexts';
 
+import { visibleBand } from '../controls/scrollUnderHeader';
 import {
   slotsInRegion,
   type ActiveSlots,
@@ -143,6 +144,24 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
     scoringLiveRef.current =
       matchActive && matchPhase !== 'ended' && !isTutorialActive;
   }, [matchActive, matchPhase, isTutorialActive]);
+
+  // A match starts with the page where the last one left it: scrolled down
+  // to End of Match at the buzzer, or further, to the Match Log. +1 Tip and
+  // the robot toggles would be above the screen when AUTO starts. If they
+  // are, the page goes back to the top, as for the first match, as the
+  // match starts (during the 3-2-1), so nothing moves once play is on. The
+  // walkthrough moves the page itself.
+  const wasActiveRef = useRef(matchActive);
+  useLayoutEffect(() => {
+    const started = matchActive && !wasActiveRef.current;
+    wasActiveRef.current = matchActive;
+    if (!started || isTutorialActive) return;
+    const live = document.querySelector('[data-tutorial="live"]');
+    if (live && live.getBoundingClientRect().top < visibleBand().top) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [matchActive, isTutorialActive]);
+
   // A phone on its side has no height to stack everything in, but has the
   // width to put the clock beside the scoring controls.
   const sideBySide = useActiveSideBySide();
