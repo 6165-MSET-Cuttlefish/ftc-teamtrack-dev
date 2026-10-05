@@ -1,6 +1,8 @@
 import { useTheme, useSessionCore } from '@/contexts';
-import { useState, useRef, useCallback, useEffect, useId } from 'react';
+import { useState, useRef, useCallback, useEffect, useId, useMemo } from 'react';
 import { Bold, Italic, Highlighter, List, ListOrdered, ChevronDown } from 'lucide-react';
+import { STORAGE_KEYS } from '@/constants';
+import { htmlToText } from '@/lib';
 
 const HIGHLIGHT_COLORS = [
   { name: 'Yellow', hex: '#FFFF00', bg: 'bg-yellow-200', darkBg: 'bg-yellow-500/40' },
@@ -23,6 +25,45 @@ export const Notes = () => {
   const [highlightDropdownOpen, setHighlightDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
+  const panelId = useId();
+  // Closed by default so the scoring page stays short; the choice sticks on
+  // this device. The editor stays mounted while closed (it is uncontrolled),
+  // only hidden.
+  const [expanded, setExpanded] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.NOTES_EXPANDED) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const preview = useMemo(
+    () => htmlToText(sessionData.notes ?? ''),
+    [sessionData.notes]
+  );
+
+  const toggleExpanded = () => {
+    const next = !expanded;
+    setExpanded(next);
+    try {
+      localStorage.setItem(STORAGE_KEYS.NOTES_EXPANDED, next ? '1' : '0');
+    } catch {
+      /* private mode: just this visit */
+    }
+    if (next) {
+      // Opening it is asking to write: put the caret at the end.
+      requestAnimationFrame(() => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        editor.focus();
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      });
+    }
+  };
 
   // The editor is uncontrolled (React re-rendering it would lose the caret),
   // so notes that change from outside it have to be pushed in by hand: the
@@ -82,10 +123,40 @@ export const Notes = () => {
   }, [handleEditorChange]);
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-team-blue text-2xl font-semibold leading-6">Session Notes</h2>
+    <div className={expanded ? 'space-y-4' : undefined}>
+      <h2 className="text-2xl font-semibold leading-6">
+        <button
+          type="button"
+          onClick={toggleExpanded}
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          className="group flex w-full min-w-0 items-center gap-3 text-left min-h-11"
+        >
+          <span className="text-team-blue shrink-0">Session Notes</span>
+          {!expanded && (
+            <span
+              className={`min-w-0 flex-1 truncate text-sm font-normal ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}
+            >
+              {preview || 'Add a note'}
+            </span>
+          )}
+          <ChevronDown
+            size={20}
+            aria-hidden
+            className={`ml-auto shrink-0 transition-transform ${
+              expanded ? 'rotate-180' : ''
+            } ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+          />
+        </button>
+      </h2>
 
-      <div className="flex flex-col gap-4 w-full">
+      <div
+        id={panelId}
+        hidden={!expanded}
+        className={`${expanded ? 'flex' : 'hidden'} flex-col gap-4 w-full`}
+      >
         <span
           id={labelId}
           // Read out as the editor's name; on screen the heading says it.

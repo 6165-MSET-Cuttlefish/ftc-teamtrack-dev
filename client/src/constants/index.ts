@@ -97,4 +97,6 @@ export const STORAGE_KEYS = {
    * discarded it, so that tab's Undo can't put a stored session back
    */
   SESSION_SAVED_ELSEWHERE: 'teamtrack-session-saved-elsewhere',
+  /** Whether Session Notes on the scoring page was left open on this device */
+  NOTES_EXPANDED: 'teamtrack-notes-expanded',
 } as const;
