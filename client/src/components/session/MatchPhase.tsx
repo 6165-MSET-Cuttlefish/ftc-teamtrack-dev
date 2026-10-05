@@ -1,3 +1,4 @@
+import { Pause } from 'lucide-react';
 import { useSession, useSessionCore, useTheme } from '@/contexts';
 
 import { phaseLabel, type PhaseLabel } from './matchPhaseLabel';
@@ -71,15 +72,24 @@ export const LivePhaseChip = ({ size }: { size?: keyof typeof CHIP_SIZES }) => {
   );
 };
 
+/** Same muted chip style as the phases, in amber: a pause, not an action. */
+const PAUSED_TONE: readonly [string, string] = [
+  'bg-amber-100 text-amber-900 ring-amber-300 hover:bg-amber-200',
+  'bg-amber-400/15 text-amber-200 ring-amber-400/35 hover:bg-amber-400/25',
+];
+
 /**
- * Shown wherever the clock is while the match is paused: a paused clock has
- * the same digits as a running one, so this is what says it has stopped —
- * and pressing it starts it again, without scrolling back to the controls.
- *
- * `stacked` puts the two halves on two lines, for the narrow space beside
- * the clock on a phone.
+ * Takes the phase chip's place wherever the clock is while the match is
+ * paused: a paused clock has the same digits as a running one, so this is
+ * what says it has stopped. Pressing it starts the clock again, for when
+ * the controls are scrolled away; its touch area reaches 44px around the
+ * chip without making it bigger.
  */
-export const PausedPill = ({ stacked = false }: { stacked?: boolean }) => {
+export const PausedPill = ({
+  size = 'md',
+}: {
+  size?: keyof typeof CHIP_SIZES;
+}) => {
   const { isDarkMode } = useTheme();
   const { matchPhase, setIsTimerRunning, setIsPickupPaused } = useSessionCore();
 
@@ -93,17 +103,10 @@ export const PausedPill = ({ stacked = false }: { stacked?: boolean }) => {
           ? setIsPickupPaused(false)
           : setIsTimerRunning(true)
       }
-      className={`min-h-11 rounded-full px-3 font-bold uppercase tracking-wide leading-tight whitespace-nowrap transition-colors inline-flex items-center justify-center ${
-        stacked ? 'flex-col text-[0.6875rem]' : 'gap-1 text-xs'
-      } ${
-        isDarkMode
-          ? 'bg-amber-500 text-black hover:bg-amber-400'
-          : 'bg-amber-600 text-black hover:bg-amber-500'
-      }`}
+      className={`relative inline-flex min-h-0 min-w-0 items-center gap-1 rounded-full font-bold uppercase tracking-wide leading-none whitespace-nowrap ring-1 ring-inset transition-colors after:absolute after:-inset-2 after:content-[''] [@media(pointer:coarse)]:after:-inset-3 ${CHIP_SIZES[size]} ${PAUSED_TONE[isDarkMode ? 1 : 0]}`}
     >
-      <span className={stacked ? 'text-xs' : undefined}>Paused</span>
-      {!stacked && <span aria-hidden>·</span>}
-      <span className="normal-case font-semibold">tap to resume</span>
+      <Pause className="h-3 w-3 fill-current" aria-hidden />
+      Paused
     </button>
   );
 };

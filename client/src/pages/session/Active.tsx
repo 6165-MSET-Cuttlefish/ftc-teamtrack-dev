@@ -141,8 +141,7 @@ const MatchClockRow = () => {
       <span aria-hidden className="hidden md:block" />
       <MatchClock />
       <div className="flex flex-col items-start justify-center gap-1 min-w-[6.75rem] [@media(max-height:500px)_and_(max-width:639px)]:flex-row [@media(max-height:500px)_and_(max-width:639px)]:items-center [@media(max-height:500px)_and_(max-width:639px)]:justify-start [@media(max-height:500px)_and_(max-width:639px)]:min-w-[10.5rem]">
-        <LivePhaseChip />
-        {paused && <PausedPill stacked />}
+        {paused ? <PausedPill /> : <LivePhaseChip />}
       </div>
     </div>
   );

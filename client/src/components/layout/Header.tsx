@@ -705,7 +705,6 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
     editingMatchId,
   } = useSession();
   const paused = useMatchPaused();
-  const isRoomy = useMediaQuery(SPLIT_QUERY) && !dense;
   // Scored as the match in the fields, like the Breakdown: a saved match
   // being edited keeps its own type.
   const total = calculateScore({
@@ -723,12 +722,10 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
         ? 'text-white'
         : 'text-gray-900';
 
-  // On a phone the pill takes the divider's place, and the total keeps its
-  // unit from 360px up; narrower than that, only the clock and the pill fit
-  // while paused. A wider bar has room for all of it: the logo gives up its
-  // name while the clock is there (see `Header`).
-  const totalClass = dense && paused ? 'max-[359px]:hidden' : '';
-  const dividerClass = dense && paused ? 'hidden' : totalClass;
+  // The paused chip is the phase chip's size, so pausing changes nothing
+  // else in the bar. On a phone the total keeps its unit from 360px up; a
+  // wider bar has room for all of it: the logo gives up its name while the
+  // clock is there (see `Header`).
   const unitClass = dense ? 'max-[359px]:hidden' : '';
 
   return (
@@ -749,16 +746,16 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
           })
         )}
       </span>
-      {paused ? <PausedPill stacked={!isRoomy} /> : <LivePhaseChip size="sm" />}
+      {paused ? <PausedPill size="sm" /> : <LivePhaseChip size="sm" />}
       <span
         aria-hidden="true"
-        className={`w-px ${dense ? 'h-6' : 'h-6 sm:h-8'} ${dividerClass} ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+        className={`w-px ${dense ? 'h-6' : 'h-6 sm:h-8'} ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
       />
       {/* Read out in words; an aria-label would need a role to be valid */}
       <span className="sr-only">{`Total score ${total} points`}</span>
       <span
         aria-hidden="true"
-        className={`font-bold text-team-blue tabular-nums leading-none ${totalClass} ${dense ? 'text-xl' : 'text-lg sm:text-2xl lg:text-3xl'}`}
+        className={`font-bold text-team-blue tabular-nums leading-none ${dense ? 'text-xl' : 'text-lg sm:text-2xl lg:text-3xl'}`}
       >
         {total}
         <span
