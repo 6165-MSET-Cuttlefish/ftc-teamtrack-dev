@@ -363,10 +363,11 @@ export const rankingPointTally = (
 
 /**
  * The most each counter can sensibly hold. 56 is every scoring element on
- * the field: 40 POLLEN plus 8 NECTAR per alliance.
+ * the field: 40 POLLEN plus 8 NECTAR per alliance. Hive Tips have no real
+ * cap; 999 only stops a mistyped number.
  */
 export const FIELD_LIMITS = {
-  tipping: 30,
+  tipping: 999,
   garden: 56,
   flower: 56,
   flowerBonus: 4,
