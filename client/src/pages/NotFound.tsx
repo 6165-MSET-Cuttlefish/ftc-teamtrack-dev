@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts';
 import { APP_CONFIG, ROUTES } from '@/constants';
-import { ArrowLeft, Home, Compass } from 'lucide-react';
-import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { EYEBROW_CLASS, PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 
+/**
+ * An unknown address: what happened in one line, one way on (Sessions), and
+ * a quiet way back. The header's back arrow and logo cover the rest.
+ */
 const NotFound = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
@@ -13,43 +18,32 @@ const NotFound = () => {
   }, []);
 
   return (
+    // flex-1 under the header (main is a flex column), not a second screen
+    // height that scrolls by exactly the header's.
     <div
-      className={`min-h-[100dvh] flex items-center justify-center px-4 page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+      className={`flex-1 flex items-center justify-center px-4 py-12 page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       <div className="text-center max-w-md">
-        <div className="mb-6 flex justify-center">
-          <div
-            className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
-              isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'
-            }`}
-          >
-            <Compass className="h-10 w-10 text-team-blue animate-pulse-subtle" />
-          </div>
-        </div>
-        <h1
-          className="text-8xl font-bold mb-3 text-team-blue"
-        >
-          404
-        </h1>
+        <p className={`${EYEBROW_CLASS} mb-2`}>Error 404</p>
+        <h1 className={`${PAGE_TITLE_CLASS} mb-3`}>Page not found</h1>
         <p
-          className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-xl font-semibold mb-2`}
-        >
-          Page not found
-        </p>
-        <p
-          className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} text-sm mb-8 max-w-xs mx-auto`}
+          className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} text-sm sm:text-base mb-8 max-w-xs mx-auto text-balance`}
         >
           The page you're looking for doesn't exist or may have been moved.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            to={ROUTES.SESSIONS}
-            className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-all duration-200 hover:scale-[1.02] shadow-lg hover:shadow-xl ${isDarkMode ? 'text-black' : 'text-white'}`}
+        <div className="flex flex-col items-center gap-2">
+          {/* The view's one fill: the header's New Session steps back */}
+          <Button
+            asChild
+            variant="primary"
+            size="touch"
+            className="px-6"
+            data-page-primary
           >
-            <Home className="h-4 w-4" />
-            Go to Sessions
-          </Link>
+            <Link to={ROUTES.SESSIONS}>Go to Sessions</Link>
+          </Button>
           <button
+            type="button"
             onClick={() => {
               if (window.history.length > 1) {
                 navigate(-1);
@@ -57,15 +51,9 @@ const NotFound = () => {
                 navigate(ROUTES.SESSIONS);
               }
             }}
-            aria-label="Go back to the previous page"
-            className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
-              isDarkMode
-                ? 'border-team-blue-40 text-team-white-60 hover:bg-team-blue/10 hover:text-white'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`inline-flex items-center rounded-md px-2 text-sm font-medium hover:underline [@media(pointer:coarse)]:min-h-11 min-h-9 ${isDarkMode ? 'text-team-white-60 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
           >
-            <ArrowLeft className="h-4 w-4" />
-            Go Back
+            Go back
           </button>
         </div>
       </div>

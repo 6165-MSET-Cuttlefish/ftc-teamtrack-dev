@@ -1,4 +1,6 @@
 import type { SessionFormData } from '@/types';
+import { htmlToText } from './htmlText';
+import { nextMatchNumber } from './matchNumber';
 import { loadStoredSession, readSessionToken } from './sessionPersistence';
 
 /**
@@ -6,29 +8,48 @@ import { loadStoredSession, readSessionToken } from './sessionPersistence';
  * null when nothing is at stake. Matches only reach the server when the
  * session is completed, and signing out clears the one in progress: its saved
  * matches, and a match that is still being scored.
+ *
+ * One consequence and one remedy, e.g. "Signing out discards Match 1 and this
+ * unsaved session. Save the match and complete the session to keep them."
+ *
+ * A session not started yet goes too: notes typed before the first Start are
+ * kept on this device like the rest of it, and are never wiped unasked.
  */
 export const describeSignOutLoss = (
-  sessionData: Pick<SessionFormData, 'isSessionCompleted' | 'matches'>,
+  sessionData: Pick<
+    SessionFormData,
+    'isSessionCompleted' | 'matches' | 'notes'
+  >,
   matchActive: boolean
 ): string | null => {
   if (sessionData.isSessionCompleted) return null;
   const saved = sessionData.matches?.length ?? 0;
-  if (saved === 0 && !matchActive) return null;
-
-  const why =
-    "Your session in progress hasn't been completed yet, and signing out clears it.";
-  if (saved === 0) {
-    return `The match in progress will be lost. ${why} Save the match and complete the session first to keep it.`;
+  if (saved === 0 && !matchActive) {
+    return htmlToText(sessionData.notes ?? '') !== ''
+      ? 'Signing out discards the session notes you have typed. Copy them somewhere first to keep them.'
+      : null;
   }
-  const matches = `${saved} saved ${saved === 1 ? 'match' : 'matches'}`;
-  return matchActive
-    ? `${matches} and the match in progress will be lost. ${why} Complete the session first to keep them.`
-    : `${matches} will be lost. ${why} Complete the session first to keep ${saved === 1 ? 'it' : 'them'}.`;
+
+  const savedMatches = `${saved} saved ${saved === 1 ? 'match' : 'matches'}`;
+  if (!matchActive) {
+    return `Signing out discards this unsaved session and its ${savedMatches}. Complete the session to keep ${saved === 1 ? 'it' : 'them'}.`;
+  }
+  // The match being scored is saved under the number /active gives it: one
+  // past the highest saved, not the count (a deleted match leaves a gap).
+  const running = `Match ${nextMatchNumber(sessionData.matches)}`;
+  const session =
+    saved === 0
+      ? 'this unsaved session'
+      : `this unsaved session with its ${savedMatches}`;
+  return `Signing out discards ${running} and ${session}. Save the match and complete the session to keep them.`;
 };
 
 /** What the "sign out?" question needs to know about a session */
 interface SignOutStake {
-  sessionData: Pick<SessionFormData, 'isSessionCompleted' | 'matches'>;
+  sessionData: Pick<
+    SessionFormData,
+    'isSessionCompleted' | 'matches' | 'notes'
+  >;
   matchActive: boolean;
 }
 

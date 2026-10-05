@@ -1,14 +1,20 @@
-import { useTheme } from '@/contexts';
+import { useLocation } from 'react-router-dom';
+import { useSessionCore, useTheme } from '@/contexts';
+import { ROUTES } from '@/constants';
 
 /**
  * Animated floating bubbles for the Deep Sea theme.
  * Renders a fixed overlay of rising bubbles using pure CSS animations.
- * Only visible when deepsea theme is active.
+ * Only visible when deepsea theme is active, and not over the scoring page
+ * while a match is running: they drifted across the steppers and toggles.
  */
 export const DeepSeaBubbles = () => {
   const { isDeepSeaMode } = useTheme();
+  const { matchActive } = useSessionCore();
+  const { pathname } = useLocation();
 
   if (!isDeepSeaMode) return null;
+  if (matchActive && pathname.startsWith(ROUTES.ACTIVE)) return null;
 
   const bubbles = [
     { size: 6,  left: 5,  delay: 0,    duration: 14, opacity: 0.25 },

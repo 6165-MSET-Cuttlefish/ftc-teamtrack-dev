@@ -17,7 +17,6 @@ export type ActiveSlotKey =
   | 'title'
   | 'timer'
   | 'status'
-  | 'lastMatch'
   | 'openSetup'
   | 'primaryAction'
   | 'sessionActions'

@@ -162,7 +162,13 @@
 
   html {
     height: 100%;
-    scroll-behavior: smooth;
+  }
+
+  /* Smooth anchor and script scrolls, unless less motion was asked for */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   #root {
@@ -409,6 +415,38 @@
 }
 
 /*
+ * Tapping or clicking a chart focuses its plot (Recharts makes it
+ * focusable), and the browser drew its own blue box around it. Keyboard
+ * focus keeps the app's ring (the *:focus-visible rule above).
+ */
+.recharts-wrapper :focus:not(:focus-visible),
+.recharts-surface:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/*
+ * Switching theme: every colour changes in the same frame. Without this,
+ * whatever has its own transition (buttons, cards, the clock, chips) faded
+ * from the old theme for 150-300 ms, so one frame showed white text on a
+ * white card or black blocks on a light page. ThemeContext sets the class
+ * just before the switch and clears it two frames later.
+ */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}
+
+/*
+ * While the guest backup bar is up (GuestPrompt sets the attribute), a
+ * page's own inline "sign up" line steps aside, so the two never say the
+ * same thing at once. A page opts a line in with data-hide-under-guest-prompt.
+ */
+[data-guest-prompt='shown'] [data-hide-under-guest-prompt] {
+  display: none !important;
+}
+
+/*
  * Chart legends: the swatch beside each label carries the series colour.
  * Recharts also paints the label in it (inline, hence !important), and most
  * series colours are under 4.5:1 as text.
@@ -499,9 +537,11 @@
   border-color: #daa520 !important;
 }
 
-.honeycomb .border-team-blue-40 {
-  border-color: rgba(218, 165, 32, 0.4) !important;
-}
+/*
+ * No override for border-team-blue-40: --team-blue already makes it this
+ * gold at 40%, and an !important copy only stopped a focused or hovered
+ * field's border from turning the full accent (focus-visible:border-team-blue).
+ */
 
 /* Gold glow effect for honeycomb theme */
 .honeycomb .border-glow:hover {
@@ -648,9 +688,7 @@
   border-color: #00BCD4 !important;
 }
 
-.deepsea .border-team-blue-40 {
-  border-color: rgba(0, 188, 212, 0.4) !important;
-}
+/* No border-team-blue-40 override: see the honeycomb note above. */
 
 /* Cyan glow effect for deep sea theme */
 .deepsea .border-glow:hover {

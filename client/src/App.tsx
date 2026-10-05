@@ -1,5 +1,12 @@
-import { Suspense, useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { Suspense, useEffect, useRef, type ReactNode } from 'react';
+import {
+  BrowserRouter,
+  NavigationType,
+  Routes,
+  Route,
+  useLocation,
+  useNavigationType,
+} from 'react-router-dom';
 import { logEvent } from 'firebase/analytics';
 import { getFirebase } from '@/lib';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
@@ -8,15 +15,23 @@ import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import '@/lib/pendingSessionDeletes';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { AuthProvider, ThemeProvider, SessionProvider, TeamProvider } from '@/contexts';
 import {
+  AuthProvider,
+  ThemeProvider,
+  SessionProvider,
+  TeamProvider,
+  useAuth,
+} from '@/contexts';
+// The shell's parts come from their own folders, not the '@/components'
+// barrel: through it the first download also carried every scoring-page
+// module (and DOMPurify), which only /active and the review pages use.
+import {
+  DeepSeaBubbles,
   ErrorBoundary,
   Header,
-  ProtectedRoute,
-  GuestPrompt,
-  HomeRedirect,
-  DeepSeaBubbles,
-} from '@/components';
+  LoadingScreen,
+} from '@/components/layout';
+import { GuestPrompt, HomeRedirect, ProtectedRoute } from '@/components/auth';
 import { ROUTES } from '@/constants';
 
 const Active = lazyWithRetry(() => import('./pages/session/Active'));
@@ -32,9 +47,23 @@ const SharedSession = lazyWithRetry(() => import('./pages/session/SharedSession'
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
 const JoinTeam = lazyWithRetry(() => import('./pages/team/JoinTeam'));
 
+/**
+ * One Analytics page_view per page visited. A page rewriting its own
+ * address in place (Sessions keeps its filters, sort and search in the
+ * query string with replace navigations) is the same visit, so it doesn't
+ * count again. A push, Back/Forward, the first load and a redirect to
+ * another page still do.
+ */
 const RouteTracker = () => {
   const location = useLocation();
+  const navigationType = useNavigationType();
+  const lastPathname = useRef<string | null>(null);
   useEffect(() => {
+    const samePage =
+      navigationType === NavigationType.Replace &&
+      lastPathname.current === location.pathname;
+    lastPathname.current = location.pathname;
+    if (samePage) return;
     getFirebase().then(firebase => {
       if (firebase?.analytics) {
         logEvent(firebase.analytics, 'page_view', {
@@ -43,7 +72,7 @@ const RouteTracker = () => {
         });
       }
     });
-  }, [location]);
+  }, [location, navigationType]);
   return null;
 };
 
@@ -61,13 +90,23 @@ const RouteErrorBoundary = ({ children }: { children: ReactNode }) => {
   );
 };
 
-const LoadingFallback = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-    <div className="relative">
-      <div className="animate-spin rounded-full h-10 w-10 border-2 border-team-blue/20 border-t-team-blue"></div>
-    </div>
-    <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
-  </div>
+/**
+ * Holds a page until sign-in has settled, on the same loading screen as a
+ * page download (Suspense below), so a cold load is one loading screen in
+ * the page's own colour from the first frame. ProtectedRoute and
+ * HomeRedirect show that screen too while they wait, for any use outside
+ * this wrapper.
+ */
+const AuthReady = ({ children }: { children: ReactNode }) => {
+  const { loading } = useAuth();
+  return loading ? <LoadingScreen /> : <>{children}</>;
+};
+
+/** A page for a signed-in user or a guest, once sign-in has settled */
+const Protected = ({ children }: { children: ReactNode }) => (
+  <AuthReady>
+    <ProtectedRoute>{children}</ProtectedRoute>
+  </AuthReady>
 );
 
 const App = () => (
@@ -82,9 +121,12 @@ const App = () => (
               <div className="min-h-screen flex flex-col">
                 <DeepSeaBubbles />
                 <Header />
-                <main className="flex-1">
+                {/* A flex column, so a page that fills the screen does it
+                    with flex-1 under the header rather than a second
+                    100dvh that scrolls by exactly the header's height. */}
+                <main className="flex-1 flex flex-col">
                   <RouteErrorBoundary>
-                  <Suspense fallback={<LoadingFallback />}>
+                  <Suspense fallback={<LoadingScreen />}>
                     <Routes>
                       <Route path={ROUTES.LOGIN} element={<Login />} />
                       <Route path={ROUTES.SIGNUP} element={<Signup />} />
@@ -95,9 +137,9 @@ const App = () => (
                       <Route
                         path={ROUTES.TEAM_INVITE}
                         element={
-                          <ProtectedRoute>
+                          <Protected>
                             <JoinTeam />
-                          </ProtectedRoute>
+                          </Protected>
                         }
                       />
 
@@ -108,54 +150,58 @@ const App = () => (
 
                       <Route
                         path={ROUTES.HOME}
-                        element={<HomeRedirect />}
+                        element={
+                          <AuthReady>
+                            <HomeRedirect />
+                          </AuthReady>
+                        }
                       />
                       <Route
                         path={ROUTES.ACTIVE}
                         element={
-                          <ProtectedRoute>
+                          <Protected>
                             <Active />
-                          </ProtectedRoute>
+                          </Protected>
                         }
                       />
                       <Route
                         path={ROUTES.ANALYSIS}
                         element={
-                          <ProtectedRoute>
+                          <Protected>
                             <Analysis />
-                          </ProtectedRoute>
+                          </Protected>
                         }
                       />
                       <Route
                         path={ROUTES.PROFILE}
                         element={
-                          <ProtectedRoute>
+                          <Protected>
                             <Profile />
-                          </ProtectedRoute>
+                          </Protected>
                         }
                       />
                       <Route
                         path={ROUTES.SESSIONS}
                         element={
-                          <ProtectedRoute>
+                          <Protected>
                             <Sessions />
-                          </ProtectedRoute>
+                          </Protected>
                         }
                       />
                       <Route
                         path={ROUTES.COMPARE}
                         element={
-                          <ProtectedRoute>
+                          <Protected>
                             <Compare />
-                          </ProtectedRoute>
+                          </Protected>
                         }
                       />
                       <Route
                         path={ROUTES.CHARTS}
                         element={
-                          <ProtectedRoute>
+                          <Protected>
                             <Charts />
-                          </ProtectedRoute>
+                          </Protected>
                         }
                       />
 

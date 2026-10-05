@@ -142,10 +142,12 @@ export const useLiveCounters = () => {
     // next step: the button stays usable, as an outline.
     liveActionFilled:
       !pendingConfirm && (tippingLive || (isTutorialActive && tippingEnabled)),
+    // Short enough for one line beside the pad's -1 on a tablet and under
+    // the phone's row; the field it is under already names Hive Tips.
     lockedReason: awaitingStart
-      ? 'Hive Tips unlock when the match starts'
+      ? 'Unlocks at Start'
       : inCountdown
-        ? 'Hive Tips unlock when AUTO starts'
+        ? 'Unlocks when Auto starts'
         : undefined,
   };
 };

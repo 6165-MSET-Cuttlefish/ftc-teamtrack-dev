@@ -4,12 +4,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts';
 import { useEscapeKey } from '@/hooks';
 import { formatDate, isArchived, rankingPointTally, toDate } from '@/lib';
-import { ROUTES, SESSION_LIMITS } from '@/constants';
+import { SESSION_LIMITS } from '@/constants';
 import type { Session } from '@/types';
 import { ignoreHeldEnter } from '@/components/session/controls/ignoreHeldEnter';
 import { useArmed } from '@/components/session/controls/useArmed';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
+import { SECTION_TITLE_CLASS } from '@/components/ui/page-header';
+import {
+  CHIP_BASE,
+  CHIP_SIZES,
+  DATA_CLASS,
+  DESTRUCTIVE_CLASS,
+  chipTone,
+} from '@/components/ui/tokens';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +55,7 @@ import {
   scoresOf,
   sessionDateLabel,
 } from './sessionList';
+import { SignUpToShare } from './SignUpToShare';
 
 /** How long after its menu closes a card ignores presses on itself */
 const MENU_SETTLE_MS = 500;
@@ -69,7 +78,9 @@ interface DeleteConfirmProps {
  * The question a card asks before its session goes: worded, naming the
  * session and what goes with it, with the safe answer first. Delete ignores
  * presses for a moment after the question appears, so a double tap on the
- * menu can never answer it.
+ * menu can never answer it. On a phone the question has a line of its own
+ * with the answers under it; from 640px it takes the stats' place, so the
+ * card keeps its height and its neighbours in the row don't stretch.
  */
 const DeleteConfirm = ({
   name,
@@ -87,13 +98,13 @@ const DeleteConfirm = ({
       role="group"
       aria-labelledby={questionId}
       onClick={stop}
-      className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3 cursor-default ${
+      className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3 cursor-default sm:border-t-0 sm:pt-0 ${
         isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
       }`}
     >
       <p
         id={questionId}
-        className={`flex-1 basis-40 min-w-0 text-sm leading-snug break-words ${
+        className={`basis-full min-w-0 text-sm leading-snug break-words text-balance sm:flex-1 sm:basis-40 ${
           isDarkMode ? 'text-gray-100' : 'text-gray-900'
         }`}
       >
@@ -109,6 +120,8 @@ const DeleteConfirm = ({
           size="touch"
           onKeyDown={ignoreHeldEnter}
           onClick={onKeep}
+          // The same shape as Delete beside it
+          className="border-2 font-bold"
         >
           Keep
         </Button>
@@ -118,7 +131,7 @@ const DeleteConfirm = ({
           onClick={() => {
             if (armed) onConfirm();
           }}
-          className="h-11 px-4 rounded-lg border-2 border-red-600 bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors"
+          className={`h-11 px-4 rounded-lg border-2 text-sm font-bold transition-colors ${DESTRUCTIVE_CLASS}`}
         >
           Delete
         </button>
@@ -138,26 +151,31 @@ interface StatProps {
    */
   phone: { before: string } | { after: string } | 'value';
   children: ReactNode;
-  /** Phone only: a dot between this stat and the one before it */
-  separated?: boolean;
   /** Leave the stat out of the phone's line (it has nothing to say there) */
   wideOnly?: boolean;
+  /** A bolder value: the number the line leads with */
+  strong?: boolean;
   className?: string;
 }
 
 /**
  * One number about a session. On a phone the stats run together as a line
- * of text ("6 matches · avg 131 · 48:12"), each one kept whole when the
- * line wraps; from 640px each sits in its own cell with an icon and its
- * label above it.
+ * of text ("Best 142 · 6 matches · avg 131 · 48:12"), each one kept whole
+ * when the line wraps; from 640px each sits in its own cell with an icon and
+ * its label above it.
+ *
+ * The dot before each stat is drawn in the gap the stat's own left padding
+ * makes. The line is pulled left by that much inside a box that clips, so
+ * the dot of whichever stat starts a line is cut off: a wrapped line never
+ * starts with a dot, and none is left dangling at the end of one.
  */
 const Stat = ({
   icon: Icon,
   label,
   phone,
   children,
-  separated = false,
   wideOnly = false,
+  strong = false,
   className = '',
 }: StatProps) => {
   const { isDarkMode } = useTheme();
@@ -179,22 +197,17 @@ const Stat = ({
     </span>
   );
   const valueNode = (
-    <span
-      className={`font-medium tabular-nums ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-    >
+    <span className={`${strong ? 'font-bold' : 'font-medium'} ${DATA_CLASS}`}>
       {children}
     </span>
   );
 
   return (
     <div
-      className={`${wideOnly ? 'hidden' : 'inline'} whitespace-nowrap sm:flex sm:items-center sm:gap-2 sm:whitespace-normal ${className}`}
+      className={`${wideOnly ? 'hidden' : ''} relative whitespace-nowrap pl-3 before:absolute before:left-[5px] before:top-1/2 before:h-[3px] before:w-[3px] before:-translate-y-1/2 before:rounded-full ${
+        isDarkMode ? 'before:bg-gray-500' : 'before:bg-gray-400'
+      } sm:flex sm:items-center sm:gap-2 sm:whitespace-normal sm:pl-0 sm:before:hidden ${className}`}
     >
-      {separated && (
-        <span aria-hidden="true" className={`sm:hidden ${faint}`}>
-          ·{' '}
-        </span>
-      )}
       <Icon
         aria-hidden="true"
         className={`hidden sm:block h-4 w-4 shrink-0 ${faint}`}
@@ -228,6 +241,12 @@ interface SessionCardProps {
   ownerName?: string;
   /** Name of the viewer's team when this session isn't filed under it */
   notSharedWith?: string;
+  /**
+   * How many matches the whole session holds, when `session` carries only
+   * the ones a match-type filter counts (Sessions under a one-type filter).
+   * Delete removes them all, so its question says this number.
+   */
+  matchesInSession?: number;
 }
 
 export const SessionCard = ({
@@ -239,6 +258,7 @@ export const SessionCard = ({
   onShare,
   ownerName,
   notSharedWith,
+  matchesInSession,
 }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
@@ -338,16 +358,17 @@ export const SessionCard = ({
   const archived = isArchived(session);
 
   const muted = isDarkMode ? 'text-gray-300' : 'text-gray-600';
-  const chip = `inline-flex items-center gap-1 max-w-full rounded-full border px-2 py-0.5 text-xs font-medium ${
-    isDarkMode
-      ? 'border-team-blue-40 text-team-white-60'
-      : 'border-gray-300 text-gray-600'
-  }`;
+  const chip = `${CHIP_BASE} ${CHIP_SIZES.sm} ${chipTone('neutral', isDarkMode)}`;
+  /** The kind of session and of its matches, only when not the usual one */
+  const sessionType = session.sessionType || 'Practice';
+  const matchType = matchTypeLabel(session);
 
   const title = (
     <CardTitle
       ref={titleRef}
-      className={`text-lg font-semibold leading-snug tracking-normal line-clamp-2 break-words ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
+      // A section of the page: under the h1, beside the sr-only Quick Stats h2
+      as="h2"
+      className={`${SECTION_TITLE_CLASS} leading-snug tracking-normal line-clamp-2 break-words`}
     >
       {/* The card opens on a click anywhere; the name is what a keyboard reaches */}
       <Link to={href} onClick={stop} className="rounded-sm hover:underline">
@@ -370,238 +391,237 @@ export const SessionCard = ({
       }}
     >
       <div className="flex flex-col gap-2 p-4 sm:gap-3 sm:p-5">
-        {/* The name has the first row to itself, at any width */}
-        {isEditing ? (
-          <div onClick={stop}>
-            <Input
-              ref={nameInputRef}
-              value={editedName}
-              onChange={e => setEditedName(e.target.value)}
-              maxLength={SESSION_LIMITS.MAX_SESSION_NAME_LENGTH}
-              aria-label="Session name"
-              className={`h-11 text-lg font-semibold md:text-lg ${
-                isDarkMode
-                  ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                  : 'bg-gray-50 border-team-blue/60 text-team-blue placeholder-gray-500'
-              }`}
-              autoFocus
-              onFocus={e => e.currentTarget.select()}
-              onBlur={handleSaveName}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  handleSaveName();
-                } else if (e.key === 'Escape') {
-                  handleCancelEdit();
-                }
-              }}
-            />
-          </div>
-        ) : isTitleTruncated ? (
-          <Tooltip>
-            <TooltipTrigger asChild>{title}</TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs break-words">
-              {name}
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          title
-        )}
-
-        {/* When and what kind on the left; best score and the actions on the right */}
-        <div className="flex items-center gap-2">
-          <div
-            className={`flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm ${muted}`}
-          >
-            <span className="basis-full inline-flex items-center gap-1.5">
-              <Calendar aria-hidden="true" className="h-4 w-4 shrink-0" />
-              {dateLabel ? (
-                <time
-                  dateTime={toDate(session.createdAt).toISOString()}
-                  title={formatDate(session.createdAt)}
-                >
-                  {dateLabel}
-                </time>
-              ) : (
-                <span>No date</span>
-              )}
-            </span>
-            <span className={chip} data-testid="session-type">
-              {session.sessionType || 'Practice'}
-            </span>
-            <span className={chip} data-testid="session-match-type">
-              {matchTypeLabel(session)}
-            </span>
-            {ownerName && (
-              <span className={`${chip} min-w-0`}>
-                <User aria-hidden="true" className="h-3 w-3 shrink-0" />
-                <span className="truncate">{ownerName}</span>
-              </span>
-            )}
-            {notSharedWith && (
-              <span
-                className={chip}
-                title={
-                  // Leaving a team doesn't take a session out of it.
-                  session.teamId
-                    ? `Still filed under another team, whose members can see it. It isn't shared with ${notSharedWith}.`
-                    : `Only you can see this session. It isn't shared with ${notSharedWith}.`
-                }
-              >
-                {session.teamId ? 'Other team' : 'Not shared'}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0">
-            <span
-              role="img"
-              aria-label={
-                highestScore === null
-                  ? 'No matches scored'
-                  : `Best match score ${highestScore}`
-              }
-              className="inline-flex items-center gap-1.5 rounded-xl bg-team-blue/15 px-2.5 py-1.5 text-team-blue"
-            >
-              <Trophy className="h-4 w-4 shrink-0" />
-              {/* The small word needs more contrast on the tint than the accent gives in the light theme */}
-              <span
-                className={`text-xs font-semibold whitespace-nowrap ${isDarkMode ? '' : 'text-gray-700'}`}
-              >
-                Best{' '}
-                <span className="text-lg font-bold leading-none tabular-nums text-team-blue">
-                  {highestScore ?? '–'}
-                </span>
-              </span>
-            </span>
-
-            {isSavingName ? (
-              <div
-                role="status"
-                aria-label="Saving name"
-                className="mx-2 h-4 w-4 border-2 border-team-blue border-t-transparent rounded-full animate-spin"
-              />
+        {/* The name and the card's menu; nothing else squeezes the name */}
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            {isEditing ? (
+              <div onClick={stop}>
+                <Input
+                  ref={nameInputRef}
+                  value={editedName}
+                  onChange={e => setEditedName(e.target.value)}
+                  maxLength={SESSION_LIMITS.MAX_SESSION_NAME_LENGTH}
+                  aria-label="Session name"
+                  className={`h-11 text-lg font-semibold md:text-lg ${
+                    isDarkMode
+                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
+                      : 'bg-gray-50 border-team-blue/60 text-gray-900 placeholder-gray-500'
+                  }`}
+                  autoFocus
+                  onFocus={e => e.currentTarget.select()}
+                  onBlur={handleSaveName}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      handleSaveName();
+                    } else if (e.key === 'Escape') {
+                      handleCancelEdit();
+                    }
+                  }}
+                />
+              </div>
+            ) : isTitleTruncated ? (
+              <Tooltip>
+                <TooltipTrigger asChild>{title}</TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs break-words">
+                  {name}
+                </TooltipContent>
+              </Tooltip>
             ) : (
-              <DropdownMenu
-                onOpenChange={open => {
-                  if (!open) menuClosedAt.current = Date.now();
+              title
+            )}
+          </div>
+
+          {isSavingName ? (
+            <div
+              role="status"
+              aria-label="Saving name"
+              className="mx-2 mt-1 h-4 w-4 shrink-0 border-2 border-team-blue border-t-transparent rounded-full animate-spin"
+            />
+          ) : (
+            <DropdownMenu
+              onOpenChange={open => {
+                if (!open) menuClosedAt.current = Date.now();
+              }}
+            >
+              <DropdownMenuTrigger asChild>
+                {/* Centred on the name's first line, taking no more height than it */}
+                <button
+                  type="button"
+                  aria-label={`More actions for ${name}`}
+                  onClick={stop}
+                  className={`-mr-2 -my-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-team-blue/20 hover:text-team-blue [@media(pointer:coarse)]:-my-2.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
+                    isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+                  }`}
+                >
+                  <MoreVertical className="h-5 w-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="min-w-[160px]"
+                // A portal still bubbles through React to the card.
+                onClick={stop}
+                onCloseAutoFocus={e => {
+                  const target = focusAfterMenu.current?.current;
+                  focusAfterMenu.current = null;
+                  if (!target) return;
+                  // Rename, Delete and a guest's Share carry on in the card.
+                  e.preventDefault();
+                  if (document.activeElement !== target) target.focus();
                 }}
               >
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={`More actions for ${name}`}
-                    onClick={stop}
-                    className={`-mr-2 inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-team-blue/20 hover:text-team-blue [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
-                      isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                    }`}
+                <DropdownMenuItem onSelect={handleShare} className={MENU_ITEM}>
+                  {onShare ? (
+                    <Share2 className="h-4 w-4" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                  <span>Share link</span>
+                </DropdownMenuItem>
+                {onNameChange && (
+                  <DropdownMenuItem
+                    onSelect={startRename}
+                    className={MENU_ITEM}
                   >
-                    <MoreVertical className="h-5 w-5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="min-w-[160px]"
-                  // A portal still bubbles through React to the card.
-                  onClick={stop}
-                  onCloseAutoFocus={e => {
-                    const target = focusAfterMenu.current?.current;
-                    focusAfterMenu.current = null;
-                    if (!target) return;
-                    // Rename, Delete and a guest's Share carry on in the card.
-                    e.preventDefault();
-                    if (document.activeElement !== target) target.focus();
-                  }}
-                >
-                  <DropdownMenuItem onSelect={handleShare} className={MENU_ITEM}>
-                    {onShare ? (
-                      <Share2 className="h-4 w-4" />
-                    ) : (
-                      <Lock className="h-4 w-4" />
-                    )}
-                    <span>Share link</span>
+                    <Pencil className="h-4 w-4" />
+                    <span>Rename</span>
                   </DropdownMenuItem>
-                  {onNameChange && (
-                    <DropdownMenuItem
-                      onSelect={startRename}
-                      className={MENU_ITEM}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      <span>Rename</span>
-                    </DropdownMenuItem>
-                  )}
-                  {onToggleArchive && (
-                    <DropdownMenuItem
-                      onSelect={onToggleArchive}
-                      className={MENU_ITEM}
-                    >
-                      {archived ? (
-                        <ArchiveRestore className="h-4 w-4" />
-                      ) : (
-                        <Archive className="h-4 w-4" />
-                      )}
-                      <span>{archived ? 'Unarchive' : 'Archive'}</span>
-                    </DropdownMenuItem>
-                  )}
-                  {onDelete && (
-                    <DropdownMenuItem
-                      onSelect={askDelete}
-                      className={`${MENU_ITEM} text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>Delete</span>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
+                )}
+                {onToggleArchive && (
+                  <DropdownMenuItem
+                    onSelect={onToggleArchive}
+                    className={MENU_ITEM}
+                  >
+                    {archived ? (
+                      <ArchiveRestore className="h-4 w-4" />
+                    ) : (
+                      <Archive className="h-4 w-4" />
+                    )}
+                    <span>{archived ? 'Unarchive' : 'Archive'}</span>
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    onSelect={askDelete}
+                    className={`${MENU_ITEM} text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete</span>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
-        <div className="text-sm sm:grid sm:grid-cols-3 sm:items-start sm:gap-x-3 sm:gap-y-3">
-          <Stat
-            icon={Hash}
-            label="Matches"
-            phone={{ after: matchCount === 1 ? 'match' : 'matches' }}
-          >
-            {matchCount}
-          </Stat>{' '}
-          <Stat
-            icon={Gauge}
-            label="Avg Score"
-            phone={{ before: 'avg' }}
-            separated
-            // An empty session has no average to put in the phone's line.
-            wideOnly={averageScore === null}
-          >
-            {averageScore ?? '–'}
-            {averageScore !== null && (
-              <span className="hidden sm:inline"> pts</span>
+        {/* When, then a chip for anything that isn't the usual: a Scrim, a
+            match type other than Full Game, whose it is, who can't see it */}
+        <div
+          className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm ${muted}`}
+        >
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <Calendar aria-hidden="true" className="h-4 w-4 shrink-0" />
+            {dateLabel ? (
+              <time
+                dateTime={toDate(session.createdAt).toISOString()}
+                title={formatDate(session.createdAt)}
+              >
+                {dateLabel}
+              </time>
+            ) : (
+              <span>No date</span>
             )}
-          </Stat>{' '}
-          <Stat
-            icon={Clock}
-            label="Duration"
-            phone="value"
-            separated
-            wideOnly={!session.sessionDuration}
-          >
-            {session.sessionDuration || 'N/A'}
-          </Stat>{' '}
-          {/* SWARM and POLLINATOR only: a win or tie needs the opponent's score */}
-          <Stat
-            icon={Award}
-            label="Ranking Points"
-            phone="value"
-            separated
-            wideOnly={rp.rate === null}
-            className="sm:col-span-3"
-          >
-            <span data-testid="session-ranking-points">
-              {rp.rate === null
-                ? 'N/A'
-                : `${rp.earned} of ${rp.possible} RP (${rp.rate}%)`}
+          </span>
+          {sessionType !== 'Practice' && (
+            <span className={chip} data-testid="session-type">
+              {sessionType}
             </span>
-          </Stat>
+          )}
+          {matchType !== 'Full Game' && (
+            <span className={chip} data-testid="session-match-type">
+              {matchType}
+            </span>
+          )}
+          {ownerName && (
+            <span className={`${chip} min-w-0 max-w-full gap-1`}>
+              <User aria-hidden="true" className="h-3 w-3 shrink-0" />
+              <span className="truncate">{ownerName}</span>
+            </span>
+          )}
+          {notSharedWith && (
+            <span
+              className={chip}
+              title={
+                // Leaving a team doesn't take a session out of it.
+                session.teamId
+                  ? `Still filed under another team, whose members can see it. It isn't shared with ${notSharedWith}.`
+                  : `Only you can see this session. It isn't shared with ${notSharedWith}.`
+              }
+            >
+              {session.teamId ? 'Other team' : 'Not shared'}
+            </span>
+          )}
+        </div>
+
+        {/* While the card asks to delete, the question takes the stats'
+            place from 640px (see DeleteConfirm) */}
+        <div className={`overflow-hidden ${deleteConfirm ? 'sm:hidden' : ''}`}>
+          <div className="-ml-3 flex flex-wrap gap-y-0.5 text-sm sm:ml-0 sm:grid sm:grid-cols-3 sm:items-start sm:gap-x-3 sm:gap-y-3">
+            <Stat
+              icon={Trophy}
+              label="Best"
+              phone={{ before: 'Best' }}
+              strong
+              // Nothing scored, nothing to lead the phone's line with.
+              wideOnly={highestScore === null}
+            >
+              {highestScore ?? '–'}
+              {highestScore !== null && (
+                <span className="hidden sm:inline"> pts</span>
+              )}
+            </Stat>
+            <Stat
+              icon={Hash}
+              label="Matches"
+              phone={{ after: matchCount === 1 ? 'match' : 'matches' }}
+            >
+              {matchCount}
+            </Stat>
+            <Stat
+              icon={Gauge}
+              label="Avg Score"
+              phone={{ before: 'avg' }}
+              // An empty session has no average to put in the phone's line.
+              wideOnly={averageScore === null}
+            >
+              {averageScore ?? '–'}
+              {averageScore !== null && (
+                <span className="hidden sm:inline"> pts</span>
+              )}
+            </Stat>
+            <Stat
+              icon={Clock}
+              label="Duration"
+              phone="value"
+              wideOnly={!session.sessionDuration}
+            >
+              {session.sessionDuration || 'N/A'}
+            </Stat>
+            {/* SWARM and POLLINATOR only: a win or tie needs the opponent's score */}
+            <Stat
+              icon={Award}
+              label="Ranking Points"
+              phone="value"
+              wideOnly={rp.rate === null}
+              className="sm:col-span-2"
+            >
+              <span data-testid="session-ranking-points">
+                {rp.rate === null
+                  ? 'N/A'
+                  : `${rp.earned} of ${rp.possible} RP (${rp.rate}%)`}
+              </span>
+            </Stat>
+          </div>
         </div>
 
         {shareNote && (
@@ -615,16 +635,7 @@ export const SessionCard = ({
             }`}
           >
             <Lock aria-hidden="true" className="h-4 w-4 shrink-0" />
-            <p className="flex-1 min-w-0">
-              Sharing needs a free account ·{' '}
-              <Link
-                ref={signUpRef}
-                to={ROUTES.SIGNUP}
-                className="inline-flex items-center font-semibold text-team-blue underline underline-offset-2 whitespace-nowrap [@media(pointer:coarse)]:min-h-11"
-              >
-                Sign up
-              </Link>
-            </p>
+            <SignUpToShare linkRef={signUpRef} className="flex-1 min-w-0" />
             <button
               type="button"
               aria-label="Dismiss"
@@ -641,7 +652,7 @@ export const SessionCard = ({
         {deleteConfirm && (
           <DeleteConfirm
             name={name}
-            matchCount={matchCount}
+            matchCount={matchesInSession ?? matchCount}
             keepRef={keepRef}
             onKeep={() => setDeleteConfirm(false)}
             onConfirm={() => {

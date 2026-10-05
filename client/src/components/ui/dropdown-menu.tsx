@@ -4,6 +4,12 @@ import { Check, ChevronRight, Circle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Every row that can be chosen is 44px tall for a finger, on a touch screen
+ * of any width. A mouse keeps the compact 32px rows.
+ */
+const TOUCH_ROW = '[@media(pointer:coarse)]:min-h-11';
+
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -26,6 +32,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       'flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent data-[state=open]:bg-accent',
+      TOUCH_ROW,
       inset && 'pl-8',
       className
     )}
@@ -82,6 +89,7 @@ const DropdownMenuItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      TOUCH_ROW,
       inset && 'pl-8',
       className
     )}
@@ -98,6 +106,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      TOUCH_ROW,
       className
     )}
     checked={checked}
@@ -122,6 +131,7 @@ const DropdownMenuRadioItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      TOUCH_ROW,
       className
     )}
     {...props}

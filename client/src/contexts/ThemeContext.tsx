@@ -2,7 +2,7 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
+  useLayoutEffect,
   type ReactNode,
 } from 'react';
 import { STORAGE_KEYS } from '@/constants';
@@ -19,6 +19,23 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+/**
+ * Turns every CSS transition off (`.theme-switching` in global.css) until
+ * the new theme has been painted. Otherwise anything with its own transition
+ * fades from the old colours while the page around it has already switched:
+ * white text on a white card, black blocks on a light page. Two frames: the
+ * first paints the new theme, the second gives the transitions back once
+ * nothing is changing any more, so none of them starts.
+ */
+const suspendTransitions = () => {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.classList.add('theme-switching');
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => root.classList.remove('theme-switching'))
+  );
+};
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
@@ -49,7 +66,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const isHoneycombMode = themeMode === 'honeycomb';
   const isDeepSeaMode = themeMode === 'deepsea';
 
-  useEffect(() => {
+  // Before paint, so the theme classes on <html> change in the same frame as
+  // the colour classes React renders from isDarkMode.
+  useLayoutEffect(() => {
     if (typeof document === 'undefined') return;
     document.documentElement.classList.remove('dark', 'honeycomb', 'deepsea');
     if (themeMode === 'dark') {
@@ -62,6 +81,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   }, [themeMode]);
 
   const toggleTheme = () => {
+    suspendTransitions();
     setThemeMode((prev: ThemeMode) => {
       let next: ThemeMode;
       if (prev === 'dark') next = 'light';
@@ -75,6 +95,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const setTheme = (mode: ThemeMode) => {
+    suspendTransitions();
     setThemeMode(mode);
     localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(mode));
   };

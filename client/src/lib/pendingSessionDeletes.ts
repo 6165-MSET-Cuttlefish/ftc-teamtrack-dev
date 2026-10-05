@@ -32,7 +32,6 @@ import {
   writeGuestSessions,
 } from './guestSessions';
 import { logger } from './logger';
-import { formatDate } from './utils';
 
 /** What is remembered across a reload for one waiting delete. */
 interface StoredDelete {
@@ -353,7 +352,7 @@ export const undoSessionDelete = (sessionId: string): boolean => {
  * the signed-in account, or null for a guest.
  */
 export const scheduleSessionDelete = (
-  session: Pick<Session, 'id' | 'sessionName' | 'createdAt'>,
+  session: Pick<Session, 'id' | 'sessionName'>,
   uid: string | null
 ): void => {
   if (pending.has(session.id)) return;
@@ -379,9 +378,10 @@ export const scheduleSessionDelete = (
   publish();
 
   const finish = () => void commit(session.id);
-  toast.success(`Deleted "${name}"`, {
+  // A plain one-line toast, like a discarded match's: something thrown away
+  // that Undo can bring back is not a success. The name says which session.
+  toast.message(`Deleted "${name}"`, {
     id: toastId(session.id),
-    description: formatDate(session.createdAt),
     duration: UI_TIMING.UNDO_WINDOW,
     onAutoClose: finish,
     onDismiss: finish,

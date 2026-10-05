@@ -22,6 +22,66 @@ const DESKTOP_VISIBLE_TOASTS = 3;
 const OVER_HEADER_TOP = 'calc(env(safe-area-inset-top, 0px) + 8px)';
 
 /**
+ * A phone on its side has a slim bar whose buttons start 4px down, and no
+ * status bar over it: a toast starts level with them, so none of their
+ * tops shows above it. Its close button sits lower on its corner there, to
+ * stay on the screen.
+ */
+const OVER_SHORT_HEADER_TOP = 'calc(env(safe-area-inset-top, 0px) + 4px)';
+const SHORT_CLOSE_BUTTON =
+  '[--toast-close-button-transform:translate(-35%,-20%)]';
+
+/**
+ * The invisible 44px tap area round a toast's small buttons, an `::after`
+ * on each. It is laid out from inside the button's 1px border, hence the
+ * odd insets: 13px round the 20px close circle, 11px round the 24px-high
+ * Undo.
+ *
+ * Over the header the close circle sits on the toast's top-left corner, 2px
+ * from the screen's edges (1px down on a phone on its side): a ring round
+ * it would be a third off the screen. There the area runs right and down
+ * from the screen's corner instead, over the start of the toast, which a
+ * tap closes anyway.
+ *
+ * Undo's area is lifted over Sonner's own strip along the toast's top edge
+ * (the hover gap above it), which on a phone on its side, where the toast
+ * is only 44px tall, would take the area's top pixel.
+ */
+const CLOSE_TAP_AREA = "after:absolute after:-inset-[13px] after:content-['']";
+const CLOSE_TAP_AREA_OVER_HEADER =
+  "after:absolute after:-left-[3px] after:-top-[2px] after:size-11 after:content-['']";
+const ACTION_TAP_AREA =
+  "after:absolute after:-inset-[11px] after:z-[1] after:content-['']";
+
+/**
+ * Over the header a toast reaches as far out as the header's own buttons
+ * (their 44px circles end 8px from each edge), so none of them peeks out
+ * past its ends.
+ */
+const OVER_HEADER_SIDE = 8;
+
+/**
+ * Sonner sizes a toast from the offsets only up to 600px wide; wider (a
+ * phone on its side) it is a 356px box in the middle, which cut through
+ * whichever header button it landed on. Over the header it spans the bar
+ * there too.
+ */
+const OVER_HEADER_WIDTH = {
+  '--width': `calc(100vw - ${2 * OVER_HEADER_SIDE}px)`,
+} as CSSProperties;
+
+/**
+ * Over the header a toast is at least as tall as the header's row of 44px
+ * buttons, so a one-line toast hides them whole instead of cutting them in
+ * half: from 8px down it reaches past their bottom edge on every page (56px
+ * on a 68px bar, 52px on the scoring page's). A phone on its side has a
+ * slimmer bar (buttons at 4 - 48px), and a taller toast would reach past it
+ * onto the scoring controls.
+ */
+const OVER_HEADER_MIN_H = 'min-h-[3.25rem]';
+const OVER_SHORT_HEADER_MIN_H = 'min-h-11';
+
+/**
  * A phone held sideways: wide enough for the desktop layout, but too short
  * for a bottom toast to stay clear of the session buttons.
  */
@@ -35,7 +95,10 @@ const SHORT_VIEWPORT_QUERY = '(max-height: 500px)';
 const SURFACE_VARS = {
   '--normal-bg': 'hsl(var(--popover))',
   '--normal-text': 'hsl(var(--popover-foreground))',
-  '--normal-border': 'hsl(var(--border))',
+  // The accent, as on the toast's own border (see `toast` below): the close
+  // button on its corner takes this on the dark themes, so the border runs
+  // on round it instead of stopping short on either side.
+  '--normal-border': 'rgb(var(--team-blue) / 0.4)',
 } as CSSProperties;
 
 /**
@@ -77,21 +140,35 @@ const Toaster = ({ ...props }: ToasterProps) => {
   // waits meanwhile, and comes back with the time it had left.
   const position = onTop ? 'top-center' : 'bottom-right';
   const visibleToasts = onTop ? 1 : DESKTOP_VISIBLE_TOASTS;
+  const overHeader = {
+    top: isShort ? OVER_SHORT_HEADER_TOP : OVER_HEADER_TOP,
+    left: OVER_HEADER_SIDE,
+    right: OVER_HEADER_SIDE,
+  };
   const placement: Partial<ToasterProps> = onTop
-    ? {
-        offset: { top: OVER_HEADER_TOP },
-        mobileOffset: { top: OVER_HEADER_TOP },
-        gap: 0,
-      }
+    ? { offset: overHeader, mobileOffset: overHeader, gap: 0 }
     : { offset: { top: DIALOG_GAP } };
   const sectionRef = useRef<HTMLElement>(null);
   useToastCountdowns({ sectionRef, position, visibleToasts });
   // A button in a toast over the header keeps Sonner's 24px height, so the
   // toast is no taller than the header; the invisible ring around it takes a
-  // 44px tap, as on the close button. Elsewhere it grows to 44px on touch.
-  const toastButton = onTop
-    ? "relative min-h-0 min-w-0 after:absolute after:-inset-2.5 after:content-['']"
-    : '[@media(pointer:coarse)]:min-h-11';
+  // 44px tap (`ACTION_TAP_AREA`), inside the toast's own height, as on the
+  // close button. Elsewhere it grows to 44px on touch.
+  //
+  // Either way it looks like the app's own buttons rather than Sonner's
+  // square inverse chip, the brightest thing on screen: an outline in the
+  // toast's own text colour, so it reads on a plain toast and a coloured one
+  // alike. Sonner's rules for it outrank a class, hence the `!`s; where
+  // color-mix() is missing the border is simply the full text colour. The
+  // colour carries a `color:` hint: without it `cn` took it for a border
+  // width and dropped `!border`, and Sonner's `border: none` left the width
+  // at `medium`, a 3px ring.
+  const toastButton = cn(
+    '!rounded-lg !border !border-solid !border-[color:color-mix(in_srgb,currentColor_40%,transparent)] !bg-transparent !text-current font-semibold',
+    onTop
+      ? cn('relative min-h-0 min-w-0', ACTION_TAP_AREA)
+      : '[@media(pointer:coarse)]:min-h-11'
+  );
 
   return (
     <Sonner
@@ -105,9 +182,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       // dismissed without waiting it out.
       richColors
       closeButton
-      style={
-        isDarkMode ? SURFACE_VARS : { ...SURFACE_VARS, ...LIGHT_TEXT_VARS }
-      }
+      style={{
+        ...SURFACE_VARS,
+        ...(isDarkMode ? undefined : LIGHT_TEXT_VARS),
+        ...(onTop ? OVER_HEADER_WIDTH : undefined),
+      }}
       toastOptions={{
         classNames: {
           // Tailwind's reset zeroes Sonner's 1px border, hence `border`. The
@@ -116,15 +195,28 @@ const Toaster = ({ ...props }: ToasterProps) => {
           // toast keeps its own border colour (Sonner's rule is stronger).
           toast: cn(
             'group toast border border-[rgb(var(--team-blue)/0.4)] group-[.toaster]:shadow-lg',
-            onTop && 'py-1.5'
+            onTop &&
+              cn(
+                'py-1.5',
+                isShort
+                  ? cn(OVER_SHORT_HEADER_MIN_H, SHORT_CLOSE_BUTTON)
+                  : OVER_HEADER_MIN_H
+              )
           ),
-          // Two lines of text still fit over the header
-          title: onTop ? 'leading-tight' : undefined,
+          // Two lines of text still fit over the header, and break evenly
+          // rather than leave one word on the second
+          title: onTop ? 'leading-tight text-balance' : undefined,
           description: onTop ? 'leading-tight' : undefined,
           // The global phone rule would grow the 20px close circle to 44px.
-          // It keeps its size; the invisible ring around it takes the tap.
-          closeButton:
-            "min-h-0 min-w-0 after:absolute after:-inset-3 after:content-['']",
+          // It keeps its size; the invisible area around it takes the tap
+          // (see `CLOSE_TAP_AREA`). Ringed in the toast's border colour
+          // (Tailwind's reset had zeroed Sonner's ring; the dark themes take
+          // the colour from --normal-border), it sits on the corner as a
+          // badge instead of biting a piece out of the toast's border.
+          closeButton: cn(
+            'min-h-0 min-w-0 border border-[rgb(var(--team-blue)/0.4)]',
+            onTop ? CLOSE_TAP_AREA_OVER_HEADER : CLOSE_TAP_AREA
+          ),
           actionButton: toastButton,
           cancelButton: toastButton,
         },

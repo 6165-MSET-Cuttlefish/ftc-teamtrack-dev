@@ -67,28 +67,43 @@ export const ELEMENT_COLORS = {
   penalties: { dark: '#dc2626', light: '#991b1b' }, // red, as Major
 } satisfies Record<string, Tone>;
 
-/** The theme's accent, which every theme sets to hold on its own cards. */
-const ACCENT = 'rgb(var(--team-blue))';
+/**
+ * The theme's text colour: near-white on the dark themes, near-black on
+ * light. Never the accent, which is gold in Honeycomb (beside the Hive Tips
+ * amber) and cyan in Deep Sea (beside the Left in Hive sky).
+ */
+const FOREGROUND = 'hsl(var(--foreground))';
 
-/** Colours of the chart marks that are not one scoring element. */
+/** Slate, for the marks that are a reference rather than a result. */
+const NEUTRAL = { dark: '#94a3b8', light: '#64748b' };
+
+/**
+ * Colours of the chart marks that are not one scoring element. Green and red
+ * mean better and worse and nothing else; a neutral mark is slate.
+ */
 export const CHART_COLORS = {
-  /** A match or session score: the accent, and the heaviest mark drawn */
-  total: { dark: ACCENT, light: ACCENT },
+  /** A match or session score: the text colour, and the heaviest mark drawn */
+  total: { dark: FOREGROUND, light: FOREGROUND },
   /** A reference line, such as the session average */
-  average: { dark: '#94a3b8', light: '#64748b' },
-  movingAverage: { dark: '#10b981', light: '#059669' },
+  average: NEUTRAL,
+  /** A running average over the last few sessions: slate, drawn dashed */
+  movingAverage: NEUTRAL,
   /** Time between Hive Tips */
-  cycle: { dark: '#8b5cf6', light: '#7c3aed' },
+  cycle: NEUTRAL,
   /** The better and the worse of a pair, such as fastest and slowest */
   better: { dark: '#10b981', light: '#059669' },
   worse: { dark: '#ef4444', light: '#dc2626' },
 } satisfies Record<string, Tone>;
 
-/** The ranking points a match earns from its own scoring. */
+/**
+ * The ranking points a match earns from its own scoring. SWARM is earned by
+ * Leave and Park, so it is their slate; both POLLINATORs are earned by Hive
+ * Tips, so they are two shades of its amber (each at least 3:1 on its card).
+ */
 export const RANKING_POINT_COLORS = {
-  swarm: { dark: '#10b981', light: '#059669' },
-  pollinator1: { dark: '#f59e0b', light: '#d97706' },
-  pollinator2: { dark: '#8b5cf6', light: '#7c3aed' },
+  swarm: ELEMENT_COLORS.robots,
+  pollinator1: { dark: '#fcd34d', light: '#d97706' }, // amber-300 / amber-600
+  pollinator2: { dark: '#d97706', light: '#92400e' }, // amber-600 / amber-800
 } satisfies Record<string, Tone>;
 
 /**

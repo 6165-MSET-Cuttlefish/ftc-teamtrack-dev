@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { mapAuthError, type AuthErrorInfo } from '@/lib/authErrors';
 import { getPendingInviteDestination } from '@/lib/pendingInvite';
-import { ROUTES } from '@/constants';
+import { APP_CONFIG, ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert';
 import { PendingInviteBanner } from '@/components/auth/PendingInviteBanner';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
@@ -44,6 +45,10 @@ const Signup = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    document.title = `Create Account - ${APP_CONFIG.name}`;
+  }, []);
 
   const from = location.state?.from?.pathname || ROUTES.SESSIONS;
 
@@ -124,17 +129,16 @@ const Signup = () => {
   };
 
   return (
+    // flex-1 under the header (main is a flex column), not a second screen
+    // height; on a phone the card starts at the top instead of mid-screen.
     <div
-      className={`min-h-[100dvh] flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-3 sm:px-4 md:px-6 lg:px-8`}
+      className={`flex-1 flex items-start sm:items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-6 sm:py-8 px-3 sm:px-4 md:px-6 lg:px-8`}
     >
       <Card
         className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
-          <CardTitle
-            as="h1"
-            className={`text-2xl sm:text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
-          >
+          <CardTitle as="h1" className={`${PAGE_TITLE_CLASS} text-center`}>
             Create Account
           </CardTitle>
           <CardDescription
@@ -144,7 +148,7 @@ const Signup = () => {
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4 px-4 sm:px-6">
+        <CardContent className="space-y-6 px-4 sm:px-6">
           <PendingInviteBanner />
 
           <AuthErrorAlert error={error} actions={['sign-in']} />
@@ -153,7 +157,7 @@ const Signup = () => {
             <div className="space-y-2">
               <Label
                 htmlFor="displayName"
-                className={isDarkMode ? 'text-team-white' : 'text-black'}
+                className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
                 Full Name
               </Label>
@@ -181,7 +185,7 @@ const Signup = () => {
             <div className="space-y-2">
               <Label
                 htmlFor="email"
-                className={isDarkMode ? 'text-team-white' : 'text-black'}
+                className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
                 Email
               </Label>
@@ -209,7 +213,7 @@ const Signup = () => {
             <div className="space-y-2">
               <Label
                 htmlFor="password"
-                className={isDarkMode ? 'text-team-white' : 'text-black'}
+                className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
                 Password
               </Label>
@@ -265,7 +269,7 @@ const Signup = () => {
             <div className="space-y-2">
               <Label
                 htmlFor="confirmPassword"
-                className={isDarkMode ? 'text-team-white' : 'text-black'}
+                className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
                 Confirm Password
               </Label>
@@ -322,24 +326,28 @@ const Signup = () => {
               className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
               disabled={loading}
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? 'Creating account…' : 'Create account'}
             </Button>
           </form>
 
           <div className="flex items-center gap-4">
-            <div className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`} />
+            <div
+              className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-300'}`}
+            />
             <span
               className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
             >
               Or continue with
             </span>
-            <div className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-team-blue/60'}`} />
+            <div
+              className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-300'}`}
+            />
           </div>
 
           <Button
             type="button"
             variant="outline"
-            className={`w-full ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 text-team-white hover:bg-team-blue-10' : 'border-team-blue/60 bg-[#FEFEFE] text-black hover:bg-team-blue/10'}`}
+            className={`w-full ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20 text-white hover:bg-team-blue-10' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'}`}
             onClick={handleGoogleSignUp}
             disabled={loading}
           >
@@ -365,7 +373,7 @@ const Signup = () => {
           </Button>
         </CardContent>
 
-        <CardFooter className="flex justify-center">
+        <CardFooter className="flex justify-center px-4 sm:px-6">
           <div
             className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >

@@ -18,6 +18,8 @@ import {
   pickScoringFields,
 } from '@/lib';
 import {
+  hasDraftContent,
+  isWorthStoring,
   saveSessionToStorage,
   loadStoredSession,
   removeStoredSession,
@@ -80,7 +82,12 @@ interface SessionCoreContextType {
   /** Full replacement of session data (not a merge) */
   replaceSessionData: (data: SessionFormData) => void;
   completeSession: (timerValue: string) => void;
-  resetSession: () => void;
+  /**
+   * Go to a new session. A draft (not started, no saved matches, but notes
+   * or changed settings) is the new session being set up and is kept;
+   * `discardDraft` throws it away too.
+   */
+  resetSession: (options?: { discardDraft?: boolean }) => void;
   /**
    * Counts sessions: goes up whenever the session is reset (New Session,
    * Cancel Session, an account switch) or completed. Per-session UI state
@@ -910,9 +917,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         if (synced !== 'kept' && synced !== 'own') return;
       }
 
-      // Only a session that was started or has saved matches is restored on
-      // load, so nothing else is worth keeping.
-      if (!flags.hasStarted && data.matches.length === 0) {
+      // Only a session worth restoring is kept: one that was started, has
+      // saved matches, or is a draft with notes or changed settings. A
+      // brand-new session is not stored (nor is one taken back to that).
+      if (!isWorthStoring(data, flags.hasStarted)) {
         if (lastSeenTokenRef.current !== null) {
           lastSeenTokenRef.current = null;
           removeStoredSession();
@@ -1044,11 +1052,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       // The tutorial puts the session data back when it closes, but not
       // this: an edit opened under it would be left over the wrong fields.
       if (isTutorialActive) return;
-      setCurrentMatchData(pickScoringFields(sessionData));
+      // Going from one saved match straight to another: the fields hold the
+      // one being left, and the in-progress match is already waiting.
+      if (!editingMatchId) setCurrentMatchData(pickScoringFields(sessionData));
       setSessionData(prev => ({ ...prev, ...pickScoringFields(match) }));
       setEditingMatchId(match.id);
     },
-    [sessionData, isTutorialActive]
+    [sessionData, isTutorialActive, editingMatchId]
   );
 
   const returnToCurrentMatch = useCallback(() => {
@@ -1082,41 +1092,67 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setCurrentMatchData(null);
   }, [editingMatchId, currentMatchData]);
 
-  const resetSession = useCallback(() => {
-    resetState();
-    const token = readSessionToken();
-    if (token !== null && token !== lastSeenTokenRef.current) {
-      // Another tab has a session going that this one never loaded (this tab
-      // was showing a completed one). Join it instead of wiping it.
-      syncFromStorage();
-      return;
-    }
-    lastSeenTokenRef.current = null;
-    removeStoredSession();
-  }, [resetState, syncFromStorage]);
+  const resetSession = useCallback(
+    ({ discardDraft = false }: { discardDraft?: boolean } = {}) => {
+      // A draft is what the user has typed into the session they are about
+      // to start, so going to a new session ("Start your first session" on
+      // Sessions) carries it on rather than wiping it. Only an explicit
+      // discard (Discard Session, which has its Undo) throws it away.
+      const { data, flags } = unsavedRef.current;
+      if (
+        !discardDraft &&
+        !data.isSessionCompleted &&
+        !flags.hasStarted &&
+        !flags.matchActive &&
+        (data.matches?.length ?? 0) === 0 &&
+        hasDraftContent(data)
+      ) {
+        // Still pick up a session another tab has started since.
+        if (readSessionToken() !== lastSeenTokenRef.current) syncFromStorage();
+        return;
+      }
+      resetState();
+      const token = readSessionToken();
+      if (token !== null && token !== lastSeenTokenRef.current) {
+        // Another tab has a session going that this one never loaded (this
+        // tab was showing a completed one). Join it instead of wiping it.
+        syncFromStorage();
+        return;
+      }
+      lastSeenTokenRef.current = null;
+      removeStoredSession();
+    },
+    [resetState, syncFromStorage]
+  );
 
   const skipToTeleop = useCallback(() => {
+    const clock = clockRef.current;
     if (
-      sessionData.matchType === 'Full Game' &&
-      (matchPhase === 'auton' || matchPhase === 'controller_pickup')
+      envRef.current.matchType !== 'Full Game' ||
+      (clock.phase !== 'auton' && clock.phase !== 'controller_pickup')
     ) {
-      cueMatchAudio(TELEOP_AUDIO_OFFSET, true);
-
-      commitClock(
-        clock => ({
-          ...clock,
-          phase: 'teleop',
-          running: true,
-          remainingMs: GAME_TIMING.TELEOP_DURATION_SECONDS * 1000,
-          deadline: null,
-          pickupRemainingMs: 0,
-          pickupDeadline: null,
-          pickupPaused: false,
-        }),
-        true
-      );
+      return;
     }
-  }, [sessionData.matchType, matchPhase, commitClock]);
+    // A paused match stays paused, as with Skip to Endgame: TELEOP starts
+    // on Resume, and so does its audio.
+    const wasRunning =
+      clock.phase === 'controller_pickup' ? !clock.pickupPaused : clock.running;
+    cueMatchAudio(TELEOP_AUDIO_OFFSET, wasRunning);
+
+    commitClock(
+      current => ({
+        ...current,
+        phase: 'teleop',
+        running: wasRunning,
+        remainingMs: GAME_TIMING.TELEOP_DURATION_SECONDS * 1000,
+        deadline: null,
+        pickupRemainingMs: 0,
+        pickupDeadline: null,
+        pickupPaused: false,
+      }),
+      true
+    );
+  }, [commitClock]);
 
   const skipToEndgame = useCallback(() => {
     const clock = clockRef.current;

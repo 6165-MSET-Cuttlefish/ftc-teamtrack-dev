@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -23,6 +24,7 @@ import {
   emptyScoringFields,
   FIELD_LIMITS,
   generateId,
+  htmlToText,
   liveMatchType,
   logger,
   markSessionCompleted,
@@ -32,6 +34,8 @@ import {
   sessionMatchType,
   writeGuestSessions,
 } from '@/lib';
+import { nextMatchNumber } from '@/lib/matchNumber';
+import { formatPoints } from '@/lib/points';
 import { firebaseService, teamService } from '@/services';
 import type {
   Match,
@@ -41,7 +45,7 @@ import type {
   Team,
 } from '@/types';
 import { absorbDoubleTap, watchTaps } from './doubleTap';
-import { scrollUnderHeader } from './scrollUnderHeader';
+import { revealFirstStepperRow } from './revealStepperRow';
 import { useCompactControls } from './useCompactControls';
 
 export interface LiveControlsProps {
@@ -58,7 +62,7 @@ const UNREACHABLE_MESSAGE =
   "Can't reach the server - your matches are kept on this device, try again";
 const RUNNING_MATCH_MESSAGE = 'Save or discard the running match first';
 const SAVING_TOAST_ID = 'saving-session';
-const WALKTHROUGH_TOAST_ID = 'walkthrough-open';
+const TUTORIAL_TOAST_ID = 'walkthrough-open';
 const CLEARED_TOAST_ID = 'cleared-before-start';
 const DISCARDED_TOAST_ID = 'session-discarded';
 /** One toast per reason Complete Session can't go ahead, however often it is pressed */
@@ -160,9 +164,8 @@ let pendingSave: PendingSave | null = null;
 
 class SaveTimeoutError extends Error {}
 
-/** "178 pts", "1 pt": kept on one line wherever it lands in a sentence */
-export const formatPoints = (points: number): string =>
-  `${points}\u00A0${points === 1 ? 'pt' : 'pts'}`;
+/** "178 pts", "1 pt": the shared one, for the controls that import it from here */
+export { formatPoints };
 
 /**
  * Reject with SaveTimeoutError if `promise` hasn't settled by `deadline`, a
@@ -350,10 +353,10 @@ export const useLiveControlsState = ({
   const navigate = useNavigate();
   const uid = user?.uid;
   /**
-   * Where toasts go while the walkthrough is open. On a full-size screen
-   * its card docks in the bottom-right corner, under Sonner's toasts, which
+   * Where toasts go while the tutorial is open. On a full-size screen its
+   * card docks in the bottom-right corner, under Sonner's toasts, which
    * covered the card's Skip and Next: the very buttons a "Close the
-   * walkthrough to undo" sends the user to. Those toasts go to the top-right
+   * tutorial to undo" sends the user to. Those toasts go to the top-right
    * corner instead. On a phone toasts are at the top already.
    */
   const walkthroughToastPosition = useCompactControls()
@@ -378,13 +381,18 @@ export const useLiveControlsState = ({
   };
   const [showSaveSessionDialog, setShowSaveSessionDialog] =
     useState<boolean>(false);
+  /**
+   * Another match was tapped while the one open for editing has changes.
+   * The Match Log alone says so, under the row that was tapped; Save and
+   * Discard close it.
+   */
   const [showUnsavedEditWarning, setShowUnsavedEditWarning] =
     useState<boolean>(false);
   /** True from the moment a save is confirmed until it succeeds or fails */
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
   const completingRef = useRef(false);
   /**
-   * When Start / Skip to Buzzer / End match / Save Match / Save Changes /
+   * When Start / Skip to Buzzer / End Match / Save Match / Save Changes /
    * the session save last went through, to absorb double taps. On the
    * page's own clock (performance.now()): the device clock can be set back,
    * which would leave these buttons dead until it caught up.
@@ -516,8 +524,8 @@ export const useLiveControlsState = ({
   // offering one when it opens move clear of its card, and go back to where
   // toasts normally are when it closes, over the header's own buttons no
   // longer (shown again with the same id, they keep their Undo and get
-  // their full time back). Once it has closed, "Close the walkthrough to
-  // ..." is done with, and would sit in front of the Undo it sent the user
+  // their full time back). Once it has closed, "Close the tutorial to ..."
+  // is done with, and would sit in front of the Undo it sent the user
   // to.
   const undoToastsMovedRef = useRef(false);
   useEffect(() => {
@@ -533,7 +541,7 @@ export const useLiveControlsState = ({
         });
       }
     };
-    if (!isTutorialActive) toast.dismiss(WALKTHROUGH_TOAST_ID);
+    if (!isTutorialActive) toast.dismiss(TUTORIAL_TOAST_ID);
     const position = isTutorialActive ? walkthroughToastPosition : undefined;
     if (position) {
       undoToastsMovedRef.current = true;
@@ -555,15 +563,26 @@ export const useLiveControlsState = ({
   const hasUnsavedMatchData =
     currentMatchScore.earned > 0 || currentMatchScore.penalties > 0;
 
+  const hasSavedMatches = (sessionData.matches?.length ?? 0) > 0;
+  const notesHaveText = useMemo(
+    () => htmlToText(sessionData.notes ?? '') !== '',
+    [sessionData.notes]
+  );
+  /** Something a discard would throw away: matches, numbers, notes */
   const hasUnsavedWork =
     !sessionData.isSessionCompleted &&
-    ((sessionData.matches && sessionData.matches.length > 0) ||
-      hasUnsavedMatchData ||
-      (sessionData.notes && sessionData.notes.trim().length > 0));
+    (hasSavedMatches || hasUnsavedMatchData || notesHaveText);
+  /**
+   * Worth a "leave this page?" from the browser. Not notes on their own:
+   * a draft is kept in this browser and comes back with the page, and it is
+   * not a session in progress.
+   */
+  const warnBeforeUnload =
+    !sessionData.isSessionCompleted && (hasSavedMatches || hasUnsavedMatchData);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedWork) {
+      if (warnBeforeUnload) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -571,7 +590,7 @@ export const useLiveControlsState = ({
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedWork]);
+  }, [warnBeforeUnload]);
 
   /**
    * Whether the signed-in user is at their session cap. Only their own
@@ -652,8 +671,11 @@ export const useLiveControlsState = ({
   };
 
   const savedMatchCount = sessionData.matches?.length ?? 0;
-  /** The number the match in the fields will be saved under */
-  const matchNumber = savedMatchCount + 1;
+  /**
+   * The number the match in the fields will be saved under. Matches keep
+   * their numbers when one is deleted, so it is one past the highest.
+   */
+  const matchNumber = nextMatchNumber(sessionData.matches);
   /** The buzzer has gone and the match is waiting to be saved */
   const matchEnded = matchActive && matchPhase === 'ended';
   /** Nothing counted in Flower, Flower Bonus, Left in Hive or Garden */
@@ -732,8 +754,8 @@ export const useLiveControlsState = ({
    */
   const isInWalkthrough = (action: string) => {
     if (!isTutorialActive) return false;
-    toast.info(`Close the walkthrough to ${action}`, {
-      id: WALKTHROUGH_TOAST_ID,
+    toast.info(`Close the tutorial to ${action}`, {
+      id: TUTORIAL_TOAST_ID,
       position: walkthroughToastPosition,
     });
     return true;
@@ -745,7 +767,9 @@ export const useLiveControlsState = ({
     absorbDoubleTap();
     dismissUndoToasts();
     setSavedSessionId(null);
-    resetSession();
+    // New Session (after a completed one) or Discard Session: both are asked
+    // for, so a draft of notes goes too (Discard has its Undo).
+    resetSession({ discardDraft: true });
     onSessionReset?.();
     setPendingConfirm(null);
     setNewSessionConfirm(false);
@@ -834,8 +858,8 @@ export const useLiveControlsState = ({
           // when it closes; the toast stays for when it has.
           if (tutorialActiveRef.current) {
             event.preventDefault();
-            toast.info('Close the walkthrough to undo', {
-              id: WALKTHROUGH_TOAST_ID,
+            toast.info('Close the tutorial to undo', {
+              id: TUTORIAL_TOAST_ID,
               position: walkthroughToastPosition,
             });
             return;
@@ -875,7 +899,7 @@ export const useLiveControlsState = ({
    */
   const isSavingSession = () => {
     if (!completingRef.current) return false;
-    toast.message('Saving the session - one moment', { id: SAVING_TOAST_ID });
+    toast.message('Saving the session…', { id: SAVING_TOAST_ID });
     return true;
   };
 
@@ -1012,7 +1036,7 @@ export const useLiveControlsState = ({
   };
 
   /**
-   * The match straight to its buzzer: Skip to Buzzer, or End match in answer
+   * The match straight to its buzzer: Skip to Buzzer, or End Match in answer
    * to End early. It ends as at a natural buzzer (see `skipToEnd`): End of
    * Match and End park unlock, the page brings them into view, and Save
    * Match comes up where the pressed button was on a full-size screen. The
@@ -1066,16 +1090,26 @@ export const useLiveControlsState = ({
   /** "Save": the answer that saves a match with nothing counted at the end. */
   const handleConfirmSaveMatch = () => saveCurrentMatch();
 
-  /** "Count them first": back to the page, at the End of Match section. */
+  /**
+   * "Count them first": back to the page, at the End of Match steppers,
+   * shown as the buzzer shows them. Measured once Save Match is back in
+   * the question's place: on a phone the question made the bar taller.
+   */
   const handleCountFirst = () => {
     handleKeepConfirm();
-    const section = document.querySelector(END_OF_MATCH_SECTION);
-    if (section) scrollUnderHeader(section, { onlyIfHidden: true });
+    requestAnimationFrame(() => {
+      const section = document.querySelector(END_OF_MATCH_SECTION);
+      if (section) revealFirstStepperRow(section);
+    });
   };
 
-  /** Open a logged match for editing. */
+  /**
+   * Open a logged match for editing; with another one open (and unchanged),
+   * go straight over to this one.
+   */
   const handleStartEditingMatch = (match: Match) => {
     if (isSavingSession() || isInWalkthrough('edit a match')) return;
+    setShowUnsavedEditWarning(false);
     startEditingMatch(match);
   };
 
@@ -1261,7 +1295,7 @@ export const useLiveControlsState = ({
       sessionContentKey(current) === pending.content;
     if (unchanged) {
       finishSavedSession(saved.id, pending.duration);
-      toast.success('Session saved successfully!');
+      toast.success('Session saved');
     } else {
       firebaseService.deleteSession(saved.id).catch(() => {});
     }
@@ -1435,7 +1469,7 @@ export const useLiveControlsState = ({
         { duration: UI_TIMING.UNDO_WINDOW }
       );
     } else {
-      toast.success('Session saved successfully!');
+      toast.success('Session saved');
     }
     return true;
   };
@@ -1465,7 +1499,7 @@ export const useLiveControlsState = ({
     }
 
     finishSavedSession(guestSession.id, sessionToSave.sessionDuration);
-    toast.success('Session saved locally!');
+    toast.success('Session saved on this device');
 
     if (
       !guestStorageWarned &&
@@ -1539,9 +1573,6 @@ export const useLiveControlsState = ({
     if (index === -1) return;
     const deleted = before[index];
 
-    const renumber = (matches: Match[]) =>
-      matches.map((m, i) => ({ ...m, matchNumber: i + 1 }));
-
     // Deleting the match that is open for editing closes the editor first,
     // so its Save isn't left pointing at a match that no longer exists.
     if (matchId === editingMatchId) {
@@ -1549,23 +1580,29 @@ export const useLiveControlsState = ({
       setShowUnsavedEditWarning(false);
     }
 
+    // The other matches keep their numbers: "Match 3" stays the third
+    // match played, whatever happens to Match 2.
     updateSessionData({
-      matches: renumber(before.filter(m => m.id !== matchId)),
+      matches: before.filter(m => m.id !== matchId),
     });
     // The rows below move up to where the question was.
     absorbDoubleTap();
     setDeleteConfirmIdState(null);
+    // "Match N saved" would now be about a match that may be gone.
+    toast.dismiss(MATCH_SAVED_TOAST_ID);
 
     const toastId = `undo-match-${matchId}`;
     const epochAtDelete = sessionEpoch;
     const undoToastIds = undoToastIdsRef.current;
     const title = `Match ${deleted.matchNumber} deleted`;
     undoToastIds.set(toastId, title);
-    toast.success(title, {
+    const offerGone = () => undoToastIds.delete(toastId);
+    // Neutral, like every delete or discard with an Undo: green is for saves.
+    toast.message(title, {
       id: toastId,
       duration: UI_TIMING.UNDO_WINDOW,
-      onAutoClose: () => undoToastIds.delete(toastId),
-      onDismiss: () => undoToastIds.delete(toastId),
+      onAutoClose: offerGone,
+      onDismiss: offerGone,
       action: {
         label: 'Undo',
         onClick: event => {
@@ -1578,8 +1615,8 @@ export const useLiveControlsState = ({
           // found it when it closes: the restored match would go with it.
           if (tutorialActiveRef.current) {
             event.preventDefault();
-            toast.info('Close the walkthrough to undo', {
-              id: WALKTHROUGH_TOAST_ID,
+            toast.info('Close the tutorial to undo', {
+              id: TUTORIAL_TOAST_ID,
               position: walkthroughToastPosition,
             });
             return;
@@ -1594,9 +1631,29 @@ export const useLiveControlsState = ({
           }
           const current = sessionDataRef.current.matches || [];
           if (current.some(m => m.id === matchId)) return;
-          const restored = [...current];
-          restored.splice(Math.min(index, restored.length), 0, deleted);
-          updateSessionData({ matches: renumber(restored) });
+          // Back in its place, under the number it had. Deleting the last
+          // match frees its number for the next one: if a match has been
+          // saved under it since (started after the delete, or already
+          // running), that match and any after it move up one, so the
+          // numbers stay in the order the matches were played and no two
+          // are the same.
+          const taken = current.some(
+            m => m.matchNumber === deleted.matchNumber
+          );
+          const restored = taken
+            ? current.map(m =>
+                m.matchNumber >= deleted.matchNumber
+                  ? { ...m, matchNumber: m.matchNumber + 1 }
+                  : m
+              )
+            : [...current];
+          const at = restored.findIndex(
+            m => m.matchNumber > deleted.matchNumber
+          );
+          restored.splice(at === -1 ? restored.length : at, 0, deleted);
+          updateSessionData({ matches: restored });
+          // "Match N saved" was about the match that has just moved up.
+          if (taken) toast.dismiss(MATCH_SAVED_TOAST_ID);
         },
       },
     });
@@ -1671,8 +1728,8 @@ export const useLiveControlsState = ({
           }
           if (tutorialActiveRef.current) {
             event.preventDefault();
-            toast.info('Close the walkthrough to undo', {
-              id: WALKTHROUGH_TOAST_ID,
+            toast.info('Close the tutorial to undo', {
+              id: TUTORIAL_TOAST_ID,
               position: walkthroughToastPosition,
             });
             return;

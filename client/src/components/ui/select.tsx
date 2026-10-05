@@ -16,8 +16,12 @@ const SelectTrigger = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => {
   const { isDarkMode } = useTheme();
+  // Same focus as Input, and only for the keyboard: a list picked from by
+  // mouse or touch hands focus back to the trigger, which then keeps no
+  // ring. Same text size as Input too (16px on phones, 14px from md), so a
+  // field and a select side by side match.
   const base =
-    'flex h-12 w-full items-center justify-between rounded-md px-2.5 py-2.5 text-base border ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1';
+    'flex h-12 w-full items-center justify-between rounded-md px-2.5 py-2.5 text-base md:text-sm border placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-team-blue/30 focus-visible:ring-offset-0 focus-visible:border-team-blue aria-[invalid=true]:focus-visible:border-red-500 aria-[invalid=true]:focus-visible:ring-red-500/30 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1';
   const themeClasses = isDarkMode
     ? 'border-team-white-20 bg-team-dark text-white'
     : 'border-team-blue/60 bg-[#FEFEFE] text-black';
@@ -123,7 +127,8 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      // 44px rows on a touch screen, like the menus' items
+      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [@media(pointer:coarse)]:min-h-11',
       className
     )}
     {...props}

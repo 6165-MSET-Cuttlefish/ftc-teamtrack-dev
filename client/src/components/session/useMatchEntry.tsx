@@ -2,21 +2,23 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useSessionCore } from '@/contexts';
 import type { MatchScoringFields } from '@/types';
 import { calculateScore } from '@/lib';
-import { visibleBand } from './controls/scrollUnderHeader';
+import { revealFirstStepperRow } from './controls/revealStepperRow';
+import { useActiveShortStacked } from './layout/useActiveCompact';
 import { SectionNote } from './SectionNote';
 import { useScoringLocks } from './useScoringLocks';
 
 /** How long the End of Match heading stays lit after the buzzer */
 const UNLOCK_PULSE_MS = 1600;
-/** Space left around the section when it is scrolled into view, in px */
-const UNLOCK_SCROLL_GAP = 8;
+
+/** Why Robots and End of Match can't be filled in yet: no match is open */
+const START_REASON = 'Unlocks at Start';
 
 /**
  * Setters, locks and lock captions for the robot and end-of-match fields,
  * shared by the phone layout's MatchEntry and the desktop ScoringPad. Also
  * lights the end-of-match fields at the buzzer and brings them into view:
- * `endSectionRef` goes on whatever holds them (its first `h3`, if it has
- * one, is what has to be on screen; otherwise the whole of it).
+ * `endSectionRef` goes on whatever holds them, and its first row of
+ * steppers (its first input's row) is what has to be on screen.
  */
 export const useMatchEntry = () => {
   const {
@@ -28,10 +30,9 @@ export const useMatchEntry = () => {
   } = useSessionCore();
   const {
     editing,
-    matchType,
     scoring,
     entryKey,
-    awaitingStart,
+    entryLocked,
     endOfMatchUnlocked,
     endParkLocked,
     hasAuto,
@@ -39,6 +40,15 @@ export const useMatchEntry = () => {
   } = useScoringLocks();
   const robotsReasonId = useId();
   const endReasonId = useId();
+  /**
+   * Before Start every field waits for the same thing, and 'Unlocks at
+   * Start' is said once for all of them, at the top, where scoring starts:
+   * beside the desktop pad's -1, under the phone's Hive Tips. Robots,
+   * Penalties and End of Match keep it for screen readers only. An iPhone
+   * SE on its side shows no line under Hive Tips, so End of Match says it
+   * there.
+   */
+  const startSaidAbove = !useActiveShortStacked();
 
   // One setter per field, each keeping its identity between renders: the
   // rows and fields below are memoized, so changing one field re-renders
@@ -66,29 +76,39 @@ export const useMatchEntry = () => {
 
   /**
    * Flower, hive and garden contents are only knowable once play has
-   * stopped, so they stay locked while the clock is running. They open at
-   * the buzzer (End early ends a match there too), whenever the match is
-   * paused, and before a match starts.
+   * stopped, so they stay locked while the match is played (the controller
+   * pickup included). They open at the buzzer (End early ends a match there
+   * too) and whenever the match is paused. Before Start there is no match
+   * to put them in, so they wait for it, as Hive Tips does.
    */
   const endDisabled = !endOfMatchUnlocked;
 
-  // A period the match never runs can't be scored, for the whole match.
-  // The reasons share the Robots heading's line, so they are kept short
-  // enough to fit beside it on a 360px phone.
-  const autoDisabledReason = hasAuto ? undefined : 'No AUTO in a Teleop match';
-  const parkTeleopDisabledReason = !hasTeleop
-    ? 'No end park in an Autonomous match'
-    : endParkLocked
-      ? 'Unlocks in TELEOP'
+  // Before Start nothing can be scored; after it, a period the match never
+  // runs can't be scored for the whole match. The phone layout leaves those
+  // toggles out, so only the locks that lift on their own are shown, on the
+  // Robots heading's line: short enough to fit beside it on a 320px phone.
+  const autoDisabledReason = entryLocked
+    ? START_REASON
+    : hasAuto
+      ? undefined
+      : 'No Auto in a Teleop match';
+  const parkTeleopDisabledReason = entryLocked
+    ? START_REASON
+    : !hasTeleop
+      ? 'No End park in an Autonomous match'
+      : endParkLocked
+        ? 'End park unlocks in Teleop'
+        : undefined;
+  /** The visible note beside the Robots heading, when something waits */
+  const robotsReason = entryLocked
+    ? START_REASON
+    : hasTeleop && endParkLocked
+      ? parkTeleopDisabledReason
       : undefined;
-  // Only one of the two can apply to a match, so one note covers both.
-  const robotsReason = autoDisabledReason ?? parkTeleopDisabledReason;
 
   // The buzzer hands the scorer from the live counters to this section:
-  // light its heading for a moment, and bring it into view unless its
-  // heading is on screen. A heading that is showing is left where it is;
-  // one even partly under the header, under the controls pinned there from
-  // now on, or past the bottom edge has the section scrolled into view.
+  // light it for a moment, and bring its first row of steppers into view
+  // unless that row is on screen already ("Count them first" does the same).
   const endSectionRef = useRef<HTMLDivElement>(null);
   const [justUnlocked, setJustUnlocked] = useState(false);
   const lastPhaseRef = useRef(matchPhase);
@@ -102,29 +122,7 @@ export const useMatchEntry = () => {
     // The walkthrough moves the page itself.
     const section = endSectionRef.current;
     if (!section || isTutorialActive) return;
-    // Between the site header (and, on a full-size screen, the controls
-    // pinned under it from now on) and, on a phone, the bar fixed over the
-    // bottom of the page.
-    const band = visibleBand();
-    const { top, bottom } = section.getBoundingClientRect();
-    const heading = (
-      section.querySelector('h3') ?? section
-    ).getBoundingClientRect();
-    if (heading.top >= band.top && heading.bottom <= band.bottom) {
-      return;
-    }
-    // The least movement that shows it: from below, only until its last
-    // field clears the bottom edge, so the robot rows above it (End park is
-    // scored now too) stay on screen where there is room for both. From
-    // above, its heading goes just under the band's top edge.
-    const toTop = top - band.top - UNLOCK_SCROLL_GAP;
-    const toBottom = bottom - band.bottom + UNLOCK_SCROLL_GAP;
-    window.scrollBy({
-      top: top >= band.top ? Math.min(toTop, toBottom) : toTop,
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        ? 'instant'
-        : 'smooth',
-    });
+    revealFirstStepperRow(section);
   }, [matchPhase, matchActive, editing, isTutorialActive]);
   useEffect(() => {
     if (!justUnlocked) return;
@@ -132,35 +130,50 @@ export const useMatchEntry = () => {
     return () => clearTimeout(timer);
   }, [justUnlocked]);
 
-  // One line under the heading in every state of a live match, so the
-  // fields below it stay where they are when the section locks and unlocks.
-  // It names the next time they open: in a Full Game that is the controller
-  // pickup after AUTO, when the clock stops for 8 s.
+  // One line under the heading in every state, so the fields below it stay
+  // where they are when the section locks and unlocks: what it waits for
+  // while locked, and after the buzzer the one thing left to do. Its line
+  // stays empty (but kept) for a saved match open for editing, and for the
+  // tutorial's practice match, whose fields are open and whose own card
+  // says when to count. Before Start it shows only what the line at the top
+  // doesn't say (see `startSaidAbove`): how to fix a saved match.
+  const hasSavedMatches = (sessionData.matches?.length ?? 0) > 0;
   const endCaption = endDisabled ? (
-    <SectionNote id={endReasonId} icon="locked">
-      {matchType === 'Full Game' && matchPhase === 'auton'
-        ? 'Unlocks when AUTO ends, or when you pause'
-        : 'Unlocks at the buzzer, or when you pause'}
+    <SectionNote
+      id={endReasonId}
+      icon="locked"
+      visuallyHidden={entryLocked && !hasSavedMatches && startSaidAbove}
+    >
+      {entryLocked ? (
+        hasSavedMatches ? (
+          // One line in every column: the shorter pointer where the longer
+          // would wrap (a column under 336px, from a 360px phone down).
+          <>
+            <span className={startSaidAbove ? 'sr-only' : undefined}>
+              {START_REASON}.{' '}
+            </span>
+            <span className="[@container(max-width:20.95rem)]:hidden">
+              Tap a match in the Match Log to fix it.
+            </span>
+            <span className="hidden [@container(max-width:20.95rem)]:inline">
+              Tap a saved match to fix it.
+            </span>
+          </>
+        ) : (
+          START_REASON
+        )
+      ) : (
+        'Unlocks at the buzzer, or when you pause'
+      )}
     </SectionNote>
-  ) : editing ? undefined : isTutorialActive ? (
-    // The walkthrough's match never runs its clock, so the fields are open;
-    // say what happens in a real match, as its card does.
-    <SectionNote>
-      In a match, these unlock at the buzzer or when you pause
-    </SectionNote>
-  ) : awaitingStart ? (
-    <SectionNote>
-      Numbers entered before Start are cleared when the match starts.
-      {(sessionData.matches?.length ?? 0) > 0 &&
-        ' To fix a saved match, tap it in the Match Log.'}
-    </SectionNote>
-  ) : (
+  ) : editing || isTutorialActive ? undefined : (
     <SectionNote icon="unlocked">
-      {matchPhase === 'ended'
-        ? 'Unlocked. Count what is left on the field'
-        : matchPhase === 'controller_pickup'
-          ? 'Unlocked until TELEOP starts'
-          : 'Unlocked while paused'}
+      {matchPhase !== 'ended'
+        ? 'Unlocked while paused'
+        : // The park toggle's own name: 'End' beside 'Auto', else 'Park'
+          hasAuto && hasTeleop
+          ? 'Mark End park, count, then save'
+          : 'Mark Park, count, then save'}
     </SectionNote>
   );
 
@@ -178,5 +191,8 @@ export const useMatchEntry = () => {
     endCaption,
     justUnlocked,
     endSectionRef,
+    entryLocked,
+    hasAuto,
+    hasTeleop,
   };
 };

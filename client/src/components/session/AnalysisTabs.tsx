@@ -1,6 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { useState, useEffect, useRef, useId, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useId,
+  useCallback,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -13,8 +21,9 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Check,
-  Info,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   BarChart,
@@ -47,25 +56,51 @@ import {
   rankingPointNames,
   rankingPointTally,
   robotRates,
-  sanitizeHtml,
   scoreRows,
   toDate,
   toneOf,
 } from '@/lib';
+import { formatPoints } from '@/lib/points';
+import { GROUPED_ELEMENT_ORDER } from '@/lib/scoring';
+import { sanitizeHtml } from '@/lib/sanitize';
+import { StatTile, type StatTileProps } from '@/components/ui/stat-tile';
+import { Segmented } from '@/components/ui/segmented';
+import {
+  SECTION_TITLE_CLASS,
+  EYEBROW_CLASS,
+} from '@/components/ui/page-header';
+import {
+  CHIP_BASE,
+  CHIP_SIZES,
+  DATA_CLASS,
+  DESTRUCTIVE_CLASS,
+  chipTone,
+  primaryClass,
+  selectedClass,
+} from '@/components/ui/tokens';
+import {
+  ChartTooltip,
+  LEGEND_PROPS,
+  TOOLTIP_WRAPPER_STYLE,
+  axisProps,
+} from '@/components/charts/chartKit';
 
-/** Compute +/- diff string */
-const formatDiff = (val: number) => (val > 0 ? `+${val}` : `${val}`);
+/**
+ * A difference with its sign: "+12", "−18" (a true minus sign, which sits
+ * level with the plus; a hyphen looks detached at tile size).
+ */
+const formatDiff = (val: number) =>
+  val > 0 ? `+${val}` : val < 0 ? `−${Math.abs(val)}` : `${val}`;
 
 /** At most one decimal place, and none on a whole number: "39", "5.3". */
 const formatNumber = (n: number) => String(Math.round(n * 10) / 10);
 
+/** Points to one decimal at most: "1 pt", "5.3 pts" */
+const formatPts = (n: number) => formatPoints(Math.round(n * 10) / 10);
+
 /** "1 match", "2 matches" */
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${n} ${n === 1 ? one : many}`;
-
-/** Text on a solid team-blue fill, which is pale in the dark themes. */
-const onTeamBlue = (isDarkMode: boolean) =>
-  isDarkMode ? 'text-black' : 'text-white';
 
 /** Small controls grow to a thumb-sized target on touch screens. */
 const TOUCH_TARGET =
@@ -91,237 +126,6 @@ const TrendIcon = ({ value, size = 16 }: { value: number; size?: number }) => {
   return <Minus size={size} className="text-gray-400" />;
 };
 
-const ChartTooltip = ({
-  active,
-  payload,
-  label,
-  isDarkMode,
-  unit,
-  total,
-  hint,
-}: {
-  active?: boolean;
-  payload?: Array<{
-    name: string;
-    value: number;
-    color: string;
-    /** The data row: `title` names the match in full */
-    payload?: { title?: string };
-  }>;
-  label?: string;
-  isDarkMode?: boolean;
-  /** Written after every value: ' pts', 's' */
-  unit?: string;
-  /** Add a row that sums the series, for a stack that adds up to a score */
-  total?: boolean;
-  /** A last quiet line, e.g. what a click on this column does */
-  hint?: string;
-}) => {
-  if (!active || !payload?.length) return null;
-  const title = payload[0].payload?.title ?? label;
-  const format = (value: number) => `${formatNumber(value)}${unit ?? ''}`;
-  const sum = payload.reduce(
-    (acc, entry) => acc + (typeof entry.value === 'number' ? entry.value : 0),
-    0
-  );
-  const nameTone = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
-  // The series colour is on the dot: as text most of them are under 4.5:1.
-  const valueTone = isDarkMode ? 'text-white' : 'text-gray-900';
-  return (
-    <div
-      className={`p-3 rounded-lg border shadow-xl backdrop-blur-sm ${
-        isDarkMode
-          ? 'bg-team-dark/95 border-team-blue-40'
-          : 'bg-white/95 border-gray-200'
-      }`}
-    >
-      {title && (
-        <p
-          className={`font-semibold mb-2 pb-2 border-b text-xs ${
-            isDarkMode
-              ? 'text-white border-team-blue-40'
-              : 'text-gray-900 border-gray-200'
-          }`}
-        >
-          {title}
-        </p>
-      )}
-      <div className="space-y-1">
-        {payload.map((entry, i) => (
-          <div key={i} className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className={`text-xs ${nameTone}`}>{entry.name}</span>
-            </div>
-            <span className={`text-xs font-bold tabular-nums ${valueTone}`}>
-              {typeof entry.value === 'number'
-                ? format(entry.value)
-                : entry.value}
-            </span>
-          </div>
-        ))}
-        {total && (
-          <div
-            className={`flex items-center justify-between gap-4 pt-1 mt-1 border-t ${
-              isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
-            }`}
-          >
-            <span className={`text-xs font-semibold ${valueTone}`}>Total</span>
-            <span className={`text-xs font-bold tabular-nums ${valueTone}`}>
-              {format(sum)}
-            </span>
-          </div>
-        )}
-      </div>
-      {hint && <p className={`mt-2 text-[11px] ${nameTone}`}>{hint}</p>}
-    </div>
-  );
-};
-
-/**
- * One figure with its label above and a line of context below.
- *
- * Every tile has the same three rows, and inside a grid they are the grid's
- * own rows (subgrid), so the figures of neighbouring tiles line up even when
- * one label wraps. `info` adds an (i) that opens a one-line definition;
- * `onClick` makes the whole tile a button (and takes the place of `info`).
- */
-export const StatCard = ({
-  label,
-  value,
-  sublabel,
-  info,
-  onClick,
-  highlight,
-  variant = 'default',
-  isDarkMode,
-  className = '',
-}: {
-  label: string;
-  value: string | number;
-  sublabel?: string;
-  /** What the figure means, in a sentence */
-  info?: string;
-  /** Where the figure leads - the match it names */
-  onClick?: () => void;
-  highlight?: boolean;
-  variant?: 'default' | 'success' | 'danger';
-  isDarkMode: boolean;
-  /** Grid placement, e.g. a column span */
-  className?: string;
-}) => {
-  const [showInfo, setShowInfo] = useState(false);
-
-  const borderBg =
-    variant === 'success'
-      ? isDarkMode
-        ? 'border-emerald-500/40 bg-emerald-500/10'
-        : 'border-emerald-200 bg-emerald-50'
-      : variant === 'danger'
-        ? isDarkMode
-          ? 'border-red-500/40 bg-red-500/10'
-          : 'border-red-200 bg-red-50'
-        : highlight
-          ? isDarkMode
-            ? 'border-team-blue bg-team-blue/10'
-            : 'border-team-blue bg-team-blue/5'
-          : isDarkMode
-            ? 'border-team-blue-40 bg-team-dark-20'
-            : 'border-gray-200 bg-white';
-
-  // The 500 shades are unreadable on the pale light-theme cards.
-  const valueColor =
-    variant === 'success'
-      ? isDarkMode
-        ? 'text-emerald-400'
-        : 'text-emerald-700'
-      : variant === 'danger'
-        ? isDarkMode
-          ? 'text-red-400'
-          : 'text-red-700'
-        : 'text-team-blue';
-
-  const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
-  const box = `relative row-span-3 grid grid-rows-subgrid gap-y-0 content-start min-w-0 rounded-xl border p-3 sm:p-5 text-left ${borderBg} ${className}`;
-
-  // A button may only hold phrasing content, so its rows are spans.
-  const Row = onClick ? 'span' : 'p';
-  const labelRow = (
-    // Room on the right for the (i), which sits in the corner
-    <Row
-      className={`block text-xs font-medium uppercase tracking-wide ${muted} ${info && !onClick ? 'pr-6' : ''}`}
-    >
-      {label}
-    </Row>
-  );
-  const valueRow = (
-    <Row
-      className={`block text-2xl sm:text-3xl font-bold tabular-nums ${valueColor} mt-1`}
-    >
-      {value}
-    </Row>
-  );
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={`${box} cursor-pointer transition-colors ${
-          isDarkMode ? 'hover:bg-white/10' : 'hover:brightness-95'
-        }`}
-      >
-        {labelRow}
-        {valueRow}
-        <span
-          className={`mt-1 self-start justify-self-start inline-flex items-center gap-0.5 text-xs font-semibold underline underline-offset-2 ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}
-        >
-          {sublabel}
-          <ChevronRight size={14} aria-hidden />
-        </span>
-      </button>
-    );
-  }
-
-  return (
-    <div className={box}>
-      {labelRow}
-      {valueRow}
-      <div>
-        {sublabel && <p className={`text-xs mt-1 ${muted}`}>{sublabel}</p>}
-        {info && showInfo && (
-          <p
-            className={`text-xs mt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-          >
-            {info}
-          </p>
-        )}
-      </div>
-      {info && (
-        <button
-          type="button"
-          title={info}
-          aria-label={`About ${label}`}
-          aria-expanded={showInfo}
-          onClick={() => setShowInfo(v => !v)}
-          className={`absolute top-0.5 right-0.5 sm:top-2.5 sm:right-2.5 inline-flex items-center justify-center rounded-full p-2 transition-colors ${TOUCH_TARGET} ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-team-blue'
-              : 'text-gray-500 hover:text-team-blue'
-          }`}
-        >
-          <Info size={15} />
-        </button>
-      )}
-    </div>
-  );
-};
-
 const ElementBar = ({
   label,
   value,
@@ -344,10 +148,8 @@ const ElementBar = ({
         >
           {label}
         </span>
-        <span
-          className={`text-sm font-bold ${value < 0 ? 'text-red-500' : 'text-team-blue'}`}
-        >
-          {value} {value === 1 ? 'pt' : 'pts'}
+        <span className={`text-sm font-bold ${DATA_CLASS}`}>
+          {formatPts(value)}
         </span>
       </div>
       <div
@@ -362,34 +164,33 @@ const ElementBar = ({
   );
 };
 
+/** The card every chart and list on these tabs sits on */
+const cardClass = (isDarkMode: boolean) =>
+  `rounded-xl border p-4 sm:p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`;
+
 const Section = ({
   title,
-  hint,
+  action,
+  as: Heading = 'h2',
+  className = '',
   children,
   isDarkMode,
 }: {
   title: string;
-  /** A quiet line beside the title, e.g. what a click does */
-  hint?: string;
-  children: React.ReactNode;
+  /** A control beside the title, e.g. one that shows or hides the content */
+  action?: ReactNode;
+  /** h3 where the card belongs to a heading above it (a match's breakdown) */
+  as?: 'h2' | 'h3';
+  className?: string;
+  children?: ReactNode;
   isDarkMode: boolean;
 }) => (
-  <div
-    className={`rounded-xl border p-4 sm:p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
-  >
-    <div className="flex items-baseline justify-between gap-x-4 gap-y-1 flex-wrap mb-4 sm:mb-5">
-      <h3
-        className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-      >
-        {title}
-      </h3>
-      {hint && (
-        <p
-          className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-        >
-          {hint}
-        </p>
-      )}
+  <div className={`${cardClass(isDarkMode)} ${className}`}>
+    <div
+      className={`flex items-center justify-between gap-x-4 gap-y-1 flex-wrap ${children ? 'mb-4 sm:mb-5' : ''}`}
+    >
+      <Heading className={SECTION_TITLE_CLASS}>{title}</Heading>
+      {action}
     </div>
     {children}
   </div>
@@ -403,12 +204,34 @@ const EmptyChart = ({
   isDarkMode: boolean;
 }) => (
   <div
-    className={`h-[260px] flex items-center justify-center text-sm ${
+    className={`h-[260px] flex items-center justify-center text-center text-sm ${
       isDarkMode ? 'text-team-white-60' : 'text-gray-500'
     }`}
   >
     {message}
   </div>
+);
+
+/**
+ * Where charts would be but can't say anything yet: one muted line in a
+ * dashed box, not an empty plot.
+ */
+const ChartNote = ({
+  children,
+  isDarkMode,
+}: {
+  children: ReactNode;
+  isDarkMode: boolean;
+}) => (
+  <p
+    className={`rounded-xl border border-dashed px-4 py-3 text-center text-sm ${
+      isDarkMode
+        ? 'border-team-blue-40 text-team-white-60'
+        : 'border-gray-300 text-gray-600'
+    }`}
+  >
+    {children}
+  </p>
 );
 
 /** How many of the chances were taken */
@@ -427,8 +250,8 @@ export interface SessionStats {
   avgFlower: number;
   avgFlowerBonus: number;
   avgHive: number;
-  avgLeave: number;
-  avgPark: number;
+  /** Leave and both Parks together (`ELEMENT_LABELS.robots`) */
+  avgRobots: number;
   /**
    * Average points per match this alliance's fouls gave the opponent.
    * Not part of any score here.
@@ -516,8 +339,7 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
     avgFlower: round1(mean(breakdowns.map(b => b.flower))),
     avgFlowerBonus: round1(mean(breakdowns.map(b => b.flowerBonus))),
     avgHive: round1(mean(breakdowns.map(b => b.hive))),
-    avgLeave: round1(mean(breakdowns.map(b => b.leave))),
-    avgPark: round1(mean(breakdowns.map(b => b.park))),
+    avgRobots: round1(mean(breakdowns.map(b => b.leave + b.park))),
     avgPenalties: round1(mean(breakdowns.map(b => b.penalties))),
     leaveRate,
     parkRate,
@@ -555,15 +377,71 @@ const chartColors = (isDarkMode: boolean) => {
   };
 };
 
-/** The scoring elements a match's bar is stacked from, bottom first */
-const SERIES_KEYS = [
-  'tipping',
-  'garden',
-  'flower',
-  'flowerBonus',
-  'hive',
-  'robots',
-] as const;
+/**
+ * The scoring elements a match's bar is stacked from, bottom first: the
+ * order the scoring page lists them in, with Leave and Park as one
+ * 'Leave + Park', the same list Charts, Compare and the CSV follow.
+ */
+const SERIES_KEYS = GROUPED_ELEMENT_ORDER;
+
+/** The type a match was run as; matches saved without one were full games */
+const typeOf = (m: Match): string => m.matchType || 'Full Game';
+
+/** How the matches of a session rank against each other */
+interface Ranking {
+  /**
+   * The session mixes match types. An Autonomous run can't score what a
+   * full game does, so each match is ranked and averaged only against the
+   * matches of its own type.
+   */
+  mixed: boolean;
+  /** Best or worst of its group; neither in a group of one, or of equal scores */
+  rank: (index: number) => 'best' | 'worst' | null;
+  /** The matches `index` is ranked and averaged against, itself included */
+  peers: (index: number) => number[];
+  /**
+   * The best and worst match for the Summary: of the whole session, or in a
+   * mixed one of the largest type that has them (`type` names it). Null when
+   * there is no pair to tell apart.
+   */
+  headline: { best: number; worst: number; type: string | null } | null;
+}
+
+const rankMatches = (matches: Match[]): Ranking => {
+  const scores = matches.map(scoreOf);
+  const mixed = new Set(matches.map(typeOf)).size > 1;
+  const groupOf = (index: number) => (mixed ? typeOf(matches[index]) : '');
+  const groups = new Map<string, number[]>();
+  matches.forEach((_, i) => {
+    groups.set(groupOf(i), [...(groups.get(groupOf(i)) ?? []), i]);
+  });
+
+  const ranks = new Map<number, 'best' | 'worst'>();
+  let headline: Ranking['headline'] = null;
+  let headlineSize = 0;
+  for (const [type, members] of groups) {
+    if (members.length < 2) continue;
+    const memberScores = members.map(i => scores[i]);
+    const max = Math.max(...memberScores);
+    const min = Math.min(...memberScores);
+    if (max === min) continue;
+    const best = members[memberScores.indexOf(max)];
+    const worst = members[memberScores.indexOf(min)];
+    ranks.set(best, 'best');
+    ranks.set(worst, 'worst');
+    if (members.length > headlineSize) {
+      headlineSize = members.length;
+      headline = { best, worst, type: mixed ? type : null };
+    }
+  }
+
+  return {
+    mixed,
+    rank: index => ranks.get(index) ?? null,
+    peers: index => groups.get(groupOf(index)) ?? [index],
+    headline,
+  };
+};
 
 /**
  * What one of each breakdown row is worth, so a row can show its sum
@@ -585,7 +463,7 @@ const rowSum = (row: ScoreRow): string => {
   return unit === undefined ? `${row.count}` : `${row.count} × ${unit}`;
 };
 
-/** Fouls come at two values, so their sum has two terms. */
+/** Penalties come at two values, so their sum has two terms. */
 const foulSum = (m: Match): string => {
   const minor = m.minorPenalties ?? 0;
   const major = m.majorPenalties ?? 0;
@@ -598,7 +476,7 @@ const foulSum = (m: Match): string => {
 
 export type TabId = 'summary' | 'matches' | 'compare';
 
-export const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+export const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: 'summary', label: 'Summary', icon: BarChart3 },
   { id: 'matches', label: 'Matches', icon: LayoutList },
   { id: 'compare', label: 'Compare', icon: ArrowRightLeft },
@@ -638,8 +516,9 @@ export const useAnalysisNav = () => {
 };
 
 /**
- * The Summary / Matches / Compare switcher: icon over label on a phone,
- * side by side from `sm` up. Wrap the content it switches in
+ * The Summary / Matches / Compare switcher: the shared Segmented control as
+ * a tab bar, icon over label on a phone and side by side from `sm` up. Wrap
+ * the content it switches in
  * `role="tabpanel" id={tabPanelId(active)} aria-labelledby={tabButtonId(active)}`.
  */
 export const AnalysisTabBar = ({
@@ -650,75 +529,27 @@ export const AnalysisTabBar = ({
   active: TabId;
   onChange: (id: TabId) => void;
   isDarkMode: boolean;
-}) => {
-  const listRef = useRef<HTMLDivElement>(null);
-
-  /** Arrow keys move between tabs, as in any tablist */
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const index = TABS.findIndex(tab => tab.id === active);
-    const next =
-      e.key === 'ArrowRight'
-        ? (index + 1) % TABS.length
-        : e.key === 'ArrowLeft'
-          ? (index - 1 + TABS.length) % TABS.length
-          : e.key === 'Home'
-            ? 0
-            : e.key === 'End'
-              ? TABS.length - 1
-              : -1;
-    if (next === -1) return;
-    e.preventDefault();
-    onChange(TABS[next].id);
-    listRef.current
-      ?.querySelector<HTMLElement>(`#${tabButtonId(TABS[next].id)}`)
-      ?.focus();
-  };
-
-  return (
-    <div
-      ref={listRef}
-      role="tablist"
-      aria-label="Analysis sections"
-      onKeyDown={onKeyDown}
-      // The track is lighter than the page in the dark themes, where the
-      // page's own colour on it would not show at all.
-      className={`flex gap-1 p-1 rounded-xl border ${
-        isDarkMode
-          ? 'bg-white/5 border-team-blue-40'
-          : 'bg-gray-100 border-gray-200'
-      }`}
-    >
-      {TABS.map(tab => {
-        const Icon = tab.icon;
-        const isActive = active === tab.id;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            id={tabButtonId(tab.id)}
-            aria-selected={isActive}
-            aria-controls={isActive ? tabPanelId(tab.id) : undefined}
-            tabIndex={isActive ? 0 : -1}
-            onClick={() => onChange(tab.id)}
-            className={`flex-1 min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-colors [@media(pointer:coarse)]:min-h-11 ${
-              isActive
-                ? `bg-team-blue font-semibold shadow-sm ${onTeamBlue(isDarkMode)}`
-                : `font-medium ${
-                    isDarkMode
-                      ? 'text-team-white-60 hover:text-white hover:bg-white/5'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/70'
-                  }`
-            }`}
-          >
-            <Icon size={16} aria-hidden />
-            <span>{tab.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-};
+}) => (
+  <Segmented
+    tabs
+    fill
+    size="md"
+    stackIcons
+    label="Analysis sections"
+    value={active}
+    onChange={onChange}
+    isDarkMode={isDarkMode}
+    options={TABS.map(tab => ({
+      value: tab.id,
+      label: tab.label,
+      icon: tab.icon,
+      id: tabButtonId(tab.id),
+      controls: tabPanelId(tab.id),
+    }))}
+    // Framed like the cards under it
+    className={`rounded-xl border ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
+  />
+);
 
 /** A stored timestamp as a date, or null when there isn't a real one */
 const dateOf = (value: unknown): Date | null => {
@@ -729,7 +560,8 @@ const dateOf = (value: unknown): Date | null => {
 
 /**
  * A recorded session length in words: "48:12" is "48 min", "1:22:40" is
- * "1 h 23 min". Anything that isn't a clock reading is shown as it is.
+ * "1 h 23 min", "0:00" is nothing. Anything that isn't a clock reading is
+ * shown as it is.
  */
 const durationLabel = (duration: string): string => {
   const parts = duration.split(':').map(Number);
@@ -741,6 +573,8 @@ const durationLabel = (duration: string): string => {
     return duration;
   }
   const seconds = parts.reduce((total, n) => total * 60 + n, 0);
+  // Nothing was timed: say nothing rather than "0 s"
+  if (seconds === 0) return '';
   if (seconds < 60) return `${seconds} s`;
   const minutes = Math.round(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -772,6 +606,7 @@ export const SessionMeta = ({
   isDarkMode: boolean;
 }) => {
   const date = dateOf(createdAt);
+  const durationText = duration ? durationLabel(duration) : '';
   const parts: { key: string; node: React.ReactNode }[] = [
     ...(sessionType ? [{ key: 'type', node: sessionType }] : []),
     ...(matchType ? [{ key: 'matchType', node: matchType }] : []),
@@ -799,23 +634,28 @@ export const SessionMeta = ({
         ]
       : []),
     { key: 'matches', node: plural(matchCount, 'match', 'matches') },
-    ...(duration && duration !== '00:00'
-      ? [{ key: 'duration', node: durationLabel(duration) }]
-      : []),
+    ...(durationText ? [{ key: 'duration', node: durationText }] : []),
   ];
 
   return (
-    <p
-      className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-    >
-      {parts.map((part, i) => (
-        // The dot trails its part, so a wrapped line never starts with one
-        <span key={part.key} className="inline-flex items-center gap-x-2">
-          <span className="whitespace-nowrap">{part.node}</span>
-          {i < parts.length - 1 && <span aria-hidden>·</span>}
-        </span>
-      ))}
-    </p>
+    // Every part carries the dot before it, in its own left padding. The
+    // line is pulled left by that much inside a box that clips, so the dot
+    // of the first part on each line falls outside and is cut off: no line
+    // starts or ends with a dot.
+    <div className="overflow-hidden">
+      <p
+        className={`-ml-5 flex flex-wrap gap-y-0.5 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+      >
+        {parts.map(part => (
+          <span key={part.key} className="relative pl-5 whitespace-nowrap">
+            <span aria-hidden className="absolute left-0 w-5 text-center">
+              ·
+            </span>
+            {part.node}
+          </span>
+        ))}
+      </p>
+    </div>
   );
 };
 
@@ -862,14 +702,9 @@ export const SessionNotes = ({
   const clamped = clamp && overflows && !expanded;
 
   return (
-    <div
-      className={`rounded-xl border p-4 sm:p-5 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`}
-    >
-      <h3
-        className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-      >
-        Notes
-      </h3>
+    <div className={cardClass(isDarkMode)}>
+      {/* Titled like the cards above it */}
+      <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>Notes</h2>
       {/* contain:paint keeps whatever the notes hold inside this box */}
       <div
         ref={bodyRef}
@@ -892,11 +727,6 @@ export const SessionNotes = ({
     </div>
   );
 };
-
-const axisProps = (isDarkMode: boolean) => ({
-  stroke: isDarkMode ? '#64748b' : '#94a3b8',
-  fontSize: 12,
-});
 
 /**
  * The band behind the hovered column of a bar chart. The library's own is a
@@ -922,6 +752,171 @@ const matchRow = (m: Match, matchIndex: number): MatchRow => ({
   matchIndex,
 });
 
+/** Whether the pointer can hover: a mouse rather than a finger */
+const canHover = () =>
+  typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
+
+/**
+ * The chart box (`data-chart={id}`) a press landed in, if any: from the
+ * event's path, which holds even if the chart redraws the mark pressed.
+ */
+const chartBoxOf = (event: Event): Element | null =>
+  event
+    .composedPath()
+    .find(
+      (node): node is Element =>
+        node instanceof Element && node.hasAttribute('data-chart')
+    ) ?? null;
+
+/**
+ * Whether a press at this point landed in the plot of the chart in `box`,
+ * where its columns are, rather than on an axis or the legend. The plot is
+ * the rectangle the chart clips its marks to.
+ */
+const inPlot = (box: Element, { clientX, clientY }: MouseEvent) => {
+  const clip = box.querySelector('clipPath > rect');
+  const surface = clip instanceof SVGElement ? clip.ownerSVGElement : null;
+  if (!clip || !surface) return false;
+  const at = (name: string) => Number(clip.getAttribute(name)) || 0;
+  const { left, top } = surface.getBoundingClientRect();
+  const x = clientX - left - at('x');
+  const y = clientY - top - at('y');
+  return x >= 0 && x <= at('width') && y >= 0 && y <= at('height');
+};
+
+/**
+ * Taps on the charts of one tab, on a touch screen.
+ *
+ * There is no hover there, so a tap opens the column's tooltip (the
+ * tooltip's click trigger: browsers send a touch's pretend mouse away again
+ * at once, or not at all). The chart itself never lets go of the column
+ * tapped last, so which chart may show it is kept here: a tap on a chart's
+ * plot shows its tooltip; a press anywhere else (another chart, the page)
+ * or a tap on the chart's axes or legend puts it away until the next tap
+ * on that plot. A press that becomes a scroll is not a tap (no click
+ * follows it), so swiping across a chart never brings an old tooltip back.
+ * Each chart's box carries `data-chart={id}`, and `tooltipControl(id)` is
+ * spread on its Tooltip (`active` false hides it; undefined leaves it to
+ * the chart).
+ *
+ * `tapped` is the column tapped once (`chart:matchIndex`), which a second
+ * tap opens; anything that puts the tooltip away forgets it.
+ */
+const useChartTaps = (touch: boolean) => {
+  const [shown, setShown] = useState<string | null>(null);
+  const [tapped, setTapped] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!touch) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const chart = chartBoxOf(event)?.getAttribute('data-chart');
+      if (!chart) {
+        setShown(null);
+        setTapped(null);
+        return;
+      }
+      setShown(open => (open === chart ? open : null));
+      setTapped(column => (column?.startsWith(`${chart}:`) ? column : null));
+    };
+    const onClick = (event: MouseEvent) => {
+      const box = chartBoxOf(event);
+      if (!box) return;
+      if (inPlot(box, event)) {
+        setShown(box.getAttribute('data-chart'));
+      } else {
+        setShown(null);
+        setTapped(null);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    // After the chart's own click handler (bubbling up from the app's
+    // root), which picks the column: showing the tooltip any earlier
+    // re-renders the chart under the finger and the chart loses the tap.
+    document.addEventListener('click', onClick);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('click', onClick);
+    };
+  }, [touch]);
+
+  /** Whether this chart may mark the column last tapped on it */
+  const marks = (chart: string) => !touch || shown === chart;
+
+  return {
+    tooltipControl: (chart: string) =>
+      touch
+        ? {
+            trigger: 'click' as const,
+            active: marks(chart) ? undefined : false,
+          }
+        : {},
+    /**
+     * A line's enlarged point under the tooltip, which the tooltip's
+     * `active` doesn't take away: gone with the tooltip.
+     */
+    activeDot: (chart: string) => (marks(chart) ? { r: 7 } : false),
+    tapped,
+    setTapped,
+  };
+};
+
+/**
+ * What every chart here shares for screen readers: a name and a sentence,
+ * and no keyboard stop of its own. Each is one picture (role img): the
+ * Matches tab and the Compare table list every figure it draws.
+ */
+const chartA11y = (title: string, desc: string) => ({
+  accessibilityLayer: false,
+  role: 'img',
+  title,
+  desc,
+});
+
+/** A tooltip's series in the order of `keys` (the order they are drawn) */
+const seriesOrder =
+  (keys: readonly string[]) =>
+  (item: { dataKey?: unknown }): number =>
+    keys.indexOf(String(item.dataKey));
+
+/** The widest a bar gets, so a session of one match isn't one wall of colour */
+const MAX_BAR_SIZE = 64;
+
+/** The y axis's width on every chart here */
+const Y_AXIS_WIDTH = 40;
+/** The library's default chart margin, left plus right */
+const CHART_SIDE_MARGINS = 10;
+
+/**
+ * Side padding for a line chart's x axis that puts each match's point, and
+ * its label, at the centre of the column a bar chart of the same matches
+ * gives it: one match sits at one x in every chart of the tab. Pass
+ * `onResize` to the chart's ResponsiveContainer and `padding` to its XAxis.
+ * (The library's band scale on a line chart centres the points but leaves
+ * the axis labels at the columns' left edges.)
+ */
+const useColumnPadding = (columns: number) => {
+  const [width, setWidth] = useState(0);
+  const plot = Math.max(0, width - Y_AXIS_WIDTH - CHART_SIDE_MARGINS);
+  const side = columns > 0 ? plot / (2 * columns) : 0;
+  return { padding: { left: side, right: side }, onResize: setWidth };
+};
+
+/**
+ * Columns for the Summary's tiles by how many there are (5 to 9, as the
+ * session has them), so no row is left with a lone tile where it can be
+ * helped. `last` spans an odd last tile across a phone's two columns.
+ */
+const TILE_LAYOUT: Record<number, { grid: string; last: string }> = {
+  5: {
+    grid: 'sm:grid-cols-3 lg:grid-cols-5',
+    last: 'col-span-2 sm:col-span-1',
+  },
+  6: { grid: 'sm:grid-cols-3', last: '' },
+  7: { grid: 'md:grid-cols-4', last: 'col-span-2 md:col-span-1' },
+  8: { grid: 'md:grid-cols-4', last: '' },
+  9: { grid: 'sm:grid-cols-3', last: 'col-span-2 sm:col-span-1' },
+};
+
 export const SummaryTab = ({
   matches,
   stats,
@@ -932,7 +927,7 @@ export const SummaryTab = ({
   matches: Match[];
   stats: SessionStats;
   isDarkMode: boolean;
-  /** Practice sessions leave the foul figures out */
+  /** Practice sessions leave the penalty figures out */
   sessionType?: SessionType;
   /**
    * Show one match (by its position in `matches`). With it the Best and
@@ -940,43 +935,67 @@ export const SummaryTab = ({
    */
   onOpenMatch?: (index: number) => void;
 }) => {
-  const [elementView, setElementView] = useState<'points' | 'counts'>('points');
   const fouls = showsFouls(sessionType, matches);
   const colors = chartColors(isDarkMode);
+  const isCompact = useIsCompact();
   const chartStyle = onOpenMatch ? { cursor: 'pointer' } : undefined;
 
   // A click anywhere in a match's column of a chart opens that match. On a
   // touch screen a tap is also how the column's tooltip is read, so there
   // the first tap shows the tooltip and a second one opens the match.
-  const [tapped, setTapped] = useState<string | null>(null);
-  const canHover =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(hover: hover)').matches;
-  const openHint = !onOpenMatch
-    ? undefined
-    : canHover
-      ? 'Click a match to open it'
-      : 'Tap a match twice to open it';
+  const hover = canHover();
+  const { tooltipControl, activeDot, tapped, setTapped } = useChartTaps(!hover);
+  // Said once, as the tooltip's last line
   const tooltipHint = !onOpenMatch
     ? undefined
-    : canHover
+    : hover
       ? 'Click to open this match'
       : 'Tap again to open this match';
   const openFromChart = (chart: string, rows: MatchRow[]) =>
     onOpenMatch
-      ? (state: { activeTooltipIndex?: number | string | null }) => {
+      ? (
+          state: { activeTooltipIndex?: number | string | null },
+          event: SyntheticEvent
+        ) => {
+          // The chart reports the column it last showed even for a click on
+          // its axes or legend, which is no column at all.
+          const box = document.querySelector(`[data-chart="${chart}"]`);
+          if (
+            !box ||
+            !(event.nativeEvent instanceof MouseEvent) ||
+            !inPlot(box, event.nativeEvent)
+          ) {
+            return;
+          }
           const index = state.activeTooltipIndex;
           if (index === null || index === undefined || index === '') return;
           const row = rows[Number(index)];
           if (!row) return;
           const column = `${chart}:${row.matchIndex}`;
-          if (!canHover && tapped !== column) {
+          if (!hover && tapped !== column) {
             setTapped(column);
             return;
           }
           onOpenMatch(row.matchIndex);
         }
       : undefined;
+
+  // Drawn above the legend. On a phone it is pinned to the top of the plot,
+  // where it covers neither the column being read nor the legend.
+  const tooltipProps = (chart: string) => ({
+    wrapperStyle: TOOLTIP_WRAPPER_STYLE,
+    ...tooltipControl(chart),
+    ...(isCompact
+      ? { position: { y: 0 }, allowEscapeViewBox: { x: false, y: false } }
+      : {}),
+  });
+
+  const n = stats.totalMatches;
+  const trendColumns = useColumnPadding(n);
+  const cycleColumns = useColumnPadding(n);
+  /** A line through one point says nothing */
+  const trends = n >= 2;
+  const nothingScored = matches.every(m => scoreOf(m) === 0);
 
   // The average is a series of its own so the legend and the tooltip name
   // the dashed line.
@@ -988,29 +1007,14 @@ export const SummaryTab = ({
 
   const elementData = matches.map((m, i) => {
     const b = calculateScore(m);
-    if (elementView === 'points') {
-      return {
-        ...matchRow(m, i),
-        tipping: b.tipping,
-        garden: b.garden,
-        flower: b.flower,
-        flowerBonus: b.flowerBonus,
-        hive: b.hive,
-        robots: b.leave + b.park,
-      };
-    }
-    // Leaves and parks as scored: a period the match never ran counts none.
-    const robots = scoreRows(m)
-      .filter(row => row.key === 'leave' || row.key === 'park')
-      .reduce((sum, row) => sum + row.count, 0);
     return {
       ...matchRow(m, i),
-      tipping: m.tipping ?? 0,
-      garden: m.garden ?? 0,
-      flower: m.flower ?? 0,
-      flowerBonus: m.flowerBonus ?? 0,
-      hive: m.ballsInHive ?? 0,
-      robots,
+      tipping: b.tipping,
+      robots: b.leave + b.park,
+      flower: b.flower,
+      flowerBonus: b.flowerBonus,
+      hive: b.hive,
+      garden: b.garden,
     };
   });
 
@@ -1021,14 +1025,19 @@ export const SummaryTab = ({
   }));
   const hasPenalties = penaltyData.some(d => d.minor + d.major > 0);
 
-  const cycleData = matches.flatMap((m, i) => {
+  // Every match keeps its column, so one without tip times (entered after
+  // the fact) is a gap in the line rather than a column that isn't there.
+  const cycleData = matches.map((m, i) => {
     const cycles = cycleTimesOf(m);
-    return cycles.length === 0
-      ? []
-      : [{ ...matchRow(m, i), cycle: mean(cycles) }];
+    return {
+      ...matchRow(m, i),
+      cycle: cycles.length > 0 ? mean(cycles) : null,
+    };
   });
+  const showTimes = trends && stats.avgCycle !== null;
 
-  // Session-average element mix, used for the contribution bars.
+  // Session-average element mix, in the scoring page's order and named as
+  // the stacked 'Scoring by Match' bars below name them (Leave + Park).
   const avgRows = [
     {
       label: ELEMENT_LABELS.tipping,
@@ -1036,9 +1045,9 @@ export const SummaryTab = ({
       color: colors.tipping,
     },
     {
-      label: ELEMENT_LABELS.garden,
-      value: stats.avgGarden,
-      color: colors.garden,
+      label: ELEMENT_LABELS.robots,
+      value: stats.avgRobots,
+      color: colors.robots,
     },
     {
       label: ELEMENT_LABELS.flower,
@@ -1051,156 +1060,209 @@ export const SummaryTab = ({
       color: colors.flowerBonus,
     },
     { label: ELEMENT_LABELS.hive, value: stats.avgHive, color: colors.hive },
-    { label: ELEMENT_LABELS.leave, value: stats.avgLeave, color: colors.robots },
-    { label: ELEMENT_LABELS.park, value: stats.avgPark, color: colors.robots },
+    {
+      label: ELEMENT_LABELS.garden,
+      value: stats.avgGarden,
+      color: colors.garden,
+    },
   ];
   const avgMax = Math.max(1, ...avgRows.map(r => Math.abs(r.value)));
 
   const rp = stats.rankingPoints;
-  const n = stats.totalMatches;
-  const bestNumber = matches[stats.bestMatch]?.matchNumber ?? stats.bestMatch + 1;
-  const worstNumber =
-    matches[stats.worstMatch]?.matchNumber ?? stats.worstMatch + 1;
+  // Best and worst only where two matches can be told apart, and in a
+  // session of mixed types only among matches of one type.
+  const top = rankMatches(matches).headline;
+  const numberOf = (index: number) => matches[index]?.matchNumber ?? index + 1;
   const [pollinator1, pollinator2] = RANKING_POINTS.POLLINATOR_TIPS;
+
+  const tiles: (Omit<StatTileProps, 'isDarkMode'> & { key: string })[] = [
+    {
+      key: 'average',
+      label: 'Average Score',
+      value: stats.avgScore,
+      caption: `across ${plural(n, 'match', 'matches')}`,
+    },
+    ...(top
+      ? [
+          {
+            key: 'best',
+            label: top.type ? `Best ${top.type}` : 'Best Match',
+            value: scoreOf(matches[top.best]),
+            caption: `Match ${numberOf(top.best)}`,
+            tone: 'success' as const,
+            onClick: onOpenMatch && (() => onOpenMatch(top.best)),
+          },
+          {
+            key: 'worst',
+            label: top.type ? `Worst ${top.type}` : 'Worst Match',
+            value: scoreOf(matches[top.worst]),
+            caption: `Match ${numberOf(top.worst)}`,
+            tone: 'danger' as const,
+            onClick: onOpenMatch && (() => onOpenMatch(top.worst)),
+          },
+        ]
+      : []),
+    {
+      key: 'swing',
+      label: 'Typical swing',
+      value: stats.scoreSpread === null ? null : `±${stats.scoreSpread} pts`,
+      caption: stats.scoreSpread === null ? 'needs 2+ matches' : undefined,
+      info: 'How far a match usually lands from the average score (the standard deviation of the match scores).',
+    },
+    {
+      key: 'leave',
+      label: 'Leave Rate',
+      value: stats.leaveRate === null ? null : `${stats.leaveRate}%`,
+      caption:
+        stats.leaveRate === null
+          ? 'no Auto period'
+          : `Leave ${stats.leaves.made} of ${stats.leaves.chances}`,
+      info: 'Robots that left in Auto, out of two for every match that ran an Auto period.',
+    },
+    {
+      key: 'park',
+      label: 'Park Rate',
+      value: stats.parkRate === null ? null : `${stats.parkRate}%`,
+      caption:
+        stats.parkRate === null
+          ? 'no park chances'
+          : `Park ${stats.parks.made} of ${stats.parks.chances}`,
+      info: 'Parks made out of the chances: two robots at the end of Auto and two at the end of the match, for the periods each match ran.',
+    },
+    {
+      key: 'rp',
+      label: 'RP Rate',
+      value: rp.rate === null ? null : `${rp.rate}%`,
+      caption: `${rp.earned} of ${rp.possible} RP`,
+      info: (
+        <>
+          <span className="block">
+            Share of the ranking points scoring can earn, three a match: SWARM
+            at {RANKING_POINTS.SWARM_ROBOT_POINTS} Leave + Park points,
+            POLLINATOR at {pollinator1} and at {pollinator2} Hive Tips.
+          </span>
+          <span className="block mt-1.5 tabular-nums">
+            SWARM {rp.swarm}/{n} · POLLINATOR 1 {rp.pollinator1}/{n} ·
+            POLLINATOR 2 {rp.pollinator2}/{n}
+          </span>
+        </>
+      ),
+    },
+    // Only with tips tapped live: matches entered afterwards have no times.
+    ...(stats.avgCycle !== null
+      ? [
+          {
+            key: 'cycle',
+            label: 'Avg time between tips',
+            value: `${stats.avgCycle.toFixed(1)}s`,
+            caption: `over ${plural(stats.cycleCount, 'gap')}`,
+            info: 'Average seconds from one Hive Tip to the next within a match, from tips tapped live.',
+          },
+        ]
+      : []),
+    ...(fouls
+      ? [
+          {
+            key: 'penalties',
+            label: 'Avg points given to opponent',
+            value: stats.avgPenalties,
+            caption:
+              "per match, from this team's penalties · not part of the score",
+          },
+        ]
+      : []),
+  ];
+  const layout = TILE_LAYOUT[tiles.length] ?? TILE_LAYOUT[8];
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Two tiles a row on a phone; the ninth (fouls) takes a full row there */}
-      <div
-        className={`grid grid-cols-2 gap-2 sm:gap-4 ${fouls ? 'sm:grid-cols-3' : 'md:grid-cols-4'}`}
-      >
-        <StatCard
-          label="Average Score"
-          value={stats.avgScore}
-          sublabel={`across ${plural(n, 'match', 'matches')}`}
-          highlight
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Best Match"
-          value={stats.maxScore}
-          sublabel={`Match ${bestNumber}`}
-          variant="success"
-          onClick={onOpenMatch && (() => onOpenMatch(stats.bestMatch))}
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Worst Match"
-          value={stats.minScore}
-          sublabel={`Match ${worstNumber}`}
-          variant="danger"
-          onClick={onOpenMatch && (() => onOpenMatch(stats.worstMatch))}
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Typical swing"
-          value={stats.scoreSpread === null ? '-' : `±${stats.scoreSpread} pts`}
-          sublabel={
-            stats.scoreSpread === null
-              ? 'needs 2+ matches'
-              : `range ${stats.minScore}-${stats.maxScore}`
-          }
-          info="How far a match usually lands from the average score (the standard deviation of the match scores)."
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Leave Rate"
-          value={stats.leaveRate === null ? '-' : `${stats.leaveRate}%`}
-          sublabel={
-            stats.leaveRate === null
-              ? 'no autonomous run'
-              : `Leave ${stats.leaves.made} of ${stats.leaves.chances}`
-          }
-          info="Robots that left in auto, out of two for every match that ran an autonomous period."
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Park Rate"
-          value={stats.parkRate === null ? '-' : `${stats.parkRate}%`}
-          sublabel={
-            stats.parkRate === null
-              ? 'no park chances'
-              : `Park ${stats.parks.made} of ${stats.parks.chances}`
-          }
-          info="Parks made out of the chances: two robots at the end of auto and two at the end of the match, for the periods each match ran."
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="RP Rate"
-          value={rp.rate === null ? '-' : `${rp.rate}%`}
-          sublabel={`${rp.earned} of ${rp.possible} RP · SWARM ${rp.swarm}/${n} · POLLINATOR 1 ${rp.pollinator1}/${n} · POLLINATOR 2 ${rp.pollinator2}/${n}`}
-          info={`Share of the ranking points scoring can earn, three a match: SWARM at ${RANKING_POINTS.SWARM_ROBOT_POINTS} Leave + Park points, POLLINATOR at ${pollinator1} and at ${pollinator2} Hive Tips.`}
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Avg time between tips"
-          value={stats.avgCycle !== null ? `${stats.avgCycle.toFixed(1)}s` : '-'}
-          sublabel={
-            stats.avgCycle !== null
-              ? `over ${plural(stats.cycleCount, 'gap')}`
-              : 'needs 2+ Hive Tips scored live'
-          }
-          info="Average seconds from one Hive Tip to the next within a match, from tips tapped live."
-          isDarkMode={isDarkMode}
-        />
-        {fouls && (
-          <StatCard
-            label="Avg points given to opponent"
-            value={stats.avgPenalties}
-            sublabel="per match, from your fouls - not taken off your score"
-            variant={stats.avgPenalties > 0 ? 'danger' : 'default'}
-            className="col-span-2 sm:col-span-1"
+      <div className={`grid grid-cols-2 gap-2 sm:gap-4 ${layout.grid}`}>
+        {tiles.map(({ key, ...tile }, i) => (
+          <StatTile
+            key={key}
+            {...tile}
+            className={i === tiles.length - 1 ? layout.last : undefined}
             isDarkMode={isDarkMode}
           />
-        )}
+        ))}
       </div>
 
-      <Section title="Score Trend" hint={openHint} isDarkMode={isDarkMode}>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart
-            data={trendData}
-            onClick={openFromChart('trend', trendData)}
-            style={chartStyle}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-            />
-            <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-            <YAxis width={40} {...axisProps(isDarkMode)} />
-            <Tooltip
-              content={
-                <ChartTooltip
-                  isDarkMode={isDarkMode}
-                  unit=" pts"
-                  hint={tooltipHint}
+      {nothingScored ? (
+        // One card for both charts: a flat line and an empty stack say the
+        // same thing twice.
+        <Section title="Score Trend" isDarkMode={isDarkMode}>
+          <EmptyChart message="No points scored yet" isDarkMode={isDarkMode} />
+        </Section>
+      ) : trends ? (
+        <Section title="Score Trend" isDarkMode={isDarkMode}>
+          <div data-chart="trend">
+            <ResponsiveContainer
+              width="100%"
+              height={280}
+              onResize={trendColumns.onResize}
+            >
+              <LineChart
+                data={trendData}
+                onClick={openFromChart('trend', trendData)}
+                style={chartStyle}
+                {...chartA11y(
+                  'Score trend',
+                  'The final score of each match, with the session average as a dashed line.'
+                )}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={isDarkMode ? '#334155' : '#e2e8f0'}
                 />
-              }
-            />
-            <Legend itemSorter={null} />
-            <Line
-              type="monotone"
-              dataKey="score"
-              name="Final Score"
-              stroke={colors.total}
-              strokeWidth={3}
-              dot={{ r: 4 }}
-              activeDot={{ r: 7 }}
-            />
-            <Line
-              dataKey="average"
-              name="Session average"
-              stroke={colors.average}
-              strokeWidth={1.5}
-              strokeDasharray="4 4"
-              legendType="plainline"
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </Section>
+                {/* Each point sits over its match's bar below */}
+                <XAxis
+                  dataKey="name"
+                  padding={trendColumns.padding}
+                  {...axisProps(isDarkMode)}
+                />
+                <YAxis width={Y_AXIS_WIDTH} {...axisProps(isDarkMode)} />
+                <Tooltip
+                  {...tooltipProps('trend')}
+                  itemSorter={seriesOrder(['score', 'average'])}
+                  content={
+                    <ChartTooltip
+                      isDarkMode={isDarkMode}
+                      titleKey="title"
+                      formatValue={formatPts}
+                      hint={tooltipHint}
+                    />
+                  }
+                />
+                <Legend {...LEGEND_PROPS} itemSorter={null} />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  name="Final Score"
+                  stroke={colors.total}
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  activeDot={activeDot('trend')}
+                />
+                <Line
+                  dataKey="average"
+                  name="Session average"
+                  stroke={colors.average}
+                  strokeWidth={1.5}
+                  strokeDasharray="4 4"
+                  legendType="plainline"
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Section>
+      ) : (
+        <ChartNote isDarkMode={isDarkMode}>
+          Trends appear after 2 matches
+        </ChartNote>
+      )}
 
       <Section title="Where the Points Came From" isDarkMode={isDarkMode}>
         <div className="space-y-4">
@@ -1215,225 +1277,226 @@ export const SummaryTab = ({
             />
           ))}
         </div>
-        {fouls && (
-          <p
-            className={`mt-5 pt-4 border-t text-sm ${
-              isDarkMode
-                ? 'border-gray-700 text-team-white-60'
-                : 'border-gray-200 text-gray-600'
-            }`}
-          >
-            Given to opponent by your fouls:{' '}
-            <span className="font-bold tabular-nums">
-              {stats.avgPenalties} {stats.avgPenalties === 1 ? 'pt' : 'pts'}
-            </span>{' '}
-            per match. Not part of your score.
-          </p>
-        )}
       </Section>
 
-      <Section title="Scoring by Match" hint={openHint} isDarkMode={isDarkMode}>
-        <div className="flex gap-2 mb-4">
-          {(['points', 'counts'] as const).map(view => (
-            <button
-              key={view}
-              type="button"
-              aria-pressed={elementView === view}
-              onClick={() => setElementView(view)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:px-4 ${
-                elementView === view
-                  ? `bg-team-blue ${onTeamBlue(isDarkMode)}`
-                  : isDarkMode
-                    ? 'bg-white/5 text-team-white-60 hover:bg-white/10'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {view}
-            </button>
-          ))}
-        </div>
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart
-            data={elementData}
-            onClick={openFromChart('elements', elementData)}
-            style={chartStyle}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-            />
-            <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-            <YAxis width={40} {...axisProps(isDarkMode)} />
-            <Tooltip
-              cursor={barCursor(isDarkMode)}
-              content={
-                elementView === 'points' ? (
-                  <ChartTooltip
-                    isDarkMode={isDarkMode}
-                    unit=" pts"
-                    total
-                    hint={tooltipHint}
-                  />
-                ) : (
-                  <ChartTooltip isDarkMode={isDarkMode} hint={tooltipHint} />
-                )
-              }
-            />
-            {/* Unsorted, the legend reads in the order the bars are stacked */}
-            <Legend itemSorter={null} />
-            {SERIES_KEYS.map(key => (
-              <Bar
-                key={key}
-                dataKey={key}
-                name={ELEMENT_LABELS[key]}
-                stackId="a"
-                fill={colors[key]}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </Section>
-
-      <div
-        className={`grid grid-cols-1 gap-4 sm:gap-6 ${fouls ? 'lg:grid-cols-2' : ''}`}
-      >
-        {fouls && (
-          <Section
-            title="Fouls (points go to the opponent)"
-            isDarkMode={isDarkMode}
-          >
-            {hasPenalties ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart
-                  data={penaltyData}
-                  onClick={openFromChart('fouls', penaltyData)}
-                  style={chartStyle}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-                  />
-                  <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-                  <YAxis
-                    width={40}
-                    allowDecimals={false}
-                    {...axisProps(isDarkMode)}
-                  />
-                  <Tooltip
-                    cursor={barCursor(isDarkMode)}
-                    content={
-                      <ChartTooltip
-                        isDarkMode={isDarkMode}
-                        hint={tooltipHint}
-                      />
-                    }
-                  />
-                  <Legend itemSorter={null} />
-                  <Bar
-                    dataKey="minor"
-                    name={ELEMENT_LABELS.minor}
-                    fill={colors.minor}
-                  />
-                  <Bar
-                    dataKey="major"
-                    name={ELEMENT_LABELS.major}
-                    fill={colors.major}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyChart
-                message="No fouls recorded - nice driving"
-                isDarkMode={isDarkMode}
-              />
-            )}
-          </Section>
-        )}
-
-        <Section title="Time Between Hive Tips" isDarkMode={isDarkMode}>
-          {cycleData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart
-                data={cycleData}
-                onClick={openFromChart('cycle', cycleData)}
+      {!nothingScored && (
+        <Section title="Scoring by Match" isDarkMode={isDarkMode}>
+          <div data-chart="elements">
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart
+                data={elementData}
+                onClick={openFromChart('elements', elementData)}
                 style={chartStyle}
+                {...chartA11y(
+                  'Scoring by match',
+                  'The points each scoring element earned in every match, stacked into the match score.'
+                )}
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke={isDarkMode ? '#334155' : '#e2e8f0'}
                 />
                 <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-                <YAxis width={40} unit="s" {...axisProps(isDarkMode)} />
+                <YAxis width={Y_AXIS_WIDTH} {...axisProps(isDarkMode)} />
                 <Tooltip
+                  {...tooltipProps('elements')}
+                  cursor={barCursor(isDarkMode)}
+                  itemSorter={seriesOrder(SERIES_KEYS)}
                   content={
                     <ChartTooltip
                       isDarkMode={isDarkMode}
-                      unit="s"
+                      titleKey="title"
+                      formatValue={formatPts}
+                      formatTotal={formatPts}
                       hint={tooltipHint}
                     />
                   }
                 />
-                <Line
-                  type="monotone"
-                  dataKey="cycle"
-                  name="Avg time between tips"
-                  stroke={colors.cycle}
-                  strokeWidth={3}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 7 }}
-                />
-              </LineChart>
+                {/* Unsorted, the legend reads in the order the bars are stacked */}
+                <Legend {...LEGEND_PROPS} itemSorter={null} />
+                {SERIES_KEYS.map(key => (
+                  <Bar
+                    key={key}
+                    dataKey={key}
+                    name={ELEMENT_LABELS[key]}
+                    stackId="a"
+                    fill={colors[key]}
+                    maxBarSize={MAX_BAR_SIZE}
+                  />
+                ))}
+              </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <EmptyChart
-              message="No times yet - needs 2+ Hive Tips scored live"
-              isDarkMode={isDarkMode}
-            />
-          )}
+          </div>
         </Section>
-      </div>
+      )}
+
+      {(fouls || showTimes) && (
+        <div
+          className={`grid grid-cols-1 gap-4 sm:gap-6 ${fouls && showTimes ? 'lg:grid-cols-2' : ''}`}
+        >
+          {fouls && (
+            <Section
+              title="Penalties (points to the opponent)"
+              isDarkMode={isDarkMode}
+            >
+              {hasPenalties ? (
+                <div data-chart="penalties">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart
+                      data={penaltyData}
+                      onClick={openFromChart('penalties', penaltyData)}
+                      style={chartStyle}
+                      {...chartA11y(
+                        'Penalties by match',
+                        'Minor and major penalties in each match; their points go to the opponent.'
+                      )}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? '#334155' : '#e2e8f0'}
+                      />
+                      <XAxis dataKey="name" {...axisProps(isDarkMode)} />
+                      <YAxis
+                        width={Y_AXIS_WIDTH}
+                        allowDecimals={false}
+                        {...axisProps(isDarkMode)}
+                      />
+                      <Tooltip
+                        {...tooltipProps('penalties')}
+                        cursor={barCursor(isDarkMode)}
+                        itemSorter={seriesOrder(['minor', 'major'])}
+                        content={
+                          <ChartTooltip
+                            isDarkMode={isDarkMode}
+                            titleKey="title"
+                            hint={tooltipHint}
+                          />
+                        }
+                      />
+                      <Legend {...LEGEND_PROPS} itemSorter={null} />
+                      <Bar
+                        dataKey="minor"
+                        name={ELEMENT_LABELS.minor}
+                        fill={colors.minor}
+                        maxBarSize={MAX_BAR_SIZE}
+                      />
+                      <Bar
+                        dataKey="major"
+                        name={ELEMENT_LABELS.major}
+                        fill={colors.major}
+                        maxBarSize={MAX_BAR_SIZE}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <EmptyChart
+                  message="No penalties recorded · nice driving"
+                  isDarkMode={isDarkMode}
+                />
+              )}
+            </Section>
+          )}
+
+          {showTimes && (
+            <Section title="Time Between Hive Tips" isDarkMode={isDarkMode}>
+              <div data-chart="cycle">
+                <ResponsiveContainer
+                  width="100%"
+                  height={260}
+                  onResize={cycleColumns.onResize}
+                >
+                  <LineChart
+                    data={cycleData}
+                    onClick={openFromChart('cycle', cycleData)}
+                    style={chartStyle}
+                    {...chartA11y(
+                      'Time between Hive Tips',
+                      'Average seconds between Hive Tips in each match; a gap is a match without tip times.'
+                    )}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={isDarkMode ? '#334155' : '#e2e8f0'}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      padding={cycleColumns.padding}
+                      {...axisProps(isDarkMode)}
+                    />
+                    <YAxis
+                      width={Y_AXIS_WIDTH}
+                      unit="s"
+                      {...axisProps(isDarkMode)}
+                    />
+                    <Tooltip
+                      {...tooltipProps('cycle')}
+                      content={
+                        <ChartTooltip
+                          isDarkMode={isDarkMode}
+                          titleKey="title"
+                          formatValue={value => `${formatNumber(value)}s`}
+                          hint={tooltipHint}
+                        />
+                      }
+                    />
+                    {/* Its own legend line, so beside the penalties chart
+                        both plots sit on the same baseline */}
+                    <Legend {...LEGEND_PROPS} />
+                    <Line
+                      type="monotone"
+                      dataKey="cycle"
+                      name="Avg time between tips"
+                      stroke={colors.cycle}
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      activeDot={activeDot('cycle')}
+                      connectNulls={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Section>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-/** "Best" or "Worst" beside a match: a word and an icon, not colour alone */
+/**
+ * A match type's name on a chip, where room is short: "Auto", as the phase
+ * chip and the lifetime Compare page's narrow rows say it.
+ */
+const TYPE_SHORT: Record<string, string> = { Autonomous: 'Auto' };
+
+/**
+ * "Best" or "Worst" beside a match: a word and an icon, not colour alone, in
+ * the chip shape the phase and status chips share. In a session of mixed
+ * types it names the type the match is ranked within ("Best Auto"), as the
+ * Summary's tiles do: an Autonomous best beside a Full Game worst that
+ * scored more is no contradiction once it says so.
+ */
 const RankMark = ({
   rank,
+  type,
   isDarkMode,
-  className = '',
 }: {
   rank: 'best' | 'worst';
+  /** The match's type, in a session of mixed types */
+  type?: string;
   isDarkMode: boolean;
-  className?: string;
 }) => {
   const Icon = rank === 'best' ? TrendingUp : TrendingDown;
-  const tone =
-    rank === 'best'
-      ? isDarkMode
-        ? 'text-emerald-400'
-        : 'text-emerald-700'
-      : isDarkMode
-        ? 'text-red-400'
-        : 'text-red-700';
   return (
     <span
-      className={`inline-flex items-center gap-0.5 text-[11px] font-bold uppercase tracking-wide ${tone} ${className}`}
+      className={`${CHIP_BASE} ${CHIP_SIZES.sm} ${chipTone(rank === 'best' ? 'success' : 'danger', isDarkMode)} gap-0.5`}
     >
-      <Icon size={12} aria-hidden />
+      <Icon size={11} aria-hidden />
       {rank === 'best' ? 'Best' : 'Worst'}
+      {type && ` ${TYPE_SHORT[type] ?? type}`}
     </span>
   );
-};
-
-/** Which matches scored highest and lowest; neither when every score is equal */
-const rankOf = (matches: Match[]) => {
-  const scores = matches.map(scoreOf);
-  const max = Math.max(...scores);
-  const min = Math.min(...scores);
-  const best = max === min ? -1 : scores.indexOf(max);
-  const worst = max === min ? -1 : scores.indexOf(min);
-  return (index: number): 'best' | 'worst' | null =>
-    index === best ? 'best' : index === worst ? 'worst' : null;
 };
 
 /**
@@ -1493,7 +1556,7 @@ const DeleteMatchConfirm = ({
           onClick={() => {
             if (Date.now() - shownAt.current >= CONFIRM_ARM_MS) onDelete();
           }}
-          className={`${button} border-red-600 bg-red-600 text-white hover:bg-red-700`}
+          className={`${button} ${DESTRUCTIVE_CLASS}`}
         >
           Delete
         </button>
@@ -1537,7 +1600,7 @@ export const MatchDetailTab = ({
   onEdit?: (match: Match) => void;
   onDelete?: (matchId: string) => void;
   onAdd?: () => void;
-  /** Practice sessions leave the foul line out */
+  /** Practice sessions leave the penalty line out */
   sessionType?: SessionType;
 }) => {
   const [ownIdx, setOwnIdx] = useState(0);
@@ -1545,10 +1608,7 @@ export const MatchDetailTab = ({
   const stripRef = useRef<HTMLDivElement>(null);
 
   // Clamped here rather than stored: the list shrinks under it on a delete.
-  const idx = Math.max(
-    0,
-    Math.min(selectedIdx ?? ownIdx, matches.length - 1)
-  );
+  const idx = Math.max(0, Math.min(selectedIdx ?? ownIdx, matches.length - 1));
   const select = (index: number) => {
     setOwnIdx(index);
     onSelect?.(index);
@@ -1569,6 +1629,8 @@ export const MatchDetailTab = ({
     }
   }, [idx, matches.length]);
 
+  const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
+
   if (matches.length === 0) {
     return (
       <div
@@ -1587,7 +1649,9 @@ export const MatchDetailTab = ({
           <button
             type="button"
             onClick={onAdd}
-            className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-team-blue text-sm font-semibold ${onTeamBlue(isDarkMode)}`}
+            // The view's one fill: the header's New Session steps back
+            data-page-primary
+            className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-semibold ${primaryClass(isDarkMode)}`}
           >
             <Plus size={16} /> Add Match
           </button>
@@ -1598,30 +1662,45 @@ export const MatchDetailTab = ({
 
   const match = matches[idx];
   const breakdown = calculateScore(match);
-  // The foul row is not one of the rows that add up to the total.
+  // The penalty row is not one of the rows that add up to the total.
   const allRows = scoreRows(match);
   const rows = allRows.filter(row => !row.informational);
   const foulRow = allRows.find(row => row.informational);
   const fouls = showsFouls(sessionType, matches);
   const cycles = cycleTimesOf(match);
   const score = scoreOf(match);
-  const avgScore = mean(matches.map(scoreOf));
-  const diff = Math.round(score - avgScore);
+  const ranking = rankMatches(matches);
+  // Measured against the matches it can be compared with: every one, or in
+  // a session of mixed types those of its own type. Alone it has none.
+  const peers = ranking.peers(idx);
+  const diff = Math.round(score - mean(peers.map(i => scoreOf(matches[i]))));
+  const showDiff = peers.length >= 2;
   const rp = rankingPoints(match);
   const rpBadges = rankingPointNames(rp);
-  const rank = rankOf(matches);
-  const matchRank = rank(idx);
   const confirming = confirmDeleteId === match.id;
 
   const outline = isDarkMode
     ? 'border-team-blue-40 text-white hover:bg-white/5'
     : 'border-gray-200 text-gray-700 hover:bg-gray-50';
   const stepButton = `shrink-0 inline-flex items-center justify-center p-2 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed ${TOUCH_TARGET} ${outline}`;
-  const actionButton = `inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold ${TOUCH_TARGET}`;
+  // Edit and Delete are quiet: they act on the match shown, not the page.
+  const quietButton = `inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-transparent text-sm font-semibold transition-colors ${TOUCH_TARGET}`;
+  /** Above the average is better, below it worse */
+  const diffTone =
+    diff > 0
+      ? isDarkMode
+        ? 'text-emerald-400'
+        : 'text-emerald-700'
+      : diff < 0
+        ? isDarkMode
+          ? 'text-red-400'
+          : 'text-red-700'
+        : muted;
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* One row however many matches: it scrolls sideways */}
+      {/* One row however many matches: it scrolls sideways. Adding a match
+          is at its end, where the next one will be. */}
       <div
         ref={stripRef}
         role="group"
@@ -1629,18 +1708,17 @@ export const MatchDetailTab = ({
         className="relative flex gap-2 overflow-x-auto p-1 -m-1"
       >
         {matches.map((m, i) => {
-          const chipRank = rank(i);
+          const chipRank = ranking.rank(i);
           return (
             <button
               key={m.id}
               type="button"
-              aria-label={`Match ${m.matchNumber}, ${plural(scoreOf(m), 'point')}${chipRank ? `, ${chipRank} match` : ''}`}
+              aria-label={`Match ${m.matchNumber}, ${plural(scoreOf(m), 'point')}${chipRank ? `, ${chipRank} ${ranking.mixed ? typeOf(m) : 'match'}` : ''}`}
               aria-pressed={i === idx}
               onClick={() => select(i)}
               className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors [@media(pointer:coarse)]:min-h-11 ${
                 i === idx
-                  ? // team-blue itself is 4.2:1 on its own light tint
-                    `border-team-blue bg-team-blue/10 ${isDarkMode ? 'text-team-blue' : 'text-[#42606e]'}`
+                  ? selectedClass(isDarkMode)
                   : isDarkMode
                     ? 'border-team-blue-40 text-team-white-60 hover:bg-white/5'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -1648,10 +1726,25 @@ export const MatchDetailTab = ({
             >
               M{m.matchNumber}
               <span className="font-normal tabular-nums">{scoreOf(m)}</span>
-              {chipRank && <RankMark rank={chipRank} isDarkMode={isDarkMode} />}
+              {chipRank && (
+                <RankMark
+                  rank={chipRank}
+                  type={ranking.mixed ? typeOf(m) : undefined}
+                  isDarkMode={isDarkMode}
+                />
+              )}
             </button>
           );
         })}
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors [@media(pointer:coarse)]:min-h-11 ${outline}`}
+          >
+            <Plus size={15} aria-hidden /> Add match
+          </button>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
@@ -1675,17 +1768,30 @@ export const MatchDetailTab = ({
           >
             <ChevronRight size={18} />
           </button>
-          <h2
-            className={`flex items-center gap-x-2 flex-wrap min-w-0 ml-1 text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-          >
-            Match {match.matchNumber}
-            <span
-              className={`font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+          {/* The score and how it compares sit under the name; Best or
+              Worst is on the match's chip above. */}
+          <div className="min-w-0 ml-1">
+            <h2
+              className={`${SECTION_TITLE_CLASS} flex items-baseline gap-x-2 flex-wrap`}
             >
-              · {match.matchType || 'Full Game'}
-            </span>
-            {matchRank && <RankMark rank={matchRank} isDarkMode={isDarkMode} />}
-          </h2>
+              Match {match.matchNumber}
+              <span className={`font-medium ${muted}`}>· {typeOf(match)}</span>
+            </h2>
+            <p className={`text-sm tabular-nums ${muted}`}>
+              <span className="font-semibold text-foreground">
+                {formatPoints(score)}
+              </span>
+              {showDiff && (
+                <>
+                  {' · '}
+                  <span className={`font-semibold ${diffTone}`}>
+                    {formatDiff(diff)}
+                  </span>{' '}
+                  {ranking.mixed ? `vs ${typeOf(match)} avg` : 'vs avg'}
+                </>
+              )}
+            </p>
+          </div>
         </div>
 
         {confirming && onDelete ? (
@@ -1699,33 +1805,34 @@ export const MatchDetailTab = ({
             isDarkMode={isDarkMode}
           />
         ) : (
-          (onAdd || onEdit || onDelete) && (
-            <div className="flex items-center gap-2 ml-auto">
-              {onAdd && (
-                <button
-                  type="button"
-                  onClick={onAdd}
-                  className={`${actionButton} bg-team-blue ${onTeamBlue(isDarkMode)}`}
-                >
-                  <Plus size={15} /> Add
-                </button>
-              )}
+          (onEdit || onDelete) && (
+            <div className="flex items-center gap-1 ml-auto">
               {onEdit && (
                 <button
                   type="button"
                   onClick={() => onEdit(match)}
-                  className={`${actionButton} border ${outline}`}
+                  className={`${quietButton} ${
+                    isDarkMode
+                      ? 'text-team-white-60 hover:text-white hover:bg-white/5'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
                 >
-                  <Edit size={15} /> Edit
+                  <Edit size={15} aria-hidden /> Edit
                 </button>
               )}
+              {/* Rightmost, as wide as Keep, which takes its place when it
+                  asks */}
               {onDelete && (
                 <button
                   type="button"
                   onClick={() => setConfirmDeleteId(match.id)}
-                  className={`${actionButton} min-w-[5.75rem] border border-red-500/40 hover:bg-red-500/10 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}
+                  className={`${quietButton} min-w-[5.75rem] ${
+                    isDarkMode
+                      ? 'text-red-400 hover:bg-red-500/10'
+                      : 'text-red-600 hover:bg-red-50'
+                  }`}
                 >
-                  <Trash2 size={15} /> Delete
+                  <Trash2 size={15} aria-hidden /> Delete
                 </button>
               )}
             </div>
@@ -1733,151 +1840,128 @@ export const MatchDetailTab = ({
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-        <StatCard
-          label="Final Score"
-          value={score}
-          highlight
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="vs Session Avg"
-          value={formatDiff(diff)}
-          sublabel={`average ${Math.round(avgScore)}`}
-          variant={diff >= 0 ? 'success' : 'danger'}
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Avg time between tips"
-          value={cycles.length > 0 ? `${mean(cycles).toFixed(1)}s` : '-'}
-          sublabel={
-            cycles.length > 0
-              ? `over ${plural(cycles.length, 'gap')}`
-              : 'needs 2+ Hive Tips scored live'
-          }
-          info="Average seconds from one Hive Tip to the next in this match, from tips tapped live."
-          className="col-span-2 sm:col-span-1"
-          isDarkMode={isDarkMode}
-        />
-      </div>
-
-      <div
-        className="flex items-center gap-2 flex-wrap"
-        aria-label="Ranking points earned in this match"
-      >
-        <span
-          className={`text-xs font-semibold uppercase tracking-wide ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-        >
-          Ranking Points
-        </span>
-        {rpBadges.length === 0 ? (
-          <span
-            className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            None from scoring
-          </span>
-        ) : (
-          rpBadges.map(name => (
-            <span
-              key={name}
-              // green-600 is under 4.5:1 on the light background
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-bold ${
-                isDarkMode
-                  ? 'border-green-500/40 bg-green-500/10 text-green-400'
-                  : 'border-green-300 bg-green-50 text-green-800'
-              }`}
-            >
-              <Check size={13} aria-hidden />
-              {name}
-            </span>
-          ))
-        )}
-        {rpBadges.length > 0 && (
-          <span
-            className={`text-sm font-semibold tabular-nums ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            +{rp.total} RP
-          </span>
-        )}
-      </div>
-
-      <Section title="Breakdown" isDarkMode={isDarkMode}>
-        <div className="space-y-2">
-          {rows.map(row => (
-            <div
-              key={row.key}
-              className={`flex items-center justify-between text-sm py-1.5 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}
-            >
-              <span>{row.label}</span>
-              <span className="flex items-center gap-4 tabular-nums">
-                <span
-                  className={
-                    isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-                  }
-                >
-                  {rowSum(row)}
-                </span>
-                <span className="w-12 sm:w-16 text-right font-bold text-team-blue">
-                  {row.points}
-                </span>
-              </span>
-            </div>
-          ))}
-          <div
-            className={`flex items-center justify-between font-bold pt-3 mt-1 border-t ${
-              isDarkMode
-                ? 'border-gray-700 text-white'
-                : 'border-gray-200 text-gray-900'
-            }`}
-          >
-            <span>Total</span>
-            <span className="tabular-nums text-team-blue text-lg">
-              {breakdown.total}
-            </span>
-          </div>
-          {fouls && foulRow && (
-            <div
-              className={`flex items-start justify-between gap-3 text-sm pt-1 ${
-                isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-              }`}
-            >
-              <span>
-                {foulRow.label} (not part of your score)
-                {/* Too long for the count column on a phone */}
-                <span className="block tabular-nums sm:hidden">
-                  {foulSum(match)}
-                </span>
-              </span>
-              <span className="flex items-start gap-4 tabular-nums text-right">
-                <span className="hidden sm:inline">{foulSum(match)}</span>
-                <span
-                  className={`w-12 sm:w-16 shrink-0 font-bold ${
-                    foulRow.points > 0
-                      ? isDarkMode
-                        ? 'text-red-400'
-                        : 'text-red-700'
-                      : ''
-                  }`}
-                >
-                  +{foulRow.points}
-                </span>
-              </span>
+      {/* On a wide screen the breakdown is narrow, so each number stays
+          near its label, with these figures beside it taking the rest of
+          the width, out to where Edit and Delete end; on a phone they come
+          first. */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,36rem)_minmax(0,1fr)] lg:items-start">
+        <div className="space-y-4 sm:space-y-6 lg:col-start-2 lg:row-start-1">
+          {/* Only from tips tapped live; a match entered afterwards has none */}
+          {cycles.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-4">
+              <StatTile
+                label="Avg time between tips"
+                value={`${mean(cycles).toFixed(1)}s`}
+                caption={`over ${plural(cycles.length, 'gap')}`}
+                info="Average seconds from one Hive Tip to the next in this match, from tips tapped live."
+                isDarkMode={isDarkMode}
+              />
             </div>
           )}
+
+          <div
+            role="group"
+            className="flex items-center gap-2 flex-wrap"
+            aria-label="Ranking points earned in this match"
+          >
+            <span className={EYEBROW_CLASS}>Ranking Points</span>
+            {rpBadges.length === 0 ? (
+              <span className={`text-sm ${muted}`}>None from scoring</span>
+            ) : (
+              rpBadges.map(name => (
+                <span
+                  key={name}
+                  className={`${CHIP_BASE} ${CHIP_SIZES.md} ${chipTone('neutral', isDarkMode)} gap-1`}
+                >
+                  <Check size={13} aria-hidden />
+                  {name}
+                </span>
+              ))
+            )}
+            {rpBadges.length > 0 && (
+              <span className={`text-sm font-semibold tabular-nums ${muted}`}>
+                +{rp.total} RP
+              </span>
+            )}
+          </div>
         </div>
-      </Section>
+
+        <Section
+          title="Breakdown"
+          as="h3"
+          className="lg:col-start-1 lg:row-start-1"
+          isDarkMode={isDarkMode}
+        >
+          <div className="space-y-2">
+            {rows.map(row => (
+              <div
+                key={row.key}
+                className={`flex items-center justify-between text-sm py-1.5 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              >
+                <span>{row.label}</span>
+                <span className="flex items-center gap-4 tabular-nums">
+                  <span className={muted}>{rowSum(row)}</span>
+                  <span
+                    className={`w-12 sm:w-16 text-right font-bold ${DATA_CLASS}`}
+                  >
+                    {row.points}
+                  </span>
+                </span>
+              </div>
+            ))}
+            <div
+              className={`flex items-center justify-between font-bold pt-3 mt-1 border-t ${
+                isDarkMode
+                  ? 'border-gray-700 text-white'
+                  : 'border-gray-200 text-gray-900'
+              }`}
+            >
+              <span>Total</span>
+              <span className={`text-lg ${DATA_CLASS}`}>{breakdown.total}</span>
+            </div>
+            {fouls && foulRow && (
+              <div
+                className={`flex items-start justify-between gap-3 text-sm pt-1 ${muted}`}
+              >
+                <span>
+                  {foulRow.label} (not part of the score)
+                  {/* Too long for the count column on a phone */}
+                  <span className="block tabular-nums sm:hidden">
+                    {foulSum(match)}
+                  </span>
+                </span>
+                <span className="flex items-start gap-4 tabular-nums text-right">
+                  <span className="hidden sm:inline">{foulSum(match)}</span>
+                  <span
+                    className={`w-12 sm:w-16 shrink-0 font-bold ${
+                      foulRow.points > 0
+                        ? isDarkMode
+                          ? 'text-red-400'
+                          : 'text-red-700'
+                        : ''
+                    }`}
+                  >
+                    +{foulRow.points}
+                  </span>
+                </span>
+              </div>
+            )}
+          </div>
+        </Section>
+      </div>
     </div>
   );
 };
 
-/** The pair worth looking at first: the worst match against the best. */
+/**
+ * The pair worth looking at first: the worst match against the best, both
+ * of one type in a session of mixed types.
+ */
 const defaultPair = (matches: Match[]): [number, number] => {
-  const scores = matches.map(scoreOf);
-  const worst = scores.indexOf(Math.min(...scores));
-  const best = scores.indexOf(Math.max(...scores));
-  return worst === best ? [0, Math.min(1, matches.length - 1)] : [worst, best];
+  const top = rankMatches(matches).headline;
+  return top ? [top.worst, top.best] : [0, Math.min(1, matches.length - 1)];
 };
 
 export const CompareTab = ({
@@ -1887,11 +1971,15 @@ export const CompareTab = ({
 }: {
   matches: Match[];
   isDarkMode: boolean;
-  /** Practice sessions leave the foul row out */
+  /** Practice sessions leave the penalty row out */
   sessionType?: SessionType;
 }) => {
   const [[pickedA, pickedB], setPair] = useState(() => defaultPair(matches));
   const isCompact = useIsCompact();
+  // On a phone the chart waits behind a button: the table has every figure.
+  const [showChart, setShowChart] = useState(false);
+  const chartId = useId();
+  const { tooltipControl } = useChartTaps(!canHover());
 
   if (matches.length < 2) {
     return (
@@ -1914,9 +2002,9 @@ export const CompareTab = ({
   const b = matches[bIdx];
   const fouls = showsFouls(sessionType, matches);
   const colors = chartColors(isDarkMode);
-  const rank = rankOf(matches);
-  // Fouls aren't part of either score: off the chart, and in the table only
-  // for a Scrim.
+  const ranking = rankMatches(matches);
+  // Penalties aren't part of either score: off the chart, and in the table
+  // only for a Scrim.
   const aRows = scoreRows(a).filter(row => fouls || !row.informational);
   const bRows = scoreRows(b).filter(row => fouls || !row.informational);
 
@@ -1924,10 +2012,6 @@ export const CompareTab = ({
   // number (sessions edited before deletes renumbered) or are one match.
   const aLabel = `A · Match ${a.matchNumber}`;
   const bLabel = `B · Match ${b.matchNumber}`;
-  const rankLabel = (index: number) => {
-    const r = rank(index);
-    return r ? `${r === 'best' ? 'Best' : 'Worst'} match` : undefined;
-  };
 
   const cellTone = isDarkMode ? 'text-gray-300' : 'text-gray-700';
   const mutedTone = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
@@ -1953,11 +2037,12 @@ export const CompareTab = ({
         }`}
       >
         {matches.map((m, i) => {
-          const r = rank(i);
+          const r = ranking.rank(i);
           return (
             <option key={m.id} value={i}>
               Match {m.matchNumber} · {plural(scoreOf(m), 'pt')}
-              {r ? ` (${r})` : ''}
+              {/* Ranked within its type when the session mixes them */}
+              {r ? ` (${r}${ranking.mixed ? ` ${typeOf(m)}` : ''})` : ''}
             </option>
           );
         })}
@@ -1978,6 +2063,7 @@ export const CompareTab = ({
 
   const aScore = scoreOf(a);
   const bScore = scoreOf(b);
+  const scoreDelta = bScore - aScore;
   const aRp = rankingPoints(a);
   const bRp = rankingPoints(b);
   const rpDelta = bRp.total - aRp.total;
@@ -1993,12 +2079,115 @@ export const CompareTab = ({
           : 'text-red-700'
         : mutedTone;
 
+  const elementChart = (
+    <Section
+      title="Element by Element"
+      isDarkMode={isDarkMode}
+      action={
+        isCompact && (
+          <button
+            type="button"
+            aria-expanded={showChart}
+            aria-controls={showChart ? chartId : undefined}
+            onClick={() => setShowChart(v => !v)}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-semibold ${TOUCH_TARGET} ${
+              isDarkMode
+                ? 'border-team-blue-40 text-white hover:bg-white/5'
+                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            {showChart ? 'Hide chart' : 'Show chart'}
+            <ChevronDown
+              size={16}
+              aria-hidden
+              className={`transition-transform ${showChart ? 'rotate-180' : ''}`}
+            />
+          </button>
+        )
+      }
+    >
+      {(!isCompact || showChart) && (
+        <div id={chartId} data-chart="compare">
+          <ResponsiveContainer width="100%" height={300}>
+            {/* On a phone the bars run across with every element named down
+                the side: under columns that narrow the names collide, and
+                the axis drops some of them, the tallest bars' among them. */}
+            <BarChart
+              data={chartData}
+              layout={isCompact ? 'vertical' : 'horizontal'}
+              {...chartA11y(
+                'Element by element',
+                'The points each scoring element earned in Match A and Match B, side by side.'
+              )}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isDarkMode ? '#334155' : '#e2e8f0'}
+              />
+              {isCompact ? (
+                <>
+                  <XAxis type="number" {...axisProps(isDarkMode)} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={88}
+                    interval={0}
+                    {...axisProps(isDarkMode)}
+                  />
+                </>
+              ) : (
+                <>
+                  <XAxis dataKey="name" {...axisProps(isDarkMode)} />
+                  <YAxis width={Y_AXIS_WIDTH} {...axisProps(isDarkMode)} />
+                </>
+              )}
+              <Tooltip
+                wrapperStyle={TOOLTIP_WRAPPER_STYLE}
+                {...tooltipControl('compare')}
+                {...(isCompact
+                  ? {
+                      position: { y: 0 },
+                      allowEscapeViewBox: { x: false, y: false },
+                    }
+                  : {})}
+                cursor={barCursor(isDarkMode)}
+                itemSorter={seriesOrder(['a', 'b'])}
+                content={
+                  <ChartTooltip
+                    isDarkMode={isDarkMode}
+                    titleKey="name"
+                    formatValue={formatPts}
+                  />
+                }
+              />
+              <Legend {...LEGEND_PROPS} itemSorter={null} />
+              <Bar
+                dataKey="a"
+                name={aLabel}
+                fill={colors.matchA}
+                maxBarSize={MAX_BAR_SIZE}
+              />
+              <Bar
+                dataKey="b"
+                name={bLabel}
+                fill={colors.matchB}
+                maxBarSize={MAX_BAR_SIZE}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </Section>
+  );
+
   /** Points with the count that made them underneath: "60" over "3 × 20" */
   const pointsCell = (row: ScoreRow) => (
     <td className="text-right tabular-nums py-1.5 align-top">
       <span className="block font-semibold">{row.points}</span>
       <span className={`block text-xs ${mutedTone}`}>
-        {row.informational ? plural(row.count, 'foul') : rowSum(row)}
+        {row.informational
+          ? plural(row.count, 'penalty', 'penalties')
+          : rowSum(row)}
       </span>
     </td>
   );
@@ -2029,68 +2218,31 @@ export const CompareTab = ({
         {picker('Match B', bIdx, i => setPair([aIdx, i]))}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <StatCard
-          label={aLabel}
-          value={aScore}
-          sublabel={rankLabel(aIdx)}
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Change"
-          value={formatDiff(bScore - aScore)}
-          sublabel="B minus A"
-          variant={bScore >= aScore ? 'success' : 'danger'}
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label={bLabel}
-          value={bScore}
-          sublabel={rankLabel(bIdx)}
-          isDarkMode={isDarkMode}
-        />
-      </div>
+      {/* The difference in one line; the table below has the rest */}
+      <p className={`text-sm ${cellTone}`}>
+        {scoreDelta === 0 ? (
+          'A and B scored the same'
+        ) : (
+          <>
+            B scored{' '}
+            <span
+              className={`font-semibold tabular-nums ${deltaTone(scoreDelta)}`}
+            >
+              {Math.abs(scoreDelta)} {scoreDelta > 0 ? 'more' : 'fewer'}
+            </span>{' '}
+            than A
+          </>
+        )}
+        {typeOf(a) !== typeOf(b) && (
+          <span className={mutedTone}>
+            {' '}
+            · {typeOf(a)} vs {typeOf(b)}
+          </span>
+        )}
+      </p>
 
-      <Section title="Element by Element" isDarkMode={isDarkMode}>
-        <ResponsiveContainer width="100%" height={300}>
-          {/* On a phone the bars run across with every element named down
-              the side: under columns that narrow the names collide, and the
-              axis drops some of them, the tallest bars' among them. */}
-          <BarChart
-            data={chartData}
-            layout={isCompact ? 'vertical' : 'horizontal'}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-            />
-            {isCompact ? (
-              <>
-                <XAxis type="number" {...axisProps(isDarkMode)} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={88}
-                  interval={0}
-                  {...axisProps(isDarkMode)}
-                />
-              </>
-            ) : (
-              <>
-                <XAxis dataKey="name" {...axisProps(isDarkMode)} />
-                <YAxis width={40} {...axisProps(isDarkMode)} />
-              </>
-            )}
-            <Tooltip
-              cursor={barCursor(isDarkMode)}
-              content={<ChartTooltip isDarkMode={isDarkMode} unit=" pts" />}
-            />
-            <Legend itemSorter={null} />
-            <Bar dataKey="a" name={aLabel} fill={colors.matchA} />
-            <Bar dataKey="b" name={bLabel} fill={colors.matchB} />
-          </BarChart>
-        </ResponsiveContainer>
-      </Section>
+      {/* The chart after the table on a phone, where it is hidden at first */}
+      {!isCompact && elementChart}
 
       <Section title="Side by Side" isDarkMode={isDarkMode}>
         <table className="w-full text-sm table-fixed">
@@ -2204,6 +2356,8 @@ export const CompareTab = ({
           ))}
         </ul>
       </Section>
+
+      {isCompact && elementChart}
     </div>
   );
 };
@@ -2227,6 +2381,10 @@ export const LegacySeasonView = ({
   const scores = matches.map(m => m.finalScore ?? 0);
   const name = (season || 'decode').toUpperCase();
   const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
+  const best = Math.max(...scores);
+  const worst = Math.min(...scores);
+  // Figures beyond the list only when there are two different scores
+  const ranked = scores.length >= 2 && best !== worst;
 
   return (
     <div className="space-y-6">
@@ -2242,24 +2400,26 @@ export const LegacySeasonView = ({
         saved final scores are shown.
       </div>
 
-      {scores.length > 0 && (
+      {/* With one match, or every score the same, the average and a best
+          and worst are just the score the list below shows: no tiles. */}
+      {ranked && (
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <StatCard
+          <StatTile
             label="Avg Score"
             value={Math.round(mean(scores))}
-            sublabel={plural(scores.length, 'match', 'matches')}
+            caption={plural(scores.length, 'match', 'matches')}
             isDarkMode={isDarkMode}
           />
-          <StatCard
+          <StatTile
             label="Best Score"
-            value={Math.max(...scores)}
-            variant="success"
+            value={best}
+            tone="success"
             isDarkMode={isDarkMode}
           />
-          <StatCard
+          <StatTile
             label="Worst Score"
-            value={Math.min(...scores)}
-            variant="danger"
+            value={worst}
+            tone="danger"
             isDarkMode={isDarkMode}
           />
         </div>
@@ -2280,10 +2440,10 @@ export const LegacySeasonView = ({
                 <span>
                   Match {m.matchNumber || i + 1}
                   {m.matchType && (
-                    <span className={muted}> - {m.matchType}</span>
+                    <span className={muted}> · {m.matchType}</span>
                   )}
                 </span>
-                <span className="font-bold tabular-nums text-team-blue">
+                <span className={`font-bold ${DATA_CLASS}`}>
                   {plural(m.finalScore ?? 0, 'pt')}
                 </span>
               </li>

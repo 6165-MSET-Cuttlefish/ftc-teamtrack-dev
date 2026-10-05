@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert';
 import { PendingInviteBanner } from '@/components/auth/PendingInviteBanner';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
@@ -80,17 +81,16 @@ const Login = () => {
   };
 
   return (
+    // flex-1 under the header (main is a flex column), not a second screen
+    // height; on a phone the card starts at the top instead of mid-screen.
     <div
-      className={`min-h-[100dvh] flex items-center justify-center py-8 sm:py-12 px-3 sm:px-4 md:px-6 lg:px-8 ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
+      className={`flex-1 flex items-start sm:items-center justify-center py-6 sm:py-8 px-3 sm:px-4 md:px-6 lg:px-8 ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'}`}
     >
       <Card
         className={`w-full max-w-md shadow-2xl border-2 transition-all duration-300 hover:shadow-3xl ${isDarkMode ? 'bg-team-dark border-team-blue-40' : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'}`}
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
-          <CardTitle
-            as="h1"
-            className={`text-2xl sm:text-3xl font-bold text-center ${isDarkMode ? 'text-team-blue' : 'text-gray-900'}`}
-          >
+          <CardTitle as="h1" className={`${PAGE_TITLE_CLASS} text-center`}>
             Welcome Back
           </CardTitle>
           <CardDescription
@@ -186,7 +186,7 @@ const Login = () => {
               className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
               disabled={loading}
             >
-              {loading ? 'Signing In...' : 'Sign In'}
+              {loading ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
 
@@ -229,7 +229,9 @@ const Login = () => {
           </Button>
         </CardContent>
 
-        <CardFooter className="flex flex-col space-y-3">
+        {/* Same side padding as the content, so Continue as guest is as wide
+            as the buttons above it */}
+        <CardFooter className="flex flex-col space-y-3 px-4 sm:px-6">
           <Button
             variant="outline"
             className={`w-full ${
@@ -242,7 +244,7 @@ const Login = () => {
               navigate('/sessions', { replace: true });
             }}
           >
-            Continue as Guest
+            Continue as guest
           </Button>
           <div className="text-sm text-center">
             <Link

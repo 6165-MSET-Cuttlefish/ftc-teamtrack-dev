@@ -290,11 +290,13 @@ export const DialogTitle = ({
     return () => setTitleId(null);
   }, [setTitleId, id]);
 
+  // A title icon sits on the first line (a 20px icon centred on the 28px
+  // line), so it stays beside the start of a title that wraps.
   return (
     <h2
       {...props}
       id={id}
-      className={`text-xl font-bold flex items-center gap-2 ${className}`}
+      className={`text-xl font-bold flex items-start gap-2 [&>svg]:mt-1 [&>svg]:shrink-0 ${className}`}
     >
       {children}
     </h2>
@@ -317,7 +319,7 @@ export const DialogDescription = ({
   }, [setDescriptionId, id]);
 
   return (
-    <p {...props} id={id} className={`text-sm mt-1 ${className}`}>
+    <p {...props} id={id} className={`text-sm mt-1 text-balance ${className}`}>
       {children}
     </p>
   );

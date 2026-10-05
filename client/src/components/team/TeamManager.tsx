@@ -1,4 +1,5 @@
-import { useState, useEffect, useId, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTeam, useTheme, useAuth } from '@/contexts';
 import { firebaseService, teamService } from '@/services';
@@ -8,8 +9,13 @@ import {
   OPEN_TEAM_DIALOG_EVENT,
   OPEN_TEAM_DIALOG_STATE,
 } from '@/constants';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EYEBROW_CLASS } from '@/components/ui/page-header';
+import { CHIP_BASE, CHIP_SIZES, chipTone } from '@/components/ui/tokens';
 import { Input } from '@/components/ui/input';
+import { isArchived } from '@/lib/sessionFilters';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +28,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -34,50 +42,48 @@ import {
   Crown,
   LogOut,
   Share2,
-  CheckSquare,
-  Square,
   UserMinus,
   Pencil,
   X,
   MoreVertical,
+  MoreHorizontal,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Session, TeamMember } from '@/types';
-import { sessionSummary } from './sessionSummary';
+import { ShareSessionsPicker } from './ShareSessionsPicker';
 
 interface TeamManagerProps {
   onTeamChange?: () => void;
+  /**
+   * Sized like the page's own small outline buttons (Button variant
+   * "neutral", size "sm") from `sm` up, as on Profile. Without it the row
+   * matches the 44px actions of the Sessions page.
+   */
+  compact?: boolean;
 }
 
 /** Longest team name the UI accepts, for both create and rename. */
 const MAX_TEAM_NAME_LENGTH = 50;
 
 /**
- * How long a confirm view ignores its action button after appearing, so the
- * second tap of a double-tap can't confirm what the first one only asked for.
- */
-const CONFIRM_GUARD_MS = 500;
-
-/**
- * Something in the team dialog that is asked about before it happens. The
- * question replaces the dialog's body (see `confirmCopy`), away from the
- * control that raised it.
+ * Something in the team dialog that is asked about before it happens, in
+ * the shared ConfirmDialog on top of the team dialog (see `confirmCopy`).
  */
 type PendingAction =
   | { type: 'transfer' | 'remove'; member: TeamMember }
   | { type: 'leave' }
   | { type: 'resetInvite' };
 
-/** The words of a confirm view. */
+/** The words of a question. */
 interface ConfirmCopy {
   question: string;
+  /** One sentence: what happens */
   consequence: string;
   /** Label of the button that goes ahead. */
   action: string;
-  /** Shown in place of the label while it runs, for screen readers. */
-  busy: string;
   destructive: boolean;
-  icon: ReactNode;
+  icon: LucideIcon;
 }
 
 const memberName = (member: TeamMember) => member.displayName || member.email;
@@ -95,7 +101,10 @@ const Spinner = ({ label }: { label: string }) => (
   </>
 );
 
-export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
+export const TeamManager = ({
+  onTeamChange,
+  compact = false,
+}: TeamManagerProps) => {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const location = useLocation();
@@ -128,16 +137,13 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
 
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [acting, setActing] = useState(false);
-  /** The dialog's height when a question replaced its body, kept while asking */
-  const [confirmMinHeight, setConfirmMinHeight] = useState<number>();
-  const confirmShownAt = useRef(0);
-  const confirmCancelRef = useRef<HTMLButtonElement>(null);
-  const teamBodyRef = useRef<HTMLDivElement>(null);
-  const confirmTextId = useId();
-  /** `data-focus-key` of the control to hand focus back to after a question */
-  const returnFocusKey = useRef<string | null>(null);
-  /** How far the team view was scrolled when a question took its place */
-  const teamScrollTop = useRef(0);
+  /**
+   * A question chosen from a menu, asked once that menu has closed: while it
+   * is closing it keeps focus to itself and would take it from the question,
+   * and the question hands focus back to the menu's button when it closes.
+   */
+  const menuActionRef = useRef<PendingAction | null>(null);
+  const doneButtonRef = useRef<HTMLButtonElement>(null);
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
@@ -160,8 +166,11 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
 
   /** Show the user's sessions that `forTeamId` doesn't have, all ticked. */
   const showShareable = (sessions: Session[], forTeamId: string) => {
-    // Personal sessions and ones left behind in a team the user has left
-    const shareable = sessions.filter(s => s.teamId !== forTeamId);
+    // Personal sessions and ones left behind in a team the user has left.
+    // Archived ones are put away, so they are not offered.
+    const shareable = sessions.filter(
+      s => s.teamId !== forTeamId && !isArchived(s)
+    );
     setHasOwnSessions(sessions.length > 0);
     setPersonalSessions(shareable);
     setSelectedSessionIds(new Set(shareable.map(s => s.id)));
@@ -206,23 +215,6 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       // The share step reads the list again, and says so if it can't.
     }
     return true;
-  };
-
-  const toggleSession = (id: string) => {
-    setSelectedSessionIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    if (selectedSessionIds.size === personalSessions.length) {
-      setSelectedSessionIds(new Set());
-    } else {
-      setSelectedSessionIds(new Set(personalSessions.map(s => s.id)));
-    }
   };
 
   const handleShareSessions = async () => {
@@ -271,7 +263,6 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
   const closeTeamDialog = () => {
     setTeamDialogFor(null);
     setPendingAction(null);
-    returnFocusKey.current = null;
     handleCancelRename();
   };
 
@@ -487,47 +478,35 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     );
     return member ? { type: pendingAction.type, member } : null;
   })();
-  const asking = activeAction !== null;
 
-  /** Replace the dialog's body with a question about `action`. */
-  const askFor = (action: PendingAction, focusKey: string) => {
-    // The dialog keeps its size, so the answer buttons sit where its footer
-    // was rather than under the control that was just pressed.
-    const panel = teamBodyRef.current?.closest<HTMLElement>('[role="dialog"]');
-    setConfirmMinHeight(
-      panel ? Math.round(panel.getBoundingClientRect().height) : undefined
-    );
-    confirmShownAt.current = performance.now();
-    returnFocusKey.current = focusKey;
-    teamScrollTop.current = teamBodyRef.current?.scrollTop ?? 0;
+  /** Ask about `action` over the team dialog, which stays as it was below. */
+  const askFor = (action: PendingAction) => {
     handleCancelRename();
     setPendingAction(action);
   };
 
-  const backToTeam = () => setPendingAction(null);
+  /** For a menu item: ask once its menu has closed (see `menuActionRef`). */
+  const askAfterMenu = (action: PendingAction) => {
+    menuActionRef.current = action;
+  };
+  const onMenuClosed = () => {
+    const action = menuActionRef.current;
+    menuActionRef.current = null;
+    if (action) askFor(action);
+  };
 
-  // Focus follows the view: to Cancel (the safe answer) when a question
-  // appears, back to the control that raised it when the list returns.
-  useEffect(() => {
-    if (!showTeamInfo) return;
-    if (asking) {
-      confirmCancelRef.current?.focus();
-      return;
-    }
-    const key = returnFocusKey.current;
-    returnFocusKey.current = null;
-    const panel = teamBodyRef.current?.closest<HTMLElement>('[role="dialog"]');
-    if (!key || !panel || !teamBodyRef.current) return;
-    // The list comes back where it was left, not scrolled to its top.
-    teamBodyRef.current.scrollTop = teamScrollTop.current;
-    // A removed member's row is gone: Done takes the focus instead.
-    const target =
-      Array.from(
-        panel.querySelectorAll<HTMLElement>('[data-focus-key]')
-      ).find(el => el.dataset.focusKey === key) ??
-      panel.querySelector<HTMLElement>('[data-autofocus]');
-    target?.focus();
-  }, [asking, showTeamInfo]);
+  /**
+   * Back to the team dialog. The question hands focus back to the control
+   * that raised it; when that is gone (the member removed, or no longer the
+   * owner's to manage) Done takes it instead.
+   */
+  const backToTeam = () => {
+    setPendingAction(null);
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body) doneButtonRef.current?.focus();
+    });
+  };
 
   /** What leaving would do to the team: said before, and after. */
   const leaveEffect =
@@ -542,20 +521,18 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           consequence:
             "You become a regular member and can't undo this yourself.",
           action: 'Make owner',
-          busy: 'Changing owner',
           destructive: false,
-          icon: <Crown className="h-6 w-6" />,
+          icon: Crown,
         };
       case 'remove':
         return {
           question: `Remove ${memberName(activeAction.member)} from ${team.name}?`,
           // Removing someone replaces the invite code in the same write.
           consequence:
-            "They lose access to team sessions. The invite link changes too, so the old one can't let them back in.",
+            "They lose access to team sessions, and the invite link changes so the old one can't let them back in.",
           action: 'Remove from team',
-          busy: 'Removing member',
           destructive: true,
-          icon: <UserMinus className="h-6 w-6" />,
+          icon: UserMinus,
         };
       case 'resetInvite':
         return {
@@ -563,41 +540,37 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           consequence:
             'The current link and code stop working for everyone.',
           action: 'Reset invite link',
-          busy: 'Resetting invite link',
           destructive: true,
-          icon: <RefreshCw className="h-6 w-6" />,
+          icon: RefreshCw,
         };
       case 'leave': {
-        const shared = 'Sessions you shared stay with the team.';
         if (leaveEffect?.kind === 'deleted') {
           return {
             question: `Leave ${team.name}?`,
             consequence:
-              "You're the only member. Leaving deletes the team and its invite link.",
+              "You're the only member, so leaving deletes the team and its invite link.",
             action: 'Delete team and leave',
-            busy: 'Deleting team',
             destructive: true,
-            icon: <LogOut className="h-6 w-6" />,
+            icon: LogOut,
           };
         }
         return {
           question: `Leave ${team.name}?`,
           consequence:
             leaveEffect?.kind === 'handed-over'
-              ? `You'll lose access to team sessions. ${shared} ${memberName(leaveEffect.newOwner)} will become the owner.`
-              : `You'll lose access to team sessions. ${shared}`,
+              ? `You lose access to team sessions (the ones you shared stay), and ${memberName(leaveEffect.newOwner)} becomes the owner.`
+              : 'You lose access to team sessions; the ones you shared stay with the team.',
           action: 'Leave team',
-          busy: 'Leaving team',
           destructive: true,
-          icon: <LogOut className="h-6 w-6" />,
+          icon: LogOut,
         };
       }
     }
   })();
 
   const handleConfirm = async () => {
+    // The question's own button waits out a double tap (useArmedAfterOpen).
     if (!team || !activeAction || acting) return;
-    if (performance.now() - confirmShownAt.current < CONFIRM_GUARD_MS) return;
 
     setActing(true);
     try {
@@ -657,30 +630,34 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
     }
   };
 
-  const quietButton = isDarkMode
-    ? 'border-team-blue-40 text-team-white-60 hover:bg-team-dark-20'
-    : 'border-gray-200 text-gray-600 hover:bg-gray-50';
   const primaryButton = `bg-team-blue hover:bg-team-blue/90 disabled:opacity-50 ${isDarkMode ? 'text-black' : 'text-white'}`;
-  const pageButton = `flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] sm:min-h-[44px] [@media(pointer:coarse)]:min-h-11 ${
-    isDarkMode
-      ? 'border-team-blue-40 hover:border-team-blue text-team-blue bg-team-dark-20'
-      : 'border-gray-200 hover:border-team-blue text-team-blue bg-white'
-  }`;
+  /** The row on the page: Sessions' 44px actions, or Profile's small outline kit */
+  const rowButton = compact
+    ? cn(
+        buttonVariants({ variant: 'neutral', size: 'sm' }),
+        'gap-1.5 [@media(pointer:coarse)]:min-h-11'
+      )
+    : `flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm min-h-[40px] sm:min-h-[44px] [@media(pointer:coarse)]:min-h-11 ${
+        isDarkMode
+          ? 'border-team-blue-40 hover:border-team-blue text-team-blue bg-team-dark-20'
+          : 'border-gray-200 hover:border-team-blue text-team-blue bg-white'
+      }`;
   const fieldLabel = `block text-sm font-medium mb-2 ${
     isDarkMode ? 'text-team-white-60' : 'text-gray-700'
   }`;
-  const hint = `text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`;
+  const titleText = isDarkMode ? 'text-white' : 'text-gray-900';
+  const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-500';
   const iconButton = `inline-flex items-center justify-center rounded-lg transition-colors [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
     isDarkMode
-      ? 'text-team-white-60 hover:text-team-blue hover:bg-team-dark'
+      ? 'text-team-white-60 hover:text-team-blue hover:bg-team-dark-20'
       : 'text-gray-500 hover:text-team-blue hover:bg-gray-100'
   }`;
+  /** A menu's button while its menu is open: tinted, so it is clear whose menu it is */
+  const openTrigger =
+    'data-[state=open]:bg-team-blue/15 data-[state=open]:text-team-blue';
 
-  // The team dialog's footer stays put while its body scrolls, and holds the
-  // answer buttons of a question in the same two slots: Cancel lands where
-  // Leave Team was, never the action that was just asked about. So unlike
-  // the other dialogs' footers it stays a row on a phone too: stacked, the
-  // two would swap places between the team and the question.
+  // The team dialog's footer stays put while its body scrolls, and stays a
+  // row on a phone too.
   const footer = `shrink-0 flex-row gap-3 px-5 border-t ${
     isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
   }`;
@@ -705,32 +682,46 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               type="button"
               onClick={openTeamDialog}
               aria-label={`${team.name} · ${memberCount} · Manage team`}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer min-w-0 min-h-[40px] sm:min-h-[44px] [@media(pointer:coarse)]:min-h-11 ${
-                isDarkMode
-                  ? 'border-team-blue-40 bg-team-dark-20 text-white hover:border-team-blue'
-                  : 'border-gray-200 bg-white text-team-blue hover:border-team-blue'
-              }`}
+              className={
+                compact
+                  ? cn(rowButton, 'min-w-0 justify-start')
+                  : `flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer min-w-0 min-h-[40px] sm:min-h-[44px] [@media(pointer:coarse)]:min-h-11 ${
+                      isDarkMode
+                        ? 'border-team-blue-40 bg-team-dark-20 text-white hover:border-team-blue'
+                        : 'border-gray-200 bg-white text-team-blue hover:border-team-blue'
+                    }`
+              }
             >
               <Users className="h-4 w-4 shrink-0 text-team-blue" />
               <span className="min-w-0 sm:max-w-[200px] truncate">{team.name}</span>
-              {/* A phone has room for the name or the count, not both */}
-              <span className={`hidden sm:inline text-xs whitespace-nowrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+              {/* A phone has room for the name or the count, not both; the
+                  name gets the room, with a chevron for "opens" */}
+              <span
+                className={`hidden sm:inline text-xs whitespace-nowrap ${muted}`}
+              >
                 · {memberCount}
               </span>
-              <span className="text-xs whitespace-nowrap text-team-blue">· Manage</span>
+              <span className="hidden sm:inline text-xs whitespace-nowrap text-team-blue">
+                · Manage
+              </span>
+              <ChevronRight
+                aria-hidden="true"
+                className={`h-4 w-4 shrink-0 sm:hidden ${muted}`}
+              />
             </button>
 
             <button
               type="button"
               onClick={() => copyInviteLink(setInviteCopied)}
               aria-label="Copy invite link"
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm shrink-0 min-h-[40px] sm:min-h-[44px] [@media(pointer:coarse)]:min-h-11 ${
-                inviteCopied
-                  ? 'border-green-500 text-green-500'
-                  : isDarkMode
-                    ? 'border-team-blue-40 hover:border-team-blue text-team-blue'
-                    : 'border-gray-200 hover:border-team-blue text-team-blue'
-              }`}
+              className={cn(
+                rowButton,
+                'shrink-0',
+                inviteCopied &&
+                  (isDarkMode
+                    ? 'border-green-500 text-green-400'
+                    : 'border-green-600 text-green-700')
+              )}
             >
               {inviteCopied ? (
                 <>
@@ -750,10 +741,10 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
             <button
               type="button"
               onClick={() => setShowCreateDialog(true)}
-              className={pageButton}
+              className={rowButton}
             >
               <Users className="h-4 w-4" />
-              Create Team
+              Create team
             </button>
             <button
               type="button"
@@ -761,10 +752,10 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 setJoinError('');
                 setShowJoinDialog(true);
               }}
-              className={pageButton}
+              className={rowButton}
             >
               <UserPlus className="h-4 w-4" />
-              Join Team
+              Join team
             </button>
           </>
         )}
@@ -775,11 +766,11 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           className={isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}
         >
           <DialogHeader className={isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}>
-            <DialogTitle className={isDarkMode ? 'text-white' : 'text-team-blue'}>
+            <DialogTitle className={titleText}>
               <Users className="h-5 w-5 text-team-blue" />
-              Create a Team
+              Create a team
             </DialogTitle>
-            <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
+            <DialogDescription className={muted}>
               Teammates can see sessions you share. You pick which ones next.
             </DialogDescription>
           </DialogHeader>
@@ -787,7 +778,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           <div className="p-6 pb-2">
             <div>
               <label htmlFor="team-create-name" className={fieldLabel}>
-                Team Name
+                Team name
               </label>
               <Input
                 id="team-create-name"
@@ -798,7 +789,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 className={`h-12 rounded-xl ${
                   isDarkMode
                     ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                    : 'bg-gray-50 border-gray-200 text-team-blue placeholder-gray-400'
+                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
                 }`}
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleCreateTeam();
@@ -811,8 +802,8 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           <DialogFooter className="pb-6">
             <Button
               onClick={() => setShowCreateDialog(false)}
-              variant="outline"
-              className={`${footerButton} ${quietButton}`}
+              variant="neutral"
+              className={footerButton}
             >
               Cancel
             </Button>
@@ -821,7 +812,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               disabled={creating || !teamName.trim()}
               className={`${footerButton} ${primaryButton}`}
             >
-              {creating ? <Spinner label="Creating team" /> : 'Create Team'}
+              {creating ? <Spinner label="Creating team" /> : 'Create team'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -832,11 +823,11 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           className={isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}
         >
           <DialogHeader className={isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}>
-            <DialogTitle className={isDarkMode ? 'text-white' : 'text-team-blue'}>
+            <DialogTitle className={titleText}>
               <UserPlus className="h-5 w-5 text-team-blue" />
-              Join a Team
+              Join a team
             </DialogTitle>
-            <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
+            <DialogDescription className={muted}>
               Enter the invite code or link shared by a team member. Sessions
               you record from now on are saved to the team and visible to
               teammates.
@@ -846,7 +837,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           <div className="p-6 pb-2">
             <div>
               <label htmlFor="team-join-code" className={fieldLabel}>
-                Invite Code / Link
+                Invite code or link
               </label>
               <Input
                 id="team-join-code"
@@ -868,7 +859,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 className={`h-12 rounded-xl text-center text-lg font-mono tracking-widest ${
                   isDarkMode
                     ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                    : 'bg-gray-50 border-gray-200 text-team-blue placeholder-gray-400'
+                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
                 } ${joinError ? '!border-red-500' : ''}`}
                 maxLength={64}
                 onKeyDown={e => {
@@ -891,8 +882,8 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
           <DialogFooter className="pb-6">
             <Button
               onClick={() => setShowJoinDialog(false)}
-              variant="outline"
-              className={`${footerButton} ${quietButton}`}
+              variant="neutral"
+              className={footerButton}
             >
               Cancel
             </Button>
@@ -901,7 +892,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               disabled={joining || !inviteCode.trim()}
               className={`${footerButton} ${primaryButton}`}
             >
-              {joining ? <Spinner label="Joining team" /> : 'Join Team'}
+              {joining ? <Spinner label="Joining team" /> : 'Join team'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -910,443 +901,359 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
       <Dialog
         open={showTeamInfo}
         onOpenChange={open => {
-          if (open || acting) return;
-          // Backing out of a question returns to the team, one step at a time.
-          if (asking) backToTeam();
-          else closeTeamDialog();
+          // A question on top answers Escape and its backdrop itself.
+          if (open || acting || activeAction) return;
+          closeTeamDialog();
         }}
       >
         <DialogContent
           className={`max-w-md flex flex-col max-h-[calc(100dvh-2rem)] ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
-          style={asking && confirmMinHeight ? { minHeight: confirmMinHeight } : undefined}
         >
+          {/* The team's name once, as the title, renamed in place by its owner */}
           <DialogHeader className={`shrink-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
-            <DialogTitle className={isDarkMode ? 'text-white' : 'text-team-blue'}>
-              <Users className="h-5 w-5 shrink-0 text-team-blue" />
-              <span className="min-w-0 break-words">{team?.name}</span>
-            </DialogTitle>
-            <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              Manage your team and invite members.
-            </DialogDescription>
+            <div className={isRenaming ? 'contents' : 'flex items-start gap-1'}>
+              <DialogTitle
+                className={`${titleText} ${isRenaming ? 'sr-only' : 'flex-1 min-w-0'}`}
+              >
+                {/* With the first line of a title that wraps */}
+                <Users className="h-5 w-5 self-start mt-1 shrink-0 text-team-blue" />
+                <span className="min-w-0 break-words">{team?.name}</span>
+              </DialogTitle>
+              {isOwner && !isRenaming && (
+                <button
+                  type="button"
+                  onClick={handleStartRename}
+                  aria-label="Rename team"
+                  className={`h-9 w-9 -mr-2 shrink-0 ${iconButton}`}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {isOwner && isRenaming && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="team-rename" className="sr-only">
+                  Team name
+                </label>
+                <Input
+                  id="team-rename"
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  className={`flex-1 h-11 rounded-xl text-base font-semibold ${
+                    isDarkMode
+                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
+                      : 'bg-gray-50 border-gray-200 text-gray-900'
+                  }`}
+                  maxLength={MAX_TEAM_NAME_LENGTH}
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleRenameTeam();
+                    if (e.key === 'Escape') {
+                      // Only the rename is backed out of, not the dialog.
+                      e.preventDefault();
+                      handleCancelRename();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleRenameTeam}
+                  disabled={renaming || !renameValue.trim()}
+                  size="sm"
+                  aria-label="Save team name"
+                  className={`h-11 w-11 px-0 rounded-xl ${primaryButton}`}
+                >
+                  {renaming ? (
+                    <Spinner label="Saving team name" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  onClick={handleCancelRename}
+                  size="sm"
+                  variant="neutral"
+                  aria-label="Cancel rename"
+                  className="h-11 w-11 px-0 rounded-xl"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </DialogHeader>
 
-          {confirmCopy ? (
-            <>
-              <div
-                key="question"
-                className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col"
-              >
-                {/* Centred with auto margins, not justify-center: when the
-                    text is taller than a short screen it must scroll from
-                    its top, not be cut off above it. */}
-                <div
-                  id={confirmTextId}
-                  className="my-auto flex flex-col items-center text-center"
-                >
-                  <div
-                    aria-hidden="true"
-                    // A phone held sideways has room for the words only.
-                    className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 shrink-0 [@media(max-height:500px)]:hidden ${
-                      confirmCopy.destructive
-                        ? 'bg-red-500/15 text-red-500'
-                        : 'bg-team-blue/15 text-team-blue'
-                    }`}
-                  >
-                    {confirmCopy.icon}
-                  </div>
-                  <p
-                    className={`text-lg font-semibold break-words max-w-full ${
-                      isDarkMode ? 'text-white' : 'text-team-blue'
-                    }`}
-                  >
-                    {confirmCopy.question}
-                  </p>
-                  <p
-                    className={`text-sm mt-2 break-words max-w-full ${
-                      isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-                    }`}
-                  >
-                    {confirmCopy.consequence}
-                  </p>
-                </div>
+          <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
+            <section aria-labelledby="team-invite-heading">
+              <div className="flex items-center justify-between gap-2 mb-2 min-h-9">
+                <h3 id="team-invite-heading" className={EYEBROW_CLASS}>
+                  Invite
+                </h3>
+                {isOwner && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Invite link options"
+                        className={`h-9 w-9 -mr-2 ${iconButton} ${openTrigger}`}
+                      >
+                        <MoreHorizontal className="h-5 w-5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      className="min-w-[11rem]"
+                      onCloseAutoFocus={onMenuClosed}
+                    >
+                      <DropdownMenuItem
+                        onSelect={() => askAfterMenu({ type: 'resetInvite' })}
+                        className="gap-2 [@media(pointer:coarse)]:min-h-11"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Reset invite link
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
-
-              <DialogFooter className={footer}>
-                <Button
-                  ref={confirmCancelRef}
-                  onClick={backToTeam}
-                  disabled={acting}
-                  variant="outline"
-                  aria-describedby={confirmTextId}
-                  className={`h-11 min-w-[7.75rem] rounded-xl ${quietButton}`}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleConfirm}
-                  disabled={acting}
-                  className={`flex-1 min-w-0 h-auto min-h-11 px-3 whitespace-normal rounded-xl ${
-                    confirmCopy.destructive
-                      ? 'bg-red-500 hover:bg-red-600 text-white disabled:opacity-50'
-                      : primaryButton
+              {/* The dialog's one filled button: inviting is what it is for */}
+              <Button
+                onClick={() => copyInviteLink(setCopied)}
+                className={`w-full h-11 rounded-xl ${primaryButton}`}
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Invite link copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Copy invite link
+                  </>
+                )}
+              </Button>
+              <p className={`mt-1 text-sm text-center ${muted}`}>
+                or share code{' '}
+                <button
+                  type="button"
+                  onClick={handleCopyInviteCode}
+                  aria-label={`Copy invite code ${team?.inviteCode ?? ''}`}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 align-middle font-mono font-semibold tracking-wider transition-colors [@media(pointer:coarse)]:min-h-11 ${
+                    isDarkMode
+                      ? 'text-white hover:bg-team-dark-20'
+                      : 'text-gray-900 hover:bg-gray-100'
                   }`}
                 >
-                  {acting ? <Spinner label={confirmCopy.busy} /> : confirmCopy.action}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <div
-                key="team"
-                ref={teamBodyRef}
-                className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4"
-              >
-                {isOwner && (
-                  <div>
-                    {isRenaming ? (
-                      <label htmlFor="team-rename" className={fieldLabel}>
-                        Team Name
-                      </label>
-                    ) : (
-                      <span className={fieldLabel}>Team Name</span>
-                    )}
-                    {isRenaming ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="team-rename"
-                          value={renameValue}
-                          onChange={e => setRenameValue(e.target.value)}
-                          className={`flex-1 h-11 rounded-xl ${
-                            isDarkMode
-                              ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                              : 'bg-gray-50 border-gray-200 text-team-blue'
-                          }`}
-                          maxLength={MAX_TEAM_NAME_LENGTH}
-                          autoFocus
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') handleRenameTeam();
-                            if (e.key === 'Escape') {
-                              // Only the rename is backed out of, not the dialog.
-                              e.preventDefault();
-                              handleCancelRename();
-                            }
-                          }}
-                        />
-                        <Button
-                          onClick={handleRenameTeam}
-                          disabled={renaming || !renameValue.trim()}
-                          size="sm"
-                          aria-label="Save team name"
-                          className={`h-11 w-11 px-0 rounded-xl ${primaryButton}`}
-                        >
-                          {renaming ? (
-                            <Spinner label="Saving team name" />
-                          ) : (
-                            <Check className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          onClick={handleCancelRename}
-                          size="sm"
-                          variant="outline"
-                          aria-label="Cancel rename"
-                          className={`h-11 w-11 px-0 rounded-xl ${quietButton}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`flex-1 min-w-0 text-sm font-semibold break-words ${
-                            isDarkMode ? 'text-white' : 'text-team-blue'
-                          }`}
-                        >
-                          {team?.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleStartRename}
-                          aria-label="Rename team"
-                          className={`h-9 w-9 shrink-0 ${iconButton}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div>
-                  <span className={fieldLabel}>Invite Link</span>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`flex-1 min-w-0 px-4 py-3 rounded-xl border font-mono text-sm truncate ${
-                        isDarkMode
-                          ? 'bg-team-dark-20 border-team-blue-40 text-white'
-                          : 'bg-gray-50 border-gray-200 text-team-blue'
-                      }`}
-                    >
-                      {team
-                        ? `${window.location.origin}/join/${team.inviteCode}`
-                        : ''}
-                    </div>
-                    <Button
-                      onClick={() => copyInviteLink(setCopied)}
-                      size="sm"
-                      className={`h-11 px-3 rounded-xl text-sm shrink-0 ${primaryButton}`}
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4" />
-                          Copy link
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <p className={`${hint} mt-2`}>
-                    Share this link to invite others. All members can invite new people.
-                  </p>
-                </div>
-
-                <div>
-                  <span className={fieldLabel}>Invite Code</span>
-                  <button
-                    type="button"
-                    onClick={handleCopyInviteCode}
-                    aria-label={`Copy invite code ${team?.inviteCode ?? ''}`}
-                    className={`w-full text-center py-3 rounded-xl border transition-colors ${
-                      isDarkMode
-                        ? 'bg-team-blue/10 border-team-blue-40 text-team-blue hover:border-team-blue'
-                        : 'bg-team-blue/5 border-team-blue/20 text-team-blue hover:border-team-blue'
-                    }`}
-                  >
-                    <span className="block text-2xl font-mono font-bold tracking-[0.3em] pl-[0.3em]">
-                      {team?.inviteCode}
-                    </span>
-                    <span className={`flex items-center justify-center gap-1 mt-1 ${hint}`}>
-                      {codeCopied ? (
-                        <>
-                          <Check className="h-3 w-3" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3" />
-                          Copy code
-                        </>
-                      )}
-                    </span>
-                  </button>
-                  {isOwner && (
-                    <button
-                      type="button"
-                      onClick={() => askFor({ type: 'resetInvite' }, 'reset-invite')}
-                      data-focus-key="reset-invite"
-                      className={`mt-1 inline-flex items-center text-xs underline underline-offset-2 rounded [@media(pointer:coarse)]:min-h-11 ${
-                        isDarkMode
-                          ? 'text-team-white-60 hover:text-white'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Reset invite link
-                    </button>
+                  {team?.inviteCode}
+                  {codeCopied ? (
+                    <Check
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 text-green-500"
+                    />
+                  ) : (
+                    <Copy
+                      aria-hidden="true"
+                      className={`h-3.5 w-3.5 ${muted}`}
+                    />
                   )}
-                </div>
+                </button>
+              </p>
+            </section>
 
-                <div>
-                  <span className={fieldLabel}>
-                    Members ({team?.members.length || 0})
-                  </span>
-                  <ul
-                    aria-label="Team members"
-                    className={`rounded-xl border overflow-hidden ${
-                      isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
-                    }`}
-                  >
-                    {team?.members.map((member, idx) => {
-                      const name = memberName(member);
-                      const focusKey = `member-${member.userId}`;
-                      const canManage = isOwner && member.userId !== user?.uid;
-                      return (
-                        <li
-                          key={member.userId}
-                          className={`flex items-center gap-3 pl-4 py-2 min-h-[3.75rem] ${
-                            canManage ? 'pr-2' : 'pr-4'
-                          } ${
-                            idx > 0
-                              ? isDarkMode
-                                ? 'border-t border-team-blue-40'
-                                : 'border-t border-gray-100'
-                              : ''
-                          } ${
-                            isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'
-                          }`}
+            <section aria-labelledby="team-members-heading">
+              <h3 id="team-members-heading" className={`${EYEBROW_CLASS} mb-2`}>
+                Members ({team?.members.length || 0})
+              </h3>
+              <ul
+                aria-label="Team members"
+                className={`rounded-xl border overflow-hidden divide-y ${
+                  isDarkMode
+                    ? 'border-team-blue-40 divide-team-blue-40'
+                    : 'border-gray-200 divide-gray-100'
+                }`}
+              >
+                {team?.members.map(member => {
+                  const name = memberName(member);
+                  const isYou = member.userId === user?.uid;
+                  const canManage = isOwner && !isYou;
+                  return (
+                    <li
+                      key={member.userId}
+                      className={`flex items-center gap-3 pl-4 py-2 min-h-[3.75rem] transition-colors ${
+                        canManage ? 'pr-2' : 'pr-4'
+                      } ${
+                        isDarkMode
+                          ? 'bg-team-dark-20 has-[[data-state=open]]:bg-team-blue/10'
+                          : 'bg-gray-50 has-[[data-state=open]]:bg-team-blue/10'
+                      }`}
+                    >
+                      <div
+                        aria-hidden="true"
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                          member.role === 'owner'
+                            ? 'bg-team-blue/20 text-team-blue'
+                            : isDarkMode
+                              ? 'bg-team-white-10 text-white'
+                              : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {member.role === 'owner' ? (
+                          <Crown className="h-4 w-4" />
+                        ) : (
+                          name?.[0]?.toUpperCase() || '?'
+                        )}
+                      </div>
+                      {/* One line each: a long address is cut short, whole in its tooltip */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`flex items-baseline gap-2 text-sm font-medium ${titleText}`}
                         >
+                          <span className="truncate" title={name}>
+                            {name}
+                          </span>
+                          {isYou && (
+                            <span className="shrink-0 text-xs font-normal opacity-60">
+                              (you)
+                            </span>
+                          )}
+                        </div>
+                        {member.displayName && (
                           <div
-                            aria-hidden="true"
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                              member.role === 'owner'
-                                ? 'bg-team-blue/20 text-team-blue'
-                                : isDarkMode
-                                  ? 'bg-team-dark text-team-white-60'
-                                  : 'bg-gray-200 text-gray-600'
-                            }`}
+                            className={`text-xs truncate ${muted}`}
+                            title={member.email}
                           >
-                            {member.role === 'owner' ? (
-                              <Crown className="h-4 w-4" />
-                            ) : (
-                              name?.[0]?.toUpperCase() || '?'
-                            )}
+                            {member.email}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div
-                              className={`text-sm font-medium break-words ${
-                                isDarkMode ? 'text-white' : 'text-team-blue'
-                              }`}
+                        )}
+                      </div>
+                      {member.role === 'owner' && (
+                        <span
+                          className={`${CHIP_BASE} ${CHIP_SIZES.sm} ${chipTone('neutral', isDarkMode)} shrink-0`}
+                        >
+                          Owner
+                        </span>
+                      )}
+                      {canManage && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label={`Actions for ${name}`}
+                              className={`h-11 w-11 flex-shrink-0 ${iconButton} ${openTrigger}`}
+                            >
+                              <MoreVertical className="h-5 w-5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          {/* Opens upwards: a menu hanging below the last row
+                              would put "Remove from team" over the footer. It
+                              names the member, as it covers the row above. */}
+                          <DropdownMenuContent
+                            side="top"
+                            align="end"
+                            className="min-w-[11rem] max-w-[16rem]"
+                            onCloseAutoFocus={onMenuClosed}
+                          >
+                            <DropdownMenuLabel
+                              className="truncate"
+                              title={name}
                             >
                               {name}
-                              {member.userId === user?.uid && (
-                                <span className="text-xs ml-2 opacity-60">(you)</span>
-                              )}
-                            </div>
-                            {member.displayName && (
-                              <div
-                                className={`text-xs break-all ${
-                                  isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                                }`}
-                              >
-                                {member.email}
-                              </div>
-                            )}
-                          </div>
-                          <span
-                            className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${
-                              member.role === 'owner'
-                                ? 'bg-team-blue/15 text-team-blue'
-                                : `hidden sm:inline ${
-                                    isDarkMode
-                                      ? 'bg-team-dark text-team-white-60'
-                                      : 'bg-gray-100 text-gray-500'
-                                  }`
-                            }`}
-                          >
-                            {member.role === 'owner' ? 'Owner' : 'Member'}
-                          </span>
-                          {canManage && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  aria-label={`Actions for ${name}`}
-                                  data-focus-key={focusKey}
-                                  className={`h-11 w-11 flex-shrink-0 inline-flex items-center justify-center rounded-lg transition-colors ${
-                                    isDarkMode
-                                      ? 'text-team-white-60 hover:text-team-blue hover:bg-team-dark'
-                                      : 'text-gray-500 hover:text-team-blue hover:bg-gray-200'
-                                  }`}
-                                >
-                                  <MoreVertical className="h-5 w-5" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              {/* Opens upwards: a menu hanging below the
-                                  last row would put "Remove from team" over
-                                  the footer, where the question's own
-                                  button then appears. */}
-                              <DropdownMenuContent side="top" align="end" className="min-w-[11rem]">
-                                <DropdownMenuItem
-                                  onSelect={() => askFor({ type: 'transfer', member }, focusKey)}
-                                  className="gap-2 [@media(pointer:coarse)]:min-h-11"
-                                >
-                                  <Crown className="h-4 w-4" />
-                                  Make owner
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onSelect={() => askFor({ type: 'remove', member }, focusKey)}
-                                  className="gap-2 text-red-500 focus:text-red-500 [@media(pointer:coarse)]:min-h-11"
-                                >
-                                  <UserMinus className="h-4 w-4" />
-                                  Remove from team
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                askAfterMenu({ type: 'transfer', member })
+                              }
+                              className="gap-2 [@media(pointer:coarse)]:min-h-11"
+                            >
+                              <Crown className="h-4 w-4" />
+                              Make owner
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                askAfterMenu({ type: 'remove', member })
+                              }
+                              className={`gap-2 [@media(pointer:coarse)]:min-h-11 ${
+                                isDarkMode
+                                  ? 'text-red-400 focus:text-red-400'
+                                  : 'text-red-700 focus:text-red-700'
+                              }`}
+                            >
+                              <UserMinus className="h-4 w-4" />
+                              Remove from team
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
 
-                <div>
-                  <Button
-                    onClick={() => team && openShareDialog(team.id)}
-                    variant="outline"
-                    className={`w-full h-11 rounded-xl ${
-                      isDarkMode
-                        ? 'border-team-blue-40 text-team-blue hover:bg-team-dark-20'
-                        : 'border-gray-200 text-team-blue hover:bg-gray-50'
-                    }`}
-                  >
-                    <Share2 className="h-4 w-4" />
-                    Share my sessions...
-                  </Button>
-                  <p className={`${hint} mt-2`}>
-                    Pick sessions you recorded on your own to share with the
-                    team. The rest stay private to you.
-                  </p>
-                </div>
-              </div>
+            <Button
+              onClick={() => team && openShareDialog(team.id)}
+              variant="neutral"
+              className="w-full h-11 rounded-xl"
+            >
+              <Share2 className="h-4 w-4" />
+              Share my sessions…
+            </Button>
+          </div>
 
-              <DialogFooter className={footer}>
-                <Button
-                  onClick={() => askFor({ type: 'leave' }, 'leave-team')}
-                  data-focus-key="leave-team"
-                  variant="outline"
-                  className={`h-11 px-3 min-w-[7.75rem] rounded-xl ${
-                    isDarkMode
-                      ? 'border-red-500/40 text-red-400 hover:bg-red-500/10'
-                      : 'border-red-300 text-red-600 hover:bg-red-50'
-                  }`}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Leave Team
-                </Button>
-                <Button
-                  onClick={closeTeamDialog}
-                  data-autofocus
-                  className={`flex-1 h-11 rounded-xl ${primaryButton}`}
-                >
-                  Done
-                </Button>
-              </DialogFooter>
-            </>
-          )}
+          <DialogFooter className={footer}>
+            <Button
+              onClick={() => askFor({ type: 'leave' })}
+              variant="dangerOutline"
+              className="h-11 px-3 min-w-[7.75rem] rounded-xl"
+            >
+              <LogOut className="h-4 w-4" />
+              Leave team
+            </Button>
+            <Button
+              ref={doneButtonRef}
+              onClick={closeTeamDialog}
+              data-autofocus
+              variant="neutral"
+              className="flex-1 h-11 rounded-xl"
+            >
+              Done
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!confirmCopy}
+        onOpenChange={open => {
+          if (!open) backToTeam();
+        }}
+        title={confirmCopy?.question ?? ''}
+        description={confirmCopy?.consequence ?? ''}
+        confirmLabel={confirmCopy?.action ?? ''}
+        tone={confirmCopy?.destructive === false ? 'primary' : 'destructive'}
+        icon={confirmCopy?.icon}
+        busy={acting}
+        onConfirm={() => void handleConfirm()}
+      />
 
       <Dialog open={showShareDialog} onOpenChange={(open) => { if (!open) handleSkipShare(); }}>
         <DialogContent
           className={`max-w-lg flex flex-col max-h-[calc(100dvh-2rem)] ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
           <DialogHeader className={`shrink-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
-            <DialogTitle className={isDarkMode ? 'text-white' : 'text-team-blue'}>
+            <DialogTitle className={titleText}>
               <Share2 className="h-5 w-5 shrink-0 text-team-blue" />
               <span className="min-w-0 break-words">Share sessions with {team?.name}</span>
             </DialogTitle>
-            <DialogDescription className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              Teammates can view sessions you share, including notes. A
-              session belongs to one team at a time and stays with it if you
-              leave. You can share more later.
+            {/* The same words as the invite page's share step */}
+            <DialogDescription className={muted}>
+              Teammates see shared sessions with their notes, and they stay with
+              the team if you leave. New sessions are saved to the team
+              automatically.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto p-6 pb-2 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-6 pb-2">
             {loadingPersonal ? (
               <div className="flex items-center justify-center py-8" role="status">
                 <div
@@ -1356,7 +1263,7 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 <span className="sr-only">Loading your sessions</span>
               </div>
             ) : personalSessions.length === 0 ? (
-              <div className={`text-center py-8 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
+              <div className={`text-center py-8 ${muted}`}>
                 <p>
                   {hasOwnSessions
                     ? `All your sessions are already shared with ${team?.name}.`
@@ -1364,70 +1271,13 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
                 </p>
               </div>
             ) : (
-              <>
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={selectedSessionIds.size === personalSessions.length}
-                  onClick={toggleAll}
-                  className={`flex items-center justify-start gap-2 text-sm font-medium w-full px-3 py-2 rounded-lg transition-colors [@media(pointer:coarse)]:min-h-11 ${
-                    isDarkMode ? 'hover:bg-team-dark-20 text-team-white-60' : 'hover:bg-gray-50 text-gray-600'
-                  }`}
-                >
-                  {selectedSessionIds.size === personalSessions.length ? (
-                    <CheckSquare className="h-4 w-4 text-team-blue" />
-                  ) : (
-                    <Square className="h-4 w-4" />
-                  )}
-                  Select all ({plural(personalSessions.length, 'session')})
-                </button>
-
-                <div className={`rounded-xl border overflow-hidden ${
-                  isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
-                }`}>
-                  {personalSessions.map((session, idx) => (
-                    <button
-                      key={session.id}
-                      type="button"
-                      role="checkbox"
-                      aria-checked={selectedSessionIds.has(session.id)}
-                      onClick={() => toggleSession(session.id)}
-                      className={`flex items-center gap-3 w-full px-4 py-3 text-left transition-colors ${
-                        idx > 0
-                          ? isDarkMode ? 'border-t border-team-blue-40' : 'border-t border-gray-100'
-                          : ''
-                      } ${
-                        selectedSessionIds.has(session.id)
-                          ? isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5'
-                          : isDarkMode ? 'bg-team-dark-20 hover:bg-team-dark' : 'bg-gray-50 hover:bg-gray-100'
-                      }`}
-                    >
-                      {selectedSessionIds.has(session.id) ? (
-                        <CheckSquare className="h-4 w-4 text-team-blue flex-shrink-0" />
-                      ) : (
-                        <Square className={`h-4 w-4 flex-shrink-0 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`} />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-medium truncate ${
-                          isDarkMode ? 'text-white' : 'text-team-blue'
-                        }`}>
-                          {session.sessionName || 'Untitled Session'}
-                        </div>
-                        <div className={`text-xs ${
-                          isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                        }`}>
-                          {sessionSummary(session)}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
+              <ShareSessionsPicker
+                sessions={personalSessions}
+                selected={selectedSessionIds}
+                onChange={setSelectedSessionIds}
+                isDarkMode={isDarkMode}
+              />
             )}
-            <p className={hint}>
-              Sessions you record from now on are saved to the team
-              automatically.
-            </p>
           </div>
 
           <DialogFooter className="shrink-0 pt-3 pb-6">
@@ -1435,8 +1285,8 @@ export const TeamManager = ({ onTeamChange }: TeamManagerProps) => {
               <>
                 <Button
                   onClick={handleSkipShare}
-                  variant="outline"
-                  className={`${footerButton} ${quietButton}`}
+                  variant="neutral"
+                  className={footerButton}
                 >
                   Not now
                 </Button>

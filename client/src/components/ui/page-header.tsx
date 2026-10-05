@@ -10,6 +10,20 @@ import { cn } from '@/lib/utils';
 export const PAGE_TITLE_CLASS =
   'text-3xl sm:text-4xl font-bold leading-tight text-foreground break-words [overflow-wrap:anywhere]';
 
+/**
+ * The title of a card or section, one level under the page title (an h2):
+ * the text colour of the theme, never the accent.
+ */
+export const SECTION_TITLE_CLASS = 'text-lg font-semibold text-foreground';
+
+/**
+ * The small label over a group of fields (ROBOTS, END OF MATCH, PENALTIES,
+ * RANKING POINTS, MATCH LOG, NOTES). The capitals are CSS: type the words in
+ * ordinary case, so screen readers say them as words.
+ */
+export const EYEBROW_CLASS =
+  'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
+
 interface PageHeaderProps {
   /** The page's one h1 */
   title: ReactNode;

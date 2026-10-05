@@ -1,10 +1,13 @@
-import { useState, useEffect, useId, useRef } from 'react';
+import { Fragment, useState, useEffect, useId, useRef } from 'react';
 import { useTheme } from '@/contexts';
 import type { Match, MatchScoringFields, SessionType } from '@/types';
 import {
+  COUNT_LABELS,
+  EACH_LABELS,
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
+  FLOWERS_HINT,
   FLOWERS_LABEL,
   POINTS,
   calculateScore,
@@ -17,6 +20,7 @@ import {
 } from '@/lib';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import {
   Select,
   SelectContent,
@@ -33,7 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import { ChevronDown, Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
-import { FlowerSlots } from './EndOfMatchParts';
+import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
 import { Toggle } from './MatchEntry';
 import { ScoreField } from './ScoreField';
 
@@ -51,27 +55,27 @@ interface MatchFormProps {
   sessionType?: SessionType;
 }
 
-const Panel = ({
+/**
+ * One part of the form: a title and its fields, with no box of its own, so
+ * the dialog is the only frame. The title is the eyebrow the scoring page
+ * puts over the same group (ROBOTS, END OF MATCH, PENALTIES), over the
+ * fields' 14px names.
+ */
+const Section = ({
   title,
   note,
   children,
 }: {
   title: string;
-  /** One muted line beside the title: what the panel's entries are worth */
+  /** One muted line beside the title: what the section's entries are worth */
   note?: string;
   children: React.ReactNode;
 }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div
-      className={`p-3 sm:p-4 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-team-blue-40 bg-gray-50'}`}
-    >
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-3">
-        <h4
-          className={`font-semibold ${isDarkMode ? 'text-white' : 'text-team-blue'}`}
-        >
-          {title}
-        </h4>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <h3 className={EYEBROW_CLASS}>{title}</h3>
         {note && (
           <span
             className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
@@ -80,26 +84,56 @@ const Panel = ({
           </span>
         )}
       </div>
-      <div className="space-y-3">{children}</div>
+      {children}
     </div>
   );
 };
 
-/** Each robot's column in the Robots panel */
+/** Each robot's row in the Robots section, as on the scoring page */
 const ROBOTS = [
   {
     name: 'Robot 1',
     leave: 'robot1Leave',
     parkAuto: 'robot1ParkAuto',
-    parkTeleop: 'robot1ParkTeleop',
+    parkEnd: 'robot1ParkTeleop',
   },
   {
     name: 'Robot 2',
     leave: 'robot2Leave',
     parkAuto: 'robot2ParkAuto',
-    parkTeleop: 'robot2ParkTeleop',
+    parkEnd: 'robot2ParkTeleop',
   },
 ] as const;
+
+/**
+ * The robot toggles, in the scoring page's order. The parks say "Auto" and
+ * "End" under a Park heading where the form is narrow, and their full names
+ * where it has room (the Toggle's container query).
+ */
+const ROBOT_COLUMNS = [
+  { key: 'leave', label: ELEMENT_LABELS.leave, wide: undefined, park: false },
+  { key: 'parkAuto', label: 'Auto', wide: ELEMENT_LABELS.parkAuto, park: true },
+  { key: 'parkEnd', label: 'End', wide: ELEMENT_LABELS.parkEnd, park: true },
+] as const;
+
+/**
+ * The robots' name column, then one column per toggle the match can score.
+ * With three, Leave never goes under 4rem, the width of its label with the
+ * check mark: on a 320px phone it takes that and the two parks share the
+ * rest ("Auto" and "End" are shorter). Wherever there is room the three are
+ * equal.
+ */
+const ROBOT_GRID = {
+  1: 'grid-cols-[auto_minmax(0,1fr)]',
+  2: 'grid-cols-[auto_repeat(2,minmax(0,1fr))]',
+  3: 'grid-cols-[auto_minmax(4rem,1fr)_repeat(2,minmax(0,1fr))]',
+} as const;
+
+/** Spans for the Park heading's row: what goes before it, and its own */
+const COL_SPAN = { 1: 'col-span-1', 2: 'col-span-2' } as const;
+
+/** Which end-of-match rule is open under its (i) */
+type InfoKey = 'flowers' | 'hive' | 'garden';
 
 const blankForm = (): Partial<Match> => ({
   matchType: 'Full Game',
@@ -118,9 +152,18 @@ export const MatchForm = ({
   /** A save is in flight: a second click must not send it twice */
   const savingRef = useRef(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [infoOpen, setInfoOpen] = useState<InfoKey | null>(null);
   const breakdownId = useId();
-  const periodNoteId = useId();
-  const flowersId = useId();
+  const ids = {
+    flowers: useId(),
+    flower: useId(),
+    flowerBonus: useId(),
+    hive: useId(),
+    hiveLine: useId(),
+    garden: useId(),
+    gardenLine: useId(),
+    info: useId(),
+  };
   const [formData, setFormData] = useState<Partial<Match>>(() =>
     initialMatch
       ? {
@@ -139,6 +182,8 @@ export const MatchForm = ({
     } else if (isOpen) {
       setFormData(blankForm());
     }
+    // Each opening starts with every rule closed.
+    if (isOpen) setInfoOpen(null);
   }, [initialMatch, isOpen]);
 
   const setField = <K extends keyof MatchScoringFields>(
@@ -183,39 +228,19 @@ export const MatchForm = ({
 
   const mutedTone = isDarkMode ? 'text-gray-400' : 'text-gray-600';
 
-  /** Which toggles this match type leaves out, said once for the panel */
+  /** Which toggles this match type leaves out, said once for the section */
   const periodNote = !hasAuto
-    ? `Leave and Park (Auto) are not run in ${matchType} matches`
+    ? `No Leave or Auto park in a ${matchType} match`
     : !hasTeleop
-      ? `Park (End) is not run in ${matchType} matches`
+      ? `No End park in an ${matchType} match`
       : undefined;
 
-  /**
-   * `available` is false when the match type never ran the period the
-   * toggle belongs to; it then shows unchecked and can't be ticked.
-   */
-  const robotToggle = (
-    robot: string,
-    label: string,
-    field:
-      | 'robot1Leave'
-      | 'robot1ParkAuto'
-      | 'robot1ParkTeleop'
-      | 'robot2Leave'
-      | 'robot2ParkAuto'
-      | 'robot2ParkTeleop',
-    available: boolean
-  ) => (
-    <Toggle
-      label={label}
-      ariaLabel={`${robot} ${label}`}
-      checked={available && (formData[field] ?? false)}
-      onChange={v => setField(field, v)}
-      disabled={isLoading || !available}
-      disabledReason={available ? undefined : periodNote}
-      describedBy={available ? undefined : periodNoteId}
-    />
+  /** Only the toggles this match type can score: no dead columns */
+  const robotColumns = ROBOT_COLUMNS.filter(c =>
+    c.key === 'parkEnd' ? hasTeleop : hasAuto
   );
+  const parkColumns = robotColumns.filter(c => c.park).length as 1 | 2;
+  const beforePark = (robotColumns.length - parkColumns + 1) as 1 | 2;
 
   const stepperProps = {
     size: 'large',
@@ -223,6 +248,83 @@ export const MatchForm = ({
     stepper: true,
     disabled: isLoading,
   } as const;
+  /** A counter's name, at the level of the end-of-match headings */
+  const nameClass = 'text-sm font-semibold leading-5';
+
+  const toggleInfo = (key: InfoKey) =>
+    setInfoOpen(open => (open === key ? null : key));
+
+  /**
+   * An end-of-match group as on the scoring page: the heading with its (i),
+   * the rule under it once opened, then one row per counter.
+   */
+  const counterGroup = (
+    key: InfoKey,
+    title: string,
+    info: string,
+    children: React.ReactNode
+  ) => (
+    <div role="group" aria-labelledby={ids[key]} className="space-y-2">
+      <CounterHead
+        id={ids[key]}
+        title={title}
+        info={info}
+        infoId={ids.info}
+        infoOpen={infoOpen === key}
+        onInfo={() => toggleInfo(key)}
+      />
+      {infoOpen === key && (
+        <p
+          id={ids.info}
+          className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+        >
+          {info}
+        </p>
+      )}
+      {children}
+    </div>
+  );
+
+  /**
+   * One counter's row: what to count on the left, the stepper on the right,
+   * in line with every other stepper in the form. Its points sit on the
+   * worth line on a phone and in the points column from md up. Where that
+   * would leave the words under 7.5rem (a 320px phone) the stepper wraps
+   * under them, still on the right, instead of squeezing them a word a line.
+   */
+  const counterRow = (
+    field: 'flower' | 'flowerBonus' | 'ballsInHive' | 'garden',
+    lineId: string,
+    label: string,
+    name: string,
+    points: number,
+    icon?: React.ReactNode
+  ) => (
+    <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 md:gap-x-3">
+      <div className="min-w-0 flex-[1_1_7.5rem]">
+        <CountLine
+          id={lineId}
+          icon={icon}
+          label={COUNT_LABELS[field]}
+          each={EACH_LABELS[field]}
+          points={points}
+          footAligned={false}
+          pointsClassName="md:hidden"
+        />
+      </div>
+      <ScoreField
+        {...stepperProps}
+        hideLabel
+        label={label}
+        name={name}
+        describedBy={lineId}
+        max={FIELD_LIMITS[field]}
+        value={formData[field] ?? 0}
+        points={points}
+        onChange={v => setField(field, v)}
+      />
+    </div>
+  );
 
   return (
     <Dialog
@@ -250,34 +352,38 @@ export const MatchForm = ({
         <DialogHeader
           className={`shrink-0 max-sm:px-4 max-sm:py-3 ${isDarkMode ? 'border-team-blue-40' : ''}`}
         >
-          <DialogTitle className={isDarkMode ? 'text-white' : 'text-team-blue'}>
+          {/* Names the match, which the sheet covers on a phone */}
+          <DialogTitle className="text-foreground">
             {initialMatch ? (
               <>
-                <Pencil className="h-5 w-5" />
-                Edit Match
+                <Pencil className="h-5 w-5 shrink-0" aria-hidden />
+                <span>
+                  Edit Match {initialMatch.matchNumber} · {matchType}
+                </span>
               </>
             ) : (
               <>
-                <Plus className="h-5 w-5" />
-                Add New Match
+                <Plus className="h-5 w-5 shrink-0" aria-hidden />
+                <span>Add Match</span>
               </>
             )}
           </DialogTitle>
-          <DialogDescription
-            className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
-          >
+          <DialogDescription className="sr-only">
             {initialMatch
-              ? 'Update the match details below'
-              : 'Enter the details for the new match'}
+              ? 'Change what was scored in this match, then update it.'
+              : 'Enter what was scored in the new match.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6 [@media(max-height:500px)]:flex-none [@media(max-height:500px)]:overflow-visible">
-          <div className="space-y-2">
-            <Label
-              htmlFor="matchType"
-              className={isDarkMode ? 'text-white' : 'text-gray-700'}
-            >
+        {/*
+          The scoring page's order and anatomy: Hive Tips, the robots, then
+          the end of match (each counter's name with its rule behind an (i),
+          a line saying what to count, its stepper), then a Scrim's fouls.
+          No boxes inside the dialog: titles and spacing group the fields.
+        */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5 [@media(max-height:500px)]:flex-none [@media(max-height:500px)]:overflow-visible">
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="matchType" className="text-foreground">
               Match Type
             </Label>
             <Select
@@ -289,11 +395,11 @@ export const MatchForm = ({
               <SelectTrigger
                 id="matchType"
                 disabled={isLoading}
-                className={
+                className={`w-44 ${
                   isDarkMode
                     ? 'bg-team-dark border border-team-blue-40 text-white'
                     : 'bg-white border border-team-blue-40'
-                }
+                }`}
               >
                 <SelectValue />
               </SelectTrigger>
@@ -307,132 +413,142 @@ export const MatchForm = ({
             </Select>
           </div>
 
-          <Panel title="Scoring">
-            <ScoreField
-              {...stepperProps}
-              label={ELEMENT_LABELS.tipping}
-              name="tipping"
-              hint={FIELD_HINTS.tipping}
-              max={FIELD_LIMITS.tipping}
-              value={formData.tipping ?? 0}
-              points={breakdown.tipping}
-              onChange={v => setField('tipping', v)}
-            />
-            {/*
-              Flower and Flower Bonus as one group, as on the scoring page:
-              the picture beside each says where your nectar is.
-            */}
-            <div
-              role="group"
-              aria-labelledby={flowersId}
-              className={`space-y-3 rounded-lg border p-2.5 sm:p-3 ${
-                isDarkMode ? 'border-white/10' : 'border-gray-300 bg-white'
-              }`}
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <span
-                  id={flowersId}
-                  className={`text-sm font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}
-                >
-                  {FLOWERS_LABEL}
-                </span>
-                <span className="text-sm font-semibold tabular-nums text-team-blue">
-                  {breakdown.flower + breakdown.flowerBonus} pts
-                </span>
-              </div>
-              <ScoreField
-                {...stepperProps}
-                label={ELEMENT_LABELS.flower}
-                icon={<FlowerSlots nectar="top" />}
-                hint={FIELD_HINTS.flower}
-                max={FIELD_LIMITS.flower}
-                value={formData.flower ?? 0}
-                points={breakdown.flower}
-                onChange={v => setField('flower', v)}
-              />
-              <ScoreField
-                {...stepperProps}
-                label={ELEMENT_LABELS.flowerBonus}
-                icon={<FlowerSlots nectar="bottom" />}
-                hint={FIELD_HINTS.flowerBonus}
-                max={FIELD_LIMITS.flowerBonus}
-                value={formData.flowerBonus ?? 0}
-                points={breakdown.flowerBonus}
-                onChange={v => setField('flowerBonus', v)}
-              />
-            </div>
-            <ScoreField
-              {...stepperProps}
-              label={ELEMENT_LABELS.hive}
-              hint={FIELD_HINTS.ballsInHive}
-              max={FIELD_LIMITS.ballsInHive}
-              value={formData.ballsInHive ?? 0}
-              points={breakdown.hive}
-              onChange={v => setField('ballsInHive', v)}
-            />
-            <ScoreField
-              {...stepperProps}
-              label={ELEMENT_LABELS.garden}
-              hint={FIELD_HINTS.garden}
-              max={FIELD_LIMITS.garden}
-              value={formData.garden ?? 0}
-              points={breakdown.garden}
-              onChange={v => setField('garden', v)}
-            />
-          </Panel>
+          <ScoreField
+            {...stepperProps}
+            labelClassName={nameClass}
+            label={ELEMENT_LABELS.tipping}
+            name="tipping"
+            info={FIELD_HINTS.tipping}
+            max={FIELD_LIMITS.tipping}
+            value={formData.tipping ?? 0}
+            points={breakdown.tipping}
+            onChange={v => setField('tipping', v)}
+          />
 
-          <Panel
+          <Section
             title="Robots"
-            note={`Leave ${POINTS.LEAVE} pts · each Park ${POINTS.PARK} pts`}
+            note={`Leave ${POINTS.LEAVE} pts · Park ${POINTS.PARK} pts each`}
           >
-            <div className="grid grid-cols-2 gap-3">
-              {ROBOTS.map(robot => (
+            {/*
+              Rows as on the scoring page. Its own width picks the labels (a
+              size container): "Auto" and "End" under one Park heading when
+              narrow, "Park (Auto)" and "Park (End)" when there is room.
+            */}
+            <div className="[container-type:inline-size]">
+              {/* Closer together where the toggles are at their narrowest */}
+              <div
+                className={`grid items-center gap-2 [@container(max-width:18.5rem)]:gap-x-1.5 ${ROBOT_GRID[robotColumns.length as 1 | 2 | 3]}`}
+              >
                 <div
-                  key={robot.name}
-                  role="group"
-                  aria-label={robot.name}
-                  className="flex min-w-0 flex-col gap-2"
+                  aria-hidden
+                  className={`${COL_SPAN[beforePark]} [@container(min-width:27.5rem)]:hidden`}
+                />
+                <div
+                  aria-hidden
+                  className={`${COL_SPAN[parkColumns]} ${EYEBROW_CLASS} text-center leading-4 [@container(min-width:27.5rem)]:hidden`}
                 >
-                  <div
-                    aria-hidden
-                    className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
-                  >
-                    {robot.name}
-                  </div>
-                  {robotToggle(
-                    robot.name,
-                    ELEMENT_LABELS.leave,
-                    robot.leave,
-                    hasAuto
-                  )}
-                  {robotToggle(
-                    robot.name,
-                    ELEMENT_LABELS.parkAuto,
-                    robot.parkAuto,
-                    hasAuto
-                  )}
-                  {robotToggle(
-                    robot.name,
-                    ELEMENT_LABELS.parkEnd,
-                    robot.parkTeleop,
-                    hasTeleop
-                  )}
+                  Park
                 </div>
-              ))}
+                {/* Each toggle's own name says which robot it is for */}
+                {ROBOTS.map(robot => (
+                  <Fragment key={robot.name}>
+                    <div
+                      aria-hidden
+                      className={`whitespace-nowrap ${nameClass} ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+                    >
+                      {robot.name}
+                    </div>
+                    {robotColumns.map(column => {
+                      const field = robot[column.key];
+                      const fullName = column.wide ?? column.label;
+                      return (
+                        <Toggle
+                          key={column.key}
+                          label={column.label}
+                          wideLabel={column.wide}
+                          ariaLabel={`${robot.name} ${fullName}`}
+                          checked={formData[field] ?? false}
+                          onChange={v => setField(field, v)}
+                          disabled={isLoading}
+                        />
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </div>
             </div>
             {periodNote && (
-              <p id={periodNoteId} className={`text-xs ${mutedTone}`}>
-                {periodNote}
-              </p>
+              <p className={`text-xs ${mutedTone}`}>{periodNote}</p>
             )}
-          </Panel>
+          </Section>
+
+          <Section title="End of Match">
+            <div className="space-y-3">
+              {/*
+                Flower and Flower Bonus as one group under one heading, as on
+                the scoring page: the picture beside each says where your
+                nectar is. Drawn like the other groups, its rows in line
+                with theirs.
+              */}
+              {counterGroup(
+                'flowers',
+                FLOWERS_LABEL,
+                FLOWERS_HINT,
+                <div className="space-y-3">
+                  {counterRow(
+                    'flower',
+                    ids.flower,
+                    ELEMENT_LABELS.flower,
+                    'flower',
+                    breakdown.flower,
+                    <FlowerSlots nectar="top" />
+                  )}
+                  {counterRow(
+                    'flowerBonus',
+                    ids.flowerBonus,
+                    ELEMENT_LABELS.flowerBonus,
+                    'flower-bonus',
+                    breakdown.flowerBonus,
+                    <FlowerSlots nectar="bottom" />
+                  )}
+                </div>
+              )}
+              {counterGroup(
+                'hive',
+                ELEMENT_LABELS.hive,
+                FIELD_HINTS.ballsInHive,
+                counterRow(
+                  'ballsInHive',
+                  ids.hiveLine,
+                  ELEMENT_LABELS.hive,
+                  'left-in-hive',
+                  breakdown.hive
+                )
+              )}
+              {counterGroup(
+                'garden',
+                ELEMENT_LABELS.garden,
+                FIELD_HINTS.garden,
+                counterRow(
+                  'garden',
+                  ids.gardenLine,
+                  ELEMENT_LABELS.garden,
+                  'garden',
+                  breakdown.garden
+                )
+              )}
+            </div>
+          </Section>
 
           {showFouls && (
-            <Panel title="Penalties">
+            <Section
+              title="Penalties"
+              note="Credited to the opponent · not off your score"
+            >
               <ScoreField
                 {...stepperProps}
+                labelClassName={nameClass}
                 label={ELEMENT_LABELS.minor}
-                hint={FIELD_HINTS.minorPenalties}
                 max={FIELD_LIMITS.minorPenalties}
                 value={formData.minorPenalties ?? 0}
                 opponentPoints={
@@ -442,8 +558,8 @@ export const MatchForm = ({
               />
               <ScoreField
                 {...stepperProps}
+                labelClassName={nameClass}
                 label={ELEMENT_LABELS.major}
-                hint={FIELD_HINTS.majorPenalties}
                 max={FIELD_LIMITS.majorPenalties}
                 value={formData.majorPenalties ?? 0}
                 opponentPoints={
@@ -451,7 +567,7 @@ export const MatchForm = ({
                 }
                 onChange={v => setField('majorPenalties', v)}
               />
-            </Panel>
+            </Section>
           )}
         </div>
 
@@ -475,7 +591,7 @@ export const MatchForm = ({
                   className={`flex items-center justify-between text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                 >
                   <span>{row.label}</span>
-                  <span className="tabular-nums font-semibold text-team-blue">
+                  <span className="tabular-nums font-semibold text-foreground">
                     {row.points}
                   </span>
                 </div>
@@ -503,7 +619,7 @@ export const MatchForm = ({
                 className={`flex items-baseline gap-2 whitespace-nowrap font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
               >
                 <span className="text-sm">Final Score</span>
-                <span className="text-2xl leading-7 tabular-nums text-team-blue">
+                <span className="text-2xl leading-7 tabular-nums">
                   {breakdown.total}
                 </span>
               </p>
@@ -526,24 +642,21 @@ export const MatchForm = ({
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
               <Button
-                variant="outline"
+                variant="neutral"
                 onClick={onClose}
                 disabled={isLoading}
-                className={`[@media(pointer:coarse)]:min-h-11 ${
-                  isDarkMode
-                    ? 'border-team-blue-40 text-white hover:bg-team-white-10'
-                    : ''
-                }`}
+                className="[@media(pointer:coarse)]:min-h-11"
               >
                 Cancel
               </Button>
               <Button
+                variant="primary"
                 onClick={handleSave}
                 disabled={isLoading}
-                className={`bg-team-blue [@media(pointer:coarse)]:min-h-11 ${isDarkMode ? 'text-black' : 'text-white'}`}
+                className="[@media(pointer:coarse)]:min-h-11"
               >
                 {isLoading
-                  ? 'Saving...'
+                  ? 'Saving…'
                   : initialMatch
                     ? 'Update Match'
                     : 'Add Match'}

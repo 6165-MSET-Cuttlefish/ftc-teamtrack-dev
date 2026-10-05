@@ -12,121 +12,18 @@ import {
   TUTORIAL_RESTART_EVENT,
   TUTORIAL_ENDED_EVENT,
 } from '@/constants/events';
-import { STORAGE_KEYS } from '@/constants';
-import { COUNT_LABELS, ELEMENT_LABELS, POINTS } from '@/lib';
+import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
+import { POINTS } from '@/lib';
+import { nextMatchNumber } from '@/lib/matchNumber';
 import { setWalkthroughSession } from '@/lib/signOutLoss';
+import { formatTime } from '@/lib/utils';
 import type { MatchPhase, SessionFormData } from '@/types';
 import { useActiveCompact } from './layout/useActiveCompact';
-
-const PreviewBox = ({
-  children,
-  dark,
-}: {
-  children: React.ReactNode;
-  dark: boolean;
-}) => (
-  <div
-    className="rounded-xl p-4 mt-4 mb-1 border"
-    style={{
-      backgroundColor: dark ? '#232323' : '#f5f5f5',
-      borderColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-    }}
-  >
-    {children}
-  </div>
-);
-
-/** A mock scoring field, used to show what typing into one looks like. */
-const FieldRow = ({
-  label,
-  value,
-  points,
-  dark,
-}: {
-  label: string;
-  value: string;
-  points: string;
-  dark: boolean;
-}) => (
-  <div className="flex items-center gap-3">
-    <span
-      className="flex-1 text-xs font-semibold"
-      style={{ color: dark ? '#e5e5e5' : '#333' }}
-    >
-      {label}
-    </span>
-    <span
-      className="w-14 h-8 rounded-lg border-2 flex items-center justify-center text-sm font-bold"
-      style={{
-        borderColor: 'rgb(var(--team-blue) / 0.4)',
-        color: dark ? '#fff' : '#000',
-      }}
-    >
-      {value}
-    </span>
-    <span
-      className="min-w-14 text-right text-xs font-semibold whitespace-nowrap"
-      style={{ color: 'rgb(var(--team-blue))' }}
-    >
-      {points}
-    </span>
-  </div>
-);
-
-/** Cycles a count upward so the live-scoring step reads as "live". */
-const LiveScoringPreview = ({ dark }: { dark: boolean }) => {
-  const [n, setN] = useState(3);
-  useEffect(() => {
-    const id = setInterval(() => setN(v => (v >= 9 ? 3 : v + 1)), 1200);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <PreviewBox dark={dark}>
-      <div className="space-y-2.5">
-        <FieldRow
-          label={ELEMENT_LABELS.tipping}
-          value={String(n)}
-          points={`${n * POINTS.HIVE_TIP} pts`}
-          dark={dark}
-        />
-      </div>
-    </PreviewBox>
-  );
-};
-
-const EndOfMatchPreview = ({ dark }: { dark: boolean }) => (
-  <PreviewBox dark={dark}>
-    <div className="space-y-2.5">
-      <FieldRow
-        label={COUNT_LABELS.flower}
-        value="4"
-        points={`${4 * POINTS.FLOWER_ELEMENT} pts`}
-        dark={dark}
-      />
-      <FieldRow
-        label={COUNT_LABELS.flowerBonus}
-        value="1"
-        points={`${1 * POINTS.FLOWER_BONUS} pts`}
-        dark={dark}
-      />
-      <FieldRow
-        label={ELEMENT_LABELS.hive}
-        value="3"
-        points={`${3 * POINTS.CELL_REMAINING} pts`}
-        dark={dark}
-      />
-      <FieldRow
-        label={ELEMENT_LABELS.garden}
-        value="6"
-        points={`${6 * POINTS.GARDEN} pts`}
-        dark={dark}
-      />
-      <div className="text-[10px] pt-1" style={{ color: 'var(--tt-muted)' }}>
-        In a match: locked while the clock runs
-      </div>
-    </div>
-  </PreviewBox>
-);
+import {
+  hasSeenTutorial as seenUnder,
+  tutorialSeenKey,
+  writeFlag,
+} from './tutorialSeen';
 
 /** What a step's text can say about the page as it is right now */
 interface StepContext {
@@ -137,9 +34,15 @@ interface StepContext {
   /**
    * True when the page uses its phone layout, where the robots are below
    * Hive Tips. The full-size layout has them beside it, with a scrim's
-   * fouls beside the robots.
+   * penalties beside the robots.
    */
   compact: boolean;
+  /** The match type a match started now would be: Full Game, Autonomous or Teleop */
+  matchType: string;
+  /** A Scrim, where penalties are counted */
+  scrim: boolean;
+  /** No mouse, so nothing is clicked and there is no keyboard to press keys on */
+  touch: boolean;
 }
 
 interface StepDef {
@@ -154,109 +57,103 @@ interface StepDef {
    * be pressed until the walkthrough has moved on.
    */
   interactive?: boolean;
-  preview: ((dark: boolean) => React.ReactNode) | null;
   /** Prompt shown when the user should interact with the real page element */
   pageAction?: string;
   /** Session field watched for automatic task completion */
   watchKey?: 'tipping';
 }
 
+/** What the clock does once Start is pressed, for the match type about to be played */
+const timingSentence = (matchType: string): string => {
+  const auto = formatTime(GAME_TIMING.AUTONOMOUS_DURATION_SECONDS);
+  const teleop = formatTime(GAME_TIMING.TELEOP_DURATION_SECONDS);
+  const endgame =
+    GAME_TIMING.ENDGAME_REMAINING === 60
+      ? 'the last minute'
+      : `the last ${GAME_TIMING.ENDGAME_REMAINING} seconds`;
+  switch (matchType) {
+    case 'Autonomous':
+      return `The clock runs Auto (${auto}).`;
+    case 'Teleop':
+      return `The clock runs Teleop (${teleop}). Endgame is ${endgame}.`;
+    default:
+      return `After a 3-2-1: Auto (${auto}), an ${GAME_TIMING.CONTROLLER_PICKUP_SECONDS}-second controller pickup, then Teleop (${teleop}). Endgame is ${endgame}.`;
+  }
+};
+
+/** Secondary text: smaller, in the card's muted colour */
+const Aside = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-xs" style={{ color: 'var(--tt-muted)' }}>
+    {children}
+  </p>
+);
+
 const STEPS: StepDef[] = [
   {
     title: 'Start a match',
-    body: ({ startLabel, narrow }) => (
+    body: ({ startLabel, matchType }) => (
       <div className="space-y-2">
-        <div>
-          TeamTrack scores BIOBUZZ match by match. You'll press {startLabel}: a
-          3-second countdown, then the 2:30 clock (30 s AUTO, 8 s controller
-          pickup, 2:00 TELEOP, endgame in the last minute).
-        </div>
-        <div className="text-xs" style={{ color: 'var(--tt-muted)' }}>
-          What you enter here is practice, put back on closing. Replay from{' '}
-          {narrow ? 'Tutorial in the header menu' : 'the (?) in the header'}{' '}
-          when no match is running.
-        </div>
+        <p>
+          Press {startLabel}. {timingSentence(matchType)}
+        </p>
+        <Aside>Nothing you do in this tutorial is saved.</Aside>
       </div>
     ),
     target: 'controls',
     interactive: false,
-    preview: null,
   },
   {
     title: 'Score while you watch',
-    body: ({ compact }) => (
+    body: ({ compact, scrim, touch }) => (
       <div className="space-y-2">
-        <div>
+        <p>
           {compact
-            ? `Add 1 for each HIVE TIP (${POINTS.HIVE_TIP}), or type the total.`
-            : `Tap the Hive Tips pad, or press T on your keyboard, for each HIVE TIP (${POINTS.HIVE_TIP}).`}
-        </div>
-        <div className="text-xs">
-          {compact ? 'Below' : 'Beside it'}, per robot: Leave ({POINTS.LEAVE})
-          if off the wall when AUTO ends; Park ({POINTS.PARK}) for Auto and End
-          (End unlocks after AUTO).
-        </div>
-        <div className="text-xs">
-          In a Scrim, count your Minor ({POINTS.MINOR_PENALTY}) and Major (
-          {POINTS.MAJOR_PENALTY}) fouls{' '}
-          {compact ? 'under the robots, in Penalties' : 'beside the robots'}:
-          they go to the opponent, never off your score.
-        </div>
+            ? `Tap +1 Tip each time your alliance tips the hive (${POINTS.HIVE_TIP} pts). Mis-tap? Use \u2212.`
+            : touch
+              ? `Tap the Hive Tips pad for each tip (${POINTS.HIVE_TIP} pts).`
+              : `Click the Hive Tips pad or press T for each tip (${POINTS.HIVE_TIP} pts).`}
+        </p>
+        {scrim && (
+          <Aside>
+            Count your Minor ({POINTS.MINOR_PENALTY}) and Major (
+            {POINTS.MAJOR_PENALTY}) penalties{' '}
+            {compact ? 'under the robots' : 'beside the robots'}: they go to the
+            opponent, never off your score.
+          </Aside>
+        )}
       </div>
     ),
     target: 'live',
     fallbackTarget: 'metrics',
-    preview: d => <LiveScoringPreview dark={d} />,
     pageAction: 'Try it: add a Hive Tip',
     watchKey: 'tipping',
   },
   {
     title: 'After the buzzer',
     body: () => (
-      <div className="space-y-2">
-        <div>
-          Count these once play stops. In a match they stay locked while the
-          clock runs, and unlock at the buzzer or when you pause.
-        </div>
-        <ul className="list-disc pl-4 space-y-1 text-xs">
-          <li>
-            Flowers: you own a flower when your nectar is on top. Count every
-            piece in it, opponent pieces too ({POINTS.FLOWER_ELEMENT} pts each).
-            Then count the flowers with your nectar at the bottom (
-            {POINTS.FLOWER_BONUS} pts each, up to 4).
-          </li>
-          <li>
-            Left in Hive: pieces still in the hive&apos;s upward-facing cell (
-            {POINTS.CELL_REMAINING} pts each). The 3 nectar that start there
-            count unless a hive tip flipped the cell.
-          </li>
-          <li>
-            Garden: every piece in your garden ({POINTS.GARDEN} pt each),
-            including the 4 pollen that start there.
-          </li>
-        </ul>
-      </div>
+      <p>
+        Count what&apos;s left on the field once play stops, then save. The (i)
+        beside each name has the full rule.
+      </p>
     ),
     target: 'end-of-match',
-    preview: d => <EndOfMatchPreview dark={d} />,
   },
   {
     title: 'Save, then complete the session',
-    body: () => (
+    body: ({ narrow }) => (
       <div className="space-y-2">
-        <div>
-          End early stops a match before the buzzer. Save Match stores it; Start
-          Match runs the next. Notes hold what the numbers miss; the gear sets
-          name, match type and Practice or Scrim.
-        </div>
-        <div>
-          Complete Session asks for a name; Sessions, Analysis, Charts and
-          Compare build on it.
-        </div>
+        <p>
+          Save each match when it ends. When you&apos;re done, press Complete
+          Session and your matches show up in Sessions.
+        </p>
+        <Aside>
+          Replay this tutorial from{' '}
+          {narrow ? 'Tutorial in the header menu' : 'the (?) in the header'}{' '}
+          when no match is running.
+        </Aside>
       </div>
     ),
     target: null,
-    preview: null,
   },
 ];
 
@@ -278,12 +175,18 @@ const NARROW_WIDTH = 640;
 const SHORT_HEIGHT = 500;
 /** How far the spotlight's ring stands off the spotlit element, in px */
 const SPOTLIGHT_RING = 6;
+/** Least room kept between the ring and a screen edge, in px */
+const RING_EDGE = 8;
+/** Least room kept between the ring and what it surrounds, where the screen edge is close, in px */
+const RING_MIN_OFFSET = 3;
 /** Space kept between the card and the spotlit element, ring included, in px */
 const CARD_GAP = SPOTLIGHT_RING + 8;
 /** Space kept between the spotlit element and the header or screen edge, in px */
 const TARGET_PAD = SPOTLIGHT_RING + 8;
 /** Least body text a shrunken card still shows (two lines), in px */
 const MIN_BODY_HEIGHT = 46;
+/** Least of an element too tall for the screen kept in view under the card, in px */
+const TALL_TARGET_SHOWN = 160;
 /** A height change smaller than this is the URL bar sliding, not a new layout */
 const URL_BAR_HEIGHT = 120;
 /** Scrolls the walkthrough may make for one element: the first and two corrections */
@@ -329,43 +232,27 @@ interface TutorialSnapshot {
 
 const ORIGINAL_STYLES_KEY = '__tt_original_styles__';
 
-function liftElement(el: HTMLElement, darkMode = true, interactive = true) {
+/**
+ * Bring a page element up over the dimmed backdrop. Its ring is drawn
+ * separately (`SpotlightRing`), around what of it can be seen.
+ */
+function liftElement(el: HTMLElement, interactive = true) {
   (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY] = {
     position: el.style.position,
     zIndex: el.style.zIndex,
-    borderRadius: el.style.borderRadius,
-    boxShadow: el.style.boxShadow,
-    animation: el.style.animation,
-    backgroundColor: el.style.backgroundColor,
     pointerEvents: el.style.pointerEvents,
-    outline: el.style.outline,
-    outlineOffset: el.style.outlineOffset,
     inert: el.inert,
   };
   // Only what is in the normal flow needs positioning for the z-index to
   // take. A bar pinned to the screen edge (the phone's match controls) must
   // stay pinned while it is spotlit.
-  const inFlow = getComputedStyle(el).position === 'static';
-  if (inFlow) el.style.position = 'relative';
-  const pinned = !inFlow && isPinned(el);
+  if (getComputedStyle(el).position === 'static') {
+    el.style.position = 'relative';
+  }
   el.style.zIndex = String(Z_SPOTLIGHT);
-  el.style.borderRadius = '16px';
   // An element that is only being pointed at takes no taps and no keys.
   el.style.pointerEvents = interactive ? 'auto' : 'none';
   if (!interactive) el.inert = true;
-  // The ring stands off the element, so text at its edge is not against the
-  // line; an outline, so nothing on the page moves to make room for it. A
-  // pinned bar already reaches the screen edges: its ring goes inside.
-  el.style.outline = `2px solid rgb(var(--team-blue) / 0.4)`;
-  el.style.outlineOffset = pinned ? '-2px' : `${SPOTLIGHT_RING}px`;
-  // Light mode needs an opaque background so the lifted element reads clearly
-  // against the dark backdrop; dark mode gets that from its own colors.
-  if (!darkMode) {
-    el.style.backgroundColor = '#ffffff';
-    el.style.boxShadow = pinned ? 'none' : `0 0 0 ${SPOTLIGHT_RING}px #ffffff`;
-  } else {
-    el.style.boxShadow = 'none';
-  }
 }
 
 function dropElement(el: HTMLElement) {
@@ -376,16 +263,247 @@ function dropElement(el: HTMLElement) {
     el.inert = orig.inert ?? false;
     el.style.position = orig.position ?? '';
     el.style.zIndex = orig.zIndex ?? '';
-    el.style.borderRadius = orig.borderRadius ?? '';
-    el.style.boxShadow = orig.boxShadow ?? '';
-    el.style.animation = orig.animation ?? '';
-    el.style.backgroundColor = orig.backgroundColor ?? '';
     el.style.pointerEvents = orig.pointerEvents ?? '';
-    el.style.outline = orig.outline ?? '';
-    el.style.outlineOffset = orig.outlineOffset ?? '';
     delete (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY];
   }
 }
+
+const isTransparent = (color: string) =>
+  color === 'transparent' || /rgba\(.*,\s*0\)$/.test(color);
+
+/** Elements that draw something of their own whatever their styles say */
+const REPLACED = new Set([
+  'BUTTON',
+  'INPUT',
+  'TEXTAREA',
+  'SELECT',
+  'IMG',
+  'svg',
+  'CANVAS',
+  'VIDEO',
+]);
+
+interface Edges {
+  top: number;
+  left: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * Where the element shows anything: the union of what is in it, its text,
+ * its controls and every box that has a background or a border, skipping
+ * what is hidden or visually hidden. Not its own box: an element can be
+ * taller than what it shows (the live counters keep a blank line for a
+ * message that comes and goes), or reach the screen's edges (the phone's
+ * match controls), and the ring goes round what can be seen in it.
+ */
+const paintedEdges = (root: HTMLElement): Edges | null => {
+  let edges: Edges | null = null;
+  const add = (r: DOMRect) => {
+    if (r.width <= 1 || r.height <= 1) return;
+    edges = edges
+      ? {
+          top: Math.min(edges.top, r.top),
+          left: Math.min(edges.left, r.left),
+          right: Math.max(edges.right, r.right),
+          bottom: Math.max(edges.bottom, r.bottom),
+        }
+      : { top: r.top, left: r.left, right: r.right, bottom: r.bottom };
+  };
+  const visit = (el: Element) => {
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || Number(style.opacity) === 0) return;
+    if (style.visibility === 'visible') {
+      const box =
+        el !== root &&
+        (REPLACED.has(el.tagName) ||
+          !isTransparent(style.backgroundColor) ||
+          (['Top', 'Right', 'Bottom', 'Left'] as const).some(
+            side =>
+              parseFloat(style[`border${side}Width`]) > 0 &&
+              !isTransparent(style[`border${side}Color`])
+          ));
+      if (box) {
+        add(el.getBoundingClientRect());
+      } else {
+        for (const node of el.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            add(range.getBoundingClientRect());
+          }
+        }
+      }
+      // A control's insides are already inside its box
+      if (box && REPLACED.has(el.tagName)) return;
+    }
+    for (const child of el.children) visit(child);
+  };
+  visit(root);
+  return edges;
+};
+
+/** The colour of the page behind an element, for the spotlight's well */
+const pageBackground = (el: HTMLElement): string => {
+  for (
+    let node: HTMLElement | null = el.parentElement;
+    node;
+    node = node.parentElement
+  ) {
+    const color = getComputedStyle(node).backgroundColor;
+    if (!isTransparent(color)) return color;
+  }
+  return getComputedStyle(document.body).backgroundColor;
+};
+
+interface RingBox {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  /** Pinned to the screen (in screen px), or placed on the page (page px) */
+  fixed: boolean;
+}
+
+/**
+ * The spotlight's ring and the well of page colour under the spotlit
+ * element: round what the element shows rather than its whole box, standing
+ * a little off it, and kept clear of the screen edges so it is never cut
+ * off (the phone's match controls reach both sides and the bottom).
+ *
+ * Placed on the page, not the screen, for an element that scrolls with
+ * it, so the two move together; re-measured only when the element changes
+ * or moves on the page.
+ */
+const SpotlightRing = ({ target }: { target: HTMLElement }) => {
+  const [box, setBox] = useState<RingBox | null>(null);
+  const [fill, setFill] = useState('transparent');
+
+  useEffect(() => {
+    const fixed = isPinned(target);
+    setFill(pageBackground(target));
+    /** What the element shows, relative to its own top left corner */
+    let shown: Edges | null = null;
+    let dirty = true;
+    const markDirty = () => {
+      dirty = true;
+    };
+    const resizes = new ResizeObserver(markDirty);
+    resizes.observe(target);
+    const mutations = new MutationObserver(markDirty);
+    mutations.observe(target, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['class', 'style', 'hidden', 'disabled'],
+    });
+    window.addEventListener('resize', markDirty);
+
+    let last = '';
+    let frame = 0;
+    const tick = () => {
+      frame = requestAnimationFrame(tick);
+      const rect = target.getBoundingClientRect();
+      if (dirty) {
+        dirty = false;
+        const edges = paintedEdges(target);
+        shown = edges && {
+          top: edges.top - rect.top,
+          left: edges.left - rect.left,
+          right: edges.right - rect.left,
+          bottom: edges.bottom - rect.top,
+        };
+      }
+      if (!shown) return;
+      // On screen, then kept off the edges; never closer than
+      // RING_MIN_OFFSET to what it surrounds where an edge is that close.
+      const near = (edge: number, limit: number, inward: number) =>
+        inward > 0
+          ? Math.max(edge, Math.min(limit, edge + inward))
+          : Math.min(edge, Math.max(limit, edge + inward));
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const shownLeft = rect.left + shown.left;
+      const shownRight = rect.left + shown.right;
+      const shownTop = rect.top + shown.top;
+      const shownBottom = rect.top + shown.bottom;
+      const left = near(
+        shownLeft - SPOTLIGHT_RING,
+        RING_EDGE,
+        SPOTLIGHT_RING - RING_MIN_OFFSET
+      );
+      const right = near(
+        shownRight + SPOTLIGHT_RING,
+        width - RING_EDGE,
+        RING_MIN_OFFSET - SPOTLIGHT_RING
+      );
+      const top = shownTop - SPOTLIGHT_RING;
+      const bottom = fixed
+        ? near(
+            shownBottom + SPOTLIGHT_RING,
+            height - RING_EDGE,
+            RING_MIN_OFFSET - SPOTLIGHT_RING
+          )
+        : shownBottom + SPOTLIGHT_RING;
+      const next: RingBox = {
+        top: Math.round(top + (fixed ? 0 : window.scrollY)),
+        left: Math.round(left + (fixed ? 0 : window.scrollX)),
+        width: Math.round(right - left),
+        height: Math.round(bottom - top),
+        fixed,
+      };
+      const key = `${next.top},${next.left},${next.width},${next.height}`;
+      if (key !== last) {
+        last = key;
+        setBox(next);
+      }
+    };
+    tick();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      resizes.disconnect();
+      mutations.disconnect();
+      window.removeEventListener('resize', markDirty);
+    };
+  }, [target]);
+
+  if (!box) return null;
+  const frame: React.CSSProperties = {
+    position: box.fixed ? 'fixed' : 'absolute',
+    top: box.top,
+    left: box.left,
+    width: box.width,
+    height: box.height,
+    borderRadius: 16,
+    pointerEvents: 'none',
+  };
+  return (
+    <>
+      {/* Under the element, over the backdrop: the page as it really looks */}
+      <div
+        aria-hidden
+        style={{ ...frame, zIndex: Z_SPOTLIGHT - 1, backgroundColor: fill }}
+      />
+      <div
+        aria-hidden
+        style={{
+          ...frame,
+          zIndex: Z_SPOTLIGHT,
+          border: '2px solid rgb(var(--team-blue) / 0.4)',
+        }}
+      />
+    </>
+  );
+};
+
+/** Smooth scrolling, unless the user has asked for less motion */
+const scrollBehavior = (): ScrollBehavior =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ? 'instant'
+    : 'smooth';
 
 const queryTarget = (id: string) =>
   document.querySelector<HTMLElement>(`[data-tutorial="${id}"]`);
@@ -402,23 +520,6 @@ const isPinned = (el: HTMLElement) => {
   return false;
 };
 
-/** localStorage, for a browser that may refuse it. */
-const readFlag = (key: string): boolean => {
-  try {
-    return localStorage.getItem(key) !== null;
-  } catch {
-    return false;
-  }
-};
-
-const writeFlag = (key: string): void => {
-  try {
-    localStorage.setItem(key, 'true');
-  } catch {
-    /* storage unavailable: the walkthrough is offered again next time */
-  }
-};
-
 /** True for anything that uses the arrow keys itself. */
 const usesArrowKeys = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) return false;
@@ -430,7 +531,16 @@ const usesArrowKeys = (target: EventTarget | null) => {
   );
 };
 
-export const ActiveTutorial = () => {
+/**
+ * The tutorial over /active. Its code is fetched only once it is needed
+ * (see Active.tsx), so a replay can be asked for before it is on the page:
+ * `openOnMount` opens it then, as that request would have.
+ */
+export const ActiveTutorial = ({
+  openOnMount = false,
+}: {
+  openOnMount?: boolean;
+}) => {
   const { isDarkMode } = useTheme();
   const isCompactLayout = useActiveCompact();
   const { user, isGuest, guestId, loading } = useAuth();
@@ -493,12 +603,19 @@ export const ActiveTutorial = () => {
   const snapshotRef = useRef<TutorialSnapshot | null>(null);
 
   /** What the session is doing right now, for handlers that outlive a render */
+  /** Number of the saved match open in the fields, if one is */
+  const editingMatchNumber =
+    editingMatchId !== null
+      ? (sessionData.matches?.find(m => m.id === editingMatchId)?.matchNumber ??
+        null)
+      : null;
   const liveRef = useRef({
     visible,
     matchActive,
     isTimerRunning,
     hasStarted,
     editing: editingMatchId !== null,
+    editingMatchNumber,
     matchCount: sessionData.matches?.length ?? 0,
   });
   useEffect(() => {
@@ -508,22 +625,19 @@ export const ActiveTutorial = () => {
       isTimerRunning,
       hasStarted,
       editing: editingMatchId !== null,
+      editingMatchNumber,
       matchCount: sessionData.matches?.length ?? 0,
     };
   });
 
-  const getTutorialKey = useCallback(() => {
-    if (user?.uid) return `${STORAGE_KEYS.TUTORIAL_SEEN}-${user.uid}`;
-    if (guestId) return `${STORAGE_KEYS.TUTORIAL_SEEN}-guest-${guestId}`;
-    return STORAGE_KEYS.TUTORIAL_SEEN;
-  }, [user, guestId]);
+  const getTutorialKey = useCallback(
+    () => tutorialSeenKey(user?.uid, guestId),
+    [user, guestId]
+  );
 
-  /**
-   * Seen on this device, by anyone: someone who has been shown around as a
-   * guest is not shown around again for signing up on the same phone.
-   */
+  /** Seen by this identity, or on this device by anyone */
   const hasSeenTutorial = useCallback(
-    () => readFlag(getTutorialKey()) || readFlag(STORAGE_KEYS.TUTORIAL_SEEN),
+    () => seenUnder(getTutorialKey()),
     [getTutorialKey]
   );
 
@@ -570,7 +684,7 @@ export const ActiveTutorial = () => {
     }
     if (live.matchActive || live.isTimerRunning) {
       if (askedFor) {
-        toast.info('Finish or discard this match to replay the tour', {
+        toast.info('Finish or discard this match to replay the tutorial', {
           id: BLOCKED_TOAST_ID,
         });
       }
@@ -578,9 +692,12 @@ export const ActiveTutorial = () => {
     }
     if (live.editing) {
       if (askedFor) {
-        toast.info('Save or discard your changes first', {
-          id: BLOCKED_TOAST_ID,
-        });
+        toast.info(
+          live.editingMatchNumber !== null
+            ? `Save or discard your Match ${live.editingMatchNumber} changes to replay the tutorial`
+            : 'Save or discard your changes to replay the tutorial',
+          { id: BLOCKED_TOAST_ID }
+        );
       }
       return;
     }
@@ -603,6 +720,13 @@ export const ActiveTutorial = () => {
       open(true);
     }, 500);
     return () => clearTimeout(t);
+  }, [open]);
+
+  // Asked for again (Tutorial in the header) before this was on the page:
+  // the request came before there was anything here to hear it.
+  const openOnMountRef = useRef(openOnMount);
+  useEffect(() => {
+    if (openOnMountRef.current) open(true);
   }, [open]);
 
   useEffect(() => {
@@ -728,7 +852,7 @@ export const ActiveTutorial = () => {
     const spotlight = () => {
       const el = find();
       if (el) {
-        liftElement(el, isDarkMode, interactive !== false);
+        liftElement(el, interactive !== false);
         lifted = el;
         setTargetEl(el);
         return;
@@ -744,7 +868,7 @@ export const ActiveTutorial = () => {
       if (lifted) dropElement(lifted);
       setTargetEl(null);
     };
-  }, [visible, step, isDarkMode, spotlightEpoch]);
+  }, [visible, step, spotlightEpoch]);
 
   // The header is sticky and normally sits under the spotlit element, which
   // would then slide over it when the page scrolls. Raise it for as long as
@@ -845,7 +969,7 @@ export const ActiveTutorial = () => {
       if (made >= MAX_AUTO_SCROLLS) return;
       autoScrollCountRef.current = made + 1;
       autoScrollRef.current = to;
-      window.scrollTo({ top: to, behavior: 'smooth' });
+      window.scrollTo({ top: to, behavior: scrollBehavior() });
     };
 
     const inView = rect.top >= headerEdge - 1 && rect.bottom <= viewHeight + 1;
@@ -952,10 +1076,14 @@ export const ActiveTutorial = () => {
     } else if (pageTop >= underCard(minimum)) {
       // The element is too tall to share the screen with the card. Over the
       // header the card costs it the least room, and nothing of it is ever
-      // under the card: the rest is a scroll away.
+      // under the card: the rest is a scroll away. The card keeps all of its
+      // text while a useful part of the element still shows under it.
       dock = 'top';
-      height = minimum;
-      targetTop = underCard(minimum);
+      height = Math.max(
+        minimum,
+        Math.min(full, viewHeight - TALL_TARGET_SHOWN - CARD_GAP - gutter)
+      );
+      targetTop = underCard(height);
     } else {
       dock = 'bottom';
       height = minimum;
@@ -1076,7 +1204,7 @@ export const ActiveTutorial = () => {
     setWalkthroughSession(null);
 
     window.dispatchEvent(new Event(TUTORIAL_ENDED_EVENT));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
     // For this identity, and for the device: signing up on the same phone
     // is not a reason to be shown around again.
     writeFlag(getTutorialKey());
@@ -1146,8 +1274,9 @@ export const ActiveTutorial = () => {
   // The button the first step spotlights, as the page words it ("Start
   // Match 3" on a replay). Worked out from the session rather than read off
   // the page: going Back to that step puts the session back after this
-  // render, and the button changes with it.
-  const startLabel = `Start Match ${(sessionData.matches?.length ?? 0) + 1}`;
+  // render, and the button changes with it. One past the highest saved, as
+  // Start numbers it: a deleted match leaves a gap.
+  const startLabel = `Start Match ${nextMatchNumber(sessionData.matches)}`;
   const isLast = step === STEPS.length - 1;
   const isFirst = step === 0;
   const hasTarget = !!current.target;
@@ -1158,11 +1287,13 @@ export const ActiveTutorial = () => {
     ? 'rgb(var(--team-blue) / 0.5)'
     : 'rgb(var(--team-blue) / 0.75)';
   const teamBlue80 = 'rgb(var(--team-blue) / 0.8)';
-  const bg = isDarkMode ? '#191919' : '#ffffff';
+  // The theme's own card surface (navy in Deep Sea, near-black in
+  // Honeycomb), as the page's cards and menus use
+  const bg = isDarkMode ? 'hsl(var(--card))' : '#ffffff';
   const text = isDarkMode ? '#ffffff' : '#111111';
   const subtext = isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
-  // Secondary text. Solid enough to stay over 4.5:1 on the card and on the
-  // preview boxes in both themes, which stacked opacity was not.
+  // Secondary text. Solid enough to stay over 4.5:1 on the card in every
+  // theme, which stacked opacity was not.
   const muted = isDarkMode ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.58)';
 
   const backdrop = {
@@ -1199,17 +1330,18 @@ export const ActiveTutorial = () => {
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 'min(420px, 90vw)',
+        // On a phone the same card as the other steps, only centred
+        width: fullWidth ? `calc(100vw - ${2 * gutter}px)` : 'min(420px, 90vw)',
         maxHeight: '85vh',
-        padding: '24px 24px 20px',
+        padding: fullWidth ? '14px 16px 12px' : '24px 24px 20px',
       };
 
   // A phone on its side has no height to spare, so the one-row card puts the
-  // buttons beside the title and drops the mock.
+  // buttons beside the title.
   const compactCard = hasTarget && short;
-  // On a phone every row counts: the step counter shares the title's line.
-  const inlineCounter = hasTarget && fullWidth;
-  const showPreview = current.preview !== null && !(hasTarget && fullWidth);
+  // On a phone every row counts: the step counter shares the title's line,
+  // on every step.
+  const inlineCounter = fullWidth;
 
   const nav = (
     <div
@@ -1240,13 +1372,13 @@ export const ActiveTutorial = () => {
         <button
           ref={nextButtonRef}
           onClick={next}
-          className="px-5 py-2 text-sm font-bold rounded-xl transition-all duration-200"
+          className="px-5 py-2 text-sm font-bold whitespace-nowrap rounded-xl transition-all duration-200"
           style={{
             backgroundColor: teamBlue,
             color: isDarkMode ? '#000' : '#fff',
           }}
         >
-          {isLast ? 'Get Started' : 'Next'}
+          {isLast ? (isReplay ? 'Done' : 'Get started') : 'Next'}
         </button>
       </div>
     </div>
@@ -1278,6 +1410,8 @@ export const ActiveTutorial = () => {
         className="fixed top-0 left-0 right-0"
         style={{ ...backdrop, zIndex: Z_HEADER, height: headerBottom }}
       />
+
+      {hasTarget && targetEl && <SpotlightRing target={targetEl} />}
 
       <div
         key={step}
@@ -1321,12 +1455,11 @@ export const ActiveTutorial = () => {
             >
               {step + 1} / {STEPS.length}
             </div>
-            <h3
-              className={`text-lg font-bold ${inlineCounter ? '' : 'mb-1.5'}`}
-              style={{ color: teamBlue }}
+            <h2
+              className={`text-lg font-bold text-balance ${inlineCounter ? '' : 'mb-1.5'}`}
             >
               {current.title}
-            </h3>
+            </h2>
           </div>
           {compactCard && nav}
         </div>
@@ -1343,10 +1476,11 @@ export const ActiveTutorial = () => {
               startLabel,
               narrow: viewport.width < NARROW_WIDTH,
               compact: isCompactLayout,
+              matchType: sessionData.matchType,
+              scrim: sessionData.sessionType === 'Scrim',
+              touch: window.matchMedia('(pointer: coarse)').matches,
             })}
           </div>
-
-          {showPreview && current.preview?.(isDarkMode)}
         </div>
 
         {hasPageTask && (
@@ -1402,7 +1536,7 @@ export const ActiveTutorial = () => {
                 className="ml-auto text-xs font-medium opacity-70 hover:opacity-100 transition-opacity flex-shrink-0"
                 style={{ color: teamBlue }}
               >
-                ↻ Try Again
+                ↻ Try again
               </button>
             )}
           </div>

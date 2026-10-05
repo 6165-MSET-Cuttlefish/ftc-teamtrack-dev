@@ -75,6 +75,8 @@ export const STORAGE_KEYS = {
 
   GUEST_PROMPT_DISMISSED: 'teamtrack-guest-prompt-dismissed',
   GUEST_PROMPT_LAST_SHOWN: 'teamtrack-guest-prompt-last-shown',
+  /** How many times the guest backup bar was closed; the second close is for good */
+  GUEST_PROMPT_DISMISS_COUNT: 'teamtrack-guest-prompt-dismiss-count',
   HAS_COMPLETED_SESSION: 'teamtrack-has-completed-session',
   SESSION_SCHEMA_VERSION: 'teamtrack-session-schema-version',
   SESSION_DATA: 'teamtrack-session-data',
@@ -99,4 +101,6 @@ export const STORAGE_KEYS = {
   SESSION_SAVED_ELSEWHERE: 'teamtrack-session-saved-elsewhere',
   /** Whether Session Notes on the scoring page was left open on this device */
   NOTES_EXPANDED: 'teamtrack-notes-expanded',
+  /** sessionStorage: the Sessions list's scroll position per history entry */
+  SESSIONS_SCROLL: 'teamtrack-sessions-scroll',
 } as const;

@@ -3,16 +3,18 @@ import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
+import { DESTRUCTIVE_CLASS } from './tokens';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-team-blue focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-team-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
         default:
           'bg-team-blue text-black hover:bg-team-blue/90 shadow-sm hover:shadow-md',
-        destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        // The one red (tokens), as in ConfirmDialog: not the theme's
+        // --destructive, which was a second, different red.
+        destructive: `border ${DESTRUCTIVE_CLASS}`,
         outline:
           'border border-team-blue-40 bg-transparent hover:bg-team-blue-10 hover:border-team-blue transition-colors',
         secondary:

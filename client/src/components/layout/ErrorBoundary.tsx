@@ -10,6 +10,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { isChunkLoadError } from '@/lib/lazyWithRetry';
 
+const STEP_NUMBER =
+  'w-4 shrink-0 text-right tabular-nums text-team-blue font-medium mt-px';
+
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
@@ -79,7 +82,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
 
-      const frame = `${this.props.inline ? 'min-h-[70vh]' : 'min-h-screen'} flex items-center justify-center p-4 bg-background`;
+      // Inline, it fills the page area under the header (main is a flex
+      // column); on its own, the whole screen.
+      const frame = `${this.props.inline ? 'flex-1' : 'min-h-screen'} flex items-center justify-center p-4 bg-background`;
 
       // A page whose code could not be downloaded (offline, or the app was
       // updated while this tab was open). React.lazy never retries a failed
@@ -118,7 +123,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   className="gap-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  Go Back
+                  Go back
                 </Button>
               </div>
             </div>
@@ -140,17 +145,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               An unexpected error occurred. Try one of these steps to recover:
             </p>
 
+            {/* Numbers in a fixed, right-aligned column, so every step's
+                text starts at the same edge */}
             <ul className="text-sm text-left text-muted-foreground mb-6 space-y-2 max-w-xs mx-auto">
               <li className="flex items-start gap-2">
-                <span className="text-team-blue font-medium mt-px">1.</span>
-                Click "Try Again" to re-render the page
+                <span className={STEP_NUMBER}>1.</span>
+                Click "Try again" to re-render the page
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-team-blue font-medium mt-px">2.</span>
+                <span className={STEP_NUMBER}>2.</span>
                 Refresh the page to start fresh
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-team-blue font-medium mt-px">3.</span>
+                <span className={STEP_NUMBER}>3.</span>
                 Clear your browser cache if the issue persists
               </li>
             </ul>
@@ -176,7 +183,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   className="gap-2"
                 >
                   <RotateCcw className="h-4 w-4" />
-                  Try Again
+                  Try again
                 </Button>
               )}
               <Button

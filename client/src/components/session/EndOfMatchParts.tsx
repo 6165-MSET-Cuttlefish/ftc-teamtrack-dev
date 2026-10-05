@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react';
 import { useTheme } from '@/contexts';
+import { formatPoints } from '@/lib/points';
 
 /**
  * The pieces the end-of-match counters are built from on the scoring page,
@@ -9,10 +10,32 @@ import { useTheme } from '@/contexts';
  */
 
 /**
+ * The one tone of a locked counter's name and points, in every theme: muted,
+ * but over 3:1 on each theme's page. ScoreField uses it too, so locked
+ * labels look the same whichever component draws them.
+ */
+export const LOCKED_TEXT = 'text-gray-500';
+
+/**
+ * Points beside a counter: data, in the text colour, never the accent.
+ * Muted to the locked tone while the counter is locked.
+ */
+const pointsTone = (dim: boolean, isDarkMode: boolean): string =>
+  dim ? LOCKED_TEXT : isDarkMode ? 'text-gray-100' : 'text-gray-900';
+
+/**
+ * The (i) beside a counter's name: a 24px target for a mouse and 44px under
+ * a finger, both without making the line taller than its 14px icon.
+ */
+export const INFO_BUTTON_CLASS =
+  '-m-[5px] inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-full transition-colors [@media(pointer:coarse)]:-m-[15px] [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
+
+/**
  * A FLOWER drawn as its stack of slots, with your NECTAR lit in the one that
  * matters: on top (you own the flower, so every piece in it scores) or at
  * the bottom (the bonus). The other slots on top are filled in, since those
- * pieces count too; for the bonus they don't matter, so they are outlines.
+ * pieces count too; for the bonus they don't matter, so they are outlines:
+ * solid ones, which still read as empty slots at 1x where dashes broke up.
  */
 export const FlowerSlots = ({
   nectar,
@@ -36,18 +59,19 @@ export const FlowerSlots = ({
           : 'A flower with your nectar at the bottom'
       }
       viewBox="0 0 14 26"
-      width={17}
-      height={32}
+      width={20}
+      height={37}
       className={`shrink-0 self-start transition-opacity ${dim ? 'opacity-40' : ''}`}
     >
+      {/* Drawn at 1.42x: 1.3 here is the 1.85px frame it had before */}
       <rect
-        x={0.75}
-        y={0.75}
-        width={12.5}
-        height={24.5}
-        rx={6.25}
+        x={0.65}
+        y={0.65}
+        width={12.7}
+        height={24.7}
+        rx={6.35}
         fill="none"
-        strokeWidth={1.5}
+        strokeWidth={1.3}
         className={line}
       />
       {slots.map((cy, i) =>
@@ -56,14 +80,14 @@ export const FlowerSlots = ({
         ) : nectar === 'top' ? (
           <circle key={cy} cx={7} cy={cy} r={3.25} className={piece} />
         ) : (
+          // 0.9 here is a 1.25px outline on screen
           <circle
             key={cy}
             cx={7}
             cy={cy}
             r={3}
             fill="none"
-            strokeWidth={1.25}
-            strokeDasharray="2 1.5"
+            strokeWidth={0.9}
             className={line}
           />
         )
@@ -74,8 +98,8 @@ export const FlowerSlots = ({
 
 /**
  * The name over one element's counter, or over the Flowers pair: its points
- * on the right, the full rule behind an (i). Not a heading element: the
- * buzzer's scroll and the walkthrough look for the section's first `h3`.
+ * on the right, the rule behind an (i). Not a heading element: the buzzer's
+ * scroll and the walkthrough look for the section's first `h3`.
  */
 export const CounterHead = ({
   id,
@@ -91,7 +115,10 @@ export const CounterHead = ({
   id: string;
   title: string;
   points?: number;
-  /** The full rule; the (i) toggles it open, and it is its tooltip */
+  /**
+   * The rule; the (i) toggles it open. The caller shows it, under its own
+   * group, with `infoId` as its id.
+   */
   info?: string;
   /** Id of the element the (i) opens */
   infoId?: string;
@@ -111,11 +138,7 @@ export const CounterHead = ({
         <span
           id={id}
           className={`truncate text-sm font-semibold leading-5 ${
-            dim
-              ? 'text-gray-500'
-              : isDarkMode
-                ? 'text-gray-100'
-                : 'text-gray-900'
+            dim ? LOCKED_TEXT : isDarkMode ? 'text-gray-100' : 'text-gray-900'
           }`}
         >
           {title}
@@ -123,13 +146,11 @@ export const CounterHead = ({
         {info && onInfo && (
           <button
             type="button"
-            title={info}
             aria-label={`About ${title}`}
             aria-expanded={infoOpen}
             aria-controls={infoOpen ? infoId : undefined}
             onClick={onInfo}
-            // 44px under a finger, without making the line taller
-            className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors [@media(pointer:coarse)]:-mx-3 [@media(pointer:coarse)]:-my-3 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
+            className={`${INFO_BUTTON_CLASS} ${
               isDarkMode
                 ? 'text-gray-400 hover:text-team-blue'
                 : 'text-gray-500 hover:text-team-blue'
@@ -141,11 +162,12 @@ export const CounterHead = ({
       </span>
       {points !== undefined && (
         <span
-          className={`shrink-0 text-sm font-semibold tabular-nums ${
-            dim ? 'text-gray-500' : 'text-team-blue'
-          }`}
+          className={`shrink-0 text-sm font-semibold tabular-nums ${pointsTone(
+            dim,
+            isDarkMode
+          )}`}
         >
-          {points} pts
+          {formatPoints(points)}
         </span>
       )}
     </div>
@@ -158,6 +180,7 @@ export const CounterHead = ({
  * its steppers read it out. In a grid row it fills the row's height, and
  * with `footAligned` the worth line sits at its foot, level with its
  * neighbours' and just over the stepper, however the labels above wrap.
+ * The label wraps balanced, so a second line never holds one word alone.
  */
 export const CountLine = ({
   id,
@@ -167,6 +190,7 @@ export const CountLine = ({
   icon,
   dim = false,
   footAligned = true,
+  pointsClassName = '',
 }: {
   id: string;
   label: string;
@@ -175,6 +199,11 @@ export const CountLine = ({
   icon?: React.ReactNode;
   dim?: boolean;
   footAligned?: boolean;
+  /**
+   * Extra classes for the points, e.g. `md:hidden` where a wider layout
+   * shows them in a column of their own instead.
+   */
+  pointsClassName?: string;
 }) => {
   const { isDarkMode } = useTheme();
   const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
@@ -184,24 +213,29 @@ export const CountLine = ({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Readable while locked too: it is what to look for on the field */}
         <p
-          className={`text-sm font-medium leading-5 ${
+          className={`text-balance text-sm font-medium leading-5 ${
             isDarkMode ? 'text-gray-200' : 'text-gray-800'
           }`}
         >
           {label}
         </p>
+        {/*
+          Where the worth and the points don't fit on one line, the points
+          go under it, still on the right: "5 pts, max 4" is never split.
+        */}
         <p
-          className={`flex items-baseline justify-between gap-2 text-xs leading-4 ${
+          className={`flex flex-wrap items-baseline justify-between gap-x-2 text-xs leading-4 ${
             footAligned ? 'mt-auto' : ''
           }`}
         >
           <span className={muted}>{each}</span>
           <span
-            className={`shrink-0 font-semibold tabular-nums ${
-              dim ? 'text-gray-500' : 'text-team-blue'
-            }`}
+            className={`ml-auto shrink-0 font-semibold tabular-nums ${pointsTone(
+              dim,
+              isDarkMode
+            )} ${pointsClassName}`}
           >
-            {points} pts
+            {formatPoints(points)}
           </span>
         </p>
       </div>

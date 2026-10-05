@@ -31,11 +31,14 @@ const discardQuestion = (savedMatches: number, matchRunning: boolean) => {
  * Session-level actions: complete the session, discard it.
  *
  * Neither is filled: the filled button on this page is always the one that
- * moves the match forward. On a phone these are at the end of the page, away
- * from the scoring steppers, and Complete Session is offered in the action
- * bar between matches instead (see `PrimaryAction`), so only Discard Session
- * shows here. (The setup toggle used to live here too; it's now
- * `OpenSetupButton`, next to the setup panel it controls.)
+ * moves the match forward. Complete Session only appears once a match is
+ * saved: before that there is nothing to complete, and the button could
+ * only answer with an error. They are at the end of the page on every
+ * layout, away from the scoring steppers: in the footer under Session
+ * Notes on a full-size screen. On a phone Complete Session is offered in
+ * the action bar between matches instead (see `PrimaryAction`), so only
+ * Discard Session shows here. (The setup toggle used to live here too;
+ * it's now `OpenSetupButton`, next to the setup panel it controls.)
  *
  * Discard Session asks first, in place of the button, and never touches the
  * match clock; what it discards can be put back from the toast that follows.
@@ -46,7 +49,6 @@ export const SessionActions = () => {
     loading,
     matchActive,
     savedMatchCount,
-    editingMatchId,
     pendingConfirm,
     showSaveSessionDialog,
     handleRequestCompleteSession,
@@ -85,19 +87,19 @@ export const SessionActions = () => {
       )}
       {pendingConfirm === 'discardSession' && (
         <ConfirmInline
-          // On a phone the button is full width: Keep session takes all of
+          // On a phone the button is full width: Keep Session takes all of
           // its spot, and Discard goes up beside the question. On a full
-          // screen the session buttons start a row of their own while a
-          // match is on (or open for editing), where Keep session follows
-          // the narrow question; between matches they end the controls
-          // row, where it is the last button, at least as wide as Discard
-          // Session was.
+          // screen the session buttons are a row of their own in the
+          // footer, under Session Notes, in every state, and the question
+          // takes that whole row: Keep Session follows the narrow question,
+          // over where Discard Session was and at least as wide, and
+          // Discard comes after it.
           keepBelow={isCompact}
-          keepFirst={matchActive || editingMatchId !== null}
+          keepFirst={!isCompact}
           keepMinWidth={pressedWidth}
           reveal
           question={discardQuestion(savedMatchCount, matchActive)}
-          keepLabel="Keep session"
+          keepLabel="Keep Session"
           confirmLabel="Discard"
           onKeep={handleKeepConfirm}
           onConfirm={handleConfirmDiscardSession}
@@ -108,7 +110,7 @@ export const SessionActions = () => {
         Stays enabled at the session limit: pressing it is what explains why
         the session can't be saved.
       */}
-      {!asking && !isCompact && (
+      {!asking && !isCompact && savedMatchCount > 0 && (
         <button
           type="button"
           onKeyDown={ignoreHeldEnter}
@@ -116,7 +118,7 @@ export const SessionActions = () => {
           disabled={loading}
           className={`${BUTTON} ${actionClass('neutral', isDarkMode)}`}
         >
-          {loading ? 'Saving...' : 'Complete Session'}
+          {loading ? 'Saving…' : 'Complete Session'}
         </button>
       )}
       {!asking && (

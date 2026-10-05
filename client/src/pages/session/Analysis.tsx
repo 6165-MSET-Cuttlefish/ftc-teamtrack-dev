@@ -25,6 +25,7 @@ import {
   logger,
 } from '@/lib';
 import { readAllGuestSessions } from '@/lib/guestSessions';
+import { countShareLinks } from '@/lib/shareService';
 import {
   APP_CONFIG,
   CURRENT_SEASON,
@@ -40,10 +41,19 @@ import type {
   TimestampValue,
 } from '@/types';
 import { MatchForm } from '@/components';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
+  ArrowRight,
   BarChart3,
+  ChevronDown,
   Plus,
   Link2,
   Link2Off,
@@ -51,8 +61,10 @@ import {
   Loader2,
   Download,
   Lock,
+  Share2,
 } from 'lucide-react';
 import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
+import { SignUpToShare } from './SignUpToShare';
 import {
   SummaryTab,
   MatchDetailTab,
@@ -103,6 +115,18 @@ const EMPTY_SESSION: SessionFormData = {
 };
 
 const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
+
+/** A row in the Share menu: big enough for a thumb, icon then text. */
+const MENU_ITEM =
+  'flex items-center gap-2 cursor-pointer [@media(pointer:coarse)]:min-h-11';
+
+/** How many share links of the loaded session this viewer can take down */
+interface ShareLinkCount {
+  /** The session and viewer it was counted for */
+  key: string;
+  /** Null when they couldn't be counted (offline, say) */
+  count: number | null;
+}
 
 const readSession = async (sessionId: string): Promise<Session | null> =>
   isGuestSessionId(sessionId)
@@ -157,6 +181,9 @@ const Analysis = () => {
   const [isCopyingLink, setIsCopyingLink] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [shareLinks, setShareLinks] = useState<ShareLinkCount | null>(null);
+  /** Bumped to count the share links again after one is made */
+  const [shareLinksTick, setShareLinksTick] = useState(0);
 
   useEffect(() => {
     document.title = `Analysis - ${APP_CONFIG.name}`;
@@ -203,6 +230,40 @@ const Analysis = () => {
         : null,
     [current, isGuestSession]
   );
+
+  /**
+   * The links Stop sharing would take down: undefined until they have been
+   * counted for the session on screen, null when they couldn't be.
+   */
+  const shareKey =
+    savedSession && viewer ? `${savedSession.id}|${viewer}` : null;
+  const linkCount =
+    shareKey && shareLinks?.key === shareKey ? shareLinks.count : undefined;
+
+  // Counted with the session, and again whenever it is (re)loaded: links can
+  // be made or taken down from Sessions, Profile or another device. The
+  // server counts them, so that is one read however many links there are.
+  useEffect(() => {
+    if (!shareKey || !savedSession || !current?.session) return;
+    let live = true;
+    countShareLinks({
+      ...savedSession,
+      sessionName: current.session.sessionName,
+      notes: current.session.notes,
+      matches: current.session.matches,
+    }).then(
+      count => {
+        if (live) setShareLinks({ key: shareKey, count });
+      },
+      error => {
+        logger.warn('Could not count share links', { error: String(error) });
+        if (live) setShareLinks({ key: shareKey, count: null });
+      }
+    );
+    return () => {
+      live = false;
+    };
+  }, [shareKey, savedSession, current, shareLinksTick]);
 
   // Matches saved without a type of their own ran as the session's type,
   // which decides which periods count toward their score.
@@ -277,9 +338,15 @@ const Analysis = () => {
       });
       await copyShareLink(link, () => {
         setLinkCopied(true);
-        toast.success('Share link copied to clipboard!');
+        toast.success('Share link copied', {
+          // A link is a snapshot; one copied again unchanged is the same link.
+          description:
+            'Shows the session as it is now. Copy again after edits.',
+        });
         setTimeout(() => setLinkCopied(false), 2500);
       });
+      // It may be a new link: Stop sharing now has one more to take down.
+      setShareLinksTick(tick => tick + 1);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to generate share link'
@@ -337,6 +404,7 @@ const Analysis = () => {
     setIsRevoking(true);
     try {
       const count = await firebaseService.deleteSharedSessions(savedSession.id);
+      if (shareKey) setShareLinks({ key: shareKey, count: 0 });
       if (count === 0) {
         toast.info(
           isOwner
@@ -403,7 +471,8 @@ const Analysis = () => {
         matchId,
       });
 
-      toast.success(
+      // A delete with an Undo is news, not a success
+      toast.message(
         removed
           ? `Match ${removed.match.matchNumber} deleted`
           : 'Match deleted',
@@ -478,7 +547,7 @@ const Analysis = () => {
                 onClick: async () => {
                   try {
                     await applyEdit(sessionId, { kind: 'delete', matchId });
-                    toast.success(`Match ${added.matchNumber} removed`);
+                    toast.message(`Match ${added.matchNumber} removed`);
                   } catch (error) {
                     logger.error('Error undoing added match', error);
                     toast.error('Failed to remove the match', {
@@ -572,10 +641,22 @@ const Analysis = () => {
   const canExport = sessionMatches.length > 0;
   /** Sharing makes a link to a session saved to an account */
   const shareLocked = canShare && !savedSession;
+  const canCopyLink = canShare && !shareLocked;
+  /**
+   * Only when there are links to take down, or when they couldn't be counted
+   * (taking them down then says whether there were any).
+   */
+  const canStopSharing =
+    !!savedSession && (linkCount === null || (linkCount ?? 0) > 0);
+  const showShare = canCopyLink || canStopSharing;
+  /** Header actions: one height, 44 px, at every width */
+  const actionButton =
+    'inline-flex h-11 items-center justify-center rounded-xl border text-sm font-medium transition-colors';
   const hasTabs = !legacySeason && sessionMatches.length > 0;
   const quietButton = isDarkMode
     ? 'border-team-blue-40 bg-team-dark-20 text-team-white-60 hover:text-white hover:border-team-blue'
     : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-team-blue';
+  const lockLineColor = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
 
   return (
     <div
@@ -583,7 +664,7 @@ const Analysis = () => {
     >
       <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-          <div className="space-y-2 min-w-0">
+          <div className="space-y-2 min-w-0 sm:flex-1">
             {legacySeason && (
               <div
                 className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${
@@ -613,104 +694,122 @@ const Analysis = () => {
 
           {/* A link outlives what it was made from: it can be taken down
               whatever the session's season, and with no matches left in it. */}
-          {(canShare || canExport || savedSession) && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 shrink-0 sm:justify-end sm:max-w-[50%]">
-              {/* The reason is beside the locked button, not in a toast after
-                  a press. On a phone the reason alone says it, in one line. */}
-              {shareLocked && (
-                <>
-                  <button
-                    type="button"
-                    disabled
-                    aria-describedby="share-locked-reason"
-                    className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium cursor-not-allowed [@media(pointer:coarse)]:min-h-11 ${
-                      isDarkMode
-                        ? 'border-team-white-20 text-team-white-60'
-                        : 'border-gray-200 text-gray-500'
-                    }`}
-                  >
-                    <Lock size={15} />
-                    Copy Share Link
-                  </button>
+          {(showShare || shareLocked || canExport) && (
+            <div className="flex items-center gap-3 sm:shrink-0 sm:justify-end">
+              {/* The reason sharing is locked, beside Export */}
+              {shareLocked &&
+                (user ? (
                   <p
-                    id="share-locked-reason"
-                    className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                    className={`min-w-0 flex-1 text-sm sm:max-w-xs sm:flex-none sm:text-right ${lockLineColor}`}
                   >
                     <Lock
                       size={14}
                       aria-hidden
-                      className="inline-block align-[-2px] mr-1.5 sm:hidden"
+                      className="inline-block align-[-2px] mr-1.5"
                     />
-                    {user ? (
-                      <>
-                        Open this session from{' '}
-                        <Link
-                          to={ROUTES.SESSIONS}
-                          className="inline-flex items-center font-semibold text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
-                        >
-                          Sessions
-                        </Link>{' '}
-                        to share it
-                      </>
-                    ) : (
-                      <>
-                        Sharing needs a free account ·{' '}
-                        <Link
-                          to={ROUTES.SIGNUP}
-                          className="inline-flex items-center font-semibold text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
-                        >
-                          Sign up
-                        </Link>
-                      </>
-                    )}
+                    Open this session from{' '}
+                    <Link
+                      to={ROUTES.SESSIONS}
+                      className="inline-flex items-center font-semibold text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
+                    >
+                      Sessions
+                    </Link>{' '}
+                    to share it
                   </p>
-                </>
-              )}
-              {canShare && !shareLocked && (
-                <button
-                  onClick={handleCopyLink}
-                  disabled={isCopyingLink}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all [@media(pointer:coarse)]:min-h-11 ${
-                    linkCopied
-                      ? isDarkMode
-                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                        : 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                      : quietButton
-                  }`}
-                >
-                  {isCopyingLink ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : linkCopied ? (
-                    <Check size={15} />
-                  ) : (
-                    <Link2 size={15} />
-                  )}
-                  {linkCopied ? 'Copied!' : 'Copy Share Link'}
-                </button>
-              )}
-              {savedSession && (
-                <button
-                  onClick={handleStopSharing}
-                  disabled={isRevoking}
-                  title="Remove the share links made from this session"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all [@media(pointer:coarse)]:min-h-11 ${quietButton}`}
-                >
-                  {isRevoking ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <Link2Off size={15} />
-                  )}
-                  Stop sharing
-                </button>
+                ) : (
+                  // Steps aside while the guest backup bar says the same
+                  <SignUpToShare
+                    lock
+                    endFromSm
+                    data-hide-under-guest-prompt
+                    className={`min-w-0 flex-1 text-sm sm:max-w-xs sm:flex-none ${lockLineColor}`}
+                  />
+                ))}
+              {showShare && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    {/* One button whatever it says, as wide as its longest
+                        label: nothing beside it moves when it says Copied */}
+                    <button
+                      type="button"
+                      aria-busy={isCopyingLink}
+                      className={`${actionButton} gap-2 px-4 ${
+                        linkCopied
+                          ? isDarkMode
+                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                            : 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                          : quietButton
+                      }`}
+                    >
+                      {isCopyingLink ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : linkCopied ? (
+                        <Check size={15} />
+                      ) : (
+                        <Share2 size={15} />
+                      )}
+                      <span className="inline-grid">
+                        <span
+                          className={`[grid-area:1/1] ${linkCopied ? 'invisible' : ''}`}
+                        >
+                          Share
+                        </span>
+                        <span
+                          className={`[grid-area:1/1] ${linkCopied ? '' : 'invisible'}`}
+                        >
+                          Copied
+                        </span>
+                      </span>
+                      <ChevronDown size={15} aria-hidden />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    // Clear of the screen edge when the button is at the left
+                    collisionPadding={16}
+                    className="min-w-[200px]"
+                  >
+                    {canCopyLink && (
+                      <DropdownMenuItem
+                        disabled={isCopyingLink}
+                        onSelect={handleCopyLink}
+                        className={MENU_ITEM}
+                      >
+                        <Link2 className="h-4 w-4" />
+                        <span>Copy link</span>
+                      </DropdownMenuItem>
+                    )}
+                    {canCopyLink && canStopSharing && <DropdownMenuSeparator />}
+                    {canStopSharing && (
+                      <DropdownMenuItem
+                        disabled={isRevoking}
+                        onSelect={handleStopSharing}
+                        className={`${MENU_ITEM} text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400`}
+                      >
+                        {isRevoking ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Link2Off className="h-4 w-4" />
+                        )}
+                        <span>
+                          {linkCount
+                            ? `Stop sharing (${linkCount} link${linkCount === 1 ? '' : 's'})`
+                            : 'Stop sharing'}
+                        </span>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               {canExport && (
                 <button
+                  type="button"
                   onClick={handleExportSession}
+                  aria-label="Export CSV"
                   title="Export this session's matches as CSV"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all [@media(pointer:coarse)]:min-h-11 ${quietButton}`}
+                  className={`${actionButton} w-11 shrink-0 ${quietButton}`}
                 >
-                  <Download size={15} />
-                  Export CSV
+                  <Download size={16} aria-hidden />
                 </button>
               )}
             </div>
@@ -805,7 +904,8 @@ const Analysis = () => {
                 className={`px-6 py-2.5 rounded-xl bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors inline-flex items-center gap-2 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 <Plus size={18} />
-                Add First Match
+                {/* An empty session's first match is always Match 1 */}
+                Add Match 1
               </button>
             ) : (
               !sessionId && (
@@ -820,12 +920,14 @@ const Analysis = () => {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+        {/* A way on, kept quiet: the page's one filled button is its own */}
+        <div className="flex justify-center pt-2">
           <Link
-            to="/charts"
-            className={`flex items-center justify-center w-full sm:w-56 px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium text-center hover:bg-team-blue/90 transition-colors [@media(pointer:coarse)]:min-h-11 ${isDarkMode ? 'text-black' : 'text-white'}`}
+            to={ROUTES.CHARTS}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-team-blue underline-offset-4 hover:underline"
           >
-            View Lifetime Charts
+            Lifetime charts
+            <ArrowRight size={16} aria-hidden />
           </Link>
         </div>
       </div>

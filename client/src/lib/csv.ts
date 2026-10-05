@@ -18,6 +18,7 @@ import {
 } from './scoring';
 import { ELEMENT_LABELS as L } from './scoringLabels';
 import { toDate } from './utils';
+import { htmlToText } from './htmlText';
 
 /**
  * A text cell: quoted, with quotes doubled and line breaks flattened so each
@@ -69,32 +70,21 @@ export const isoDate = (timestamp: unknown): string => {
   return `${local}${offset < 0 ? '-' : '+'}${pad(offset / 60)}:${pad(offset % 60)}`;
 };
 
-/** Elements that start and end on a line of their own. */
-const BLOCK_ELEMENTS =
-  'p, div, li, ul, ol, h1, h2, h3, h4, h5, h6, blockquote, pre, tr';
-
 /**
- * The text of an HTML fragment (session notes are stored as the editor's
- * HTML): tags removed, one line per paragraph or line break, list items as
- * `- ` bullets. Nothing in the fragment is run or loaded.
+ * A session's duration as h:mm:ss (`0:48:12`). The app stores minutes and
+ * seconds (`48:12`, `65:33`), which a spreadsheet reads as hours and minutes
+ * (48 hours); with the hours written out it reads as the time it is. A value
+ * that isn't a duration is written as it is.
  */
-export const htmlToText = (html: string): string => {
-  if (!html) return '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-
-  doc.querySelectorAll('script, style').forEach(el => el.remove());
-  doc.querySelectorAll('br').forEach(el => el.replaceWith('\n'));
-  doc.querySelectorAll('li').forEach(el => el.prepend('- '));
-  doc.querySelectorAll(BLOCK_ELEMENTS).forEach(el => {
-    el.prepend('\n');
-    el.append('\n');
-  });
-
-  return (doc.body.textContent ?? '')
-    .split('\n')
-    .map(line => line.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-    .join('\n');
+const durationCell = (value: unknown): string => {
+  if (typeof value !== 'string' || !/^\d+(:\d+){1,2}$/.test(value.trim())) {
+    return value === null || value === undefined ? '' : String(value);
+  }
+  const parts = value.trim().split(':').map(Number);
+  const [h, m, s] = parts.length === 3 ? parts : [0, ...parts];
+  const total = h * 3600 + m * 60 + s;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${Math.floor(total / 3600)}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
 };
 
 /** Columns that describe the session and lead every row. */
@@ -108,27 +98,30 @@ const SESSION_HEADERS = [
 
 /**
  * Columns that describe one match. Blank for a session with no matches.
- * Scoring columns carry the names the app shows (`ELEMENT_LABELS`).
+ * Scoring columns carry the names the app shows (`ELEMENT_LABELS`) and
+ * follow `ELEMENT_ORDER`, the order the scoring page asks for them: Hive
+ * Tips, the robots' Leave and Park, then Flower, Flower Bonus, Left in Hive
+ * and Garden. The row cells in `buildSessionsCsv` are in the same order.
  */
 const MATCH_HEADERS = [
   'Match Number',
   'Final Score',
   L.tipping,
   `${L.tipping} Points`,
-  L.garden,
-  `${L.garden} Points`,
-  L.flower,
-  `${L.flower} Points`,
-  L.flowerBonus,
-  `${L.flowerBonus} Points`,
-  L.hive,
-  `${L.hive} Points`,
   `Robot 1 ${L.leave}`,
   `Robot 1 ${L.parkAuto}`,
   `Robot 1 ${L.parkEnd}`,
   `Robot 2 ${L.leave}`,
   `Robot 2 ${L.parkAuto}`,
   `Robot 2 ${L.parkEnd}`,
+  L.flower,
+  `${L.flower} Points`,
+  L.flowerBonus,
+  `${L.flowerBonus} Points`,
+  L.hive,
+  `${L.hive} Points`,
+  L.garden,
+  `${L.garden} Points`,
   'Minor Penalties',
   'Major Penalties',
   'Points Given to Opponent',
@@ -166,7 +159,7 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
       esc(session.sessionName || 'Untitled Session'),
       esc(isoDate(session.createdAt)),
       esc(session.sessionType || 'Practice'),
-      esc(session.sessionDuration || ''),
+      esc(durationCell(session.sessionDuration)),
     ];
     const notes = esc(
       htmlToText(typeof session.notes === 'string' ? session.notes : '')
@@ -199,22 +192,23 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
         esc(matchType),
         num(match.matchNumber),
         num(b.total),
+        // In MATCH_HEADERS' order (ELEMENT_ORDER)
         num(match.tipping),
         num(b.tipping),
-        num(match.garden),
-        num(b.garden),
-        num(match.flower),
-        num(b.flower),
-        num(match.flowerBonus),
-        num(b.flowerBonus),
-        num(match.ballsInHive),
-        num(b.hive),
         flag(auto, match.robot1Leave),
         flag(auto, match.robot1ParkAuto),
         flag(teleop, match.robot1ParkTeleop),
         flag(auto, match.robot2Leave),
         flag(auto, match.robot2ParkAuto),
         flag(teleop, match.robot2ParkTeleop),
+        num(match.flower),
+        num(b.flower),
+        num(match.flowerBonus),
+        num(b.flowerBonus),
+        num(match.ballsInHive),
+        num(b.hive),
+        num(match.garden),
+        num(b.garden),
         foul(match.minorPenalties),
         foul(match.majorPenalties),
         foul(b.penalties),
@@ -286,7 +280,7 @@ export const buildLegacySessionsCsv = (sessions: Session[]): string => {
       esc(session.sessionName || 'Untitled Session'),
       esc(isoDate(session.createdAt)),
       esc((session.season || 'decode').toUpperCase()),
-      esc(session.sessionDuration || ''),
+      esc(durationCell(session.sessionDuration)),
     ];
     const notes = esc(
       htmlToText(typeof session.notes === 'string' ? session.notes : '')
@@ -355,8 +349,10 @@ export const buildLegacySessionsCsv = (sessions: Session[]): string => {
 
 /**
  * A download name for an export: `base` reduced to characters every OS takes
- * in a file name, followed by today's date. A session's name is whatever its
- * author typed, so it is never used as a file name as it is.
+ * in a file name, followed by today's date where the export is made (an
+ * evening practice in California is still that day, not tomorrow in UTC). A
+ * session's name is whatever its author typed, so it is never used as a file
+ * name as it is.
  */
 export const csvFileName = (base: string): string => {
   const safe =
@@ -365,12 +361,22 @@ export const csvFileName = (base: string): string => {
       .trim()
       .replace(/\s+/g, '-')
       .slice(0, 60) || 'session';
-  return `${safe}-${new Date().toISOString().split('T')[0]}.csv`;
+  const today = new Date();
+  const date = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
+  return `${safe}-${date}.csv`;
 };
 
-/** Hand `csv` to the browser as a file download. */
+/**
+ * Hand `csv` to the browser as a file download. The file starts with a
+ * UTF-8 byte order mark, without which Excel reads it in the system's legacy
+ * code page and garbles curly apostrophes and accents in names and notes.
+ */
 export const downloadCsv = (filename: string, csv: string): void => {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
 

@@ -4,7 +4,7 @@ import { ROUTES } from '@/constants';
 import { ConfirmInline } from './ConfirmInline';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
-import { actionClass } from './tones';
+import { actionClass, toneText } from './tones';
 import { useArmed } from './useArmed';
 
 /** Tall enough for a thumb, and free to grow when the label wraps */
@@ -42,7 +42,7 @@ export const CompletedActions = () => {
         disabled={loading}
         className={`${BUTTON} ${actionClass('primary', isDarkMode)}`}
       >
-        {loading ? 'Loading...' : 'View analysis'}
+        {loading ? 'Loading…' : 'View Analysis'}
       </button>
 
       <button
@@ -71,8 +71,9 @@ export const CompletedActions = () => {
 };
 
 /**
- * The link to the sessions list on the completed screen. It sits where the
- * save dialog's Save Session button was, so it waits out a double tap too.
+ * The link to the sessions list on the completed screen: a plain link, the
+ * quiet third choice under the two buttons. It sits where the save dialog's
+ * Save Session button was, so it waits out a double tap too.
  */
 export const ViewSessionsLink = () => {
   const { isDarkMode } = useLiveControls();
@@ -84,11 +85,7 @@ export const ViewSessionsLink = () => {
       onClick={e => {
         if (!armed) e.preventDefault();
       }}
-      className={`inline-flex items-center justify-center px-6 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-        isDarkMode
-          ? 'border-team-blue-40 text-team-white-60 hover:text-white hover:border-team-blue'
-          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-      }`}
+      className={`inline-flex min-h-11 items-center justify-center px-4 text-base font-semibold underline underline-offset-4 decoration-2 hover:decoration-[3px] ${toneText('blue', isDarkMode)}`}
     >
       View Sessions
     </Link>

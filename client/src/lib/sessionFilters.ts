@@ -32,9 +32,15 @@ export const SORT_LABELS: Record<SortOption, string> = {
 
 export const DEFAULT_SORT: SortOption = 'date-desc';
 
+/** The order an address names (`?sort=score-desc`); the default otherwise. */
+export const sortFromParam = (param: string | null): SortOption =>
+  (Object.keys(SORT_LABELS) as SortOption[]).find(option => option === param) ??
+  DEFAULT_SORT;
+
 /**
- * Whether a session has been archived. Only a stored `true` counts, so a
- * session saved before the field existed reads as active.
+ * Whether a session has been archived by its author. Only a stored `true`
+ * counts, so a session saved before the field existed reads as active. What
+ * a list shows goes by `archivedFor`, which asks who is looking.
  */
 export const isArchived = (session: Pick<Session, 'archived'>): boolean =>
   session.archived === true;
@@ -106,11 +112,33 @@ export const sortSessions = (
     .map(keys => keys.session);
 };
 
+/** Who is looking at a list of sessions. */
+export interface ArchiveViewer {
+  uid?: string;
+  /** A guest's sessions are all their own: none carries their account. */
+  isGuest?: boolean;
+}
+
 /**
- * The sessions one view of the list holds: the archived ones, or the rest.
+ * Whether a session is archived for the person looking at it. Archiving is
+ * the author's own tidying up: a teammate archiving a team session never
+ * moves it out of anyone else's list (only the author can change it, so
+ * nobody else could bring it back either).
+ */
+export const archivedFor = (
+  session: Pick<Session, 'archived' | 'userId'>,
+  viewer: ArchiveViewer
+): boolean =>
+  isArchived(session) &&
+  (viewer.isGuest === true || (!!viewer.uid && session.userId === viewer.uid));
+
+/**
+ * The sessions one view of the list holds: the ones the viewer archived, or
+ * the rest.
  */
 export const inArchiveView = (
   sessions: readonly Session[],
-  showArchived: boolean
+  showArchived: boolean,
+  viewer: ArchiveViewer
 ): Session[] =>
-  sessions.filter(session => isArchived(session) === showArchived);
+  sessions.filter(session => archivedFor(session, viewer) === showArchived);

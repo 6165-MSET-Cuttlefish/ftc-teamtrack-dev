@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { DESTRUCTIVE_CLASS } from '@/components/ui/tokens';
 import { useTheme } from '@/contexts';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { revealInView } from './scrollUnderHeader';
@@ -17,10 +18,16 @@ interface ConfirmInlineProps {
   question: ReactNode;
   /** A second, quieter line under the question */
   detail?: ReactNode;
-  /** The choice that changes nothing ("Keep session") */
+  /** The choice that changes nothing ("Keep Session") */
   keepLabel: string;
   /** The choice that goes ahead ("Discard") */
   confirmLabel: string;
+  /**
+   * The go-ahead's name for assistive technology, containing its label,
+   * where the label alone would name another control too (the X that asked
+   * "Discard Match").
+   */
+  confirmAriaLabel?: string;
   onKeep: () => void;
   onConfirm: () => void;
   /**
@@ -61,6 +68,27 @@ interface ConfirmInlineProps {
    */
   aside?: ReactNode;
   /**
+   * One row exactly as tall as its buttons, for a row of controls on a
+   * full-size screen: the question never wraps the row (and so never moves
+   * what is under it). It keeps to two lines at most, right beside its
+   * buttons, and gives up width first when the row is short.
+   */
+  inline?: boolean;
+  /**
+   * With `inline`: the safe choice takes the row's spare width, right
+   * after the question, and the go-ahead ends the row. For a question
+   * asked in place of a button as wide as the row (Save Match): where that
+   * button was pressed, the safe choice is.
+   */
+  keepWide?: boolean;
+  /**
+   * The safe choice takes focus as the question opens, even though the
+   * button that asked keeps it: for a question asked by a button that
+   * stays on screen (the X), so the keyboard carries on from the question
+   * and it is announced.
+   */
+  autoFocusKeep?: boolean;
+  /**
    * Scroll the question fully into view when it opens, clear of the pinned
    * header and the phone's bar: it can be taller than the button it
    * replaces, at the very end of the page. With `keepBelow` the safe choice
@@ -71,11 +99,26 @@ interface ConfirmInlineProps {
   className?: string;
 }
 
-const BUTTON = 'min-h-11 px-4 py-1.5 rounded-xl text-sm leading-tight';
+/** The answers' shape where a long label may wrap to a second line */
+const BUTTON = 'min-h-12 px-4 py-1.5 rounded-2xl text-base leading-tight';
+
+/**
+ * The answers of a question asked in a row of match controls: the same
+ * shape as every button of that row (Pause, End early, Skip), both of them.
+ */
+const ROW_BUTTON = 'h-12 px-4 rounded-2xl text-base whitespace-nowrap';
+
+/**
+ * In a row of controls that is a size container (the full-size layout's):
+ * where that row is short (a tablet held upright), the question and its
+ * answers take smaller type, so the question still reads in two lines
+ * beside End early's wide safe answer. (Spelled out in full for Tailwind
+ * to find.)
+ */
+const INLINE_BUTTON = `${ROW_BUTTON} [@container(max-width:54rem)]:px-3 [@container(max-width:54rem)]:text-sm`;
 
 /** Solid red with white text: 4.8:1, the same in every theme */
-const DESTRUCTIVE =
-  'border-2 border-red-600 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors flex items-center justify-center';
+const DESTRUCTIVE = `border-2 font-bold transition-colors flex items-center justify-center ${DESTRUCTIVE_CLASS}`;
 
 /**
  * The one way /active asks "are you sure?": a worded question in place of
@@ -84,7 +127,8 @@ const DESTRUCTIVE =
  * The safe choice goes where the button that asked was (the right-hand end
  * unless `keepFirst` or `keepBelow` says otherwise), so a second press on the same spot
  * lands on it or on the question, never on the other button. It also comes
- * first for the keyboard and takes focus when the pressed button had it. The
+ * first for the keyboard and takes focus when the pressed button had it
+ * (or, with `autoFocusKeep`, when that button is still there). The
  * other button ignores presses for a moment after the question appears, so
  * a double tap can never answer it.
  *
@@ -96,6 +140,7 @@ export const ConfirmInline = ({
   detail,
   keepLabel,
   confirmLabel,
+  confirmAriaLabel,
   onKeep,
   onConfirm,
   tone = 'danger',
@@ -104,6 +149,9 @@ export const ConfirmInline = ({
   keepBelow = false,
   keepMinWidth,
   aside,
+  inline = false,
+  keepWide = false,
+  autoFocusKeep = false,
   reveal = false,
   className = '',
 }: ConfirmInlineProps) => {
@@ -133,30 +181,37 @@ export const ConfirmInline = ({
   }, [reveal]);
 
   // The pressed button is gone, and keyboard focus with it: carry on from
-  // the safe choice rather than from the top of the page.
+  // the safe choice rather than from the top of the page. Focus anywhere
+  // else (Notes, a count being typed) is left where it is.
   useEffect(() => {
     const active = document.activeElement;
-    if (!active || active === document.body) {
+    if (autoFocusKeep || !active || active === document.body) {
       keepRef.current?.focus({ preventScroll: true });
     }
+    // Only as it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Stacked, the buttons split the row by the length of their labels, and a
   // long label may wrap; in a row they keep to one line each.
   const fit = stacked ? 'flex-auto text-center' : 'whitespace-nowrap';
 
+  // Balanced, so a wrapped question never leaves a word on its own line.
   const questionText = (layout: string) => (
     <p
       id={questionId}
-      className={`min-w-0 text-sm font-semibold leading-snug ${layout} ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}
+      className={`min-w-0 text-sm font-semibold text-balance ${layout} ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}
     >
       {question}
       {detail && (
-        <span
-          className={`block font-normal ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-        >
-          {detail}
-        </span>
+        <>
+          {inline && ' '}
+          <span
+            className={`${inline ? '' : 'block'} font-normal ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+          >
+            {detail}
+          </span>
+        </>
       )}
     </p>
   );
@@ -179,6 +234,7 @@ export const ConfirmInline = ({
       onClick={() => {
         if (armed) onConfirm();
       }}
+      aria-label={confirmAriaLabel}
       className={`${shape} ${
         tone === 'save' ? actionClass('neutral', isDarkMode) : DESTRUCTIVE
       }`}
@@ -188,23 +244,54 @@ export const ConfirmInline = ({
   );
 
   if (keepBelow) {
+    // Two columns: the question and the go-ahead over what stays usable
+    // (Pause) and the safe choice. The two answers share the second column,
+    // so they are one width, one above the other, at every phone width;
+    // without an aside the safe choice takes the whole last row.
     return (
       <div
         ref={rootRef}
         role="group"
         aria-labelledby={questionId}
         data-confirm-inline
-        className={`flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0 ${className}`}
+        className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 min-w-0 ${className}`}
       >
-        {questionText('flex-1 basis-40')}
+        {questionText('col-start-1 row-start-1 leading-snug')}
         {/* The safe choices come first for the keyboard, and last on screen. */}
-        <div className="order-last basis-full flex items-center gap-2">
-          {aside}
-          {keepButton(
-            `${aside ? 'shrink-0' : 'flex-1'} h-12 px-4 rounded-2xl text-base whitespace-nowrap`
-          )}
+        {aside && (
+          <div className="col-start-1 row-start-2 flex min-w-0">{aside}</div>
+        )}
+        {keepButton(
+          `row-start-2 ${aside ? 'col-start-2' : 'col-span-2'} ${ROW_BUTTON}`
+        )}
+        {confirmButton(`col-start-2 row-start-1 ${ROW_BUTTON}`)}
+      </div>
+    );
+  }
+
+  if (inline) {
+    return (
+      <div
+        ref={rootRef}
+        role="group"
+        aria-labelledby={questionId}
+        data-confirm-inline
+        className={`flex items-center gap-2 ${className}`}
+      >
+        {/* Beside a wide safe choice, the question keeps to under half of
+            the row, so the safe choice is under the middle of the button
+            that asked */}
+        {questionText(
+          `leading-tight line-clamp-2 [@container(max-width:54rem)]:text-xs ${keepWide ? 'max-w-[40%]' : 'text-right'}`
+        )}
+        {/* Safe choice first for the keyboard, and on screen last, or
+            first of the two when it is the wide one. */}
+        <div
+          className={`flex gap-2 ${keepWide ? 'flex-1' : 'shrink-0 flex-row-reverse'}`}
+        >
+          {keepButton(`${INLINE_BUTTON} ${keepWide ? 'flex-1' : ''}`)}
+          {confirmButton(`${INLINE_BUTTON} shrink-0`)}
         </div>
-        {confirmButton(`${BUTTON} shrink-0 whitespace-nowrap`)}
       </div>
     );
   }
@@ -218,7 +305,7 @@ export const ConfirmInline = ({
       className={`flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0 min-h-12 ${className}`}
     >
       {questionText(
-        stacked ? 'basis-full' : keepFirst ? 'w-60' : 'flex-1 basis-40'
+        `leading-snug ${stacked ? 'basis-full' : keepFirst ? 'w-60' : 'flex-1 basis-40'}`
       )}
       {/* Safe choice first for the keyboard, wherever it is shown. */}
       <div

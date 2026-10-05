@@ -9,6 +9,8 @@ import type { SessionClockState } from '@/types/storage';
 import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
 import { logger } from './logger';
 import { generateId } from './utils';
+import { htmlToText } from './htmlText';
+import { isDefaultSessionName } from './sessionName';
 import {
   advanceClock,
   boundClock,
@@ -66,6 +68,42 @@ export const markSessionCompleted = (): void =>
   localStorage.setItem(STORAGE_KEYS.HAS_COMPLETED_SESSION, 'true');
 
 export type { SessionFormData, SessionTimerState } from '@/types';
+
+/**
+ * Whether a session that has not been started holds something the user put
+ * there: notes with text in them, or settings changed from a new session's
+ * (a name they typed, Scrim, a match type other than Full Game). Such a
+ * draft is kept across a reload, but it is not a running session.
+ */
+export const hasDraftContent = (
+  data: Pick<
+    Partial<SessionFormData>,
+    'notes' | 'sessionName' | 'sessionType' | 'matchType'
+  >
+): boolean => {
+  const name = data.sessionName?.trim() ?? '';
+  return (
+    htmlToText(data.notes ?? '') !== '' ||
+    (name !== '' && !isDefaultSessionName(name)) ||
+    (data.sessionType ?? 'Practice') !== 'Practice' ||
+    (data.matchType ?? 'Full Game') !== 'Full Game'
+  );
+};
+
+/**
+ * Whether an in-progress session is worth keeping in storage, so that a
+ * reload comes back to it: one that was started, has saved matches, or is a
+ * draft with something in it (see `hasDraftContent`). The one test for
+ * writing the session and for reading it back.
+ */
+export const isWorthStoring = (
+  data: Pick<
+    Partial<SessionFormData>,
+    'notes' | 'sessionName' | 'sessionType' | 'matchType' | 'matches'
+  >,
+  hasStarted: boolean
+): boolean =>
+  hasStarted || (data.matches?.length ?? 0) > 0 || hasDraftContent(data);
 
 /** An in-progress session read back from localStorage, clocks brought up to date */
 export interface StoredSession {
@@ -365,9 +403,10 @@ const readTimerState = (
 };
 
 /**
- * Load the in-progress session a reload should come back to: one that was
- * started or has saved matches, and was not completed. Returns null when
- * storage holds nothing worth restoring.
+ * Load the in-progress session a reload should come back to: one worth
+ * storing (started, with saved matches, or a draft with notes or changed
+ * settings) and not completed. Returns null when storage holds nothing
+ * worth restoring.
  */
 export const loadStoredSession = (
   purgeIncompatible = true
@@ -380,8 +419,9 @@ export const loadStoredSession = (
     const now = Date.now();
     const timers = readTimerState(matchType, now);
     const timerState = timers?.timerState;
-    const hasMatches = sessionData.matches?.length > 0;
-    if (!timerState?.hasStarted && !hasMatches) return null;
+    if (!isWorthStoring(sessionData, timerState?.hasStarted ?? false)) {
+      return null;
+    }
 
     if (timers && timerState?.clock) {
       return {
@@ -392,7 +432,7 @@ export const loadStoredSession = (
       };
     }
 
-    // Saved matches but no timer keys: restore the matches with a fresh clock
+    // No timer keys: restore what was saved with a fresh clock
     const clock = idleClock(matchType);
     return {
       sessionData,
@@ -485,8 +525,9 @@ export const clearHasCompletedSession = (): void => {
 };
 
 /**
- * Check if there's an active session in storage
- * A session is only considered "active" if it has been started or has meaningful data
+ * Check if there's an active session in storage: one that has been started
+ * or has saved matches. A draft that only holds notes or settings is stored
+ * too (see `isWorthStoring`), but it is not an active session.
  */
 export const hasActiveSession = (): boolean => {
   try {

@@ -15,7 +15,9 @@ import {
   OPEN_TEAM_DIALOG_STATE,
   TEAM_MANAGER_PATHS,
 } from '@/constants';
+import { ACTIVE_PAGE_CONTAINER, PAGE_CONTAINER } from '@/constants/layout';
 import { calculateScore, getInitials, liveMatchType } from '@/lib';
+import { formatPoints } from '@/lib/points';
 import { flushPendingDeletes } from '@/lib/pendingSessionDeletes';
 import {
   describeSignOutLoss,
@@ -23,14 +25,15 @@ import {
 } from '@/lib/signOutLoss';
 import { useIsCompact, useMediaQuery } from '@/hooks';
 import { allowNavigation } from '@/hooks/useNavigationGuard';
-import { useArmedAfterOpen } from '@/hooks/useArmedAfterOpen';
 import {
   useActiveCompact,
   useActiveShort,
+  useActiveSideBySide,
 } from '@/components/session/layout/useActiveCompact';
+import { ClockDigits } from '@/components/session/ClockDigits';
 import { LivePhaseChip, PausedPill } from '@/components/session/MatchPhase';
 import {
-  matchClockSeconds,
+  matchClockText,
   useMatchPaused,
 } from '@/components/session/matchPhaseLabel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -43,20 +46,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CHIP_BASE, CHIP_SIZES, chipTone } from '@/components/ui/tokens';
 import {
   Sun,
   Moon,
   LogOut,
   UserCircle,
-  BarChart3,
   HelpCircle,
   Hexagon,
   Waves,
@@ -71,7 +67,17 @@ import {
 import { toast } from 'sonner';
 import { useState, useEffect, useRef } from 'react';
 
-const TeamTrackLogo = ({ iconOnly = false }: { iconOnly?: boolean }) => {
+const TeamTrackLogo = ({
+  iconOnly = false,
+  roomy = false,
+}: {
+  iconOnly?: boolean;
+  /**
+   * Nothing to its left (no back arrow): the name shows from a 360px phone
+   * up, rather than only from `sm`.
+   */
+  roomy?: boolean;
+}) => {
   const { isDarkMode, isHoneycombMode, isDeepSeaMode } = useTheme();
 
   const logoColor = isDeepSeaMode
@@ -82,6 +88,13 @@ const TeamTrackLogo = ({ iconOnly = false }: { iconOnly?: boolean }) => {
         ? '#B0E5FE'
         : '#537788';
 
+  // Written out in full so Tailwind sees every class
+  const wordmark = iconOnly
+    ? 'hidden'
+    : roomy
+      ? 'hidden min-[360px]:inline'
+      : 'hidden sm:inline';
+
   return (
     <Link
       to="/sessions"
@@ -89,13 +102,15 @@ const TeamTrackLogo = ({ iconOnly = false }: { iconOnly?: boolean }) => {
       className="flex items-center justify-center gap-2 sm:gap-4 focus:outline-none transition-all duration-200 origin-left [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
     >
       <div className="flex items-center gap-1.5 sm:gap-2.5">
+        {/* One size at every width: shrunk any further on a phone it read
+            as a stray glyph beside the bar's 44px buttons. */}
         <svg
           width="8"
           height="20"
           viewBox="0 0 8 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="w-[0.421875rem] h-[1.125rem] sm:w-[0.73125rem] sm:h-[1.828125rem]"
+          className="w-[0.73125rem] h-[1.828125rem]"
           role="img"
           aria-label="TeamTrack logo icon"
         >
@@ -133,7 +148,7 @@ const TeamTrackLogo = ({ iconOnly = false }: { iconOnly?: boolean }) => {
           />
         </svg>
         <span
-          className={`font-montserrat italic text-[0.984rem] leading-6 relative -top-.5 hidden ${iconOnly ? '' : 'sm:inline'} ${isDeepSeaMode ? 'text-[#00BCD4]' : isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
+          className={`font-montserrat italic text-[0.984rem] leading-6 relative -top-.5 ${wordmark} ${isDeepSeaMode ? 'text-[#00BCD4]' : isHoneycombMode ? 'text-[#DAA520]' : isDarkMode ? 'text-white' : 'text-black'}`}
         >
           TeamTrack
         </span>
@@ -171,7 +186,7 @@ const ThemeMenuItems = () => {
 };
 
 /**
- * Where the "New Session" / "Sessions" buttons switch from an icon to
+ * Where the "New Session" / "Active Session" buttons switch from an icon to
  * their text label. Written out in full so Tailwind sees every class.
  */
 const NAV_LABEL_CLASSES = {
@@ -191,6 +206,20 @@ const AUTH_PATHS: readonly string[] = [
 const TOUCH_TARGET =
   '[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
 
+/** The shape of the bar's text buttons (Sign in, Sign up) */
+const PILL = `inline-flex items-center justify-center px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${TOUCH_TARGET}`;
+
+/**
+ * New Session is a review page's one filled button, unless the page has a
+ * primary of its own (an empty state's "Add First Match"): then it steps
+ * back to an outline, so no view shows two fills. The page marks that
+ * button `data-page-primary` and CSS does the rest, so the bar never has to
+ * know which page, or which state of it, is showing. An inset ring rather
+ * than a border, so the pill keeps its size.
+ */
+const STEPS_BACK_FOR_PAGE_PRIMARY =
+  '[body:has([data-page-primary])_&]:bg-transparent [body:has([data-page-primary])_&]:text-foreground [body:has([data-page-primary])_&]:ring-1 [body:has([data-page-primary])_&]:ring-inset [body:has([data-page-primary])_&]:ring-team-blue';
+
 interface NavigationMenuProps {
   /** The match clock is sharing the bar, so the nav has less room */
   timerInBar: boolean;
@@ -201,12 +230,18 @@ interface NavigationMenuProps {
   condensed: boolean;
   /** No padding of its own: the bar is keeping to one fixed height */
   flush: boolean;
+  /**
+   * A sign-in, sign-up or reset page: only the theme, and the way back to a
+   * session that is still being scored.
+   */
+  minimal: boolean;
 }
 
 const NavigationMenu = ({
   timerInBar,
   condensed,
   flush,
+  minimal,
 }: NavigationMenuProps) => {
   const { isDarkMode, themeMode } = useTheme();
   const { user, logout } = useAuth();
@@ -221,12 +256,6 @@ const NavigationMenu = ({
   // go to and nothing to start: the page they were sent is the whole visit.
   const isVisitor = !user && location.pathname.startsWith('/shared');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  /**
-   * On a phone "Sign Out Anyway" opens right under the finger that chose
-   * Sign out, from the scoring bar's menu: the second tap of a double tap
-   * must not throw the session away.
-   */
-  const signOutArmed = useArmedAfterOpen(showLogoutConfirm);
   /** Sign out was chosen with a session at stake: ask once the menu has closed */
   const confirmLogoutRef = useRef(false);
   /** Team was chosen: where it leads, once the menu has let go of focus */
@@ -328,17 +357,17 @@ const NavigationMenu = ({
 
   const handleStartInteractiveTutorial = () => {
     if (isOnActivePage) {
-      // Already there: the walkthrough opens itself, or says why it can't
+      // Already there: the tutorial opens itself, or says why it can't
       window.dispatchEvent(new Event(TUTORIAL_RESTART_EVENT));
       return;
     }
-    // The walkthrough borrows the session and puts back what it found when
-    // it closes, which would undo the scoring of a match still being played.
+    // The tutorial borrows the session and puts back what it found when it
+    // closes, which would undo the scoring of a match still being played.
     if (matchActive) {
-      toast.info('Finish or discard this match to replay the tour');
+      toast.info('Finish or discard this match to replay the tutorial');
       return;
     }
-    // The walkthrough lives on the scoring page, and picks this up there
+    // The tutorial lives on the scoring page, and picks this up there
     try {
       sessionStorage.setItem(STORAGE_KEYS.START_TUTORIAL, 'true');
     } catch {
@@ -348,6 +377,9 @@ const NavigationMenu = ({
   };
 
   const iconButtonClass = `p-2 sm:p-2.5 rounded-full transition-colors items-center justify-center ${TOUCH_TARGET} ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`;
+  const hoverClass = isDarkMode
+    ? 'hover:bg-team-white-10'
+    : 'hover:bg-gray-100';
 
   const tutorialItem = canTour && (
     <DropdownMenuItem
@@ -371,60 +403,124 @@ const NavigationMenu = ({
     </DropdownMenuItem>
   );
 
-  const accountItems = user && (
-    <>
-      <DropdownMenuLabel className="font-normal">
-        <div className="flex flex-col space-y-1">
-          <p className="text-sm font-medium leading-none">
-            {user.displayName || 'User'}
-          </p>
-          <p className="text-xs leading-none text-muted-foreground">
-            {user.email}
-          </p>
-        </div>
-      </DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem asChild>
-        <Link to="/profile" className="flex items-center">
-          <UserCircle className="mr-2 h-4 w-4" />
-          <span>Profile</span>
-        </Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={handleTeam}
-        className="flex items-center [@media(pointer:coarse)]:min-h-11"
-      >
-        <Users className="mr-2 h-4 w-4 shrink-0" />
-        {team ? (
+  /**
+   * Profile, Team and Sign out. `labelled` heads them with the name and
+   * email; the scoring bar's menu drops that during a match, to stay short.
+   */
+  const accountItems = (labelled: boolean) =>
+    user && (
+      <>
+        {labelled && (
           <>
-            <span>Team</span>
-            <span className="ml-auto pl-3 min-w-0 truncate text-xs text-muted-foreground">
-              {team.name}
-            </span>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {user.displayName || 'User'}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user.email}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
           </>
-        ) : (
-          <span>Create or join a team</span>
         )}
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        onClick={handleLogout}
-        className="[@media(pointer:coarse)]:min-h-11"
-      >
-        <LogOut className="mr-2 h-4 w-4" />
-        <span>Sign out</span>
-      </DropdownMenuItem>
-    </>
+        <DropdownMenuItem asChild>
+          <Link to="/profile" className="flex items-center">
+            <UserCircle className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleTeam} className="flex items-center">
+          <Users className="mr-2 h-4 w-4 shrink-0" />
+          {team ? (
+            <>
+              <span>Team</span>
+              <span className="ml-auto pl-3 min-w-0 truncate text-xs text-muted-foreground">
+                {team.name}
+              </span>
+            </>
+          ) : (
+            <span>Create or join a team</span>
+          )}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Sign out</span>
+        </DropdownMenuItem>
+      </>
+    );
+
+  // The way back to a session still being scored, from any other page. A
+  // link, named for what it opens; the word is the name while it shows,
+  // and the dot only goes with the word (beside the icon alone it read as
+  // a second signal light).
+  const activeSessionLink = hasActiveSession && !isOnActivePage && (
+    <Link
+      to={ROUTES.ACTIVE}
+      aria-label="Active session"
+      className={`flex items-center justify-center gap-1.5 sm:gap-2 sm:px-3 sm:py-1.5 rounded-full whitespace-nowrap transition-colors ${TOUCH_TARGET} ${isDarkMode ? 'text-green-400 hover:text-green-300 hover:bg-team-white-10' : 'text-green-600 hover:text-green-700 hover:bg-gray-100'}`}
+    >
+      {/* Label collapses to an icon when the bar is short of room, so this
+          doesn't crowd the buttons next to it. The padding keeps the
+          icon-only link the size of its neighbours (phones get their 44px
+          minimum from global.css). */}
+      <span className={`${labels.text} text-sm font-semibold`}>
+        Active Session
+      </span>
+      <Radio aria-hidden className={`w-4 h-4 ${labels.icon}`} />
+      <span
+        aria-hidden
+        className={`h-2 w-2 rounded-full bg-green-500 ${labels.text}`}
+      />
+    </Link>
   );
+
+  const themeMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          aria-label="Select theme"
+          // On the sign-in pages it is all the bar holds, phones included
+          className={`${minimal ? 'flex' : 'hidden sm:flex'} ${iconButtonClass}`}
+        >
+          {themeMode === 'dark' ? (
+            <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+          ) : themeMode === 'light' ? (
+            <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+          ) : themeMode === 'deepsea' ? (
+            <Waves className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+          ) : (
+            <Hexagon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[140px]">
+        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <ThemeMenuItems />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  // During a match the scoring bar's menu keeps to what can't wait: the
+  // tutorial can't run over a match, and the theme can be picked between
+  // matches.
+  const compactMenu = !matchActive;
 
   return (
     <div
-      className={`flex items-center gap-0.5 sm:gap-2 lg:px-3 ${flush ? '' : 'py-1 sm:py-2'} ${
-        isDarkMode && !condensed ? 'bg-[rgba(25,25,25,0.2)]' : ''
-      }`}
+      className={`flex items-center gap-0.5 sm:gap-2 ${flush ? '' : 'py-1 sm:py-2'}`}
     >
-      {condensed ? (
-        // Everything the bar usually holds, behind one button
+      {minimal ? (
+        <>
+          {activeSessionLink}
+          {themeMenu}
+        </>
+      ) : condensed ? (
+        // Everything the bar usually holds, behind one button. Sessions is
+        // the back arrow at the other end of the bar.
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -439,20 +535,17 @@ const NavigationMenu = ({
             className="min-w-[200px]"
             onCloseAutoFocus={afterAccountMenuClosed}
           >
-            <DropdownMenuItem
-              onClick={() => navigate(ROUTES.SESSIONS)}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Sessions</span>
-            </DropdownMenuItem>
-            {tutorialItem}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Theme</DropdownMenuLabel>
-            <ThemeMenuItems />
-            <DropdownMenuSeparator />
+            {compactMenu && (
+              <>
+                {tutorialItem}
+                {tutorialItem && <DropdownMenuSeparator />}
+                <DropdownMenuLabel>Theme</DropdownMenuLabel>
+                <ThemeMenuItems />
+                <DropdownMenuSeparator />
+              </>
+            )}
             {user ? (
-              accountItems
+              accountItems(compactMenu)
             ) : (
               <>
                 <DropdownMenuItem asChild>
@@ -471,56 +564,21 @@ const NavigationMenu = ({
         </DropdownMenu>
       ) : (
         <>
-          {!isOnActivePage &&
-            (hasActiveSession ? (
+          {/* No "Sessions" here: the back arrow and the logo lead there
+              from every other page. */}
+          {activeSessionLink ||
+            (!isOnActivePage && !isVisitor && (
               <button
-                onClick={() => navigate('/active')}
-                aria-label="Active practice session"
-                className={`flex items-center justify-center gap-1.5 sm:gap-2 sm:px-3 sm:py-1.5 rounded-full whitespace-nowrap transition-colors ${TOUCH_TARGET} ${isDarkMode ? 'text-green-400 hover:text-green-300 hover:bg-team-white-10' : 'text-green-600 hover:text-green-700 hover:bg-gray-100'}`}
+                onClick={() => navigate(ROUTES.ACTIVE)}
+                aria-label="New Session"
+                className={`px-3 sm:px-4 py-1.5 rounded-full flex items-center justify-center gap-2 whitespace-nowrap transition-all bg-team-blue hover:opacity-90 ${TOUCH_TARGET} ${isDarkMode ? 'text-black' : 'text-white'} ${STEPS_BACK_FOR_PAGE_PRIMARY}`}
               >
-                {/* Label collapses to an icon when the bar is short of room —
-                    same pattern as "Sessions" below — so this doesn't crowd
-                    the buttons next to it. The padding keeps the icon-only
-                    button the size of its neighbours (phones get their 44px
-                    minimum from global.css). */}
                 <span className={`${labels.text} text-sm font-semibold`}>
-                  Active Session
+                  New Session
                 </span>
-                <Radio className={`w-4 h-4 ${labels.icon}`} />
-                <div className="relative w-2 h-2">
-                  <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse"></div>
-                  <div className="absolute inset-0 bg-green-500 rounded-full"></div>
-                </div>
+                <Plus className={`w-4 h-4 ${labels.icon}`} />
               </button>
-            ) : (
-              !isVisitor && (
-                <button
-                  onClick={() => navigate(ROUTES.ACTIVE)}
-                  aria-label="New session"
-                  className={`px-3 sm:px-4 py-1.5 rounded-full flex items-center justify-center gap-2 whitespace-nowrap transition-all bg-team-blue hover:opacity-90 ${TOUCH_TARGET} ${isDarkMode ? 'text-black' : 'text-white'}`}
-                >
-                  <span className={`${labels.text} text-sm font-semibold`}>
-                    New Session
-                  </span>
-                  <Plus className={`w-4 h-4 ${labels.icon}`} />
-                </button>
-              )
             ))}
-
-          {!isVisitor && (
-            <button
-              onClick={() => navigate('/sessions')}
-              aria-label="Sessions"
-              className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${TOUCH_TARGET} ${
-                isDarkMode
-                  ? 'hover:bg-team-white-10 text-white'
-                  : 'hover:bg-gray-100 text-black'
-              }`}
-            >
-              <span className={labels.text}>Sessions</span>
-              <BarChart3 className={`w-4 h-4 ${labels.icon}`} />
-            </button>
-          )}
 
           {canTour && (
             <button
@@ -532,29 +590,7 @@ const NavigationMenu = ({
             </button>
           )}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                aria-label="Select theme"
-                className={`hidden sm:flex ${iconButtonClass}`}
-              >
-                {themeMode === 'dark' ? (
-                  <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
-                ) : themeMode === 'light' ? (
-                  <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
-                ) : themeMode === 'deepsea' ? (
-                  <Waves className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                ) : (
-                  <Hexagon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[140px]">
-              <DropdownMenuLabel>Theme</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <ThemeMenuItems />
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {themeMenu}
 
           {/* On a phone there is no room for a button each: the tutorial, the
               theme and (for guests) Sign up share one menu. */}
@@ -586,6 +622,7 @@ const NavigationMenu = ({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
+                  aria-label={`Account menu, ${user.displayName || user.email || 'User'}`}
                   className={`relative h-8 w-8 rounded-full sm:ml-2 ${TOUCH_TARGET}`}
                 >
                   <Avatar className="h-8 w-8">
@@ -593,40 +630,49 @@ const NavigationMenu = ({
                       src={user.photoURL || ''}
                       alt={user.displayName || ''}
                     />
+                    {/* Neutral, so it doesn't pass for a second "+" beside
+                        the filled New Session button */}
                     <AvatarFallback
-                      className={`text-xs bg-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`}
+                      className={`text-xs font-semibold ${isDarkMode ? 'bg-team-white-10 text-white' : 'bg-gray-100 text-gray-900'}`}
                     >
                       {getInitials(user.displayName || user.email || 'User')}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
+              {/* The theme's own menu surface, like every other menu */}
               <DropdownMenuContent
-                className={`w-56 ${isDarkMode ? 'bg-[#191919] border-team-black-40' : 'bg-white border-team-blue'}`}
+                className="w-56"
                 align="end"
                 onCloseAutoFocus={afterAccountMenuClosed}
               >
-                {accountItems}
+                {accountItems(true)}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className={TOUCH_TARGET}
+              <Link
+                to={ROUTES.LOGIN}
+                className={`${PILL} font-medium ${hoverClass} ${isDarkMode ? 'text-white' : 'text-black'}`}
               >
-                <Link to="/login">Sign in</Link>
-              </Button>
-              {/* On a phone Sign up lives in the overflow menu above */}
-              <Button
-                size="sm"
-                asChild
-                className={`hidden sm:inline-flex ${TOUCH_TARGET} ${isDarkMode ? '!text-[#191919]' : '!text-[#FEFEFE]'}`}
+                Sign in
+              </Link>
+              {/* An outline, so New Session stays the bar's one filled
+                  button; a plain link while a match is being scored, where
+                  the match controls are what counts. On a phone Sign up
+                  lives in the overflow menu above. */}
+              <Link
+                to={ROUTES.SIGNUP}
+                className={`hidden sm:inline-flex ${PILL} font-semibold ${hoverClass} ${
+                  isOnActivePage && matchActive
+                    ? isDarkMode
+                      ? 'text-team-white-60 hover:text-white'
+                      : 'text-gray-600 hover:text-gray-900'
+                    : `border border-team-blue ${isDarkMode ? 'text-white' : 'text-gray-900'}`
+                }`}
               >
-                <Link to="/signup">Sign up</Link>
-              </Button>
+                Sign up
+              </Link>
             </div>
           )}
         </>
@@ -634,52 +680,22 @@ const NavigationMenu = ({
 
       {/* Dialog puts itself at the end of <body>, out of the sticky
           header's stacking context. */}
-      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <DialogContent
-          role="alertdialog"
-          className={`max-w-md ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
-        >
-          <DialogHeader
-            className={isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}
-          >
-            <DialogTitle
-              className={isDarkMode ? 'text-white' : 'text-gray-900'}
-            >
-              Sign out and lose this session?
-            </DialogTitle>
-            <DialogDescription
-              className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
-            >
-              {signOutLoss}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              data-autofocus
-              onClick={() => setShowLogoutConfirm(false)}
-              className={
-                isDarkMode ? 'border-team-blue-40 text-team-white-60' : ''
-              }
-            >
-              Stay Signed In
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                if (signOutArmed()) signOut();
-              }}
-            >
-              Sign Out Anyway
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onOpenChange={setShowLogoutConfirm}
+        title="Sign out and lose this session?"
+        description={signOutLoss}
+        cancelLabel="Stay signed in"
+        confirmLabel="Sign out anyway"
+        icon={LogOut}
+        onConfirm={signOut}
+      />
     </div>
   );
 };
+
+/** Text of the bar on a dark theme / the light one */
+const TEXT = ['text-gray-900', 'text-white'] as const;
 
 /**
  * The match clock in the top bar, with its phase and the running total of
@@ -711,16 +727,19 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
     ...sessionData,
     matchType: liveMatchType(sessionData, editingMatchId),
   }).total;
-
-  const timerColor =
-    matchPhase === 'controller_pickup' && matchActive
-      ? isDarkMode
-        ? 'text-yellow-400'
-        : // amber-600 is under 4.5:1 on white at the phone size
-          'text-amber-700'
-      : isDarkMode
-        ? 'text-white'
-        : 'text-gray-900';
+  // '1 pt' / '97 pts', the number and its unit set apart below
+  const [points, unit] = formatPoints(total).split(' ');
+  // As the big clock reads it: a bare '3' / '2' / '1' through the 3-2-1
+  // (the chip beside it says STARTING), not '0:03'
+  const time = matchClockText({
+    matchActive,
+    matchPhase,
+    timer,
+    phaseTimer,
+    isTutorialActive,
+    formatTime,
+  });
+  const text = TEXT[isDarkMode ? 1 : 0];
 
   // The paused chip is the phase chip's size, so pausing changes nothing
   // else in the bar. On a phone the total keeps its unit from 360px up; a
@@ -732,19 +751,20 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
     <span
       className={`flex items-center whitespace-nowrap ${dense ? 'gap-2' : 'gap-2 sm:gap-3'}`}
     >
+      {/* Every digit in a cell of its own width, so neither the digits nor
+          the chip beside them shift as the seconds tick, and always as wide
+          as 'm:ss' (the 3-2-1's one digit sits in the middle of that), so
+          nothing moves when the countdown gives way to the clock. Always
+          the text colour: the chip is what says which part of the match
+          this is. */}
       <span
         data-header-clock
-        className={`font-righteous tracking-wider leading-none transition-[color,opacity] ${dense ? 'text-3xl' : 'text-xl sm:text-3xl lg:text-4xl'} ${timerColor} ${paused ? 'opacity-40' : ''}`}
+        role="timer"
+        aria-label="Match clock"
+        className={`min-w-[2.3em] text-center font-righteous leading-none transition-opacity ${dense ? 'text-3xl' : 'text-xl sm:text-3xl lg:text-4xl'} ${text} ${paused ? 'opacity-40' : ''}`}
       >
-        {formatTime(
-          matchClockSeconds({
-            matchActive,
-            matchPhase,
-            timer,
-            phaseTimer,
-            isTutorialActive,
-          })
-        )}
+        <ClockDigits text={time} />
+        <span className="sr-only">{time}</span>
       </span>
       {paused ? <PausedPill size="sm" /> : <LivePhaseChip size="sm" />}
       <span
@@ -755,13 +775,13 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
       <span className="sr-only">{`Total score ${total} points`}</span>
       <span
         aria-hidden="true"
-        className={`font-bold text-team-blue tabular-nums leading-none ${dense ? 'text-xl' : 'text-lg sm:text-2xl lg:text-3xl'}`}
+        className={`font-bold tabular-nums leading-none ${text} ${dense ? 'text-xl' : 'text-lg sm:text-2xl lg:text-3xl'}`}
       >
-        {total}
+        {points}
         <span
           className={`ml-1 text-xs sm:text-sm font-semibold ${unitClass} ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
         >
-          pts
+          {unit}
         </span>
       </span>
     </span>
@@ -771,7 +791,8 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
 /**
  * Says which saved match is open in the scoring fields. It takes the
  * clock's place in the bar: the clock belongs to the next match, and beside
- * an old match's total it would read as that match's time.
+ * an old match's total it would read as that match's time. A chip, in the
+ * amber of PAUSED: a state the fields are in, not an alarm.
  */
 const EditingLabel = () => {
   const { isDarkMode } = useTheme();
@@ -781,38 +802,88 @@ const EditingLabel = () => {
   return (
     <span
       data-header-editing
-      className={`text-sm sm:text-base font-bold uppercase tracking-wide whitespace-nowrap ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}
+      className={`${CHIP_BASE} ${CHIP_SIZES.md} ${chipTone('amber', isDarkMode)}`}
     >
       Editing Match {match?.matchNumber ?? ''}
     </span>
   );
 };
 
+/**
+ * The phone scoring bar's middle while the big clock is on screen below it:
+ * which match is being played and, until its buzzer, its running total.
+ */
+const MatchLabel = ({ withTotal }: { withTotal: boolean }) => {
+  const { isDarkMode } = useTheme();
+  const { sessionData, editingMatchId } = useSessionCore();
+  const matches = sessionData.matches ?? [];
+  // The number Start gave it: one past the highest saved so far
+  const matchNumber =
+    matches.reduce((n, m, i) => Math.max(n, m.matchNumber ?? i + 1), 0) + 1;
+  const total = withTotal
+    ? calculateScore({
+        ...sessionData,
+        matchType: liveMatchType(sessionData, editingMatchId),
+      }).total
+    : null;
+
+  return (
+    <span
+      data-header-match
+      className={`text-sm font-semibold whitespace-nowrap tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+    >
+      Match {matchNumber}
+      {total !== null && (
+        <>
+          <span aria-hidden className="mx-1.5">
+            ·
+          </span>
+          <span className="sr-only">, </span>
+          <span className={TEXT[isDarkMode ? 1 : 0]}>
+            {formatPoints(total)}
+          </span>
+        </>
+      )}
+    </span>
+  );
+};
+
 export const Header = () => {
   const { isDarkMode } = useTheme();
-  const { hasStarted, sessionData, matchActive, editingMatchId } =
+  const { hasStarted, sessionData, matchActive, matchPhase, editingMatchId } =
     useSessionCore();
   const location = useLocation();
-  const navigate = useNavigate();
   const isOnSessionsPage = location.pathname === '/sessions';
   const isOnActivePage = location.pathname.includes('/active');
+  const isAuthPage = AUTH_PATHS.includes(location.pathname);
   const [timerScrolledPast, setTimerScrolledPast] = useState(false);
   const [headerEl, setHeaderEl] = useState<HTMLElement | null>(null);
   const isNarrow = useIsCompact();
   const isActiveCompact = useActiveCompact();
   const isShort = useActiveShort();
+  const sideBySide = useActiveSideBySide();
   // The scoring page decides for itself when it is a phone (a phone on its
   // side counts); the bar follows it there, so the two never disagree.
   const isCompact = isOnActivePage ? isActiveCompact : isNarrow;
 
   const isCompleted = Boolean(sessionData.isSessionCompleted);
   const isEditing = editingMatchId !== null;
+  /** A match is being played (or paused), and its buzzer hasn't gone */
+  const matchLive = matchActive && matchPhase !== 'ended';
 
+  // On the scoring page the bar's clock stands in for the big one once that
+  // is scrolled under the bar, and only while it has a match to time: after
+  // the buzzer and between matches it would only repeat what the page says.
+  // Elsewhere it shows for as long as the session runs, except on the
+  // sign-in pages, which keep to the logo and the theme.
   const showCompactTimer =
     !isCompleted &&
-    ((isOnActivePage && timerScrolledPast) || (!isOnActivePage && hasStarted));
-  /** The clock is in the middle of the bar (a phone gives it its own row) */
-  const clockInBar = showCompactTimer && !isCompact;
+    (isOnActivePage
+      ? timerScrolledPast && matchLive
+      : hasStarted && !isAuthPage);
+  /** The middle of the bar holds something (a phone gives it its own row) */
+  const clockInBar =
+    !isCompact && (showCompactTimer || (isOnActivePage && isEditing));
   const isWide = useMediaQuery(SPLIT_QUERY);
 
   /**
@@ -825,6 +896,13 @@ export const Header = () => {
     isOnActivePage && isCompact && !isCompleted && (matchActive || isEditing);
   /** The phone bar on the scoring page keeps one height in every state */
   const isFixedHeight = isOnActivePage && isCompact;
+  /**
+   * The bar's ends line up with the content under them. The scoring page's
+   * full-size layout has a column of its own; its phone layout keeps the
+   * usual one, whose 8px ends the toasts over the bar are sized to cover.
+   */
+  const column =
+    isOnActivePage && !isCompact ? ACTIVE_PAGE_CONTAINER : PAGE_CONTAINER;
 
   useEffect(() => {
     if (!isOnActivePage) {
@@ -832,8 +910,10 @@ export const Header = () => {
       return;
     }
 
-    // Track the big match clock itself (not the block around it), and only
-    // swap in the header copy once it has fully scrolled under the header.
+    // Track the big match clock itself (not the block around it), and swap
+    // in the header copy as soon as its top goes under the header. Waiting
+    // for all of it to pass left a laptop screen, which can't scroll that
+    // far, with the clock cut in half or gone and nothing in its place.
     const check = () => {
       const timerEl = document.querySelector<HTMLElement>('[data-match-timer]');
       if (!timerEl || !headerEl) {
@@ -841,9 +921,7 @@ export const Header = () => {
         return;
       }
       const headerBottom = headerEl.getBoundingClientRect().bottom;
-      setTimerScrolledPast(
-        timerEl.getBoundingClientRect().bottom < headerBottom
-      );
+      setTimerScrolledPast(timerEl.getBoundingClientRect().top < headerBottom);
     };
 
     const timeout = setTimeout(check, 100);
@@ -855,40 +933,52 @@ export const Header = () => {
       window.removeEventListener('scroll', check);
       window.removeEventListener('resize', check);
     };
-  }, [isOnActivePage, location.pathname, headerEl]);
+    // A match starting, ending or being opened for editing changes what is
+    // above the clock without a scroll: look again then too.
+  }, [
+    isOnActivePage,
+    location.pathname,
+    headerEl,
+    matchActive,
+    matchPhase,
+    isEditing,
+    isCompact,
+  ]);
 
-  const backButton = !isOnSessionsPage && (
-    <button
-      onClick={() => navigate('/sessions')}
+  // No way "back" from a sign-in page: the logo still goes to the sessions
+  const backButton = !isOnSessionsPage && !isAuthPage && (
+    <Link
+      to={ROUTES.SESSIONS}
       aria-label="Back to sessions"
       className={`p-1.5 sm:p-2 rounded-full transition-colors flex items-center justify-center ${TOUCH_TARGET} ${isDarkMode ? 'hover:bg-team-white-10 text-white' : 'hover:bg-gray-100 text-black'}`}
     >
       <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-    </button>
+    </Link>
   );
 
   /** What the middle of the bar holds; `null` leaves it empty. */
   const centre = () => {
+    if (isAuthPage) return null;
     if (isScoringBar) {
       if (isEditing) return <EditingLabel />;
-      if (timerScrolledPast) {
+      // On its side the clock has a column of its own, always in view
+      if (sideBySide) return null;
+      if (timerScrolledPast && matchLive) {
         return (
           <div className="animate-in fade-in duration-200">
             <HeaderClock dense />
           </div>
         );
       }
-      // The big clock is on screen just below: only say which match it is
-      return (
-        <span
-          className={`text-sm font-semibold whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-        >
-          Match {(sessionData.matches?.length ?? 0) + 1}
-        </span>
-      );
+      // The big clock is on screen just below (or its match is over): say
+      // which match this is, and its total until the buzzer
+      return <MatchLabel withTotal={matchLive} />;
     }
-    if (!showCompactTimer || isCompact) return null;
-    if (isEditing) return <EditingLabel />;
+    if (isCompact) return null;
+    if (isEditing && (isOnActivePage || showCompactTimer)) {
+      return <EditingLabel />;
+    }
+    if (!showCompactTimer) return null;
     return (
       <div className="animate-in fade-in slide-in-from-top-2 duration-200">
         <HeaderClock />
@@ -906,14 +996,16 @@ export const Header = () => {
       // `[id]` override, the 5rem scroll margin every element with an id gets
       // (global.css) made a menu's button, focused again as the menu closed,
       // scroll the page up by up to 5rem.
-      className={`top-0 w-full px-2 sm:px-3 md:px-4 lg:px-8 border-b z-50 [&_[id]]:scroll-mt-0 ${
+      className={`top-0 w-full border-b z-50 [&_[id]]:scroll-mt-0 ${
         isShort && !matchActive ? 'relative' : 'sticky'
       } ${
         isShort ? 'py-1' : isFixedHeight ? 'py-2' : 'py-2 sm:py-3 md:py-4'
       } ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
     >
+      {/* The pages' own column, so the bar's ends line up with the content
+          under it. */}
       <div
-        className={`max-w-[1216px] mx-auto sm:px-3 lg:px-6 grid grid-cols-[minmax(max-content,1fr)_auto_minmax(max-content,1fr)] items-center gap-1 sm:gap-4 lg:gap-6 ${isFixedHeight ? 'h-11' : ''}`}
+        className={`${column} grid grid-cols-[minmax(max-content,1fr)_auto_minmax(max-content,1fr)] items-center gap-1 sm:gap-4 lg:gap-6 ${isFixedHeight ? 'h-11' : ''}`}
       >
         {/* Never narrower than the arrow and logo, so the nav can't sit on
             top of them. */}
@@ -922,7 +1014,10 @@ export const Header = () => {
           {/* The clock needs the room in the middle more than the logo
               needs its name, short of the widest bar. */}
           {!isScoringBar && (
-            <TeamTrackLogo iconOnly={isShort || (clockInBar && !isWide)} />
+            <TeamTrackLogo
+              iconOnly={isShort || (clockInBar && !isWide)}
+              roomy={!backButton}
+            />
           )}
         </div>
 
@@ -948,6 +1043,7 @@ export const Header = () => {
             timerInBar={clockInBar}
             condensed={isScoringBar}
             flush={isFixedHeight}
+            minimal={isAuthPage}
           />
         </div>
       </div>

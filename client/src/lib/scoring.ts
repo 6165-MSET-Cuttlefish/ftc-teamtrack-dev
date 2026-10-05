@@ -175,50 +175,58 @@ export interface ScoreRow {
 }
 
 /**
- * Labelled rows for breakdown tables and charts, in field order. Every row
- * adds up to the total except the last, informational one.
+ * The scoring elements in the order the scoring page asks for them: Hive
+ * Tips, the robots (Leave, Park), then the end of match (Flower, Flower
+ * Bonus, Left in Hive, Garden). Every list of elements follows it — the
+ * breakdowns (`scoreRows`), chart series and pills, CSV columns — so they
+ * all read the way the match was scored.
+ */
+export const ELEMENT_ORDER = [
+  'tipping',
+  'leave',
+  'park',
+  'flower',
+  'flowerBonus',
+  'hive',
+  'garden',
+] as const satisfies ReadonlyArray<keyof ScoreBreakdown>;
+
+/**
+ * `ELEMENT_ORDER` where Leave and Park are one element, "Leave + Park"
+ * (`ELEMENT_LABELS.robots`): the charts and Compare draw them together.
+ */
+export const GROUPED_ELEMENT_ORDER = [
+  'tipping',
+  'robots',
+  'flower',
+  'flowerBonus',
+  'hive',
+  'garden',
+] as const;
+
+/**
+ * Labelled rows for breakdown tables and charts, in `ELEMENT_ORDER`. Every
+ * row adds up to the total except the last, informational one.
  */
 export const scoreRows = (f: ScoringInput): ScoreRow[] => {
   const b = calculateScore(f);
   const { leaves, parks } = robotCounts(f);
+  const counts: Record<(typeof ELEMENT_ORDER)[number], number> = {
+    tipping: countOf(f.tipping),
+    leave: leaves,
+    park: parks,
+    flower: countOf(f.flower),
+    flowerBonus: countOf(f.flowerBonus),
+    hive: countOf(f.ballsInHive),
+    garden: countOf(f.garden),
+  };
   return [
-    {
-      key: 'tipping',
-      label: ELEMENT_LABELS.tipping,
-      count: countOf(f.tipping),
-      points: b.tipping,
-    },
-    {
-      key: 'garden',
-      label: ELEMENT_LABELS.garden,
-      count: countOf(f.garden),
-      points: b.garden,
-    },
-    {
-      key: 'flower',
-      label: ELEMENT_LABELS.flower,
-      count: countOf(f.flower),
-      points: b.flower,
-    },
-    {
-      key: 'flowerBonus',
-      label: ELEMENT_LABELS.flowerBonus,
-      count: countOf(f.flowerBonus),
-      points: b.flowerBonus,
-    },
-    {
-      key: 'hive',
-      label: ELEMENT_LABELS.hive,
-      count: countOf(f.ballsInHive),
-      points: b.hive,
-    },
-    {
-      key: 'leave',
-      label: ELEMENT_LABELS.leave,
-      count: leaves,
-      points: b.leave,
-    },
-    { key: 'park', label: ELEMENT_LABELS.park, count: parks, points: b.park },
+    ...ELEMENT_ORDER.map(key => ({
+      key,
+      label: ELEMENT_LABELS[key],
+      count: counts[key],
+      points: b[key],
+    })),
     {
       key: 'penalties',
       label: ELEMENT_LABELS.penalties,
@@ -368,34 +376,35 @@ export const FIELD_LIMITS = {
 } as const;
 
 /**
- * What each counter counts and what one is worth, in plain words, as shown
- * beside its input or behind its (i).
+ * The rule behind a counter's (i). Each adds only what its visible lines
+ * (the name, COUNT_LABELS and EACH_LABELS) don't already say.
  */
 export const FIELD_HINTS = {
-  tipping: `Count every hive tip, in auto or teleop. ${POINTS.HIVE_TIP} pts each.`,
-  garden: `Count every piece in your garden when the match ends, including the 4 pollen that start there. ${POINTS.GARDEN} pt each.`,
-  flower: `Count every piece in each flower you own, including opponent and pre-staged pieces. You own a flower when your nectar is on top. ${POINTS.FLOWER_ELEMENT} pts each.`,
-  flowerBonus: `Count the flowers with your nectar at the bottom, up to ${FIELD_LIMITS.flowerBonus}. ${POINTS.FLOWER_BONUS} pts each.`,
-  ballsInHive: `Count pieces still in the hive's upward-facing cell when the match ends. The 3 nectar that start there count, unless a hive tip flipped the cell. ${POINTS.CELL_REMAINING} pts each.`,
+  tipping: `Every Hive Tip counts, in Auto or Teleop: ${POINTS.HIVE_TIP} pts each.`,
+  garden: 'Includes the 4 pollen that start there.',
+  ballsInHive:
+    'Includes the 3 starting nectar, unless a Hive Tip turned that cell away.',
   minorPenalties: `+${POINTS.MINOR_PENALTY} to the opponent each. Your score is not reduced`,
   majorPenalties: `+${POINTS.MAJOR_PENALTY} to the opponent each. Your score is not reduced`,
 } as const;
 
 /**
  * Flower and Flower Bonus as one group: the rule that tells the two apart,
- * shown with the pair on the scoring page.
+ * behind the Flowers (i).
  */
 export const FLOWERS_HINT =
-  'You own a flower when your nectar is on top: every piece in it counts, opponent and pre-staged pieces too. Your nectar at the bottom earns the bonus.';
+  'You own a flower when your nectar is on top: every piece in it counts, opponent and pre-staged pieces too. The bonus is once per flower.';
 
 /**
  * What to count for each end-of-match counter, in a few words. The scoring
- * page shows these under a heading that names the element; everywhere else
- * (Analysis, Charts, CSV) the element keeps its ELEMENT_LABELS name.
+ * page and the Add/Edit Match dialog show these under a heading that names
+ * the element; everywhere else (Analysis, Charts, CSV) the element keeps its
+ * ELEMENT_LABELS name. The two flower lines are about as long as each other,
+ * so they wrap alike side by side on a phone.
  */
 export const COUNT_LABELS = {
   flower: 'Pieces in flowers you own',
-  flowerBonus: 'Flowers with your nectar at the bottom',
+  flowerBonus: 'Your nectar at the bottom',
   ballsInHive: "Pieces in the hive's upward-facing cell",
   garden: 'Every piece in your garden',
 } as const;
@@ -404,7 +413,7 @@ export const COUNT_LABELS = {
 export const EACH_LABELS = {
   flower: `${POINTS.FLOWER_ELEMENT} pts each`,
   // No break inside "max 4" when the line has to wrap
-  flowerBonus: `${POINTS.FLOWER_BONUS} pts each, max\u00a0${FIELD_LIMITS.flowerBonus}`,
+  flowerBonus: `${POINTS.FLOWER_BONUS} pts, max\u00a0${FIELD_LIMITS.flowerBonus}`,
   ballsInHive: `${POINTS.CELL_REMAINING} pts each`,
   garden: `${POINTS.GARDEN} pt each`,
 } as const;

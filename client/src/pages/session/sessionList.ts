@@ -140,6 +140,18 @@ const countedMatches = (session: Session, matchType: string) => {
 };
 
 /**
+ * A session with only the matches a match-type filter counts: the same
+ * session under every type and 'Mixed', a copy when one type is named.
+ */
+export const withCountedMatches = (
+  session: Session,
+  matchType: string
+): Session =>
+  oneMatchTypeLabel(matchType)
+    ? { ...session, matches: countedMatches(session, matchType) }
+    : session;
+
+/**
  * The shown sessions as the export writes them: each with the matches Quick
  * Stats counts, so under an Autonomous filter the file holds the Autonomous
  * matches and the two give the same match count.
@@ -149,10 +161,7 @@ export const sessionsToExport = (
   matchType: string
 ): Session[] =>
   oneMatchTypeLabel(matchType)
-    ? sessions.map(session => ({
-        ...session,
-        matches: countedMatches(session, matchType),
-      }))
+    ? sessions.map(session => withCountedMatches(session, matchType))
     : sessions;
 
 /** How many matches a list of sessions holds. */
@@ -216,6 +225,50 @@ export const scopeLabel = (
 
   const term = searchTerm.trim();
   return `${words.join(' ')}${term ? ` matching “${term}”` : ''}`;
+};
+
+/** Words as they go in a URL or a file name: `full game` -> `full-game`. */
+const slug = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+/** A match-type filter value as the address bar holds it (`full-game`). */
+export const matchTypeParam = (matchType: string): string | null =>
+  matchType === ALL_MATCH_TYPES ? null : slug(matchType);
+
+/** The match-type filter an address names; every type for anything else. */
+export const matchTypeFromParam = (param: string | null): string =>
+  MATCH_TYPE_FILTERS.find(f => slug(f.value) === param)?.value ??
+  ALL_MATCH_TYPES;
+
+/** The scope an address names; All for anything else. */
+export const scopeFromParam = (param: string | null): SessionScope =>
+  SESSION_SCOPES.find(s => s.value === param)?.value ?? 'all';
+
+/**
+ * The name an export is saved under, before its date: `sessions-export`
+ * for a whole view, and for a narrowed one what narrowed it
+ * (`sessions-autonomous-export`, `sessions-mine-export`,
+ * `archived-sessions-matching-auto-export`), so it never lands as a
+ * "(1)" copy beside the full one.
+ */
+export const exportFileBase = (
+  { searchTerm, matchType, scope }: SessionListFilters,
+  archived: boolean,
+  narrowed: boolean
+): string => {
+  const parts = [archived ? 'archived-sessions' : 'sessions'];
+  if (narrowed) {
+    if (scope !== 'all') parts.push(scope);
+    const type = matchTypeParam(matchType);
+    if (type) parts.push(type);
+    // Short enough that csvFileName's 60 characters keep the '-export'
+    const term = slug(searchTerm).slice(0, 10).replace(/-+$/, '');
+    if (term) parts.push('matching', term);
+  }
+  return [...parts, 'export'].join('-');
 };
 
 /**

@@ -1,9 +1,8 @@
 export { GuestPrompt, HomeRedirect, ProtectedRoute } from './auth';
 
-export { ErrorBoundary, Header, DeepSeaBubbles } from './layout';
+export { ErrorBoundary, Header, DeepSeaBubbles, LoadingScreen } from './layout';
 
 export {
-  ActiveTutorial,
   LiveCounters,
   MatchEntry,
   MatchForm,

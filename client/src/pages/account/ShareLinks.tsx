@@ -12,14 +12,16 @@ const DAY: Intl.DateTimeFormatOptions = {
   day: 'numeric',
 };
 
-const describe = (link: ShareLink): string =>
+/**
+ * The facts under a link's name. Each one is kept whole on a line: a narrow
+ * row wraps between them, never inside one ('3 / matches').
+ */
+const describe = (link: ShareLink): string[] =>
   [
     link.createdAt ? `Shared ${formatDate(link.createdAt, DAY)}` : null,
     `${link.matchCount} match${link.matchCount === 1 ? '' : 'es'}`,
     link.madeByUser ? null : 'by a teammate',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  ].filter((part): part is string => part !== null);
 
 /**
  * Every share link the user can take down, each with a way to do it. A link
@@ -93,16 +95,15 @@ export const ShareLinks = ({
   };
 
   const muted = `text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`;
-  const outline = isDarkMode ? 'border-team-blue-40 text-team-white-60' : '';
 
   if (failed) {
     return (
       <div className="flex items-center justify-between gap-3">
         <p className={muted}>Couldn't load your share links.</p>
         <Button
-          variant="outline"
+          variant="neutral"
           size="sm"
-          className={`shrink-0 ${outline}`}
+          className="shrink-0"
           onClick={() => {
             setFailed(false);
             setAttempt(n => n + 1);
@@ -122,11 +123,10 @@ export const ShareLinks = ({
 
   return (
     <div className="space-y-3">
+      {/* Rows divided by rules, not boxed in a second border inside the card */}
       <ul
-        className={`divide-y rounded-lg border ${
-          isDarkMode
-            ? 'border-team-blue-40 divide-team-blue-40'
-            : 'border-gray-200 divide-gray-200'
+        className={`divide-y ${
+          isDarkMode ? 'divide-team-blue-40' : 'divide-gray-200'
         }`}
       >
         {links.map(link => {
@@ -134,7 +134,7 @@ export const ShareLinks = ({
           return (
             <li
               key={link.id}
-              className="flex items-center justify-between gap-3 p-3"
+              className="flex items-center justify-between gap-3 py-3 first:pt-0"
             >
               <a
                 href={`${ROUTES.SHARED_SESSION}?id=${link.id}`}
@@ -151,15 +151,22 @@ export const ShareLinks = ({
                   {name}
                 </span>
                 <span
-                  className={`block text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+                  className={`flex flex-wrap gap-x-1.5 text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
                 >
-                  {describe(link)}
+                  {describe(link).map(part => (
+                    <span
+                      key={part}
+                      className="whitespace-nowrap before:mr-1.5 before:content-['·'] first:before:content-none"
+                    >
+                      {part}
+                    </span>
+                  ))}
                 </span>
               </a>
               <Button
-                variant="outline"
+                variant="neutral"
                 size="sm"
-                className={`shrink-0 ${outline}`}
+                className="shrink-0"
                 disabled={removing !== null}
                 aria-label={`Remove share link for ${name}`}
                 onClick={() => remove([link.id], link.id)}
@@ -171,10 +178,10 @@ export const ShareLinks = ({
         })}
       </ul>
       {links.length > 1 && (
+        // Asks once, in the red of a delete: the next press takes every link down.
         <Button
-          variant="outline"
+          variant={confirmingAll ? 'dangerOutline' : 'neutral'}
           size="sm"
-          className={outline}
           disabled={removing !== null}
           onBlur={() => setConfirmingAll(false)}
           onClick={() =>
@@ -189,7 +196,7 @@ export const ShareLinks = ({
           {removing === 'all'
             ? 'Removing…'
             : confirmingAll
-              ? `Click again to remove all ${links.length}`
+              ? `Remove all ${links.length} links?`
               : 'Remove all'}
         </Button>
       )}

@@ -1,4 +1,5 @@
 import { Navigate } from 'react-router-dom';
+import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useAuth } from '@/contexts';
 import { ROUTES } from '@/constants';
 import { hasCompletedASession } from '@/lib';
@@ -12,12 +13,7 @@ export const HomeRedirect = () => {
   const { user, loading, isGuest } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-team-blue/20 border-t-team-blue"></div>
-        <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user && !isGuest) {

@@ -4,8 +4,11 @@ import { useTheme, useAuth } from '@/contexts';
 import { firebaseService } from '@/services';
 import { sessionMatchType } from '@/lib';
 import { normalizeSession } from '@/lib/sessionNormalize';
-import { CURRENT_SEASON } from '@/constants';
-import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
+import { APP_CONFIG, CURRENT_SEASON, ROUTES } from '@/constants';
+import {
+  PAGE_TITLE_CLASS,
+  SECTION_TITLE_CLASS,
+} from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { Match, Session } from '@/types';
@@ -25,12 +28,23 @@ import {
 
 const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
 
+/** Why there is no session to show: a heading and one sentence */
+interface LoadError {
+  title: string;
+  body: string;
+}
+
+const NOT_FOUND: LoadError = {
+  title: 'Session not found',
+  body: 'This link was removed or is invalid.',
+};
+
 const SharedSession = () => {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadError | null>(null);
   const { activeTab, setActiveTab, selectedIdx, setSelectedIdx, openMatch } =
     useAnalysisNav();
 
@@ -50,9 +64,7 @@ const SharedSession = () => {
             // app's own checks, so its shape can't be taken on trust.
             setSession(normalizeSession(data, shortId));
           } else {
-            setError(
-              'Session not found. The link may have been removed or is invalid.'
-            );
+            setError(NOT_FOUND);
           }
           return;
         }
@@ -62,15 +74,19 @@ const SharedSession = () => {
         // real shared session, and they could never be taken down.
         setError(
           params.has('data')
-            ? 'This is an old-style share link, which is no longer supported. Ask for a new link.'
-            : 'No session data found in this link.'
+            ? {
+                title: 'Link no longer supported',
+                body: 'This is an old-style share link. Ask for a new one.',
+              }
+            : NOT_FOUND
         );
       } catch (err) {
         const { logger } = await import('@/lib/logger');
         logger.error('Error loading shared session', err);
-        setError(
-          'Failed to load session. The link may have been removed or is invalid.'
-        );
+        setError({
+          title: "Couldn't load this session",
+          body: 'Check your connection, then reload the page.',
+        });
       } finally {
         setLoading(false);
       }
@@ -104,10 +120,18 @@ const SharedSession = () => {
   const recordedAt = (session as { sessionCreatedAt?: unknown } | null)
     ?.sessionCreatedAt;
 
+  // The tab names the session once it is here, like every other page
+  const sessionName = session?.sessionName;
+  useEffect(() => {
+    document.title = `${sessionName || 'Shared Session'} - ${APP_CONFIG.name}`;
+  }, [sessionName]);
+
+  // flex-1 under the header (main is a flex column), not a second screen
+  // height that scrolls by exactly the header's.
   if (loading) {
     return (
       <div
-        className={`min-h-[100dvh] flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+        className={`flex-1 flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue" />
@@ -120,7 +144,7 @@ const SharedSession = () => {
   if (error) {
     return (
       <div
-        className={`min-h-[100dvh] flex items-center justify-center p-6 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+        className={`flex-1 flex items-center justify-center p-6 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div
           className={`max-w-md w-full rounded-2xl border p-8 text-center space-y-4 ${
@@ -129,26 +153,29 @@ const SharedSession = () => {
               : 'bg-white border-gray-200'
           }`}
         >
-          <AlertTriangle size={40} className="mx-auto text-amber-500" />
-          <h2
+          <AlertTriangle
+            size={40}
+            aria-hidden="true"
+            className="mx-auto text-amber-500"
+          />
+          {/* The page's one heading */}
+          <h1
             className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
-            Session Not Found
-          </h2>
+            {error.title}
+          </h1>
           <p
-            className={`text-sm leading-relaxed ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+            className={`text-sm leading-relaxed text-balance ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
-            {error}
+            {error.body}
           </p>
-          <Link to="/">
-            <Button
-              variant="outline"
-              className="mt-2 inline-flex items-center gap-2"
-            >
-              <ArrowLeft size={15} />
-              Go Home
-            </Button>
-          </Link>
+          {/* A link that looks like a button: one control, one tab stop */}
+          <Button asChild variant="outline" className="mt-2">
+            <Link to={ROUTES.HOME}>
+              <ArrowLeft aria-hidden="true" />
+              Go home
+            </Link>
+          </Button>
         </div>
       </div>
     );
@@ -162,9 +189,7 @@ const SharedSession = () => {
   const hasTabs = !legacySeason && sessionMatches.length > 0;
 
   return (
-    <div
-      className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
-    >
+    <div className={`flex-1 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
       <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
         <div className="space-y-2">
           <div
@@ -278,30 +303,24 @@ const SharedSession = () => {
             }`}
           >
             <div className="text-center space-y-4">
-              <h3
-                className={`text-xl font-bold ${isDarkMode ? 'text-team-white' : 'text-gray-900'}`}
-              >
+              <h2 className={`${SECTION_TITLE_CLASS} text-balance`}>
                 Want to track your own sessions?
-              </h3>
+              </h2>
               <p
                 className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
               >
                 Create a free account to start tracking and analyzing your
                 team's performance.
               </p>
+              {/* Links that look like buttons (one control, one tab stop
+                  each), in the header's words: the main one first */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
-                <Link to="/signup">
-                  <Button
-                    className={`w-full sm:w-56 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
-                  >
-                    Sign Up
-                  </Button>
-                </Link>
-                <Link to="/login">
-                  <Button variant="outline" className="w-full sm:w-56">
-                    Sign In
-                  </Button>
-                </Link>
+                <Button asChild variant="primary" className="w-full sm:w-56">
+                  <Link to={ROUTES.SIGNUP}>Sign up</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full sm:w-56">
+                  <Link to={ROUTES.LOGIN}>Sign in</Link>
+                </Button>
               </div>
             </div>
           </div>

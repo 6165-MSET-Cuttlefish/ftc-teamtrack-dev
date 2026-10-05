@@ -1,9 +1,7 @@
-export { ActiveTutorial } from './ActiveTutorial';
 export {
   SummaryTab,
   MatchDetailTab,
   CompareTab,
-  StatCard,
   SessionMeta,
   SessionNotes,
   AnalysisTabBar,
@@ -21,6 +19,7 @@ export { ScoreBreakdown } from './ScoreBreakdown';
 export { ScoreField } from './ScoreField';
 export { ScoringPad } from './ScoringPad';
 export { SessionSetup } from './SessionSetup';
+export { toggleOnClass, toggleOffClass } from './toggleTone';
 export {
   LiveControlsProvider,
   useLiveControls,

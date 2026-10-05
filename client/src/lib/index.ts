@@ -18,13 +18,16 @@ export {
   clearSessionFromStorage,
   clearHasCompletedSession,
   hasActiveSession,
+  hasDraftContent,
+  isWorthStoring,
 } from './sessionPersistence';
+export { nextMatchNumber } from './matchNumber';
 export {
   generateShareableLink,
   copyToClipboard,
   copyShareLink,
+  countShareLinks,
 } from './shareService';
-export { sanitizeHtml } from './sanitize';
 export {
   isGuestSessionId,
   readGuestSessions,
@@ -36,6 +39,8 @@ export {
   calculateTotal,
   matchScore,
   scoreRows,
+  ELEMENT_ORDER,
+  GROUPED_ELEMENT_ORDER,
   emptyScoringFields,
   pickScoringFields,
   normalizeForMatchType,
@@ -56,6 +61,7 @@ export {
   includesTeleop,
   robotRates,
 } from './scoring';
+export { formatPoints } from './points';
 export { isCurrentSeasonSession } from './sessionNormalize';
 export type {
   ScoringInput,
@@ -68,18 +74,20 @@ export {
   buildLegacySessionsCsv,
   csvFileName,
   downloadCsv,
-  htmlToText,
   isoDate,
 } from './csv';
+export { htmlToText } from './htmlText';
 export {
   SORT_LABELS,
   DEFAULT_SORT,
   sortSessions,
+  sortFromParam,
   bestScore,
   isArchived,
+  archivedFor,
   inArchiveView,
 } from './sessionFilters';
-export type { SortOption } from './sessionFilters';
+export type { SortOption, ArchiveViewer } from './sessionFilters';
 export {
   ELEMENT_LABELS,
   FLOWERS_LABEL,

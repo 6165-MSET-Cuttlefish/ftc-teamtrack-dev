@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { X } from 'lucide-react';
 import { useSessionCore, useTheme } from '@/contexts';
 import { ELEMENT_LABELS, FIELD_LIMITS, POINTS } from '@/lib';
 import { ScoreField } from './ScoreField';
-import { usePenaltyCounters } from './usePenaltyCounters';
 
-/** Set once the scrim fouls hint has been dismissed on this device */
+/** Set once the scrim penalties hint has been dismissed on this device */
 const PENALTY_HINT_SEEN_KEY = 'teamtrack-penalty-hint-seen';
 
 const penaltyHintSeen = () => {
@@ -18,9 +17,10 @@ const penaltyHintSeen = () => {
 };
 
 /**
- * The first-time note for a Scrim's fouls, shown until dismissed on this
- * device: the fouls counters look like they should cost points, and they
- * don't.
+ * The first-time note for a Scrim's penalties, shown until dismissed on this
+ * device: the counters look like they should cost points, and they don't.
+ * It is the one place the rule is spelt out; the counters only say what
+ * they have given away.
  */
 export const PenaltyHint = () => {
   const { isTutorialActive } = useSessionCore();
@@ -39,20 +39,20 @@ export const PenaltyHint = () => {
   return (
     <div
       role="note"
-      className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-4 ${
+      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs leading-4 ${
         isDarkMode
           ? 'border-team-blue-40 text-gray-300'
           : 'border-gray-300 bg-gray-50 text-gray-700'
       }`}
     >
+      {/* Each value stays with its name when the line wraps on a phone */}
       <p className="min-w-0 flex-1">
-        Scrim: count your alliance&apos;s fouls here. Each one goes to the
-        opponent ({POINTS.MINOR_PENALTY} minor, {POINTS.MAJOR_PENALTY} major)
-        and never comes off your score.
+        Penalties go to the opponent (Minor&nbsp;+{POINTS.MINOR_PENALTY},
+        Major&nbsp;+{POINTS.MAJOR_PENALTY}). They never lower your score.
       </p>
       <button
         type="button"
-        aria-label="Dismiss fouls hint"
+        aria-label="Dismiss penalties hint"
         onClick={dismissHint}
         className={`-my-1 -mr-1.5 inline-flex shrink-0 items-center justify-center rounded p-1 transition-colors [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
           isDarkMode
@@ -67,46 +67,99 @@ export const PenaltyHint = () => {
 };
 
 /**
- * This alliance's fouls in a Scrim, under the robot rows in Match Entry.
- * They are not timed, so they can be counted any time before the match is
- * saved; above the robot rows they would push Leave and Park off a short
- * screen during AUTO, which is when those are watched.
+ * One penalty counter: 'Minor' or 'Major' (the PENALTIES heading above says
+ * what they are), what they have given the opponent, and the stepper.
  *
- * Fouls are credited to the opponent (MINOR 5, MAJOR 20) and never come off
- * this alliance's score, so they show what was given away rather than
- * points.
+ * '+N to opponent' only shows once there is something to give, in a line
+ * kept for it from the start, so nothing moves when the first one is
+ * counted. `segment` is the desktop pad's: the line sits beside the label.
+ * `stacked` is the phone's: it sits under the label, in a line of one fixed
+ * height. Why the counters are locked is said once, outside them (beside
+ * the phone's PENALTIES heading, beside the desktop pad's -1), and
+ * `lockedReasonId` points at it.
  */
-export const PenaltyCounters = () => {
-  const { minor, major, entryKey, handleMinorPenalties, handleMajorPenalties } =
-    usePenaltyCounters();
+export const PenaltyField = ({
+  kind,
+  value,
+  locked,
+  lockedReasonId,
+  resetKey,
+  onChange,
+  layout,
+}: {
+  kind: 'minor' | 'major';
+  value: number;
+  locked: boolean;
+  lockedReasonId?: string;
+  resetKey: string;
+  onChange: (value: number) => void;
+  layout: 'stacked' | 'segment';
+}) => {
+  const { isDarkMode } = useTheme();
+  const opponentId = useId();
+  const each = kind === 'minor' ? POINTS.MINOR_PENALTY : POINTS.MAJOR_PENALTY;
+  const toOpponent = value * each;
+  const label = kind === 'minor' ? 'Minor' : 'Major';
 
-  return (
-    <>
-      <PenaltyHint />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-2">
-        <ScoreField
-          label={ELEMENT_LABELS.minor}
-          size="large"
-          layout="stacked"
-          stepper
-          max={FIELD_LIMITS.minorPenalties}
-          value={minor}
-          opponentPoints={minor * POINTS.MINOR_PENALTY}
-          resetKey={entryKey}
-          onChange={handleMinorPenalties}
-        />
-        <ScoreField
-          label={ELEMENT_LABELS.major}
-          size="large"
-          layout="stacked"
-          stepper
-          max={FIELD_LIMITS.majorPenalties}
-          value={major}
-          opponentPoints={major * POINTS.MAJOR_PENALTY}
-          resetKey={entryKey}
-          onChange={handleMajorPenalties}
-        />
+  const labelClass = `text-sm font-semibold leading-5 ${
+    locked ? 'text-gray-500' : isDarkMode ? 'text-gray-200' : 'text-gray-800'
+  }`;
+  const opponent = (
+    <span
+      id={opponentId}
+      // Hidden, not removed, at 0: its line stays the same height
+      className={`whitespace-nowrap text-xs font-semibold leading-4 tabular-nums ${
+        toOpponent > 0
+          ? isDarkMode
+            ? 'text-red-400'
+            : 'text-red-700'
+          : 'invisible'
+      }`}
+    >
+      +{toOpponent} to opponent
+    </span>
+  );
+
+  const field = (
+    <ScoreField
+      label={label}
+      ariaName={ELEMENT_LABELS[kind]}
+      hideLabel
+      describedBy={toOpponent > 0 ? opponentId : undefined}
+      layout={layout}
+      size={layout === 'stacked' ? 'large' : 'default'}
+      stepper
+      max={
+        kind === 'minor'
+          ? FIELD_LIMITS.minorPenalties
+          : FIELD_LIMITS.majorPenalties
+      }
+      value={value}
+      disabled={locked}
+      lockedReasonId={lockedReasonId}
+      resetKey={resetKey}
+      onChange={onChange}
+    />
+  );
+
+  return layout === 'segment' ? (
+    <div className="min-w-0 space-y-1.5">
+      <div className="flex min-w-0 items-baseline justify-between gap-2">
+        <span aria-hidden className={labelClass}>
+          {label}
+        </span>
+        {opponent}
       </div>
-    </>
+      {field}
+    </div>
+  ) : (
+    <div className="min-w-0 space-y-1">
+      <div aria-hidden className={labelClass}>
+        {label}
+      </div>
+      {/* One height whatever it holds: the text's own 16px line */}
+      <div className="flex h-4 items-center">{opponent}</div>
+      {field}
+    </div>
   );
 };

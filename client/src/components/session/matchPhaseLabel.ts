@@ -5,6 +5,7 @@ import type { MatchPhase } from '@/types';
 /** The one word that names where the match is, as shown beside the clock. */
 export type PhaseLabel =
   | 'READY'
+  | 'STARTING'
   | 'AUTO'
   | 'PICKUP'
   | 'TELEOP'
@@ -20,18 +21,38 @@ interface PhaseInput {
   matchPhase: MatchPhase;
   /** Match clock, in seconds left */
   timer: number;
+  /**
+   * The match is the walkthrough's practice one, held open without its
+   * clock ever starting
+   */
+  isTutorialActive?: boolean;
 }
 
 /**
- * Names the phase of the match. Before Start and through the 3-2-1 nothing
- * is being played yet, so both read READY; the last minute of TELEOP is
- * ENDGAME, the cue to watch for parking.
+ * True through the 3-2-1 before AUTO of a Full Game: Start was pressed and
+ * nothing is being played yet. Not the walkthrough's practice match, whose
+ * clock never leaves its starting value.
  */
-export const phaseLabel = ({
+export const inCountdown = ({
   matchActive,
   matchPhase,
   timer,
-}: PhaseInput): PhaseLabel => {
+  isTutorialActive = false,
+}: PhaseInput): boolean =>
+  matchActive &&
+  !isTutorialActive &&
+  matchPhase === 'auton' &&
+  timer > PLAYING_SECONDS;
+
+/**
+ * Names the phase of the match. Before Start it is READY, and through the
+ * 3-2-1 STARTING: a clock that reads 3, 2, 1 beside READY looked like
+ * seconds left of something. The last minute of TELEOP is ENDGAME, the cue
+ * to watch for parking.
+ */
+export const phaseLabel = (input: PhaseInput): PhaseLabel => {
+  const { matchActive, matchPhase, timer } = input;
+  if (inCountdown(input)) return 'STARTING';
   if (!matchActive || timer > PLAYING_SECONDS) return 'READY';
   if (matchPhase === 'controller_pickup') return 'PICKUP';
   if (matchPhase === 'ended' || timer <= 0) return 'DONE';
@@ -65,6 +86,19 @@ export const matchClockSeconds = ({
   if (!matchActive || isTutorialActive) return Math.min(timer, PLAYING_SECONDS);
   if (matchPhase === 'controller_pickup') return phaseTimer;
   return timer > PLAYING_SECONDS ? timer - PLAYING_SECONDS : timer;
+};
+
+/**
+ * The match clock as it reads: 'm:ss', or through the 3-2-1 just the
+ * digit ('3', not '0:03', which reads as three seconds of play left).
+ */
+export const matchClockText = (
+  input: ClockInput & { formatTime: (seconds: number) => string }
+): string => {
+  const seconds = matchClockSeconds(input);
+  return inCountdown(input)
+    ? String(Math.max(0, Math.ceil(seconds)))
+    : input.formatTime(seconds);
 };
 
 /**

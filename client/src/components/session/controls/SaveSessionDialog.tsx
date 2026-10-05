@@ -123,7 +123,7 @@ export const SaveSessionDialog = () => {
               disabled={!hasName || loading}
               className={`px-4 min-h-11 rounded-xl text-sm ${actionClass('primary', isDarkMode)}`}
             >
-              {loading ? 'Saving...' : 'Save Session'}
+              {loading ? 'Saving…' : 'Save Session'}
             </button>
           </div>
         </form>

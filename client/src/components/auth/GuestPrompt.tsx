@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, matchPath, useLocation } from 'react-router-dom';
 import { useAuth, useSessionCore, useTheme } from '@/contexts';
 import { Button } from '@/components/ui/button';
-import { X, UserPlus } from 'lucide-react';
+import { X } from 'lucide-react';
 import { ROUTES, STORAGE_KEYS } from '@/constants';
 import { readGuestSessions } from '@/lib/guestSessions';
 
@@ -10,12 +10,15 @@ const PROMPT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Show once per day
 
 const AUTH_ROUTES = [ROUTES.LOGIN, ROUTES.SIGNUP, ROUTES.FORGOT_PASSWORD];
 
+/** Every page the app has; anything else is the 404 page */
+const KNOWN_ROUTES = Object.values(ROUTES);
+
 /** Gap between the card and the screen edge (`bottom-4`), in px */
 const CARD_GAP = 16;
 
 export const GuestPrompt = () => {
   const { isGuest, guestId } = useAuth();
-  const { isDarkMode, themeMode } = useTheme();
+  const { isDarkMode } = useTheme();
   const { isTutorialActive, matchActive } = useSessionCore();
   const location = useLocation();
   /** Due to be shown: not dismissed for good, and not shown in the last day */
@@ -32,6 +35,10 @@ export const GuestPrompt = () => {
   );
   const isOnActivePage = location.pathname.startsWith(ROUTES.ACTIVE);
   const isOnSessionsPage = location.pathname.startsWith(ROUTES.SESSIONS);
+  // The 404 page has nothing of theirs on it to back up
+  const isOnKnownPage = KNOWN_ROUTES.some(
+    route => matchPath(route, location.pathname) !== null
+  );
 
   useEffect(() => {
     if (!isGuest) {
@@ -84,6 +91,7 @@ export const GuestPrompt = () => {
     isDue &&
     isGuest &&
     hasSavedSession &&
+    isOnKnownPage &&
     !isOnAuthPage &&
     !isOnActivePage &&
     !isOnSessionsPage &&
@@ -100,6 +108,17 @@ export const GuestPrompt = () => {
     );
   }, [isVisible]);
 
+  // Tells the page the bar is up, so a "sign up" line of its own (marked
+  // data-hide-under-guest-prompt) can step aside: see global.css.
+  useEffect(() => {
+    if (!isVisible) return;
+    const root = document.documentElement;
+    root.dataset.guestPrompt = 'shown';
+    return () => {
+      delete root.dataset.guestPrompt;
+    };
+  }, [isVisible]);
+
   // Tracked for the room left under the page (see below).
   useEffect(() => {
     if (!cardEl) return;
@@ -113,29 +132,32 @@ export const GuestPrompt = () => {
 
   const handleDismiss = () => {
     setIsDue(false);
-    localStorage.setItem(STORAGE_KEYS.GUEST_PROMPT_LAST_SHOWN, Date.now().toString());
-  };
-
-  const handlePermanentDismiss = () => {
-    setIsDue(false);
-    localStorage.setItem(STORAGE_KEYS.GUEST_PROMPT_DISMISSED, 'true');
+    localStorage.setItem(
+      STORAGE_KEYS.GUEST_PROMPT_LAST_SHOWN,
+      Date.now().toString()
+    );
+    // How many times the bar has been closed. The first close puts it off
+    // for a day, the second for good (there is no separate "Don't ask again").
+    const closes =
+      (parseInt(
+        localStorage.getItem(STORAGE_KEYS.GUEST_PROMPT_DISMISS_COUNT) ?? ''
+      ) || 0) + 1;
+    localStorage.setItem(
+      STORAGE_KEYS.GUEST_PROMPT_DISMISS_COUNT,
+      String(closes)
+    );
+    if (closes >= 2) {
+      localStorage.setItem(STORAGE_KEYS.GUEST_PROMPT_DISMISSED, 'true');
+    }
   };
 
   if (!isVisible) {
     return null;
   }
 
-  // Use inline style for background to avoid honeycomb/deepsea global CSS making bg-team-dark transparent
-  const bgStyle = isDarkMode
-    ? {
-        backgroundColor:
-          themeMode === 'honeycomb' ? '#0a0a0a' : themeMode === 'deepsea' ? '#0a1628' : '#191919',
-      }
-    : undefined;
-
   return (
     <>
-      {/* The card stays over the bottom of the screen, so whatever the page
+      {/* The bar stays over the bottom of the screen, so whatever the page
           ends with would be stuck under it (on a phone it is as wide as the
           page). The page gets that much more room, in its own colour, to
           scroll its last rows clear. */}
@@ -144,82 +166,38 @@ export const GuestPrompt = () => {
         className={`shrink-0 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
         style={{ height: cardHeight + CARD_GAP * 2 }}
       />
-      {/* z-40: under a dialog's backdrop (z-50). At the same level the card,
-          later in the page, sat on the Edit Match dialog's Cancel / Update
-          Match and took their taps. */}
+      {/* One line: what is at risk, the fix, and a way to close it. The
+          popover surface of the theme, like a toast. z-40: under a dialog's
+          backdrop, so it never takes a dialog's taps. */}
       <div
         ref={setCardEl}
-        style={bgStyle}
-        className={`fixed bottom-4 left-4 right-4 ml-auto sm:left-auto max-w-md rounded-lg shadow-2xl border-2 p-4 z-40 animate-slide-up ${
-          isDarkMode
-            ? 'border-team-blue-40'
-            : 'bg-gradient-to-br from-white to-blue-50 border-blue-200'
-        }`}
+        role="region"
+        aria-label="Back up your sessions"
+        className="fixed bottom-4 left-4 right-4 ml-auto sm:left-auto sm:w-max max-w-md flex items-center gap-2 rounded-xl border border-team-blue-40 bg-popover text-popover-foreground shadow-2xl py-1.5 pl-4 pr-1.5 z-40 animate-slide-up"
       >
+        <p className="min-w-0 flex-1 text-sm font-medium leading-tight text-balance">
+          Saved only in this browser
+        </p>
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="shrink-0 rounded-full border-team-blue text-foreground [@media(pointer:coarse)]:min-h-11"
+        >
+          <Link to={ROUTES.SIGNUP}>Sign up</Link>
+        </Button>
         <button
+          type="button"
           onClick={handleDismiss}
-          className={`absolute top-2 right-2 inline-flex items-center justify-center p-1 rounded hover:bg-opacity-20 ${
-            isDarkMode ? 'hover:bg-white' : 'hover:bg-gray-900'
+          className={`shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-md [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 ${
+            isDarkMode
+              ? 'text-team-white-60 hover:bg-white/10 hover:text-white'
+              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
           }`}
           aria-label="Dismiss"
         >
-          <X
-            aria-hidden="true"
-            className={`h-4 w-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          />
+          <X aria-hidden="true" className="h-4 w-4" />
         </button>
-
-        <div className="flex items-start gap-3 mb-3">
-          {/* Decoration only, and a phone has no width to spare for it */}
-          <div
-            className={`max-sm:hidden p-2 rounded-lg ${
-              isDarkMode ? 'bg-team-blue-20' : 'bg-blue-100'
-            }`}
-          >
-            <UserPlus aria-hidden="true" className="h-5 w-5 text-team-blue" />
-          </div>
-          <div className="min-w-0">
-            {/* pr-9: clear of the dismiss button, a 44px target on a phone */}
-            <h3
-              className={`font-semibold text-base mb-1 pr-9 text-balance ${
-                isDarkMode ? 'text-team-white' : 'text-gray-900'
-              }`}
-            >
-              Your sessions live in this browser
-            </h3>
-            <p
-              className={`text-sm text-pretty ${
-                isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-              }`}
-            >
-              Guest sessions are stored only in this browser and are lost if
-              its data is cleared. Sign up to back them up. You'll be offered
-              to import them.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-2 sm:ml-11">
-          <Button
-            asChild
-            className={`flex-1 bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`}
-            size="sm"
-          >
-            <Link to={ROUTES.SIGNUP}>Sign Up</Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handlePermanentDismiss}
-            className={
-              isDarkMode
-                ? 'text-team-white-60 hover:text-team-white'
-                : 'text-gray-600 hover:text-gray-900'
-            }
-          >
-            Don't ask again
-          </Button>
-        </div>
       </div>
     </>
   );

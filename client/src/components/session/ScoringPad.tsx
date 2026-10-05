@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { Check } from 'lucide-react';
+import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { useTheme } from '@/contexts';
 import {
   COUNT_LABELS,
@@ -9,16 +10,18 @@ import {
   FIELD_LIMITS,
   FLOWERS_HINT,
   FLOWERS_LABEL,
-  POINTS,
 } from '@/lib';
+import { formatPoints } from '@/lib/points';
 import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
-import { PenaltyHint } from './PenaltyCounters';
+import { PenaltyField, PenaltyHint } from './PenaltyCounters';
 import { BreakdownStrip } from './ScoreBreakdown';
 import { ScoreField } from './ScoreField';
 import { SectionNote } from './SectionNote';
+import { toggleOffClass, toggleOnClass } from './toggleTone';
 import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
 import { useMatchEntry } from './useMatchEntry';
 import { usePenaltyCounters } from './usePenaltyCounters';
+import { useScoringLocks } from './useScoringLocks';
 
 /**
  * Scoring on a full-size screen, laid out around how a match is watched.
@@ -26,12 +29,14 @@ import { usePenaltyCounters } from './usePenaltyCounters';
  *  - During play: a big Hive Tips pad (the one thing tapped over and over,
  *    so the whole surface is the +1; T on a keyboard does the same) with
  *    its -1 under it, the robot leave/park matrix beside it, and in a scrim
- *    the two foul counters.
+ *    the two penalty counters.
  *  - After the buzzer: Flowers (its two counters, Flower and Flower Bonus,
  *    under one heading), Left in Hive and Garden as joined steppers, each
- *    under a line that says what to count, locked until the clock stops
- *    (see `useScoringLocks`).
- *  - Then the breakdown as one band across the bottom.
+ *    under a line that says what to count and what each is worth, locked
+ *    until the clock stops (see `useScoringLocks`).
+ *  - Then one band across the bottom: the total and the ranking points.
+ *    Each element's points are on its own counter, so the band doesn't
+ *    repeat them.
  *
  * The full rules sit behind each heading's (i). The phone layout uses LiveCounters
  * and MatchEntry instead, which share their state and locks with this
@@ -41,7 +46,18 @@ import { usePenaltyCounters } from './usePenaltyCounters';
 /** Width of the pad's "+1 Tip" key */
 const KEY_WIDTH = 'w-28';
 
-const TipsPad = () => {
+/** Locked, in one muted tone: the pad, the -1 and the robot chips */
+const lockedTone = (isDarkMode: boolean) =>
+  isDarkMode
+    ? 'border-white/10 bg-white/[0.02] text-gray-500'
+    : 'border-gray-300 bg-gray-50 text-gray-500';
+
+/**
+ * `lockNoteId` names the line beside the -1 that says why the pad is
+ * locked. Before Start it speaks for the whole band (the robots and a
+ * Scrim's penalties wait for the same Start), so they point at it too.
+ */
+const TipsPad = ({ lockNoteId }: { lockNoteId: string }) => {
   const { isDarkMode } = useTheme();
   const describedById = useId();
   const {
@@ -62,16 +78,12 @@ const TipsPad = () => {
   const filled = canAdd && liveActionFilled;
 
   const surface = !canAdd
-    ? `cursor-not-allowed ${
-        isDarkMode
-          ? 'border-white/10 bg-white/[0.02] text-gray-500'
-          : 'border-gray-300 bg-gray-50 text-gray-500'
-      }`
+    ? `cursor-not-allowed ${lockedTone(isDarkMode)}`
     : filled
-      ? `cursor-pointer border-team-blue bg-team-blue shadow-[0_2px_0_0_rgb(0_0_0/0.25)] [@media(hover:hover)]:hover:-translate-y-px active:translate-y-0 active:scale-[0.985] active:shadow-none ${
+      ? `cursor-pointer border-team-blue bg-team-blue shadow-[0_2px_0_0_rgb(0_0_0/0.25)] hover:-translate-y-px active:translate-y-0 active:scale-[0.985] active:shadow-none ${
           isDarkMode
-            ? 'text-black [@media(hover:hover)]:hover:brightness-110 active:brightness-90'
-            : 'text-white [@media(hover:hover)]:hover:brightness-90 active:brightness-75'
+            ? 'text-black hover:brightness-110 active:brightness-90'
+            : 'text-white hover:brightness-90 active:brightness-75'
         }`
       : `cursor-pointer active:scale-[0.985] ${
           isDarkMode
@@ -96,22 +108,25 @@ const TipsPad = () => {
   const minus = canTakeBack
     ? `cursor-pointer active:scale-[0.94] ${
         isDarkMode
-          ? 'border-team-blue-40 bg-team-dark text-white [@media(hover:hover)]:hover:bg-team-white-10'
-          : 'border-gray-500 bg-white text-gray-900 [@media(hover:hover)]:hover:bg-gray-100'
+          ? 'border-team-blue-40 bg-team-dark text-white hover:bg-team-white-10'
+          : 'border-gray-500 bg-white text-gray-900 hover:bg-gray-100'
       }`
-    : `cursor-not-allowed ${
-        isDarkMode
-          ? 'border-white/10 bg-white/[0.02] text-gray-500'
-          : 'border-gray-300 bg-gray-50 text-gray-500'
-      }`;
+    : `cursor-not-allowed ${lockedTone(isDarkMode)}`;
 
   return (
-    <div className="flex h-full flex-col gap-2">
+    // `self-start`: a scrim's penalty column can make the band taller than
+    // the pad, and the pad keeps its one height whatever is beside it.
+    <div className="flex flex-col gap-2 self-start">
       {/*
         The whole pad is the +1 button: the biggest target on the page for
         the one action repeated all match. The key reads "+1 Tip" and comes
         first, so that is what the button is called; the label, points and
         count are read out from its description instead.
+
+        One fixed height in every state. Its fill, edge and text change in
+        the same frame (only the press and hover move are animated): a fill
+        fading in under text that had already changed left the pad blank
+        for a moment as AUTO started, on pause and at the buzzer.
       */}
       <button
         type="button"
@@ -119,36 +134,36 @@ const TipsPad = () => {
         onClick={() => handleTipping(Math.min(max, value + 1))}
         aria-describedby={describedById}
         aria-keyshortcuts={tippingLive ? TIP_SHORTCUT : undefined}
-        className={`grid min-h-[6.5rem] w-full flex-1 grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)] gap-x-3 rounded-2xl border-2 px-5 py-3.5 text-left select-none touch-manipulation transition-[transform,background-color,border-color,box-shadow,filter] duration-150 ease-out ${surface}`}
+        className={`grid h-[6.5rem] w-full grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)] gap-x-3 rounded-2xl border-2 px-5 py-3.5 text-left select-none touch-manipulation transition-[transform,box-shadow,filter] duration-150 ease-out ${surface}`}
       >
         <span
           className={`col-start-2 row-start-2 flex h-12 ${KEY_WIDTH} items-center justify-center gap-2 self-end rounded-xl border-2 text-base font-bold whitespace-nowrap ${key}`}
         >
           +1 Tip
-          {/* Always shown on a keyboard device so the shortcut is learnt before
-              the match; it only works while tips can be scored. */}
-          <kbd
-            aria-hidden
-            title={`Shortcut: press ${TIP_SHORTCUT} to add a Hive Tip`}
-            className="rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 opacity-70 [@media(pointer:coarse)]:hidden"
-          >
-            {TIP_SHORTCUT}
-          </kbd>
+          {/* Only while the key does something: the match is being played */}
+          {tippingLive && (
+            <kbd
+              aria-hidden
+              title={`Shortcut: press ${TIP_SHORTCUT} to add a Hive Tip`}
+              className="rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 opacity-70 [@media(pointer:coarse)]:hidden"
+            >
+              {TIP_SHORTCUT}
+            </kbd>
+          )}
         </span>
         <span
           aria-hidden
-          className="col-span-2 col-start-1 row-start-1 flex min-w-0 items-baseline gap-2"
+          className="col-span-2 col-start-1 row-start-1 flex min-w-0 items-baseline gap-2 whitespace-nowrap"
         >
           <span className="text-base font-semibold">
             {ELEMENT_LABELS.tipping}
           </span>
-          <span
-            className={`text-sm font-semibold tabular-nums ${
-              canAdd && !filled ? 'text-team-blue' : ''
-            }`}
-          >
-            {breakdown.tipping} pts
-          </span>
+          {/* Nothing to count yet while locked; the line keeps its height */}
+          {tippingEnabled && (
+            <span className="text-sm font-semibold tabular-nums">
+              {formatPoints(breakdown.tipping)}
+            </span>
+          )}
         </span>
         <span
           aria-hidden
@@ -169,9 +184,8 @@ const TipsPad = () => {
         the start rather than appearing with the first tip: a button that
         showed up inside the pad would land under the finger tapping it, and
         turn the next tap into a -1. Why the pad is locked goes beside it,
-        in the row's spare width: inside the pad the line wrapped on a
-        tablet and made the pad taller until AUTO, so everything under it
-        moved up as play started.
+        in the row's spare width, as one short line: before Start, the one
+        line for the whole band.
       */}
       <div className="flex min-w-0 items-center gap-3">
         <button
@@ -185,9 +199,12 @@ const TipsPad = () => {
           <span aria-hidden>&minus;1</span>
         </button>
         {!tippingEnabled && lockedReason && (
-          // Read out with the pad, from its description
-          <div aria-hidden className="min-w-0">
-            <SectionNote icon="locked">{lockedReason}</SectionNote>
+          // Read out with the pad, from its description, and with each robot
+          // chip and penalty counter locked for the same reason
+          <div aria-hidden className="min-w-0 whitespace-nowrap">
+            <SectionNote id={lockNoteId} icon="locked">
+              {lockedReason}
+            </SectionNote>
           </div>
         )}
       </div>
@@ -195,25 +212,28 @@ const TipsPad = () => {
   );
 };
 
-/** One leave/park toggle in the robot matrix. Filled when on. */
+/**
+ * One leave/park toggle in the robot matrix: the accent tint and a check
+ * when on, an outline when off, the one muted locked tone when it can't be
+ * scored yet.
+ */
 const Chip = ({
   on,
   label,
   ariaLabel,
-  disabledReason,
+  disabled,
   describedBy,
   onChange,
 }: {
   on: boolean;
   label: string;
   ariaLabel: string;
-  /** Set when the toggle can't be scored; says why */
-  disabledReason?: string;
+  disabled: boolean;
+  /** Id of the note under the matrix that says why it is locked */
   describedBy?: string;
   onChange: (v: boolean) => void;
 }) => {
   const { isDarkMode } = useTheme();
-  const disabled = disabledReason !== undefined;
   return (
     <button
       type="button"
@@ -222,37 +242,36 @@ const Chip = ({
       aria-label={ariaLabel}
       aria-describedby={disabled ? describedBy : undefined}
       disabled={disabled}
-      title={disabledReason}
       onClick={() => onChange(!on)}
-      className={`flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border-2 px-2 text-sm font-semibold select-none touch-manipulation transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 ${
-        on
-          ? `border-team-blue bg-team-blue ${isDarkMode ? 'text-black' : 'text-white'}`
-          : isDarkMode
-            ? 'border-team-blue-40 bg-team-dark text-gray-300 hover:bg-team-white-10'
-            : // gray-300 is under 3:1 on the light page
-              'border-gray-500 bg-white text-gray-700 hover:bg-gray-100'
+      className={`flex h-11 min-w-0 items-center justify-center gap-1 rounded-xl border-2 px-1.5 text-sm font-semibold select-none touch-manipulation transition-[background-color,border-color,color,transform] duration-150 ease-out enabled:active:scale-[0.96] ${
+        disabled
+          ? `cursor-not-allowed ${lockedTone(isDarkMode)}`
+          : // The phone's toggle colours: on the light page an on chip also
+            // gets a thicker frame and a deeper tint
+            on
+            ? toggleOnClass(isDarkMode)
+            : toggleOffClass(isDarkMode)
       }`}
     >
-      {on && <Check size={16} className="hidden shrink-0 xl:block" />}
+      {on && <Check size={14} strokeWidth={3} className="shrink-0" />}
       <span className="truncate">{label}</span>
     </button>
   );
 };
 
+type InfoKey = 'flowers' | 'hive' | 'garden';
+
 export const ScoringPad = () => {
   const { isDarkMode } = useTheme();
   const entry = useMatchEntry();
   const fouls = usePenaltyCounters();
+  const { entryLocked, endParkLocked, hasAuto, hasTeleop } = useScoringLocks();
   const {
     sessionData,
     set,
     breakdown,
     entryKey,
     endDisabled,
-    autoDisabledReason,
-    parkTeleopDisabledReason,
-    robotsReason,
-    robotsReasonId,
     endReasonId,
     endCaption,
     justUnlocked,
@@ -260,7 +279,7 @@ export const ScoringPad = () => {
   } = entry;
   const isScrim = sessionData.sessionType === 'Scrim';
 
-  const rowLabel = `text-xs font-semibold tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`;
+  const rowLabel = `col-start-1 whitespace-nowrap text-xs font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`;
 
   const robots = [
     {
@@ -292,23 +311,54 @@ export const ScoringPad = () => {
     garden: useId(),
     gardenLine: useId(),
     info: useId(),
+    robotsNote: useId(),
+    padLock: useId(),
   };
-  /** Which heading's (i) is open; its rule shows under the row */
-  const [infoOpen, setInfoOpen] = useState<
-    'flowers' | 'hive' | 'garden' | null
-  >(null);
-  const toggleInfo = (which: 'flowers' | 'hive' | 'garden') =>
-    setInfoOpen(v => (v === which ? null : which));
-  // The counters' own lines say what each is worth; the Flowers (i) adds
-  // the rule that tells them apart.
-  const infoText =
-    infoOpen === 'flowers'
-      ? FLOWERS_HINT
-      : infoOpen === 'hive'
-        ? FIELD_HINTS.ballsInHive
-        : infoOpen === 'garden'
-          ? FIELD_HINTS.garden
+
+  // The matrix shows only what the match type scores (no dead chips): a
+  // Teleop match has no Leave or Park (Auto), an Autonomous one no Park
+  // (End). What is locked, or why a column is missing, is one line under
+  // it, kept in every state so the rows never move. Before Start the line
+  // beside the pad's -1 says it for the whole band, and this one is empty.
+  const robotsNote = entryLocked
+    ? null
+    : endParkLocked && hasTeleop
+      ? { locked: true, text: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop` }
+      : !hasAuto
+        ? { locked: false, text: 'Teleop match: no Auto scoring' }
+        : !hasTeleop
+          ? { locked: false, text: 'Autonomous match: no End park' }
           : null;
+  /** Where a locked robot chip or penalty counter says why */
+  const robotsReasonId = entryLocked ? ids.padLock : ids.robotsNote;
+
+  /**
+   * Which heading's (i) is open; its rule shows under that heading. It
+   * belongs to the match in the fields: starting, saving or opening another
+   * one closes it.
+   */
+  const [info, setInfo] = useState<{ key: string; open: InfoKey | null }>({
+    key: entryKey,
+    open: null,
+  });
+  const infoOpen = info.key === entryKey ? info.open : null;
+  const toggleInfo = (which: InfoKey) =>
+    setInfo({ key: entryKey, open: infoOpen === which ? null : which });
+  const infoText: Record<InfoKey, string> = {
+    flowers: FLOWERS_HINT,
+    hive: FIELD_HINTS.ballsInHive,
+    garden: FIELD_HINTS.garden,
+  };
+  /** The open rule, right under the heading whose (i) opened it */
+  const rule = (which: InfoKey) =>
+    infoOpen === which && (
+      <p
+        id={ids.info}
+        className={`mt-1.5 text-xs leading-4 text-balance ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+      >
+        {infoText[which]}
+      </p>
+    );
 
   /** The stepper of one end-of-match counter; its label is drawn above it */
   const counter = (
@@ -339,89 +389,106 @@ export const ScoringPad = () => {
     <section aria-label="Scoring" className="flex flex-col gap-4 lg:gap-5">
       {/*
         What is tapped while the clock runs, in one band. In a scrim the
-        fouls sit beside the robots on a wide screen and take a row of their
-        own under the band below `lg`, so the robot rows never move down.
+        penalties sit beside the robots on a wide screen and take a row of
+        their own under the band below `lg`, so the robot rows never move
+        down.
       */}
+      <h2 className="sr-only">Live scoring</h2>
       <div
         data-tutorial="live"
-        className={`grid items-stretch gap-4 lg:gap-5 grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] ${
+        // The robots get the width 'Park (Auto)' and its check need on a
+        // tablet, in a scrim's three columns too; the pad keeps plenty.
+        className={`grid items-stretch gap-4 lg:gap-5 grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] ${
           isScrim
-            ? 'lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)_minmax(0,0.8fr)]'
-            : ''
+            ? 'lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.45fr)_minmax(0,0.7fr)]'
+            : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]'
         }`}
       >
-        <TipsPad />
+        <TipsPad lockNoteId={ids.padLock} />
 
         <div
           data-tutorial="robots"
-          // Top-aligned, not centred: a scrim's foul counters make the band
-          // taller, and the robot rows must stay where Practice has them.
-          className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))] content-start items-center gap-x-2 gap-y-2.5 pt-0.5"
+          // Top-aligned, not centred: a scrim's penalty counters make the
+          // band taller, and the robot rows must stay where Practice has them.
+          className="grid grid-cols-[3rem_repeat(3,minmax(0,1fr))] content-start items-center gap-x-1.5 gap-y-2.5 pt-0.5"
         >
-          {robots.map(r => (
-            <div key={r.id} className="contents">
-              <span className={rowLabel} aria-hidden>
-                R{r.id}
-              </span>
-              <Chip
-                on={r.leave}
-                label={ELEMENT_LABELS.leave}
-                ariaLabel={`Robot ${r.id} leave`}
-                disabledReason={autoDisabledReason}
-                describedBy={robotsReasonId}
-                onChange={r.onLeave}
-              />
-              <Chip
-                on={r.parkAuto}
-                label={ELEMENT_LABELS.parkAuto}
-                ariaLabel={`Robot ${r.id} parked at end of auto`}
-                disabledReason={autoDisabledReason}
-                describedBy={robotsReasonId}
-                onChange={r.onParkAuto}
-              />
-              <Chip
-                on={r.parkEnd}
-                label={ELEMENT_LABELS.parkEnd}
-                ariaLabel={`Robot ${r.id} parked at end of match`}
-                disabledReason={parkTeleopDisabledReason}
-                describedBy={robotsReasonId}
-                onChange={r.onParkEnd}
-              />
-            </div>
-          ))}
-          {robotsReason && (
-            <span id={robotsReasonId} className="sr-only">
-              {robotsReason}
-            </span>
-          )}
+          {robots.map(r => {
+            const leaveLocked = entryLocked;
+            const endLocked = entryLocked || endParkLocked;
+            return (
+              <div key={r.id} className="contents">
+                <span className={rowLabel} aria-hidden>
+                  Robot {r.id}
+                </span>
+                {hasAuto && (
+                  <>
+                    <Chip
+                      on={r.leave}
+                      label={ELEMENT_LABELS.leave}
+                      ariaLabel={`Robot ${r.id} leave`}
+                      disabled={leaveLocked}
+                      describedBy={robotsReasonId}
+                      onChange={r.onLeave}
+                    />
+                    <Chip
+                      on={r.parkAuto}
+                      label={ELEMENT_LABELS.parkAuto}
+                      ariaLabel={`Robot ${r.id} parked at end of auto`}
+                      disabled={leaveLocked}
+                      describedBy={robotsReasonId}
+                      onChange={r.onParkAuto}
+                    />
+                  </>
+                )}
+                {hasTeleop && (
+                  <Chip
+                    on={r.parkEnd}
+                    label={ELEMENT_LABELS.parkEnd}
+                    ariaLabel={`Robot ${r.id} parked at end of match`}
+                    disabled={endLocked}
+                    describedBy={robotsReasonId}
+                    onChange={r.onParkEnd}
+                  />
+                )}
+              </div>
+            );
+          })}
+          <div className="col-span-4 min-h-4">
+            {robotsNote && (
+              <SectionNote
+                id={ids.robotsNote}
+                icon={robotsNote.locked ? 'locked' : undefined}
+              >
+                {robotsNote.text}
+              </SectionNote>
+            )}
+          </div>
         </div>
 
         {isScrim && (
           <div
             data-tutorial="penalties"
-            className="col-span-2 grid grid-cols-2 gap-4 lg:col-span-1 lg:flex lg:flex-col lg:justify-center lg:gap-2"
+            className="col-span-2 grid grid-cols-2 content-start gap-x-4 gap-y-2 lg:col-span-1 lg:grid-cols-1"
           >
-            <ScoreField
-              label={ELEMENT_LABELS.minor}
-              name="minor-penalty"
+            {/* Locked only before Start, which the pad's line already says */}
+            <h3 className={`col-span-2 lg:col-span-1 ${EYEBROW_CLASS}`}>
+              Penalties
+            </h3>
+            <PenaltyField
+              kind="minor"
               layout="segment"
-              stepper
-              info={FIELD_HINTS.minorPenalties}
-              max={FIELD_LIMITS.minorPenalties}
               value={fouls.minor}
-              opponentPoints={fouls.minor * POINTS.MINOR_PENALTY}
+              locked={fouls.locked}
+              lockedReasonId={ids.padLock}
               resetKey={fouls.entryKey}
               onChange={fouls.handleMinorPenalties}
             />
-            <ScoreField
-              label={ELEMENT_LABELS.major}
-              name="major-penalty"
+            <PenaltyField
+              kind="major"
               layout="segment"
-              stepper
-              info={FIELD_HINTS.majorPenalties}
-              max={FIELD_LIMITS.majorPenalties}
               value={fouls.major}
-              opponentPoints={fouls.major * POINTS.MAJOR_PENALTY}
+              locked={fouls.locked}
+              lockedReasonId={ids.padLock}
               resetKey={fouls.entryKey}
               onChange={fouls.handleMajorPenalties}
             />
@@ -437,6 +504,7 @@ export const ScoringPad = () => {
         data-tutorial="end-of-match"
         className="flex flex-col gap-2"
       >
+        <h2 className="sr-only">End of match</h2>
         {/* One line in every state, so the fields don't move when it changes */}
         <div
           data-highlight={justUnlocked || undefined}
@@ -453,7 +521,9 @@ export const ScoringPad = () => {
           every "what to count" line and every stepper sits level with its
           neighbours however the lines wrap: the Flowers pair under one
           heading, then Left in Hive and Garden. Below `lg` the pair takes
-          the first row and the other two the next.
+          the first row and the other two the next. An open (i) rule sits
+          under its own heading, in that first row, so the rows under it
+          stay level with their neighbours too.
         */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 lg:grid-cols-4 lg:gap-x-5">
           <div
@@ -465,13 +535,13 @@ export const ScoringPad = () => {
               <CounterHead
                 id={ids.flowers}
                 title={FLOWERS_LABEL}
-                points={breakdown.flower + breakdown.flowerBonus}
                 info={FLOWERS_HINT}
                 infoId={ids.info}
                 infoOpen={infoOpen === 'flowers'}
                 onInfo={() => toggleInfo('flowers')}
                 dim={endDisabled}
               />
+              {rule('flowers')}
             </div>
             <CountLine
               id={ids.flower}
@@ -512,15 +582,18 @@ export const ScoringPad = () => {
             aria-labelledby={ids.hive}
             className="row-span-3 grid grid-rows-subgrid md:max-lg:mt-3"
           >
-            <CounterHead
-              id={ids.hive}
-              title={ELEMENT_LABELS.hive}
-              info={FIELD_HINTS.ballsInHive}
-              infoId={ids.info}
-              infoOpen={infoOpen === 'hive'}
-              onInfo={() => toggleInfo('hive')}
-              dim={endDisabled}
-            />
+            <div>
+              <CounterHead
+                id={ids.hive}
+                title={ELEMENT_LABELS.hive}
+                info={FIELD_HINTS.ballsInHive}
+                infoId={ids.info}
+                infoOpen={infoOpen === 'hive'}
+                onInfo={() => toggleInfo('hive')}
+                dim={endDisabled}
+              />
+              {rule('hive')}
+            </div>
             <CountLine
               id={ids.hiveLine}
               label={COUNT_LABELS.ballsInHive}
@@ -543,15 +616,18 @@ export const ScoringPad = () => {
             aria-labelledby={ids.garden}
             className="row-span-3 grid grid-rows-subgrid md:max-lg:mt-3"
           >
-            <CounterHead
-              id={ids.garden}
-              title={ELEMENT_LABELS.garden}
-              info={FIELD_HINTS.garden}
-              infoId={ids.info}
-              infoOpen={infoOpen === 'garden'}
-              onInfo={() => toggleInfo('garden')}
-              dim={endDisabled}
-            />
+            <div>
+              <CounterHead
+                id={ids.garden}
+                title={ELEMENT_LABELS.garden}
+                info={FIELD_HINTS.garden}
+                infoId={ids.info}
+                infoOpen={infoOpen === 'garden'}
+                onInfo={() => toggleInfo('garden')}
+                dim={endDisabled}
+              />
+              {rule('garden')}
+            </div>
             <CountLine
               id={ids.gardenLine}
               label={COUNT_LABELS.garden}
@@ -569,14 +645,6 @@ export const ScoringPad = () => {
             )}
           </div>
         </div>
-        {infoText && (
-          <p
-            id={ids.info}
-            className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-          >
-            {infoText}
-          </p>
-        )}
       </div>
 
       <BreakdownStrip />

@@ -1,102 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
+import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { useSessionCore, useTheme } from '@/contexts';
-import {
-  ELEMENT_LABELS,
-  FLOWERS_LABEL,
-  RANKING_POINTS,
-  calculateScore,
-  scoreRows,
-  type ScoreRow,
-  type ScoringInput,
-} from '@/lib';
+import { ELEMENT_LABELS, RANKING_POINTS, calculateScore } from '@/lib';
+import { formatPoints } from '@/lib/points';
 import type { MatchScoringFields } from '@/types';
+import { useActiveSideBySide } from './layout/useActiveCompact';
 import { useScoringLocks } from './useScoringLocks';
 
-/** "1 tip", "3 tips" */
-const countOf = (n: number, one: string, many = `${one}s`) =>
-  `${n} ${n === 1 ? one : many}`;
-
-/** One line of the running breakdown: points, and what earned them */
-interface BreakdownItem {
-  key: string;
-  label: string;
-  points: number;
-  /**
-   * What was counted, in words ("3 pieces + 2 bonus"); empty when nothing
-   * was. Never a multiplication: a growing "×N" beside the points reads as
-   * a multiplier.
-   */
-  detail: string;
-}
-
-/**
- * The breakdown's lines in the order the page is scored: Hive Tips, the
- * robots, then the end-of-match counts. Flower and Flower Bonus are one
- * line, Flowers, as they are one group on the scoring page.
- */
-const breakdownItems = (scoring: ScoringInput): BreakdownItem[] => {
-  const rows = new Map(scoreRows(scoring).map(row => [row.key, row]));
-  const line = (key: ScoreRow['key']) => ({
-    count: rows.get(key)?.count ?? 0,
-    points: rows.get(key)?.points ?? 0,
-  });
-  const tips = line('tipping');
-  const leave = line('leave');
-  const park = line('park');
-  const flower = line('flower');
-  const bonus = line('flowerBonus');
-  const hive = line('hive');
-  const garden = line('garden');
-  const counted = (n: number, one: string) => (n > 0 ? countOf(n, one) : '');
-  return [
-    {
-      key: 'tipping',
-      label: ELEMENT_LABELS.tipping,
-      points: tips.points,
-      detail: counted(tips.count, 'tip'),
-    },
-    {
-      key: 'leave',
-      label: ELEMENT_LABELS.leave,
-      points: leave.points,
-      detail: counted(leave.count, 'robot'),
-    },
-    {
-      key: 'park',
-      label: ELEMENT_LABELS.park,
-      points: park.points,
-      detail: counted(park.count, 'park'),
-    },
-    {
-      key: 'flowers',
-      label: FLOWERS_LABEL,
-      points: flower.points + bonus.points,
-      detail: [
-        counted(flower.count, 'piece'),
-        bonus.count > 0 ? `${bonus.count} bonus` : '',
-      ]
-        .filter(Boolean)
-        .join(' + '),
-    },
-    {
-      key: 'hive',
-      label: ELEMENT_LABELS.hive,
-      points: hive.points,
-      detail: counted(hive.count, 'piece'),
-    },
-    {
-      key: 'garden',
-      label: ELEMENT_LABELS.garden,
-      points: garden.points,
-      detail: counted(garden.count, 'piece'),
-    },
-  ];
-};
+/** What SWARM counts, in the same words on every layout */
+const SWARM_UNIT = 'leave + park pts';
 
 /**
  * Progress toward one ranking point. `marks` are the thresholds (a bar can
  * carry more than one, e.g. POLLINATOR pays out at two tip counts).
+ *
+ * Each threshold is a segment of its own, as wide as its share of the last
+ * one and filled against its own range: POLLINATOR's first segment fills
+ * over tips 1-4 and its second over 5-7. The label counts toward the next
+ * threshold ("2/4 tips"), so it always describes the segment that is
+ * filling, and a segment turns green once its ranking point is earned.
+ * Past the last threshold the label keeps the count itself ("+1 RP · 21
+ * leave + park pts"): SWARM's is the one place Leave and Park points show.
  */
 const RankingPointRow = ({
   name,
@@ -113,9 +38,18 @@ const RankingPointRow = ({
   const max = marks[marks.length - 1];
   const earned = marks.filter(m => value >= m).length;
   const next = marks.find(m => value < m);
+  const segments = marks.map((to, i) => {
+    const from = i === 0 ? 0 : marks[i - 1];
+    return {
+      from,
+      to,
+      fill: Math.min(1, Math.max(0, (value - from) / (to - from))),
+      earned: value >= to,
+    };
+  });
 
   return (
-    <div className="space-y-1">
+    <div className="min-w-0 space-y-1">
       <div className="flex items-center justify-between gap-2 text-sm">
         <span
           className={`font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
@@ -123,7 +57,7 @@ const RankingPointRow = ({
           {name}
         </span>
         <span
-          className={`flex items-center gap-1 tabular-nums text-xs ${
+          className={`flex items-center gap-1 whitespace-nowrap tabular-nums text-xs ${
             earned > 0
               ? // green-600 is under 4.5:1 on the light background
                 `font-semibold ${isDarkMode ? 'text-green-400' : 'text-green-700'}`
@@ -134,16 +68,14 @@ const RankingPointRow = ({
         >
           {earned > 0 && <Check size={14} />}
           {earned > 0 ? `+${earned} RP` : ''}
-          {next !== undefined && (
-            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
-              {earned > 0 ? ' · ' : ''}
-              {value}/{next} {unit}
-            </span>
-          )}
+          <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+            {earned > 0 ? ' · ' : ''}
+            {next === undefined ? value : `${value}/${next}`} {unit}
+          </span>
         </span>
       </div>
       <div
-        className={`relative h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+        className="flex h-2 gap-1"
         role="progressbar"
         aria-label={`${name} progress`}
         aria-valuemin={0}
@@ -158,18 +90,77 @@ const RankingPointRow = ({
             : `${value} of ${next} ${unit}, ${earned} RP earned`
         }
       >
-        <div
-          className={`h-full rounded-full transition-all ${earned === marks.length ? 'bg-green-500' : 'bg-team-blue'}`}
-          style={{ width: `${Math.min(100, (value / max) * 100)}%` }}
-        />
-        {marks.slice(0, -1).map(m => (
+        {segments.map(s => (
           <div
-            key={m}
-            className={`absolute top-0 h-full w-0.5 ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}
-            style={{ left: `${(m / max) * 100}%` }}
-          />
+            key={s.to}
+            className={`h-full min-w-0 overflow-hidden rounded-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+            style={{ flex: `${s.to - s.from} 1 0%` }}
+          >
+            <div
+              className={`h-full rounded-full transition-[width] duration-300 ${s.earned ? 'bg-green-500' : 'bg-team-blue'}`}
+              style={{ width: `${s.fill * 100}%` }}
+            />
+          </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+/**
+ * SWARM and POLLINATOR, the same on the phone and the desktop. SWARM is
+ * left out of a match type with no AUTO: the end park alone can't reach it.
+ * Its count, the robots' park points, then gets a line of its own beside
+ * it (see `ScoreBreakdown` and `BreakdownStrip`), so they still show once.
+ */
+const RankingPointRows = ({
+  leavePark,
+  tips,
+  hasAuto,
+}: {
+  leavePark: number;
+  tips: number;
+  hasAuto: boolean;
+}) => (
+  <>
+    {hasAuto && (
+      <RankingPointRow
+        name="SWARM"
+        value={leavePark}
+        marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
+        unit={SWARM_UNIT}
+      />
+    )}
+    <RankingPointRow
+      name="POLLINATOR"
+      value={tips}
+      marks={RANKING_POINTS.POLLINATOR_TIPS}
+      unit="tips"
+    />
+  </>
+);
+
+/**
+ * One plain number under the ranking points on the phone: the park points
+ * of a match with no AUTO (no SWARM row to count them), what a Scrim's
+ * penalties gave the opponent.
+ */
+const PointsLine = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => {
+  const { isDarkMode } = useTheme();
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 text-sm ${
+        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+      }`}
+    >
+      <span>{label}</span>
+      {children}
     </div>
   );
 };
@@ -249,190 +240,145 @@ const useScoreAnnouncement = (
 };
 
 /**
- * Running point breakdown for the current match. Split out of MatchEntry so
- * the desktop layout can pin it beside the inputs instead of below them.
+ * The phone's ranking points card, under the scoring fields: SWARM and
+ * POLLINATOR, and in a Scrim what the penalties gave the opponent. Each
+ * element's points are on its own counter, and Leave and Park on SWARM's
+ * line (on a Park line of their own in a match with no AUTO), so they
+ * aren't repeated here.
+ *
+ * The match total is in the header while a match runs, and on Save after
+ * the buzzer. Where neither has it, it goes on this card's heading line:
+ * while a saved match is being corrected (the header names the match, and
+ * Save carries no points), and while a match runs on a phone held sideways
+ * (the clock has a column of its own, and the header no centre label).
+ * On the heading's line it takes no height, so nothing moves as it comes
+ * and goes.
+ *
+ * Between matches, with nothing scored, it is one quiet line: there is
+ * nothing to show yet, and it is the last thing in the scoring column, so
+ * nothing above it moves when it opens out at Start.
  */
 export const ScoreBreakdown = () => {
-  const { sessionData } = useSessionCore();
-  const { scoring } = useScoringLocks();
+  const { sessionData, matchActive, matchPhase } = useSessionCore();
+  const { scoring, editing, hasAuto } = useScoringLocks();
   const { isDarkMode } = useTheme();
+  const sideBySide = useActiveSideBySide();
 
   const breakdown = calculateScore(scoring);
-  // Fouls are credited to the opponent, so they are not one of this
-  // alliance's scoring rows; a scrim shows them on their own line below.
-  const rows = breakdownItems(scoring);
   const isScrim = sessionData.sessionType === 'Scrim';
-  const foulCount =
-    (sessionData.minorPenalties ?? 0) + (sessionData.majorPenalties ?? 0);
+  const idle =
+    !matchActive &&
+    !editing &&
+    breakdown.total === 0 &&
+    breakdown.penalties === 0;
+  const showTotal =
+    editing || (sideBySide && matchActive && matchPhase !== 'ended');
 
   const announcement = useScoreAnnouncement(sessionData, breakdown.total);
-
-  const countTone = isDarkMode ? 'text-gray-400' : 'text-gray-600';
+  const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
 
   return (
     <div
-      className={`rounded-2xl border-2 p-4 space-y-3 ${
+      data-breakdown-card
+      className={`rounded-2xl border-2 ${idle ? 'px-4 py-3' : 'p-4'} ${
         isDarkMode ? 'border-gray-700 bg-team-dark' : 'border-gray-200 bg-white'
       }`}
     >
-      {/*
-        A layout that pins this card in a column that scrolls sets
-        `--breakdown-head` to `sticky`: the heading and total then stay at
-        the top of that column, so the running total is never scrolled away.
-        The negative margins let the opaque strip cover the card's padding
-        without moving anything.
-      */}
-      <div
-        className={`top-0 z-10 -mx-4 -mt-4 -mb-3 flex items-center justify-between gap-4 rounded-t-[14px] px-4 pt-4 pb-3 [position:var(--breakdown-head,static)] ${
-          isDarkMode ? 'bg-team-dark' : 'bg-white'
-        }`}
-      >
-        <h2
-          className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-        >
-          Breakdown
-        </h2>
-        <span className="text-3xl font-bold text-team-blue tabular-nums leading-none">
-          {breakdown.total}
-        </span>
-      </div>
       <div className="sr-only" aria-live="polite">
         {announcement}
       </div>
 
-      <div className="space-y-0.5">
-        {rows.map(row => (
-          <div
-            key={row.key}
-            className={`flex items-center justify-between text-sm py-0.5 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}
-          >
-            <span className="shrink-0">{row.label}</span>
-            <span className="flex min-w-0 items-center gap-3 tabular-nums">
-              <span className={`truncate text-xs ${countTone}`}>
-                {row.detail}
-              </span>
-              <span className="w-12 shrink-0 text-right font-semibold text-team-blue">
-                {row.points}
-              </span>
-            </span>
+      {idle ? (
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className={EYEBROW_CLASS}>Ranking Points</h2>
+          <p className={`text-xs ${muted}`}>Fill in as you score</p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {/* One fixed height, with or without the total on it */}
+          <div className="flex h-4 items-baseline justify-between gap-3">
+            <h2 className={EYEBROW_CLASS}>Ranking Points</h2>
+            {showTotal && (
+              <p className={`whitespace-nowrap text-xs leading-4 ${muted}`}>
+                Total{' '}
+                <span className="text-sm font-bold leading-4 tabular-nums text-foreground">
+                  {formatPoints(breakdown.total)}
+                </span>
+              </p>
+            )}
           </div>
-        ))}
-      </div>
-
-      {isScrim && (
-        <div
-          className={`pt-2 border-t flex items-center justify-between text-sm ${
-            isDarkMode
-              ? 'border-gray-700 text-gray-300'
-              : 'border-gray-200 text-gray-700'
-          }`}
-        >
-          <span>{ELEMENT_LABELS.penalties}</span>
-          <span className="flex items-center gap-3 tabular-nums">
-            <span className={`text-xs ${countTone}`}>
-              {countOf(foulCount, 'foul')}
-            </span>
-            <span
-              className={`w-12 text-right font-semibold ${
-                breakdown.penalties > 0
-                  ? isDarkMode
-                    ? 'text-red-400'
-                    : 'text-red-700'
-                  : countTone
+          <RankingPointRows
+            leavePark={breakdown.leave + breakdown.park}
+            tips={sessionData.tipping ?? 0}
+            hasAuto={hasAuto}
+          />
+          {(!hasAuto || isScrim) && (
+            <div
+              className={`space-y-1.5 border-t pt-2.5 ${
+                isDarkMode ? 'border-gray-700' : 'border-gray-200'
               }`}
             >
-              +{breakdown.penalties}
-            </span>
-          </span>
+              {!hasAuto && (
+                <PointsLine label={ELEMENT_LABELS.park}>
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {formatPoints(breakdown.park)}
+                  </span>
+                </PointsLine>
+              )}
+              {isScrim && (
+                <PointsLine label="To opponent">
+                  <span
+                    className={`font-semibold tabular-nums ${
+                      breakdown.penalties > 0
+                        ? isDarkMode
+                          ? 'text-red-400'
+                          : 'text-red-700'
+                        : muted
+                    }`}
+                  >
+                    +{formatPoints(breakdown.penalties)}
+                  </span>
+                </PointsLine>
+              )}
+            </div>
+          )}
         </div>
       )}
-
-      <div
-        className={`pt-3 border-t space-y-2.5 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
-      >
-        <h3
-          className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-        >
-          Ranking Points
-        </h3>
-        <RankingPointRow
-          name="SWARM"
-          value={breakdown.leave + breakdown.park}
-          marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
-          unit="leave + park pts"
-        />
-        <RankingPointRow
-          name="POLLINATOR"
-          value={sessionData.tipping ?? 0}
-          marks={RANKING_POINTS.POLLINATOR_TIPS}
-          unit="tips"
-        />
-      </div>
     </div>
   );
 };
 
 /**
- * The breakdown as one band across the bottom of the desktop scoring pad:
- * the total, points per element (what was counted under them, in words),
- * then ranking points.
- * Same numbers as ScoreBreakdown, laid out across instead of down. Under
- * the `lg` breakpoint the ranking points move up beside the total and the
- * elements take a row of their own.
+ * The band across the bottom of the desktop scoring pad: the match total
+ * and the ranking points. The total's box holds three digits from the
+ * start, so the bars beside it never shift as the score grows. Each
+ * element's points are on its own counter above (Leave and Park on
+ * SWARM's line), and what penalties gave the opponent is beside each
+ * penalty counter, so neither is repeated here.
+ *
+ * Every heading in the band sits on its top line. A match with no AUTO has
+ * no SWARM row: its park points take that half of the band instead, under
+ * a heading of their own.
  */
 export const BreakdownStrip = () => {
   const { sessionData } = useSessionCore();
-  const { scoring } = useScoringLocks();
+  const { scoring, hasAuto } = useScoringLocks();
   const { isDarkMode } = useTheme();
 
   const breakdown = calculateScore(scoring);
-  const items = breakdownItems(scoring);
-  const isScrim = sessionData.sessionType === 'Scrim';
-  const foulCount =
-    (sessionData.minorPenalties ?? 0) + (sessionData.majorPenalties ?? 0);
-
   const announcement = useScoreAnnouncement(sessionData, breakdown.total);
-
-  const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
-  const strong = isDarkMode ? 'text-white' : 'text-gray-900';
-  const foul = isDarkMode ? 'text-red-400' : 'text-red-700';
-
-  // Points are the number; what was counted sits on its own line under
-  // them, so it can't be read as a multiplier. Flowers takes two columns
-  // on a wide screen so "3 pieces + 2 bonus" fits on one line.
-  const cell = (
-    key: string,
-    label: string,
-    points: string,
-    detail: string,
-    tone: string,
-    wide = false
-  ) => (
-    <div
-      key={key}
-      className={`flex min-w-0 flex-col justify-end ${wide ? 'lg:col-span-2' : ''}`}
-    >
-      <dt className={`mb-0.5 text-xs font-semibold leading-4 ${muted}`}>
-        {label}
-      </dt>
-      <dd className="tabular-nums">
-        <span className={`block text-2xl font-semibold leading-8 ${tone}`}>
-          {points}
-          <span className="sr-only"> points</span>
-        </span>
-        <span className={`block min-h-4 truncate text-xs leading-4 ${muted}`}>
-          {detail}
-        </span>
-      </dd>
-    </div>
+  const rows = (
+    <RankingPointRows
+      leavePark={breakdown.leave + breakdown.park}
+      tips={sessionData.tipping ?? 0}
+      hasAuto={hasAuto}
+    />
   );
 
   return (
     <div
       data-tutorial="breakdown"
-      className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-8 gap-y-4 rounded-2xl px-6 py-4 lg:flex lg:gap-8 ${
+      className={`grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-8 rounded-2xl px-6 py-4 ${
         isDarkMode ? 'bg-white/[0.04]' : 'bg-gray-100'
       }`}
     >
@@ -440,55 +386,35 @@ export const BreakdownStrip = () => {
         {announcement}
       </div>
 
-      <div className="shrink-0">
-        <h2 className={`mb-1 text-sm font-semibold ${muted}`}>Total</h2>
+      <div>
+        <h2 className={`mb-1 ${EYEBROW_CLASS}`}>Total</h2>
         <div
           data-breakdown-total
-          className="text-5xl font-bold leading-none tabular-nums text-team-blue"
+          className="min-w-[3ch] text-5xl font-bold leading-none tabular-nums text-foreground"
         >
           {breakdown.total}
         </div>
       </div>
 
-      <dl
-        className={`col-span-2 row-start-2 grid min-w-0 flex-1 gap-x-4 gap-y-3 grid-cols-4 ${
-          isScrim ? 'lg:grid-cols-8' : 'lg:grid-cols-7'
-        }`}
-      >
-        {items.map(item =>
-          cell(
-            item.key,
-            item.label,
-            String(item.points),
-            item.detail,
-            item.points > 0 ? strong : muted,
-            item.key === 'flowers'
-          )
-        )}
-        {isScrim &&
-          cell(
-            'penalties',
-            ELEMENT_LABELS.penalties,
-            `+${breakdown.penalties}`,
-            foulCount > 0 ? countOf(foulCount, 'foul') : '',
-            breakdown.penalties > 0 ? foul : muted
-          )}
-      </dl>
-
-      <div className="col-start-2 row-start-1 min-w-0 space-y-2 lg:w-56 lg:shrink-0">
-        <RankingPointRow
-          name="SWARM"
-          value={breakdown.leave + breakdown.park}
-          marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
-          unit="pts"
-        />
-        <RankingPointRow
-          name="POLLINATOR"
-          value={sessionData.tipping ?? 0}
-          marks={RANKING_POINTS.POLLINATOR_TIPS}
-          unit="tips"
-        />
-      </div>
+      {hasAuto ? (
+        <div className="grid min-w-0 gap-x-8 gap-y-2 lg:grid-cols-2">
+          <h3 className={`${EYEBROW_CLASS} lg:col-span-2`}>Ranking Points</h3>
+          {rows}
+        </div>
+      ) : (
+        <div className="grid min-w-0 gap-x-8 gap-y-3 lg:grid-cols-2">
+          <div className="min-w-0 space-y-2">
+            <h3 className={EYEBROW_CLASS}>Ranking Points</h3>
+            {rows}
+          </div>
+          <div className="min-w-0 space-y-2">
+            <h3 className={EYEBROW_CLASS}>{ELEMENT_LABELS.park}</h3>
+            <p className="text-sm font-semibold tabular-nums text-foreground">
+              {formatPoints(breakdown.park)}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

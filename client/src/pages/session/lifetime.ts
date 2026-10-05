@@ -163,6 +163,23 @@ export const byDateAscending = (a: Session, b: Session): number =>
 export const sessionTitle = (session: Session): string =>
   session.sessionName || 'Unnamed';
 
+/** The order match types are offered in, on Charts and on Compare. */
+export const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
+
+/** The type a match was run as; one saved without its own has its session's. */
+export const matchTypeOf = (match: Match, session: Session): string =>
+  match.matchType || session.matchType || 'Full Game';
+
+/**
+ * A session cut down to its matches of one type, so an Autonomous run is
+ * never averaged in with full games; null when it has none of that type.
+ * The copy is new, so the session it came from is never changed.
+ */
+export const ofMatchType = (session: Session, type: string): Session | null => {
+  const matches = session.matches.filter(m => matchTypeOf(m, session) === type);
+  return matches.length > 0 ? { ...session, matches, matchType: type } : null;
+};
+
 /** Fouls are only recorded against an opponent, so only in a Scrim. */
 export const isScrim = (session: Session): boolean =>
   session.sessionType === 'Scrim';
@@ -181,7 +198,11 @@ export const matchBreakdown = (
       : { ...match, matchType: fallbackMatchType }
   );
 
-const dayOf = (session: Session): string => {
+/**
+ * The day a session was recorded, without the time: 'Sep 25'. What a chart's
+ * axis shows; its tooltip names the session in full (`sessionDateLabels`).
+ */
+export const sessionDay = (session: Session): string => {
   const date = toDate(session.createdAt);
   if (!session.createdAt || isNaN(date.getTime())) return 'Unknown date';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -195,12 +216,12 @@ const dayOf = (session: Session): string => {
 export const sessionDateLabels = (sessions: Session[]): Map<string, string> => {
   const perDay = new Map<string, number>();
   for (const session of sessions) {
-    const day = dayOf(session);
+    const day = sessionDay(session);
     perDay.set(day, (perDay.get(day) ?? 0) + 1);
   }
   return new Map(
     sessions.map(session => {
-      const day = dayOf(session);
+      const day = sessionDay(session);
       if ((perDay.get(day) ?? 0) < 2 || !session.createdAt) {
         return [session.id, day];
       }

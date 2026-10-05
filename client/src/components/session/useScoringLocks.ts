@@ -9,10 +9,12 @@ import { includesAuto, includesTeleop, liveMatchType } from '@/lib';
  *
  * - A saved match opened from the Match Log is final, so nothing about the
  *   clock locks it — not even a later match running underneath it.
+ * - Nothing is entered before Start: no match is open to hold it.
  * - Tipping is counted while the match runs, but not during the 3-2-1.
  * - Flower, hive and garden contents can only be judged once play has
  *   stopped: after the buzzer (End early ends a match there too), or
- *   whenever the clock is paused.
+ *   whenever the clock is paused. The controller pickup is play, not a
+ *   stop, unless it is paused.
  * - A period the match type doesn't run can't be scored at all.
  *
  * Reads the session without its clocks, so the fields it gates are not
@@ -44,6 +46,8 @@ export const useScoringLocks = () => {
     sessionData.matchType === 'Full Game' &&
     isMatchCountdown;
 
+  const entryLocked = !editing && !matchActive && !isTutorialActive;
+
   return {
     editing,
     matchType,
@@ -66,9 +70,16 @@ export const useScoringLocks = () => {
     tippingEnabled: editing || (matchActive && !inCountdown),
     /**
      * No match is open in the fields: before the first Start and between
-     * matches. Tipping waits for Start; everything else can be filled in.
+     * matches.
      */
     awaitingStart: !editing && !matchActive,
+    /**
+     * Robots, End of Match and Scrim penalties wait for Start like Hive Tips
+     * do ('Unlocks at Start'): no match is open to put them in. A saved match
+     * opened for editing, and the walkthrough's practice match, keep them
+     * open.
+     */
+    entryLocked,
     /** The 3-2-1 before a Full Game's AUTO: Start is pressed, play isn't on */
     inCountdown,
     /**
@@ -86,8 +97,20 @@ export const useScoringLocks = () => {
         (matchPhase === 'controller_pickup' && !isPickupPaused)),
     /** True while a live match's clock is counting AUTO or TELEOP down */
     clockRunning: !editing && matchActive && isTimerRunning && !inCountdown,
+    /**
+     * Flower, hive and garden counts, once play has stopped: the buzzer, or a
+     * pause. The 8 s controller pickup stops the clock but not play, so it
+     * keeps them locked unless it is paused too. Before Start they wait with
+     * everything else (`entryLocked`).
+     */
     endOfMatchUnlocked:
-      editing || !matchActive || matchPhase === 'ended' || !isTimerRunning,
+      !entryLocked &&
+      (editing ||
+        !matchActive ||
+        matchPhase === 'ended' ||
+        (matchPhase === 'controller_pickup'
+          ? isPickupPaused
+          : !isTimerRunning)),
     /** End-of-match park can't be known while AUTO is still running. */
     endParkLocked: !editing && matchActive && matchPhase === 'auton',
     hasAuto: includesAuto(matchType),

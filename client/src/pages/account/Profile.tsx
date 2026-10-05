@@ -1,11 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { useAuth, useSessionCore, useTheme, useTeam } from '@/contexts';
+import { useAuth, useTheme, useTeam } from '@/contexts';
 import { getInitials } from '@/lib';
 import { mapAuthError, isWrongPasswordError } from '@/lib/authErrors';
-import { flushPendingDeletes } from '@/lib/pendingSessionDeletes';
-import { describeSignOutLoss } from '@/lib/signOutLoss';
-import { useArmedAfterOpen } from '@/hooks/useArmedAfterOpen';
 import { teamService } from '@/services';
 import { APP_CONFIG, ROUTES } from '@/constants';
 import type { Team, TeamMember } from '@/types';
@@ -20,31 +17,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  User,
-  Mail,
-  Shield,
-  Lock,
-  BadgeCheck,
-  AlertCircle,
-  Trash2,
-  LogOut,
-  Eye,
-  EyeOff,
-  ArrowLeft,
-  Link2,
-  Users,
-} from 'lucide-react';
+  PAGE_TITLE_CLASS,
+  SECTION_TITLE_CLASS,
+} from '@/components/ui/page-header';
+import { BadgeCheck, AlertCircle, Trash2, Eye, EyeOff } from 'lucide-react';
 import { TeamManager } from '@/components/team/TeamManager';
 import { ShareLinks } from './ShareLinks';
 
@@ -57,18 +36,17 @@ const PROVIDER_LABELS: Record<string, string> = {
   password: 'Email & Password',
 };
 
+/** A card with an h2 title (the page's h1 is "Profile") */
 const Section = ({
-  icon: Icon,
   title,
   description,
   children,
   isDarkMode,
   variant = 'default',
 }: {
-  icon: React.ElementType;
   title: string;
-  description?: string;
-  children: React.ReactNode;
+  description?: ReactNode;
+  children: ReactNode;
   isDarkMode: boolean;
   variant?: 'default' | 'danger';
 }) => {
@@ -87,52 +65,29 @@ const Section = ({
           : 'bg-white'
       }`}
     >
-      <CardHeader className="pb-4 px-5 sm:px-6 pt-5 sm:pt-6">
-        <div className="flex items-center gap-3">
-          <div
-            className={`flex items-center justify-center h-9 w-9 shrink-0 rounded-lg ${
-              variant === 'danger'
-                ? 'bg-red-500/10'
-                : isDarkMode
-                  ? 'bg-team-blue/10'
-                  : 'bg-team-blue/5'
+      <CardHeader className="pb-4 px-5 sm:px-6 pt-5 sm:pt-6 space-y-0.5">
+        <CardTitle
+          as="h2"
+          className={`${SECTION_TITLE_CLASS} leading-snug tracking-normal ${
+            variant === 'danger'
+              ? // red-500 is under 4.5:1 on the light background
+                isDarkMode
+                ? 'text-red-400'
+                : 'text-red-700'
+              : ''
+          }`}
+        >
+          {title}
+        </CardTitle>
+        {description && (
+          <CardDescription
+            className={`text-xs ${
+              isDarkMode ? 'text-team-white-60' : 'text-gray-500'
             }`}
           >
-            <Icon
-              size={18}
-              className={
-                variant === 'danger'
-                  ? 'text-red-500'
-                  : 'text-team-blue'
-              }
-            />
-          </div>
-          <div>
-            <CardTitle
-              className={`text-base font-semibold ${
-                variant === 'danger'
-                  ? // red-500 is under 4.5:1 on the light background
-                    isDarkMode
-                    ? 'text-red-400'
-                    : 'text-red-700'
-                  : isDarkMode
-                    ? 'text-white'
-                    : 'text-gray-900'
-              }`}
-            >
-              {title}
-            </CardTitle>
-            {description && (
-              <CardDescription
-                className={`text-xs mt-0.5 ${
-                  isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                }`}
-              >
-                {description}
-              </CardDescription>
-            )}
-          </div>
-        </div>
+            {description}
+          </CardDescription>
+        )}
       </CardHeader>
       <CardContent className="px-5 sm:px-6 pb-5 sm:pb-6 space-y-4">
         {children}
@@ -141,26 +96,98 @@ const Section = ({
   );
 };
 
+/** The small capitals over a field (Display name, Email, Current password…) */
+const fieldLabelClass = (isDarkMode: boolean) =>
+  `text-xs font-medium uppercase tracking-wider ${
+    isDarkMode ? 'text-team-white-60' : 'text-gray-500'
+  }`;
+
 const Field = ({
   label,
+  htmlFor,
   children,
   isDarkMode,
 }: {
   label: string;
-  children: React.ReactNode;
+  /** The input it names, when there is one */
+  htmlFor?: string;
+  children: ReactNode;
   isDarkMode: boolean;
 }) => (
   <div className="space-y-1.5">
-    <Label
-      className={`text-xs font-medium uppercase tracking-wider ${
-        isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-      }`}
-    >
+    <Label htmlFor={htmlFor} className={fieldLabelClass(isDarkMode)}>
       {label}
     </Label>
     {children}
   </div>
 );
+
+/**
+ * A password input with its own show/hide eye. Every password field on the
+ * page has one, so a stack of them lines up.
+ */
+const PasswordInput = ({
+  id,
+  value,
+  onChange,
+  onKeyDown,
+  autoComplete,
+  placeholder,
+  errorId,
+  invalid,
+  autoFocus,
+  isDarkMode,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  autoComplete: 'current-password' | 'new-password';
+  placeholder?: string;
+  /** The id of the error under the field, while it shows one */
+  errorId?: string;
+  invalid?: boolean;
+  autoFocus?: boolean;
+  isDarkMode: boolean;
+}) => {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="relative sm:max-w-sm">
+      <Input
+        id={id}
+        type={shown ? 'text' : 'password'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? errorId : undefined}
+        autoFocus={autoFocus}
+        className="h-10 pr-10"
+      />
+      <button
+        type="button"
+        onClick={() => setShown(!shown)}
+        aria-label={shown ? 'Hide password' : 'Show password'}
+        aria-controls={id}
+        className={`absolute inset-y-0 right-0 w-10 inline-flex items-center justify-center transition-colors ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-gray-400 hover:text-gray-600'}`}
+      >
+        {shown ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Save and Cancel beside an inline field: as tall as the field (h-10, 44px
+ * on a phone like the field), and on their own line, halving it, under
+ * 360px so neither is squeezed.
+ */
+const INLINE_EDIT_ROW = 'flex flex-wrap items-center gap-2';
+const INLINE_EDIT_INPUT =
+  'h-10 min-w-0 w-full min-[360px]:w-auto min-[360px]:flex-1';
+const INLINE_EDIT_BUTTON = 'h-10 px-4 text-sm max-[359px]:flex-1';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -220,7 +247,6 @@ const Profile = () => {
   const {
     user,
     isGuest,
-    logout,
     updateDisplayName,
     updateUserEmail,
     sendVerificationEmail,
@@ -229,7 +255,6 @@ const Profile = () => {
   } = useAuth();
   const { isDarkMode } = useTheme();
   const { team, updateMemberDisplayName } = useTeam();
-  const { sessionData, matchActive } = useSessionCore();
 
   useEffect(() => {
     document.title = `Profile - ${APP_CONFIG.name}`;
@@ -244,7 +269,25 @@ const Profile = () => {
     document.getElementById('team')?.scrollIntoView({ block: 'start' });
   }, [hash, locationKey]);
 
-  const [loading, setLoading] = useState(false);
+  const signedIn = !!user && !isGuest;
+  /**
+   * Signed in at some point while this page was open: signing out (from the
+   * account menu) or deleting the account from here is not "please sign in".
+   */
+  const wasSignedInRef = useRef(signedIn);
+  useEffect(() => {
+    if (signedIn) wasSignedInRef.current = true;
+  }, [signedIn]);
+  // A guest who opens /profile (a bookmark, an old tab) is told once. From
+  // an effect, not while rendering: React may render this several times
+  // before the redirect commits, and the id keeps it to one toast anyway.
+  useEffect(() => {
+    if (signedIn || wasSignedInRef.current) return;
+    toast.error('Please sign in to view your profile', {
+      id: 'profile-needs-account',
+    });
+  }, [signedIn]);
+
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<FieldErrorKey, string>>
   >({});
@@ -263,8 +306,6 @@ const Profile = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const [verificationLoading, setVerificationLoading] = useState(false);
 
@@ -273,29 +314,12 @@ const Profile = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  // The tap that opens the dialog must not land on Sign Out Anyway.
-  const signOutArmed = useArmedAfterOpen(showLogoutConfirm);
-  /** Set while the user is signing out or deleting their account on purpose */
-  const leavingRef = useRef(false);
-
-  // Matches only reach the server when the session is completed; signing out
-  // clears the one in progress, a match that is still being scored included.
-  const signOutLoss = describeSignOutLoss(sessionData, matchActive);
-
   const isPasswordProvider =
     user?.providerId === 'password' || !user?.providerId;
 
   /** Both new-password fields are filled in and disagree (shown as it is typed) */
   const passwordsDiffer =
     !!newPassword && !!confirmPassword && newPassword !== confirmPassword;
-
-  // A toast is in view wherever the page is scrolled to; the banner this
-  // replaces sat at the top of the page, above the fold from Security down.
-  const showMessage = (text: string, type: 'success' | 'error') => {
-    if (type === 'error') toast.error(text);
-    else toast.success(text);
-  };
 
   const setFieldError = (field: FieldErrorKey, text: string) =>
     setFieldErrors(prev => ({ ...prev, [field]: text }));
@@ -309,10 +333,10 @@ const Profile = () => {
     });
 
   /**
-   * Report a failed account change. An error one field caused (the wrong
-   * current password, an email already taken, a weak new password) is also
+   * Report a failed account change, once. An error one field caused (the
+   * wrong current password, an email already taken, a weak new password) is
    * written under that field, where it stays until the field is edited or
-   * the form is sent again.
+   * the form is sent again; anything else is a toast.
    */
   const showAuthError = (
     err: unknown,
@@ -334,37 +358,12 @@ const Profile = () => {
           ? fields.newPassword
           : undefined;
     if (field) setFieldError(field, info.message);
-    showMessage(info.message, 'error');
+    else toast.error(info.message);
   };
 
-  const signOut = async () => {
-    setShowLogoutConfirm(false);
-    try {
-      setLoading(true);
-      leavingRef.current = true;
-      // Session deletes still inside their undo window can only go through
-      // while signed in.
-      try {
-        await flushPendingDeletes();
-      } catch {
-        /* sign out regardless */
-      }
-      await logout();
-      toast.success('Signed out');
-    } catch {
-      leavingRef.current = false;
-      toast.error('Failed to sign out. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    if (signOutLoss) {
-      setShowLogoutConfirm(true);
-      return;
-    }
-    signOut();
+  const cancelNameEdit = () => {
+    setEditingName(false);
+    setNameValue('');
   };
 
   const saveName = async () => {
@@ -374,12 +373,19 @@ const Profile = () => {
       await updateDisplayName(nameValue.trim());
       await updateMemberDisplayName(nameValue.trim());
       setEditingName(false);
-      showMessage('Display name updated', 'success');
+      toast.success('Display name updated');
     } catch (err) {
       showAuthError(err);
     } finally {
       setNameLoading(false);
     }
+  };
+
+  const cancelEmailEdit = () => {
+    setEditingEmail(false);
+    setEmailValue('');
+    setEmailPasswordValue('');
+    clearFieldError('email', 'emailPassword');
   };
 
   const saveEmail = async () => {
@@ -389,7 +395,7 @@ const Profile = () => {
       setEmailLoading(true);
       await updateUserEmail(emailValue.trim(), emailPasswordValue);
       setEditingEmail(false);
-      showMessage('Email updated', 'success');
+      toast.success('Email updated');
     } catch (err) {
       showAuthError(err, { password: 'emailPassword', email: 'email' });
     } finally {
@@ -401,9 +407,8 @@ const Profile = () => {
     try {
       setVerificationLoading(true);
       await sendVerificationEmail();
-      showMessage(
-        'Verification email sent. Check your inbox, then refresh this page.',
-        'success'
+      toast.success(
+        'Verification email sent. Check your inbox, then refresh this page.'
       );
     } catch (err) {
       showAuthError(err);
@@ -412,18 +417,24 @@ const Profile = () => {
     }
   };
 
+  const cancelPasswordEdit = () => {
+    setEditingPassword(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    clearFieldError('currentPassword', 'newPassword');
+  };
+
   const savePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) return;
     clearFieldError('currentPassword', 'newPassword');
-    if (newPassword !== confirmPassword) {
-      // Already said under Confirm new password, as it is typed.
-      showMessage('New passwords do not match.', 'error');
-      return;
-    }
+    // Already said under Confirm new password, as it is typed.
+    if (newPassword !== confirmPassword) return;
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      const text = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
-      setFieldError('newPassword', text);
-      showMessage(text, 'error');
+      setFieldError(
+        'newPassword',
+        `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+      );
       return;
     }
     try {
@@ -433,7 +444,7 @@ const Profile = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      showMessage('Password updated', 'success');
+      toast.success('Password updated');
     } catch (err) {
       showAuthError(err, {
         password: 'currentPassword',
@@ -444,30 +455,34 @@ const Profile = () => {
     }
   };
 
+  const closeDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+    setDeletePassword('');
+    setDeleteConfirmText('');
+    clearFieldError('deletePassword');
+  };
+
   const handleDeleteAccount = async () => {
     clearFieldError('deletePassword');
     try {
       setDeleteLoading(true);
-      leavingRef.current = true;
       await deleteAccount(isPasswordProvider ? deletePassword : undefined);
       toast.success('Your account and data were deleted');
     } catch (err) {
-      leavingRef.current = false;
       showAuthError(err, { password: 'deletePassword' });
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  const guestRedirectToastShown = useRef(false);
-  if (isGuest || !user) {
+  if (!signedIn || !user) {
     // Signed out or deleted from this page: that isn't "please sign in".
-    if (leavingRef.current) return <Navigate to={ROUTES.LOGIN} replace />;
-    if (!guestRedirectToastShown.current) {
-      guestRedirectToastShown.current = true;
-      setTimeout(() => toast.error('Please sign in to view your profile'), 0);
-    }
-    return <Navigate to={ROUTES.SESSIONS} replace />;
+    return (
+      <Navigate
+        to={wasSignedInRef.current ? ROUTES.LOGIN : ROUTES.SESSIONS}
+        replace
+      />
+    );
   }
 
   const providerLabel =
@@ -475,161 +490,88 @@ const Profile = () => {
     user.providerId ||
     'Email & Password';
 
+  const strongText = isDarkMode ? 'text-white' : 'text-gray-900';
+  const mutedText = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
+  const verifiedTone = isDarkMode ? 'text-emerald-400' : 'text-emerald-700';
+  const unverifiedTone = isDarkMode ? 'text-amber-400' : 'text-amber-700';
+  const isOwner = !!team && teamService.ownerOf(team) === user.uid;
+
   return (
+    // flex-1 under the header (main is a flex column), not a second screen
+    // height that scrolls by exactly the header.
     <div
-      className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-8 sm:py-12 px-4 sm:px-6 lg:px-8`}
+      className={`flex-1 ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-6 sm:py-10 px-4 sm:px-6 lg:px-8`}
     >
       <div className="max-w-2xl mx-auto space-y-6">
-        <Link
-          to={ROUTES.SESSIONS}
-          className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
-            isDarkMode ? 'text-team-white-60 hover:text-white' : 'text-gray-500 hover:text-gray-900'
-          }`}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Sessions
-        </Link>
+        <h1 className={PAGE_TITLE_CLASS}>Profile</h1>
 
-        <Card
-          className={`shadow-lg border-2 transition-all duration-300 overflow-hidden ${
-            isDarkMode
-              ? 'bg-team-dark border-team-blue-40'
-              : 'bg-white border-gray-200'
-          }`}
-        >
-          <CardContent className="pt-8 pb-6 px-5 sm:px-6">
-            <div className="flex flex-col sm:flex-row items-center gap-5">
-              <Avatar className="h-20 w-20 ring-2 ring-team-blue/20 ring-offset-2 ring-offset-transparent shadow-lg">
-                <AvatarImage
-                  src={user.photoURL || ''}
-                  alt={user.displayName || ''}
-                />
-                <AvatarFallback
-                  className={`bg-team-blue text-lg font-semibold ${isDarkMode ? '!text-black' : '!text-white'}`}
-                >
-                  {getInitials(user.displayName || user.email || 'User')}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="flex-1 text-center sm:text-left space-y-1">
-                <h1
-                  className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  {user.displayName || 'User'}
-                </h1>
-                <p
-                  className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
-                >
-                  {user.email}
-                </p>
-                <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
-                  <span
-                    className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                      isDarkMode
-                        ? 'bg-team-blue/10 text-team-blue'
-                        : 'bg-team-blue/5 text-team-blue'
-                    }`}
-                  >
-                    <Shield size={11} />
-                    {providerLabel}
-                  </span>
-                  {user.emailVerified ? (
-                    <span
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}
-                    >
-                      <BadgeCheck size={11} />
-                      Verified
-                    </span>
-                  ) : (
-                    <span
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}
-                    >
-                      <AlertCircle size={11} />
-                      Unverified
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                disabled={loading}
-                className={`shrink-0 ${
-                  isDarkMode
-                    ? 'border-team-blue-40 text-team-white-60 hover:text-white'
-                    : ''
-                }`}
-              >
-                <LogOut size={14} />
-                {loading ? 'Signing Out…' : 'Sign Out'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Section
-          icon={User}
-          title="Profile Information"
-          isDarkMode={isDarkMode}
-        >
-          <Field label="Display Name" isDarkMode={isDarkMode}>
+        {/* Who you are, once: the avatar beside the name, Verified as the
+            email's badge. Sign out is in the account menu. */}
+        <Section title="Profile Information" isDarkMode={isDarkMode}>
+          <Field
+            label="Display Name"
+            htmlFor={editingName ? 'profile-display-name' : undefined}
+            isDarkMode={isDarkMode}
+          >
             {editingName ? (
-              <div className="flex gap-2">
+              <div className={INLINE_EDIT_ROW}>
                 <Input
+                  id="profile-display-name"
                   value={nameValue}
                   onChange={e => setNameValue(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter') saveName();
-                    if (e.key === 'Escape') {
-                      setEditingName(false);
-                      setNameValue('');
-                    }
+                    if (e.key === 'Escape') cancelNameEdit();
                   }}
                   autoFocus
                   placeholder="Enter display name"
-                  aria-label="Display name"
                   autoComplete="name"
-                  className="h-10"
+                  className={INLINE_EDIT_INPUT}
                 />
                 <Button
+                  variant="primary"
                   size="sm"
                   disabled={nameLoading || !nameValue.trim()}
                   onClick={saveName}
-                  className={isDarkMode ? 'text-black' : 'text-white'}
+                  className={INLINE_EDIT_BUTTON}
                 >
                   {nameLoading ? 'Saving…' : 'Save'}
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="neutral"
                   size="sm"
-                  onClick={() => {
-                    setEditingName(false);
-                    setNameValue('');
-                  }}
-                  className={
-                    isDarkMode
-                      ? 'border-team-blue-40 text-team-white-60'
-                      : ''
-                  }
+                  onClick={cancelNameEdit}
+                  className={INLINE_EDIT_BUTTON}
                 >
                   Cancel
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user.photoURL || ''} alt="" />
+                  <AvatarFallback
+                    className={`text-sm font-semibold ${
+                      isDarkMode
+                        ? 'bg-team-white-10 text-white'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {getInitials(user.displayName || user.email || 'User')}
+                  </AvatarFallback>
+                </Avatar>
                 <p
-                  className={`text-sm font-medium truncate min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  className={`flex-1 min-w-0 text-sm font-medium break-words [overflow-wrap:anywhere] ${strongText}`}
                 >
                   {user.displayName || (
                     <span className="italic opacity-50">Not set</span>
                   )}
                 </p>
                 <Button
-                  variant="outline"
+                  variant="neutral"
                   size="sm"
                   className="shrink-0"
+                  aria-label="Edit display name"
                   onClick={() => {
                     setNameValue(user?.displayName || '');
                     setEditingName(true);
@@ -641,10 +583,15 @@ const Profile = () => {
             )}
           </Field>
 
-          <Field label="Email Address" isDarkMode={isDarkMode}>
+          <Field
+            label="Email"
+            htmlFor={editingEmail ? 'profile-email' : undefined}
+            isDarkMode={isDarkMode}
+          >
             {editingEmail ? (
               <div className="space-y-3">
                 <Input
+                  id="profile-email"
                   type="email"
                   value={emailValue}
                   onChange={e => {
@@ -652,167 +599,132 @@ const Profile = () => {
                     clearFieldError('email');
                   }}
                   placeholder="New email address"
-                  aria-label="New email address"
                   autoComplete="email"
                   aria-invalid={!!fieldErrors.email || undefined}
                   aria-describedby={
                     fieldErrors.email ? 'profile-email-error' : undefined
                   }
                   autoFocus
-                  className="h-10"
+                  className="h-10 sm:max-w-sm"
                 />
                 {fieldErrors.email && (
                   <FieldError id="profile-email-error" isDarkMode={isDarkMode}>
                     {fieldErrors.email}
                   </FieldError>
                 )}
-                <div className="relative">
-                  <Input
-                    type="password"
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="profile-email-password"
+                    className={fieldLabelClass(isDarkMode)}
+                  >
+                    Current password
+                  </Label>
+                  <PasswordInput
+                    id="profile-email-password"
                     value={emailPasswordValue}
-                    onChange={e => {
-                      setEmailPasswordValue(e.target.value);
+                    onChange={value => {
+                      setEmailPasswordValue(value);
                       clearFieldError('emailPassword');
                     }}
                     onKeyDown={e => {
                       if (e.key === 'Enter') saveEmail();
-                      if (e.key === 'Escape') {
-                        setEditingEmail(false);
-                        setEmailValue('');
-                        setEmailPasswordValue('');
-                      }
+                      if (e.key === 'Escape') cancelEmailEdit();
                     }}
-                    placeholder="Current password to confirm"
-                    aria-label="Current password"
+                    placeholder="To confirm it's you"
                     autoComplete="current-password"
-                    aria-invalid={!!fieldErrors.emailPassword || undefined}
-                    aria-describedby={
-                      fieldErrors.emailPassword
-                        ? 'profile-email-password-error'
-                        : undefined
-                    }
-                    className="h-10"
-                  />
-                </div>
-                {fieldErrors.emailPassword && (
-                  <FieldError
-                    id="profile-email-password-error"
+                    invalid={!!fieldErrors.emailPassword}
+                    errorId="profile-email-password-error"
                     isDarkMode={isDarkMode}
-                  >
-                    {fieldErrors.emailPassword}
-                  </FieldError>
-                )}
-                <div className="flex gap-2">
+                  />
+                  {fieldErrors.emailPassword && (
+                    <FieldError
+                      id="profile-email-password-error"
+                      isDarkMode={isDarkMode}
+                    >
+                      {fieldErrors.emailPassword}
+                    </FieldError>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
                   <Button
+                    variant="primary"
                     size="sm"
                     disabled={
-                      emailLoading ||
-                      !emailValue.trim() ||
-                      !emailPasswordValue
+                      emailLoading || !emailValue.trim() || !emailPasswordValue
                     }
                     onClick={saveEmail}
-                    className={isDarkMode ? 'text-black' : 'text-white'}
+                    className={INLINE_EDIT_BUTTON}
                   >
-                    {emailLoading ? 'Saving…' : 'Save Email'}
+                    {emailLoading ? 'Saving…' : 'Save email'}
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="neutral"
                     size="sm"
-                    onClick={() => {
-                      setEditingEmail(false);
-                      setEmailValue('');
-                      setEmailPasswordValue('');
-                    }}
-                    className={
-                      isDarkMode
-                        ? 'border-team-blue-40 text-team-white-60'
-                        : ''
-                    }
+                    onClick={cancelEmailEdit}
+                    className={INLINE_EDIT_BUTTON}
                   >
                     Cancel
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Mail
-                      size={14}
-                      className={
-                        isDarkMode ? 'text-team-white-40' : 'text-gray-400'
-                      }
-                    />
-                    <p
-                      className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      {user.email}
-                    </p>
-                  </div>
-                  {isPasswordProvider && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEmailValue(user?.email || '');
-                        setEmailPasswordValue('');
-                        setEditingEmail(true);
-                        clearFieldError('email', 'emailPassword');
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                </div>
-
-                {user.emailVerified ? (
-                  <div className="flex items-center gap-1.5">
-                    <BadgeCheck
-                      size={13}
-                      className={
-                        isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
-                      }
-                    />
-                    <span
-                      className={`text-xs font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}
-                    >
-                      Email verified
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-1.5">
-                      <AlertCircle
-                        size={13}
-                        className={
-                          isDarkMode ? 'text-amber-400' : 'text-amber-700'
-                        }
-                      />
-                      <span
-                        className={`text-xs font-medium ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}
-                      >
-                        Not verified
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleSendVerification}
-                      disabled={verificationLoading}
-                      className="text-xs text-team-blue hover:underline disabled:opacity-40 font-medium"
-                    >
-                      {verificationLoading
-                        ? 'Sending…'
-                        : 'Send verification email'}
-                    </button>
-                  </div>
-                )}
-
-                {!isPasswordProvider && (
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0 space-y-1">
                   <p
-                    className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                    className={`text-sm font-medium break-words [overflow-wrap:anywhere] ${strongText}`}
                   >
-                    Email is managed by {providerLabel} and cannot be changed
-                    here.
+                    {user.email}
                   </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
+                    {user.emailVerified ? (
+                      <span
+                        className={`inline-flex items-center gap-1 ${verifiedTone}`}
+                      >
+                        <BadgeCheck aria-hidden="true" size={13} />
+                        Verified
+                      </span>
+                    ) : (
+                      <>
+                        <span
+                          className={`inline-flex items-center gap-1 ${unverifiedTone}`}
+                        >
+                          <AlertCircle aria-hidden="true" size={13} />
+                          Not verified
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleSendVerification}
+                          disabled={verificationLoading}
+                          className="text-team-blue hover:underline disabled:opacity-40"
+                        >
+                          {verificationLoading
+                            ? 'Sending…'
+                            : 'Send verification email'}
+                        </button>
+                      </>
+                    )}
+                    {!isPasswordProvider && (
+                      <span className={`font-normal ${mutedText}`}>
+                        Managed by your {providerLabel} account
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {isPasswordProvider && (
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    className="shrink-0"
+                    aria-label="Edit email"
+                    onClick={() => {
+                      setEmailValue(user?.email || '');
+                      setEmailPasswordValue('');
+                      setEditingEmail(true);
+                      clearFieldError('email', 'emailPassword');
+                    }}
+                  >
+                    Edit
+                  </Button>
                 )}
               </div>
             )}
@@ -821,69 +733,55 @@ const Profile = () => {
 
         <div id="team" className="scroll-mt-24">
           <Section
-            icon={Users}
             title="Team"
             description={
-              team
-                ? `${
-                    teamService.ownerOf(team) === user.uid
-                      ? "You're the owner"
-                      : "You're a member"
-                  } · ${team.members.length} member${team.members.length === 1 ? '' : 's'}`
-                : 'Share sessions with teammates. You can be in one team at a time.'
+              team ? (
+                <>
+                  {isOwner ? "You're the owner" : "You're a member"}
+                  {/* From sm up the team button carries the count */}
+                  <span className="sm:hidden">
+                    {` · ${team.members.length} member${team.members.length === 1 ? '' : 's'}`}
+                  </span>
+                </>
+              ) : (
+                'Share sessions with teammates. You can be in one team at a time.'
+              )
             }
             isDarkMode={isDarkMode}
           >
-            <TeamManager />
+            <TeamManager compact />
           </Section>
         </div>
 
-        <Section
-          icon={Lock}
-          title="Security"
-          isDarkMode={isDarkMode}
-        >
-          {isPasswordProvider ? (
-            <Field label="Password" isDarkMode={isDarkMode}>
-              {editingPassword ? (
-                <div className="space-y-3">
-                  <div className="relative">
-                    <Input
-                      type={showCurrentPassword ? 'text' : 'password'}
-                      value={currentPassword}
-                      onChange={e => {
-                        setCurrentPassword(e.target.value);
-                        clearFieldError('currentPassword');
-                      }}
-                      placeholder="Current password"
-                      aria-label="Current password"
-                      autoComplete="current-password"
-                      aria-invalid={!!fieldErrors.currentPassword || undefined}
-                      aria-describedby={
-                        fieldErrors.currentPassword
-                          ? 'profile-current-password-error'
-                          : undefined
-                      }
-                      autoFocus
-                      className="h-10 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowCurrentPassword(!showCurrentPassword)
-                      }
-                      aria-label={
-                        showCurrentPassword ? 'Hide password' : 'Show password'
-                      }
-                      className={`absolute inset-y-0 right-0 w-10 inline-flex items-center justify-center transition-colors ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      {showCurrentPassword ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </button>
-                  </div>
+        {/* Only a password can be changed here; a Google account's security
+            is Google's, which the email row already says. */}
+        {isPasswordProvider && (
+          <Section title="Security" isDarkMode={isDarkMode}>
+            {editingPassword ? (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="profile-current-password"
+                    className={fieldLabelClass(isDarkMode)}
+                  >
+                    Current password
+                  </Label>
+                  <PasswordInput
+                    id="profile-current-password"
+                    value={currentPassword}
+                    onChange={value => {
+                      setCurrentPassword(value);
+                      clearFieldError('currentPassword');
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') cancelPasswordEdit();
+                    }}
+                    autoComplete="current-password"
+                    invalid={!!fieldErrors.currentPassword}
+                    errorId="profile-current-password-error"
+                    autoFocus
+                    isDarkMode={isDarkMode}
+                  />
                   {fieldErrors.currentPassword && (
                     <FieldError
                       id="profile-current-password-error"
@@ -892,40 +790,30 @@ const Profile = () => {
                       {fieldErrors.currentPassword}
                     </FieldError>
                   )}
-                  <div className="relative">
-                    <Input
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={newPassword}
-                      onChange={e => {
-                        setNewPassword(e.target.value);
-                        clearFieldError('newPassword');
-                      }}
-                      placeholder={`New password (min. ${MIN_PASSWORD_LENGTH} characters)`}
-                      aria-label="New password"
-                      autoComplete="new-password"
-                      aria-invalid={!!fieldErrors.newPassword || undefined}
-                      aria-describedby={
-                        fieldErrors.newPassword
-                          ? 'profile-new-password-error'
-                          : undefined
-                      }
-                      className="h-10 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      aria-label={
-                        showNewPassword ? 'Hide password' : 'Show password'
-                      }
-                      className={`absolute inset-y-0 right-0 w-10 inline-flex items-center justify-center transition-colors ${isDarkMode ? 'text-team-white-40 hover:text-team-blue' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      {showNewPassword ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </button>
-                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="profile-new-password"
+                    className={fieldLabelClass(isDarkMode)}
+                  >
+                    New password
+                  </Label>
+                  <PasswordInput
+                    id="profile-new-password"
+                    value={newPassword}
+                    onChange={value => {
+                      setNewPassword(value);
+                      clearFieldError('newPassword');
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') cancelPasswordEdit();
+                    }}
+                    placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+                    autoComplete="new-password"
+                    invalid={!!fieldErrors.newPassword}
+                    errorId="profile-new-password-error"
+                    isDarkMode={isDarkMode}
+                  />
                   {fieldErrors.newPassword && (
                     <FieldError
                       id="profile-new-password-error"
@@ -934,29 +822,26 @@ const Profile = () => {
                       {fieldErrors.newPassword}
                     </FieldError>
                   )}
-                  <Input
-                    type="password"
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="profile-confirm-password"
+                    className={fieldLabelClass(isDarkMode)}
+                  >
+                    Confirm new password
+                  </Label>
+                  <PasswordInput
+                    id="profile-confirm-password"
                     value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
+                    onChange={setConfirmPassword}
                     onKeyDown={e => {
                       if (e.key === 'Enter') savePassword();
-                      if (e.key === 'Escape') {
-                        setEditingPassword(false);
-                        setCurrentPassword('');
-                        setNewPassword('');
-                        setConfirmPassword('');
-                      }
+                      if (e.key === 'Escape') cancelPasswordEdit();
                     }}
-                    placeholder="Confirm new password"
-                    aria-label="Confirm new password"
                     autoComplete="new-password"
-                    aria-invalid={passwordsDiffer || undefined}
-                    aria-describedby={
-                      passwordsDiffer
-                        ? 'profile-confirm-password-error'
-                        : undefined
-                    }
-                    className="h-10"
+                    invalid={passwordsDiffer}
+                    errorId="profile-confirm-password-error"
+                    isDarkMode={isDarkMode}
                   />
                   {passwordsDiffer && (
                     <FieldError
@@ -966,52 +851,43 @@ const Profile = () => {
                       New passwords do not match.
                     </FieldError>
                   )}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      disabled={
-                        passwordLoading ||
-                        !currentPassword ||
-                        !newPassword ||
-                        !confirmPassword ||
-                        passwordsDiffer
-                      }
-                      onClick={savePassword}
-                      className={isDarkMode ? 'text-black' : 'text-white'}
-                    >
-                      {passwordLoading ? 'Updating…' : 'Update Password'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditingPassword(false);
-                        setCurrentPassword('');
-                        setNewPassword('');
-                        setConfirmPassword('');
-                        setShowCurrentPassword(false);
-                        setShowNewPassword(false);
-                      }}
-                      className={
-                        isDarkMode
-                          ? 'border-team-blue-40 text-team-white-60'
-                          : ''
-                      }
-                    >
-                      Cancel
-                    </Button>
-                  </div>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <p
-                    className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={
+                      passwordLoading ||
+                      !currentPassword ||
+                      !newPassword ||
+                      !confirmPassword ||
+                      passwordsDiffer
+                    }
+                    onClick={savePassword}
+                    className={INLINE_EDIT_BUTTON}
                   >
+                    {passwordLoading ? 'Updating…' : 'Update password'}
+                  </Button>
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    onClick={cancelPasswordEdit}
+                    className={INLINE_EDIT_BUTTON}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Field label="Password" isDarkMode={isDarkMode}>
+                <div className="flex items-center justify-between gap-3">
+                  <p aria-hidden="true" className={`text-sm ${strongText}`}>
                     ••••••••••••
                   </p>
                   <Button
-                    variant="outline"
+                    variant="neutral"
                     size="sm"
+                    aria-label="Change password"
                     onClick={() => {
                       setCurrentPassword('');
                       setNewPassword('');
@@ -1023,28 +899,12 @@ const Profile = () => {
                     Change
                   </Button>
                 </div>
-              )}
-            </Field>
-          ) : (
-            <div
-              className={`flex items-center gap-3 p-3 rounded-lg ${isDarkMode ? 'bg-team-blue/5' : 'bg-gray-50'}`}
-            >
-              <Shield
-                size={16}
-                className={isDarkMode ? 'text-team-white-60' : 'text-gray-400'}
-              />
-              <p
-                className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
-              >
-                Your password is managed by {providerLabel}. Sign in through
-                your {providerLabel} account to manage security settings.
-              </p>
-            </div>
-          )}
-        </Section>
+              </Field>
+            )}
+          </Section>
+        )}
 
         <Section
-          icon={Link2}
           title="Share Links"
           description="Public pages made from sessions. Anyone with a link can open it until it is removed."
           isDarkMode={isDarkMode}
@@ -1052,218 +912,119 @@ const Profile = () => {
           <ShareLinks userId={user.uid} isDarkMode={isDarkMode} />
         </Section>
 
-        <Section
-          icon={Trash2}
-          title="Danger Zone"
-          isDarkMode={isDarkMode}
-          variant="danger"
-        >
-          {showDeleteConfirm ? (
-            <div className="space-y-4">
-              <Alert variant="destructive">
-                <AlertDescription className="space-y-2">
-                  <p>
-                    This deletes your account, every session you recorded
-                    {team
-                      ? ` (including ones shared with ${team.name}, which teammates will no longer see)`
-                      : ''}{' '}
-                    and your share links.
-                  </p>
-                  {team && (
-                    <p className="font-medium">
-                      {describeTeamAfterDelete(team, user.uid)}
-                    </p>
-                  )}
-                  <p>
-                    This cannot be undone.{' '}
-                    {/* A 44px target on a phone (global.css); the negative
-                        margin keeps that from doubling the space under it */}
-                    <Link
-                      to={ROUTES.SESSIONS}
-                      className="inline-flex items-center font-semibold underline underline-offset-2 hover:no-underline [@media(max-width:640px)]:-mb-3"
-                    >
-                      Export sessions (CSV) first
-                    </Link>
-                  </p>
-                </AlertDescription>
-              </Alert>
-
-              {isPasswordProvider && (
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="delete-password"
-                    className={`text-xs font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
-                  >
-                    Confirm your password
-                  </Label>
-                  <Input
-                    id="delete-password"
-                    type="password"
-                    value={deletePassword}
-                    onChange={e => {
-                      setDeletePassword(e.target.value);
-                      clearFieldError('deletePassword');
-                    }}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    aria-invalid={!!fieldErrors.deletePassword || undefined}
-                    aria-describedby={
-                      fieldErrors.deletePassword
-                        ? 'delete-password-error'
-                        : undefined
-                    }
-                    autoFocus
-                    className="h-10"
-                  />
-                  {fieldErrors.deletePassword && (
-                    <FieldError
-                      id="delete-password-error"
-                      isDarkMode={isDarkMode}
-                    >
-                      {fieldErrors.deletePassword}
-                    </FieldError>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="delete-confirm-text"
-                  className={`text-xs font-medium ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
-                >
-                  Type{' '}
-                  <span
-                    className={`font-bold ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}
-                  >
-                    DELETE
-                  </span>{' '}
-                  to confirm
-                </Label>
-                <Input
-                  id="delete-confirm-text"
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={e => setDeleteConfirmText(e.target.value)}
-                  placeholder='Type "DELETE"'
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  className="h-10"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={
-                    deleteLoading ||
-                    deleteConfirmText !== 'DELETE' ||
-                    (isPasswordProvider && !deletePassword)
-                  }
-                  onClick={handleDeleteAccount}
-                >
-                  {deleteLoading ? 'Deleting…' : 'Permanently Delete'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setDeletePassword('');
-                    setDeleteConfirmText('');
-                    clearFieldError('deletePassword');
-                  }}
-                  className={
-                    isDarkMode
-                      ? 'border-team-blue-40 text-team-white-60'
-                      : ''
-                  }
-                >
-                  Cancel
-                </Button>
-              </div>
+        <Section title="Danger Zone" isDarkMode={isDarkMode} variant="danger">
+          {/* The button never shrinks below its label; on the narrowest
+              phones it drops under the text instead of squeezing it. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+            <div className="min-w-0 flex-1 basis-44">
+              <p className={`text-sm font-medium ${strongText}`}>
+                Delete your account
+              </p>
+              <p className={`text-xs mt-0.5 ${mutedText}`}>
+                Permanently remove your account, sessions and share links
+              </p>
             </div>
-          ) : (
-            // The button never shrinks below its label; on the narrowest
-            // phones it drops under the text instead of squeezing it.
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-              <div className="min-w-0 flex-1 basis-44">
-                <p
-                  className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                >
-                  Delete your account
-                </p>
-                <p
-                  className={`text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-                >
-                  Permanently remove your account, sessions and share links
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`shrink-0 whitespace-nowrap border-red-500/40 hover:bg-red-500/10 hover:border-red-500/60 ${
-                  isDarkMode
-                    ? 'text-red-400 hover:text-red-300'
-                    : 'text-red-700 hover:text-red-800'
-                }`}
-                onClick={() => {
-                  setShowDeleteConfirm(true);
-                  clearFieldError('deletePassword');
-                }}
-              >
-                Delete Account
-              </Button>
-            </div>
-          )}
+            <Button
+              variant="dangerOutline"
+              size="sm"
+              className="shrink-0 whitespace-nowrap"
+              onClick={() => {
+                clearFieldError('deletePassword');
+                setShowDeleteConfirm(true);
+              }}
+            >
+              Delete account
+            </Button>
+          </div>
         </Section>
       </div>
 
-      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <DialogContent
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="logout-confirm-title"
-          className={`max-w-md ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
-        >
-          <DialogHeader
-            className={isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}
-          >
-            <DialogTitle
-              id="logout-confirm-title"
-              className={isDarkMode ? 'text-white' : 'text-gray-900'}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={open => {
+          if (!open) closeDeleteConfirm();
+        }}
+        title="Delete your account?"
+        description="Your account, every session you recorded and your share links are deleted for good."
+        confirmLabel="Delete account"
+        icon={Trash2}
+        busy={deleteLoading}
+        confirmDisabled={
+          deleteConfirmText !== 'DELETE' ||
+          (isPasswordProvider && !deletePassword)
+        }
+        onConfirm={() => void handleDeleteAccount()}
+      >
+        <div className="space-y-4">
+          <p className={`text-sm ${mutedText}`}>
+            {team && (
+              <>
+                Your teammates lose the sessions you shared.{' '}
+                {describeTeamAfterDelete(team, user.uid)}{' '}
+              </>
+            )}
+            {/* A 44px target on a phone (global.css); the negative margin
+                keeps that from doubling the line's height */}
+            <Link
+              to={ROUTES.SESSIONS}
+              className="inline-flex items-center font-semibold text-team-blue underline underline-offset-2 hover:no-underline [@media(max-width:640px)]:-my-3"
             >
-              Sign out and lose this session?
-            </DialogTitle>
-            <DialogDescription
-              className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
+              Export sessions (CSV) first
+            </Link>
+          </p>
+
+          {isPasswordProvider && (
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="delete-password"
+                className={fieldLabelClass(isDarkMode)}
+              >
+                Your password
+              </Label>
+              <PasswordInput
+                id="delete-password"
+                value={deletePassword}
+                onChange={value => {
+                  setDeletePassword(value);
+                  clearFieldError('deletePassword');
+                }}
+                autoComplete="current-password"
+                invalid={!!fieldErrors.deletePassword}
+                errorId="delete-password-error"
+                isDarkMode={isDarkMode}
+              />
+              {fieldErrors.deletePassword && (
+                <FieldError id="delete-password-error" isDarkMode={isDarkMode}>
+                  {fieldErrors.deletePassword}
+                </FieldError>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label
+              htmlFor="delete-confirm-text"
+              className={fieldLabelClass(isDarkMode)}
             >
-              {signOutLoss}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowLogoutConfirm(false)}
-              className={
-                isDarkMode ? 'border-team-blue-40 text-team-white-60' : ''
-              }
-            >
-              Stay Signed In
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                if (signOutArmed()) signOut();
-              }}
-            >
-              Sign Out Anyway
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              Type{' '}
+              <span className={isDarkMode ? 'text-red-400' : 'text-red-700'}>
+                DELETE
+              </span>{' '}
+              to confirm
+            </Label>
+            <Input
+              id="delete-confirm-text"
+              type="text"
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              placeholder='Type "DELETE"'
+              autoComplete="off"
+              autoCapitalize="characters"
+              className="h-10"
+            />
+          </div>
+        </div>
+      </ConfirmDialog>
     </div>
   );
 };

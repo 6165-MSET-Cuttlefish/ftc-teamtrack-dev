@@ -1,6 +1,8 @@
 import { useState, useEffect, useId, useRef, memo } from 'react';
 import { Info, Lock, Minus, Plus } from 'lucide-react';
 import { useTheme } from '@/contexts';
+import { formatPoints } from '@/lib/points';
+import { INFO_BUTTON_CLASS, LOCKED_TEXT } from './EndOfMatchParts';
 
 interface ScoreFieldProps {
   label: string;
@@ -32,6 +34,12 @@ interface ScoreFieldProps {
   max?: number;
   /** Render larger, for the scoring fields on the active-session page */
   size?: 'default' | 'large';
+  /**
+   * Classes for the visible label (size, weight, leading) in place of the
+   * ones `size` and `layout` pick, for a field under section headings in a
+   * dialog. Not used by `segment`, whose label is already small.
+   */
+  labelClassName?: string;
   /**
    * `stacked` puts the stepper under the label on a phone, so two fields fit
    * side by side. `compact` keeps one row on a phone by moving the points
@@ -117,6 +125,7 @@ export const ScoreField = memo(
     disabled = false,
     max = 999,
     size = 'default',
+    labelClassName,
     layout = 'row',
     hint,
     info,
@@ -134,6 +143,7 @@ export const ScoreField = memo(
     const hintId = useId();
     const reasonId = useId();
     const opponentId = useId();
+    const infoId = useId();
     const [showInfo, setShowInfo] = useState(false);
     /** Text typed but not yet committed; null when nothing is being edited */
     const [draft, setDraft] = useState<string | null>(null);
@@ -158,6 +168,9 @@ export const ScoreField = memo(
     const [draftBase, setDraftBase] = useState({ value, resetKey });
     if (draftBase.value !== value || draftBase.resetKey !== resetKey) {
       if (isLive && draftBase.value !== value) setLiveChanges(n => n + 1);
+      // A new record (the match was saved or a new one started) closes the
+      // rule, as the counters' own (i) rules close.
+      if (draftBase.resetKey !== resetKey) setShowInfo(false);
       setDraftBase({ value, resetKey });
       setDraft(null);
     } else if ((disabled || isLive) && draft !== null) {
@@ -268,8 +281,14 @@ export const ScoreField = memo(
         ? 'w-12 h-12'
         : 'w-10 h-10';
     const stepIconSize = isLarge || isStacked ? 20 : 16;
-    const lockedTone =
-      'opacity-40 cursor-not-allowed border-gray-400 bg-gray-200 dark:border-gray-700 dark:bg-gray-800';
+    // The one locked tone, as on the robot toggles and the desktop pad's
+    // steppers: a faint box and muted text that still reads (over 3:1).
+    // Also a button at its limit (− at 0): it can't be used either.
+    const lockedTone = `cursor-not-allowed ${LOCKED_TEXT} ${
+      isDarkMode
+        ? 'border-white/10 bg-white/[0.02]'
+        : 'border-gray-300 bg-gray-100'
+    }`;
     // `touch-manipulation`: a quick second tap is a second count, not a
     // double-tap zoom.
     const stepBtnClass = (atLimit: boolean) =>
@@ -303,10 +322,9 @@ export const ScoreField = memo(
               }`
       }`;
 
+    // Locked: the one locked tone the end-of-match headings use too.
     const labelTone = disabled
-      ? isDarkMode
-        ? 'text-gray-600'
-        : 'text-gray-500'
+      ? LOCKED_TEXT
       : isDarkMode
         ? 'text-gray-200'
         : 'text-gray-800';
@@ -314,13 +332,14 @@ export const ScoreField = memo(
     // red-400 is unreadable on the light background
     const foulTone = isDarkMode ? 'text-red-400' : 'text-red-700';
 
+    // Points are data: the text colour, never the accent.
     const pointsTone = disabled
-      ? isDarkMode
-        ? 'text-gray-600'
-        : 'text-gray-500'
+      ? LOCKED_TEXT
       : points !== undefined && points < 0
         ? foulTone
-        : 'text-team-blue';
+        : isDarkMode
+          ? 'text-gray-100'
+          : 'text-gray-900';
 
     const pointsWidth = isLarge ? 'w-12 md:w-16' : 'w-16';
 
@@ -416,9 +435,11 @@ export const ScoreField = memo(
 
     if (layout === 'segment') {
       // Buttons inside the joined control: no box of their own, a tint on
-      // hover and a small press so the tap is felt. 44px wide and tall.
+      // hover and a small press so the tap is felt. 44px wide and tall. The
+      // control clips its children to its rounded edge, so the focus ring
+      // is drawn inside the button, where nothing can cut it off.
       const segBtnClass = (atLimit: boolean) =>
-        `flex w-11 shrink-0 items-center justify-center touch-manipulation transition-[background-color,transform] duration-150 ease-out active:scale-[0.94] ${
+        `flex w-11 shrink-0 items-center justify-center touch-manipulation transition-[background-color,transform] duration-150 ease-out active:scale-[0.94] focus-visible:rounded-[10px] focus-visible:outline-offset-[-3px] ${
           disabled || atLimit
             ? isDarkMode
               ? 'cursor-not-allowed text-white/25'
@@ -440,12 +461,11 @@ export const ScoreField = memo(
                 {info && (
                   <button
                     type="button"
-                    title={info}
                     aria-label={`About ${a11yName}`}
                     aria-expanded={showInfo}
+                    aria-controls={showInfo ? infoId : undefined}
                     onClick={() => setShowInfo(v => !v)}
-                    // 44px under a finger, without making the line taller
-                    className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors [@media(pointer:coarse)]:-mx-3 [@media(pointer:coarse)]:-my-3 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
+                    className={`${INFO_BUTTON_CLASS} ${
                       isDarkMode
                         ? 'text-gray-400 hover:text-team-blue'
                         : 'text-gray-500 hover:text-team-blue'
@@ -459,7 +479,7 @@ export const ScoreField = memo(
                 <span
                   className={`shrink-0 text-xs font-semibold tabular-nums ${pointsTone}`}
                 >
-                  {points} pts
+                  {formatPoints(points)}
                 </span>
               ) : (
                 opponentPoints !== undefined && (
@@ -500,8 +520,10 @@ export const ScoreField = memo(
                 <Minus size={18} />
               </button>
             )}
+            {/* Focused, the number's own segment takes a tint of the accent,
+                so it is told apart from a focused − or + */}
             {renderInput(
-              `h-full w-full min-w-0 rounded-none bg-transparent text-center text-lg font-semibold tabular-nums focus:outline-none ${
+              `h-full w-full min-w-0 rounded-none bg-transparent text-center text-lg font-semibold tabular-nums focus:outline-none focus-visible:bg-team-blue/15 ${
                 stepper ? 'border-x' : ''
               } ${
                 isDarkMode
@@ -526,6 +548,7 @@ export const ScoreField = memo(
           </div>
           {info && showInfo && (
             <p
+              id={infoId}
               className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
             >
               {info}
@@ -556,24 +579,26 @@ export const ScoreField = memo(
                     : 'flex-1'
               }`}
             >
-              <div className={`font-semibold ${labelSize} ${labelTone}`}>
+              <div
+                className={`${labelClassName ?? `font-semibold ${labelSize}`} ${labelTone}`}
+              >
                 <span className="inline-flex items-center gap-1.5">
                   {icon}
                   {label}
                   {info && (
                     <button
                       type="button"
-                      title={info}
                       aria-label={`About ${a11yName}`}
                       aria-expanded={showInfo}
+                      aria-controls={showInfo ? infoId : undefined}
                       onClick={() => setShowInfo(v => !v)}
-                      className={`inline-flex items-center justify-center rounded-full p-0.5 transition-colors ${
+                      className={`${INFO_BUTTON_CLASS} ${
                         isDarkMode
                           ? 'text-gray-400 hover:text-team-blue'
                           : 'text-gray-500 hover:text-team-blue'
                       }`}
                     >
-                      <Info size={16} />
+                      <Info size={14} />
                     </button>
                   )}
                 </span>
@@ -595,7 +620,7 @@ export const ScoreField = memo(
                       pointsUnderOnNarrow ? 'min-[360px]:hidden' : 'md:hidden'
                     } ${pointsTone}`}
                   >
-                    {points} pts
+                    {formatPoints(points)}
                   </div>
                 )}
             </div>
@@ -692,7 +717,7 @@ export const ScoreField = memo(
                     : ''
               } ${pointsTone}`}
             >
-              {points} pts
+              {formatPoints(points)}
             </div>
           ) : (
             opponentPoints !== undefined && (
@@ -709,7 +734,7 @@ export const ScoreField = memo(
         {showLockedReason && (
           <p
             id={reasonId}
-            className={`flex items-center gap-1.5 text-xs ${mutedTone}`}
+            className={`flex items-center gap-1.5 text-xs text-balance ${mutedTone}`}
           >
             <Lock size={12} aria-hidden className="shrink-0" />
             {lockedReason}
@@ -722,6 +747,7 @@ export const ScoreField = memo(
         )}
         {info && showInfo && (
           <p
+            id={infoId}
             className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
           >
             {info}

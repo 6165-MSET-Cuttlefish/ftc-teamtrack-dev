@@ -1,23 +1,18 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useTeam, useTheme } from '@/contexts';
 import { firebaseService, teamService } from '@/services';
 import { ROUTES, APP_CONFIG, STORAGE_KEYS } from '@/constants';
 import { clearPendingInvite } from '@/lib/pendingInvite';
-import {
-  Users,
-  Check,
-  AlertCircle,
-  Share2,
-  CheckSquare,
-  Square,
-  TriangleAlert,
-} from 'lucide-react';
+import { Users, Check, AlertCircle, Share2, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { sessionSummary } from '@/components/team/sessionSummary';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
+import { ShareSessionsPicker } from '@/components/team/ShareSessionsPicker';
 import { toast } from 'sonner';
 import type { Session } from '@/types';
 import { logger } from '@/lib';
+import { isArchived } from '@/lib/sessionFilters';
 
 const plural = (count: number, noun: string) =>
   `${count} ${noun}${count !== 1 ? 's' : ''}`;
@@ -43,6 +38,8 @@ const JoinTeam = () => {
   const [loadingShareable, setLoadingShareable] = useState(false);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [resolvedCode, setResolvedCode] = useState<string>('');
+  /** Asking whether to leave the current team for the invited one */
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
 
   useEffect(() => {
     document.title = `Join Team - ${APP_CONFIG.name}`;
@@ -107,7 +104,10 @@ const JoinTeam = () => {
     setLoadingShareable(true);
     try {
       const allSessions = await firebaseService.getUserSessions(user.uid);
-      const shareable = allSessions.filter(s => s.teamId !== forTeamId);
+      // Archived sessions are put away: not offered for sharing.
+      const shareable = allSessions.filter(
+        s => s.teamId !== forTeamId && !isArchived(s)
+      );
       setShareableSessions(shareable as Session[]);
       setSelectedSessionIds(new Set(shareable.map(s => s.id)));
     } catch (err) {
@@ -206,138 +206,96 @@ const JoinTeam = () => {
       ? teamService.leaveOutcome(currentTeam, user.uid)
       : null;
 
-  const quietButton = isDarkMode
-    ? 'border-team-blue-40 text-team-white-60 hover:bg-team-dark'
-    : 'border-gray-200 text-gray-600 hover:bg-gray-50';
   const primaryButton = `bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`;
-  const heading = `text-xl font-bold mb-2 break-words ${
-    isDarkMode ? 'text-white' : 'text-team-blue'
-  }`;
+  /** The card is the page: its title is the page's h1 */
+  const heading = `${PAGE_TITLE_CLASS} mb-2 text-balance`;
   const hasShareable = !!shareableSessions && shareableSessions.length > 0;
 
+  /** Matches the team dialog's share step: same picker, same words */
   const sharePanel = hasShareable && (
-    <div
-      className={`rounded-xl border p-4 mb-4 text-left ${
-        isDarkMode
-          ? 'bg-team-dark border-team-blue-40'
-          : 'bg-gray-50 border-gray-200'
-      }`}
-    >
+    <div className="mb-6 text-left">
       <p
-        className={`text-sm mb-3 ${
+        className={`text-sm mb-2 ${
           isDarkMode ? 'text-team-white-60' : 'text-gray-600'
         }`}
       >
-        Share your <strong>{plural(shareableSessions.length, 'session')}</strong>{' '}
-        with <strong>{teamName}</strong>? Teammates see them with notes, and
-        they stay with the team if you leave. The rest stay private.
+        Share your{' '}
+        <strong>{plural(shareableSessions.length, 'session')}</strong> with{' '}
+        <strong>{teamName}</strong>? Teammates see shared sessions with their
+        notes, and they stay with the team if you leave.
       </p>
-
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={selectedSessionIds.size === shareableSessions.length}
-        onClick={() => {
-          if (selectedSessionIds.size === shareableSessions.length) {
-            setSelectedSessionIds(new Set());
-          } else {
-            setSelectedSessionIds(new Set(shareableSessions.map(s => s.id)));
-          }
-        }}
-        className={`flex items-center justify-start gap-2 text-xs font-medium mb-2 [@media(pointer:coarse)]:min-h-11 ${
-          isDarkMode ? 'text-team-blue-60 hover:text-team-blue' : 'text-team-blue hover:text-team-blue/80'
-        }`}
-      >
-        {selectedSessionIds.size === shareableSessions.length ? (
-          <CheckSquare className="h-4 w-4" />
-        ) : (
-          <Square className="h-4 w-4" />
-        )}
-        {selectedSessionIds.size === shareableSessions.length ? 'Deselect All' : 'Select All'}
-      </button>
-
-      {/* Short enough to keep "Go to Sessions" in view under the panel */}
-      <div className="max-h-40 overflow-y-auto space-y-1 mb-3">
-        {shareableSessions.map(session => {
-          const isSelected = selectedSessionIds.has(session.id);
-          return (
-            <button
-              key={session.id}
-              type="button"
-              role="checkbox"
-              aria-checked={isSelected}
-              onClick={() => {
-                setSelectedSessionIds(prev => {
-                  const next = new Set(prev);
-                  if (next.has(session.id)) {
-                    next.delete(session.id);
-                  } else {
-                    next.add(session.id);
-                  }
-                  return next;
-                });
-              }}
-              className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                isDarkMode
-                  ? isSelected
-                    ? 'bg-team-blue/15 text-white'
-                    : 'text-team-white-60 hover:bg-team-dark-20'
-                  : isSelected
-                    ? 'bg-team-blue/10 text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {isSelected ? (
-                <CheckSquare className="h-4 w-4 shrink-0 text-team-blue" />
-              ) : (
-                <Square className={`h-4 w-4 shrink-0 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`} />
-              )}
-              <span className="flex-1 min-w-0">
-                <span className="block truncate font-medium">
-                  {session.sessionName || 'Untitled Session'}
-                </span>
-                <span
-                  className={`block truncate text-xs ${
-                    isDarkMode ? 'text-team-white-60' : 'text-gray-500'
-                  }`}
-                >
-                  {sessionSummary(session)}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <Button
-        onClick={handleShare}
-        disabled={sharing || selectedSessionIds.size === 0}
-        className={`w-full ${primaryButton}`}
-      >
-        {selectedSessionIds.size > 0 && <Share2 className="h-4 w-4" />}
-        {sharing
-          ? 'Sharing...'
-          : selectedSessionIds.size === 0
-            ? 'Select sessions to share'
-            : `Share ${plural(selectedSessionIds.size, 'session')}`}
-      </Button>
+      <ShareSessionsPicker
+        sessions={shareableSessions}
+        selected={selectedSessionIds}
+        onChange={setSelectedSessionIds}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 
-  /** One filled button per card: Sessions steps back while there is sharing to do */
-  const sessionsButton = (
-    <Button
-      onClick={goToSessions}
-      variant={hasShareable ? 'outline' : 'default'}
-      className={hasShareable ? quietButton : primaryButton}
-    >
-      Go to Sessions
-    </Button>
+  /**
+   * A card's buttons: side by side from `sm` up, the main one last; stacked
+   * full width on a phone with the main one on top.
+   */
+  const buttonRow = 'flex flex-col-reverse gap-3 sm:flex-row sm:justify-center';
+  const rowButton = 'w-full sm:w-auto';
+
+  /**
+   * While there is sharing to do: Not now (to Sessions) and Share. Otherwise
+   * one filled Go to Sessions. One filled button per card either way.
+   */
+  const finishButtons = (extra?: ReactNode) => (
+    <div className={buttonRow}>
+      {hasShareable ? (
+        <>
+          <Button
+            onClick={goToSessions}
+            variant="neutral"
+            className={rowButton}
+          >
+            Not now
+          </Button>
+          <Button
+            onClick={handleShare}
+            disabled={sharing || selectedSessionIds.size === 0}
+            className={`${rowButton} ${primaryButton}`}
+          >
+            {selectedSessionIds.size > 0 && <Share2 className="h-4 w-4" />}
+            {sharing
+              ? 'Sharing...'
+              : selectedSessionIds.size === 0
+                ? 'Select sessions to share'
+                : `Share ${plural(selectedSessionIds.size, 'session')}`}
+          </Button>
+        </>
+      ) : (
+        <>
+          {extra}
+          <Button
+            onClick={goToSessions}
+            className={`${rowButton} ${primaryButton}`}
+          >
+            Go to Sessions
+          </Button>
+        </>
+      )}
+    </div>
   );
 
+  /** What leaving the current team for this one does to it, in one sentence */
+  const switchConsequence = !currentTeam
+    ? ''
+    : leaveEffect?.kind === 'deleted'
+      ? `You're its only member, so ${currentTeam.name} and its invite link are deleted.`
+      : leaveEffect?.kind === 'handed-over'
+        ? `${leaveEffect.newOwner.displayName || leaveEffect.newOwner.email} becomes the owner of ${currentTeam.name}, and sessions you shared there stay with it.`
+        : `Sessions you shared with ${currentTeam.name} stay with that team.`;
+
   return (
+    // flex-1 under the header (main is a flex column), not a second screen
+    // height; on a phone the card starts at the top instead of mid-screen.
     <div
-      className={`min-h-[100dvh] flex items-center justify-center px-4 py-6 ${
+      className={`flex-1 flex items-start sm:items-center justify-center px-4 py-6 ${
         isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
       }`}
     >
@@ -351,15 +309,11 @@ const JoinTeam = () => {
         {(view === 'loading' || view === 'joining') && (
           <>
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
-              <div className="h-8 w-8 border-3 border-team-blue border-t-transparent rounded-full animate-spin" />
+              <div className="h-8 w-8 border-[3px] border-team-blue border-t-transparent rounded-full animate-spin" />
             </div>
-            <h2
-              className={`text-xl font-bold mb-2 ${
-                isDarkMode ? 'text-white' : 'text-team-blue'
-              }`}
-            >
-              {view === 'joining' ? 'Joining Team...' : 'Looking up team...'}
-            </h2>
+            <h1 className={heading}>
+              {view === 'joining' ? 'Joining team...' : 'Looking up team...'}
+            </h1>
             <p className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
               {view === 'joining' ? 'Please wait while we add you to the team.' : 'Verifying invite code...'}
             </p>
@@ -371,7 +325,7 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
               <Users className="h-8 w-8 text-team-blue" />
             </div>
-            <h2 className={heading}>You're already in {teamName}</h2>
+            <h1 className={heading}>You're already in {teamName}</h1>
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
               This invite is for the team you're in, so there's nothing to
               join.
@@ -389,92 +343,37 @@ const JoinTeam = () => {
                 All your sessions are already shared with {teamName}.
               </p>
             )}
-            <div className="flex gap-3 justify-center flex-wrap">
-              {sessionsButton}
-              {shareableSessions === null && (
+            {finishButtons(
+              shareableSessions === null && (
                 <Button
                   onClick={() => loadShareable(teamId)}
                   disabled={loadingShareable}
-                  variant="outline"
-                  className={quietButton}
+                  variant="neutral"
+                  className={rowButton}
                 >
                   <Share2 className="h-4 w-4" />
                   {loadingShareable ? 'Loading...' : 'Share more sessions'}
                 </Button>
-              )}
-            </div>
+              )
+            )}
           </>
         )}
 
-        {view === 'preview' && currentTeam && (
-          <>
-            <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center mb-6">
-              <TriangleAlert className="h-8 w-8 text-amber-500" />
-            </div>
-            <h2 className={heading}>Join {teamName}?</h2>
-            <p className={`mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
-              You can be in one team at a time.
-            </p>
-            <div
-              className={`mb-6 text-sm text-left rounded-lg border px-4 py-3 space-y-2 break-words ${
-                isDarkMode
-                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-200'
-                  : 'bg-amber-50 border-amber-300 text-amber-900'
-              }`}
-            >
-              <p>
-                You're in <strong>{currentTeam.name}</strong>. Joining{' '}
-                <strong>{teamName}</strong> removes you from it; sessions you
-                shared there stay with that team.
-              </p>
-              {leaveEffect?.kind === 'handed-over' && (
-                <p>
-                  You own {currentTeam.name}:{' '}
-                  {leaveEffect.newOwner.displayName || leaveEffect.newOwner.email}{' '}
-                  will become its owner.
-                </p>
-              )}
-              {leaveEffect?.kind === 'deleted' && (
-                <p>
-                  You're the only member of {currentTeam.name}, so leaving
-                  deletes that team and its invite link.
-                </p>
-              )}
-              <p>
-                Sessions you record from now on are saved to {teamName} and
-                visible to teammates.
-              </p>
-            </div>
-            {/* Stacked: both labels carry a team name and rarely fit side by side */}
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={goToSessions}
-                variant="outline"
-                className={`h-auto min-h-10 [@media(pointer:coarse)]:min-h-11 whitespace-normal ${quietButton}`}
-              >
-                Stay in {currentTeam.name}
-              </Button>
-              <Button
-                onClick={() => handleJoin(true)}
-                className={`h-auto min-h-10 [@media(pointer:coarse)]:min-h-11 whitespace-normal ${primaryButton}`}
-              >
-                Leave and join {teamName}
-              </Button>
-            </div>
-          </>
-        )}
-
-        {view === 'preview' && !team && (
+        {/* The same invite whether or not the user is in another team; in
+            one, Join asks before taking them out of it. */}
+        {view === 'preview' && !alreadyMember && (
           <>
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
               <Users className="h-8 w-8 text-team-blue" />
             </div>
-            <h2 className={heading}>Join {teamName}?</h2>
+            <h1 className={heading}>Join {teamName}?</h1>
             <p className={`mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
               You've been invited to join this team.
             </p>
+            {/* Bullets hang outside the text (pl-9 = the box's own 16px plus
+                20px for the marker), so wrapped lines line up with the first */}
             <ul
-              className={`mb-6 text-sm text-left rounded-lg px-4 py-3 space-y-1.5 list-disc list-inside ${
+              className={`mb-6 text-sm text-left rounded-lg pl-9 pr-4 py-3 space-y-1.5 list-disc break-words ${
                 isDarkMode
                   ? 'bg-team-blue/10 text-team-white-60'
                   : 'bg-team-blue/5 text-gray-600'
@@ -484,22 +383,31 @@ const JoinTeam = () => {
                 Sessions you record from now on are saved to this team and
                 visible to teammates.
               </li>
-              <li>You can be in one team at a time.</li>
+              {currentTeam ? (
+                <li>
+                  You can be in one team at a time, so joining takes you out of{' '}
+                  <strong>{currentTeam.name}</strong>.
+                </li>
+              ) : (
+                <li>You can be in one team at a time.</li>
+              )}
             </ul>
-            <div className="flex gap-3 justify-center flex-wrap">
+            <div className={buttonRow}>
               <Button
                 onClick={goToSessions}
-                variant="outline"
-                className={quietButton}
+                variant="neutral"
+                className={rowButton}
               >
                 Cancel
               </Button>
               <Button
-                onClick={() => handleJoin(false)}
-                className={primaryButton}
+                onClick={() =>
+                  currentTeam ? setConfirmSwitch(true) : handleJoin(false)
+                }
+                className={`${rowButton} ${primaryButton}`}
               >
                 <Users className="h-4 w-4" />
-                Join Team
+                Join team
               </Button>
             </div>
           </>
@@ -507,8 +415,8 @@ const JoinTeam = () => {
 
         {view === 'success' && (
           <>
-            {/* Smaller while there is sharing to do, so that "Go to
-                Sessions" stays in view under the list */}
+            {/* Smaller while there is sharing to do, so that the buttons
+                stay in view under the list */}
             <div
               className={`mx-auto rounded-full bg-green-500/15 flex items-center justify-center ${
                 hasShareable ? 'w-12 h-12 mb-4' : 'w-16 h-16 mb-6'
@@ -518,7 +426,7 @@ const JoinTeam = () => {
                 className={`text-green-500 ${hasShareable ? 'h-6 w-6' : 'h-8 w-8'}`}
               />
             </div>
-            <h2 className={heading}>Welcome to {teamName}!</h2>
+            <h1 className={heading}>Welcome to {teamName}!</h1>
             <p
               className={`${hasShareable ? 'mb-4' : 'mb-6'} ${
                 isDarkMode ? 'text-team-white-60' : 'text-gray-500'
@@ -543,7 +451,7 @@ const JoinTeam = () => {
 
             {sharePanel}
 
-            {sessionsButton}
+            {finishButtons()}
           </>
         )}
 
@@ -552,21 +460,15 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-red-500/15 flex items-center justify-center mb-6">
               <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
-            <h2
-              className={`text-xl font-bold mb-2 ${
-                isDarkMode ? 'text-white' : 'text-team-blue'
-              }`}
-            >
-              Unable to Join
-            </h2>
+            <h1 className={heading}>Unable to Join</h1>
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
               {errorMessage}
             </p>
-            <div className="flex gap-3 justify-center flex-wrap">
+            <div className={buttonRow}>
               <Button
                 onClick={() => navigate(ROUTES.SESSIONS)}
-                variant="outline"
-                className={quietButton}
+                variant="neutral"
+                className={rowButton}
               >
                 Go to Sessions
               </Button>
@@ -574,6 +476,27 @@ const JoinTeam = () => {
           </>
         )}
       </div>
+
+      {currentTeam && (
+        <ConfirmDialog
+          open={confirmSwitch && view === 'preview'}
+          onOpenChange={setConfirmSwitch}
+          title={`Leave ${currentTeam.name} and join ${teamName}?`}
+          description={switchConsequence}
+          confirmLabel={
+            leaveEffect?.kind === 'deleted'
+              ? 'Delete team and join'
+              : 'Leave and join'
+          }
+          // Only deleting a team loses anything; moving teams does not.
+          tone={leaveEffect?.kind === 'deleted' ? 'destructive' : 'primary'}
+          icon={LogOut}
+          onConfirm={() => {
+            setConfirmSwitch(false);
+            void handleJoin(true);
+          }}
+        />
+      )}
     </div>
   );
 };
