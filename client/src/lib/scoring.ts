@@ -377,37 +377,39 @@ export const FIELD_LIMITS = {
 } as const;
 
 /**
- * The rule behind a counter's (i). Each adds only what its visible lines
- * (the name, COUNT_LABELS and EACH_LABELS) don't already say.
+ * The rule behind a counter's (i): what its short visible lines (the name,
+ * COUNT_LABELS and EACH_LABELS) leave out, in full sentences.
  */
 export const FIELD_HINTS = {
   tipping: `Every Hive Tip counts, in Auto or Teleop: ${POINTS.HIVE_TIP} pts each.`,
-  garden: 'Includes the 4 pollen that start there.',
+  garden:
+    'Every piece in your garden, including the 4 pollen that start there.',
   ballsInHive:
-    'Includes the 3 starting nectar, unless a Hive Tip turned that cell away.',
+    "Pieces in the hive's upward-facing cell, including the 3 starting nectar unless a Hive Tip turned that cell away.",
   minorPenalties: `+${POINTS.MINOR_PENALTY} to the opponent each. Your score is not reduced`,
   majorPenalties: `+${POINTS.MAJOR_PENALTY} to the opponent each. Your score is not reduced`,
 } as const;
 
 /**
  * Flower and Flower Bonus as one group: the rule that tells the two apart,
- * behind the Flowers (i).
+ * behind the Flowers (i), in the words of their COUNT_LABELS.
  */
 export const FLOWERS_HINT =
-  'You own a flower when your nectar is on top: every piece in it counts, opponent and pre-staged pieces too. The bonus is once per flower.';
+  'Owned pieces: every piece in a flower with your nectar on top, opponent and pre-staged pieces too. Nectar at bottom: one per flower with your nectar in its bottom slot.';
 
 /**
- * What to count for each end-of-match counter, in a few words. The scoring
+ * What to count for each end-of-match counter, in a few words: one line
+ * under its heading on every screen, down to a 320px phone where each
+ * counter has about 120px (the flower ones less their picture). The scoring
  * page and the Add/Edit Match dialog show these under a heading that names
- * the element; everywhere else (Analysis, Charts, CSV) the element keeps its
- * ELEMENT_LABELS name. The two flower lines are about as long as each other,
- * so they wrap alike side by side on a phone.
+ * the element, with the full rule behind its (i); everywhere else
+ * (Analysis, Charts, CSV) the element keeps its ELEMENT_LABELS name.
  */
 export const COUNT_LABELS = {
-  flower: 'Pieces in flowers you own',
-  flowerBonus: 'Your nectar at the bottom',
-  ballsInHive: "Pieces in the hive's upward-facing cell",
-  garden: 'Every piece in your garden',
+  flower: 'Owned pieces',
+  flowerBonus: 'Nectar at bottom',
+  ballsInHive: 'In the upward cell',
+  garden: 'Every piece',
 } as const;
 
 /** What one of each end-of-match counter is worth, beside its count */

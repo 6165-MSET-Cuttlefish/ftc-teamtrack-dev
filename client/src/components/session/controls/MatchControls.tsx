@@ -109,7 +109,8 @@ export const PauseResumeButton = ({
 /**
  * Discard the in-progress match: a small X, out of the way of the scoring
  * thumb. It only asks; the question, and the button that discards, show in
- * the action bar.
+ * the action bar. On a phone it is 44px, as the gear it takes the place of
+ * at the end of the title row; on a full-size screen as tall as its row.
  */
 export const CancelMatchButton = () => {
   const {
@@ -120,6 +121,7 @@ export const CancelMatchButton = () => {
     handleRequestDiscardMatch,
   } = useLiveControls();
   const standAside = useRowQuestionOpen();
+  const isCompact = useCompactControls();
 
   if (editingMatchId || !matchActive) return null;
 
@@ -131,7 +133,9 @@ export const CancelMatchButton = () => {
       onClick={handleRequestDiscardMatch}
       title={name}
       aria-label={name}
-      className={`ml-auto h-12 w-12 shrink-0 rounded-2xl ${actionClass('dangerOutline', isDarkMode)} ${standAside ? 'hidden' : ''}`}
+      className={`ml-auto shrink-0 ${
+        isCompact ? 'h-11 w-11 rounded-xl' : 'h-12 w-12 rounded-2xl'
+      } ${actionClass('dangerOutline', isDarkMode)} ${standAside ? 'hidden' : ''}`}
     >
       <X className="h-5 w-5" aria-hidden />
     </button>
@@ -270,7 +274,9 @@ const roomFor = (button: HTMLElement): number => {
  *
  * It says where it goes in full ("Skip to Teleop") wherever its row has
  * the width for that, measured rather than guessed from the layout; only a
- * row too narrow for it gets "Skip" over a small "to Teleop".
+ * row too narrow for it gets "Skip" over a small "to Teleop". On a phone it
+ * is a 44px button in smaller type, as the other buttons of the title row:
+ * a deliberate control, not one to compete with the clock under it.
  */
 export const MatchExtras = () => {
   const {
@@ -285,6 +291,7 @@ export const MatchExtras = () => {
   } = useLiveControls();
   const { timer } = useSession();
   const standAside = useRowQuestionOpen();
+  const isCompact = useCompactControls();
   const target =
     editingMatchId || !matchActive
       ? null
@@ -340,7 +347,9 @@ export const MatchExtras = () => {
         skip[target]();
       }}
       aria-label={SKIP_LABELS[target].full}
-      className={`relative shrink-0 h-12 px-3 rounded-2xl text-base whitespace-nowrap ${actionClass('neutral', isDarkMode)} ${standAside ? 'hidden' : ''}`}
+      className={`relative shrink-0 px-3 whitespace-nowrap ${
+        isCompact ? 'h-11 rounded-xl text-sm' : 'h-12 rounded-2xl text-base'
+      } ${actionClass('neutral', isDarkMode)} ${standAside ? 'hidden' : ''}`}
     >
       <span ref={shownRef} aria-hidden>
         <SkipLabels targets={targets} shown={target} twoLines={twoLines} />

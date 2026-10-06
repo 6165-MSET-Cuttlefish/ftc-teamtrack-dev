@@ -18,7 +18,8 @@ export const SectionNote = ({
   align?: 'left' | 'right';
   /**
    * Read out (and still what its controls point at) but not shown: for a
-   * note the screen already shows nearby, such as 'Unlocks at Start'.
+   * note the screen already says another way, such as 'Unlocks at Start'
+   * (the locked look, and Start as the one filled button).
    */
   visuallyHidden?: boolean;
   children: React.ReactNode;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { GAME_TIMING } from '@/constants';
@@ -12,6 +12,7 @@ import {
   useLiveControls,
   type PendingConfirm,
 } from './liveControlsContext';
+import { roomAboveBar } from './scrollUnderHeader';
 import { useTakeDroppedFocus, useWatchFocus } from './takeDroppedFocus';
 import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
@@ -105,13 +106,48 @@ const spanToRowEnd = (button: HTMLElement): number | undefined => {
   return Math.ceil(end - button.getBoundingClientRect().left);
 };
 
+/**
+ * The question's own words where the phone's bar has one row for it (see
+ * `PrimaryQuestion`): which wording shows goes by the width it gets (the
+ * row's spare width, a size container), with room to spare for a
+ * two-digit match number and for the fallback font. The time left follows
+ * the clock, so only this re-renders every second.
+ */
+const ShortEndEarly = ({ matchNumber }: { matchNumber: number }) => (
+  <>
+    <span className="block truncate">
+      <span className="[@container(max-width:6.5rem)]:hidden">
+        End Match {matchNumber}?
+      </span>
+      <span className="hidden [@container(max-width:6.5rem)]:inline">
+        End now?
+      </span>
+    </span>
+    <span className="block truncate font-normal">
+      <TimeLeft /> left
+    </span>
+  </>
+);
+
+/** See `ShortEndEarly`: the name over two lines where only that fits */
+const ShortDiscard = ({ matchNumber }: { matchNumber: number }) => (
+  <>
+    <span className="text-balance line-clamp-2 [@container(min-width:8rem)]:line-clamp-1">
+      Discard Match {matchNumber}?
+    </span>
+    <span className="hidden [@container(min-width:8rem)]:block truncate font-normal">
+      Nothing is saved.
+    </span>
+  </>
+);
+
 /** The question about the match (or, on a phone, the session) in the bar. */
 const PrimaryQuestion = ({
   pending,
   endEarlySpan,
 }: {
   pending: PendingConfirm;
-  /** See `spanToRowEnd`: End early's, as it was pressed */
+  /** See `spanToRowEnd`: End early's (as it was pressed, if it was) */
   endEarlySpan?: number;
 }) => {
   const {
@@ -126,11 +162,38 @@ const PrimaryQuestion = ({
   } = useLiveControls();
   const stacked = useCompactControls();
   const layout = { stacked, className: 'flex-1 basis-full' };
+
+  // Until the buzzer the page doesn't scroll to make room for the phone's
+  // bar (see ActiveMobileLayout), so a question that grew it by a row
+  // would cover whatever is under that row: +1 Tip's neighbours, a robot
+  // row, Discard Session at the end of the page. So the question is asked
+  // in the bar's one row, and the bar keeps its height. Only where the room
+  // above the bar has nothing in it (a phone on its side has the clock's
+  // column there) does it get the second row back, and Pause with it.
+  // Decided as it opens: a question stays put once shown.
+  const [oneRow, setOneRow] = useState(
+    () => stacked && matchActive && !matchEnded
+  );
+  useLayoutEffect(() => {
+    if (!oneRow) return;
+    const row = document.querySelector<HTMLElement>(
+      '[data-tutorial="controls"] [data-confirm-inline]'
+    );
+    if (!row) return;
+    // Two rows are this one and another as tall, a gap apart
+    const rowGap = parseFloat(getComputedStyle(row).rowGap) || 0;
+    if (roomAboveBar(row.offsetHeight + rowGap)) setOneRow(false);
+    // Only as it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // On a phone the bar's bottom row is where the thumb goes back to without
   // looking. Through a question about the match it keeps Pause on its spot
   // (until the buzzer) and the safe choice on the rest, where End early or
   // the full-width Save Match was: a reach for either can't land on the
-  // button that ends, saves or discards.
+  // button that ends, saves or discards. In one row the question takes
+  // Pause's place, and the safe choice covers all of End early's: for the
+  // X's question too, so a reach for End early can't discard.
   //
   // On a full-size screen the question is asked in the row of controls,
   // in one line as tall as its buttons, so nothing under the row moves.
@@ -145,11 +208,17 @@ const PrimaryQuestion = ({
   const matchLayout = !matchActive
     ? layout
     : stacked
-      ? {
-          ...layout,
-          keepBelow: true,
-          aside: matchEnded ? undefined : <PauseResumeButton quiet />,
-        }
+      ? oneRow
+        ? {
+            oneRow: true,
+            keepMinWidth: endEarlySpan,
+            className: layout.className,
+          }
+        : {
+            ...layout,
+            keepBelow: true,
+            aside: matchEnded ? undefined : <PauseResumeButton quiet />,
+          }
       : {
           inline: true,
           keepWide: askedBySave,
@@ -177,6 +246,7 @@ const PrimaryQuestion = ({
               </span>
             </>
           }
+          shortQuestion={<ShortEndEarly matchNumber={matchNumber} />}
           keepLabel="Keep scoring"
           confirmLabel="End Match"
           onKeep={handleKeepConfirm}
@@ -201,6 +271,7 @@ const PrimaryQuestion = ({
           {...matchLayout}
           question={`Discard Match ${matchNumber}?`}
           detail="Nothing from it is saved."
+          shortQuestion={<ShortDiscard matchNumber={matchNumber} />}
           keepLabel="Keep Match"
           confirmLabel="Discard Match"
           // The X that asked is named "Discard Match N" too, and stays on
@@ -294,17 +365,30 @@ const StartMatchButton = ({ asking }: { asking: boolean }) => {
 
 /**
  * End early. It comes back where Keep scoring was (or the question closed
- * with Escape), and keyboard focus carries on from it. `onPress` is told
- * how far its spot reaches to the end of its row (see `spanToRowEnd`).
+ * with Escape), and keyboard focus carries on from it. `onSpan` is told
+ * how far its spot reaches to the end of its row (see `spanToRowEnd`): as
+ * it shows and as its row changes size, for a question asked from
+ * elsewhere (the X), and as it is pressed.
  */
 const EndEarlyButton = ({
-  onPress,
+  onSpan,
 }: {
-  onPress: (span: number | undefined) => void;
+  onSpan: (span: number | undefined) => void;
 }) => {
   const { isDarkMode, handleRequestEndMatch } = useLiveControls();
   const ref = useRef<HTMLButtonElement>(null);
   useTakeDroppedFocus(ref);
+
+  useLayoutEffect(() => {
+    const button = ref.current;
+    const row = button?.closest('[data-tutorial="controls"]');
+    if (!button || !row) return;
+    const measure = () => onSpan(spanToRowEnd(button));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [onSpan]);
 
   return (
     <button
@@ -312,7 +396,7 @@ const EndEarlyButton = ({
       type="button"
       onKeyDown={ignoreHeldEnter}
       onClick={event => {
-        onPress(spanToRowEnd(event.currentTarget));
+        onSpan(spanToRowEnd(event.currentTarget));
         handleRequestEndMatch();
       }}
       className={`shrink-0 px-4 ${BAR_BUTTON} ${actionClass('neutral', isDarkMode)}`}
@@ -394,7 +478,12 @@ const PrimaryControls = () => {
 
   if (pendingConfirm && isPrimarySlotConfirm(pendingConfirm, isCompact)) {
     return (
-      <PrimaryQuestion pending={pendingConfirm} endEarlySpan={endEarlySpan} />
+      // Each question is laid out as it opens (see `PrimaryQuestion`)
+      <PrimaryQuestion
+        key={pendingConfirm}
+        pending={pendingConfirm}
+        endEarlySpan={endEarlySpan}
+      />
     );
   }
 
@@ -426,7 +515,7 @@ const PrimaryControls = () => {
     );
   }
 
-  if (!matchEnded) return <EndEarlyButton onPress={setEndEarlySpan} />;
+  if (!matchEnded) return <EndEarlyButton onSpan={setEndEarlySpan} />;
 
   // One button, the width Start Match will have: on a phone the bar stays
   // one button tall at the buzzer, and on a full-size screen the next

@@ -37,10 +37,11 @@ const useAriaControls = (ref: RefObject<HTMLButtonElement | null>) => {
  * back as the match is saved or discarded, and while a saved match is open
  * for editing.
  *
- * On a phone it says "Settings": a bare gear in the corner is easy to miss
- * when it is the only way to the session's name and type. It is the same
+ * A gear, as on the desktop: on a phone a 44px icon button at the end of
+ * the title row, so the session's name is the row's one word. Its name is
+ * "Settings" for a screen reader (and as a tooltip with a mouse). The same
  * outline as the row's other buttons, red only while the settings have not
- * been saved yet.
+ * been saved yet: the one time it has to be found.
  *
  * `expanded`: whether the panel is open, from the page that opens it.
  */
@@ -78,11 +79,10 @@ export const OpenSetupButton = ({ expanded }: { expanded: boolean }) => {
       onKeyDown={ignoreHeldEnter}
       onClick={onOpenSessionSetup}
       aria-expanded={expanded}
-      // With the word showing, the word is its name
-      aria-label={isCompact ? undefined : 'Settings'}
-      title={isCompact ? undefined : 'Settings'}
-      className={`h-12 shrink-0 rounded-2xl gap-2 text-sm ${
-        isCompact ? 'px-3' : 'w-12'
+      aria-label="Settings"
+      title="Settings"
+      className={`shrink-0 ${
+        isCompact ? 'h-11 w-11 rounded-xl' : 'h-12 w-12 rounded-2xl'
       } ${
         isSessionSetupSaved
           ? actionClass('neutral', isDarkMode)
@@ -90,7 +90,6 @@ export const OpenSetupButton = ({ expanded }: { expanded: boolean }) => {
       }`}
     >
       <Settings aria-hidden className="h-5 w-5 shrink-0" />
-      {isCompact && 'Settings'}
     </button>
   );
 };

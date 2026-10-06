@@ -52,7 +52,9 @@ const RankingPointRow = ({
     <div className="min-w-0 space-y-1">
       <div className="flex items-center justify-between gap-2 text-sm">
         <span
-          className={`font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+          className={`font-semibold ${
+            isDarkMode ? 'text-gray-200' : 'text-gray-800'
+          }`}
         >
           {name}
         </span>
@@ -278,10 +280,12 @@ export const ScoreBreakdown = () => {
   const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
 
   return (
+    // A tinted surface rather than a frame, as the desktop's band: the
+    // controls above it are the outlined things on the page
     <div
       data-breakdown-card
-      className={`rounded-2xl border-2 ${idle ? 'px-4 py-3' : 'p-4'} ${
-        isDarkMode ? 'border-gray-700 bg-team-dark' : 'border-gray-200 bg-white'
+      className={`rounded-2xl ${idle ? 'px-4 py-3' : 'p-4'} ${
+        isDarkMode ? 'bg-white/[0.04]' : 'bg-gray-100'
       }`}
     >
       <div className="sr-only" aria-live="polite">
@@ -315,7 +319,7 @@ export const ScoreBreakdown = () => {
           {(!hasAuto || isScrim) && (
             <div
               className={`space-y-1.5 border-t pt-2.5 ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                isDarkMode ? 'border-white/10' : 'border-gray-200'
               }`}
             >
               {!hasAuto && (
@@ -361,18 +365,52 @@ export const ScoreBreakdown = () => {
  * a heading of their own.
  */
 export const BreakdownStrip = () => {
-  const { sessionData } = useSessionCore();
-  const { scoring, hasAuto } = useScoringLocks();
+  const { sessionData, matchActive } = useSessionCore();
+  const { scoring, editing, hasAuto } = useScoringLocks();
   const { isDarkMode } = useTheme();
 
   const breakdown = calculateScore(scoring);
   const announcement = useScoreAnnouncement(sessionData, breakdown.total);
+  // Between matches with nothing entered, as the phone's card: the band
+  // keeps its size (the notes under it stay put at Start) and its headings,
+  // but under them it says only that it fills in as you score: a dash for
+  // the total, and the bars not drawn until there is a match to fill them.
+  const quiet =
+    !matchActive &&
+    !editing &&
+    breakdown.total === 0 &&
+    breakdown.penalties === 0;
+  const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
+  /** A number with nothing behind it yet: a muted dash, read out as 0 */
+  const none = (
+    <>
+      <span aria-hidden className={`text-sm font-normal leading-5 ${muted}`}>
+        &mdash;
+      </span>
+      <span className="sr-only">0</span>
+    </>
+  );
+  // The bars keep their place, so they fill in under the same headings at
+  // Start without moving anything; until then one line stands in for them
   const rows = (
-    <RankingPointRows
-      leavePark={breakdown.leave + breakdown.park}
-      tips={sessionData.tipping ?? 0}
-      hasAuto={hasAuto}
-    />
+    <div className="relative min-w-0">
+      <div
+        className={`grid gap-x-8 gap-y-2 ${hasAuto ? 'lg:grid-cols-2' : ''} ${
+          quiet ? 'invisible' : ''
+        }`}
+      >
+        <RankingPointRows
+          leavePark={breakdown.leave + breakdown.park}
+          tips={sessionData.tipping ?? 0}
+          hasAuto={hasAuto}
+        />
+      </div>
+      {quiet && (
+        <p className={`absolute inset-x-0 top-0 text-sm leading-5 ${muted}`}>
+          Fill in as you score
+        </p>
+      )}
+    </div>
   );
 
   return (
@@ -388,17 +426,18 @@ export const BreakdownStrip = () => {
 
       <div>
         <h2 className={`mb-1 ${EYEBROW_CLASS}`}>Total</h2>
+        {/* One 48px box whatever it shows, so nothing under it moves */}
         <div
           data-breakdown-total
-          className="min-w-[3ch] text-5xl font-bold leading-none tabular-nums text-foreground"
+          className="flex h-12 min-w-[3ch] items-start text-5xl font-bold leading-none tabular-nums text-foreground"
         >
-          {breakdown.total}
+          {quiet ? <span className="mt-1 flex">{none}</span> : breakdown.total}
         </div>
       </div>
 
       {hasAuto ? (
-        <div className="grid min-w-0 gap-x-8 gap-y-2 lg:grid-cols-2">
-          <h3 className={`${EYEBROW_CLASS} lg:col-span-2`}>Ranking Points</h3>
+        <div className="min-w-0 space-y-2">
+          <h3 className={EYEBROW_CLASS}>Ranking Points</h3>
           {rows}
         </div>
       ) : (
@@ -410,7 +449,7 @@ export const BreakdownStrip = () => {
           <div className="min-w-0 space-y-2">
             <h3 className={EYEBROW_CLASS}>{ELEMENT_LABELS.park}</h3>
             <p className="text-sm font-semibold tabular-nums text-foreground">
-              {formatPoints(breakdown.park)}
+              {quiet ? none : formatPoints(breakdown.park)}
             </p>
           </div>
         </div>

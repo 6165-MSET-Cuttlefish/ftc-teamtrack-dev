@@ -75,6 +75,17 @@ interface SessionTimers {
   phaseTimer: number;
 }
 
+/**
+ * The match clock as it stood at a moment, kept to be put back later (see
+ * `resumeMatchClock`), with the wall clock and the page's steady clock at
+ * that moment: a device clock set back meanwhile doesn't move it.
+ */
+export interface HeldMatchClock {
+  clock: SessionClockState;
+  wall: number;
+  steady: number;
+}
+
 /** Everything about the session that does not change just because time passed */
 interface SessionCoreContextType {
   sessionData: SessionFormData;
@@ -143,6 +154,16 @@ interface SessionCoreContextType {
    * run out.
    */
   skipToEnd: () => void;
+  /** The match clock as it stands now, for `resumeMatchClock` */
+  holdMatchClock: () => HeldMatchClock;
+  /**
+   * Put a held match clock back as if it had kept going since: one that was
+   * counting has counted on, through the end of AUTO, controller pickup and
+   * TELEOP, to the buzzer if its time ran out meanwhile; one that was paused
+   * is where it was. Returns the clock as it now stands, for the match audio
+   * to follow (see `followMatchClock`).
+   */
+  resumeMatchClock: (held: HeldMatchClock) => SessionClockState;
   /** Convert raw countdown timer to display timer for a given phase */
   getDisplayTimer: (timer: number, phase: MatchPhase) => number;
   /** True when tutorial is active - prevents audio from playing */
@@ -1209,6 +1230,43 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     tick();
   }, [commitClock, tick]);
 
+  const holdMatchClock = useCallback((): HeldMatchClock => {
+    // Brought up to now first: a phase change may have fallen due since the
+    // last tick.
+    tick();
+    return { clock: clockRef.current, ...lastReadRef.current };
+  }, [tick]);
+
+  const resumeMatchClock = useCallback(
+    (held: HeldMatchClock): SessionClockState => {
+      // What was counting is due when it would have been had it never
+      // stopped; the tick then replays every phase change that fell due
+      // meanwhile, as for a page that was asleep. Its anchors move as those
+      // of a clock that kept counting would (see `readWallClock`): back with
+      // a device clock that was set back, and not at all when the device
+      // clock got ahead of the page's own, which stops while the device
+      // sleeps. The session clock is left as it is.
+      commitClock((clock, now) => {
+        const shift = Math.min(
+          0,
+          now - held.wall - (performance.now() - held.steady)
+        );
+        const { deadline, pickupDeadline } = held.clock;
+        return {
+          ...held.clock,
+          deadline: deadline === null ? null : deadline + shift,
+          pickupDeadline:
+            pickupDeadline === null ? null : pickupDeadline + shift,
+          sessionAccumulatedMs: clock.sessionAccumulatedMs,
+          sessionResumedAt: clock.sessionResumedAt,
+        };
+      }, true);
+      tick();
+      return clockRef.current;
+    },
+    [commitClock, tick]
+  );
+
   const hasActiveSession =
     !sessionData.isSessionCompleted &&
     (hasStarted || sessionData.matches.length > 0);
@@ -1250,6 +1308,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       skipToTeleop,
       skipToEndgame,
       skipToEnd,
+      holdMatchClock,
+      resumeMatchClock,
       getDisplayTimer: getDisplayTimerUtil,
       isTutorialActive,
       setIsTutorialActive,
@@ -1283,6 +1343,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       skipToTeleop,
       skipToEndgame,
       skipToEnd,
+      holdMatchClock,
+      resumeMatchClock,
       isTutorialActive,
       setIsTutorialActive,
     ]

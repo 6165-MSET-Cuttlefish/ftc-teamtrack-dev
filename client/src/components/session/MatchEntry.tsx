@@ -1,5 +1,5 @@
 import { memo, useId, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { cn } from '@/lib/utils';
 import {
@@ -12,8 +12,12 @@ import {
   FLOWERS_LABEL,
 } from '@/lib';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
-import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
-import { useActiveShortStacked } from './layout/useActiveCompact';
+import {
+  CountLine,
+  CounterHead,
+  FlowerSlots,
+  LOCKED_SURFACE,
+} from './EndOfMatchParts';
 import { PenaltyField, PenaltyHint } from './PenaltyCounters';
 import { ScoreField } from './ScoreField';
 import { SectionNote } from './SectionNote';
@@ -29,6 +33,7 @@ const Section = ({
   tutorialId,
   aside,
   headingHidden = false,
+  titleHidden = false,
   caption,
   reserveCaption = false,
   highlight = false,
@@ -46,6 +51,11 @@ const Section = ({
    * heading names itself. (Not with a caption, which would go too.)
    */
   headingHidden?: boolean;
+  /**
+   * Only the title is read out but not shown: the caption under it stays,
+   * for a section whose groups have titles of their own.
+   */
+  titleHidden?: boolean;
   /** One muted line under the heading: what state the section is in */
   caption?: React.ReactNode;
   /**
@@ -65,7 +75,11 @@ const Section = ({
     data-tutorial={tutorialId}
   >
     <div className={headingHidden ? 'sr-only' : 'space-y-0.5'}>
-      <div className="flex items-baseline justify-between gap-3">
+      <div
+        className={
+          titleHidden ? 'sr-only' : 'flex items-baseline justify-between gap-3'
+        }
+      >
         <h3
           data-highlight={highlight || undefined}
           className={cn(
@@ -105,6 +119,7 @@ export const Toggle = ({
   disabled = false,
   disabledReason,
   describedBy,
+  lockGlyph = false,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
@@ -120,8 +135,15 @@ export const Toggle = ({
   disabled?: boolean;
   /** Why the toggle is disabled, as a tooltip */
   disabledReason?: string;
-  /** Id of the visible caption that says why the toggle is disabled */
+  /** Id of the text that says why the toggle is disabled */
   describedBy?: string;
+  /**
+   * While disabled, a lock before the label: for a toggle locked while its
+   * neighbours are not (End park during AUTO), where the reason would
+   * otherwise be wondered about. Not before Start, when every field is
+   * locked alike.
+   */
+  lockGlyph?: boolean;
 }) => {
   const { isDarkMode } = useTheme();
   return (
@@ -140,13 +162,8 @@ export const Toggle = ({
       // narrower than that phone's (a 200% zoom).
       className={`h-11 min-w-0 px-1 rounded-lg border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-1 select-none touch-manipulation [@container(max-width:18.5rem)]:gap-0.5 [@container(max-width:18.5rem)]:px-0.5 ${
         disabled
-          ? // The one locked tone: muted, but its label still readable (over
-            // 3:1), as the locked counters' labels are.
-            `cursor-not-allowed text-gray-500 ${
-              isDarkMode
-                ? 'border-white/10 bg-white/[0.02]'
-                : 'border-gray-300 bg-gray-100'
-            }`
+          ? // The one locked look: no outline, muted but readable (over 3:1)
+            `cursor-not-allowed ${LOCKED_SURFACE}`
           : checked
             ? // A tint and the check mark (a thicker frame on the light page)
               toggleOnClass(isDarkMode)
@@ -159,6 +176,13 @@ export const Toggle = ({
           strokeWidth={3}
           aria-hidden
           className="shrink-0 [@container(max-width:18.5rem)]:size-3"
+        />
+      )}
+      {disabled && lockGlyph && (
+        <Lock
+          size={12}
+          aria-hidden
+          className="shrink-0 [@container(max-width:18.5rem)]:size-2.5"
         />
       )}
       {wideLabel ? (
@@ -222,6 +246,7 @@ const RobotRow = memo(function RobotRow({
   autoDisabledReason,
   parkTeleopDisabledReason,
   reasonId,
+  lockGlyph,
 }: {
   label: string;
   columns: RobotColumns;
@@ -235,8 +260,10 @@ const RobotRow = memo(function RobotRow({
   autoDisabledReason?: string;
   /** Set when End park can't be scored (yet); says why */
   parkTeleopDisabledReason?: string;
-  /** Id of the note beside the Robots heading that shows those reasons */
+  /** Id of the note that says those reasons */
   reasonId?: string;
+  /** Mark a locked toggle with a lock (see `Toggle`) */
+  lockGlyph: boolean;
 }) {
   const { isDarkMode } = useTheme();
   // With both parks in the row the toggles say which one, in full where the
@@ -279,6 +306,7 @@ const RobotRow = memo(function RobotRow({
         disabled={parkTeleopDisabledReason !== undefined}
         disabledReason={parkTeleopDisabledReason}
         describedBy={reasonId}
+        lockGlyph={lockGlyph}
       />
     ),
   };
@@ -314,11 +342,11 @@ const ParkHeader = () => (
 );
 
 /**
- * A Scrim's fouls, under the robot rows. Locked before Start, which the
- * line at the top already says for every field (see `useMatchEntry`): the
- * note beside the heading is only read out, not under each counter either.
- * The line under each counter is kept for what it has given the opponent
- * in every state, so nothing under it moves at Start.
+ * A Scrim's fouls, under the robot rows. Locked before Start, as every
+ * field is, which the locked look shows: why is only read out, from the
+ * note beside the heading. The line under each counter is kept for what it
+ * has given the opponent in every state, so nothing under it moves at
+ * Start.
  */
 const Penalties = () => {
   const {
@@ -399,11 +427,6 @@ export const MatchEntry = () => {
     hasTeleop,
   } = useMatchEntry();
   const { isDarkMode } = useTheme();
-  // An iPhone SE on its side: Robot 1 has to be above the bar during AUTO,
-  // so the Robots heading goes (its toggles read Leave, Park (Auto) and
-  // Park (End) at that width) and what it says about locks is read out
-  // only, in every phase alike. The dimmed toggles show they are locked.
-  const shortStacked = useActiveShortStacked();
   const ids = {
     flowers: useId(),
     flower: useId(),
@@ -441,7 +464,6 @@ export const MatchEntry = () => {
         infoId={ids.info}
         infoOpen={infoOpen === which}
         onInfo={() => toggleInfo(which)}
-        dim={endDisabled}
       />
       {infoOpen === which && (
         <p
@@ -461,20 +483,18 @@ export const MatchEntry = () => {
       {/* Phone layouts only, where the page's own headings say where it is */}
       <h2 className="sr-only">Match Entry</h2>
 
+      {/*
+        The robot rows name themselves: the heading, and why a toggle is
+        locked, are read out but not shown. Before Start every field is
+        locked alike; during AUTO the End toggles carry a lock of their own.
+      */}
       <Section
         title="Robots"
         tutorialId="robots"
-        headingHidden={shortStacked}
+        headingHidden
         aside={
           robotsReason && (
-            <SectionNote
-              id={robotsReasonId}
-              icon="locked"
-              align="right"
-              // Before Start: said once for every field, under Hive Tips
-              // just above (see `useMatchEntry`)
-              visuallyHidden={entryLocked}
-            >
+            <SectionNote id={robotsReasonId} visuallyHidden>
               {robotsReason}
             </SectionNote>
           )
@@ -493,6 +513,7 @@ export const MatchEntry = () => {
           autoDisabledReason={autoDisabledReason}
           parkTeleopDisabledReason={parkTeleopDisabledReason}
           reasonId={robotsReason ? robotsReasonId : undefined}
+          lockGlyph={!entryLocked}
         />
         <RobotRow
           label="Robot 2"
@@ -506,14 +527,16 @@ export const MatchEntry = () => {
           autoDisabledReason={autoDisabledReason}
           parkTeleopDisabledReason={parkTeleopDisabledReason}
           reasonId={robotsReason ? robotsReasonId : undefined}
+          lockGlyph={!entryLocked}
         />
       </Section>
 
       {sessionData.sessionType === 'Scrim' && <Penalties />}
 
+      {/* Its groups have titles of their own: only its caption shows */}
       <Section
         title="End of Match"
-        tutorialId="end-of-match"
+        titleHidden
         caption={endCaption}
         reserveCaption
         highlight={justUnlocked}
@@ -525,19 +548,23 @@ export const MatchEntry = () => {
           stepper. Flower and Flower Bonus share one heading, side by side so
           the difference is the first thing seen: what is counted (pieces, or
           flowers) and where your nectar is. Left in Hive and Garden are the
-          second pair. Each pair goes to one column where its column is too
-          narrow for two steppers to show their counts. Each counter spans
+          second pair. Each pair goes to one column only where its column is
+          narrower than a 320px phone's (a 200% zoom). Each counter spans
           its pair's rows (subgrid), so the steppers stay level however the
           lines above them wrap.
+
+          The walkthrough spotlights the groups, not the caption's line over
+          them, which is empty while it runs: its ring then sits as close
+          to the fields on every side.
         */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" data-tutorial="end-of-match">
           <div
             role="group"
             aria-labelledby={ids.flowers}
             className="flex flex-col gap-1.5"
           >
             {head('flowers', ids.flowers, FLOWERS_LABEL, FLOWERS_HINT)}
-            <div className="grid grid-cols-1 gap-x-3 gap-y-4 [@container(min-width:20rem)]:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-3 gap-y-4 [@container(min-width:17rem)]:grid-cols-2">
               {(
                 [
                   {
@@ -564,14 +591,13 @@ export const MatchEntry = () => {
                 >
                   <CountLine
                     id={f.lineId}
-                    icon={<FlowerSlots nectar={f.nectar} dim={endDisabled} />}
+                    icon={<FlowerSlots nectar={f.nectar} />}
                     label={COUNT_LABELS[f.key]}
                     each={EACH_LABELS[f.key]}
                     points={f.points}
-                    dim={endDisabled}
                   />
                   <ScoreField
-                    layout="stacked"
+                    layout="segment"
                     stepper
                     hideLabel
                     label={ELEMENT_LABELS[f.key]}
@@ -588,7 +614,7 @@ export const MatchEntry = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-x-3 gap-y-4 [@container(min-width:20rem)]:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-3 gap-y-4 [@container(min-width:17rem)]:grid-cols-2">
             {(
               [
                 {
@@ -625,10 +651,9 @@ export const MatchEntry = () => {
                   label={COUNT_LABELS[c.key]}
                   each={EACH_LABELS[c.key]}
                   points={c.points}
-                  dim={endDisabled}
                 />
                 <ScoreField
-                  layout="stacked"
+                  layout="segment"
                   stepper
                   hideLabel
                   label={c.label}

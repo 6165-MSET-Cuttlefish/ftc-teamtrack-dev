@@ -1,5 +1,6 @@
 import {
   Fragment,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -107,6 +108,11 @@ const CONTROLS =
 
 const headerBottom = () =>
   document.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
+
+/** True while the page is scrolled to its very end */
+const atPageEnd = () =>
+  window.scrollY + window.innerHeight >=
+  document.documentElement.scrollHeight - 1;
 
 /** Scroll the page down by `by` px, and say how far it actually went */
 const scrollDown = (by: number): number => {
@@ -231,7 +237,7 @@ const ShortStackedTitleRow = ({
 export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
   const { isDarkMode } = useTheme();
   const { matchActive, matchPhase, isTutorialActive } = useSessionCore();
-  const { pendingConfirm } = useLiveControls();
+  const { pendingConfirm, editingMatchId } = useLiveControls();
   const rootRef = useHeaderHeightVar();
   // A phone on its side has no height to stack everything in, but has the
   // width to put the clock beside the scoring controls.
@@ -279,6 +285,45 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
   }, [matchActive, isTutorialActive]);
+
+  // Saving a match (or the changes to a logged one, or dropping them)
+  // reshapes the page above its end: the scoring fields empty, the score
+  // breakdown folds away, the Match Log gains a row. The browser keeps
+  // something in the middle of the screen where it was, which can leave
+  // the end of the page (Discard Session) under the bar. A page that was at
+  // its end stays there. Where it is is followed as it scrolls and as it
+  // changes size, so it is known as of just before the change.
+  const atEndRef = useRef(false);
+  useEffect(() => {
+    const root = rootRef.current;
+    const follow = () => {
+      atEndRef.current = atPageEnd();
+    };
+    follow();
+    window.addEventListener('scroll', follow, { passive: true });
+    const observer = new ResizeObserver(follow);
+    if (root) observer.observe(root);
+    return () => {
+      window.removeEventListener('scroll', follow);
+      observer.disconnect();
+    };
+  }, [rootRef]);
+  const editing = editingMatchId !== null;
+  const finishingRef = useRef({ matchActive, editing, isTutorialActive });
+  useLayoutEffect(() => {
+    const was = finishingRef.current;
+    finishingRef.current = { matchActive, editing, isTutorialActive };
+    const finished =
+      (was.matchActive && !matchActive) || (was.editing && !editing);
+    // The walkthrough moves the page itself.
+    if (!finished || was.isTutorialActive || isTutorialActive) return;
+    if (atEndRef.current && !atPageEnd()) {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'instant',
+      });
+    }
+  }, [matchActive, editing, isTutorialActive]);
 
   const placement = shortStacked ? SHORT_STACKED_PLACEMENT : PLACEMENT;
   const [barEl, setBarEl] = useState<HTMLDivElement | null>(null);

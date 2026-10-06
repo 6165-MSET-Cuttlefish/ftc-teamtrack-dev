@@ -117,11 +117,15 @@ export const useLiveCounters = () => {
       if (
         target instanceof HTMLElement &&
         (target.isContentEditable ||
-          target.closest('input, textarea, select, [role="dialog"]'))
+          target.closest(
+            'input, textarea, select, [role="dialog"]:not([data-tutorial-card])'
+          ))
       ) {
         return;
       }
-      if (document.querySelector('[role="dialog"]')) return;
+      // The tutorial's own card says to press T, so it doesn't block it.
+      if (document.querySelector('[role="dialog"]:not([data-tutorial-card])'))
+        return;
       if (tipping >= FIELD_LIMITS.tipping) return;
       e.preventDefault();
       recordTippingRef.current(tipping + 1);
@@ -142,8 +146,8 @@ export const useLiveCounters = () => {
     // next step: the button stays usable, as an outline.
     liveActionFilled:
       !pendingConfirm && (tippingLive || (isTutorialActive && tippingEnabled)),
-    // Short enough for one line beside the pad's -1 on a tablet and under
-    // the phone's row; the field it is under already names Hive Tips.
+    // Read out with the counter, not shown: the locked look and the lock
+    // on +1 Tip show it is locked
     lockedReason: awaitingStart
       ? 'Unlocks at Start'
       : inCountdown

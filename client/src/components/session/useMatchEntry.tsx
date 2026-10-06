@@ -3,7 +3,6 @@ import { useSessionCore } from '@/contexts';
 import type { MatchScoringFields } from '@/types';
 import { calculateScore } from '@/lib';
 import { revealFirstStepperRow } from './controls/revealStepperRow';
-import { useActiveShortStacked } from './layout/useActiveCompact';
 import { SectionNote } from './SectionNote';
 import { useScoringLocks } from './useScoringLocks';
 
@@ -40,15 +39,6 @@ export const useMatchEntry = () => {
   } = useScoringLocks();
   const robotsReasonId = useId();
   const endReasonId = useId();
-  /**
-   * Before Start every field waits for the same thing, and 'Unlocks at
-   * Start' is said once for all of them, at the top, where scoring starts:
-   * beside the desktop pad's -1, under the phone's Hive Tips. Robots,
-   * Penalties and End of Match keep it for screen readers only. An iPhone
-   * SE on its side shows no line under Hive Tips, so End of Match says it
-   * there.
-   */
-  const startSaidAbove = !useActiveShortStacked();
 
   // One setter per field, each keeping its identity between renders: the
   // rows and fields below are memoized, so changing one field re-renders
@@ -132,26 +122,26 @@ export const useMatchEntry = () => {
 
   // One line under the heading in every state, so the fields below it stay
   // where they are when the section locks and unlocks: what it waits for
-  // while locked, and after the buzzer the one thing left to do. Its line
-  // stays empty (but kept) for a saved match open for editing, and for the
-  // tutorial's practice match, whose fields are open and whose own card
-  // says when to count. Before Start it shows only what the line at the top
-  // doesn't say (see `startSaidAbove`): how to fix a saved match.
+  // while a match is played, and after the buzzer the one thing left to do.
+  // Its line stays empty (but kept) for a saved match open for editing, and
+  // for the tutorial's practice match, whose fields are open and whose own
+  // card says when to count. Before Start every field on the page waits for
+  // Start, the one filled button, and the locked look says so: 'Unlocks at
+  // Start' is read out, not shown. Between matches the line says how to fix
+  // a saved match.
   const hasSavedMatches = (sessionData.matches?.length ?? 0) > 0;
   const endCaption = endDisabled ? (
     <SectionNote
       id={endReasonId}
       icon="locked"
-      visuallyHidden={entryLocked && !hasSavedMatches && startSaidAbove}
+      visuallyHidden={entryLocked && !hasSavedMatches}
     >
       {entryLocked ? (
         hasSavedMatches ? (
           // One line in every column: the shorter pointer where the longer
           // would wrap (a column under 336px, from a 360px phone down).
           <>
-            <span className={startSaidAbove ? 'sr-only' : undefined}>
-              {START_REASON}.{' '}
-            </span>
+            <span className="sr-only">{START_REASON}. </span>
             <span className="[@container(max-width:20.95rem)]:hidden">
               Tap a match in the Match Log to fix it.
             </span>

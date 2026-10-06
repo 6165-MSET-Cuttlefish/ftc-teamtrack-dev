@@ -39,10 +39,11 @@ export const PenaltyHint = () => {
   return (
     <div
       role="note"
-      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs leading-4 ${
+      // A tint, not a frame: the outlined things on the page are controls
+      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs leading-4 ${
         isDarkMode
-          ? 'border-team-blue-40 text-gray-300'
-          : 'border-gray-300 bg-gray-50 text-gray-700'
+          ? 'bg-white/[0.05] text-gray-300'
+          : 'bg-gray-100 text-gray-700'
       }`}
     >
       {/* Each value stays with its name when the line wraps on a phone */}
@@ -68,15 +69,16 @@ export const PenaltyHint = () => {
 
 /**
  * One penalty counter: 'Minor' or 'Major' (the PENALTIES heading above says
- * what they are), what they have given the opponent, and the stepper.
+ * what they are), what they have given the opponent, and the stepper, drawn
+ * as one joined control like the end-of-match counters.
  *
  * '+N to opponent' only shows once there is something to give, in a line
  * kept for it from the start, so nothing moves when the first one is
  * counted. `segment` is the desktop pad's: the line sits beside the label.
  * `stacked` is the phone's: it sits under the label, in a line of one fixed
- * height. Why the counters are locked is said once, outside them (beside
- * the phone's PENALTIES heading, beside the desktop pad's -1), and
- * `lockedReasonId` points at it.
+ * height. Why the counters are locked is read out from outside them (the
+ * phone's Penalties heading, the desktop pad's), and `lockedReasonId`
+ * points at it.
  */
 export const PenaltyField = ({
   kind,
@@ -101,8 +103,9 @@ export const PenaltyField = ({
   const toOpponent = value * each;
   const label = kind === 'minor' ? 'Minor' : 'Major';
 
+  // Readable while locked: the stepper shows the lock
   const labelClass = `text-sm font-semibold leading-5 ${
-    locked ? 'text-gray-500' : isDarkMode ? 'text-gray-200' : 'text-gray-800'
+    isDarkMode ? 'text-gray-200' : 'text-gray-800'
   }`;
   const opponent = (
     <span
@@ -126,8 +129,7 @@ export const PenaltyField = ({
       ariaName={ELEMENT_LABELS[kind]}
       hideLabel
       describedBy={toOpponent > 0 ? opponentId : undefined}
-      layout={layout}
-      size={layout === 'stacked' ? 'large' : 'default'}
+      layout="segment"
       stepper
       max={
         kind === 'minor'

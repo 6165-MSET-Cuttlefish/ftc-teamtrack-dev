@@ -2,7 +2,11 @@ import { useState, useEffect, useId, useRef, memo } from 'react';
 import { Info, Lock, Minus, Plus } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { formatPoints } from '@/lib/points';
-import { INFO_BUTTON_CLASS, LOCKED_TEXT } from './EndOfMatchParts';
+import {
+  INFO_BUTTON_CLASS,
+  LOCKED_TEXT,
+  LOCKED_SURFACE,
+} from './EndOfMatchParts';
 
 interface ScoreFieldProps {
   label: string;
@@ -281,14 +285,10 @@ export const ScoreField = memo(
         ? 'w-12 h-12'
         : 'w-10 h-10';
     const stepIconSize = isLarge || isStacked ? 20 : 16;
-    // The one locked tone, as on the robot toggles and the desktop pad's
-    // steppers: a faint box and muted text that still reads (over 3:1).
+    // The one locked look, as on the robot toggles and the desktop pad: no
+    // outline, a faint fill and muted text that still reads (over 3:1).
     // Also a button at its limit (− at 0): it can't be used either.
-    const lockedTone = `cursor-not-allowed ${LOCKED_TEXT} ${
-      isDarkMode
-        ? 'border-white/10 bg-white/[0.02]'
-        : 'border-gray-300 bg-gray-100'
-    }`;
+    const lockedTone = `cursor-not-allowed ${LOCKED_SURFACE}`;
     // `touch-manipulation`: a quick second tap is a second count, not a
     // double-tap zoom.
     const stepBtnClass = (atLimit: boolean) =>
@@ -322,20 +322,19 @@ export const ScoreField = memo(
               }`
       }`;
 
-    // Locked: the one locked tone the end-of-match headings use too.
-    const labelTone = disabled
-      ? LOCKED_TEXT
-      : isDarkMode
-        ? 'text-gray-200'
-        : 'text-gray-800';
+    // A name stays readable while its field is locked: the controls show
+    // the lock.
+    const labelTone = isDarkMode ? 'text-gray-200' : 'text-gray-800';
     const mutedTone = isDarkMode ? 'text-gray-400' : 'text-gray-600';
     // red-400 is unreadable on the light background
     const foulTone = isDarkMode ? 'text-red-400' : 'text-red-700';
 
-    // Points are data: the text colour, never the accent.
-    const pointsTone = disabled
-      ? LOCKED_TEXT
-      : points !== undefined && points < 0
+    // Points are data: the text colour, never the accent. They only show
+    // once there are some; their place is kept, so nothing moves when the
+    // first one is counted.
+    const pointsTone = !points
+      ? 'invisible'
+      : points < 0
         ? foulTone
         : isDarkMode
           ? 'text-gray-100'
@@ -442,7 +441,7 @@ export const ScoreField = memo(
         `flex w-11 shrink-0 items-center justify-center touch-manipulation transition-[background-color,transform] duration-150 ease-out active:scale-[0.94] focus-visible:rounded-[10px] focus-visible:outline-offset-[-3px] ${
           disabled || atLimit
             ? isDarkMode
-              ? 'cursor-not-allowed text-white/25'
+              ? 'cursor-not-allowed text-white/30'
               : 'cursor-not-allowed text-gray-400'
             : isDarkMode
               ? 'cursor-pointer text-white/85 hover:bg-white/[0.06] active:bg-team-blue/15'
@@ -498,9 +497,7 @@ export const ScoreField = memo(
           <div
             className={`flex h-11 items-stretch overflow-hidden rounded-xl border transition-colors [@media(pointer:coarse)]:h-[2.875rem] ${
               disabled
-                ? isDarkMode
-                  ? 'border-white/10 bg-white/[0.02]'
-                  : 'border-gray-300 bg-gray-100'
+                ? LOCKED_SURFACE
                 : invalid
                   ? 'border-red-500'
                   : isDarkMode
@@ -526,12 +523,12 @@ export const ScoreField = memo(
               `h-full w-full min-w-0 rounded-none bg-transparent text-center text-lg font-semibold tabular-nums focus:outline-none focus-visible:bg-team-blue/15 ${
                 stepper ? 'border-x' : ''
               } ${
-                isDarkMode
-                  ? 'border-white/10 text-white'
-                  : 'border-gray-300 text-gray-900'
-              } ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${
-                invalid ? 'text-red-500' : ''
-              }`
+                disabled
+                  ? `cursor-not-allowed border-transparent ${LOCKED_TEXT}`
+                  : isDarkMode
+                    ? 'border-white/10 text-white'
+                    : 'border-gray-300 text-gray-900'
+              } ${invalid ? 'text-red-500' : ''}`
             )}
             {stepper && (
               <button
@@ -570,8 +567,12 @@ export const ScoreField = memo(
           }
         >
           {!hideLabel && (
+            // Compact, the name alone is what is centred in the row: the
+            // points hang under it (once there are some) without taking a
+            // line of their own, so the name sits level with the buttons
+            // and nothing moves when the first point is counted.
             <div
-              className={`min-w-0 ${
+              className={`min-w-0 ${isCompact ? 'relative' : ''} ${
                 isStacked
                   ? 'col-span-3 md:flex-1'
                   : hasLiveAction
@@ -617,6 +618,10 @@ export const ScoreField = memo(
                 points !== undefined && (
                   <div
                     className={`text-xs leading-4 font-semibold tabular-nums ${
+                      isCompact
+                        ? 'absolute left-0 top-full whitespace-nowrap'
+                        : ''
+                    } ${
                       pointsUnderOnNarrow ? 'min-[360px]:hidden' : 'md:hidden'
                     } ${pointsTone}`}
                   >
@@ -684,6 +689,11 @@ export const ScoreField = memo(
                 onClick={() => step(1)}
                 className={liveBtnClass(value >= max)}
               >
+                {/* Locked, the one target everyone tries first says so
+                    itself: the reason is read out from its description */}
+                {disabled && (
+                  <Lock size={16} aria-hidden className="shrink-0" />
+                )}
                 {liveActionLabel}
                 {isLive && liveShortcut && (
                   <kbd

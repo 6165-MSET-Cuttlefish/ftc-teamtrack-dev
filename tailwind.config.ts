@@ -6,6 +6,13 @@ export default {
   content: ['./client/src/**/*.{js,ts,jsx,tsx}', './client/index.html'],
 
   prefix: '',
+  future: {
+    // `hover:` only where there is a real hover (a mouse or trackpad). On a
+    // touch screen the browser keeps :hover on whatever was last tapped, so a
+    // button that appears under the finger (End early after Start) looked
+    // filled, as if pressed.
+    hoverOnlyWhenSupported: true,
+  },
   theme: {
     container: {
       center: true,

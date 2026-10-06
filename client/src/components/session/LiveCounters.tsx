@@ -1,6 +1,5 @@
 import { useId } from 'react';
 import { ELEMENT_LABELS, FIELD_LIMITS } from '@/lib';
-import { useActiveShortStacked } from './layout/useActiveCompact';
 import { ScoreField } from './ScoreField';
 import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
 
@@ -21,16 +20,15 @@ export const LiveCounters = () => {
     liveActionFilled,
     lockedReason,
   } = useLiveCounters();
-  /**
-   * An iPhone SE on its side, where every line counts: Robot 1 has to be
-   * above the bar during AUTO. The line saying why Hive Tips is locked is
-   * neither shown nor kept there, in any state (so nothing moves at Start):
-   * the dimmed counter says it is locked, and screen readers still hear why.
-   */
-  const shortStacked = useActiveShortStacked();
   const reasonId = useId();
-  const silentReason =
-    shortStacked && !tippingEnabled ? lockedReason : undefined;
+  /**
+   * Why Hive Tips is locked (before Start, and in the 3-2-1) is read out,
+   * not shown: the locked look and the lock on +1 Tip say it is locked, and
+   * Start, the one filled button, says what unlocks it. No line is kept for
+   * it either, so the robot rows sit right under the counter in every
+   * state and nothing moves when it unlocks.
+   */
+  const silentReason = tippingEnabled ? undefined : lockedReason;
 
   return (
     // `gap`, not `space-y`: the heading is visually hidden and must not
@@ -40,12 +38,7 @@ export const LiveCounters = () => {
           either way up): on a phone on its side a visible heading here
           pushed Robot 2 to the bottom edge. */}
       <h2 className="sr-only">Live scoring</h2>
-      {/* Room for the line saying why Hive Tips is locked (the 56px row,
-          then 20px for the line) is kept for the whole match: the line goes
-          when AUTO starts, and the robot rows under it must not jump up
-          just as the scorer reaches for Leave. Not on an iPhone SE on its
-          side, which has no line to keep (see above). */}
-      <div className={shortStacked ? undefined : 'min-h-[4.75rem]'}>
+      <div>
         <ScoreField
           label={ELEMENT_LABELS.tipping}
           // The phone's size on a phone on its side too: the wide-screen
@@ -63,7 +56,6 @@ export const LiveCounters = () => {
           value={sessionData.tipping}
           points={breakdown.tipping}
           disabled={!tippingEnabled}
-          lockedReason={shortStacked ? undefined : lockedReason}
           lockedReasonId={silentReason ? reasonId : undefined}
           resetKey={entryKey}
           onChange={handleTipping}

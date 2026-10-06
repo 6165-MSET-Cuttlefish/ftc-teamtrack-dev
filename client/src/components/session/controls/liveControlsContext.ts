@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useSessionCore, useTheme, useAuth, useTeam } from '@/contexts';
+import type { HeldMatchClock } from '@/contexts/SessionContext';
 import { useEscapeKey } from '@/hooks';
 import {
   CURRENT_SEASON,
@@ -34,6 +35,7 @@ import {
   sessionMatchType,
   writeGuestSessions,
 } from '@/lib';
+import { followMatchClock } from '@/lib/followMatchClock';
 import { nextMatchNumber } from '@/lib/matchNumber';
 import { formatPoints } from '@/lib/points';
 import { firebaseService, teamService } from '@/services';
@@ -83,6 +85,8 @@ const BETWEEN_MATCHES_TOAST_IDS = [
 const EDIT_OPEN_TOAST_ID = 'match-edit-open';
 /** An Undo that waits for the Save Session dialog to be closed */
 const SAVE_DIALOG_OPEN_TOAST_ID = 'save-dialog-open';
+/** Why "Match N ended early - Undo" can't put the match back (yet) */
+const END_EARLY_UNDO_REFUSED_TOAST_ID = 'end-early-undo-refused';
 /** The Match Entry section that holds Flowers, Left in Hive and Garden */
 const END_OF_MATCH_SECTION = '[data-tutorial="end-of-match"]';
 
@@ -342,10 +346,8 @@ export const useLiveControlsState = ({
     isTutorialActive,
     replaceSessionData,
     setSessionTimer,
-    setTimer,
-    setPhaseTimer,
-    isPickupPaused,
-    setIsPickupPaused,
+    holdMatchClock,
+    resumeMatchClock,
   } = useSessionCore();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -405,9 +407,11 @@ export const useLiveControlsState = ({
   const editingMatchIdRef = useRef(editingMatchId);
   const tutorialActiveRef = useRef(isTutorialActive);
   const saveSessionDialogRef = useRef(showSaveSessionDialog);
+  const matchPhaseRef = useRef(matchPhase);
   useEffect(() => {
     sessionDataRef.current = sessionData;
     matchActiveRef.current = matchActive;
+    matchPhaseRef.current = matchPhase;
     hasStartedRef.current = hasStarted;
     editingMatchIdRef.current = editingMatchId;
     tutorialActiveRef.current = isTutorialActive;
@@ -415,6 +419,7 @@ export const useLiveControlsState = ({
   }, [
     sessionData,
     matchActive,
+    matchPhase,
     hasStarted,
     editingMatchId,
     isTutorialActive,
@@ -435,6 +440,18 @@ export const useLiveControlsState = ({
   const discardedMatchIdsRef = useRef<string[]>([]);
   /** The "Match N discarded - Undo" toast still on offer, if any */
   const matchDiscardToastRef = useRef<string | null>(null);
+  /** The "Match N ended early - Undo" toast still on offer, if any */
+  const endedEarlyToastRef = useRef<string | null>(null);
+  /** Counts the matches started here, to tell one from the next */
+  const matchRunRef = useRef(0);
+  /** Which of them was saved last */
+  const savedRunRef = useRef(-1);
+  /**
+   * Where the page was when End early asked: before a question in two rows
+   * on a phone lifted it, and before the buzzer brought End of Match into
+   * view.
+   */
+  const endEarlyScrollRef = useRef(0);
   const mountedRef = useRef(true);
 
   const dismissUndoToasts = () => {
@@ -952,6 +969,7 @@ export const useLiveControlsState = ({
       return;
     }
     markPrimaryAction();
+    matchRunRef.current++;
     // Pause takes this button's place: a double tap must not pause the
     // match it has just started.
     absorbDoubleTap();
@@ -981,17 +999,19 @@ export const useLiveControlsState = ({
 
   // The "Cleared … - Undo" toast is for the match that was just started,
   // and goes when that match does. "Match N discarded - Undo" goes when a
-  // match takes the discarded one's place (or it is put back).
+  // match takes the discarded one's place (or it is put back), and "Match N
+  // ended early - Undo" when the next one starts.
   useEffect(() => {
     if (!matchActive) {
       toast.dismiss(CLEARED_TOAST_ID);
       return;
     }
-    const discardToast = matchDiscardToastRef.current;
-    if (discardToast) {
-      matchDiscardToastRef.current = null;
-      undoToastIdsRef.current.delete(discardToast);
-      toast.dismiss(discardToast);
+    for (const ref of [matchDiscardToastRef, endedEarlyToastRef]) {
+      const id = ref.current;
+      if (!id) continue;
+      ref.current = null;
+      undoToastIdsRef.current.delete(id);
+      toast.dismiss(id);
     }
   }, [matchActive]);
 
@@ -1019,6 +1039,7 @@ export const useLiveControlsState = ({
       matches: updatedMatches,
       ...emptyScoringFields(),
     });
+    savedRunRef.current = matchRunRef.current;
 
     markPrimaryAction();
     // Start Match and Complete Session take the place of whatever saved.
@@ -1050,6 +1071,144 @@ export const useLiveControlsState = ({
     skipToEnd();
   };
 
+  /** Put a held match clock back, the match audio with it */
+  const resumeMatch = (held: HeldMatchClock) => {
+    const clock = resumeMatchClock(held);
+    followMatchClock(clock, sessionDataRef.current.matchType);
+    return clock.phase;
+  };
+
+  /**
+   * "End Match", in answer to End early: the match ends as at its buzzer
+   * (see `handleSkipToEnd`), with an Undo that brings it back as if it had
+   * never been ended, for an answer that was not meant.
+   */
+  const handleConfirmEndMatch = () => {
+    if (!matchActive || matchEnded || editingMatchId) return;
+    const held = holdMatchClock();
+    // The buzzer got there first.
+    if (held.clock.phase === 'ended') return;
+    handleSkipToEnd();
+    offerEndedEarlyUndo(held, endEarlyScrollRef.current);
+  };
+
+  /**
+   * "Match N ended early", with an Undo for as long as that match is still
+   * waiting to be saved: the clock is put back where it would be had the
+   * match never been ended (paused, it is still paused at the same second),
+   * and the page where it was, with the live counters. What has been scored
+   * is left as it is.
+   */
+  const offerEndedEarlyUndo = (held: HeldMatchClock, scrolledTo: number) => {
+    const title = `Match ${matchNumber} ended early`;
+    // The walkthrough's practice match goes back with the walkthrough.
+    if (isTutorialActive) {
+      toast.message(title, { position: walkthroughToastPosition });
+      return;
+    }
+    // One Undo per match ended: a toast id is not reused while the one
+    // before it may still be on its way out.
+    const toastId = `undo-ended-early-${generateId()}`;
+    const endedNumber = matchNumber;
+    const epochAtEnd = sessionEpoch;
+    const runAtEnd = matchRunRef.current;
+    const savedAtEnd = new Set(
+      (sessionData.matches ?? []).map(match => match.id)
+    );
+    const undoToastIds = undoToastIdsRef.current;
+    if (endedEarlyToastRef.current) {
+      undoToastIds.delete(endedEarlyToastRef.current);
+      toast.dismiss(endedEarlyToastRef.current);
+    }
+    endedEarlyToastRef.current = toastId;
+    undoToastIds.set(toastId, title);
+    toast.message(title, {
+      id: toastId,
+      duration: UI_TIMING.UNDO_WINDOW,
+      onAutoClose: () => undoToastIds.delete(toastId),
+      onDismiss: () => undoToastIds.delete(toastId),
+      action: {
+        label: 'Undo',
+        onClick: event => {
+          // Withdrawn with the session it belonged to.
+          if (!undoToastIdsRef.current.has(toastId)) return;
+          const say = (why: string) =>
+            toast.info(`Undo not available: ${why}`, {
+              id: END_EARLY_UNDO_REFUSED_TOAST_ID,
+              position: tutorialActiveRef.current
+                ? walkthroughToastPosition
+                : undefined,
+            });
+          // For good: the toast goes, saying why.
+          const refuse = (why: string) => {
+            undoToastIdsRef.current.delete(toastId);
+            say(why);
+          };
+          // For now: the toast stays for when it can be used.
+          const wait = (why: string) => {
+            event.preventDefault();
+            say(why);
+          };
+          const current = sessionDataRef.current;
+          if (
+            sessionEpochRef.current !== epochAtEnd ||
+            current.isSessionCompleted
+          ) {
+            refuse('the session has changed');
+            return;
+          }
+          if (matchRunRef.current !== runAtEnd) {
+            refuse('another match has started');
+            return;
+          }
+          // Saved here, or in another tab whose session this one took up. A
+          // tab that was frozen meanwhile (in the background) may only see
+          // the next match, started there: its clock is not this one's.
+          if (
+            savedRunRef.current === runAtEnd ||
+            (current.matches ?? []).some(match => !savedAtEnd.has(match.id))
+          ) {
+            refuse(`Match ${endedNumber} has been saved`);
+            return;
+          }
+          if (!matchActiveRef.current) {
+            refuse(`Match ${endedNumber} was discarded`);
+            return;
+          }
+          // Back already (put back in another tab).
+          if (matchPhaseRef.current !== 'ended') {
+            undoToastIdsRef.current.delete(toastId);
+            return;
+          }
+          if (isSavingSession()) {
+            event.preventDefault();
+            return;
+          }
+          // The walkthrough puts the session back as it found it when it
+          // closes, the match with it.
+          if (tutorialActiveRef.current) {
+            wait('close the tutorial first');
+            return;
+          }
+          // The match would run on behind the dialog, which then can't save.
+          if (saveSessionDialogRef.current) {
+            wait('close the Save Session dialog first');
+            return;
+          }
+          undoToastIdsRef.current.delete(toastId);
+          // The toast was over the header (on a phone): a double tap must
+          // not press what it uncovers.
+          absorbDoubleTap();
+          // Unless its time ran out meanwhile: then End of Match is still
+          // where the scorer is needed.
+          if (resumeMatch(held) !== 'ended' && window.scrollY !== scrolledTo) {
+            window.scrollTo({ top: scrolledTo, behavior: 'instant' });
+          }
+        },
+      },
+    });
+  };
+
   /**
    * End early. A match is only ever saved after its buzzer: what is left on
    * the field (Flowers, Left in Hive, Garden) can only be counted once play
@@ -1059,6 +1218,7 @@ export const useLiveControlsState = ({
   const handleRequestEndMatch = () => {
     if (isRepeatedPrimaryAction()) return;
     if (!matchActive || matchEnded || editingMatchId) return;
+    endEarlyScrollRef.current = window.scrollY;
     askConfirm('endEarly');
   };
 
@@ -1675,11 +1835,7 @@ export const useLiveControlsState = ({
     // What its Undo puts back: the numbers, and the clock as it stood.
     const discarded = {
       scoring: pickScoringFields(sessionData),
-      phase: matchPhase,
-      ...getTimers(),
-      running:
-        matchPhase === 'controller_pickup' ? !isPickupPaused : isTimerRunning,
-      at: performance.now(),
+      clock: holdMatchClock(),
     };
     updateSessionData(emptyScoringFields());
     resetTimer();
@@ -1769,21 +1925,9 @@ export const useLiveControlsState = ({
           });
           setHasStarted(true);
           setMatchActive(true);
-          setMatchPhase(discarded.phase);
           // A clock that was running has run on meanwhile, as the one on the
           // field has: the match comes back where the field is now.
-          const away = discarded.running
-            ? (performance.now() - discarded.at) / 1000
-            : 0;
-          if (discarded.phase === 'controller_pickup') {
-            setTimer(discarded.timer);
-            setPhaseTimer(discarded.phaseTimer - away);
-            setIsPickupPaused(!discarded.running);
-            setIsTimerRunning(false);
-          } else {
-            setTimer(Math.max(0, discarded.timer - away));
-            setIsTimerRunning(discarded.running);
-          }
+          resumeMatch(discarded.clock);
         },
       },
     });
@@ -1843,7 +1987,7 @@ export const useLiveControlsState = ({
     handleConfirmDiscardSession,
     handleStartMatch,
     handleRequestEndMatch,
-    handleConfirmEndMatch: handleSkipToEnd,
+    handleConfirmEndMatch,
     handleSaveMatch,
     handleConfirmSaveMatch,
     handleCountFirst,

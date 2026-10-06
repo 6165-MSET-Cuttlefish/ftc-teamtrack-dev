@@ -24,6 +24,24 @@ import {
   tutorialSeenKey,
   writeFlag,
 } from './tutorialSeen';
+import { Spotlight } from './tutorial/Spotlight';
+import { WelcomeCard } from './tutorial/WelcomeCard';
+import {
+  EDGE_MIN,
+  isPinned,
+  screenFloor,
+  spotlitRect,
+} from './tutorial/geometry';
+import {
+  BODY_TEXT,
+  CARD_SURFACE,
+  MUTED_TEXT,
+  cardShadow,
+  cardVars,
+  primaryButton,
+  quietButton,
+  secondaryButton,
+} from './tutorial/cardUi';
 
 /** What a step's text can say about the page as it is right now */
 interface StepContext {
@@ -83,9 +101,7 @@ const timingSentence = (matchType: string): string => {
 
 /** Secondary text: smaller, in the card's muted colour */
 const Aside = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-xs" style={{ color: 'var(--tt-muted)' }}>
-    {children}
-  </p>
+  <p className={MUTED_TEXT}>{children}</p>
 );
 
 const STEPS: StepDef[] = [
@@ -139,7 +155,7 @@ const STEPS: StepDef[] = [
     target: 'end-of-match',
   },
   {
-    title: 'Save, then complete the session',
+    title: 'Save and finish',
     body: ({ narrow }) => (
       <div className="space-y-2">
         <p>
@@ -160,12 +176,11 @@ const STEPS: StepDef[] = [
 const SCORING_STEP = STEPS.findIndex(s => s.watchKey === 'tipping');
 
 /**
- * Stacking order while the walkthrough is up: the page, the dimming backdrop,
- * the spotlit element, the site header (raised so a spotlit element scrolls
- * under it like everything else), then the card.
+ * Stacking order while the walkthrough is up: the page, the dim with its
+ * opening, the site header (raised so a spotlit element scrolls under it
+ * like everything else, and dimmed by a strip of its own), then the card.
  */
 const Z_BACKDROP = 9997;
-const Z_SPOTLIGHT = 9999;
 const Z_HEADER = 10000;
 const Z_CARD = 10001;
 
@@ -173,20 +188,16 @@ const Z_CARD = 10001;
 const NARROW_WIDTH = 640;
 /** Viewports shorter than this (a phone on its side) get the one-row card */
 const SHORT_HEIGHT = 500;
-/** How far the spotlight's ring stands off the spotlit element, in px */
-const SPOTLIGHT_RING = 6;
-/** Least room kept between the ring and a screen edge, in px */
-const RING_EDGE = 8;
-/** Least room kept between the ring and what it surrounds, where the screen edge is close, in px */
-const RING_MIN_OFFSET = 3;
-/** Space kept between the card and the spotlit element, ring included, in px */
-const CARD_GAP = SPOTLIGHT_RING + 8;
-/** Space kept between the spotlit element and the header or screen edge, in px */
-const TARGET_PAD = SPOTLIGHT_RING + 8;
+/** Space kept between the card and the spotlight's ring, in px */
+const CARD_GAP = 12;
+/** Space kept between the spotlight's ring and the header, in px */
+const TARGET_PAD = 8;
 /** Least body text a shrunken card still shows (two lines), in px */
 const MIN_BODY_HEIGHT = 46;
 /** Least of an element too tall for the screen kept in view under the card, in px */
 const TALL_TARGET_SHOWN = 160;
+/** The phone's match controls, pinned over the bottom of the screen */
+const BOTTOM_BAR = '[data-tutorial="controls"]';
 /** A height change smaller than this is the URL bar sliding, not a new layout */
 const URL_BAR_HEIGHT = 120;
 /** Scrolls the walkthrough may make for one element: the first and two corrections */
@@ -204,11 +215,17 @@ type Dock = 'top' | 'bottom';
 
 interface CardPlacement {
   dock: Dock;
+  /** Distance from that edge of the screen, when not the gutter */
+  inset: number | null;
   /** Height the card may take without covering the spotlit element */
   maxHeight: number | null;
 }
 
-const DEFAULT_PLACEMENT: CardPlacement = { dock: 'bottom', maxHeight: null };
+const DEFAULT_PLACEMENT: CardPlacement = {
+  dock: 'bottom',
+  inset: null,
+  maxHeight: null,
+};
 
 const BLOCKED_TOAST_ID = 'tutorial-blocked';
 
@@ -233,271 +250,28 @@ interface TutorialSnapshot {
 const ORIGINAL_STYLES_KEY = '__tt_original_styles__';
 
 /**
- * Bring a page element up over the dimmed backdrop. Its ring is drawn
- * separately (`SpotlightRing`), around what of it can be seen.
+ * An element the step only points at: it shows through the spotlight as it
+ * is, but takes no taps and no keys until the walkthrough has moved on.
  */
-function liftElement(el: HTMLElement, interactive = true) {
+function holdElement(el: HTMLElement) {
   (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY] = {
-    position: el.style.position,
-    zIndex: el.style.zIndex,
     pointerEvents: el.style.pointerEvents,
     inert: el.inert,
   };
-  // Only what is in the normal flow needs positioning for the z-index to
-  // take. A bar pinned to the screen edge (the phone's match controls) must
-  // stay pinned while it is spotlit.
-  if (getComputedStyle(el).position === 'static') {
-    el.style.position = 'relative';
-  }
-  el.style.zIndex = String(Z_SPOTLIGHT);
-  // An element that is only being pointed at takes no taps and no keys.
-  el.style.pointerEvents = interactive ? 'auto' : 'none';
-  if (!interactive) el.inert = true;
+  el.style.pointerEvents = 'none';
+  el.inert = true;
 }
 
-function dropElement(el: HTMLElement) {
+function releaseElement(el: HTMLElement) {
   const orig = (el as unknown as Record<string, unknown>)[
     ORIGINAL_STYLES_KEY
-  ] as (Record<string, string> & { inert?: boolean }) | undefined;
+  ] as { pointerEvents?: string; inert?: boolean } | undefined;
   if (orig) {
     el.inert = orig.inert ?? false;
-    el.style.position = orig.position ?? '';
-    el.style.zIndex = orig.zIndex ?? '';
     el.style.pointerEvents = orig.pointerEvents ?? '';
     delete (el as unknown as Record<string, unknown>)[ORIGINAL_STYLES_KEY];
   }
 }
-
-const isTransparent = (color: string) =>
-  color === 'transparent' || /rgba\(.*,\s*0\)$/.test(color);
-
-/** Elements that draw something of their own whatever their styles say */
-const REPLACED = new Set([
-  'BUTTON',
-  'INPUT',
-  'TEXTAREA',
-  'SELECT',
-  'IMG',
-  'svg',
-  'CANVAS',
-  'VIDEO',
-]);
-
-interface Edges {
-  top: number;
-  left: number;
-  right: number;
-  bottom: number;
-}
-
-/**
- * Where the element shows anything: the union of what is in it, its text,
- * its controls and every box that has a background or a border, skipping
- * what is hidden or visually hidden. Not its own box: an element can be
- * taller than what it shows (the live counters keep a blank line for a
- * message that comes and goes), or reach the screen's edges (the phone's
- * match controls), and the ring goes round what can be seen in it.
- */
-const paintedEdges = (root: HTMLElement): Edges | null => {
-  let edges: Edges | null = null;
-  const add = (r: DOMRect) => {
-    if (r.width <= 1 || r.height <= 1) return;
-    edges = edges
-      ? {
-          top: Math.min(edges.top, r.top),
-          left: Math.min(edges.left, r.left),
-          right: Math.max(edges.right, r.right),
-          bottom: Math.max(edges.bottom, r.bottom),
-        }
-      : { top: r.top, left: r.left, right: r.right, bottom: r.bottom };
-  };
-  const visit = (el: Element) => {
-    const style = getComputedStyle(el);
-    if (style.display === 'none' || Number(style.opacity) === 0) return;
-    if (style.visibility === 'visible') {
-      const box =
-        el !== root &&
-        (REPLACED.has(el.tagName) ||
-          !isTransparent(style.backgroundColor) ||
-          (['Top', 'Right', 'Bottom', 'Left'] as const).some(
-            side =>
-              parseFloat(style[`border${side}Width`]) > 0 &&
-              !isTransparent(style[`border${side}Color`])
-          ));
-      if (box) {
-        add(el.getBoundingClientRect());
-      } else {
-        for (const node of el.childNodes) {
-          if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-            const range = document.createRange();
-            range.selectNodeContents(node);
-            add(range.getBoundingClientRect());
-          }
-        }
-      }
-      // A control's insides are already inside its box
-      if (box && REPLACED.has(el.tagName)) return;
-    }
-    for (const child of el.children) visit(child);
-  };
-  visit(root);
-  return edges;
-};
-
-/** The colour of the page behind an element, for the spotlight's well */
-const pageBackground = (el: HTMLElement): string => {
-  for (
-    let node: HTMLElement | null = el.parentElement;
-    node;
-    node = node.parentElement
-  ) {
-    const color = getComputedStyle(node).backgroundColor;
-    if (!isTransparent(color)) return color;
-  }
-  return getComputedStyle(document.body).backgroundColor;
-};
-
-interface RingBox {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-  /** Pinned to the screen (in screen px), or placed on the page (page px) */
-  fixed: boolean;
-}
-
-/**
- * The spotlight's ring and the well of page colour under the spotlit
- * element: round what the element shows rather than its whole box, standing
- * a little off it, and kept clear of the screen edges so it is never cut
- * off (the phone's match controls reach both sides and the bottom).
- *
- * Placed on the page, not the screen, for an element that scrolls with
- * it, so the two move together; re-measured only when the element changes
- * or moves on the page.
- */
-const SpotlightRing = ({ target }: { target: HTMLElement }) => {
-  const [box, setBox] = useState<RingBox | null>(null);
-  const [fill, setFill] = useState('transparent');
-
-  useEffect(() => {
-    const fixed = isPinned(target);
-    setFill(pageBackground(target));
-    /** What the element shows, relative to its own top left corner */
-    let shown: Edges | null = null;
-    let dirty = true;
-    const markDirty = () => {
-      dirty = true;
-    };
-    const resizes = new ResizeObserver(markDirty);
-    resizes.observe(target);
-    const mutations = new MutationObserver(markDirty);
-    mutations.observe(target, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ['class', 'style', 'hidden', 'disabled'],
-    });
-    window.addEventListener('resize', markDirty);
-
-    let last = '';
-    let frame = 0;
-    const tick = () => {
-      frame = requestAnimationFrame(tick);
-      const rect = target.getBoundingClientRect();
-      if (dirty) {
-        dirty = false;
-        const edges = paintedEdges(target);
-        shown = edges && {
-          top: edges.top - rect.top,
-          left: edges.left - rect.left,
-          right: edges.right - rect.left,
-          bottom: edges.bottom - rect.top,
-        };
-      }
-      if (!shown) return;
-      // On screen, then kept off the edges; never closer than
-      // RING_MIN_OFFSET to what it surrounds where an edge is that close.
-      const near = (edge: number, limit: number, inward: number) =>
-        inward > 0
-          ? Math.max(edge, Math.min(limit, edge + inward))
-          : Math.min(edge, Math.max(limit, edge + inward));
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const shownLeft = rect.left + shown.left;
-      const shownRight = rect.left + shown.right;
-      const shownTop = rect.top + shown.top;
-      const shownBottom = rect.top + shown.bottom;
-      const left = near(
-        shownLeft - SPOTLIGHT_RING,
-        RING_EDGE,
-        SPOTLIGHT_RING - RING_MIN_OFFSET
-      );
-      const right = near(
-        shownRight + SPOTLIGHT_RING,
-        width - RING_EDGE,
-        RING_MIN_OFFSET - SPOTLIGHT_RING
-      );
-      const top = shownTop - SPOTLIGHT_RING;
-      const bottom = fixed
-        ? near(
-            shownBottom + SPOTLIGHT_RING,
-            height - RING_EDGE,
-            RING_MIN_OFFSET - SPOTLIGHT_RING
-          )
-        : shownBottom + SPOTLIGHT_RING;
-      const next: RingBox = {
-        top: Math.round(top + (fixed ? 0 : window.scrollY)),
-        left: Math.round(left + (fixed ? 0 : window.scrollX)),
-        width: Math.round(right - left),
-        height: Math.round(bottom - top),
-        fixed,
-      };
-      const key = `${next.top},${next.left},${next.width},${next.height}`;
-      if (key !== last) {
-        last = key;
-        setBox(next);
-      }
-    };
-    tick();
-
-    return () => {
-      cancelAnimationFrame(frame);
-      resizes.disconnect();
-      mutations.disconnect();
-      window.removeEventListener('resize', markDirty);
-    };
-  }, [target]);
-
-  if (!box) return null;
-  const frame: React.CSSProperties = {
-    position: box.fixed ? 'fixed' : 'absolute',
-    top: box.top,
-    left: box.left,
-    width: box.width,
-    height: box.height,
-    borderRadius: 16,
-    pointerEvents: 'none',
-  };
-  return (
-    <>
-      {/* Under the element, over the backdrop: the page as it really looks */}
-      <div
-        aria-hidden
-        style={{ ...frame, zIndex: Z_SPOTLIGHT - 1, backgroundColor: fill }}
-      />
-      <div
-        aria-hidden
-        style={{
-          ...frame,
-          zIndex: Z_SPOTLIGHT,
-          border: '2px solid rgb(var(--team-blue) / 0.4)',
-        }}
-      />
-    </>
-  );
-};
 
 /** Smooth scrolling, unless the user has asked for less motion */
 const scrollBehavior = (): ScrollBehavior =>
@@ -507,18 +281,6 @@ const scrollBehavior = (): ScrollBehavior =>
 
 const queryTarget = (id: string) =>
   document.querySelector<HTMLElement>(`[data-tutorial="${id}"]`);
-
-/** True for an element that stays where it is on screen as the page scrolls. */
-const isPinned = (el: HTMLElement) => {
-  for (
-    let node: HTMLElement | null = el;
-    node && node !== document.body;
-    node = node.parentElement
-  ) {
-    if (getComputedStyle(node).position === 'fixed') return true;
-  }
-  return false;
-};
 
 /** True for anything that uses the arrow keys itself. */
 const usesArrowKeys = (target: EventTarget | null) => {
@@ -535,6 +297,11 @@ const usesArrowKeys = (target: EventTarget | null) => {
  * The tutorial over /active. Its code is fetched only once it is needed
  * (see Active.tsx), so a replay can be asked for before it is on the page:
  * `openOnMount` opens it then, as that request would have.
+ *
+ * A first run opens on a welcome card over the page as it is, nothing
+ * dimmed, so a newcomer sees the real app before deciding anything; only
+ * "Take the tour" starts the spotlit steps. Asked for again (the (?) in the
+ * header), it goes straight to the first step.
  */
 export const ActiveTutorial = ({
   openOnMount = false,
@@ -566,6 +333,13 @@ export const ActiveTutorial = ({
 
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
+  /**
+   * The welcome card is up rather than a step: the page is left as it is,
+   * usable and undimmed, and nothing of the session is borrowed yet.
+   */
+  const [welcome, setWelcome] = useState(false);
+  /** The spotlit steps are up */
+  const touring = visible && !welcome;
   const [taskCompleted, setTaskCompleted] = useState(false);
   /** True when the user has finished the tutorial before — tasks are pre-skipped */
   const [isReplay, setIsReplay] = useState(false);
@@ -669,15 +443,18 @@ export const ActiveTutorial = ({
   );
 
   /**
-   * Show the walkthrough from its first step. Refused while a match is live:
-   * it borrows the session and puts back what it found when it closes, which
-   * over a running match would undo scoring and rewind the clock. Refused
-   * while a saved match is open for editing too: the fields then hold that
-   * match, and which match they belong to is not part of what is put back.
+   * Show the walkthrough: the welcome card on a first run (`askedFor`
+   * false), the first step when asked for. Refused while a match is live:
+   * it borrows the session and puts back what it found when it closes,
+   * which over a running match would undo scoring and rewind the clock.
+   * Refused while a saved match is open for editing too: the fields then
+   * hold that match, and which match they belong to is not part of what is
+   * put back.
    */
   const open = useCallback((askedFor: boolean) => {
     const live = liveRef.current;
     if (live.visible) {
+      setWelcome(false);
       setStep(0);
       setTaskCompleted(false);
       return;
@@ -706,6 +483,7 @@ export const ActiveTutorial = ({
       document.activeElement !== document.body
         ? document.activeElement
         : null;
+    setWelcome(!askedFor);
     setStep(0);
     setTaskCompleted(false);
     setVisible(true);
@@ -730,7 +508,7 @@ export const ActiveTutorial = ({
   }, [open]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!touring) return;
     const { timer, sessionTimer, phaseTimer } = getTimers();
     const snapshot: TutorialSnapshot = {
       sessionData: JSON.parse(JSON.stringify(sessionData)),
@@ -748,7 +526,7 @@ export const ActiveTutorial = ({
     // when storage has no copy of them to ask about.
     setWalkthroughSession(snapshot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]); // snapshot once per showing, not on every state change
+  }, [touring]); // snapshot once per tour, not on every state change
 
   // First run for this account or guest: open by itself, once.
   useEffect(() => {
@@ -781,22 +559,22 @@ export const ActiveTutorial = ({
   }, [loading, user, isGuest, getTutorialKey, hasSeenTutorial, open]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!touring) return;
     setIsReplay(hasSeenTutorial());
-  }, [visible, hasSeenTutorial]);
+  }, [touring, hasSeenTutorial]);
 
   // On a replay every page task is pre-satisfied so Next is always available.
   useEffect(() => {
-    if (!visible || !isReplay) return;
+    if (!touring || !isReplay) return;
     if (STEPS[step]?.pageAction) setTaskCompleted(true);
-  }, [visible, step, isReplay]);
+  }, [touring, step, isReplay]);
 
   // Make the live-scoring fields editable once the walkthrough reaches them,
   // with a practice match that never starts its clock. Going back to the
   // first step puts the session back as it was found: that step shows the
   // Start button, which a match in progress replaces.
   useEffect(() => {
-    if (!visible) return;
+    if (!touring) return;
     if (step >= SCORING_STEP) {
       if (matchActive) return;
       practiceMatchRef.current = true;
@@ -807,7 +585,7 @@ export const ActiveTutorial = ({
       if (snapshotRef.current) restoreSnapshot(snapshotRef.current);
     }
   }, [
-    visible,
+    touring,
     step,
     matchActive,
     sessionData.matchType,
@@ -816,10 +594,11 @@ export const ActiveTutorial = ({
     restoreSnapshot,
   ]);
 
-  // Keep the match audio muted for the duration of the tutorial.
+  // Keep the match audio muted, and the session unsaved, for the duration
+  // of the tour. Not for the welcome card: the page under it is the real one.
   useEffect(() => {
-    setIsTutorialActive(visible);
-  }, [visible, setIsTutorialActive]);
+    setIsTutorialActive(touring);
+  }, [touring, setIsTutorialActive]);
 
   useEffect(() => {
     const handle = () => open(true);
@@ -829,19 +608,19 @@ export const ActiveTutorial = ({
 
   // Complete the current page task when the watched field gets a value.
   useEffect(() => {
-    if (!visible || taskCompleted) return;
+    if (!touring || taskCompleted) return;
     if (STEPS[step]?.watchKey === 'tipping' && sessionData.tipping > 0) {
       setTaskCompleted(true);
     }
-  }, [visible, step, taskCompleted, sessionData.tipping]);
+  }, [touring, step, taskCompleted, sessionData.tipping]);
 
   // Spotlight this step's page element, for as long as the step is up.
   useLayoutEffect(() => {
-    if (!visible) return;
+    if (!touring) return;
     const { target, fallbackTarget, interactive } = STEPS[step] ?? {};
     if (!target) return;
 
-    let lifted: HTMLElement | null = null;
+    let held: HTMLElement | null = null;
     let retry: ReturnType<typeof setTimeout> | undefined;
     let tries = 0;
 
@@ -852,8 +631,10 @@ export const ActiveTutorial = ({
     const spotlight = () => {
       const el = find();
       if (el) {
-        liftElement(el, interactive !== false);
-        lifted = el;
+        if (interactive === false) {
+          holdElement(el);
+          held = el;
+        }
         setTargetEl(el);
         return;
       }
@@ -865,16 +646,16 @@ export const ActiveTutorial = ({
 
     return () => {
       clearTimeout(retry);
-      if (lifted) dropElement(lifted);
+      if (held) releaseElement(held);
       setTargetEl(null);
     };
-  }, [visible, step, spotlightEpoch]);
+  }, [touring, step, spotlightEpoch]);
 
-  // The header is sticky and normally sits under the spotlit element, which
-  // would then slide over it when the page scrolls. Raise it for as long as
-  // the walkthrough is up; a strip of backdrop over it keeps it dimmed.
+  // The header is sticky, and the dim goes over the page. Raise it over the
+  // dim for as long as the tour is up, so a spotlit element scrolls under it
+  // like everything else; a strip of dim over it keeps it dimmed.
   useLayoutEffect(() => {
-    if (!visible) return;
+    if (!touring) return;
     const header = document.querySelector<HTMLElement>('header');
     if (!header) return;
 
@@ -890,7 +671,7 @@ export const ActiveTutorial = ({
       observer.disconnect();
       header.style.zIndex = previousZIndex;
     };
-  }, [visible]);
+  }, [touring]);
 
   /**
    * Put the card where it does not cover the spotlit element: docked to the
@@ -936,12 +717,23 @@ export const ActiveTutorial = ({
       full
     );
 
-    const rect = target.getBoundingClientRect();
-    const apply = (dock: Dock, maxHeight: number) =>
+    // What the spotlight takes, ring included: the card keeps off all of it
+    const spot = spotlitRect(target);
+    const rect = {
+      ...spot,
+      height: spot.bottom - spot.top,
+    };
+    const apply = (
+      dock: Dock,
+      maxHeight: number,
+      inset: number | null = null
+    ) =>
       setPlacement(prev =>
-        prev.dock === dock && prev.maxHeight === maxHeight
+        prev.dock === dock &&
+        prev.maxHeight === maxHeight &&
+        prev.inset === inset
           ? prev
-          : { dock, maxHeight }
+          : { dock, inset, maxHeight }
       );
 
     const scrollY = window.scrollY;
@@ -972,7 +764,12 @@ export const ActiveTutorial = ({
       window.scrollTo({ top: to, behavior: scrollBehavior() });
     };
 
-    const inView = rect.top >= headerEdge - 1 && rect.bottom <= viewHeight + 1;
+    // The phone's match controls are pinned over the bottom of the page: an
+    // element under them is hidden, and its spotlight would be cut off at
+    // their edge. The card can go over them, so only the element keeps off.
+    const floor = screenFloor(target, BOTTOM_BAR, viewHeight);
+    const inView =
+      rect.top >= headerEdge - 1 && rect.bottom <= floor - EDGE_MIN + 1;
 
     // On a wide screen the card sits beside the element's column, so the two
     // can't meet: only make sure the element can be seen.
@@ -984,14 +781,23 @@ export const ActiveTutorial = ({
     }
 
     // An element pinned to the screen (the phone's match controls) stays
-    // put whatever the page does: the card takes the larger space beside it.
+    // put whatever the page does: the card goes right beside it, on the
+    // side with more room, so the two read as one and the rest of the page
+    // (the clock) stays in view.
     if (pinned) {
       const fit = (room: number) =>
         Math.min(full, Math.max(minimum, Math.floor(room)));
       const above = rect.top - CARD_GAP - gutter;
       const below = viewHeight - gutter - CARD_GAP - rect.bottom;
-      if (below > above) apply('bottom', fit(below));
-      else apply('top', fit(above));
+      if (below > above) {
+        apply('top', fit(below), Math.round(rect.bottom + CARD_GAP));
+      } else {
+        apply(
+          'bottom',
+          fit(above),
+          Math.round(viewHeight - rect.top + CARD_GAP)
+        );
+      }
       return;
     }
 
@@ -1015,7 +821,7 @@ export const ActiveTutorial = ({
     if (!allowScroll) {
       // What can be seen of the element: the header hides what is above it
       const shownTop = Math.max(rect.top, headerEdge);
-      const shownBottom = Math.min(rect.bottom, viewHeight);
+      const shownBottom = Math.min(rect.bottom, floor);
       if (cardRect.top >= shownBottom || shownTop >= cardRect.bottom) return;
       // Whichever end hides less of it, at the height that fits there
       const fit = (room: number) => Math.min(full, Math.max(minimum, room));
@@ -1047,10 +853,7 @@ export const ActiveTutorial = ({
       pageTop -
       clampScroll(
         pageTop -
-          Math.max(
-            headerEdge + TARGET_PAD,
-            viewHeight - TARGET_PAD - rect.height
-          )
+          Math.max(headerEdge + TARGET_PAD, floor - TARGET_PAD - rect.height)
       );
     const spaceIfTop = topIfTop - CARD_GAP - gutter;
     /** Where the element sits under a top-docked card of this height */
@@ -1081,7 +884,7 @@ export const ActiveTutorial = ({
       dock = 'top';
       height = Math.max(
         minimum,
-        Math.min(full, viewHeight - TALL_TARGET_SHOWN - CARD_GAP - gutter)
+        Math.min(full, floor - TALL_TARGET_SHOWN - CARD_GAP - gutter)
       );
       targetTop = underCard(height);
     } else {
@@ -1106,9 +909,9 @@ export const ActiveTutorial = ({
     autoScrollRef.current = null;
     autoScrollCountRef.current = 0;
     headerEdgeRef.current = 0;
-    if (!visible) return;
+    if (!touring) return;
     place(true);
-  }, [visible, step, targetEl, short, fullWidth, place]);
+  }, [touring, step, targetEl, short, fullWidth, place]);
 
   // The task row grows when its task is done: give the card the height it
   // now needs, where it is, without moving the page. Not while one of the
@@ -1117,11 +920,12 @@ export const ActiveTutorial = ({
   useLayoutEffect(() => {
     if (placedForTaskRef.current === taskCompleted) return;
     placedForTaskRef.current = taskCompleted;
-    if (visible && autoScrollRef.current === null) place(false);
-  }, [visible, taskCompleted, place]);
+    if (touring && autoScrollRef.current === null) place(false);
+  }, [touring, taskCompleted, place]);
 
   // Keep the placement right as the element, the window or the scroll
-  // position changes under it.
+  // position changes under it. The window's size is followed for the
+  // welcome card too, which is laid out by it.
   useEffect(() => {
     if (!visible) return;
 
@@ -1144,8 +948,12 @@ export const ActiveTutorial = ({
         autoScrollCountRef.current = 0;
         headerEdgeRef.current = 0;
       }
-      schedule(relayout);
+      if (touring) schedule(relayout);
     };
+    window.addEventListener('resize', handleResize);
+    if (!touring) {
+      return () => window.removeEventListener('resize', handleResize);
+    }
 
     // Once a scroll comes to rest. After one of our own, check the result:
     // the page may have changed under it (the header changes height as the
@@ -1166,7 +974,6 @@ export const ActiveTutorial = ({
     const observer = new ResizeObserver(() => schedule(true));
     if (targetEl) observer.observe(targetEl);
 
-    window.addEventListener('resize', handleResize);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       cancelAnimationFrame(frame);
@@ -1175,13 +982,50 @@ export const ActiveTutorial = ({
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [visible, targetEl, place]);
+  }, [visible, touring, targetEl, place]);
 
   // Keyboard users land on Next for every step.
   useEffect(() => {
-    if (!visible) return;
+    if (!touring) return;
     nextButtonRef.current?.focus({ preventScroll: true });
-  }, [visible, step]);
+  }, [touring, step]);
+
+  /**
+   * Close the welcome card without a tour (Skip, or the page put to use).
+   * Nothing was borrowed, so nothing is put back and the page stays where
+   * it is. Seen, as a finished tour would be.
+   */
+  const closeWelcome = useCallback(() => {
+    setVisible(false);
+    setWelcome(false);
+    writeFlag(getTutorialKey());
+    writeFlag(STORAGE_KEYS.TUTORIAL_SEEN);
+    const returnTo = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (returnTo?.isConnected) returnTo.focus({ preventScroll: true });
+  }, [getTutorialKey]);
+
+  // Starting a match (or opening a saved one) with the welcome card up is
+  // an answer too: this visitor is scoring, not looking for a tour.
+  useEffect(() => {
+    if (!visible || !welcome) return;
+    if (matchActive || isTimerRunning || editingMatchId !== null) {
+      closeWelcome();
+    }
+  }, [
+    visible,
+    welcome,
+    matchActive,
+    isTimerRunning,
+    editingMatchId,
+    closeWelcome,
+  ]);
+
+  const startTour = useCallback(() => {
+    setWelcome(false);
+    setStep(0);
+    setTaskCompleted(false);
+  }, []);
 
   const dismiss = useCallback(() => {
     // A page field that still has focus (Escape while typing in Notes) hands
@@ -1193,6 +1037,7 @@ export const ActiveTutorial = ({
     }
 
     setVisible(false);
+    setWelcome(false);
     setIsTutorialActive(false);
 
     const snapshot = snapshotRef.current;
@@ -1247,7 +1092,7 @@ export const ActiveTutorial = ({
   }, []);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!touring) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
@@ -1266,9 +1111,23 @@ export const ActiveTutorial = ({
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [visible, next, prev, dismiss]);
+  }, [touring, next, prev, dismiss]);
 
   if (!visible) return null;
+
+  if (welcome) {
+    return createPortal(
+      <WelcomeCard
+        isDarkMode={isDarkMode}
+        compact={isCompactLayout}
+        short={short}
+        zIndex={Z_CARD}
+        onStart={startTour}
+        onSkip={closeWelcome}
+      />,
+      document.body
+    );
+  }
 
   const current = STEPS[step];
   // The button the first step spotlights, as the page words it ("Start
@@ -1283,100 +1142,60 @@ export const ActiveTutorial = ({
   const hasPageTask = !!current.pageAction;
 
   const teamBlue = 'rgb(var(--team-blue))';
-  const teamBlue50 = isDarkMode
-    ? 'rgb(var(--team-blue) / 0.5)'
-    : 'rgb(var(--team-blue) / 0.75)';
-  const teamBlue80 = 'rgb(var(--team-blue) / 0.8)';
-  // The theme's own card surface (navy in Deep Sea, near-black in
-  // Honeycomb), as the page's cards and menus use
-  const bg = isDarkMode ? 'hsl(var(--card))' : '#ffffff';
-  const text = isDarkMode ? '#ffffff' : '#111111';
-  const subtext = isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
-  // Secondary text. Solid enough to stay over 4.5:1 on the card in every
-  // theme, which stacked opacity was not.
-  const muted = isDarkMode ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.58)';
 
-  const backdrop = {
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    backdropFilter: 'blur(4px)',
-    WebkitBackdropFilter: 'blur(4px)',
-    pointerEvents: 'none',
-  } as const;
-
-  const cardSurface = {
+  const cardStyle: React.CSSProperties = {
+    ...cardVars(isDarkMode),
     zIndex: Z_CARD,
-    backgroundColor: bg,
-    border: `2px solid ${teamBlue50}`,
-    color: text,
-    borderRadius: 20,
-    overflow: 'hidden',
-    '--tt-muted': muted,
-    '--tt-text': text,
-  } as React.CSSProperties;
-
-  const cardStyle: React.CSSProperties = hasTarget
-    ? {
-        ...cardSurface,
-        ...(placement.dock === 'top' ? { top: gutter } : { bottom: gutter }),
-        right: gutter,
-        ...(fullWidth
-          ? { left: gutter }
-          : { width: 'min(400px, calc(100vw - 48px))' }),
-        maxHeight: placement.maxHeight ?? '80vh',
-        padding: fullWidth ? '14px 16px 12px' : '22px 22px 18px',
-      }
-    : {
-        ...cardSurface,
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        // On a phone the same card as the other steps, only centred
-        width: fullWidth ? `calc(100vw - ${2 * gutter}px)` : 'min(420px, 90vw)',
-        maxHeight: '85vh',
-        padding: fullWidth ? '14px 16px 12px' : '24px 24px 20px',
-      };
+    boxShadow: cardShadow(isDarkMode),
+    ...(hasTarget
+      ? {
+          ...(placement.dock === 'top'
+            ? { top: placement.inset ?? gutter }
+            : { bottom: placement.inset ?? gutter }),
+          right: gutter,
+          ...(fullWidth
+            ? { left: gutter }
+            : { width: 'min(380px, calc(100vw - 48px))' }),
+          maxHeight: placement.maxHeight ?? '80vh',
+          padding: fullWidth ? '14px 16px 12px' : '18px 20px 16px',
+        }
+      : {
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          // On a phone the same card as the other steps, only centred
+          width: fullWidth
+            ? `calc(100vw - ${2 * gutter}px)`
+            : 'min(400px, 90vw)',
+          maxHeight: '85vh',
+          padding: fullWidth ? '14px 16px 12px' : '20px 22px 18px',
+        }),
+  };
 
   // A phone on its side has no height to spare, so the one-row card puts the
   // buttons beside the title.
   const compactCard = hasTarget && short;
-  // On a phone every row counts: the step counter shares the title's line,
-  // on every step.
-  const inlineCounter = fullWidth;
 
   const nav = (
     <div
       className={`flex items-center gap-2 flex-shrink-0 ${
-        compactCard ? '' : 'justify-between mt-4'
+        compactCard ? '' : 'justify-between mt-3'
       }`}
     >
-      <button
-        onClick={dismiss}
-        className="tt-skip px-1 py-2 text-xs font-medium uppercase tracking-wide transition-colors"
-      >
+      <button type="button" onClick={dismiss} className={quietButton}>
         Skip
       </button>
       <div className="flex items-center gap-2">
         {!isFirst && (
-          <button
-            onClick={prev}
-            className="px-4 py-2 text-sm font-semibold rounded-xl transition-colors"
-            style={{
-              border: `1px solid ${teamBlue50}`,
-              color: teamBlue,
-              backgroundColor: 'transparent',
-            }}
-          >
+          <button type="button" onClick={prev} className={secondaryButton}>
             Back
           </button>
         )}
         <button
+          type="button"
           ref={nextButtonRef}
           onClick={next}
-          className="px-5 py-2 text-sm font-bold whitespace-nowrap rounded-xl transition-all duration-200"
-          style={{
-            backgroundColor: teamBlue,
-            color: isDarkMode ? '#000' : '#fff',
-          }}
+          className={primaryButton(isDarkMode)}
         >
           {isLast ? (isReplay ? 'Done' : 'Get started') : 'Next'}
         </button>
@@ -1387,52 +1206,41 @@ export const ActiveTutorial = ({
   return createPortal(
     <>
       <style>{`
-        @keyframes ttCardIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
+        @media (prefers-reduced-motion: no-preference) {
+          @keyframes ttCardIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes ttCardCenter {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+            to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          }
+          .tt-card-slide { animation: ttCardIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
+          .tt-card-center { animation: ttCardCenter 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
         }
-        @keyframes ttCardCenter {
-          from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
-          to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        }
-        .tt-card-slide { animation: ttCardIn 0.3s ease-out forwards; }
-        .tt-card-center { animation: ttCardCenter 0.25s ease-out forwards; }
-        .tt-skip { color: var(--tt-muted); }
-        .tt-skip:hover, .tt-skip:focus-visible { color: var(--tt-text); }
       `}</style>
 
-      <div
-        className="fixed inset-0"
-        style={{ ...backdrop, zIndex: Z_BACKDROP }}
+      <Spotlight
+        target={hasTarget ? targetEl : null}
+        expectTarget={hasTarget}
+        isDarkMode={isDarkMode}
+        zIndex={Z_BACKDROP}
+        header={{ bottom: headerBottom, zIndex: Z_HEADER }}
+        bottomBar={BOTTOM_BAR}
       />
-      {/* The raised header is above the backdrop, so it gets its own strip. */}
-      <div
-        className="fixed top-0 left-0 right-0"
-        style={{ ...backdrop, zIndex: Z_HEADER, height: headerBottom }}
-      />
-
-      {hasTarget && targetEl && <SpotlightRing target={targetEl} />}
 
       <div
         key={step}
         ref={cardRef}
         role="dialog"
         aria-label={`Tutorial: ${current.title}`}
-        className={`fixed flex flex-col ${
+        data-tutorial-card=""
+        className={`fixed flex flex-col rounded-2xl ${CARD_SURFACE} ${
           hasTarget ? 'tt-card-slide' : 'tt-card-center'
         }`}
         style={cardStyle}
         onClick={e => e.stopPropagation()}
       >
-        <div
-          className="absolute top-0 left-0 h-1 rounded-tl-[20px] transition-all duration-300"
-          style={{
-            width: `${((step + 1) / STEPS.length) * 100}%`,
-            background: `linear-gradient(90deg, ${teamBlue80}, ${teamBlue})`,
-            borderTopRightRadius: isLast ? 20 : 0,
-          }}
-        />
-
         <div
           className={
             compactCard
@@ -1441,25 +1249,19 @@ export const ActiveTutorial = ({
           }
         >
           <div
-            className={
-              inlineCounter
-                ? `flex items-baseline gap-3 ${compactCard ? '' : 'mb-1.5'}`
-                : ''
-            }
+            className={`flex items-baseline justify-between gap-3 ${
+              compactCard ? 'flex-1 min-w-0' : 'mb-1'
+            }`}
           >
-            <div
-              className={`text-xs font-semibold uppercase tracking-widest whitespace-nowrap ${
-                inlineCounter ? '' : 'mb-2'
-              }`}
-              style={{ color: teamBlue }}
-            >
-              {step + 1} / {STEPS.length}
-            </div>
-            <h2
-              className={`text-lg font-bold text-balance ${inlineCounter ? '' : 'mb-1.5'}`}
-            >
+            <h2 className="text-base font-semibold text-balance">
               {current.title}
             </h2>
+            <span
+              className={`${MUTED_TEXT} font-medium tabular-nums whitespace-nowrap`}
+            >
+              <span className="sr-only">Step </span>
+              {step + 1} / {STEPS.length}
+            </span>
           </div>
           {compactCard && nav}
         </div>
@@ -1468,10 +1270,7 @@ export const ActiveTutorial = ({
           ref={bodyRef}
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
         >
-          <div
-            className="text-sm leading-relaxed whitespace-pre-line"
-            style={{ color: subtext }}
-          >
+          <div className={`${BODY_TEXT} whitespace-pre-line`}>
             {current.body({
               startLabel,
               narrow: viewport.width < NARROW_WIDTH,
@@ -1485,21 +1284,19 @@ export const ActiveTutorial = ({
 
         {hasPageTask && (
           <div
-            className={`flex items-center gap-2 px-3 rounded-xl transition-all duration-300 flex-shrink-0 ${
-              compactCard ? 'mt-2 py-1.5' : 'mt-4 py-2.5'
+            className={`flex items-center gap-2 px-3 rounded-xl transition-colors duration-300 flex-shrink-0 ${
+              compactCard ? 'mt-2 py-1.5' : 'mt-3 py-2'
             }`}
             style={{
               backgroundColor: taskCompleted
                 ? isDarkMode
                   ? 'rgba(34,197,94,0.1)'
                   : 'rgba(34,197,94,0.08)'
-                : isDarkMode
-                  ? 'rgba(var(--team-blue) / 0.1)'
-                  : 'rgba(var(--team-blue) / 0.08)',
+                : 'rgb(var(--team-blue) / 0.1)',
               border: `1px solid ${
                 taskCompleted
                   ? 'rgba(34,197,94,0.3)'
-                  : 'rgb(var(--team-blue) / 0.25)'
+                  : 'rgb(var(--team-blue) / 0.3)'
               }`,
             }}
           >
@@ -1508,7 +1305,9 @@ export const ActiveTutorial = ({
                 className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: 'rgba(34,197,94,0.2)' }}
               >
-                <span className="text-green-500 text-xs font-bold">✓</span>
+                <span aria-hidden className="text-green-500 text-xs font-bold">
+                  ✓
+                </span>
               </div>
             )}
             <span
@@ -1522,21 +1321,21 @@ export const ActiveTutorial = ({
               }}
             >
               {taskCompleted
-                ? 'Done! Press Next to continue'
+                ? 'Tip added. Press Next to continue.'
                 : current.pageAction}
             </span>
             {taskCompleted && !isReplay && (
               <button
+                type="button"
                 onClick={() => {
                   setTaskCompleted(false);
                   if (current.watchKey === 'tipping') {
                     updateSessionData({ tipping: 0 });
                   }
                 }}
-                className="ml-auto text-xs font-medium opacity-70 hover:opacity-100 transition-opacity flex-shrink-0"
-                style={{ color: teamBlue }}
+                className="ml-auto -my-1 px-1.5 py-1 text-xs font-medium flex-shrink-0 text-[color:var(--tt-muted)] hover:text-[color:var(--tt-text)] transition-colors [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:-my-3"
               >
-                ↻ Try again
+                Try again
               </button>
             )}
           </div>
