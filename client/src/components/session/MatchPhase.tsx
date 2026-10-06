@@ -74,9 +74,16 @@ const SIZES = {
 type Size = keyof typeof SIZES;
 
 /**
- * The phase as a filled pill. Before Start there is no phase to name: the
- * Start button already says nothing is running, so READY only keeps its
- * space (AUTO appears there without moving anything), not drawn or read out.
+ * Phases with nothing to name. Before Start the Start button already says
+ * nothing is running, and after the buzzer the 0:00 and the Save button say
+ * it is over, so READY and DONE are never drawn or read out.
+ */
+const UNNAMED: ReadonlySet<PhaseLabel> = new Set(['READY', 'DONE']);
+
+/**
+ * The phase as a filled pill. An unnamed phase (READY, DONE) only keeps the
+ * pill's space, so the phases around it appear there without moving
+ * anything.
  */
 export const PhaseChip = ({
   label,
@@ -89,7 +96,7 @@ export const PhaseChip = ({
   return (
     <span
       data-match-phase={label}
-      className={`${CHIP_BASE} ${SIZES[size]} ${CHIP_TONES[label][isDarkMode ? 1 : 0]} ${label === 'READY' ? 'invisible' : ''}`}
+      className={`${CHIP_BASE} ${SIZES[size]} ${CHIP_TONES[label][isDarkMode ? 1 : 0]} ${UNNAMED.has(label) ? 'invisible' : ''}`}
     >
       {CHIP_WORDS[label]}
     </span>
@@ -98,15 +105,16 @@ export const PhaseChip = ({
 
 /**
  * `PhaseChip` for the match being played; follows the clock. Before Start
- * there is none, except beside the scoring page's own clock
- * (`keepIdleSpace`), where AUTO appears on Start: there it keeps its space.
+ * and after the buzzer there is none, except beside the scoring page's own
+ * clock (`keepSpace`), where AUTO appears on Start: there it keeps its
+ * space.
  */
 export const LivePhaseChip = ({
   size,
-  keepIdleSpace = false,
+  keepSpace = false,
 }: {
   size?: Size;
-  keepIdleSpace?: boolean;
+  keepSpace?: boolean;
 }) => {
   const { matchActive, matchPhase, timer, isTutorialActive } = useSession();
   const label = phaseLabel({
@@ -115,7 +123,7 @@ export const LivePhaseChip = ({
     timer,
     isTutorialActive,
   });
-  if (label === 'READY' && !keepIdleSpace) return null;
+  if (UNNAMED.has(label) && !keepSpace) return null;
   return <PhaseChip label={label} size={size} />;
 };
 

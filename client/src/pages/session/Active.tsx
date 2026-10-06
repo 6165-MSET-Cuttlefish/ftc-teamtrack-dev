@@ -232,7 +232,7 @@ const MatchClockRow = () => {
         {paused ? (
           <PausedPill size="clock" />
         ) : (
-          <LivePhaseChip size="clock" keepIdleSpace />
+          <LivePhaseChip size="clock" keepSpace />
         )}
       </div>
     </div>
