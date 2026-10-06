@@ -256,9 +256,8 @@ const useScoreAnnouncement = (
  * On the heading's line it takes no height, so nothing moves as it comes
  * and goes.
  *
- * Between matches, with nothing scored, it is one quiet line: there is
- * nothing to show yet, and it is the last thing in the scoring column, so
- * nothing above it moves when it opens out at Start.
+ * Between matches the bars are there too, empty, so the card has one size
+ * and nothing around it moves at Start.
  */
 export const ScoreBreakdown = () => {
   const { sessionData, matchActive, matchPhase } = useSessionCore();
@@ -268,11 +267,6 @@ export const ScoreBreakdown = () => {
 
   const breakdown = calculateScore(scoring);
   const isScrim = sessionData.sessionType === 'Scrim';
-  const idle =
-    !matchActive &&
-    !editing &&
-    breakdown.total === 0 &&
-    breakdown.penalties === 0;
   const showTotal =
     editing || (sideBySide && matchActive && matchPhase !== 'ended');
 
@@ -284,7 +278,7 @@ export const ScoreBreakdown = () => {
     // controls above it are the outlined things on the page
     <div
       data-breakdown-card
-      className={`rounded-2xl ${idle ? 'px-4 py-3' : 'p-4'} ${
+      className={`rounded-2xl p-4 ${
         isDarkMode ? 'bg-white/[0.04]' : 'bg-gray-100'
       }`}
     >
@@ -292,62 +286,55 @@ export const ScoreBreakdown = () => {
         {announcement}
       </div>
 
-      {idle ? (
-        <div className="flex items-baseline justify-between gap-3">
+      <div className="space-y-2.5">
+        {/* One fixed height, with or without the total on it */}
+        <div className="flex h-4 items-baseline justify-between gap-3">
           <h2 className={EYEBROW_CLASS}>Ranking Points</h2>
-          <p className={`text-xs ${muted}`}>Fill in as you score</p>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {/* One fixed height, with or without the total on it */}
-          <div className="flex h-4 items-baseline justify-between gap-3">
-            <h2 className={EYEBROW_CLASS}>Ranking Points</h2>
-            {showTotal && (
-              <p className={`whitespace-nowrap text-xs leading-4 ${muted}`}>
-                Total{' '}
-                <span className="text-sm font-bold leading-4 tabular-nums text-foreground">
-                  {formatPoints(breakdown.total)}
-                </span>
-              </p>
-            )}
-          </div>
-          <RankingPointRows
-            leavePark={breakdown.leave + breakdown.park}
-            tips={sessionData.tipping ?? 0}
-            hasAuto={hasAuto}
-          />
-          {(!hasAuto || isScrim) && (
-            <div
-              className={`space-y-1.5 border-t pt-2.5 ${
-                isDarkMode ? 'border-white/10' : 'border-gray-200'
-              }`}
-            >
-              {!hasAuto && (
-                <PointsLine label={ELEMENT_LABELS.park}>
-                  <span className="font-semibold tabular-nums text-foreground">
-                    {formatPoints(breakdown.park)}
-                  </span>
-                </PointsLine>
-              )}
-              {isScrim && (
-                <PointsLine label="To opponent">
-                  <span
-                    className={`font-semibold tabular-nums ${
-                      breakdown.penalties > 0
-                        ? isDarkMode
-                          ? 'text-red-400'
-                          : 'text-red-700'
-                        : muted
-                    }`}
-                  >
-                    +{formatPoints(breakdown.penalties)}
-                  </span>
-                </PointsLine>
-              )}
-            </div>
+          {showTotal && (
+            <p className={`whitespace-nowrap text-xs leading-4 ${muted}`}>
+              Total{' '}
+              <span className="text-sm font-bold leading-4 tabular-nums text-foreground">
+                {formatPoints(breakdown.total)}
+              </span>
+            </p>
           )}
         </div>
-      )}
+        <RankingPointRows
+          leavePark={breakdown.leave + breakdown.park}
+          tips={sessionData.tipping ?? 0}
+          hasAuto={hasAuto}
+        />
+        {(!hasAuto || isScrim) && (
+          <div
+            className={`space-y-1.5 border-t pt-2.5 ${
+              isDarkMode ? 'border-white/10' : 'border-gray-200'
+            }`}
+          >
+            {!hasAuto && (
+              <PointsLine label={ELEMENT_LABELS.park}>
+                <span className="font-semibold tabular-nums text-foreground">
+                  {formatPoints(breakdown.park)}
+                </span>
+              </PointsLine>
+            )}
+            {isScrim && (
+              <PointsLine label="To opponent">
+                <span
+                  className={`font-semibold tabular-nums ${
+                    breakdown.penalties > 0
+                      ? isDarkMode
+                        ? 'text-red-400'
+                        : 'text-red-700'
+                      : muted
+                  }`}
+                >
+                  +{formatPoints(breakdown.penalties)}
+                </span>
+              </PointsLine>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -371,10 +358,9 @@ export const BreakdownStrip = () => {
 
   const breakdown = calculateScore(scoring);
   const announcement = useScoreAnnouncement(sessionData, breakdown.total);
-  // Between matches with nothing entered, as the phone's card: the band
-  // keeps its size (the notes under it stay put at Start) and its headings,
-  // but under them it says only that it fills in as you score: a dash for
-  // the total, and the bars not drawn until there is a match to fill them.
+  // Between matches with nothing entered the total is a dash, not a big 0;
+  // the bars are drawn empty, so they fill in at Start without moving
+  // anything.
   const quiet =
     !matchActive &&
     !editing &&
@@ -390,26 +376,15 @@ export const BreakdownStrip = () => {
       <span className="sr-only">0</span>
     </>
   );
-  // The bars keep their place, so they fill in under the same headings at
-  // Start without moving anything; until then one line stands in for them
   const rows = (
-    <div className="relative min-w-0">
-      <div
-        className={`grid gap-x-8 gap-y-2 ${hasAuto ? 'lg:grid-cols-2' : ''} ${
-          quiet ? 'invisible' : ''
-        }`}
-      >
-        <RankingPointRows
-          leavePark={breakdown.leave + breakdown.park}
-          tips={sessionData.tipping ?? 0}
-          hasAuto={hasAuto}
-        />
-      </div>
-      {quiet && (
-        <p className={`absolute inset-x-0 top-0 text-sm leading-5 ${muted}`}>
-          Fill in as you score
-        </p>
-      )}
+    <div
+      className={`grid min-w-0 gap-x-8 gap-y-2 ${hasAuto ? 'lg:grid-cols-2' : ''}`}
+    >
+      <RankingPointRows
+        leavePark={breakdown.leave + breakdown.park}
+        tips={sessionData.tipping ?? 0}
+        hasAuto={hasAuto}
+      />
     </div>
   );
 
