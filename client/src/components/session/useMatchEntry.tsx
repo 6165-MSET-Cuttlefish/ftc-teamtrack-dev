@@ -1,13 +1,9 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef } from 'react';
 import { useSessionCore } from '@/contexts';
 import type { MatchScoringFields } from '@/types';
 import { calculateScore } from '@/lib';
 import { revealFirstStepperRow } from './controls/revealStepperRow';
-import { EndNote } from './EndOfMatchParts';
 import { useScoringLocks } from './useScoringLocks';
-
-/** How long the End of Match heading stays lit after the buzzer */
-const UNLOCK_PULSE_MS = 1600;
 
 /** Why Robots and End of Match can't be filled in yet: no match is open */
 const START_REASON = 'Unlocks at Start';
@@ -89,7 +85,7 @@ export const useMatchEntry = () => {
       : endParkLocked
         ? 'End park unlocks in Teleop'
         : undefined;
-  /** The visible note beside the Robots heading, when something waits */
+  /** Why the robot toggles wait, read out beside the Robots heading */
   const robotsReason = entryLocked
     ? START_REASON
     : hasTeleop && endParkLocked
@@ -97,76 +93,29 @@ export const useMatchEntry = () => {
       : undefined;
 
   // The buzzer hands the scorer from the live counters to this section:
-  // light it for a moment, and bring its first row of steppers into view
-  // unless that row is on screen already ("Count them first" does the same).
+  // bring its first row of steppers into view unless that row is on screen
+  // already ("Count them first" does the same).
   const endSectionRef = useRef<HTMLDivElement>(null);
-  const [justUnlocked, setJustUnlocked] = useState(false);
   const lastPhaseRef = useRef(matchPhase);
   useEffect(() => {
     const previousPhase = lastPhaseRef.current;
     lastPhaseRef.current = matchPhase;
     if (matchPhase !== 'ended' || previousPhase === 'ended') return;
     if (!matchActive || editing) return;
-    setJustUnlocked(true);
 
     // The walkthrough moves the page itself.
     const section = endSectionRef.current;
     if (!section || isTutorialActive) return;
     revealFirstStepperRow(section);
   }, [matchPhase, matchActive, editing, isTutorialActive]);
-  useEffect(() => {
-    if (!justUnlocked) return;
-    const timer = setTimeout(() => setJustUnlocked(false), UNLOCK_PULSE_MS);
-    return () => clearTimeout(timer);
-  }, [justUnlocked]);
 
-  // One note over the counters in every state, as tall in each (see
-  // EndNote's `reserve`), so they stay where they are when the section
-  // locks and unlocks. While locked it is a filled band that says when they
-  // open: at the buzzer, or on a pause (before Start, 'Unlocks at Start' is
-  // read out first). Once open it says the one thing left to do, or for a
-  // saved match open for editing, what that is for. It stays empty (but
-  // kept) for the tutorial's practice match, whose fields are open and whose
-  // own card says when to count.
-  const unlockNote = (
-    <>
-      <span className="[@container(max-width:20.95rem)]:hidden">
-        Unlocks at the buzzer or when you pause
-      </span>
-      <span className="hidden [@container(max-width:20.95rem)]:inline">
-        Unlocks at the buzzer or on pause
-      </span>
-    </>
-  );
-  const pausedNote = 'Unlocked while paused';
-  // The park toggle's own name: 'End' beside 'Auto', else 'Park'
-  const buzzerNote =
-    hasAuto && hasTeleop
-      ? 'Mark End park, count, then save'
-      : 'Mark Park, count, then save';
-  const editingNote = 'Fix any count, then save';
-  const notes = [unlockNote, pausedNote, buzzerNote, editingNote];
-  const note = (current: number, locked: boolean, prefix?: React.ReactNode) => (
-    <EndNote
-      id={locked ? endReasonId : undefined}
-      locked={locked}
-      reserve={notes.filter((_, i) => i !== current)}
-    >
-      {prefix}
-      {notes[current]}
-    </EndNote>
-  );
-  const endCaption = endDisabled
-    ? note(
-        0,
-        true,
-        entryLocked && <span className="sr-only">{START_REASON}. </span>
-      )
-    : isTutorialActive
-      ? undefined
-      : editing
-        ? note(3, false)
-        : note(matchPhase !== 'ended' ? 1 : 2, false);
+  // Why the counters are locked: read out with each stepper, not shown.
+  // The locked look already says it.
+  const endReason = endDisabled ? (
+    <span id={endReasonId} className="sr-only">
+      {entryLocked ? START_REASON : 'Unlocks at the buzzer or on pause'}
+    </span>
+  ) : null;
 
   return {
     sessionData,
@@ -179,8 +128,7 @@ export const useMatchEntry = () => {
     robotsReason,
     robotsReasonId,
     endReasonId,
-    endCaption,
-    justUnlocked,
+    endReason,
     endSectionRef,
     entryLocked,
     hasAuto,

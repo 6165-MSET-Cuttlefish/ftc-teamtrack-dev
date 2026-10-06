@@ -278,12 +278,15 @@ export const ScoreField = memo(
 
     // 48px on a phone keeps the tap target over the 44px minimum while
     // leaving room for the label on a 360px-wide screen. A stacked field
-    // gives up 4px of that so the pair still fits on a short phone.
+    // gives up 4px of that so the pair still fits on a short phone. Beside
+    // a live button they take its height, so the row is one height.
     const stepBtnSize = isStacked
       ? 'w-11 h-11 md:w-12 md:h-12'
-      : isLarge
-        ? 'w-12 h-12'
-        : 'w-10 h-10';
+      : hasLiveAction
+        ? 'w-12 h-14'
+        : isLarge
+          ? 'w-12 h-12'
+          : 'w-10 h-10';
     const stepIconSize = isLarge || isStacked ? 20 : 16;
     // The one locked look, as on the robot toggles and the desktop pad: no
     // outline, a faint fill and muted text that still reads (over 3:1).
@@ -352,11 +355,11 @@ export const ScoreField = memo(
             : 'text-lg';
 
     // The text box and the live readout share one box, so swapping one for
-    // the other moves nothing.
+    // the other moves nothing. Beside a live button it takes its height.
     const countBox = isStacked
       ? 'h-11 w-full md:h-12 md:w-20'
       : isCompact
-        ? `${isLarge ? 'h-12' : 'h-10'} ${hasLiveAction ? 'w-11' : 'w-12'} md:w-20`
+        ? `${hasLiveAction ? 'h-14 w-11' : isLarge ? 'h-12 w-12' : 'h-10 w-12'} md:w-20`
         : isLarge
           ? 'h-12 w-16 md:w-20'
           : 'h-10 w-20';

@@ -998,11 +998,11 @@ export const Header = () => {
       // `[id]` override, the 5rem scroll margin every element with an id gets
       // (global.css) made a menu's button, focused again as the menu closed,
       // scroll the page up by up to 5rem.
-      className={`top-0 w-full border-b z-50 [&_[id]]:scroll-mt-0 ${
+      className={`top-0 w-full z-50 [&_[id]]:scroll-mt-0 ${
         isShort && !matchActive ? 'relative' : 'sticky'
       } ${
         isShort ? 'py-1' : isFixedHeight ? 'py-2' : 'py-2 sm:py-3 md:py-4'
-      } ${isDarkMode ? 'border-team-white-20 bg-team-dark' : 'border-team-blue/60 bg-[#FEFEFE]'}`}
+      } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
       {/* The pages' own column, so the bar's ends line up with the content
           under it. */}

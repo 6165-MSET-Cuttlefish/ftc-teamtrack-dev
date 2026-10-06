@@ -2,20 +2,9 @@ import { useId, useState } from 'react';
 import { Check, Lock } from 'lucide-react';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { useTheme } from '@/contexts';
-import {
-  COUNT_LABELS,
-  EACH_LABELS,
-  ELEMENT_LABELS,
-  FIELD_HINTS,
-  FIELD_LIMITS,
-} from '@/lib';
+import { COUNT_LABELS, ELEMENT_LABELS, FIELD_HINTS, FIELD_LIMITS } from '@/lib';
 import { formatPoints } from '@/lib/points';
-import {
-  CountLine,
-  CounterHead,
-  FlowerSlots,
-  LOCKED_SURFACE,
-} from './EndOfMatchParts';
+import { CounterHead, LOCKED_SURFACE } from './EndOfMatchParts';
 import { PenaltyField, PenaltyHint } from './PenaltyCounters';
 import { BreakdownStrip } from './ScoreBreakdown';
 import { ScoreField } from './ScoreField';
@@ -34,8 +23,8 @@ import { useScoringLocks } from './useScoringLocks';
  *    its -1 beside it (under it on a tablet and in a scrim), the robot
  *    leave/park matrix beside it, and in a scrim the two penalty counters.
  *  - After the buzzer: the two flower counters, Left in Hive and Garden as
- *    joined steppers, each under its name (the rule behind an (i)) and what
- *    one is worth, locked until the clock stops (see `useScoringLocks`).
+ *    joined steppers, each under its name (the rule and what one is worth
+ *    behind an (i)), locked until the clock stops (see `useScoringLocks`).
  *  - Then one band across the bottom: the total and the ranking points.
  *    Each element's points are on its own counter, so the band doesn't
  *    repeat them.
@@ -290,8 +279,7 @@ export const ScoringPad = () => {
     entryKey,
     endDisabled,
     endReasonId,
-    endCaption,
-    justUnlocked,
+    endReason,
     endSectionRef,
   } = entry;
   const isScrim = sessionData.sessionType === 'Scrim';
@@ -321,13 +309,9 @@ export const ScoringPad = () => {
 
   const ids = {
     flower: useId(),
-    flowerLine: useId(),
     flowerBonus: useId(),
-    flowerBonusLine: useId(),
     hive: useId(),
-    hiveLine: useId(),
     garden: useId(),
-    gardenLine: useId(),
     info: useId(),
     robotsNote: useId(),
     padLock: useId(),
@@ -335,18 +319,17 @@ export const ScoringPad = () => {
 
   // The matrix shows only what the match type scores (no dead chips): a
   // Teleop match has no Leave or Park (Auto), an Autonomous one no Park
-  // (End). What is locked, or why a column is missing, is one line under
-  // it, kept in every state so the rows never move. Before Start every
-  // field is locked alike: the pad's own note, read out but not shown, says
-  // it for the whole band, and this one is empty.
+  // (End), and one line under it says why a column is missing. Why a chip
+  // is locked is only read out: the locked look shows it. Before Start
+  // every field is locked alike, which the pad's own note says.
   const robotsNote = entryLocked
     ? null
     : endParkLocked && hasTeleop
-      ? { locked: true, text: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop` }
+      ? { hidden: true, text: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop` }
       : !hasAuto
-        ? { locked: false, text: 'Teleop match: no Auto scoring' }
+        ? { hidden: false, text: 'Teleop match: no Auto scoring' }
         : !hasTeleop
-          ? { locked: false, text: 'Autonomous match: no End park' }
+          ? { hidden: false, text: 'Autonomous match: no End park' }
           : null;
   /** Where a locked robot chip or penalty counter says why */
   const robotsReasonId = entryLocked ? ids.padLock : ids.robotsNote;
@@ -384,7 +367,6 @@ export const ScoringPad = () => {
   const counter = (
     label: string,
     name: string,
-    describedBy: string,
     max: number,
     value: number,
     onChange: (v: number) => void
@@ -393,7 +375,6 @@ export const ScoringPad = () => {
       label={label}
       name={name}
       hideLabel
-      describedBy={describedBy}
       layout="segment"
       stepper
       max={max}
@@ -473,16 +454,16 @@ export const ScoringPad = () => {
               </div>
             );
           })}
-          <div className="col-span-4 min-h-4">
-            {robotsNote && (
+          {robotsNote && (
+            <div className="col-span-4">
               <SectionNote
                 id={ids.robotsNote}
-                icon={robotsNote.locked ? 'locked' : undefined}
+                visuallyHidden={robotsNote.hidden}
               >
                 {robotsNote.text}
               </SectionNote>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {isScrim && (
@@ -519,33 +500,20 @@ export const ScoringPad = () => {
       {/* Under the band, so dismissing it moves nothing that is tapped live */}
       {isScrim && <PenaltyHint />}
 
-      <div ref={endSectionRef} className="flex flex-col gap-2">
+      <div ref={endSectionRef}>
         <h2 className="sr-only">End of match</h2>
-        {/* One height in every state, so the fields don't move when it changes */}
-        <div
-          data-highlight={justUnlocked || undefined}
-          className={`min-h-8 transition-colors duration-300 ${
-            justUnlocked
-              ? '[&_p]:text-team-blue motion-safe:animate-[pulse_0.8s_ease-in-out_2]'
-              : ''
-          }`}
-        >
-          {endCaption}
-        </div>
+        {endReason}
         {/*
-          Three rows shared across the four counters (subgrid), so every
-          name, every worth line and every stepper sits level with its
-          neighbours however the names wrap: the two flower counters, then
-          Left in Hive and Garden. Below `lg` the flower pair takes the first
-          row and the other two the next. An open (i) rule sits under its
-          own name, in that first row, so the rows under it stay level with
-          their neighbours too.
+          Two rows shared across the four counters (subgrid), so every name
+          and every stepper sits level with its neighbours however the names
+          wrap: the two flower counters, then Left in Hive and Garden. Below
+          `lg` the flower pair takes the first row and the other two the
+          next. An open (i) rule sits under its own name, in that first row,
+          so the steppers under it stay level with their neighbours too.
         */}
-        {/* The walkthrough spotlights the fields, not the note over them,
-            which is empty while it runs */}
         <div
           data-tutorial="end-of-match"
-          className="grid grid-cols-2 gap-x-4 gap-y-1.5 lg:grid-cols-4 lg:gap-x-5"
+          className="grid grid-cols-2 gap-x-4 gap-y-2 lg:grid-cols-4 lg:gap-x-5"
         >
           {(
             [
@@ -553,8 +521,6 @@ export const ScoringPad = () => {
                 key: 'flower',
                 name: 'flower',
                 headId: ids.flower,
-                lineId: ids.flowerLine,
-                icon: <FlowerSlots nectar="top" />,
                 points: breakdown.flower,
                 value: sessionData.flower,
                 onChange: set.flower,
@@ -563,8 +529,6 @@ export const ScoringPad = () => {
                 key: 'flowerBonus',
                 name: 'flower-bonus',
                 headId: ids.flowerBonus,
-                lineId: ids.flowerBonusLine,
-                icon: <FlowerSlots nectar="bottom" />,
                 points: breakdown.flowerBonus,
                 value: sessionData.flowerBonus,
                 onChange: set.flowerBonus,
@@ -574,7 +538,6 @@ export const ScoringPad = () => {
                 info: 'hive',
                 name: 'left-in-hive',
                 headId: ids.hive,
-                lineId: ids.hiveLine,
                 points: breakdown.hive,
                 value: sessionData.ballsInHive,
                 onChange: set.ballsInHive,
@@ -583,7 +546,6 @@ export const ScoringPad = () => {
                 key: 'garden',
                 name: 'garden',
                 headId: ids.garden,
-                lineId: ids.gardenLine,
                 points: breakdown.garden,
                 value: sessionData.garden,
                 onChange: set.garden,
@@ -596,7 +558,7 @@ export const ScoringPad = () => {
                 key={c.key}
                 role="group"
                 aria-labelledby={c.headId}
-                className={`row-span-3 grid grid-rows-subgrid ${
+                className={`row-span-2 grid grid-rows-subgrid ${
                   c.key === 'flower' || c.key === 'flowerBonus'
                     ? ''
                     : 'md:max-lg:mt-3'
@@ -606,7 +568,7 @@ export const ScoringPad = () => {
                   <CounterHead
                     id={c.headId}
                     title={COUNT_LABELS[c.key]}
-                    icon={'icon' in c ? c.icon : undefined}
+                    points={c.points}
                     info={infoText[which]}
                     infoId={ids.info}
                     infoOpen={infoOpen === which}
@@ -614,15 +576,9 @@ export const ScoringPad = () => {
                   />
                   {rule(which)}
                 </div>
-                <CountLine
-                  id={c.lineId}
-                  each={EACH_LABELS[c.key]}
-                  points={c.points}
-                />
                 {counter(
                   COUNT_LABELS[c.key],
                   c.name,
-                  c.lineId,
                   FIELD_LIMITS[c.key],
                   c.value,
                   c.onChange

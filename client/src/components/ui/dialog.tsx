@@ -270,7 +270,7 @@ export const DialogHeader = ({
   className = '',
   ...props
 }: HTMLAttributes<HTMLDivElement>) => (
-  <div {...props} className={`px-6 py-5 border-b ${className}`}>
+  <div {...props} className={`px-6 py-5 ${className}`}>
     {children}
   </div>
 );

@@ -98,9 +98,7 @@ const DeleteConfirm = ({
       role="group"
       aria-labelledby={questionId}
       onClick={stop}
-      className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3 cursor-default sm:border-t-0 sm:pt-0 ${
-        isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
-      }`}
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 cursor-default"
     >
       <p
         id={questionId}
@@ -628,10 +626,8 @@ export const SessionCard = ({
           <div
             role="status"
             onClick={stop}
-            className={`flex items-center gap-2 border-t pt-3 text-sm cursor-default ${
-              isDarkMode
-                ? 'border-team-blue-40 text-gray-100'
-                : 'border-gray-200 text-gray-900'
+            className={`flex items-center gap-2 text-sm cursor-default ${
+              isDarkMode ? 'text-gray-100' : 'text-gray-900'
             }`}
           >
             <Lock aria-hidden="true" className="h-4 w-4 shrink-0" />

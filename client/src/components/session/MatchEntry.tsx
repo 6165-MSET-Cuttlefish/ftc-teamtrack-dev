@@ -2,20 +2,9 @@ import { memo, useId, useState } from 'react';
 import { Check, Lock } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { cn } from '@/lib/utils';
-import {
-  COUNT_LABELS,
-  EACH_LABELS,
-  ELEMENT_LABELS,
-  FIELD_HINTS,
-  FIELD_LIMITS,
-} from '@/lib';
+import { COUNT_LABELS, ELEMENT_LABELS, FIELD_HINTS, FIELD_LIMITS } from '@/lib';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
-import {
-  CountLine,
-  CounterHead,
-  FlowerSlots,
-  LOCKED_SURFACE,
-} from './EndOfMatchParts';
+import { CounterHead, LOCKED_SURFACE } from './EndOfMatchParts';
 import { PenaltyField, PenaltyHint } from './PenaltyCounters';
 import { ScoreField } from './ScoreField';
 import { SectionNote } from './SectionNote';
@@ -31,10 +20,6 @@ const Section = ({
   tutorialId,
   aside,
   headingHidden = false,
-  titleHidden = false,
-  caption,
-  reserveCaption = false,
-  highlight = false,
   sectionRef,
   children,
 }: {
@@ -46,23 +31,9 @@ const Section = ({
   /**
    * The heading and its aside are read out but not shown, and take no
    * height: for a screen with none to spare, where what is under the
-   * heading names itself. (Not with a caption, which would go too.)
+   * heading names itself.
    */
   headingHidden?: boolean;
-  /**
-   * Only the title is read out but not shown: the caption under it stays,
-   * for a section whose groups have titles of their own.
-   */
-  titleHidden?: boolean;
-  /** One muted line under the heading: what state the section is in */
-  caption?: React.ReactNode;
-  /**
-   * Keep the caption's place (an EndNote's height) when there is no
-   * caption, so the fields under it stay put as it comes and goes.
-   */
-  reserveCaption?: boolean;
-  /** Briefly draws the eye to the heading and caption (just unlocked) */
-  highlight?: boolean;
   sectionRef?: React.Ref<HTMLDivElement>;
   children: React.ReactNode;
 }) => (
@@ -72,37 +43,13 @@ const Section = ({
     className="flex flex-col gap-2"
     data-tutorial={tutorialId}
   >
-    <div className={headingHidden ? 'sr-only' : 'space-y-0.5'}>
-      <div
-        className={
-          titleHidden ? 'sr-only' : 'flex items-baseline justify-between gap-3'
-        }
-      >
-        <h3
-          data-highlight={highlight || undefined}
-          className={cn(
-            EYEBROW_CLASS,
-            'whitespace-nowrap transition-colors duration-300',
-            highlight &&
-              'text-team-blue motion-safe:animate-[pulse_0.8s_ease-in-out_2]'
-          )}
-        >
-          {title}
-        </h3>
-        {aside}
-      </div>
-      {(caption || reserveCaption) && (
-        <div
-          className={cn(
-            'transition-colors duration-300',
-            reserveCaption ? 'min-h-8' : 'min-h-4',
-            highlight &&
-              '[&_p]:text-team-blue motion-safe:animate-[pulse_0.8s_ease-in-out_2]'
-          )}
-        >
-          {caption}
-        </div>
-      )}
+    <div
+      className={
+        headingHidden ? 'sr-only' : 'flex items-baseline justify-between gap-3'
+      }
+    >
+      <h3 className={cn(EYEBROW_CLASS, 'whitespace-nowrap')}>{title}</h3>
+      {aside}
     </div>
     {children}
   </div>
@@ -418,8 +365,7 @@ export const MatchEntry = () => {
     robotsReason,
     robotsReasonId,
     endReasonId,
-    endCaption,
-    justUnlocked,
+    endReason,
     endSectionRef,
     entryLocked,
     hasAuto,
@@ -428,13 +374,9 @@ export const MatchEntry = () => {
   const { isDarkMode } = useTheme();
   const ids = {
     flower: useId(),
-    flowerLine: useId(),
     flowerBonus: useId(),
-    flowerBonusLine: useId(),
     hive: useId(),
-    hiveLine: useId(),
     garden: useId(),
-    gardenLine: useId(),
     info: useId(),
   };
 
@@ -458,15 +400,13 @@ export const MatchEntry = () => {
     id: string,
     title: string,
     rule: string,
-    icon?: React.ReactNode
+    points: number
   ) => (
-    // A little more room under the name than between the worth line and
-    // the stepper.
-    <div className="min-w-0 pb-0.5">
+    <div className="min-w-0">
       <CounterHead
         id={id}
         title={title}
-        icon={icon}
+        points={points}
         info={rule}
         infoId={ids.info}
         infoOpen={infoOpen === which}
@@ -540,29 +480,21 @@ export const MatchEntry = () => {
 
       {sessionData.sessionType === 'Scrim' && <Penalties />}
 
-      {/* Its groups have titles of their own: only its caption shows */}
+      {/* Its groups have titles of their own */}
       <Section
         title="End of Match"
-        titleHidden
-        caption={endCaption}
-        reserveCaption
-        highlight={justUnlocked}
+        headingHidden
+        aside={endReason}
         sectionRef={endSectionRef}
       >
         {/*
           Four counters drawn alike, as on the desktop pad: a name with the
-          rule behind its (i), what one is worth, then the stepper. The two
-          flower counters come first, side by side so the difference is the
-          first thing seen: what is counted (pieces, or flowers) and where
-          your nectar is (the picture before each name). Left in Hive and
-          Garden are the second pair. A pair goes to one column only where
-          its column is narrower than a 320px phone's (a 200% zoom). Each
-          counter spans its pair's rows (subgrid), so the steppers stay level
-          however the names above them wrap.
-
-          The walkthrough spotlights the counters, not the note over them,
-          which is empty while it runs: its ring then sits as close to the
-          fields on every side.
+          rule (and what one is worth) behind its (i) and its points beside
+          it, then the stepper. The two flower counters come first, side by
+          side, then Left in Hive and Garden. A pair goes to one column only
+          where its column is narrower than a 320px phone's (a 200% zoom).
+          Each counter spans its pair's rows (subgrid), so the steppers stay
+          level however the names above them wrap.
         */}
         <div
           data-tutorial="end-of-match"
@@ -573,8 +505,6 @@ export const MatchEntry = () => {
               {
                 key: 'flower',
                 headId: ids.flower,
-                lineId: ids.flowerLine,
-                icon: <FlowerSlots nectar="top" />,
                 points: breakdown.flower,
                 value: sessionData.flower,
                 onChange: set.flower,
@@ -582,8 +512,6 @@ export const MatchEntry = () => {
               {
                 key: 'flowerBonus',
                 headId: ids.flowerBonus,
-                lineId: ids.flowerBonusLine,
-                icon: <FlowerSlots nectar="bottom" />,
                 points: breakdown.flowerBonus,
                 value: sessionData.flowerBonus,
                 onChange: set.flowerBonus,
@@ -592,7 +520,6 @@ export const MatchEntry = () => {
                 key: 'ballsInHive',
                 info: 'hive',
                 headId: ids.hive,
-                lineId: ids.hiveLine,
                 points: breakdown.hive,
                 value: sessionData.ballsInHive,
                 onChange: set.ballsInHive,
@@ -600,7 +527,6 @@ export const MatchEntry = () => {
               {
                 key: 'garden',
                 headId: ids.garden,
-                lineId: ids.gardenLine,
                 points: breakdown.garden,
                 value: sessionData.garden,
                 onChange: set.garden,
@@ -611,26 +537,20 @@ export const MatchEntry = () => {
               key={c.key}
               role="group"
               aria-labelledby={c.headId}
-              className="row-span-3 grid grid-rows-subgrid gap-y-1.5"
+              className="row-span-2 grid grid-rows-subgrid gap-y-2"
             >
               {head(
                 'info' in c ? c.info : c.key,
                 c.headId,
                 COUNT_LABELS[c.key],
                 FIELD_HINTS[c.key],
-                'icon' in c ? c.icon : undefined
+                c.points
               )}
-              <CountLine
-                id={c.lineId}
-                each={EACH_LABELS[c.key]}
-                points={c.points}
-              />
               <ScoreField
                 layout="segment"
                 stepper
                 hideLabel
                 label={COUNT_LABELS[c.key]}
-                describedBy={c.lineId}
                 max={FIELD_LIMITS[c.key]}
                 value={c.value}
                 disabled={endDisabled}

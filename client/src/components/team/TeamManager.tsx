@@ -658,9 +658,7 @@ export const TeamManager = ({
 
   // The team dialog's footer stays put while its body scrolls, and stays a
   // row on a phone too.
-  const footer = `shrink-0 flex-row gap-3 px-5 border-t ${
-    isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
-  }`;
+  const footer = 'shrink-0 flex-row gap-3 px-5';
   // The buttons of the other dialogs' footers: full width when stacked on a
   // phone, and wide enough beside each other not to resize as a label changes.
   const footerButton = 'h-11 rounded-xl sm:min-w-[7.5rem]';
