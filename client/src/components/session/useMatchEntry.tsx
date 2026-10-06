@@ -83,7 +83,7 @@ export const useMatchEntry = () => {
     : !hasTeleop
       ? 'No End park in an Autonomous match'
       : endParkLocked
-        ? 'End park unlocks in Teleop'
+        ? 'End park unlocks in Teleop or on pause'
         : undefined;
   /** Why the robot toggles wait, read out beside the Robots heading */
   const robotsReason = entryLocked
