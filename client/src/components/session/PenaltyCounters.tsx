@@ -42,13 +42,14 @@ export const PenaltyHint = () => {
       // No frame (the outlined things on the page are controls) and no fill
       // (the filled band under it is the end-of-match lock): a muted line
       // Icon and × level with the first line when the text wraps
-      className={`flex items-start gap-2 text-xs leading-4 ${
+      // As wide as its words on a wide layout, so the × stays beside them
+      className={`flex items-start gap-2 text-xs leading-4 md:w-fit md:max-w-full ${
         isDarkMode ? 'text-gray-300' : 'text-gray-700'
       }`}
     >
       <Info size={14} aria-hidden className="mt-px shrink-0" />
       {/* Each value stays with its name when the line wraps on a phone */}
-      <p className="min-w-0 flex-1">
+      <p className="min-w-0 flex-1 text-balance">
         Penalties go to the opponent (Minor&nbsp;+{POINTS.MINOR_PENALTY},
         Major&nbsp;+{POINTS.MAJOR_PENALTY}). They never lower your score.
       </p>

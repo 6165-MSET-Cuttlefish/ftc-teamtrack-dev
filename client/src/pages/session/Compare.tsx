@@ -1341,7 +1341,7 @@ const Compare = () => {
   const sessionList =
     sessions.length === 0 ? (
       <div
-        className={`text-center py-12 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}
+        className={`text-center py-12 px-6 rounded-xl border ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-gray-50'}`}
       >
         <p
           className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
