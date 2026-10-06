@@ -27,9 +27,10 @@ export const LOCKED_SURFACE =
   'border-transparent text-gray-500 bg-gray-100 dark:bg-white/[0.05]';
 
 /**
- * The note over the end-of-match counters: why they are locked (a filled
- * band with a lock, so it reads at a glance during play) or, once open, what
- * to do. It wraps rather than cut off (a 200% zoom), and `reserve` takes
+ * The note over the end-of-match counters: why they are locked or, once
+ * open, what to do. One filled band in every state, so it reads at a glance
+ * during play and doesn't change shape as it opens; the lock on it opens
+ * with the counters. It wraps rather than cut off (a 200% zoom), and `reserve` takes
  * the notes of its other states, laid invisibly in the same place, so it is
  * as tall as the tallest of them and the counters under it never move.
  * Its `id` is what the locked steppers point at for their reason.
@@ -47,13 +48,9 @@ export const EndNote = ({
 }) => {
   const { isDarkMode } = useTheme();
   const Icon = locked ? Lock : LockOpen;
-  const tone = locked
-    ? isDarkMode
-      ? 'bg-white/[0.06] text-gray-200'
-      : 'bg-gray-100 text-gray-800'
-    : isDarkMode
-      ? 'text-gray-300'
-      : 'text-gray-700';
+  const tone = isDarkMode
+    ? 'bg-white/[0.06] text-gray-200'
+    : 'bg-gray-100 text-gray-800';
   const line = (text: React.ReactNode, hidden: boolean, key?: number) => (
     <span
       key={key}

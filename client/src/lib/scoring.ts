@@ -378,17 +378,17 @@ export const FIELD_LIMITS = {
 
 /**
  * The rule behind a counter's (i): what its short visible lines (the name,
- * COUNT_LABELS and EACH_LABELS) leave out, in full sentences.
+ * COUNT_LABELS and EACH_LABELS) leave out, in full, as a note with no
+ * closing period.
  */
 export const FIELD_HINTS = {
-  tipping: `Every Hive Tip counts, in Auto or Teleop: ${POINTS.HIVE_TIP} pts each.`,
+  tipping: `Every Hive Tip counts, in Auto or Teleop: ${POINTS.HIVE_TIP} pts each`,
   flower:
-    'Every piece in a flower with your nectar on top, opponent and pre-staged pieces too.',
-  flowerBonus: 'One per flower with your nectar in its bottom slot.',
-  garden:
-    'Every piece in your garden, including the 4 pollen that start there.',
+    'Every piece in a flower with your nectar on top, opponent and pre-staged pieces too',
+  flowerBonus: 'One per flower with your nectar in its bottom slot',
+  garden: 'Every piece in your garden, including the 4 pollen that start there',
   ballsInHive:
-    "Pieces in the hive's upward-facing cell, including the 3 starting nectar unless a Hive Tip turned that cell away.",
+    "Pieces in the hive's upward-facing cell, including the 3 starting nectar unless a Hive Tip turned that cell away",
   minorPenalties: `+${POINTS.MINOR_PENALTY} to the opponent each. Your score is not reduced`,
   majorPenalties: `+${POINTS.MAJOR_PENALTY} to the opponent each. Your score is not reduced`,
 } as const;
