@@ -32,8 +32,8 @@ export const ELEMENT_LABELS = {
 } as const;
 
 /**
- * Flower and Flower Bonus together, where the scoring page and its running
- * breakdown show the two as one group.
+ * Flower and Flower Bonus together, where a summary shows the two as one
+ * (the Match Log's line for a match, the running breakdown).
  */
 export const FLOWERS_LABEL = 'Flowers';
 

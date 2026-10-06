@@ -382,6 +382,9 @@ export const FIELD_LIMITS = {
  */
 export const FIELD_HINTS = {
   tipping: `Every Hive Tip counts, in Auto or Teleop: ${POINTS.HIVE_TIP} pts each.`,
+  flower:
+    'Every piece in a flower with your nectar on top, opponent and pre-staged pieces too.',
+  flowerBonus: 'One per flower with your nectar in its bottom slot.',
   garden:
     'Every piece in your garden, including the 4 pollen that start there.',
   ballsInHive:
@@ -391,25 +394,17 @@ export const FIELD_HINTS = {
 } as const;
 
 /**
- * Flower and Flower Bonus as one group: the rule that tells the two apart,
- * behind the Flowers (i), in the words of their COUNT_LABELS.
- */
-export const FLOWERS_HINT =
-  'Owned pieces: every piece in a flower with your nectar on top, opponent and pre-staged pieces too. Nectar at bottom: one per flower with your nectar in its bottom slot.';
-
-/**
- * What to count for each end-of-match counter, in a few words: one line
- * under its heading on every screen, down to a 320px phone where each
- * counter has about 120px (the flower ones less their picture). The scoring
- * page and the Add/Edit Match dialog show these under a heading that names
- * the element, with the full rule behind its (i); everywhere else
- * (Analysis, Charts, CSV) the element keeps its ELEMENT_LABELS name.
+ * The name over each end-of-match counter on the scoring page and in the
+ * Add/Edit Match dialog, with its full rule (FIELD_HINTS) behind an (i). The
+ * two flower counters say "flower" in their own names, so they need no group
+ * heading over them; everywhere else (Analysis, Charts, CSV) each element
+ * keeps its ELEMENT_LABELS name.
  */
 export const COUNT_LABELS = {
-  flower: 'Owned pieces',
-  flowerBonus: 'Nectar at bottom',
-  ballsInHive: 'In the upward cell',
-  garden: 'Every piece',
+  flower: 'Owned flower pieces',
+  flowerBonus: 'Flower nectar at bottom',
+  ballsInHive: ELEMENT_LABELS.hive,
+  garden: ELEMENT_LABELS.garden,
 } as const;
 
 /** What one of each end-of-match counter is worth, beside its count */

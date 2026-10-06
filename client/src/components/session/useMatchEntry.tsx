@@ -3,7 +3,7 @@ import { useSessionCore } from '@/contexts';
 import type { MatchScoringFields } from '@/types';
 import { calculateScore } from '@/lib';
 import { revealFirstStepperRow } from './controls/revealStepperRow';
-import { SectionNote } from './SectionNote';
+import { EndNote } from './EndOfMatchParts';
 import { useScoringLocks } from './useScoringLocks';
 
 /** How long the End of Match heading stays lit after the buzzer */
@@ -120,52 +120,53 @@ export const useMatchEntry = () => {
     return () => clearTimeout(timer);
   }, [justUnlocked]);
 
-  // One line under the heading in every state, so the fields below it stay
-  // where they are when the section locks and unlocks: what it waits for
-  // while a match is played, and after the buzzer the one thing left to do.
-  // Its line stays empty (but kept) for a saved match open for editing, and
-  // for the tutorial's practice match, whose fields are open and whose own
-  // card says when to count. Before Start every field on the page waits for
-  // Start, the one filled button, and the locked look says so: 'Unlocks at
-  // Start' is read out, not shown. Between matches the line says how to fix
-  // a saved match.
-  const hasSavedMatches = (sessionData.matches?.length ?? 0) > 0;
-  const endCaption = endDisabled ? (
-    <SectionNote
-      id={endReasonId}
-      icon="locked"
-      visuallyHidden={entryLocked && !hasSavedMatches}
-    >
-      {entryLocked ? (
-        hasSavedMatches ? (
-          // One line in every column: the shorter pointer where the longer
-          // would wrap (a column under 336px, from a 360px phone down).
-          <>
-            <span className="sr-only">{START_REASON}. </span>
-            <span className="[@container(max-width:20.95rem)]:hidden">
-              Tap a match in the Match Log to fix it.
-            </span>
-            <span className="hidden [@container(max-width:20.95rem)]:inline">
-              Tap a saved match to fix it.
-            </span>
-          </>
-        ) : (
-          START_REASON
-        )
-      ) : (
-        'Unlocks at the buzzer, or when you pause'
-      )}
-    </SectionNote>
-  ) : editing || isTutorialActive ? undefined : (
-    <SectionNote icon="unlocked">
-      {matchPhase !== 'ended'
-        ? 'Unlocked while paused'
-        : // The park toggle's own name: 'End' beside 'Auto', else 'Park'
-          hasAuto && hasTeleop
-          ? 'Mark End park, count, then save'
-          : 'Mark Park, count, then save'}
-    </SectionNote>
+  // One note over the counters in every state, as tall in each (see
+  // EndNote's `reserve`), so they stay where they are when the section
+  // locks and unlocks. While locked it is a filled band that says when they
+  // open: at the buzzer, or on a pause (before Start, 'Unlocks at Start' is
+  // read out first). Once open it says the one thing left to do, or for a
+  // saved match open for editing, what that is for. It stays empty (but
+  // kept) for the tutorial's practice match, whose fields are open and whose
+  // own card says when to count.
+  const unlockNote = (
+    <>
+      <span className="[@container(max-width:20.95rem)]:hidden">
+        Unlocks at the buzzer or when you pause
+      </span>
+      <span className="hidden [@container(max-width:20.95rem)]:inline">
+        Unlocks at the buzzer or on pause
+      </span>
+    </>
   );
+  const pausedNote = 'Unlocked while paused';
+  // The park toggle's own name: 'End' beside 'Auto', else 'Park'
+  const buzzerNote =
+    hasAuto && hasTeleop
+      ? 'Mark End park, count, then save'
+      : 'Mark Park, count, then save';
+  const editingNote = 'Fix any count, then save';
+  const notes = [unlockNote, pausedNote, buzzerNote, editingNote];
+  const note = (current: number, locked: boolean, prefix?: React.ReactNode) => (
+    <EndNote
+      id={locked ? endReasonId : undefined}
+      locked={locked}
+      reserve={notes.filter((_, i) => i !== current)}
+    >
+      {prefix}
+      {notes[current]}
+    </EndNote>
+  );
+  const endCaption = endDisabled
+    ? note(
+        0,
+        true,
+        entryLocked && <span className="sr-only">{START_REASON}. </span>
+      )
+    : isTutorialActive
+      ? undefined
+      : editing
+        ? note(3, false)
+        : note(matchPhase !== 'ended' ? 1 : 2, false);
 
   return {
     sessionData,

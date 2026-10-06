@@ -7,8 +7,6 @@ import {
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
-  FLOWERS_HINT,
-  FLOWERS_LABEL,
   POINTS,
   calculateScore,
   emptyScoringFields,
@@ -133,7 +131,7 @@ const ROBOT_GRID = {
 const COL_SPAN = { 1: 'col-span-1', 2: 'col-span-2' } as const;
 
 /** Which end-of-match rule is open under its (i) */
-type InfoKey = 'flowers' | 'hive' | 'garden';
+type InfoKey = 'flower' | 'flowerBonus' | 'hive' | 'garden';
 
 const blankForm = (): Partial<Match> => ({
   matchType: 'Full Game',
@@ -155,9 +153,10 @@ export const MatchForm = ({
   const [infoOpen, setInfoOpen] = useState<InfoKey | null>(null);
   const breakdownId = useId();
   const ids = {
-    flowers: useId(),
     flower: useId(),
+    flowerLine: useId(),
     flowerBonus: useId(),
+    flowerBonusLine: useId(),
     hive: useId(),
     hiveLine: useId(),
     garden: useId(),
@@ -255,74 +254,62 @@ export const MatchForm = ({
     setInfoOpen(open => (open === key ? null : key));
 
   /**
-   * An end-of-match group as on the scoring page: the heading with its (i),
-   * the rule under it once opened, then one row per counter.
+   * One end-of-match counter as one row, like Hive Tips above it: its name
+   * (with the (i)) over what one is worth on the left, the stepper on the
+   * right, in line with every other stepper in the form, and the rule under
+   * the row once opened. Its points sit on the worth line on a phone and in
+   * the points column from md up. Where that would leave the words under
+   * 7.5rem (a 320px phone) the stepper wraps under them, still on the right,
+   * instead of squeezing them a word a line.
    */
-  const counterGroup = (
+  const counter = (
+    field: 'flower' | 'flowerBonus' | 'ballsInHive' | 'garden',
     key: InfoKey,
-    title: string,
-    info: string,
-    children: React.ReactNode
+    lineId: string,
+    name: string,
+    points: number,
+    icon?: React.ReactNode
   ) => (
     <div role="group" aria-labelledby={ids[key]} className="space-y-2">
-      <CounterHead
-        id={ids[key]}
-        title={title}
-        info={info}
-        infoId={ids.info}
-        infoOpen={infoOpen === key}
-        onInfo={() => toggleInfo(key)}
-      />
+      <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 md:gap-x-3">
+        <div className="min-w-0 flex-[1_1_7.5rem] space-y-1">
+          <CounterHead
+            id={ids[key]}
+            title={COUNT_LABELS[field]}
+            icon={icon}
+            info={FIELD_HINTS[field]}
+            infoId={ids.info}
+            infoOpen={infoOpen === key}
+            onInfo={() => toggleInfo(key)}
+          />
+          <CountLine
+            id={lineId}
+            each={EACH_LABELS[field]}
+            points={points}
+            footAligned={false}
+            pointsClassName="md:hidden"
+          />
+        </div>
+        <ScoreField
+          {...stepperProps}
+          hideLabel
+          label={COUNT_LABELS[field]}
+          name={name}
+          describedBy={lineId}
+          max={FIELD_LIMITS[field]}
+          value={formData[field] ?? 0}
+          points={points}
+          onChange={v => setField(field, v)}
+        />
+      </div>
       {infoOpen === key && (
         <p
           id={ids.info}
           className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
         >
-          {info}
+          {FIELD_HINTS[field]}
         </p>
       )}
-      {children}
-    </div>
-  );
-
-  /**
-   * One counter's row: what to count on the left, the stepper on the right,
-   * in line with every other stepper in the form. Its points sit on the
-   * worth line on a phone and in the points column from md up. Where that
-   * would leave the words under 7.5rem (a 320px phone) the stepper wraps
-   * under them, still on the right, instead of squeezing them a word a line.
-   */
-  const counterRow = (
-    field: 'flower' | 'flowerBonus' | 'ballsInHive' | 'garden',
-    lineId: string,
-    label: string,
-    name: string,
-    points: number,
-    icon?: React.ReactNode
-  ) => (
-    <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 md:gap-x-3">
-      <div className="min-w-0 flex-[1_1_7.5rem]">
-        <CountLine
-          id={lineId}
-          icon={icon}
-          label={COUNT_LABELS[field]}
-          each={EACH_LABELS[field]}
-          points={points}
-          footAligned={false}
-          pointsClassName="md:hidden"
-        />
-      </div>
-      <ScoreField
-        {...stepperProps}
-        hideLabel
-        label={label}
-        name={name}
-        describedBy={lineId}
-        max={FIELD_LIMITS[field]}
-        value={formData[field] ?? 0}
-        points={points}
-        onChange={v => setField(field, v)}
-      />
     </div>
   );
 
@@ -485,57 +472,39 @@ export const MatchForm = ({
           <Section title="End of Match">
             <div className="space-y-3">
               {/*
-                Flower and Flower Bonus as one group under one heading, as on
-                the scoring page: the picture beside each says where your
-                nectar is. Drawn like the other groups, its rows in line
-                with theirs.
+                Each counter under its own name, as on the scoring page: the
+                picture before the two flower names says where your nectar
+                is.
               */}
-              {counterGroup(
-                'flowers',
-                FLOWERS_LABEL,
-                FLOWERS_HINT,
-                <div className="space-y-3">
-                  {counterRow(
-                    'flower',
-                    ids.flower,
-                    ELEMENT_LABELS.flower,
-                    'flower',
-                    breakdown.flower,
-                    <FlowerSlots nectar="top" />
-                  )}
-                  {counterRow(
-                    'flowerBonus',
-                    ids.flowerBonus,
-                    ELEMENT_LABELS.flowerBonus,
-                    'flower-bonus',
-                    breakdown.flowerBonus,
-                    <FlowerSlots nectar="bottom" />
-                  )}
-                </div>
+              {counter(
+                'flower',
+                'flower',
+                ids.flowerLine,
+                'flower',
+                breakdown.flower,
+                <FlowerSlots nectar="top" />
               )}
-              {counterGroup(
+              {counter(
+                'flowerBonus',
+                'flowerBonus',
+                ids.flowerBonusLine,
+                'flower-bonus',
+                breakdown.flowerBonus,
+                <FlowerSlots nectar="bottom" />
+              )}
+              {counter(
+                'ballsInHive',
                 'hive',
-                ELEMENT_LABELS.hive,
-                FIELD_HINTS.ballsInHive,
-                counterRow(
-                  'ballsInHive',
-                  ids.hiveLine,
-                  ELEMENT_LABELS.hive,
-                  'left-in-hive',
-                  breakdown.hive
-                )
+                ids.hiveLine,
+                'left-in-hive',
+                breakdown.hive
               )}
-              {counterGroup(
+              {counter(
                 'garden',
-                ELEMENT_LABELS.garden,
-                FIELD_HINTS.garden,
-                counterRow(
-                  'garden',
-                  ids.gardenLine,
-                  ELEMENT_LABELS.garden,
-                  'garden',
-                  breakdown.garden
-                )
+                'garden',
+                ids.gardenLine,
+                'garden',
+                breakdown.garden
               )}
             </div>
           </Section>

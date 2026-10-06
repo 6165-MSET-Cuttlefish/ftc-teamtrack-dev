@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { X } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 import { useSessionCore, useTheme } from '@/contexts';
 import { ELEMENT_LABELS, FIELD_LIMITS, POINTS } from '@/lib';
 import { ScoreField } from './ScoreField';
@@ -39,13 +39,13 @@ export const PenaltyHint = () => {
   return (
     <div
       role="note"
-      // A tint, not a frame: the outlined things on the page are controls
-      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs leading-4 ${
-        isDarkMode
-          ? 'bg-white/[0.05] text-gray-300'
-          : 'bg-gray-100 text-gray-700'
+      // No frame (the outlined things on the page are controls) and no fill
+      // (the filled band under it is the end-of-match lock): a muted line
+      className={`flex items-center gap-2 text-xs leading-4 ${
+        isDarkMode ? 'text-gray-300' : 'text-gray-700'
       }`}
     >
+      <Info size={14} aria-hidden className="shrink-0" />
       {/* Each value stays with its name when the line wraps on a phone */}
       <p className="min-w-0 flex-1">
         Penalties go to the opponent (Minor&nbsp;+{POINTS.MINOR_PENALTY},

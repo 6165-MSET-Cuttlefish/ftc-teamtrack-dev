@@ -8,8 +8,6 @@ import {
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
-  FLOWERS_HINT,
-  FLOWERS_LABEL,
 } from '@/lib';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import {
@@ -59,8 +57,8 @@ const Section = ({
   /** One muted line under the heading: what state the section is in */
   caption?: React.ReactNode;
   /**
-   * Keep the caption's line when there is no caption, so the fields under
-   * it stay put as it comes and goes.
+   * Keep the caption's place (an EndNote's height) when there is no
+   * caption, so the fields under it stay put as it comes and goes.
    */
   reserveCaption?: boolean;
   /** Briefly draws the eye to the heading and caption (just unlocked) */
@@ -96,7 +94,8 @@ const Section = ({
       {(caption || reserveCaption) && (
         <div
           className={cn(
-            'min-h-4 transition-colors duration-300',
+            'transition-colors duration-300',
+            reserveCaption ? 'min-h-8' : 'min-h-4',
             highlight &&
               '[&_p]:text-team-blue motion-safe:animate-[pulse_0.8s_ease-in-out_2]'
           )}
@@ -396,7 +395,7 @@ const Penalties = () => {
 };
 
 /** Which end-of-match rule is open under its (i) */
-type InfoKey = 'flowers' | 'hive' | 'garden';
+type InfoKey = 'flower' | 'flowerBonus' | 'hive' | 'garden';
 
 /**
  * Everything about the current match that isn't tapped live: robot leave and
@@ -428,9 +427,10 @@ export const MatchEntry = () => {
   } = useMatchEntry();
   const { isDarkMode } = useTheme();
   const ids = {
-    flowers: useId(),
     flower: useId(),
+    flowerLine: useId(),
     flowerBonus: useId(),
+    flowerBonusLine: useId(),
     hive: useId(),
     hiveLine: useId(),
     garden: useId(),
@@ -452,14 +452,21 @@ export const MatchEntry = () => {
   const toggleInfo = (which: InfoKey) =>
     setInfo({ key: entryKey, open: infoOpen === which ? null : which });
 
-  /** A group's heading, with its rule under it while its (i) is open */
-  const head = (which: InfoKey, id: string, title: string, rule: string) => (
-    // A little more room under the heading than between a count line and
-    // its stepper, as in the Flowers pair.
+  /** A counter's name, with its rule under it while its (i) is open */
+  const head = (
+    which: InfoKey,
+    id: string,
+    title: string,
+    rule: string,
+    icon?: React.ReactNode
+  ) => (
+    // A little more room under the name than between the worth line and
+    // the stepper.
     <div className="min-w-0 pb-0.5">
       <CounterHead
         id={id}
         title={title}
+        icon={icon}
         info={rule}
         infoId={ids.info}
         infoOpen={infoOpen === which}
@@ -543,131 +550,96 @@ export const MatchEntry = () => {
         sectionRef={endSectionRef}
       >
         {/*
-          Three groups drawn alike, as on the desktop pad: a heading with the
-          rule behind its (i), what to count and what one is worth, then the
-          stepper. Flower and Flower Bonus share one heading, side by side so
-          the difference is the first thing seen: what is counted (pieces, or
-          flowers) and where your nectar is. Left in Hive and Garden are the
-          second pair. Each pair goes to one column only where its column is
-          narrower than a 320px phone's (a 200% zoom). Each counter spans
-          its pair's rows (subgrid), so the steppers stay level however the
-          lines above them wrap.
+          Four counters drawn alike, as on the desktop pad: a name with the
+          rule behind its (i), what one is worth, then the stepper. The two
+          flower counters come first, side by side so the difference is the
+          first thing seen: what is counted (pieces, or flowers) and where
+          your nectar is (the picture before each name). Left in Hive and
+          Garden are the second pair. A pair goes to one column only where
+          its column is narrower than a 320px phone's (a 200% zoom). Each
+          counter spans its pair's rows (subgrid), so the steppers stay level
+          however the names above them wrap.
 
-          The walkthrough spotlights the groups, not the caption's line over
-          them, which is empty while it runs: its ring then sits as close
-          to the fields on every side.
+          The walkthrough spotlights the counters, not the note over them,
+          which is empty while it runs: its ring then sits as close to the
+          fields on every side.
         */}
-        <div className="flex flex-col gap-4" data-tutorial="end-of-match">
-          <div
-            role="group"
-            aria-labelledby={ids.flowers}
-            className="flex flex-col gap-1.5"
-          >
-            {head('flowers', ids.flowers, FLOWERS_LABEL, FLOWERS_HINT)}
-            <div className="grid grid-cols-1 gap-x-3 gap-y-4 [@container(min-width:17rem)]:grid-cols-2">
-              {(
-                [
-                  {
-                    key: 'flower',
-                    lineId: ids.flower,
-                    nectar: 'top',
-                    points: breakdown.flower,
-                    value: sessionData.flower,
-                    onChange: set.flower,
-                  },
-                  {
-                    key: 'flowerBonus',
-                    lineId: ids.flowerBonus,
-                    nectar: 'bottom',
-                    points: breakdown.flowerBonus,
-                    value: sessionData.flowerBonus,
-                    onChange: set.flowerBonus,
-                  },
-                ] as const
-              ).map(f => (
-                <div
-                  key={f.key}
-                  className="row-span-2 grid grid-rows-subgrid gap-y-1.5"
-                >
-                  <CountLine
-                    id={f.lineId}
-                    icon={<FlowerSlots nectar={f.nectar} />}
-                    label={COUNT_LABELS[f.key]}
-                    each={EACH_LABELS[f.key]}
-                    points={f.points}
-                  />
-                  <ScoreField
-                    layout="segment"
-                    stepper
-                    hideLabel
-                    label={ELEMENT_LABELS[f.key]}
-                    describedBy={f.lineId}
-                    max={FIELD_LIMITS[f.key]}
-                    value={f.value}
-                    disabled={endDisabled}
-                    lockedReasonId={endReasonId}
-                    resetKey={entryKey}
-                    onChange={f.onChange}
-                  />
-                </div>
-              ))}
+        <div
+          data-tutorial="end-of-match"
+          className="grid grid-cols-1 gap-x-3 gap-y-4 [@container(min-width:17rem)]:grid-cols-2"
+        >
+          {(
+            [
+              {
+                key: 'flower',
+                headId: ids.flower,
+                lineId: ids.flowerLine,
+                icon: <FlowerSlots nectar="top" />,
+                points: breakdown.flower,
+                value: sessionData.flower,
+                onChange: set.flower,
+              },
+              {
+                key: 'flowerBonus',
+                headId: ids.flowerBonus,
+                lineId: ids.flowerBonusLine,
+                icon: <FlowerSlots nectar="bottom" />,
+                points: breakdown.flowerBonus,
+                value: sessionData.flowerBonus,
+                onChange: set.flowerBonus,
+              },
+              {
+                key: 'ballsInHive',
+                info: 'hive',
+                headId: ids.hive,
+                lineId: ids.hiveLine,
+                points: breakdown.hive,
+                value: sessionData.ballsInHive,
+                onChange: set.ballsInHive,
+              },
+              {
+                key: 'garden',
+                headId: ids.garden,
+                lineId: ids.gardenLine,
+                points: breakdown.garden,
+                value: sessionData.garden,
+                onChange: set.garden,
+              },
+            ] as const
+          ).map(c => (
+            <div
+              key={c.key}
+              role="group"
+              aria-labelledby={c.headId}
+              className="row-span-3 grid grid-rows-subgrid gap-y-1.5"
+            >
+              {head(
+                'info' in c ? c.info : c.key,
+                c.headId,
+                COUNT_LABELS[c.key],
+                FIELD_HINTS[c.key],
+                'icon' in c ? c.icon : undefined
+              )}
+              <CountLine
+                id={c.lineId}
+                each={EACH_LABELS[c.key]}
+                points={c.points}
+              />
+              <ScoreField
+                layout="segment"
+                stepper
+                hideLabel
+                label={COUNT_LABELS[c.key]}
+                describedBy={c.lineId}
+                max={FIELD_LIMITS[c.key]}
+                value={c.value}
+                disabled={endDisabled}
+                lockedReasonId={endReasonId}
+                resetKey={entryKey}
+                onChange={c.onChange}
+              />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-x-3 gap-y-4 [@container(min-width:17rem)]:grid-cols-2">
-            {(
-              [
-                {
-                  key: 'ballsInHive',
-                  info: 'hive',
-                  headId: ids.hive,
-                  lineId: ids.hiveLine,
-                  label: ELEMENT_LABELS.hive,
-                  points: breakdown.hive,
-                  value: sessionData.ballsInHive,
-                  onChange: set.ballsInHive,
-                },
-                {
-                  key: 'garden',
-                  info: 'garden',
-                  headId: ids.garden,
-                  lineId: ids.gardenLine,
-                  label: ELEMENT_LABELS.garden,
-                  points: breakdown.garden,
-                  value: sessionData.garden,
-                  onChange: set.garden,
-                },
-              ] as const
-            ).map(c => (
-              <div
-                key={c.key}
-                role="group"
-                aria-labelledby={c.headId}
-                className="row-span-3 grid grid-rows-subgrid gap-y-1.5"
-              >
-                {head(c.info, c.headId, c.label, FIELD_HINTS[c.key])}
-                <CountLine
-                  id={c.lineId}
-                  label={COUNT_LABELS[c.key]}
-                  each={EACH_LABELS[c.key]}
-                  points={c.points}
-                />
-                <ScoreField
-                  layout="segment"
-                  stepper
-                  hideLabel
-                  label={c.label}
-                  describedBy={c.lineId}
-                  max={FIELD_LIMITS[c.key]}
-                  value={c.value}
-                  disabled={endDisabled}
-                  lockedReasonId={endReasonId}
-                  resetKey={entryKey}
-                  onChange={c.onChange}
-                />
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </Section>
     </div>

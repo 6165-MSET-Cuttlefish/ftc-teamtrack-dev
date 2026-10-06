@@ -1,12 +1,12 @@
-import { Info } from 'lucide-react';
+import { Info, Lock, LockOpen } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { formatPoints } from '@/lib/points';
 
 /**
  * The pieces the end-of-match counters are built from on the scoring page,
- * shared by the desktop ScoringPad and the phone's MatchEntry: a heading for
- * an element (or the Flowers group), the line that says what to count, and
- * the flower picture that tells Flower from Flower Bonus.
+ * shared by the desktop ScoringPad and the phone's MatchEntry: the name over
+ * each counter with its rule behind an (i), the line that says what one is
+ * worth, and the flower picture that tells Flower from Flower Bonus.
  */
 
 /**
@@ -25,6 +25,57 @@ export const LOCKED_TEXT = 'text-gray-500';
  */
 export const LOCKED_SURFACE =
   'border-transparent text-gray-500 bg-gray-100 dark:bg-white/[0.05]';
+
+/**
+ * The note over the end-of-match counters: why they are locked (a filled
+ * band with a lock, so it reads at a glance during play) or, once open, what
+ * to do. It wraps rather than cut off (a 200% zoom), and `reserve` takes
+ * the notes of its other states, laid invisibly in the same place, so it is
+ * as tall as the tallest of them and the counters under it never move.
+ * Its `id` is what the locked steppers point at for their reason.
+ */
+export const EndNote = ({
+  id,
+  locked,
+  reserve = [],
+  children,
+}: {
+  id?: string;
+  locked: boolean;
+  reserve?: React.ReactNode[];
+  children: React.ReactNode;
+}) => {
+  const { isDarkMode } = useTheme();
+  const Icon = locked ? Lock : LockOpen;
+  const tone = locked
+    ? isDarkMode
+      ? 'bg-white/[0.06] text-gray-200'
+      : 'bg-gray-100 text-gray-800'
+    : isDarkMode
+      ? 'text-gray-300'
+      : 'text-gray-700';
+  const line = (text: React.ReactNode, hidden: boolean, key?: number) => (
+    <span
+      key={key}
+      aria-hidden={hidden || undefined}
+      className={`col-start-1 row-start-1 flex min-w-0 items-center gap-2 ${
+        hidden ? 'invisible' : ''
+      }`}
+    >
+      <Icon size={14} aria-hidden className="shrink-0" />
+      <span className="min-w-0 text-balance">{text}</span>
+    </span>
+  );
+  return (
+    <p
+      id={id}
+      className={`grid min-h-8 min-w-0 items-center rounded-lg px-3 py-1.5 text-sm font-medium leading-5 ${tone}`}
+    >
+      {line(children, false)}
+      {reserve.map((text, i) => line(text, true, i))}
+    </p>
+  );
+};
 
 /**
  * Points beside a counter: data, in the text colour, never the accent.
@@ -112,16 +163,17 @@ export const FlowerSlots = ({
 };
 
 /**
- * The name over one element's counter, or over the Flowers pair, with the
- * rule behind an (i). The one label above a counter that is not muted, and
- * never dimmed while the counters are locked: the steppers show that. No
- * rule under it: the space before the next group does the separating. Not a
- * heading element: the buzzer's scroll and the walkthrough look for the
- * section's first `h3`.
+ * The name over one end-of-match counter (with the flower picture before it
+ * on the two flower counters), and the rule behind its (i). The one label
+ * above a counter that is not muted, and never dimmed while the counters are
+ * locked: the steppers show that. A long name wraps rather than cut off, with
+ * the (i) after its last word. Not a heading element: the buzzer's scroll and
+ * the walkthrough look for the section's first `h3`.
  */
 export const CounterHead = ({
   id,
   title,
+  icon,
   points,
   info,
   infoId,
@@ -131,6 +183,7 @@ export const CounterHead = ({
   /** Id of the title, for the group's `aria-labelledby` */
   id: string;
   title: string;
+  icon?: React.ReactNode;
   points?: number;
   /**
    * The rule; the (i) toggles it open. The caller shows it, under its own
@@ -144,32 +197,32 @@ export const CounterHead = ({
 }) => {
   const { isDarkMode } = useTheme();
   return (
-    <div className="flex min-w-0 items-center justify-between gap-2">
-      <span className="inline-flex min-w-0 items-center gap-1">
+    <div className="flex min-w-0 items-start justify-between gap-2">
+      <span className="flex min-w-0 items-start gap-1.5">
+        {icon}
         <span
-          id={id}
-          className={`truncate text-sm font-semibold leading-5 ${
+          className={`min-w-0 text-balance text-sm font-semibold leading-5 ${
             isDarkMode ? 'text-gray-100' : 'text-gray-900'
           }`}
         >
-          {title}
+          <span id={id}>{title}</span>
+          {info && onInfo && (
+            <button
+              type="button"
+              aria-label={`About ${title}`}
+              aria-expanded={infoOpen}
+              aria-controls={infoOpen ? infoId : undefined}
+              onClick={onInfo}
+              className={`${INFO_BUTTON_CLASS} ml-1 align-[-2px] ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-team-blue'
+                  : 'text-gray-500 hover:text-team-blue'
+              }`}
+            >
+              <Info size={14} />
+            </button>
+          )}
         </span>
-        {info && onInfo && (
-          <button
-            type="button"
-            aria-label={`About ${title}`}
-            aria-expanded={infoOpen}
-            aria-controls={infoOpen ? infoId : undefined}
-            onClick={onInfo}
-            className={`${INFO_BUTTON_CLASS} ${
-              isDarkMode
-                ? 'text-gray-400 hover:text-team-blue'
-                : 'text-gray-500 hover:text-team-blue'
-            }`}
-          >
-            <Info size={14} />
-          </button>
-        )}
       </span>
       {points !== undefined && (
         <span
@@ -185,13 +238,14 @@ export const CounterHead = ({
 };
 
 /**
- * What to count for one counter (one line, with the flower picture before
- * it where there is one), then what one is worth with the points it holds
- * so far. The points only show once there are some; their place is kept, so
- * nothing moves when the first one is counted. Its `id` goes in the
- * counter's `describedBy`, so the input and its steppers read it out. In a
- * grid row it fills the row's height, and with `footAligned` the worth line
- * sits at its foot, level with its neighbours' and just over the stepper.
+ * What one of a counter is worth, with the points it holds so far (and, in
+ * the Add/Edit Match dialog, what to count above it, with the flower picture
+ * before it where there is one). The points only show once there are some;
+ * their place is kept, so nothing moves when the first one is counted. Its
+ * `id` goes in the counter's `describedBy`, so the input and its steppers
+ * read it out. In a grid row it fills the row's height, and with
+ * `footAligned` the worth line sits at its foot, level with its neighbours'
+ * and just over the stepper.
  */
 export const CountLine = ({
   id,
@@ -203,7 +257,8 @@ export const CountLine = ({
   pointsClassName = '',
 }: {
   id: string;
-  label: string;
+  /** What to count; left out where the counter's name over it says it */
+  label?: string;
   each: string;
   points: number;
   icon?: React.ReactNode;
@@ -218,15 +273,17 @@ export const CountLine = ({
   const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
   return (
     <div id={id} className="flex h-full min-w-0 flex-col">
-      {/* Readable while locked too: it is what to look for on the field */}
-      <p
-        className={`flex min-w-0 items-center gap-1.5 text-sm font-medium leading-5 ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}
-      >
-        {icon}
-        <span className="truncate">{label}</span>
-      </p>
+      {label && (
+        // Readable while locked too: it is what to look for on the field
+        <p
+          className={`flex min-w-0 items-start gap-1.5 text-balance text-sm font-medium leading-5 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}
+        >
+          {icon}
+          <span className="min-w-0">{label}</span>
+        </p>
+      )}
       <p
         className={`flex min-w-0 items-baseline justify-between gap-x-2 whitespace-nowrap text-xs leading-4 ${
           footAligned ? 'mt-auto' : ''

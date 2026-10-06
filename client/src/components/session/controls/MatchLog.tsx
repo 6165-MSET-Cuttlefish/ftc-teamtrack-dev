@@ -246,13 +246,23 @@ export const MatchLog = () => {
         isDarkMode ? 'border-gray-700 bg-team-dark' : 'border-gray-200 bg-white'
       }`}
     >
-      <h2
-        className={`px-4 py-2.5 border-b ${EYEBROW_CLASS} ${
+      {/* Between matches it says how to fix one: tapping a row opens it */}
+      <div
+        className={`flex items-baseline justify-between gap-3 px-4 py-2.5 border-b ${
           isDarkMode ? 'border-gray-700' : 'border-gray-200'
         }`}
       >
-        Match Log
-      </h2>
+        <h2 className={EYEBROW_CLASS}>Match Log</h2>
+        {matchCount > 0 && !matchActive && !editingMatchId && (
+          <p
+            className={`min-w-0 truncate text-xs ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}
+          >
+            Tap a match to fix it
+          </p>
+        )}
+      </div>
       <div
         ref={listRef}
         // Its own short scroll area on a phone only (its height is set

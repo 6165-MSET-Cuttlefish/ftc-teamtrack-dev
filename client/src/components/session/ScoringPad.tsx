@@ -8,8 +8,6 @@ import {
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
-  FLOWERS_HINT,
-  FLOWERS_LABEL,
 } from '@/lib';
 import { formatPoints } from '@/lib/points';
 import {
@@ -35,10 +33,9 @@ import { useScoringLocks } from './useScoringLocks';
  *    so the whole surface is the +1; T on a keyboard does the same) with
  *    its -1 beside it (under it on a tablet and in a scrim), the robot
  *    leave/park matrix beside it, and in a scrim the two penalty counters.
- *  - After the buzzer: Flowers (its two counters, Flower and Flower Bonus,
- *    under one heading), Left in Hive and Garden as joined steppers, each
- *    under a line that says what to count and what each is worth, locked
- *    until the clock stops (see `useScoringLocks`).
+ *  - After the buzzer: the two flower counters, Left in Hive and Garden as
+ *    joined steppers, each under its name (the rule behind an (i)) and what
+ *    one is worth, locked until the clock stops (see `useScoringLocks`).
  *  - Then one band across the bottom: the total and the ranking points.
  *    Each element's points are on its own counter, so the band doesn't
  *    repeat them.
@@ -279,7 +276,7 @@ const Chip = ({
   );
 };
 
-type InfoKey = 'flowers' | 'hive' | 'garden';
+type InfoKey = 'flower' | 'flowerBonus' | 'hive' | 'garden';
 
 export const ScoringPad = () => {
   const { isDarkMode } = useTheme();
@@ -323,9 +320,10 @@ export const ScoringPad = () => {
   ];
 
   const ids = {
-    flowers: useId(),
     flower: useId(),
+    flowerLine: useId(),
     flowerBonus: useId(),
+    flowerBonusLine: useId(),
     hive: useId(),
     hiveLine: useId(),
     garden: useId(),
@@ -366,7 +364,8 @@ export const ScoringPad = () => {
   const toggleInfo = (which: InfoKey) =>
     setInfo({ key: entryKey, open: infoOpen === which ? null : which });
   const infoText: Record<InfoKey, string> = {
-    flowers: FLOWERS_HINT,
+    flower: FIELD_HINTS.flower,
+    flowerBonus: FIELD_HINTS.flowerBonus,
     hive: FIELD_HINTS.ballsInHive,
     garden: FIELD_HINTS.garden,
   };
@@ -522,10 +521,10 @@ export const ScoringPad = () => {
 
       <div ref={endSectionRef} className="flex flex-col gap-2">
         <h2 className="sr-only">End of match</h2>
-        {/* One line in every state, so the fields don't move when it changes */}
+        {/* One height in every state, so the fields don't move when it changes */}
         <div
           data-highlight={justUnlocked || undefined}
-          className={`min-h-4 transition-colors duration-300 ${
+          className={`min-h-8 transition-colors duration-300 ${
             justUnlocked
               ? '[&_p]:text-team-blue motion-safe:animate-[pulse_0.8s_ease-in-out_2]'
               : ''
@@ -534,131 +533,103 @@ export const ScoringPad = () => {
           {endCaption}
         </div>
         {/*
-          Three rows shared across the groups (subgrid), so every heading,
-          every "what to count" line and every stepper sits level with its
-          neighbours however the lines wrap: the Flowers pair under one
-          heading, then Left in Hive and Garden. Below `lg` the pair takes
-          the first row and the other two the next. An open (i) rule sits
-          under its own heading, in that first row, so the rows under it
-          stay level with their neighbours too.
+          Three rows shared across the four counters (subgrid), so every
+          name, every worth line and every stepper sits level with its
+          neighbours however the names wrap: the two flower counters, then
+          Left in Hive and Garden. Below `lg` the flower pair takes the first
+          row and the other two the next. An open (i) rule sits under its
+          own name, in that first row, so the rows under it stay level with
+          their neighbours too.
         */}
-        {/* The walkthrough spotlights the fields, not the caption's line
-            over them, which is empty while it runs */}
+        {/* The walkthrough spotlights the fields, not the note over them,
+            which is empty while it runs */}
         <div
           data-tutorial="end-of-match"
           className="grid grid-cols-2 gap-x-4 gap-y-1.5 lg:grid-cols-4 lg:gap-x-5"
         >
-          <div
-            role="group"
-            aria-labelledby={ids.flowers}
-            className="col-span-2 row-span-3 grid grid-cols-subgrid grid-rows-subgrid"
-          >
-            <div className="col-span-2">
-              <CounterHead
-                id={ids.flowers}
-                title={FLOWERS_LABEL}
-                info={FLOWERS_HINT}
-                infoId={ids.info}
-                infoOpen={infoOpen === 'flowers'}
-                onInfo={() => toggleInfo('flowers')}
-              />
-              {rule('flowers')}
-            </div>
-            <CountLine
-              id={ids.flower}
-              icon={<FlowerSlots nectar="top" />}
-              label={COUNT_LABELS.flower}
-              each={EACH_LABELS.flower}
-              points={breakdown.flower}
-            />
-            <CountLine
-              id={ids.flowerBonus}
-              icon={<FlowerSlots nectar="bottom" />}
-              label={COUNT_LABELS.flowerBonus}
-              each={EACH_LABELS.flowerBonus}
-              points={breakdown.flowerBonus}
-            />
-            {counter(
-              ELEMENT_LABELS.flower,
-              'flower',
-              ids.flower,
-              FIELD_LIMITS.flower,
-              sessionData.flower,
-              set.flower
-            )}
-            {counter(
-              ELEMENT_LABELS.flowerBonus,
-              'flower-bonus',
-              ids.flowerBonus,
-              FIELD_LIMITS.flowerBonus,
-              sessionData.flowerBonus,
-              set.flowerBonus
-            )}
-          </div>
-
-          <div
-            role="group"
-            aria-labelledby={ids.hive}
-            className="row-span-3 grid grid-rows-subgrid md:max-lg:mt-3"
-          >
-            <div>
-              <CounterHead
-                id={ids.hive}
-                title={ELEMENT_LABELS.hive}
-                info={FIELD_HINTS.ballsInHive}
-                infoId={ids.info}
-                infoOpen={infoOpen === 'hive'}
-                onInfo={() => toggleInfo('hive')}
-              />
-              {rule('hive')}
-            </div>
-            <CountLine
-              id={ids.hiveLine}
-              label={COUNT_LABELS.ballsInHive}
-              each={EACH_LABELS.ballsInHive}
-              points={breakdown.hive}
-            />
-            {counter(
-              ELEMENT_LABELS.hive,
-              'left-in-hive',
-              ids.hiveLine,
-              FIELD_LIMITS.ballsInHive,
-              sessionData.ballsInHive,
-              set.ballsInHive
-            )}
-          </div>
-
-          <div
-            role="group"
-            aria-labelledby={ids.garden}
-            className="row-span-3 grid grid-rows-subgrid md:max-lg:mt-3"
-          >
-            <div>
-              <CounterHead
-                id={ids.garden}
-                title={ELEMENT_LABELS.garden}
-                info={FIELD_HINTS.garden}
-                infoId={ids.info}
-                infoOpen={infoOpen === 'garden'}
-                onInfo={() => toggleInfo('garden')}
-              />
-              {rule('garden')}
-            </div>
-            <CountLine
-              id={ids.gardenLine}
-              label={COUNT_LABELS.garden}
-              each={EACH_LABELS.garden}
-              points={breakdown.garden}
-            />
-            {counter(
-              ELEMENT_LABELS.garden,
-              'garden',
-              ids.gardenLine,
-              FIELD_LIMITS.garden,
-              sessionData.garden,
-              set.garden
-            )}
-          </div>
+          {(
+            [
+              {
+                key: 'flower',
+                name: 'flower',
+                headId: ids.flower,
+                lineId: ids.flowerLine,
+                icon: <FlowerSlots nectar="top" />,
+                points: breakdown.flower,
+                value: sessionData.flower,
+                onChange: set.flower,
+              },
+              {
+                key: 'flowerBonus',
+                name: 'flower-bonus',
+                headId: ids.flowerBonus,
+                lineId: ids.flowerBonusLine,
+                icon: <FlowerSlots nectar="bottom" />,
+                points: breakdown.flowerBonus,
+                value: sessionData.flowerBonus,
+                onChange: set.flowerBonus,
+              },
+              {
+                key: 'ballsInHive',
+                info: 'hive',
+                name: 'left-in-hive',
+                headId: ids.hive,
+                lineId: ids.hiveLine,
+                points: breakdown.hive,
+                value: sessionData.ballsInHive,
+                onChange: set.ballsInHive,
+              },
+              {
+                key: 'garden',
+                name: 'garden',
+                headId: ids.garden,
+                lineId: ids.gardenLine,
+                points: breakdown.garden,
+                value: sessionData.garden,
+                onChange: set.garden,
+              },
+            ] as const
+          ).map(c => {
+            const which = 'info' in c ? c.info : c.key;
+            return (
+              <div
+                key={c.key}
+                role="group"
+                aria-labelledby={c.headId}
+                className={`row-span-3 grid grid-rows-subgrid ${
+                  c.key === 'flower' || c.key === 'flowerBonus'
+                    ? ''
+                    : 'md:max-lg:mt-3'
+                }`}
+              >
+                <div>
+                  <CounterHead
+                    id={c.headId}
+                    title={COUNT_LABELS[c.key]}
+                    icon={'icon' in c ? c.icon : undefined}
+                    info={infoText[which]}
+                    infoId={ids.info}
+                    infoOpen={infoOpen === which}
+                    onInfo={() => toggleInfo(which)}
+                  />
+                  {rule(which)}
+                </div>
+                <CountLine
+                  id={c.lineId}
+                  each={EACH_LABELS[c.key]}
+                  points={c.points}
+                />
+                {counter(
+                  COUNT_LABELS[c.key],
+                  c.name,
+                  c.lineId,
+                  FIELD_LIMITS[c.key],
+                  c.value,
+                  c.onChange
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -51,7 +51,6 @@ export {
   rankingPointTally,
   FIELD_LIMITS,
   FIELD_HINTS,
-  FLOWERS_HINT,
   COUNT_LABELS,
   EACH_LABELS,
   MIXED_MATCH_TYPE,

@@ -65,7 +65,7 @@ export type ChipSize = keyof typeof CHIP_SIZES;
 
 /**
  * Tint, text and ring per meaning, [light theme, dark themes]. Neutral is
- * the READY chip's grey, amber is PAUSED's (and EDITING's), success and
+ * the DONE chip's grey, amber is PAUSED's (and EDITING's), success and
  * danger are better / worse (Best, Worst) and nothing else.
  */
 const CHIP_TONES = {

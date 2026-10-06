@@ -73,7 +73,11 @@ const SIZES = {
 
 type Size = keyof typeof SIZES;
 
-/** The phase as a filled pill. */
+/**
+ * The phase as a filled pill. Before Start there is no phase to name: the
+ * Start button already says nothing is running, so READY only keeps its
+ * space (AUTO appears there without moving anything), not drawn or read out.
+ */
 export const PhaseChip = ({
   label,
   size = 'md',
@@ -85,22 +89,34 @@ export const PhaseChip = ({
   return (
     <span
       data-match-phase={label}
-      className={`${CHIP_BASE} ${SIZES[size]} ${CHIP_TONES[label][isDarkMode ? 1 : 0]}`}
+      className={`${CHIP_BASE} ${SIZES[size]} ${CHIP_TONES[label][isDarkMode ? 1 : 0]} ${label === 'READY' ? 'invisible' : ''}`}
     >
       {CHIP_WORDS[label]}
     </span>
   );
 };
 
-/** `PhaseChip` for the match being played; follows the clock. */
-export const LivePhaseChip = ({ size }: { size?: Size }) => {
+/**
+ * `PhaseChip` for the match being played; follows the clock. Before Start
+ * there is none, except beside the scoring page's own clock
+ * (`keepIdleSpace`), where AUTO appears on Start: there it keeps its space.
+ */
+export const LivePhaseChip = ({
+  size,
+  keepIdleSpace = false,
+}: {
+  size?: Size;
+  keepIdleSpace?: boolean;
+}) => {
   const { matchActive, matchPhase, timer, isTutorialActive } = useSession();
-  return (
-    <PhaseChip
-      label={phaseLabel({ matchActive, matchPhase, timer, isTutorialActive })}
-      size={size}
-    />
-  );
+  const label = phaseLabel({
+    matchActive,
+    matchPhase,
+    timer,
+    isTutorialActive,
+  });
+  if (label === 'READY' && !keepIdleSpace) return null;
+  return <PhaseChip label={label} size={size} />;
 };
 
 /** Same muted chip style as the phases, in amber: a pause, not an action. */

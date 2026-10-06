@@ -258,7 +258,7 @@ const PrimaryQuestion = ({
         <ConfirmInline
           {...matchLayout}
           tone="save"
-          question={`Save Match ${matchNumber} with Flowers, Left in Hive and Garden at 0?`}
+          question={`Save Match ${matchNumber} with flowers, Left in Hive and Garden at 0?`}
           keepLabel="Count them first"
           confirmLabel="Save anyway"
           onKeep={handleCountFirst}
@@ -435,7 +435,7 @@ export const PrimaryAction = () => {
           screen readers announce. */}
       <p role="status" className="sr-only">
         {matchEnded
-          ? `Match ${matchNumber} over: count Flowers, Left in Hive and Garden, then save`
+          ? `Match ${matchNumber} over: count the flowers, Left in Hive and Garden, then save`
           : ''}
       </p>
       <PrimaryControls />

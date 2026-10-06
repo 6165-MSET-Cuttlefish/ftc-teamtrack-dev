@@ -226,7 +226,11 @@ const MatchClockRow = () => {
       <span aria-hidden />
       <MatchClock />
       <div className="flex min-w-0 justify-start">
-        {paused ? <PausedPill size="clock" /> : <LivePhaseChip size="clock" />}
+        {paused ? (
+          <PausedPill size="clock" />
+        ) : (
+          <LivePhaseChip size="clock" keepIdleSpace />
+        )}
       </div>
     </div>
   );
