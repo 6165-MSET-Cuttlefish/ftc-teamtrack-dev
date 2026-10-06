@@ -3,6 +3,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useId,
   useCallback,
@@ -1578,6 +1579,30 @@ const DeleteMatchConfirm = ({
   );
 };
 
+/**
+ * How far in from an edge of the match strip its chips fade out, while the
+ * strip runs on past that edge. A chip cut off there then reads as "more
+ * this way", not as the end of the row.
+ */
+const STRIP_FADE_PX = 32;
+
+/** The match strip's mask: faded at each edge it runs on past */
+const stripMask = (left: boolean, right: boolean) =>
+  left || right
+    ? `linear-gradient(to right, ${left ? 'transparent' : 'black'}, black ${STRIP_FADE_PX}px, black calc(100% - ${STRIP_FADE_PX}px), ${right ? 'transparent' : 'black'})`
+    : undefined;
+
+/** Scroll the match strip, if need be, so a chip sits clear of its fades */
+const scrollClearOfFade = (strip: HTMLElement, chip: HTMLElement) => {
+  const left = chip.offsetLeft;
+  const right = left + chip.offsetWidth;
+  if (left < strip.scrollLeft + STRIP_FADE_PX) {
+    strip.scrollLeft = left - STRIP_FADE_PX;
+  } else if (right > strip.scrollLeft + strip.clientWidth - STRIP_FADE_PX) {
+    strip.scrollLeft = right - strip.clientWidth + STRIP_FADE_PX;
+  }
+};
+
 export const MatchDetailTab = ({
   matches,
   isDarkMode,
@@ -1606,6 +1631,9 @@ export const MatchDetailTab = ({
   const [ownIdx, setOwnIdx] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
+  /** Whether the strip runs on past its left and its right edge */
+  const [moreLeft, setMoreLeft] = useState(false);
+  const [moreRight, setMoreRight] = useState(false);
 
   // Clamped here rather than stored: the list shrinks under it on a delete.
   const idx = Math.max(0, Math.min(selectedIdx ?? ownIdx, matches.length - 1));
@@ -1614,19 +1642,34 @@ export const MatchDetailTab = ({
     onSelect?.(index);
   };
 
-  // Keep the selected match's chip in view in the strip, without moving
-  // the page.
+  // Before paint, so a strip that runs on is never first shown hard-cut.
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const update = () => {
+      setMoreLeft(strip.scrollLeft > 0);
+      setMoreRight(
+        strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1
+      );
+    };
+    update();
+    strip.addEventListener('scroll', update, { passive: true });
+    // The chips change width with their scores and once the web font is in
+    const observer = new ResizeObserver(update);
+    observer.observe(strip);
+    for (const chip of strip.children) observer.observe(chip);
+    return () => {
+      strip.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
+  }, [matches]);
+
+  // Keep the selected match's chip in view in the strip, clear of the
+  // fade at either edge, without moving the page.
   useEffect(() => {
     const strip = stripRef.current;
     const chip = strip?.children[idx] as HTMLElement | undefined;
-    if (!strip || !chip) return;
-    const left = chip.offsetLeft;
-    const right = left + chip.offsetWidth;
-    if (left < strip.scrollLeft) {
-      strip.scrollLeft = left - 8;
-    } else if (right > strip.scrollLeft + strip.clientWidth) {
-      strip.scrollLeft = right - strip.clientWidth + 8;
-    }
+    if (strip && chip) scrollClearOfFade(strip, chip);
   }, [idx, matches.length]);
 
   const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
@@ -1699,13 +1742,29 @@ export const MatchDetailTab = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* One row however many matches: it scrolls sideways. Adding a match
-          is at its end, where the next one will be. */}
+      {/* One row however many matches: it scrolls sideways, fading out at
+          an edge it runs on past. Adding a match is at its end, where the
+          next one will be. */}
       <div
         ref={stripRef}
         role="group"
         aria-label="Matches in this session"
         className="relative flex gap-2 overflow-x-auto p-1 -m-1"
+        style={{
+          maskImage: stripMask(moreLeft, moreRight),
+          WebkitMaskImage: stripMask(moreLeft, moreRight),
+        }}
+        // Tabbing along, the browser leaves a chip that still shows a sliver
+        // where it is, under the fade. Keyboard focus only: a click's focus
+        // lands before its click, and moving the chip then would lose it.
+        onFocus={e => {
+          if (
+            e.target.parentElement === e.currentTarget &&
+            e.target.matches(':focus-visible')
+          ) {
+            scrollClearOfFade(e.currentTarget, e.target);
+          }
+        }}
       >
         {matches.map((m, i) => {
           const chipRank = ranking.rank(i);

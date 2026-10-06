@@ -41,11 +41,12 @@ export const PenaltyHint = () => {
       role="note"
       // No frame (the outlined things on the page are controls) and no fill
       // (the filled band under it is the end-of-match lock): a muted line
-      className={`flex items-center gap-2 text-xs leading-4 ${
+      // Icon and × level with the first line when the text wraps
+      className={`flex items-start gap-2 text-xs leading-4 ${
         isDarkMode ? 'text-gray-300' : 'text-gray-700'
       }`}
     >
-      <Info size={14} aria-hidden className="shrink-0" />
+      <Info size={14} aria-hidden className="mt-px shrink-0" />
       {/* Each value stays with its name when the line wraps on a phone */}
       <p className="min-w-0 flex-1">
         Penalties go to the opponent (Minor&nbsp;+{POINTS.MINOR_PENALTY},
@@ -55,7 +56,9 @@ export const PenaltyHint = () => {
         type="button"
         aria-label="Dismiss penalties hint"
         onClick={dismissHint}
-        className={`-my-1 -mr-1.5 inline-flex shrink-0 items-center justify-center rounded p-1 transition-colors [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
+        // A 24px button, so its × lines up with the steppers' edge on any
+        // pointer; under a finger an empty ::after makes the target 44px.
+        className={`relative -my-1 -mr-1.5 inline-flex min-h-0 min-w-0 shrink-0 items-center justify-center rounded p-1 transition-colors after:absolute after:inset-0 after:content-[''] [@media(pointer:coarse)]:after:-inset-2.5 ${
           isDarkMode
             ? 'text-gray-400 hover:text-white'
             : 'text-gray-500 hover:text-black'

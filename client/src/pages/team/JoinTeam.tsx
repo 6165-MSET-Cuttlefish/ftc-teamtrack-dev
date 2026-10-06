@@ -206,6 +206,10 @@ const JoinTeam = () => {
       ? teamService.leaveOutcome(currentTeam, user.uid)
       : null;
 
+  /**
+   * A card's one fill. Each button wearing it is also `data-page-primary`,
+   * so the header's New Session steps back to an outline beside it.
+   */
   const primaryButton = `bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`;
   /** The card is the page: its title is the page's h1 */
   const heading = `${PAGE_TITLE_CLASS} mb-2 text-balance`;
@@ -258,6 +262,7 @@ const JoinTeam = () => {
           <Button
             onClick={handleShare}
             disabled={sharing || selectedSessionIds.size === 0}
+            data-page-primary
             className={`${rowButton} ${primaryButton}`}
           >
             {selectedSessionIds.size > 0 && <Share2 className="h-4 w-4" />}
@@ -273,6 +278,7 @@ const JoinTeam = () => {
           {extra}
           <Button
             onClick={goToSessions}
+            data-page-primary
             className={`${rowButton} ${primaryButton}`}
           >
             Go to Sessions
@@ -404,6 +410,7 @@ const JoinTeam = () => {
                 onClick={() =>
                   currentTeam ? setConfirmSwitch(true) : handleJoin(false)
                 }
+                data-page-primary
                 className={`${rowButton} ${primaryButton}`}
               >
                 <Users className="h-4 w-4" />

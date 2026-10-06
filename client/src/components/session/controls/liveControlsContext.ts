@@ -348,6 +348,7 @@ export const useLiveControlsState = ({
     setSessionTimer,
     holdMatchClock,
     resumeMatchClock,
+    isCurrentMatch,
   } = useSessionCore();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
@@ -440,8 +441,15 @@ export const useLiveControlsState = ({
   const discardedMatchIdsRef = useRef<string[]>([]);
   /** The "Match N discarded - Undo" toast still on offer, if any */
   const matchDiscardToastRef = useRef<string | null>(null);
-  /** The "Match N ended early - Undo" toast still on offer, if any */
-  const endedEarlyToastRef = useRef<string | null>(null);
+  /**
+   * The "Match N ended early - Undo" toast still on offer, if any, with what
+   * it puts back (to offer it again when a discard of the match is undone)
+   */
+  const endedEarlyToastRef = useRef<{
+    id: string;
+    held: HeldMatchClock;
+    scrolledTo: number;
+  } | null>(null);
   /** Counts the matches started here, to tell one from the next */
   const matchRunRef = useRef(0);
   /** Which of them was saved last */
@@ -998,20 +1006,28 @@ export const useLiveControlsState = ({
   };
 
   // The "Cleared … - Undo" toast is for the match that was just started,
-  // and goes when that match does. "Match N discarded - Undo" goes when a
-  // match takes the discarded one's place (or it is put back), and "Match N
-  // ended early - Undo" when the next one starts.
+  // and goes when that match does. So does "Match N ended early - Undo":
+  // once the match is saved or discarded (here or in another tab) there is
+  // no running match to put back; a discard that is undone offers it again.
+  // "Match N discarded - Undo" goes when a match takes the discarded one's
+  // place (or it is put back).
   useEffect(() => {
+    const undoToastIds = undoToastIdsRef.current;
     if (!matchActive) {
       toast.dismiss(CLEARED_TOAST_ID);
+      const endedEarly = endedEarlyToastRef.current;
+      endedEarlyToastRef.current = null;
+      if (endedEarly) {
+        undoToastIds.delete(endedEarly.id);
+        toast.dismiss(endedEarly.id);
+      }
       return;
     }
-    for (const ref of [matchDiscardToastRef, endedEarlyToastRef]) {
-      const id = ref.current;
-      if (!id) continue;
-      ref.current = null;
-      undoToastIdsRef.current.delete(id);
-      toast.dismiss(id);
+    const discarded = matchDiscardToastRef.current;
+    matchDiscardToastRef.current = null;
+    if (discarded) {
+      undoToastIds.delete(discarded);
+      toast.dismiss(discarded);
     }
   }, [matchActive]);
 
@@ -1117,10 +1133,10 @@ export const useLiveControlsState = ({
     );
     const undoToastIds = undoToastIdsRef.current;
     if (endedEarlyToastRef.current) {
-      undoToastIds.delete(endedEarlyToastRef.current);
-      toast.dismiss(endedEarlyToastRef.current);
+      undoToastIds.delete(endedEarlyToastRef.current.id);
+      toast.dismiss(endedEarlyToastRef.current.id);
     }
-    endedEarlyToastRef.current = toastId;
+    endedEarlyToastRef.current = { id: toastId, held, scrolledTo };
     undoToastIds.set(toastId, title);
     toast.message(title, {
       id: toastId,
@@ -1175,6 +1191,12 @@ export const useLiveControlsState = ({
             refuse(`Match ${endedNumber} was discarded`);
             return;
           }
+          // Discarded in another tab while this one was frozen, and a new
+          // match started there under the same number.
+          if (!isCurrentMatch(held)) {
+            refuse('another match has started');
+            return;
+          }
           // Back already (put back in another tab).
           if (matchPhaseRef.current !== 'ended') {
             undoToastIdsRef.current.delete(toastId);
@@ -1196,9 +1218,6 @@ export const useLiveControlsState = ({
             return;
           }
           undoToastIdsRef.current.delete(toastId);
-          // The toast was over the header (on a phone): a double tap must
-          // not press what it uncovers.
-          absorbDoubleTap();
           // Unless its time ran out meanwhile: then End of Match is still
           // where the scorer is needed.
           if (resumeMatch(held) !== 'ended' && window.scrollY !== scrolledTo) {
@@ -1837,6 +1856,13 @@ export const useLiveControlsState = ({
       scoring: pickScoringFields(sessionData),
       clock: holdMatchClock(),
     };
+    // "Match N ended early - Undo" goes with the match; undoing the discard
+    // brings it back, if it was still on offer.
+    const endedEarly =
+      endedEarlyToastRef.current &&
+      undoToastIdsRef.current.has(endedEarlyToastRef.current.id)
+        ? endedEarlyToastRef.current
+        : null;
     updateSessionData(emptyScoringFields());
     resetTimer();
     // The session (and its clock) carries on if matches are already logged;
@@ -1927,7 +1953,9 @@ export const useLiveControlsState = ({
           setMatchActive(true);
           // A clock that was running has run on meanwhile, as the one on the
           // field has: the match comes back where the field is now.
-          resumeMatch(discarded.clock);
+          if (resumeMatch(discarded.clock) === 'ended' && endedEarly) {
+            offerEndedEarlyUndo(endedEarly.held, endedEarly.scrolledTo);
+          }
         },
       },
     });

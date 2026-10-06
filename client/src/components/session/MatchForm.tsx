@@ -344,8 +344,11 @@ export const MatchForm = ({
             {initialMatch ? (
               <>
                 <Pencil className="h-5 w-5 shrink-0" aria-hidden />
+                {/* Where it has to wrap, the type goes down whole, dot and
+                    all: never one word of it on a line of its own. */}
                 <span>
-                  Edit Match {initialMatch.matchNumber} · {matchType}
+                  Edit Match {initialMatch.matchNumber}{' '}
+                  <span className="whitespace-nowrap">· {matchType}</span>
                 </span>
               </>
             ) : (

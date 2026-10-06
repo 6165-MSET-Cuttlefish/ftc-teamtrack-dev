@@ -33,6 +33,7 @@ import {
   STORAGE_KEYS,
   UI_TIMING,
 } from '@/constants';
+import { PAGE_CONTAINER } from '@/constants/layout';
 import type {
   Match,
   Session,
@@ -610,8 +611,10 @@ const Analysis = () => {
             It may have been deleted, saved in a different browser, or belong to
             a team you are no longer in.
           </p>
+          {/* The view's one fill: the header's New Session steps back */}
           <Link
             to={ROUTES.SESSIONS}
+            data-page-primary
             className={`inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             Go to Sessions
@@ -662,7 +665,8 @@ const Analysis = () => {
     <div
       className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
+      {/* The header's column, so their ends line up at every width */}
+      <div className={`${PAGE_CONTAINER} py-6 sm:py-10 space-y-5 sm:space-y-6`}>
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div className="space-y-2 min-w-0 sm:flex-1">
             {legacySeason && (
@@ -901,6 +905,8 @@ const Analysis = () => {
             {canEdit ? (
               <button
                 onClick={handleAddMatch}
+                // The view's one fill: the header's New Session steps back
+                data-page-primary
                 className={`px-6 py-2.5 rounded-xl bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors inline-flex items-center gap-2 ${isDarkMode ? 'text-black' : 'text-white'}`}
               >
                 <Plus size={18} />

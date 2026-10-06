@@ -24,7 +24,10 @@ import {
 } from '@/components';
 import { ClockDigits } from '@/components/session/ClockDigits';
 import { SESSION_SETUP_PANEL_ID } from '@/components/session/controls/setupPanelId';
-import { useActiveCompact } from '@/components/session/layout/useActiveCompact';
+import {
+  useActiveCompact,
+  useActiveSideBySide,
+} from '@/components/session/layout/useActiveCompact';
 import { LivePhaseChip, PausedPill } from '@/components/session/MatchPhase';
 import {
   matchClockText,
@@ -379,10 +382,22 @@ const showMatchLog = () => {
 };
 
 /**
+ * The line the breakdown card's Total is on (its heading's), for a phone on
+ * its side, where the card has one while a match runs (see ScoreBreakdown)
+ */
+const CARD_TOTAL_LINE = '[data-breakdown-card] h2';
+
+/**
  * The phone's one line under the clock: how long the session has run and,
  * once a match is saved, that match (proof that Save landed, without a trip
  * to the Match Log at the end of the page; pressing it goes there). Which
  * match is next is already in the header and on Start, so it isn't here.
+ *
+ * On its side, the header has nothing in its middle while a match is on (the
+ * clock has a column of its own), so this line says what the header says
+ * held upright: which match it is, with its total until the buzzer, while
+ * the breakdown card's Total can't be read (it is the last thing in the
+ * scoring column, a scroll down). Save says the total after the buzzer.
  *
  * One fixed-height line in every state, blank while a saved match is open
  * in the fields (the header says which): what is below it sits at the same
@@ -390,28 +405,58 @@ const showMatchLog = () => {
  */
 const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
   const { isDarkMode } = useTheme();
-  const { sessionData, sessionTimer, formatTime, editingMatchId } =
-    useSession();
+  const {
+    sessionData,
+    sessionTimer,
+    formatTime,
+    editingMatchId,
+    matchActive,
+    matchPhase,
+  } = useSession();
+  const sideBySide = useActiveSideBySide();
+  const editing = editingMatchId !== null;
+  const namesMatch = sideBySide && matchActive && !editing;
+  const totalOutOfView = useOutOfView(
+    CARD_TOTAL_LINE,
+    namesMatch && matchPhase !== 'ended'
+  );
   const line = 'h-6 text-xs min-[375px]:text-sm font-medium tabular-nums';
+  const lineClass = `${line} flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap ${statusTone(isDarkMode)}`;
+  const dot = (
+    <span aria-hidden className="shrink-0 opacity-60">
+      ·
+    </span>
+  );
 
-  if (editingMatchId !== null) {
+  if (editing) {
     return <div aria-hidden data-match-status className={line} />;
+  }
+
+  if (namesMatch) {
+    // Not editing, so the fields hold the running match, of the session's type
+    const total = totalOutOfView ? calculateScore(sessionData).total : null;
+    return (
+      <div data-match-status className={lineClass}>
+        <span>Match {nextMatchNumber(sessionData.matches)}</span>
+        {total !== null && (
+          <>
+            {dot}
+            <span className={DATA_CLASS}>{formatPoints(total)}</span>
+          </>
+        )}
+      </div>
+    );
   }
 
   const matches = sessionData.matches ?? [];
   const last: Match | undefined = matches[matches.length - 1];
 
   return (
-    <div
-      data-match-status
-      className={`${line} flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap ${statusTone(isDarkMode)}`}
-    >
+    <div data-match-status className={lineClass}>
       <span className="shrink-0">Session {formatTime(sessionTimer)}</span>
       {last && (
         <>
-          <span aria-hidden className="shrink-0 opacity-60">
-            ·
-          </span>
+          {dot}
           <button
             type="button"
             onClick={showMatchLog}

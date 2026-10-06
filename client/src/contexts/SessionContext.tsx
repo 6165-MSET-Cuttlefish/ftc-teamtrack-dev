@@ -82,6 +82,11 @@ interface SessionTimers {
  */
 export interface HeldMatchClock {
   clock: SessionClockState;
+  /**
+   * The match it is the clock of: when that match was started. Another tab
+   * can replace the match with a new one under the same number.
+   */
+  match: number;
   wall: number;
   steady: number;
 }
@@ -111,6 +116,12 @@ interface SessionCoreContextType {
    * re-rendering every second to have it.
    */
   getTimers: () => SessionTimers;
+  /**
+   * The clocks' anchors as they stand, for code that needs the match clock
+   * to the millisecond rather than in the whole seconds published (the
+   * match audio).
+   */
+  getMatchClock: () => SessionClockState;
   setTimer: (timer: number) => void;
   setSessionTimer: (timer: number) => void;
   isTimerRunning: boolean;
@@ -160,10 +171,16 @@ interface SessionCoreContextType {
    * Put a held match clock back as if it had kept going since: one that was
    * counting has counted on, through the end of AUTO, controller pickup and
    * TELEOP, to the buzzer if its time ran out meanwhile; one that was paused
-   * is where it was. Returns the clock as it now stands, for the match audio
-   * to follow (see `followMatchClock`).
+   * is where it was. The match is the one it was held from again (a
+   * discarded match put back). Returns the clock as it now stands, for the
+   * match audio to follow (see `followMatchClock`).
    */
   resumeMatchClock: (held: HeldMatchClock) => SessionClockState;
+  /**
+   * Whether `held` is the clock of the match in progress, and not of one
+   * another tab has since put a new match in place of.
+   */
+  isCurrentMatch: (held: HeldMatchClock) => boolean;
   /** Convert raw countdown timer to display timer for a given phase */
   getDisplayTimer: (timer: number, phase: MatchPhase) => number;
   /** True when tutorial is active - prevents audio from playing */
@@ -429,6 +446,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   const getTimers = useCallback(() => timersRef.current, []);
 
+  const getMatchClock = useCallback(() => clockRef.current, []);
+
   /**
    * Read the wall clock for the clocks. The anchors assume it only moves
    * forward, a second or so at a time; when it has been set back, or the
@@ -506,8 +525,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     (running: boolean) => {
       commitClock((clock, now) => {
         const next = anchorClock({ ...clock, running }, envRef.current, now);
-        // A pause holds the second that was on screen, so the clock and the
-        // match audio (which is cued in whole seconds) resume together.
+        // A pause holds the second that was on screen: Resume carries on
+        // from the start of it, and the match audio with it.
         return running
           ? next
           : { ...next, remainingMs: Math.ceil(next.remainingMs / 1000) * 1000 };
@@ -1234,11 +1253,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     // Brought up to now first: a phase change may have fallen due since the
     // last tick.
     tick();
-    return { clock: clockRef.current, ...lastReadRef.current };
+    return {
+      clock: clockRef.current,
+      match: matchStartTimeRef.current,
+      ...lastReadRef.current,
+    };
   }, [tick]);
 
   const resumeMatchClock = useCallback(
     (held: HeldMatchClock): SessionClockState => {
+      // Started when it was: a discarded match that is put back is still
+      // the match it was (see `isCurrentMatch`).
+      if (held.match) matchStartTimeRef.current = held.match;
       // What was counting is due when it would have been had it never
       // stopped; the tick then replays every phase change that fell due
       // meanwhile, as for a page that was asleep. Its anchors move as those
@@ -1267,6 +1293,14 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     [commitClock, tick]
   );
 
+  // A tab frozen in the background misses another tab discarding the match
+  // and starting the next one under the same number: only its start time
+  // tells the two apart.
+  const isCurrentMatch = useCallback(
+    (held: HeldMatchClock) => held.match === matchStartTimeRef.current,
+    []
+  );
+
   const hasActiveSession =
     !sessionData.isSessionCompleted &&
     (hasStarted || sessionData.matches.length > 0);
@@ -1284,6 +1318,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       resetSession,
       sessionEpoch,
       getTimers,
+      getMatchClock,
       setTimer,
       setSessionTimer,
       isTimerRunning,
@@ -1310,6 +1345,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       skipToEnd,
       holdMatchClock,
       resumeMatchClock,
+      isCurrentMatch,
       getDisplayTimer: getDisplayTimerUtil,
       isTutorialActive,
       setIsTutorialActive,
@@ -1322,6 +1358,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       resetSession,
       sessionEpoch,
       getTimers,
+      getMatchClock,
       setTimer,
       setSessionTimer,
       isTimerRunning,
@@ -1345,6 +1382,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       skipToEnd,
       holdMatchClock,
       resumeMatchClock,
+      isCurrentMatch,
       isTutorialActive,
       setIsTutorialActive,
     ]

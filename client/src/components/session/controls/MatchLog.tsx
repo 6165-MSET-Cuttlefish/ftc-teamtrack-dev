@@ -33,8 +33,13 @@ const SCORING_FIELDS = '[data-tutorial="live"]';
  * and the top of a third, which says there are more.
  */
 const PHONE_LIST_HEIGHT = 158;
-/** What opens under a row: the unsaved-changes note, the delete question */
+/**
+ * What opens under a row: the unsaved-changes note, the delete question.
+ * Each sits straight inside its row.
+ */
 const ROW_INSERT = '[data-row-insert]';
+/** The open match's row, with its Editing chip */
+const EDITING_ROW = '[data-editing-row]';
 
 /** Delete: compact with a mouse, a full 44px target on touch */
 const ICON_BUTTON =
@@ -152,6 +157,15 @@ export const MatchLog = () => {
       return;
     }
     const inserts = [...list.querySelectorAll<HTMLElement>(ROW_INSERT)];
+    // While something is open under a row, that row and the open match's
+    // are kept whole
+    const wholeRows =
+      inserts.length === 0
+        ? []
+        : [
+            ...inserts.map(insert => insert.parentElement),
+            list.querySelector<HTMLElement>(EDITING_ROW),
+          ].filter(row => row !== null);
     const fit = () => {
       const extra = inserts.reduce((sum, insert) => {
         const { marginTop, marginBottom } = getComputedStyle(insert);
@@ -162,13 +176,24 @@ export const MatchLog = () => {
           parseFloat(marginBottom)
         );
       }, 0);
-      list.style.maxHeight = `${PHONE_LIST_HEIGHT + extra}px`;
+      const height = PHONE_LIST_HEIGHT + extra;
+      // Rows run taller than that allows for (a summary on three lines, the
+      // Editing chip on a line of its own): the window goes down to the end
+      // of each such row that shows in it, rather than cutting it at the
+      // card's edge. Only down: the rows stay where they were on screen.
+      const top = list.getBoundingClientRect().top;
+      const ends = wholeRows
+        .map(row => row.getBoundingClientRect())
+        // More of it than the 1px divider
+        .filter(box => box.top - top < height - 1 && box.bottom - top > 1)
+        .map(box => Math.ceil(box.bottom - top));
+      list.style.maxHeight = `${Math.max(height, ...ends)}px`;
     };
     fit();
     if (inserts.length === 0) return;
-    // A note that wraps differently once the screen turns
+    // A note or a row that wraps differently once the screen turns
     const observer = new ResizeObserver(fit);
-    inserts.forEach(insert => observer.observe(insert));
+    [...inserts, ...wholeRows].forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, [
     isCompact,
@@ -246,22 +271,26 @@ export const MatchLog = () => {
         isDarkMode ? 'border-gray-700 bg-team-dark' : 'border-gray-200 bg-white'
       }`}
     >
-      {/* Between matches it says how to fix one: tapping a row opens it */}
+      {/*
+        Between matches it says how to fix one: tapping a row opens it. The
+        pointer is always laid out, only hidden while it doesn't apply, so
+        the rows under it never move; in a column too narrow for both (a
+        200% zoom) it goes whole onto a line of its own.
+      */}
       <div
-        className={`flex items-baseline justify-between gap-3 px-4 py-2.5 border-b ${
+        className={`flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 py-2.5 border-b ${
           isDarkMode ? 'border-gray-700' : 'border-gray-200'
         }`}
       >
-        <h2 className={EYEBROW_CLASS}>Match Log</h2>
-        {matchCount > 0 && !matchActive && !editingMatchId && (
-          <p
-            className={`min-w-0 truncate text-xs ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}
-          >
-            Tap a match to fix it
-          </p>
-        )}
+        <h2 className={`${EYEBROW_CLASS} whitespace-nowrap`}>Match Log</h2>
+        <p
+          aria-hidden={matchActive || !!editingMatchId || undefined}
+          className={`text-xs ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          } ${matchActive || editingMatchId ? 'invisible' : ''}`}
+        >
+          Tap a match to fix it
+        </p>
       </div>
       <div
         ref={listRef}
@@ -286,6 +315,7 @@ export const MatchLog = () => {
             <div
               key={match.id}
               ref={isConfirmingDelete ? confirmRowRef : undefined}
+              data-editing-row={isEditing || undefined}
             >
               {/*
                 One amber for editing, as in the header: a soft tint and a

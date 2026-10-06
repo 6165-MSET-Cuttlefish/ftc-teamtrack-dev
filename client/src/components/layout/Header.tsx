@@ -215,10 +215,12 @@ const PILL = `inline-flex items-center justify-center px-3 py-1.5 rounded-full t
  * back to an outline, so no view shows two fills. The page marks that
  * button `data-page-primary` and CSS does the rest, so the bar never has to
  * know which page, or which state of it, is showing. An inset ring rather
- * than a border, so the pill keeps its size.
+ * than a border, so the pill keeps its size. The fill is cleared with
+ * `!important`, as the honeycomb and deepsea `.bg-team-blue` colours in
+ * global.css are themselves important and would otherwise keep it filled.
  */
 const STEPS_BACK_FOR_PAGE_PRIMARY =
-  '[body:has([data-page-primary])_&]:bg-transparent [body:has([data-page-primary])_&]:text-foreground [body:has([data-page-primary])_&]:ring-1 [body:has([data-page-primary])_&]:ring-inset [body:has([data-page-primary])_&]:ring-team-blue';
+  '[body:has([data-page-primary])_&]:!bg-transparent [body:has([data-page-primary])_&]:text-foreground [body:has([data-page-primary])_&]:ring-1 [body:has([data-page-primary])_&]:ring-inset [body:has([data-page-primary])_&]:ring-team-blue';
 
 interface NavigationMenuProps {
   /** The match clock is sharing the bar, so the nav has less room */

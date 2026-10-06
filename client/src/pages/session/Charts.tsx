@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme, useSessionCore } from '@/contexts';
 import { ROUTES, APP_CONFIG } from '@/constants';
+import { PAGE_CONTAINER } from '@/constants/layout';
 import {
   toDate,
   matchScore,
@@ -733,8 +734,8 @@ const Charts = () => {
 
   const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
   const pageClass = `min-h-[100dvh] page-transition ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`;
-  const wrapClass =
-    'max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8';
+  /** The header's column, so their ends line up at every width */
+  const wrapClass = `${PAGE_CONTAINER} py-4 sm:py-6 md:py-8`;
   const cardClass = `rounded-xl shadow-none ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`;
 
   if (loading) {

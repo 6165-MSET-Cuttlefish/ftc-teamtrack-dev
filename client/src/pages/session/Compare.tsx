@@ -28,6 +28,7 @@ import {
 import type { RankingPointTally, Tone } from '@/lib';
 import { getPendingDeleteIds } from '@/lib/pendingSessionDeletes';
 import { ROUTES, APP_CONFIG } from '@/constants';
+import { PAGE_CONTAINER } from '@/constants/layout';
 import { useIsCompact } from '@/hooks';
 import type { Session, Match, ScoreBreakdown } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
@@ -1356,9 +1357,11 @@ const Compare = () => {
             ? 'Complete some practice sessions first, then come back to compare them.'
             : `${plural(comparableSessions.length, 'session')} under All.`}
         </p>
+        {/* The view's one fill: the header's New Session steps back */}
         {scope === 'all' ? (
           <Link
             to={ROUTES.ACTIVE}
+            data-page-primary
             className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             Start a new session
@@ -1367,6 +1370,7 @@ const Compare = () => {
           <button
             type="button"
             onClick={() => setScope('all')}
+            data-page-primary
             className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-team-blue text-sm font-medium hover:bg-team-blue/90 transition-colors ${isDarkMode ? 'text-black' : 'text-white'}`}
           >
             Show all sessions
@@ -2245,7 +2249,8 @@ const Compare = () => {
     <div
       className={`min-h-[100dvh] ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
     >
-      <div className="max-w-[1152px] mx-auto px-4 sm:px-8 py-8">
+      {/* The header's column, so their ends line up at every width */}
+      <div className={`${PAGE_CONTAINER} py-8`}>
         <PageHeader
           title="Comparison"
           subtitle={

@@ -5,6 +5,8 @@ import { formatDate, logger } from '@/lib';
 import { ROUTES } from '@/constants';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { ignoreHeldEnter } from '@/components/session/controls/ignoreHeldEnter';
+import { useArmedAfterOpen } from '@/hooks/useArmedAfterOpen';
 
 const DAY: Intl.DateTimeFormatOptions = {
   year: 'numeric',
@@ -43,6 +45,11 @@ export const ShareLinks = ({
   /** The link being removed, or 'all' */
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmingAll, setConfirmingAll] = useState(false);
+  // The question takes the pressed button's place, so the second press of
+  // a double click or tap lands on it: it waits that out. Timed from each
+  // time it is asked, so asking again right after it was dismissed is
+  // guarded too.
+  const allArmed = useArmedAfterOpen(confirmingAll);
 
   useEffect(() => {
     let mounted = true;
@@ -178,20 +185,26 @@ export const ShareLinks = ({
         })}
       </ul>
       {links.length > 1 && (
-        // Asks once, in the red of a delete: the next press takes every link down.
+        // Asks once, in the red of a delete: the next press takes every link
+        // down, once the question has been up long enough to be read. There
+        // is no Undo.
         <Button
           variant={confirmingAll ? 'dangerOutline' : 'neutral'}
           size="sm"
           disabled={removing !== null}
           onBlur={() => setConfirmingAll(false)}
-          onClick={() =>
-            confirmingAll
-              ? remove(
-                  links.map(link => link.id),
-                  'all'
-                )
-              : setConfirmingAll(true)
-          }
+          // Held down, Enter would ask and then answer
+          onKeyDown={ignoreHeldEnter}
+          onClick={() => {
+            if (!confirmingAll) {
+              setConfirmingAll(true);
+            } else if (allArmed()) {
+              remove(
+                links.map(link => link.id),
+                'all'
+              );
+            }
+          }}
         >
           {removing === 'all'
             ? 'Removing…'

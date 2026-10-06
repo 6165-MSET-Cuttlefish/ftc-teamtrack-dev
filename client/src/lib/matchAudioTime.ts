@@ -6,6 +6,7 @@
 
 import { GAME_TIMING } from '@/constants';
 import type { MatchPhase } from '@/types';
+import type { SessionClockState } from '@/types/storage';
 
 /** File time of the start of the 3-2-1, in seconds */
 export const FULL_GAME_AUDIO_OFFSET = 0.8;
@@ -30,5 +31,43 @@ export const matchAudioTime = (
   }
   return (
     FULL_GAME_AUDIO_OFFSET + (GAME_TIMING.FULL_GAME_DURATION_SECONDS - timer)
+  );
+};
+
+/**
+ * File time for where `clock` stands at `now`, to the millisecond: the
+ * seconds on screen are whole, but a clock that was put back (see
+ * `resumeMatchClock`) or paused mid-second is not. After the buzzer it is
+ * the buzzer.
+ */
+export const clockAudioTime = (
+  clock: SessionClockState,
+  matchType: string,
+  now: number
+): number => {
+  const secondsLeft = (deadline: number | null, stoppedMs: number) =>
+    Math.max(0, (deadline ?? now + stoppedMs) - now) / 1000;
+  if (clock.phase === 'controller_pickup') {
+    // Controller pickup is in the track between AUTO and TELEOP: its
+    // seconds left count on from the end of AUTO's.
+    return matchAudioTime(
+      matchType,
+      clock.phase,
+      GAME_TIMING.AUTON_END_REMAINING -
+        GAME_TIMING.CONTROLLER_PICKUP_SECONDS +
+        secondsLeft(clock.pickupDeadline, clock.pickupRemainingMs)
+    );
+  }
+  if (clock.phase === 'ended') {
+    return matchAudioTime(
+      matchType,
+      matchType === 'Autonomous' ? 'auton' : 'teleop',
+      0
+    );
+  }
+  return matchAudioTime(
+    matchType,
+    clock.phase,
+    secondsLeft(clock.deadline, clock.remainingMs)
   );
 };

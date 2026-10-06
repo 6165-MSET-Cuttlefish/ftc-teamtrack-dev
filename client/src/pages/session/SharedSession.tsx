@@ -5,6 +5,7 @@ import { firebaseService } from '@/services';
 import { sessionMatchType } from '@/lib';
 import { normalizeSession } from '@/lib/sessionNormalize';
 import { APP_CONFIG, CURRENT_SEASON, ROUTES } from '@/constants';
+import { PAGE_CONTAINER } from '@/constants/layout';
 import {
   PAGE_TITLE_CLASS,
   SECTION_TITLE_CLASS,
@@ -190,7 +191,8 @@ const SharedSession = () => {
 
   return (
     <div className={`flex-1 ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}>
-      <div className="max-w-[1152px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-5 sm:space-y-6">
+      {/* The header's column, so their ends line up at every width */}
+      <div className={`${PAGE_CONTAINER} py-6 sm:py-10 space-y-5 sm:space-y-6`}>
         <div className="space-y-2">
           <div
             className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${

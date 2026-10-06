@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/contexts';
 import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
-import { matchAudioTime, TELEOP_AUDIO_OFFSET } from '@/lib/matchAudioTime';
+import { clockAudioTime, TELEOP_AUDIO_OFFSET } from '@/lib/matchAudioTime';
 
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
@@ -287,25 +287,41 @@ export const useMatchAudio = () => {
     null
   );
   /**
-   * Where the audio belonged at a moment the match clock was exact. The clock
-   * is published in whole seconds, so that is only known as a second starts.
+   * Where the audio belonged at a moment, read off the match clock to the
+   * millisecond. From there it moves on with the page's steady clock, which
+   * a change to the device clock between two ticks doesn't move.
    */
   const syncPointRef = useRef<{ audioTime: number; at: number } | null>(null);
-  const lastClockRef = useRef<{ timer: number; counting: boolean } | null>(
-    null
-  );
   const {
     matchActive,
     matchPhase,
     isTimerRunning,
+    isPickupPaused,
     timer,
+    phaseTimer,
     isTutorialActive,
     sessionData,
+    getMatchClock,
   } = useSession();
 
+  /**
+   * The match is under way and its clock counting. The track plays on
+   * through controller pickup, so there that is the pickup countdown, which
+   * can be paused on its own.
+   */
+  const counting =
+    matchActive &&
+    timer > 0 &&
+    (matchPhase === 'controller_pickup' ? !isPickupPaused : isTimerRunning);
+
+  /**
+   * Where the track belongs now. From the clock's anchors, not the whole
+   * seconds on screen: a clock put back by an Undo, or a pickup paused,
+   * stands mid-second.
+   */
   const getExpectedAudioTime = useCallback(
-    () => matchAudioTime(sessionData.matchType, matchPhase, timer),
-    [sessionData.matchType, matchPhase, timer]
+    () => clockAudioTime(getMatchClock(), sessionData.matchType, Date.now()),
+    [getMatchClock, sessionData.matchType]
   );
 
   /**
@@ -370,63 +386,48 @@ export const useMatchAudio = () => {
     };
   }, [correctDrift]);
 
+  // The tutorial's practice match is silent for as long as the tour is up,
+  // whatever its clock does: its clock never runs, but End early still cues
+  // the buzzer.
   useEffect(() => {
     const audio = audioRef.current;
-    if (matchActive && isTimerRunning && timer > 0 && audio) {
-      if (!hasPlayedRef.current) {
-        hasPlayedRef.current = true;
-        reloadIfBroken(audio);
+    if (audio) audio.muted = isTutorialActive;
+  }, [isTutorialActive]);
+
+  // The track plays while the clock counts, from where the clock is, and
+  // stops where it is when the clock stops short of the buzzer (a pause).
+  // Run on every tick, so a play the browser refused (a reload mid-match,
+  // before any tap) is tried again.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!matchActive || !audio) return;
+    if (counting) {
+      if (audio.paused || isAudioBroken(audio)) {
+        // Nothing to resume if the track is broken and can't be refetched yet
+        if (isAudioBroken(audio) && !reloadIfBroken(audio)) return;
         // The start of the track for a match that is just starting, and the
         // right place in it for one that is already under way.
         audio.currentTime = getExpectedAudioTime();
-        audio.muted = isTutorialActive;
         playMatchAudio(audio);
-      } else {
-        audio.muted = isTutorialActive;
       }
+      hasPlayedRef.current = true;
+    } else if (timer > 0) {
+      audio.pause();
     }
-  }, [
-    matchActive,
-    isTimerRunning,
-    isTutorialActive,
-    timer,
-    getExpectedAudioTime,
-  ]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (matchActive && audio) {
-      if (isTimerRunning) {
-        if ((audio.paused || isAudioBroken(audio)) && timer > 0) {
-          // Nothing to resume if the track is broken and can't be refetched yet
-          if (isAudioBroken(audio) && !reloadIfBroken(audio)) return;
-          audio.currentTime = getExpectedAudioTime();
-          playMatchAudio(audio);
-        }
-      } else if (timer > 0 && matchPhase !== 'controller_pickup') {
-        audio.pause();
-      }
-    }
-  }, [isTimerRunning, matchActive, matchPhase, timer, getExpectedAudioTime]);
+  }, [matchActive, counting, timer, phaseTimer, getExpectedAudioTime]);
 
   // Once a second, as the clock ticks, check the audio is still with it.
   useEffect(() => {
-    const last = lastClockRef.current;
-    const counting = matchActive && isTimerRunning && timer > 0;
-    lastClockRef.current = { timer, counting };
     if (!counting) {
       syncPointRef.current = null;
       return;
     }
-    // Exact only on a tick, a start or a resume. Not on arrival mid-second,
-    // and not when this ran for some other reason.
-    if (last === null || (last.counting && last.timer === timer)) return;
     syncPointRef.current = {
       audioTime: getExpectedAudioTime(),
       at: performance.now(),
     };
     correctDrift();
-  }, [matchActive, isTimerRunning, timer, getExpectedAudioTime, correctDrift]);
+  }, [counting, timer, phaseTimer, getExpectedAudioTime, correctDrift]);
 
   useEffect(() => {
     if (audioTailTimeoutRef.current) {

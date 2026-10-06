@@ -31,7 +31,14 @@ export default defineConfig(() => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // react-dom/client is the renderer itself, most of React's size:
+          // without it here it lands in the entry chunk.
+          'vendor-react': [
+            'react',
+            'react-dom',
+            'react-dom/client',
+            'react-router-dom',
+          ],
           'vendor-firebase': [
             'firebase/app',
             'firebase/auth',
