@@ -111,8 +111,12 @@ export const useScoringLocks = () => {
         (matchPhase === 'controller_pickup'
           ? isPickupPaused
           : !isTimerRunning)),
-    /** End-of-match park can't be known while AUTO is still running. */
-    endParkLocked: !editing && matchActive && matchPhase === 'auton',
+    /**
+     * End-of-match park can't be known while AUTO is still running; a pause
+     * opens it, as it opens the End of Match counts.
+     */
+    endParkLocked:
+      !editing && matchActive && matchPhase === 'auton' && isTimerRunning,
     hasAuto: includesAuto(matchType),
     hasTeleop: includesTeleop(matchType),
   };

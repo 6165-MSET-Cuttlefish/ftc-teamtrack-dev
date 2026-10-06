@@ -342,7 +342,10 @@ export const ScoringPad = () => {
   const robotsNote = entryLocked
     ? null
     : endParkLocked && hasTeleop
-      ? { locked: true, text: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop` }
+      ? {
+          locked: true,
+          text: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop or on pause`,
+        }
       : !hasAuto
         ? { locked: false, text: 'Teleop match: no Auto scoring' }
         : !hasTeleop
