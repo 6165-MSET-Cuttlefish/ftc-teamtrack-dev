@@ -4,12 +4,57 @@ import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { useSessionCore, useTheme } from '@/contexts';
 import { ELEMENT_LABELS, RANKING_POINTS, calculateScore } from '@/lib';
 import { formatPoints } from '@/lib/points';
-import type { MatchScoringFields } from '@/types';
+import type { MatchScoringFields, RobotCount } from '@/types';
 import { useActiveSideBySide } from './layout/useActiveCompact';
+import { usePenaltyCounters } from './usePenaltyCounters';
 import { useScoringLocks } from './useScoringLocks';
 
 /** What SWARM counts, in the same words on every layout */
 const SWARM_UNIT = 'leave + park pts';
+
+/**
+ * SWARM where one robot can't reach it (13 leave + park pts at most, of the
+ * 16 it takes): said in place of a bar that could never fill. Its count
+ * stays on the line, as the one place Leave and Park points show (as
+ * "pts" alone where the line is too narrow for its unit), and the row keeps
+ * the bar's height, so the card is the same size either way. Where even
+ * that line is too narrow (a phone zoomed to 200%), "needs 2 robots" takes
+ * the line under it, with the count still on SWARM's line.
+ */
+const SwarmNeedsTwoRobots = ({ value }: { value: number }) => {
+  const { isDarkMode } = useTheme();
+  const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
+  return (
+    <div className="min-w-0 space-y-1 [container-type:inline-size]">
+      <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+        <span
+          className={`font-semibold ${
+            isDarkMode ? 'text-gray-200' : 'text-gray-800'
+          }`}
+        >
+          SWARM
+        </span>
+        <span
+          className={`whitespace-nowrap text-xs ${muted} [@container(max-width:12rem)]:order-last [@container(max-width:12rem)]:basis-full`}
+        >
+          needs 2 robots
+        </span>
+        <span
+          className={`ml-auto whitespace-nowrap tabular-nums text-xs ${muted}`}
+        >
+          {value}{' '}
+          <span className="[@container(max-width:17rem)]:hidden">
+            {SWARM_UNIT}
+          </span>
+          <span className="hidden [@container(max-width:17rem)]:inline">
+            pts
+          </span>
+        </span>
+      </p>
+      <div aria-hidden className="h-2" />
+    </div>
+  );
+};
 
 /**
  * Progress toward one ranking point. `marks` are the thresholds (a bar can
@@ -114,25 +159,31 @@ const RankingPointRow = ({
  * left out of a match type with no AUTO: the end park alone can't reach it.
  * Its count, the robots' park points, then gets a line of its own beside
  * it (see `ScoreBreakdown` and `BreakdownStrip`), so they still show once.
+ * With one robot it says it needs two, in place of its bar.
  */
 const RankingPointRows = ({
   leavePark,
   tips,
   hasAuto,
+  robots,
 }: {
   leavePark: number;
   tips: number;
   hasAuto: boolean;
+  robots: RobotCount;
 }) => (
   <>
-    {hasAuto && (
-      <RankingPointRow
-        name="SWARM"
-        value={leavePark}
-        marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
-        unit={SWARM_UNIT}
-      />
-    )}
+    {hasAuto &&
+      (robots === 2 ? (
+        <RankingPointRow
+          name="SWARM"
+          value={leavePark}
+          marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
+          unit={SWARM_UNIT}
+        />
+      ) : (
+        <SwarmNeedsTwoRobots value={leavePark} />
+      ))}
     <RankingPointRow
       name="POLLINATOR"
       value={tips}
@@ -145,7 +196,7 @@ const RankingPointRows = ({
 /**
  * One plain number under the ranking points on the phone: the park points
  * of a match with no AUTO (no SWARM row to count them), what a Scrim's
- * penalties gave the opponent.
+ * fouls gave the opponent.
  */
 const PointsLine = ({
   label,
@@ -243,7 +294,7 @@ const useScoreAnnouncement = (
 
 /**
  * The phone's ranking points card, under the scoring fields: SWARM and
- * POLLINATOR, and in a Scrim what the penalties gave the opponent. Each
+ * POLLINATOR, and in a Scrim what the fouls gave the opponent. Each
  * element's points are on its own counter, and Leave and Park on SWARM's
  * line (on a Park line of their own in a match with no AUTO), so they
  * aren't repeated here.
@@ -261,12 +312,14 @@ const useScoreAnnouncement = (
  */
 export const ScoreBreakdown = () => {
   const { sessionData, matchActive, matchPhase } = useSessionCore();
-  const { scoring, editing, hasAuto } = useScoringLocks();
+  const { scoring, editing, hasAuto, robots } = useScoringLocks();
   const { isDarkMode } = useTheme();
   const sideBySide = useActiveSideBySide();
 
   const breakdown = calculateScore(scoring);
-  const isScrim = sessionData.sessionType === 'Scrim';
+  // What fouls gave the opponent shows wherever the foul counters do: in a
+  // Scrim, and for a match with some after a switch to Practice
+  const foulsShown = usePenaltyCounters().shown;
   const showTotal =
     editing || (sideBySide && matchActive && matchPhase !== 'ended');
 
@@ -303,8 +356,9 @@ export const ScoreBreakdown = () => {
           leavePark={breakdown.leave + breakdown.park}
           tips={sessionData.tipping ?? 0}
           hasAuto={hasAuto}
+          robots={robots}
         />
-        {(!hasAuto || isScrim) && (
+        {(!hasAuto || foulsShown) && (
           <div
             className={`space-y-1.5 border-t pt-2.5 ${
               isDarkMode ? 'border-white/10' : 'border-gray-200'
@@ -317,7 +371,7 @@ export const ScoreBreakdown = () => {
                 </span>
               </PointsLine>
             )}
-            {isScrim && (
+            {foulsShown && (
               <PointsLine label="To opponent">
                 <span
                   className={`font-semibold tabular-nums ${
@@ -353,7 +407,7 @@ export const ScoreBreakdown = () => {
  */
 export const BreakdownStrip = () => {
   const { sessionData, matchActive } = useSessionCore();
-  const { scoring, editing, hasAuto } = useScoringLocks();
+  const { scoring, editing, hasAuto, robots } = useScoringLocks();
   const { isDarkMode } = useTheme();
 
   const breakdown = calculateScore(scoring);
@@ -384,6 +438,7 @@ export const BreakdownStrip = () => {
         leavePark={breakdown.leave + breakdown.park}
         tips={sessionData.tipping ?? 0}
         hasAuto={hasAuto}
+        robots={robots}
       />
     </div>
   );

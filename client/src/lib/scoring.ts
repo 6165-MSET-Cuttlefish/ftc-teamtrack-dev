@@ -53,10 +53,28 @@ export const DEFAULT_ROBOT_COUNT: RobotCount = 1;
 
 /**
  * Robots on the field for a match or a session's fields. Saved before the
- * setting existed, it had two robot rows, so it counts as 2.
+ * setting existed, it had two robot rows, so it counts as 2 (as does
+ * anything stored there that isn't a 1).
  */
-export const robotCountOf = (fields: { robotCount?: RobotCount }): RobotCount =>
-  fields.robotCount ?? 2;
+export const robotCountOf = (fields: {
+  robotCount?: RobotCount;
+}): RobotCount => (fields.robotCount === 1 ? 1 : 2);
+
+/**
+ * The robots a match's fields are shown and counted with: its robot count,
+ * or both whenever Robot 2 has something marked anyway (the count was
+ * changed with Robot 2 already scored), so nothing scored is ever hidden,
+ * or counted out of fewer chances than were used.
+ */
+export const robotsOf = (
+  fields: Partial<MatchScoringFields> & { robotCount?: RobotCount }
+): RobotCount =>
+  robotCountOf(fields) === 2 ||
+  fields.robot2Leave ||
+  fields.robot2ParkAuto ||
+  fields.robot2ParkTeleop
+    ? 2
+    : 1;
 
 /**
  * The same fields with the flags of periods that were not run cleared: a
@@ -309,6 +327,14 @@ export interface RankingPoints {
 }
 
 /**
+ * Whether a match can earn SWARM at all. One robot tops out at 13 LEAVE +
+ * PARK points (3 + 5 + 5), and a match with no AUTO at 10 (two end parks):
+ * both are short of the 16 it takes.
+ */
+export const swarmReachable = (f: ScoringInput): boolean =>
+  includesAuto(f.matchType) && robotsOf(f) === 2;
+
+/**
  * Ranking points earned by a match. LEAVE and PARK are counted the same way
  * `calculateScore` counts them, so a period that was not run can't earn
  * SWARM.
@@ -337,8 +363,13 @@ export interface RankingPointTally {
   swarm: number;
   pollinator1: number;
   pollinator2: number;
+  /** Matches that could earn SWARM (see `swarmReachable`) */
+  swarmChances: number;
   earned: number;
-  /** Three per match */
+  /**
+   * The two POLLINATORs per match, and SWARM in each match that could earn
+   * it
+   */
   possible: number;
   /** Percentage of the possible ranking points earned; null with no matches */
   rate: number | null;
@@ -352,19 +383,21 @@ export const rankingPointTally = (
   matches: ReadonlyArray<ScoringInput>,
   fallbackMatchType?: string
 ): RankingPointTally => {
-  const rps = matches.map(m =>
-    rankingPoints(
-      m.matchType || !fallbackMatchType
-        ? m
-        : { ...m, matchType: fallbackMatchType }
-    )
+  const typed = matches.map(m =>
+    m.matchType || !fallbackMatchType
+      ? m
+      : { ...m, matchType: fallbackMatchType }
   );
+  const rps = typed.map(rankingPoints);
   const earned = rps.reduce((sum, rp) => sum + rp.total, 0);
-  const possible = matches.length * (1 + RANKING_POINTS.POLLINATOR_TIPS.length);
+  const swarmChances = typed.filter(swarmReachable).length;
+  const possible =
+    swarmChances + matches.length * RANKING_POINTS.POLLINATOR_TIPS.length;
   return {
     swarm: rps.filter(rp => rp.swarm).length,
     pollinator1: rps.filter(rp => rp.pollinator >= 1).length,
     pollinator2: rps.filter(rp => rp.pollinator >= 2).length,
+    swarmChances,
     earned,
     possible,
     rate: possible > 0 ? Math.round((earned / possible) * 100) : null,
@@ -399,9 +432,16 @@ export const FIELD_HINTS = {
   garden: 'Every piece in your garden, including the 4 pollen that start there',
   ballsInHive:
     "Pieces in the hive's upward-facing cell, including the 3 starting nectar unless a Hive Tip turned that cell away",
-  minorPenalties: `+${POINTS.MINOR_PENALTY} to the opponent each. Your score is not reduced`,
-  majorPenalties: `+${POINTS.MAJOR_PENALTY} to the opponent each. Your score is not reduced`,
+  minorPenalties: `+${POINTS.MINOR_PENALTY} to the opponent each. They never lower your score`,
+  majorPenalties: `+${POINTS.MAJOR_PENALTY} to the opponent each. They never lower your score`,
 } as const;
+
+/**
+ * The rule behind the scoring page's FOULS (i), in the manual's words for
+ * them: what each one gives the opponent, and that none comes off this
+ * alliance's own score. A no-break space keeps each value with its name.
+ */
+export const FOULS_RULE = `Fouls go to the opponent (Minor\u00a0+${POINTS.MINOR_PENALTY}, Major\u00a0+${POINTS.MAJOR_PENALTY}). They never lower your score`;
 
 /**
  * The name over each end-of-match counter on the scoring page and in the
@@ -463,42 +503,62 @@ export const liveMatchType = <T extends string | undefined>(
   return edited?.matchType ?? session.matchType;
 };
 
+/** How many of something were made, out of the chances there were */
+export interface Tally {
+  made: number;
+  chances: number;
+}
+
 /**
- * Leave and park conversion across matches, as whole percentages.
+ * Leaves and parks made across matches, out of the chances they gave.
  *
- * Only periods that were actually run count as opportunities: a teleop-only
- * match has no LEAVE or AUTO PARK to miss, and an auto-only match has no
- * end-of-match PARK. A rate is `null` when there were no opportunities.
+ * Only periods that were actually run count as chances: a teleop-only match
+ * has no LEAVE or AUTO PARK to miss, and an auto-only match has no
+ * end-of-match PARK. Each match gives one chance per robot it was played
+ * with (`robotsOf`): one when a team practices alone, two for an alliance,
+ * and two for a match saved before the robot count existed.
  */
-export const robotRates = (
-  matches: ScoringInput[],
+export const robotTallies = (
+  matches: ReadonlyArray<ScoringInput>,
   fallbackMatchType?: string
-): { leaveRate: number | null; parkRate: number | null } => {
-  let leaveSlots = 0;
-  let leaves = 0;
-  let parkSlots = 0;
-  let parks = 0;
+): { leaves: Tally; parks: Tally } => {
+  const leaves: Tally = { made: 0, chances: 0 };
+  const parks: Tally = { made: 0, chances: 0 };
 
   for (const m of matches) {
     const type = m.matchType ?? fallbackMatchType;
+    const robots = robotsOf(m);
+    const second = robots === 2;
     if (includesAuto(type)) {
-      leaveSlots += 2;
-      leaves += (m.robot1Leave ? 1 : 0) + (m.robot2Leave ? 1 : 0);
-      parkSlots += 2;
-      parks += (m.robot1ParkAuto ? 1 : 0) + (m.robot2ParkAuto ? 1 : 0);
+      leaves.chances += robots;
+      leaves.made +=
+        (m.robot1Leave ? 1 : 0) + (second && m.robot2Leave ? 1 : 0);
+      parks.chances += robots;
+      parks.made +=
+        (m.robot1ParkAuto ? 1 : 0) + (second && m.robot2ParkAuto ? 1 : 0);
     }
     if (includesTeleop(type)) {
-      parkSlots += 2;
-      parks += (m.robot1ParkTeleop ? 1 : 0) + (m.robot2ParkTeleop ? 1 : 0);
+      parks.chances += robots;
+      parks.made +=
+        (m.robot1ParkTeleop ? 1 : 0) + (second && m.robot2ParkTeleop ? 1 : 0);
     }
   }
 
-  const pct = (n: number, d: number) =>
-    d > 0 ? Math.round((n / d) * 100) : null;
-  return {
-    leaveRate: pct(leaves, leaveSlots),
-    parkRate: pct(parks, parkSlots),
-  };
+  return { leaves, parks };
+};
+
+/**
+ * Leave and park conversion across matches, as whole percentages of the
+ * chances `robotTallies` counts. A rate is `null` when there were none.
+ */
+export const robotRates = (
+  matches: ReadonlyArray<ScoringInput>,
+  fallbackMatchType?: string
+): { leaveRate: number | null; parkRate: number | null } => {
+  const { leaves, parks } = robotTallies(matches, fallbackMatchType);
+  const pct = ({ made, chances }: Tally) =>
+    chances > 0 ? Math.round((made / chances) * 100) : null;
+  return { leaveRate: pct(leaves), parkRate: pct(parks) };
 };
 
 /** A gap longer than a whole match's playing time is not a cycle. */
@@ -514,11 +574,23 @@ const MAX_CYCLE_SECONDS =
  * into the gap between the tips either side. A tip with no earlier tip in
  * the same match has nothing to be measured from. Gaps that are not positive
  * or are longer than a match are dropped.
+ *
+ * A tip taken back (the count goes down, as −1 after a double tap does) was
+ * never a tip: the cycle it ended is dropped, and the time it was timed
+ * from the tip before runs on into the next tip's gap. Three tips with a
+ * mis-tap fixed in between are two cycles, as long as the real ones.
  */
 export const cycleTimesOf = (f: Partial<MatchScoringFields>): number[] => {
   const times: number[] = [];
   /** Seconds logged since the last tip; null until the first one */
   let sinceTip: number | null = null;
+  /**
+   * The tips counted so far, last one last: the seconds since the tip
+   * before it (null if not timed from one), and whether that made a cycle
+   */
+  const tips: { gap: number | null; cycle: boolean }[] = [];
+  /** The count the last tip event left; a lower one takes tips back */
+  let count: number | null = null;
 
   for (const event of f.phaseLog ?? []) {
     if (!event || typeof event !== 'object') continue;
@@ -527,10 +599,30 @@ export const cycleTimesOf = (f: Partial<MatchScoringFields>): number[] => {
       if (sinceTip !== null && gap !== undefined) sinceTip += gap;
       continue;
     }
-    if (sinceTip !== null && gap !== undefined) {
-      const cycle = Math.round((sinceTip + gap) * 100) / 100;
-      if (cycle > 0 && cycle <= MAX_CYCLE_SECONDS) times.push(cycle);
+    const value = Number.isFinite(event.value) ? event.value : null;
+    if (count !== null && value !== null && value < count) {
+      for (let n = count - value; n > 0; n--) {
+        const undone = tips.pop();
+        if (undone?.cycle) times.pop();
+        sinceTip =
+          !undone || undone.gap === null || sinceTip === null
+            ? null
+            : undone.gap + sinceTip;
+      }
+      count = value;
+      continue;
     }
+    // A typed count can add several at once, none of them timed
+    for (let n = (count ?? 0) + 1; value !== null && n < value; n++) {
+      tips.push({ gap: null, cycle: false });
+    }
+    count = value;
+    const timed =
+      sinceTip !== null && gap !== undefined ? sinceTip + gap : null;
+    const cycle = timed === null ? null : Math.round(timed * 100) / 100;
+    const kept = cycle !== null && cycle > 0 && cycle <= MAX_CYCLE_SECONDS;
+    if (kept) times.push(cycle);
+    tips.push({ gap: timed, cycle: kept });
     sinceTip = 0;
   }
 

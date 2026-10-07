@@ -956,7 +956,7 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
     toast.message(
       points > 0
         ? `Cleared ${formatPoints(points)} entered before the match started`
-        : 'Cleared the penalties entered before the match started',
+        : 'Cleared the fouls entered before the match started',
       {
         id: CLEARED_TOAST_ID,
         duration: UI_TIMING.UNDO_WINDOW,

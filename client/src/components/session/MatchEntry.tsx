@@ -21,10 +21,8 @@ import { ScoreField } from './ScoreField';
 import { SectionNote } from './SectionNote';
 import { toggleOffClass, toggleOnClass } from './toggleTone';
 import { useMatchEntry } from './useMatchEntry';
-import {
-  PENALTIES_LOCKED_REASON,
-  usePenaltyCounters,
-} from './usePenaltyCounters';
+import { usePenaltyCounters } from './usePenaltyCounters';
+import { START_FIRST } from './useScoringLocks';
 
 const Section = ({
   title,
@@ -36,6 +34,7 @@ const Section = ({
   reserveCaption = false,
   highlight = false,
   sectionRef,
+  className = '',
   children,
 }: {
   title: string;
@@ -64,12 +63,14 @@ const Section = ({
   /** Briefly draws the eye to the heading and caption (just unlocked) */
   highlight?: boolean;
   sectionRef?: React.Ref<HTMLDivElement>;
+  /** Extra classes for the section */
+  className?: string;
   children: React.ReactNode;
 }) => (
   // `gap`, not `space-y`: a hidden heading leaves no gap behind it.
   <div
     ref={sectionRef}
-    className="flex flex-col gap-2"
+    className={`flex flex-col gap-2 ${className}`}
     data-tutorial={tutorialId}
   >
     <div className={headingHidden ? 'sr-only' : 'space-y-0.5'}>
@@ -119,6 +120,7 @@ export const Toggle = ({
   disabledReason,
   describedBy,
   lockGlyph = false,
+  blockedPress,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
@@ -134,27 +136,33 @@ export const Toggle = ({
   disabled?: boolean;
   /** Why the toggle is disabled, as a tooltip */
   disabledReason?: string;
-  /** Id of the text that says why the toggle is disabled */
+  /** Id of the text that says why the toggle is disabled (or waiting) */
   describedBy?: string;
   /**
    * While disabled, a lock before the label: for a toggle locked while its
-   * neighbours are not (End park during AUTO), where the reason would
-   * otherwise be wondered about. Not before Start, when every field is
-   * locked alike.
+   * neighbours are not (End park during AUTO, and before Start), where the
+   * reason would otherwise be wondered about.
    */
   lockGlyph?: boolean;
+  /**
+   * Before Start: drawn ready, but a press changes nothing and calls this
+   * (asking for Start) instead; read out as unavailable.
+   */
+  blockedPress?: () => void;
 }) => {
   const { isDarkMode } = useTheme();
+  const blocked = blockedPress !== undefined && !disabled;
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={checked}
       aria-label={ariaLabel ?? wideLabel ?? label}
-      aria-describedby={disabled ? describedBy : undefined}
+      aria-describedby={disabled || blocked ? describedBy : undefined}
+      aria-disabled={blocked || undefined}
       disabled={disabled}
       title={disabled ? disabledReason : undefined}
-      onClick={() => onChange(!checked)}
+      onClick={() => (blocked ? blockedPress?.() : onChange(!checked))}
       // `touch-manipulation`: two quick taps are two taps, not a zoom. Thin
       // side padding, so the check mark fits beside "Leave" in the 69px a
       // 320px phone gives each toggle, and thinner still in a column
@@ -245,7 +253,8 @@ const RobotRow = memo(function RobotRow({
   autoDisabledReason,
   parkTeleopDisabledReason,
   reasonId,
-  lockGlyph,
+  blockedPress,
+  blockedReasonId,
 }: {
   label: string;
   columns: RobotColumns;
@@ -261,8 +270,10 @@ const RobotRow = memo(function RobotRow({
   parkTeleopDisabledReason?: string;
   /** Id of the note that says those reasons */
   reasonId?: string;
-  /** Mark a locked toggle with a lock (see `Toggle`) */
-  lockGlyph: boolean;
+  /** Before Start, what a press on a ready-looking toggle does instead */
+  blockedPress?: () => void;
+  /** Id of the text that says why those take nothing yet */
+  blockedReasonId?: string;
 }) {
   const { isDarkMode } = useTheme();
   // With both parks in the row the toggles say which one, in full where the
@@ -278,7 +289,8 @@ const RobotRow = memo(function RobotRow({
         ariaLabel={`${label} leave`}
         disabled={autoDisabledReason !== undefined}
         disabledReason={autoDisabledReason}
-        describedBy={reasonId}
+        describedBy={autoDisabledReason ? reasonId : blockedReasonId}
+        blockedPress={blockedPress}
       />
     ),
     parkAuto: (
@@ -291,7 +303,8 @@ const RobotRow = memo(function RobotRow({
         ariaLabel={`${label} parked at end of auto`}
         disabled={autoDisabledReason !== undefined}
         disabledReason={autoDisabledReason}
-        describedBy={reasonId}
+        describedBy={autoDisabledReason ? reasonId : blockedReasonId}
+        blockedPress={blockedPress}
       />
     ),
     parkEnd: (
@@ -304,8 +317,9 @@ const RobotRow = memo(function RobotRow({
         ariaLabel={`${label} parked at end of match`}
         disabled={parkTeleopDisabledReason !== undefined}
         disabledReason={parkTeleopDisabledReason}
-        describedBy={reasonId}
-        lockGlyph={lockGlyph}
+        describedBy={parkTeleopDisabledReason ? reasonId : blockedReasonId}
+        lockGlyph
+        blockedPress={blockedPress}
       />
     ),
   };
@@ -341,42 +355,32 @@ const ParkHeader = () => (
 );
 
 /**
- * A Scrim's fouls, under the robot rows. Locked before Start, as every
- * field is, which the locked look shows: why is only read out, from the
- * note beside the heading. The line under each counter is kept for what it
- * has given the opponent in every state, so nothing under it moves at
- * Start.
+ * A Scrim's fouls, under the robot rows (and a saved match's that has some,
+ * whatever the session is now). Before Start they look ready, as every
+ * field the match starts with does, and a press asks for Start; why they
+ * take nothing yet is read out from `startFirstId`. The line under each
+ * counter is kept for what it has given the opponent in every state, so
+ * nothing under it moves at Start.
  */
-const Penalties = () => {
+const Fouls = ({ startFirstId }: { startFirstId: string }) => {
   const {
     minor,
     major,
     entryKey,
-    locked,
+    blockedPress,
     handleMinorPenalties,
     handleMajorPenalties,
   } = usePenaltyCounters();
-  const reasonId = useId();
   return (
-    <Section
-      title="Penalties"
-      tutorialId="penalties"
-      aside={
-        locked && (
-          <SectionNote id={reasonId} visuallyHidden>
-            {PENALTIES_LOCKED_REASON}
-          </SectionNote>
-        )
-      }
-    >
+    <Section title="Fouls" tutorialId="penalties">
       <PenaltyHint />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-2">
         <PenaltyField
           kind="minor"
           layout="stacked"
           value={minor}
-          locked={locked}
-          lockedReasonId={reasonId}
+          blockedPress={blockedPress}
+          lockedReasonId={startFirstId}
           resetKey={entryKey}
           onChange={handleMinorPenalties}
         />
@@ -384,8 +388,8 @@ const Penalties = () => {
           kind="major"
           layout="stacked"
           value={major}
-          locked={locked}
-          lockedReasonId={reasonId}
+          blockedPress={blockedPress}
+          lockedReasonId={startFirstId}
           resetKey={entryKey}
           onChange={handleMajorPenalties}
         />
@@ -396,6 +400,9 @@ const Penalties = () => {
 
 /** Which end-of-match rule is open under its (i) */
 type InfoKey = 'flower' | 'flowerBonus' | 'hive' | 'garden';
+
+/** The two counters only a match with flowers in it has (see `flowersShown`) */
+const FLOWER_KEYS: readonly string[] = ['flower', 'flowerBonus'];
 
 /**
  * Everything about the current match that isn't tapped live: robot leave and
@@ -421,10 +428,16 @@ export const MatchEntry = () => {
     endCaption,
     justUnlocked,
     endSectionRef,
+    robotsRef,
     entryLocked,
+    blockedPress,
+    startFirstId,
     hasAuto,
     hasTeleop,
+    robots,
+    flowersShown,
   } = useMatchEntry();
+  const { shown: foulsShown } = usePenaltyCounters();
   const { isDarkMode } = useTheme();
   const ids = {
     flower: useId(),
@@ -489,16 +502,27 @@ export const MatchEntry = () => {
     <div className="flex flex-col gap-4 [container-type:inline-size]">
       {/* Phone layouts only, where the page's own headings say where it is */}
       <h2 className="sr-only">Match Entry</h2>
+      {/* What a field that looks ready before Start says to a screen reader */}
+      {entryLocked && (
+        <span id={startFirstId} className="sr-only">
+          {START_FIRST}
+        </span>
+      )}
 
       {/*
         The robot rows name themselves: the heading, and why a toggle is
-        locked, are read out but not shown. Before Start every field is
-        locked alike; during AUTO the End toggles carry a lock of their own.
+        locked, are read out but not shown. The End toggles carry a lock of
+        their own while AUTO runs, and before Start, as the match starts
+        with it. One row for a team on its own, two for an alliance.
       */}
+      {/* On a phone on its side too narrow for the clock's column (an iPhone
+          SE) the rows sit closer, so the second clears the bar */}
       <Section
         title="Robots"
         tutorialId="robots"
         headingHidden
+        sectionRef={robotsRef}
+        className="[@media(max-height:500px)_and_(max-width:639px)]:gap-1"
         aside={
           robotsReason && (
             <SectionNote id={robotsReasonId} visuallyHidden>
@@ -520,25 +544,29 @@ export const MatchEntry = () => {
           autoDisabledReason={autoDisabledReason}
           parkTeleopDisabledReason={parkTeleopDisabledReason}
           reasonId={robotsReason ? robotsReasonId : undefined}
-          lockGlyph={!entryLocked}
+          blockedPress={blockedPress}
+          blockedReasonId={startFirstId}
         />
-        <RobotRow
-          label="Robot 2"
-          columns={columns}
-          leave={sessionData.robot2Leave}
-          parkAuto={sessionData.robot2ParkAuto}
-          parkTeleop={sessionData.robot2ParkTeleop}
-          onLeave={set.robot2Leave}
-          onParkAuto={set.robot2ParkAuto}
-          onParkTeleop={set.robot2ParkTeleop}
-          autoDisabledReason={autoDisabledReason}
-          parkTeleopDisabledReason={parkTeleopDisabledReason}
-          reasonId={robotsReason ? robotsReasonId : undefined}
-          lockGlyph={!entryLocked}
-        />
+        {robots === 2 && (
+          <RobotRow
+            label="Robot 2"
+            columns={columns}
+            leave={sessionData.robot2Leave}
+            parkAuto={sessionData.robot2ParkAuto}
+            parkTeleop={sessionData.robot2ParkTeleop}
+            onLeave={set.robot2Leave}
+            onParkAuto={set.robot2ParkAuto}
+            onParkTeleop={set.robot2ParkTeleop}
+            autoDisabledReason={autoDisabledReason}
+            parkTeleopDisabledReason={parkTeleopDisabledReason}
+            reasonId={robotsReason ? robotsReasonId : undefined}
+            blockedPress={blockedPress}
+            blockedReasonId={startFirstId}
+          />
+        )}
       </Section>
 
-      {sessionData.sessionType === 'Scrim' && <Penalties />}
+      {foulsShown && <Fouls startFirstId={startFirstId} />}
 
       {/* Its groups have titles of their own: only its caption shows */}
       <Section
@@ -606,40 +634,42 @@ export const MatchEntry = () => {
                 onChange: set.garden,
               },
             ] as const
-          ).map(c => (
-            <div
-              key={c.key}
-              role="group"
-              aria-labelledby={c.headId}
-              className="row-span-3 grid grid-rows-subgrid gap-y-1.5"
-            >
-              {head(
-                'info' in c ? c.info : c.key,
-                c.headId,
-                COUNT_LABELS[c.key],
-                FIELD_HINTS[c.key],
-                'icon' in c ? c.icon : undefined
-              )}
-              <CountLine
-                id={c.lineId}
-                each={EACH_LABELS[c.key]}
-                points={c.points}
-              />
-              <ScoreField
-                layout="segment"
-                stepper
-                hideLabel
-                label={COUNT_LABELS[c.key]}
-                describedBy={c.lineId}
-                max={FIELD_LIMITS[c.key]}
-                value={c.value}
-                disabled={endDisabled}
-                lockedReasonId={endReasonId}
-                resetKey={entryKey}
-                onChange={c.onChange}
-              />
-            </div>
-          ))}
+          )
+            .filter(c => flowersShown || !FLOWER_KEYS.includes(c.key))
+            .map(c => (
+              <div
+                key={c.key}
+                role="group"
+                aria-labelledby={c.headId}
+                className="row-span-3 grid grid-rows-subgrid gap-y-1.5"
+              >
+                {head(
+                  'info' in c ? c.info : c.key,
+                  c.headId,
+                  COUNT_LABELS[c.key],
+                  FIELD_HINTS[c.key],
+                  'icon' in c ? c.icon : undefined
+                )}
+                <CountLine
+                  id={c.lineId}
+                  each={EACH_LABELS[c.key]}
+                  points={c.points}
+                />
+                <ScoreField
+                  layout="segment"
+                  stepper
+                  hideLabel
+                  label={COUNT_LABELS[c.key]}
+                  describedBy={c.lineId}
+                  max={FIELD_LIMITS[c.key]}
+                  value={c.value}
+                  disabled={endDisabled}
+                  lockedReasonId={endReasonId}
+                  resetKey={entryKey}
+                  onChange={c.onChange}
+                />
+              </div>
+            ))}
         </div>
       </Section>
     </div>

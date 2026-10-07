@@ -1191,7 +1191,7 @@ const Charts = () => {
                       <span className="mr-2 text-2xl font-bold tabular-nums text-foreground">
                         {Math.round((fouls.clean / fouls.total) * 100)}%
                       </span>
-                      penalty-free · {fouls.clean} of{' '}
+                      foul-free, {fouls.clean} of{' '}
                       {plural(fouls.total, 'Scrim match', 'Scrim matches')}
                     </p>
                     <div className="mt-auto min-w-0">
@@ -1206,7 +1206,7 @@ const Charts = () => {
                           onClick={openSession('fouls')}
                           style={chartStyle}
                           title="Points given to the opponent per match"
-                          desc={`Average points per match the opponent got from your penalties in each of the last ${RECENT_SESSIONS} Scrim sessions`}
+                          desc={`Average points per match the opponent got from your fouls in each of the last ${RECENT_SESSIONS} Scrim sessions`}
                         >
                           <CartesianGrid
                             strokeDasharray="3 3"

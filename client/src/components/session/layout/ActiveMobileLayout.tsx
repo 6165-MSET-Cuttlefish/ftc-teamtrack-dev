@@ -407,12 +407,13 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
     // the phone doesn't remount the scoring fields and lose what is in them.
     <div
       ref={rootRef}
-      className={`px-4 pt-2 ${
+      className={`px-4 ${shortStacked ? 'pt-1' : 'pt-2'} ${
         sideBySide
           ? // The first column is never narrower than the bar's buttons need
             'grid grid-cols-[minmax(20rem,2fr)_minmax(0,3fr)] items-start gap-x-4'
-          : // A phone on its side has no height to spare between sections
-            `flex flex-col ${shortStacked ? 'gap-2' : 'gap-3'}`
+          : // A phone on its side has no height to spare between sections:
+            // stacked, Robot 2 has to clear the bar
+            `flex flex-col ${shortStacked ? 'gap-1' : 'gap-3'}`
       }`}
     >
       <div

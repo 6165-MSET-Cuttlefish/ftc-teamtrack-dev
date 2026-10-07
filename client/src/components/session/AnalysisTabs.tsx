@@ -50,8 +50,6 @@ import {
   SERIES_COLORS,
   calculateScore,
   cycleTimesOf,
-  includesAuto,
-  includesTeleop,
   matchScore,
   rankingPoints,
   rankingPointNames,
@@ -62,7 +60,7 @@ import {
   toneOf,
 } from '@/lib';
 import { formatPoints } from '@/lib/points';
-import { GROUPED_ELEMENT_ORDER } from '@/lib/scoring';
+import { GROUPED_ELEMENT_ORDER, robotTallies } from '@/lib/scoring';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { StatTile, type StatTileProps } from '@/components/ui/stat-tile';
 import { Segmented } from '@/components/ui/segmented';
@@ -108,16 +106,15 @@ const TOUCH_TARGET =
   '[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
 
 /**
- * Whether to show foul figures. Fouls are only recorded in a Scrim; a view
- * that isn't told the session type shows them when there are any.
+ * Whether to show foul figures: in a Scrim, where they are recorded, and
+ * wherever a match has some (a Scrim switched to Practice keeps them).
  */
 const showsFouls = (
   sessionType: SessionType | undefined,
   matches: Match[]
 ): boolean =>
-  sessionType
-    ? sessionType === 'Scrim'
-    : matches.some(m => (m.minorPenalties ?? 0) + (m.majorPenalties ?? 0) > 0);
+  sessionType === 'Scrim' ||
+  matches.some(m => (m.minorPenalties ?? 0) + (m.majorPenalties ?? 0) > 0);
 
 /** Trend icon based on positive/negative/zero */
 const TrendIcon = ({ value, size = 16 }: { value: number; size?: number }) => {
@@ -292,28 +289,6 @@ const mean = (values: number[]) =>
 
 /** One decimal place, so per-element averages still add up to the total. */
 const round1 = (n: number) => Math.round(n * 10) / 10;
-
-/**
- * Leaves and parks made, out of the chances the periods that were run gave.
- * Counted the way `robotRates` counts them, which only reports percentages.
- */
-const robotTallies = (matches: Match[]): { leaves: Tally; parks: Tally } => {
-  const leaves: Tally = { made: 0, chances: 0 };
-  const parks: Tally = { made: 0, chances: 0 };
-  for (const m of matches) {
-    if (includesAuto(m.matchType)) {
-      leaves.chances += 2;
-      leaves.made += (m.robot1Leave ? 1 : 0) + (m.robot2Leave ? 1 : 0);
-      parks.chances += 2;
-      parks.made += (m.robot1ParkAuto ? 1 : 0) + (m.robot2ParkAuto ? 1 : 0);
-    }
-    if (includesTeleop(m.matchType)) {
-      parks.chances += 2;
-      parks.made += (m.robot1ParkTeleop ? 1 : 0) + (m.robot2ParkTeleop ? 1 : 0);
-    }
-  }
-  return { leaves, parks };
-};
 
 export const computeStats = (matches: Match[]): SessionStats | null => {
   if (matches.length === 0) return null;
@@ -1070,6 +1045,15 @@ export const SummaryTab = ({
   const avgMax = Math.max(1, ...avgRows.map(r => Math.abs(r.value)));
 
   const rp = stats.rankingPoints;
+  // No match could earn SWARM: one robot can't reach it, nor can a match
+  // with no Auto period
+  const swarmLine =
+    rp.swarmChances > 0
+      ? `${rp.swarm}/${rp.swarmChances}`
+      : stats.leaves.chances > 0
+        ? 'needs 2 robots'
+        : 'needs an Auto period';
+
   // Best and worst only where two matches can be told apart, and in a
   // session of mixed types only among matches of one type.
   const top = rankMatches(matches).headline;
@@ -1118,7 +1102,7 @@ export const SummaryTab = ({
         stats.leaveRate === null
           ? 'no Auto period'
           : `Leave ${stats.leaves.made} of ${stats.leaves.chances}`,
-      info: 'Robots that left in Auto, out of two for every match that ran an Auto period.',
+      info: 'Robots that left in Auto, out of the robots played in every match that ran an Auto period.',
     },
     {
       key: 'park',
@@ -1128,7 +1112,7 @@ export const SummaryTab = ({
         stats.parkRate === null
           ? 'no park chances'
           : `Park ${stats.parks.made} of ${stats.parks.chances}`,
-      info: 'Parks made out of the chances: two robots at the end of Auto and two at the end of the match, for the periods each match ran.',
+      info: 'Parks made out of the chances: each robot played, at the end of Auto and again at the end of the match, for the periods each match ran.',
     },
     {
       key: 'rp',
@@ -1138,13 +1122,20 @@ export const SummaryTab = ({
       info: (
         <>
           <span className="block">
-            Share of the ranking points scoring can earn, three a match: SWARM
-            at {RANKING_POINTS.SWARM_ROBOT_POINTS} Leave + Park points,
-            POLLINATOR at {pollinator1} and at {pollinator2} Hive Tips.
+            Share of the ranking points scoring could earn: POLLINATOR at{' '}
+            {pollinator1} and at {pollinator2} Hive Tips in every match, and
+            SWARM at {RANKING_POINTS.SWARM_ROBOT_POINTS} Leave + Park points in
+            a match played with 2 robots and an Auto period.
           </span>
+          {/* Each ranking point stays on one line with its count */}
           <span className="block mt-1.5 tabular-nums">
-            SWARM {rp.swarm}/{n} · POLLINATOR 1 {rp.pollinator1}/{n} ·
-            POLLINATOR 2 {rp.pollinator2}/{n}
+            <span className="whitespace-nowrap">SWARM {swarmLine},</span>{' '}
+            <span className="whitespace-nowrap">
+              POLLINATOR 1 {rp.pollinator1}/{n},
+            </span>{' '}
+            <span className="whitespace-nowrap">
+              POLLINATOR 2 {rp.pollinator2}/{n}
+            </span>
           </span>
         </>
       ),
@@ -1167,8 +1158,7 @@ export const SummaryTab = ({
             key: 'penalties',
             label: 'Avg points given to opponent',
             value: stats.avgPenalties,
-            caption:
-              "per match, from this team's penalties · not part of the score",
+            caption: "per match, from this team's fouls, not part of the score",
           },
         ]
       : []),
@@ -1337,7 +1327,7 @@ export const SummaryTab = ({
         >
           {fouls && (
             <Section
-              title="Penalties (points to the opponent)"
+              title="Fouls (points to the opponent)"
               isDarkMode={isDarkMode}
             >
               {hasPenalties ? (
@@ -1348,8 +1338,8 @@ export const SummaryTab = ({
                       onClick={openFromChart('penalties', penaltyData)}
                       style={chartStyle}
                       {...chartA11y(
-                        'Penalties by match',
-                        'Minor and major penalties in each match; their points go to the opponent.'
+                        'Fouls by match',
+                        'Minor and major fouls in each match; their points go to the opponent.'
                       )}
                     >
                       <CartesianGrid
@@ -1392,7 +1382,7 @@ export const SummaryTab = ({
                 </div>
               ) : (
                 <EmptyChart
-                  message="No penalties recorded · nice driving"
+                  message="No fouls recorded, nice driving"
                   isDarkMode={isDarkMode}
                 />
               )}
@@ -2244,9 +2234,7 @@ export const CompareTab = ({
     <td className="text-right tabular-nums py-1.5 align-top">
       <span className="block font-semibold">{row.points}</span>
       <span className={`block text-xs ${mutedTone}`}>
-        {row.informational
-          ? plural(row.count, 'penalty', 'penalties')
-          : rowSum(row)}
+        {row.informational ? plural(row.count, 'foul', 'fouls') : rowSum(row)}
       </span>
     </td>
   );

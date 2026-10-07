@@ -12,6 +12,7 @@ import { useStartNudge } from './startNudge';
 import { useTakeDroppedFocus, useWatchFocus } from './takeDroppedFocus';
 import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
+import { useScoringLocks } from '@/components/session/useScoringLocks';
 
 /** Shape of the buttons in the action bar; width and colours are per button */
 const BAR_BUTTON = 'h-12 rounded-2xl text-base whitespace-nowrap';
@@ -230,6 +231,8 @@ const EndEarlyButton = () => {
  */
 export const PrimaryAction = () => {
   const { matchEnded, matchNumber } = useLiveControls();
+  // An Autonomous match has no flower counters (no flower scores in AUTO)
+  const { hasTeleop } = useScoringLocks();
   useWatchFocus();
 
   return (
@@ -238,7 +241,7 @@ export const PrimaryAction = () => {
           screen readers announce. */}
       <p role="status" className="sr-only">
         {matchEnded
-          ? `Match ${matchNumber} over: count the flowers, Left in Hive and Garden, then save`
+          ? `Match ${matchNumber} over: count ${hasTeleop ? 'the flowers, ' : ''}Left in Hive and Garden, then save`
           : ''}
       </p>
       <PrimaryControls />
