@@ -14,25 +14,21 @@ import type { ReactNode } from 'react';
  * fix the two type errors the compiler raises in the layouts.
  */
 export type ActiveSlotKey =
+  | 'staleNotice'
   | 'title'
   | 'timer'
   | 'status'
-  | 'openSetup'
+  | 'sessionMenu'
   | 'primaryAction'
-  | 'sessionActions'
   | 'playPause'
   | 'cancelMatch'
   | 'matchExtras'
   | 'matchLog'
-  | 'setup'
   | 'liveScoring'
   | 'scoring'
   | 'matchEntry'
   | 'breakdown'
-  | 'notes'
-  | 'completedActions'
-  | 'completedLinks'
-  | 'completionNotice';
+  | 'notes';
 
 /**
  * The rendered content for each slot. A slot whose section is not currently

@@ -31,6 +31,7 @@ import {
   useActiveSideBySide,
 } from '@/components/session/layout/useActiveCompact';
 import { ClockDigits } from '@/components/session/ClockDigits';
+import { requestCompleteSession } from '@/components/session/controls/completeRequest';
 import { LivePhaseChip, PausedPill } from '@/components/session/MatchPhase';
 import {
   matchClockText,
@@ -47,7 +48,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CHIP_BASE, CHIP_SIZES, chipTone } from '@/components/ui/tokens';
+import {
+  CHIP_BASE,
+  CHIP_SIZES,
+  chipTone,
+  primaryClass,
+} from '@/components/ui/tokens';
 import {
   Sun,
   Moon,
@@ -276,6 +282,14 @@ const NavigationMenu = ({
   const signOutLoss = isTutorialActive
     ? describeStoredSignOutLoss()
     : describeSignOutLoss(sessionData, matchActive);
+  // What keeps the matches is completing the session, which the question
+  // offers itself when it can be done now: saved matches, none being played.
+  // Not under the walkthrough, which holds the session as it found it.
+  const canCompleteFirst =
+    !isTutorialActive &&
+    !sessionData.isSessionCompleted &&
+    !matchActive &&
+    (sessionData.matches?.length ?? 0) > 0;
 
   // The text labels only fit once the bar is wide enough for everything in
   // it: guests carry two extra buttons (Sign in / Sign up), and the clock
@@ -312,6 +326,17 @@ const NavigationMenu = ({
       logger.error('Logout failed', error);
       toast.error('Failed to sign out. Please try again.');
     }
+  };
+
+  /**
+   * "Complete session and sign out": the scoring page saves the session as
+   * Complete Session does (going there first, if it isn't the page shown),
+   * then signs out. If it can't be saved, it says why and stays signed in.
+   */
+  const completeThenSignOut = () => {
+    setShowLogoutConfirm(false);
+    requestCompleteSession({ onSaved: () => void signOut() });
+    if (!isOnActivePage) navigate(ROUTES.ACTIVE);
   };
 
   const handleLogout = () => {
@@ -685,13 +710,27 @@ const NavigationMenu = ({
       <ConfirmDialog
         open={showLogoutConfirm}
         onOpenChange={setShowLogoutConfirm}
-        title="Sign out and lose this session?"
+        title={
+          canCompleteFirst
+            ? 'Complete this session before signing out?'
+            : 'Sign out and lose this session?'
+        }
         description={signOutLoss}
-        cancelLabel="Stay signed in"
+        cancelLabel="Cancel"
         confirmLabel="Sign out anyway"
         icon={LogOut}
         onConfirm={signOut}
-      />
+      >
+        {canCompleteFirst && (
+          <button
+            type="button"
+            onClick={completeThenSignOut}
+            className={`flex w-full min-h-11 items-center justify-center rounded-xl border-2 px-4 py-1.5 text-sm font-bold leading-tight transition-colors ${primaryClass(isDarkMode)}`}
+          >
+            Complete session and sign out
+          </button>
+        )}
+      </ConfirmDialog>
     </div>
   );
 };

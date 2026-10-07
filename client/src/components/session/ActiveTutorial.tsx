@@ -72,9 +72,12 @@ interface StepDef {
   fallbackTarget?: string;
   /**
    * False when the step only points at its element: it is shown, but can't
-   * be pressed until the walkthrough has moved on.
+   * be pressed until the walkthrough has moved on. A press on the button
+   * the step names (`pressToContinue`) is taken as Next.
    */
   interactive?: boolean;
+  /** The button the step asks for, whose press moves the walkthrough on */
+  pressToContinue?: string;
   /** Prompt shown when the user should interact with the real page element */
   pageAction?: string;
   /** Session field watched for automatic task completion */
@@ -117,6 +120,7 @@ const STEPS: StepDef[] = [
     ),
     target: 'controls',
     interactive: false,
+    pressToContinue: '[data-start-match]',
   },
   {
     title: 'Score while you watch',
@@ -132,7 +136,7 @@ const STEPS: StepDef[] = [
         {scrim && (
           <Aside>
             Count your Minor ({POINTS.MINOR_PENALTY}) and Major (
-            {POINTS.MAJOR_PENALTY}) penalties{' '}
+            {POINTS.MAJOR_PENALTY}) fouls{' '}
             {compact ? 'under the robots' : 'beside the robots'}: they go to the
             opponent, never off your score.
           </Aside>
@@ -160,7 +164,7 @@ const STEPS: StepDef[] = [
       <div className="space-y-2">
         <p>
           Save each match when it ends. When you&apos;re done, press Complete
-          Session and your matches show up in Sessions.
+          Session: it saves the session and opens its analysis.
         </p>
         <Aside>
           Replay this tutorial from{' '}
@@ -202,6 +206,8 @@ const BOTTOM_BAR = '[data-tutorial="controls"]';
 const URL_BAR_HEIGHT = 120;
 /** Scrolls the walkthrough may make for one element: the first and two corrections */
 const MAX_AUTO_SCROLLS = 3;
+/** A second press this soon after the one that moved the walkthrough on is its double tap */
+const PRESS_REPEAT_MS = 600;
 /** One of its scrolls that comes to rest within this of where it was sent has arrived, in px */
 const SCROLL_ARRIVED = 24;
 
@@ -1091,6 +1097,55 @@ export const ActiveTutorial = ({
     setTaskCompleted(false);
   }, []);
 
+  // A step that asks for a button it only points at ("Press Start Match
+  // 1") takes a press on that button as Next: the button itself does
+  // nothing, as nothing in the walkthrough is real. The press is caught
+  // before the page gets it, wherever it lands (the button takes no
+  // presses while it is pointed at). What comes up in its place on the
+  // next step doesn't take the second press of a double tap.
+  const pressedOnRef = useRef<{ rect: DOMRect; at: number } | null>(null);
+  useEffect(() => {
+    if (!touring) return;
+    const selector = STEPS[step]?.pressToContinue;
+    const within = (rect: DOMRect, e: MouseEvent) =>
+      e.clientX >= rect.left &&
+      e.clientX <= rect.right &&
+      e.clientY >= rect.top &&
+      e.clientY <= rect.bottom;
+    const catchPress = (e: MouseEvent) => {
+      if (e.target instanceof Node && cardRef.current?.contains(e.target)) {
+        return;
+      }
+      const pressed = pressedOnRef.current;
+      if (
+        pressed &&
+        performance.now() - pressed.at < PRESS_REPEAT_MS &&
+        within(pressed.rect, e)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      const button = selector
+        ? document.querySelector<HTMLElement>(selector)
+        : null;
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      if (!within(rect, e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.type !== 'click') return;
+      pressedOnRef.current = { rect, at: performance.now() };
+      next();
+    };
+    window.addEventListener('pointerdown', catchPress, true);
+    window.addEventListener('click', catchPress, true);
+    return () => {
+      window.removeEventListener('pointerdown', catchPress, true);
+      window.removeEventListener('click', catchPress, true);
+    };
+  }, [touring, step, next]);
+
   useEffect(() => {
     if (!touring) return;
     const handler = (e: KeyboardEvent) => {
@@ -1140,6 +1195,11 @@ export const ActiveTutorial = ({
   const isFirst = step === 0;
   const hasTarget = !!current.target;
   const hasPageTask = !!current.pageAction;
+  // Done as the page shows it: a replay lets Next through without the task,
+  // but only says "Tip added" once there is one.
+  const taskDone =
+    taskCompleted &&
+    (current.watchKey !== 'tipping' || sessionData.tipping > 0);
 
   const teamBlue = 'rgb(var(--team-blue))';
 
@@ -1288,19 +1348,17 @@ export const ActiveTutorial = ({
               compactCard ? 'mt-2 py-1.5' : 'mt-3 py-2'
             }`}
             style={{
-              backgroundColor: taskCompleted
+              backgroundColor: taskDone
                 ? isDarkMode
                   ? 'rgba(34,197,94,0.1)'
                   : 'rgba(34,197,94,0.08)'
                 : 'rgb(var(--team-blue) / 0.1)',
               border: `1px solid ${
-                taskCompleted
-                  ? 'rgba(34,197,94,0.3)'
-                  : 'rgb(var(--team-blue) / 0.3)'
+                taskDone ? 'rgba(34,197,94,0.3)' : 'rgb(var(--team-blue) / 0.3)'
               }`,
             }}
           >
-            {taskCompleted && (
+            {taskDone && (
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: 'rgba(34,197,94,0.2)' }}
@@ -1313,18 +1371,18 @@ export const ActiveTutorial = ({
             <span
               className="text-xs font-medium"
               style={{
-                color: taskCompleted
+                color: taskDone
                   ? isDarkMode
                     ? 'rgba(34,197,94,0.9)'
                     : '#15803d'
                   : teamBlue,
               }}
             >
-              {taskCompleted
+              {taskDone
                 ? 'Tip added. Press Next to continue.'
                 : current.pageAction}
             </span>
-            {taskCompleted && !isReplay && (
+            {taskDone && !isReplay && (
               <button
                 type="button"
                 onClick={() => {

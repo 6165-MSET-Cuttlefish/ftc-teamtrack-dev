@@ -104,11 +104,13 @@ export const useLiveCounters = () => {
   );
 
   // On a laptop every tip is otherwise a mouse aim at the button. The key
-  // only counts while the match is being played, and never while something
-  // is being typed or a dialog is asking a question.
+  // only counts while the match is being played (the walkthrough's practice
+  // match stands for one, though its clock never runs), and never while
+  // something is being typed or a dialog is asking a question.
   const tipping = sessionData.tipping;
+  const tipKeyLive = tippingLive || (isTutorialActive && tippingEnabled);
   useEffect(() => {
-    if (!tippingLive) return;
+    if (!tipKeyLive) return;
     const addTipOnKey = (e: KeyboardEvent) => {
       if (e.key.toUpperCase() !== TIP_SHORTCUT) return;
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented)
@@ -132,7 +134,7 @@ export const useLiveCounters = () => {
     };
     document.addEventListener('keydown', addTipOnKey);
     return () => document.removeEventListener('keydown', addTipOnKey);
-  }, [tippingLive, tipping]);
+  }, [tipKeyLive, tipping]);
 
   return {
     sessionData,
@@ -140,6 +142,8 @@ export const useLiveCounters = () => {
     entryKey,
     tippingEnabled,
     tippingLive,
+    /** The T key adds a tip (see above) */
+    tipKeyLive,
     handleTipping,
     // The walkthrough's practice match stands for one being played, though
     // its clock never runs. While a question is open, its answer is the

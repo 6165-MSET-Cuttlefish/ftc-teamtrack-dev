@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Pause, Play, SkipForward, X } from 'lucide-react';
 
 import { GAME_TIMING } from '@/constants';
@@ -6,10 +6,13 @@ import { useSession, useSessionCore } from '@/contexts';
 import type { MatchPhase } from '@/types';
 import { absorbDoubleTap } from './doubleTap';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
-import { isPrimarySlotConfirm, useLiveControls } from './liveControlsContext';
+import { useLiveControls } from './liveControlsContext';
 import { actionClass } from './tones';
 import { useArmed } from './useArmed';
 import { useCompactControls } from './useCompactControls';
+
+/** Pauses and resumes the match from a laptop keyboard */
+const PAUSE_SHORTCUT = 'P';
 
 /**
  * Pause / resume: one large button, for as long as there is a match clock
@@ -18,59 +21,24 @@ import { useCompactControls } from './useCompactControls';
  * It is the big target while a match runs, where Save used to be, so a
  * stray thumb pauses rather than ends the match. Pause is an outline in
  * every theme; Resume is the filled button, the next step once paused.
- * A question about the match takes its place in the action bar, and on a
- * phone brings it along (see `PrimaryAction`). On a full-size screen it
- * stays where it is, beside the question, giving it the width it needs.
  *
  * Controller pickup has its own countdown (the match clock is stopped for
  * it), so there the button freezes and resumes that countdown instead.
  */
 export const PlayPauseControl = () => {
-  const { matchPhase, matchActive, editingMatchId, pendingConfirm } =
-    useLiveControls();
-  const isCompact = useCompactControls();
+  const { matchPhase, matchActive, editingMatchId } = useLiveControls();
 
   if (editingMatchId || !matchActive || matchPhase === 'ended') return null;
-  const asking = isPrimarySlotConfirm(pendingConfirm, isCompact);
-  if (asking && isCompact) return null;
-
-  // Discard Session asks at the end of the page: until it is answered,
-  // Resume is an outline, and the question's own buttons are the next step.
-  return (
-    <PauseResumeButton
-      quiet={pendingConfirm !== null}
-      besideQuestion={asking}
-    />
-  );
+  return <PauseResumeButton />;
 };
 
 /**
- * True on a full-size screen while a question about the match is asked in
- * the row of controls: the tools beside it (Skip, the X) give up their
- * places to it, so the question and its answers are the row, end to end,
- * and they are all there is to press there. Its safe answer reaches the
- * row's end, over where they were (see `PrimaryQuestion`).
+ * The Pause / Resume button itself. On a laptop P presses it, and so does
+ * Space while nothing else on the page has focus (where Space would
+ * otherwise scroll the scoring pad away mid-match): never while something
+ * is being typed, or a dialog or the tutorial is up.
  */
-const useRowQuestionOpen = (): boolean => {
-  const { pendingConfirm } = useLiveControls();
-  const isCompact = useCompactControls();
-  return !isCompact && isPrimarySlotConfirm(pendingConfirm, isCompact);
-};
-
-/**
- * The Pause / Resume button itself. `quiet` keeps Resume an outline too,
- * for when a question beside it is what needs answering first.
- * `besideQuestion`: it gives up its spare width to a question asked beside
- * it in the row, but never past its label; in a row too short for both it
- * shows its icon alone (the label stays its name for a screen reader).
- */
-export const PauseResumeButton = ({
-  quiet = false,
-  besideQuestion = false,
-}: {
-  quiet?: boolean;
-  besideQuestion?: boolean;
-}) => {
+const PauseResumeButton = () => {
   const { isDarkMode, isTimerRunning, setIsTimerRunning, matchPhase } =
     useLiveControls();
   const { isPickupPaused, setIsPickupPaused, isTutorialActive } =
@@ -82,35 +50,68 @@ export const PauseResumeButton = ({
   const running =
     isTutorialActive || (inPickup ? !isPickupPaused : isTimerRunning);
   const Icon = running ? Pause : Play;
+  const toggle = () =>
+    inPickup ? setIsPickupPaused(running) : setIsTimerRunning(!running);
+
+  const toggleRef = useRef(toggle);
+  useEffect(() => {
+    toggleRef.current = toggle;
+  });
+  useEffect(() => {
+    if (isTutorialActive) return;
+    const pauseOnKey = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented)
+        return;
+      const target = e.target;
+      const onPage =
+        !(target instanceof HTMLElement) || target === document.body;
+      const isShortcut = e.key.toUpperCase() === PAUSE_SHORTCUT;
+      if (!isShortcut && !(e.key === ' ' && onPage)) return;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest('input, textarea, select, [role="dialog"]'))
+      ) {
+        return;
+      }
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]'))
+        return;
+      e.preventDefault();
+      toggleRef.current();
+    };
+    document.addEventListener('keydown', pauseOnKey);
+    return () => document.removeEventListener('keydown', pauseOnKey);
+  }, [isTutorialActive]);
 
   return (
     <button
       type="button"
       onKeyDown={ignoreHeldEnter}
-      onClick={() =>
-        inPickup ? setIsPickupPaused(running) : setIsTimerRunning(!running)
-      }
-      className={`flex-1 ${besideQuestion ? 'min-w-fit' : 'min-w-0'} px-4 h-12 rounded-2xl text-base gap-2 ${actionClass(running || quiet ? 'neutral' : 'primary', isDarkMode)}`}
+      onClick={toggle}
+      aria-keyshortcuts={isTutorialActive ? undefined : PAUSE_SHORTCUT}
+      className={`flex-1 min-w-0 px-4 h-12 rounded-2xl text-base gap-2 ${actionClass(running ? 'neutral' : 'primary', isDarkMode)}`}
     >
       <Icon className="h-5 w-5 shrink-0" aria-hidden />
-      {/* Beside a question, a short row (the full-size layout's controls
-          row is a size container) keeps only the icon on screen */}
-      <span
-        className={
-          besideQuestion ? '[@container(max-width:54rem)]:sr-only' : undefined
-        }
-      >
-        {running ? 'Pause' : 'Resume'}
-      </span>
+      {running ? 'Pause' : 'Resume'}
+      {/* Only while the key does something: not in the walkthrough */}
+      {!isTutorialActive && (
+        <kbd
+          aria-hidden
+          title={`Shortcut: press ${PAUSE_SHORTCUT} to ${running ? 'pause' : 'resume'}`}
+          className="rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 opacity-70 [@media(pointer:coarse)]:hidden"
+        >
+          {PAUSE_SHORTCUT}
+        </kbd>
+      )}
     </button>
   );
 };
 
 /**
  * Discard the in-progress match: a small X, out of the way of the scoring
- * thumb. It only asks; the question, and the button that discards, show in
- * the action bar. On a phone it is 44px, as the gear it takes the place of
- * at the end of the title row; on a full-size screen as tall as its row.
+ * thumb. It discards at once; its toast has the Undo, which brings the
+ * match back where the field is now. On a phone it is 44px, as the other
+ * buttons of the title row; on a full-size screen as tall as its row.
  */
 export const CancelMatchButton = () => {
   const {
@@ -118,9 +119,8 @@ export const CancelMatchButton = () => {
     matchActive,
     matchNumber,
     editingMatchId,
-    handleRequestDiscardMatch,
+    handleDiscardMatch,
   } = useLiveControls();
-  const standAside = useRowQuestionOpen();
   const isCompact = useCompactControls();
 
   if (editingMatchId || !matchActive) return null;
@@ -130,12 +130,12 @@ export const CancelMatchButton = () => {
     <button
       type="button"
       onKeyDown={ignoreHeldEnter}
-      onClick={handleRequestDiscardMatch}
+      onClick={handleDiscardMatch}
       title={name}
       aria-label={name}
       className={`ml-auto shrink-0 ${
         isCompact ? 'h-11 w-11 rounded-xl' : 'h-12 w-12 rounded-2xl'
-      } ${actionClass('dangerOutline', isDarkMode)} ${standAside ? 'hidden' : ''}`}
+      } ${actionClass('dangerOutline', isDarkMode)}`}
     >
       <X className="h-5 w-5" aria-hidden />
     </button>
@@ -290,7 +290,6 @@ export const MatchExtras = () => {
     skipToEnd,
   } = useLiveControls();
   const { timer } = useSession();
-  const standAside = useRowQuestionOpen();
   const isCompact = useCompactControls();
   const target =
     editingMatchId || !matchActive
@@ -314,8 +313,7 @@ export const MatchExtras = () => {
     const row = button?.parentElement;
     if (!button || !shown || !full || !row) return;
     const fit = () => {
-      // Out of the row while a question has its place: it comes back as
-      // it went
+      // Not laid out (the page hidden): measured once it is
       if (button.offsetWidth === 0) return;
       // The button's padding and border, around the full labels
       const needed = button.offsetWidth - shown.offsetWidth + full.offsetWidth;
@@ -349,7 +347,7 @@ export const MatchExtras = () => {
       aria-label={SKIP_LABELS[target].full}
       className={`relative shrink-0 px-3 whitespace-nowrap ${
         isCompact ? 'h-11 rounded-xl text-sm' : 'h-12 rounded-2xl text-base'
-      } ${actionClass('neutral', isDarkMode)} ${standAside ? 'hidden' : ''}`}
+      } ${actionClass('neutral', isDarkMode)}`}
     >
       <span ref={shownRef} aria-hidden>
         <SkipLabels targets={targets} shown={target} twoLines={twoLines} />

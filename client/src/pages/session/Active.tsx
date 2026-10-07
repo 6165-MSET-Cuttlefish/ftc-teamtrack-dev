@@ -1,29 +1,24 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  SessionSetup,
   Notes,
   LiveCounters,
   MatchEntry,
   ScoringPad,
   ScoreBreakdown,
   LiveControlsProvider,
-  OpenSetupButton,
   PrimaryAction,
-  SessionActions,
   PlayPauseControl,
   CancelMatchButton,
   MatchExtras,
   MatchLog,
-  CompletedActions,
-  ViewSessionsLink,
   ActiveDesktopLayout,
   ActiveMobileLayout,
   type ActiveSlots,
 } from '@/components';
 import { ClockDigits } from '@/components/session/ClockDigits';
-import { SESSION_SETUP_PANEL_ID } from '@/components/session/controls/setupPanelId';
+import { SessionMenu } from '@/components/session/controls/SessionMenu';
+import { StaleSessionNotice } from '@/components/session/controls/StaleSessionNotice';
 import {
   useActiveCompact,
   useActiveSideBySide,
@@ -40,15 +35,17 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import { DATA_CLASS } from '@/components/ui/tokens';
-import {
-  TUTORIAL_ENDED_EVENT,
-  TUTORIAL_RESTART_EVENT,
-} from '@/constants/events';
+import { TUTORIAL_RESTART_EVENT } from '@/constants/events';
 import { useAuth, useTheme, useSession, useSessionCore } from '@/contexts';
 import { useMatchAudio, useNavigationGuard } from '@/hooks';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { APP_CONFIG, ROUTES, STORAGE_KEYS } from '@/constants';
-import { calculateScore, liveMatchType, matchScore } from '@/lib';
+import {
+  calculateScore,
+  isWorthStoring,
+  liveMatchType,
+  matchScore,
+} from '@/lib';
 import { nextMatchNumber } from '@/lib/matchNumber';
 import { formatPoints } from '@/lib/points';
 import { cn } from '@/lib/utils';
@@ -140,9 +137,19 @@ const MatchAudio = () => {
 };
 
 /**
- * Keeps the screen on while a match clock is counting, so a phone with a
- * short auto-lock doesn't sleep between taps. Not for the walkthrough's
- * practice match, and not for a clock that is paused or has run out.
+ * How long the screen is kept on after the last tap or key while a match is
+ * stopped (paused, or counted after the buzzer), in ms
+ */
+const STOPPED_AWAKE_MS = 3 * 60 * 1000;
+
+/**
+ * Keeps the screen on for a match, from Start until it is saved or
+ * discarded, so a phone with a short auto-lock doesn't sleep on the scorer:
+ * between taps while the clock counts, through a field-fault pause, and
+ * while the refs settle the field before the count. While the clock is
+ * stopped it lets go once nobody has touched the page for a while, so a
+ * phone left on a table doesn't stay lit for an hour. Not for the
+ * walkthrough's practice match.
  */
 const ScreenAwake = () => {
   const {
@@ -152,10 +159,31 @@ const ScreenAwake = () => {
     isPickupPaused,
     isTutorialActive,
   } = useSessionCore();
+  const [stoppedIdle, setStoppedIdle] = useState(false);
 
   const counting =
     matchPhase === 'controller_pickup' ? !isPickupPaused : isTimerRunning;
-  useWakeLock(matchActive && counting && !isTutorialActive);
+  const stopped = matchActive && !counting;
+
+  useEffect(() => {
+    setStoppedIdle(false);
+    if (!stopped) return;
+    let timer = setTimeout(() => setStoppedIdle(true), STOPPED_AWAKE_MS);
+    const touched = () => {
+      clearTimeout(timer);
+      setStoppedIdle(false);
+      timer = setTimeout(() => setStoppedIdle(true), STOPPED_AWAKE_MS);
+    };
+    window.addEventListener('pointerdown', touched, { passive: true });
+    window.addEventListener('keydown', touched);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('pointerdown', touched);
+      window.removeEventListener('keydown', touched);
+    };
+  }, [stopped]);
+
+  useWakeLock(matchActive && !isTutorialActive && (counting || !stoppedIdle));
   return null;
 };
 
@@ -480,108 +508,81 @@ const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
 };
 
 /**
- * What the leave prompt says, in one sentence, from what is actually at
- * stake. Nothing is thrown away by leaving the page — the session is kept on
- * this device and its clocks keep counting — so it says that instead of
- * threatening a loss.
+ * The way away from /active that asks first: while a match is on. Nothing
+ * is lost by leaving (the match and its clock are kept on this device), so
+ * going ahead is the ordinary blue, not red; the question is only there
+ * because a match can be scored and saved from this page alone. Between
+ * matches leaving simply leaves (the header has the way back), Sign up
+ * aside (see signupQuestion).
  */
-const leaveMessage = (matchActive: boolean, matches: Match[]): string => {
-  if (matchActive) {
-    return `Match ${nextMatchNumber(matches)} keeps running while you're away, and can only be scored on this page.`;
-  }
-  const savedCount = matches.length;
-  return savedCount === 0
-    ? 'The session stays on this device until you complete it.'
-    : `Your ${savedCount} saved match${savedCount === 1 ? '' : 'es'} stay${savedCount === 1 ? 's' : ''} on this device until you complete the session.`;
-};
+const leaveQuestion = (matchEnded: boolean, matchNumber: number) =>
+  matchEnded
+    ? {
+        title: `Match ${matchNumber} isn't saved yet`,
+        description:
+          'It stays here until you save it, and you can only count and save it on this page.',
+      }
+    : {
+        title: `Match ${matchNumber} is still running`,
+        description:
+          'Its clock keeps going, and you can only score it on this page.',
+      };
 
-/** "3 matches · best 158 · avg 128 · 18:53" for the completed screen. */
-const sessionSummary = (
-  matches: Match[],
-  fallbackMatchType: string,
-  duration: string | undefined
-): string => {
-  const scores = matches.map(match => matchScore(match, fallbackMatchType));
-  const parts = [`${scores.length} match${scores.length === 1 ? '' : 'es'}`];
-  if (scores.length > 0) {
-    const average =
-      scores.reduce((sum, score) => sum + score, 0) / scores.length;
-    parts.push(`best ${Math.max(...scores)}`, `avg ${Math.round(average)}`);
-  }
-  if (duration) parts.push(duration);
-  return parts.join(' · ');
-};
+/**
+ * Signing up clears a guest's open session from this browser on the way in
+ * (see Signup), so a guest with one worth keeping is told before going
+ * there, between matches too: the one place leaving costs something. Goes
+ * once sign-up carries the session into the new account instead.
+ */
+const signupQuestion = (savedMatches: number) => ({
+  title: 'Signing up clears this session',
+  description:
+    savedMatches === 0
+      ? 'It is only in this browser, and creating an account clears it.'
+      : savedMatches === 1
+        ? 'Its saved match is only in this browser, and creating an account clears it.'
+        : `Its ${savedMatches} saved matches are only in this browser, and creating an account clears them.`,
+});
+
+/** The pages a guest is asked about going to, while sign-up would cost */
+const SIGNUP_PAGE = [ROUTES.SIGNUP];
 
 const Active = () => {
   const { isDarkMode } = useTheme();
-  const { isGuest } = useAuth();
   const isCompact = useActiveCompact();
-  const { sessionData, hasStarted, matchActive } = useSessionCore();
-
-  const isSessionSetupSavedInit = () =>
-    sessionData.sessionName?.trim().length > 0;
-  const [showSessionSetup, setShowSessionSetup] = useState(
-    () => !isSessionSetupSavedInit()
-  );
-  const [isSessionSetupSaved, setIsSessionSetupSaved] = useState(
-    isSessionSetupSavedInit
-  );
-  const [shouldFlashSetup, setShouldFlashSetup] = useState(false);
-
-  /** The session name as of the last render, for the handlers below */
-  const sessionNameRef = useRef(sessionData.sessionName);
-  useEffect(() => {
-    sessionNameRef.current = sessionData.sessionName;
-  }, [sessionData.sessionName]);
+  const { isGuest } = useAuth();
+  const { sessionData, hasStarted, matchActive, matchPhase, isTutorialActive } =
+    useSessionCore();
 
   useEffect(() => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
-
-    let settle: ReturnType<typeof setTimeout> | undefined;
-
-    // The tutorial puts the session back as it found it when it ends. A
-    // name emptied while it was up marked the settings unsaved (below), and
-    // nothing marks them saved again when the name returns: once the
-    // restored session has landed, go by the name, the same as when the
-    // page loads.
-    const handleTutorialEnded = () => {
-      clearTimeout(settle);
-      settle = setTimeout(() => {
-        if (sessionNameRef.current?.trim()) setIsSessionSetupSaved(true);
-      }, 0);
-    };
-    window.addEventListener(TUTORIAL_ENDED_EVENT, handleTutorialEnded);
-    return () => {
-      clearTimeout(settle);
-      window.removeEventListener(TUTORIAL_ENDED_EVENT, handleTutorialEnded);
-    };
   }, []);
 
-  const matches = sessionData.matches ?? [];
-  const hasUnsavedWork = hasStarted && !sessionData.isSessionCompleted;
-  const navGuard = useNavigationGuard(
-    hasUnsavedWork,
-    leaveMessage(matchActive, matches)
+  // Asked only while a match is on, and never by the browser on a reload or
+  // a closed tab: the page comes back exactly as it was (see leaveQuestion).
+  const leave = leaveQuestion(
+    matchActive && matchPhase === 'ended',
+    nextMatchNumber(sessionData.matches)
   );
+  const signupClears =
+    isGuest &&
+    !isTutorialActive &&
+    !sessionData.isSessionCompleted &&
+    isWorthStoring(sessionData, hasStarted);
+  // Not the walkthrough's practice match: it goes back when the page does.
+  const navGuard = useNavigationGuard(
+    matchActive && !isTutorialActive && !sessionData.isSessionCompleted,
+    leave.description,
+    { beforeUnload: false, askBefore: signupClears ? SIGNUP_PAGE : undefined }
+  );
+  const toSignup = navGuard.target === ROUTES.SIGNUP && signupClears;
+  const question = toSignup
+    ? signupQuestion(sessionData.matches?.length ?? 0)
+    : leave;
   const tutorial = useTutorialWanted();
 
-  useEffect(() => {
-    if (!sessionData.sessionName?.trim()) {
-      setShowSessionSetup(true);
-      setIsSessionSetupSaved(false);
-    }
-  }, [sessionData.sessionName]);
-
-  // While the settings are open the title keeps the name as last saved,
-  // not each keystroke of the one being typed (or the fallback, the moment
-  // the field is cleared to type a new one).
-  const [shownName, setShownName] = useState(sessionData.sessionName);
-  if (!showSessionSetup && shownName !== sessionData.sessionName) {
-    setShownName(sessionData.sessionName);
-  }
-
-  const isCompleted = Boolean(sessionData.isSessionCompleted);
-  const sessionName = shownName?.trim() || 'Active Practice Session';
+  const sessionName =
+    sessionData.sessionName?.trim() || 'Active Practice Session';
 
   /**
    * Every section of the page, keyed by slot. This decides *whether* a
@@ -589,9 +590,11 @@ const Active = () => {
    * of page-level spacing so both layouts can position them.
    */
   const slots: ActiveSlots = {
+    staleNotice: <StaleSessionNotice />,
+
     title: isCompact ? (
-      // One line beside the settings toggle. Once a match is running the
-      // name is the least important thing on screen: it is still the page's
+      // One line beside the session menu. Once a match is running the name
+      // is the least important thing on screen: it is still the page's
       // title for a screen reader, but the row goes to Skip and Discard,
       // which then have room for their full labels. The shared title class,
       // cut down to that one line at every width (a phone on its side is
@@ -625,46 +628,24 @@ const Active = () => {
       </h1>
     ),
 
-    // A finished session has no clock to show: the result takes its place
-    timer: isCompleted ? null : <MatchClockRow />,
+    timer: <MatchClockRow />,
 
-    status: isCompleted ? null : isCompact ? (
+    status: isCompact ? (
       <PhoneStatus fallbackMatchType={sessionData.matchType} />
     ) : (
       <DesktopStatus />
     ),
 
-    openSetup: isCompleted ? null : (
-      <OpenSetupButton expanded={showSessionSetup} />
-    ),
-    primaryAction: isCompleted ? null : <PrimaryAction />,
-    sessionActions: isCompleted ? null : <SessionActions />,
-    playPause: isCompleted ? null : <PlayPauseControl />,
-    cancelMatch: isCompleted ? null : <CancelMatchButton />,
-    matchExtras: isCompleted ? null : <MatchExtras />,
-    matchLog: isCompleted ? null : <MatchLog />,
-    completedActions: isCompleted ? <CompletedActions /> : null,
+    sessionMenu: <SessionMenu />,
+    primaryAction: <PrimaryAction />,
+    playPause: <PlayPauseControl />,
+    cancelMatch: <CancelMatchButton />,
+    matchExtras: <MatchExtras />,
+    matchLog: <MatchLog />,
 
-    liveScoring: isCompleted ? null : <LiveCounters />,
+    liveScoring: <LiveCounters />,
 
-    // The one element with the panel's id, which the Settings toggle names
-    // as what it opens
-    setup:
-      isCompleted || !showSessionSetup ? null : (
-        <div id={SESSION_SETUP_PANEL_ID} data-tutorial="session-setup">
-          <SessionSetup
-            onSave={() => {
-              setShowSessionSetup(false);
-              setIsSessionSetupSaved(true);
-              setShouldFlashSetup(false);
-            }}
-            shouldFlash={shouldFlashSetup}
-            isUnsaved={!isSessionSetupSaved}
-          />
-        </div>
-      ),
-
-    matchEntry: isCompleted ? null : (
+    matchEntry: (
       <div data-tutorial="metrics">
         <MatchEntry />
       </div>
@@ -672,58 +653,19 @@ const Active = () => {
 
     // The desktop's one-piece scoring pad: Hive Tips, robots, fouls, the
     // end-of-match fields and the breakdown band
-    scoring: isCompleted ? null : (
+    scoring: (
       <div data-tutorial="metrics">
         <ScoringPad />
       </div>
     ),
 
-    breakdown: isCompleted ? null : <ScoreBreakdown />,
+    breakdown: <ScoreBreakdown />,
 
-    notes: isCompleted ? null : (
+    notes: (
       <div data-tutorial="notes">
         <Notes />
       </div>
     ),
-
-    completionNotice: isCompleted ? (
-      <div className="py-2 text-center space-y-3" data-session-complete>
-        <h2
-          className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-        >
-          Session complete
-        </h2>
-        <p
-          className={`text-base font-medium tabular-nums ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-        >
-          {sessionSummary(
-            matches,
-            sessionData.matchType,
-            sessionData.sessionDuration
-          )}
-        </p>
-        {isGuest && (
-          <p
-            className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            Saved on this device only ·{' '}
-            <Link
-              to={ROUTES.SIGNUP}
-              className="font-semibold text-team-blue underline underline-offset-2"
-            >
-              Sign up to back it up
-            </Link>
-          </p>
-        )}
-      </div>
-    ) : null,
-
-    // Under the two buttons that matter here, as the way out
-    completedLinks: isCompleted ? (
-      <div className="flex justify-center">
-        <ViewSessionsLink />
-      </div>
-    ) : null,
   };
 
   return (
@@ -738,34 +680,18 @@ const Active = () => {
         onOpenChange={open => {
           if (!open) navGuard.reset();
         }}
-        title="Leave active session?"
-        description={navGuard.message}
-        cancelLabel="Stay"
-        confirmLabel="Leave"
+        tone={toSignup ? 'destructive' : 'primary'}
+        title={question.title}
+        description={question.description}
+        cancelLabel={toSignup ? 'Stay' : 'Keep scoring'}
+        confirmLabel={toSignup ? 'Go to Sign up' : 'Leave'}
         onConfirm={navGuard.proceed}
       />
 
       <MatchAudio />
       <ScreenAwake />
 
-      <LiveControlsProvider
-        onOpenSessionSetup={() => {
-          if (showSessionSetup && !sessionData.sessionName?.trim()) return;
-          setShowSessionSetup(!showSessionSetup);
-        }}
-        onTryStartWithoutSetup={() => {
-          setShouldFlashSetup(true);
-          setShowSessionSetup(true);
-        }}
-        isSessionSetupSaved={isSessionSetupSaved}
-        onSessionReset={() => {
-          // A reset session comes back with default settings already filled
-          // in, so go straight to Start rather than the settings panel.
-          setIsSessionSetupSaved(true);
-          setShowSessionSetup(false);
-          setShouldFlashSetup(false);
-        }}
-      >
+      <LiveControlsProvider>
         {/* The phone layout brings its own gutters, at whatever width it is
             used (a phone on its side is wider than a small tablet). The
             site header lines its ends up with this column plus the layout's

@@ -6,15 +6,16 @@ import {
   cardVars,
   primaryButton,
   quietButton,
+  secondaryButton,
 } from './cardUi';
 
 /**
  * What a first-time visitor sees before any tour: the page exactly as it is,
  * nothing dimmed, and this one small card saying what TeamTrack is. Only
  * "Take the tour" starts the spotlit steps. It sits where it hides the
- * least: on a phone in place of the match controls at the bottom (the
- * clock and the scoring fields stay in view), on a wide screen in the
- * bottom right corner.
+ * least: on a phone on top of the match controls at the bottom, which stay
+ * in view and usable (pressing Start answers it, as Skip does), on a wide
+ * screen in the bottom right corner.
  *
  * It does not hold the page: everything stays usable under and around it.
  */
@@ -38,7 +39,7 @@ export const WelcomeCard = ({
   const cardRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
   const bodyId = useId();
-  /** Height of the phone's match controls, which this stands in for */
+  /** Height of the phone's match controls, which this sits on */
   const [barHeight, setBarHeight] = useState(0);
 
   useEffect(() => {
@@ -67,12 +68,15 @@ export const WelcomeCard = ({
     ? {
         left: 0,
         right: 0,
-        bottom: 0,
-        // Never shorter than the controls it stands in for
-        minHeight: barHeight,
-        padding: short
-          ? '10px 16px calc(10px + env(safe-area-inset-bottom))'
-          : '16px 16px calc(14px + env(safe-area-inset-bottom))',
+        // On the controls: Start stays in view, and can be pressed
+        bottom: barHeight,
+        padding: barHeight
+          ? short
+            ? '10px 16px'
+            : '16px 16px 14px'
+          : short
+            ? '10px 16px calc(10px + env(safe-area-inset-bottom))'
+            : '16px 16px calc(14px + env(safe-area-inset-bottom))',
         borderLeftWidth: 0,
         borderRightWidth: 0,
         borderBottomWidth: 0,
@@ -116,7 +120,11 @@ export const WelcomeCard = ({
       <button
         type="button"
         onClick={onStart}
-        className={primaryButton(isDarkMode)}
+        // Sitting on the phone's controls, Start is the one filled button
+        // in view: the tour is offered beside it, not over it.
+        className={
+          compact && barHeight > 0 ? secondaryButton : primaryButton(isDarkMode)
+        }
       >
         Take the tour
       </button>

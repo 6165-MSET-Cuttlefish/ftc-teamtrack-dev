@@ -4,6 +4,7 @@ import {
   getDocs,
   doc,
   getDoc,
+  setDoc,
   updateDoc,
   deleteField,
   query,
@@ -276,8 +277,16 @@ class FirebaseService {
     return sources;
   }
 
-  /** Create a new session */
-  async createSession(sessionData: CreateSessionData): Promise<Session | null> {
+  /**
+   * Create a new session. Under `id` when given, so a retry of the same save
+   * writes over the first attempt rather than adding a second copy. Dated
+   * `createdAt` when given (when it was played), else now.
+   */
+  async createSession(
+    sessionData: CreateSessionData,
+    id?: string,
+    createdAt?: Date
+  ): Promise<Session | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -286,8 +295,14 @@ class FirebaseService {
         const newSession = {
           ...clean,
           season: CURRENT_SEASON,
-          createdAt: Timestamp.now(),
+          createdAt: createdAt
+            ? Timestamp.fromDate(createdAt)
+            : Timestamp.now(),
         };
+        if (id) {
+          await setDoc(doc(db, 'sessions', id), newSession);
+          return normalizeSession(newSession, id);
+        }
         const docRef = await addDoc(collection(db, 'sessions'), newSession);
         return normalizeSession(newSession, docRef.id);
       },

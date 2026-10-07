@@ -60,7 +60,7 @@ const TipsPad = ({ lockNoteId }: { lockNoteId: string }) => {
     sessionData,
     breakdown,
     tippingEnabled,
-    tippingLive,
+    tipKeyLive,
     handleTipping,
     liveActionFilled,
     lockedReason,
@@ -139,7 +139,7 @@ const TipsPad = ({ lockNoteId }: { lockNoteId: string }) => {
         disabled={!canAdd}
         onClick={() => handleTipping(Math.min(max, value + 1))}
         aria-describedby={describedById}
-        aria-keyshortcuts={tippingLive ? TIP_SHORTCUT : undefined}
+        aria-keyshortcuts={tipKeyLive ? TIP_SHORTCUT : undefined}
         className={`grid h-[6.5rem] w-full grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)] gap-x-3 rounded-2xl border-2 px-5 py-3.5 text-left select-none touch-manipulation transition-[transform,box-shadow,filter] duration-150 ease-out ${surface} ${
           minusBeside ? 'lg:col-start-2 lg:row-start-1' : ''
         }`}
@@ -151,8 +151,9 @@ const TipsPad = ({ lockNoteId }: { lockNoteId: string }) => {
             <Lock size={16} aria-hidden className="shrink-0" />
           )}
           +1 Tip
-          {/* Only while the key does something: the match is being played */}
-          {tippingLive && (
+          {/* Only while the key does something: a match is being played
+              (the walkthrough's practice one too) */}
+          {tipKeyLive && (
             <kbd
               aria-hidden
               title={`Shortcut: press ${TIP_SHORTCUT} to add a Hive Tip`}

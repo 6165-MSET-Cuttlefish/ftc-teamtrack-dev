@@ -78,13 +78,13 @@ export type { SessionFormData, SessionTimerState } from '@/types';
 export const hasDraftContent = (
   data: Pick<
     Partial<SessionFormData>,
-    'notes' | 'sessionName' | 'sessionType' | 'matchType'
+    'notes' | 'sessionName' | 'sessionNameTyped' | 'sessionType' | 'matchType'
   >
 ): boolean => {
   const name = data.sessionName?.trim() ?? '';
   return (
     htmlToText(data.notes ?? '') !== '' ||
-    (name !== '' && !isDefaultSessionName(name)) ||
+    (name !== '' && (data.sessionNameTyped || !isDefaultSessionName(name))) ||
     (data.sessionType ?? 'Practice') !== 'Practice' ||
     (data.matchType ?? 'Full Game') !== 'Full Game'
   );
@@ -99,7 +99,12 @@ export const hasDraftContent = (
 export const isWorthStoring = (
   data: Pick<
     Partial<SessionFormData>,
-    'notes' | 'sessionName' | 'sessionType' | 'matchType' | 'matches'
+    | 'notes'
+    | 'sessionName'
+    | 'sessionNameTyped'
+    | 'sessionType'
+    | 'matchType'
+    | 'matches'
   >,
   hasStarted: boolean
 ): boolean =>

@@ -20,8 +20,8 @@ import { useActiveShortStacked, useActiveSideBySide } from './useActiveCompact';
 import { useHeaderHeightVar } from './useHeaderHeightVar';
 
 type Region =
+  | 'notice'
   | 'titleRow'
-  | 'setup'
   | 'clock'
   | 'live'
   | 'scroll'
@@ -36,12 +36,12 @@ type Region =
  * screen together, and none of it changing position as the match goes from
  * idle to the buzzer.
  *
+ * - `notice` asks about a session left open since an earlier day, above
+ *   everything; on any other day it takes no room.
  * - `titleRow` is one row of constant height: the session name (only for a
  *   screen reader while a match runs), then the in-match extras (skip,
- *   discard) and the settings toggle. The extras come and go inside that
- *   row, so nothing below it moves when they do.
- * - `setup` is the settings panel, under the toggle that opens it. It only
- *   exists before a match, when there is nothing to score yet.
+ *   discard) and the session menu, always last. The extras come and go
+ *   inside that row, so nothing below it moves when they do.
  * - `clock` is the match clock and the one line under it (session time and
  *   the last saved match).
  * - `live` is what gets tapped while the clock runs. Match Entry — the first
@@ -56,26 +56,22 @@ type Region =
  * running*, it belongs in `scroll`.
  */
 const PLACEMENT: PlacementMap<Region> = {
+  staleNotice: { region: 'notice', order: 0 },
+
   title: { region: 'titleRow', order: 0 },
   matchExtras: { region: 'titleRow', order: 1 },
   cancelMatch: { region: 'titleRow', order: 2 },
-  openSetup: { region: 'titleRow', order: 3 },
-
-  setup: { region: 'setup', order: 0 },
+  sessionMenu: { region: 'titleRow', order: 3 },
 
   timer: { region: 'clock', order: 0 },
   status: { region: 'clock', order: 1 },
 
   liveScoring: { region: 'live', order: 0 },
 
-  completionNotice: { region: 'scroll', order: 0 },
-  completedActions: { region: 'scroll', order: 1 },
-  completedLinks: { region: 'scroll', order: 2 },
   matchEntry: { region: 'scroll', order: 3 },
   breakdown: { region: 'scroll', order: 4 },
   matchLog: { region: 'scroll', order: 5 },
   notes: { region: 'scroll', order: 6 },
-  sessionActions: { region: 'scroll', order: 7 },
 
   playPause: { region: 'bar', order: 0 },
   primaryAction: { region: 'bar', order: 1 },
@@ -161,8 +157,8 @@ const keepLiveClear = (bar: HTMLElement, grew: number): number | null => {
 
 /**
  * The bar has just grown by `grew` px over the page, and the question in it
- * must not hide anything that can be pressed: Discard Session at the end of
- * the page, the End of Match (i) buttons at the buzzer. If a control that
+ * must not hide anything that can be pressed: the end of the page, the End
+ * of Match (i) buttons at the buzzer. If a control that
  * was on screen above the bar is now under it (or touching it), the page
  * scrolls it clear: at the end of the page by all the bar grew, so the page
  * still ends above the bar as it did; elsewhere by the least that clears
@@ -229,7 +225,7 @@ const ShortStackedTitleRow = ({
     {clock}
     <div className="relative col-start-3 row-start-1 flex min-w-0 items-center justify-end gap-2 justify-self-end">
       {slots.cancelMatch}
-      {slots.openSetup}
+      {slots.sessionMenu}
     </div>
   </div>
 );
@@ -250,24 +246,18 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
    * growing at the buzzer is not taken for a question. `pageMoves`: the
    * page may scroll for the bar at all; not for the walkthrough, which
    * moves the page itself, nor side by side, where the bar is beside the
-   * scrolling column rather than over it. `askedInPage`: the question was
-   * asked from the page, not the bar (Discard Match, from the X at the
-   * top): the page keeps still for it, so the X stays under the finger and
-   * a second tap can't land on what would scroll up into its place (+1 Tip
-   * on a phone on its side).
+   * scrolling column rather than over it.
    */
   const pageRef = useRef({
     scoringLive: false,
     pageMoves: true,
-    askedInPage: false,
   });
   useLayoutEffect(() => {
     pageRef.current = {
       scoringLive: matchActive && matchPhase !== 'ended' && !isTutorialActive,
       pageMoves: !isTutorialActive && !sideBySide,
-      askedInPage: pendingConfirm === 'discardMatch',
     };
-  }, [matchActive, matchPhase, isTutorialActive, sideBySide, pendingConfirm]);
+  }, [matchActive, matchPhase, isTutorialActive, sideBySide]);
 
   // A match starts with the page where the last one left it: scrolled down
   // to End of Match at the buzzer, or further, to the Match Log. +1 Tip and
@@ -290,7 +280,7 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
   // reshapes the page above its end: the scoring fields empty, the score
   // breakdown folds away, the Match Log gains a row. The browser keeps
   // something in the middle of the screen where it was, which can leave
-  // the end of the page (Discard Session) under the bar. A page that was at
+  // the end of the page (Session Notes) under the bar. A page that was at
   // its end stays there. Where it is is followed as it scrolls and as it
   // changes size, so it is known as of just before the change.
   const atEndRef = useRef(false);
@@ -352,20 +342,18 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
         document.documentElement.scrollHeight - 1;
       height = barEl.offsetHeight;
       root.style.setProperty('--bar-h', `${height}px`);
-      const { scoringLive, pageMoves, askedInPage } = pageRef.current;
+      const { scoringLive, pageMoves } = pageRef.current;
       if (grew > 0 && pageMoves) {
         // While the clock runs the page only moves to keep the live counters
         // out from under the bar: a scorer's thumb may be on +1 Tip, so
         // nothing else is worth moving it for.
         const by = scoringLive
           ? (keepLiveClear(barEl, grew) ?? 0)
-          : askedInPage
-            ? 0
-            : keepControlsClear(barEl, grew, atEnd, false);
+          : keepControlsClear(barEl, grew, atEnd, false);
         if (by > 0) lifted = { by, at: window.scrollY };
       } else if (grew < 0 && lifted) {
-        // The question is answered: what it scrolled away (skip, discard,
-        // settings) comes back, unless the page has been moved since.
+        // The question is answered: what it scrolled away comes back,
+        // unless the page has been moved since.
         if (Math.abs(window.scrollY - lifted.at) <= 1) {
           window.scrollBy({ top: -lifted.by, behavior: 'instant' });
         }
@@ -414,7 +402,7 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
   return (
     // Stacked, the two groups below are `contents`: their children are laid
     // out by this column directly and put in reading order with `order-*`
-    // (title row, settings, clock, live counters, the rest). Side by side
+    // (notice, title row, clock, live counters, the rest). Side by side
     // they are the two columns. Either way it is the same tree, so turning
     // the phone doesn't remount the scoring fields and lose what is in them.
     <div
@@ -437,6 +425,9 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
             : 'contents'
         }
       >
+        {present('notice').length > 0 && (
+          <div className="order-0 empty:hidden">{render('notice')}</div>
+        )}
         {shortStacked ? (
           <ShortStackedTitleRow slots={slots} clock={clock} />
         ) : (
@@ -492,10 +483,6 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
       )}
 
       <div className={sideBySide ? 'flex flex-col gap-3 min-w-0' : 'contents'}>
-        {present('setup').length > 0 && (
-          <div className="order-2">{render('setup')}</div>
-        )}
-
         {present('live').length > 0 && (
           <div className="order-4">{render('live')}</div>
         )}

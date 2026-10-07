@@ -32,12 +32,16 @@ import {
   normalizeForMatchType,
   pickScoringFields,
   readGuestSessions,
+  robotCountOf,
   sessionMatchType,
+  toDate,
   writeGuestSessions,
 } from '@/lib';
 import { followMatchClock } from '@/lib/followMatchClock';
 import { nextMatchNumber } from '@/lib/matchNumber';
 import { formatPoints } from '@/lib/points';
+import { noteSessionFinished } from '@/lib/sessionFinished';
+import { rememberSessionNames } from '@/lib/sessionName';
 import { firebaseService, teamService } from '@/services';
 import type {
   Match,
@@ -46,23 +50,22 @@ import type {
   SessionFormData,
   Team,
 } from '@/types';
+import {
+  onCompleteRequest,
+  takeCompleteRequest,
+  type CompleteRequest,
+} from './completeRequest';
 import { absorbDoubleTap, watchTaps } from './doubleTap';
-import { revealFirstStepperRow } from './revealStepperRow';
 import { useCompactControls } from './useCompactControls';
 
-export interface LiveControlsProps {
-  onOpenSessionSetup?: () => void;
-  onTryStartWithoutSetup?: () => void;
-  isSessionSetupSaved?: boolean;
-  onSessionReset?: () => void;
-}
+/** The page passes nothing in: everything comes from the session itself. */
+export type LiveControlsProps = Record<never, never>;
 
 /** Shown by the banner, by Start and by Complete when the user is at the cap */
 export const SESSION_LIMIT_MESSAGE = `You've reached the limit of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} saved sessions. Delete some of your own old sessions to save new ones.`;
 
 const UNREACHABLE_MESSAGE =
   "Can't reach the server - your matches are kept on this device, try again";
-const RUNNING_MATCH_MESSAGE = 'Save or discard the running match first';
 const SAVING_TOAST_ID = 'saving-session';
 const TUTORIAL_TOAST_ID = 'walkthrough-open';
 const CLEARED_TOAST_ID = 'cleared-before-start';
@@ -83,46 +86,102 @@ const BETWEEN_MATCHES_TOAST_IDS = [
 ];
 /** An Undo that waits for the match open for editing to be closed */
 const EDIT_OPEN_TOAST_ID = 'match-edit-open';
-/** An Undo that waits for the Save Session dialog to be closed */
-const SAVE_DIALOG_OPEN_TOAST_ID = 'save-dialog-open';
 /** Why "Match N ended early - Undo" can't put the match back (yet) */
 const END_EARLY_UNDO_REFUSED_TOAST_ID = 'end-early-undo-refused';
-/** The Match Entry section that holds Flowers, Left in Hive and Garden */
-const END_OF_MATCH_SECTION = '[data-tutorial="end-of-match"]';
 
 /**
- * The questions /active can ask before it acts. Only one is ever open:
- * asking another closes the one before it.
+ * A Save Session write this browser started, under the id it writes to:
+ * `{ id, uid, matchIds }`. The same session is always written under the
+ * same id, so a retry (after a reload, or a save that timed out) replaces
+ * what an earlier attempt stored instead of adding a second copy, and a
+ * reload in the middle of a save can find out that it landed.
+ */
+const PENDING_SAVE_KEY = 'teamtrack-pending-save';
+
+interface PendingSaveNote {
+  id: string;
+  uid: string;
+  matchIds: string[];
+}
+
+const readPendingSaveNote = (): PendingSaveNote | null => {
+  try {
+    const note: unknown = JSON.parse(
+      localStorage.getItem(PENDING_SAVE_KEY) ?? ''
+    );
+    if (
+      typeof note === 'object' &&
+      note !== null &&
+      typeof (note as PendingSaveNote).id === 'string' &&
+      typeof (note as PendingSaveNote).uid === 'string' &&
+      Array.isArray((note as PendingSaveNote).matchIds)
+    ) {
+      return note as PendingSaveNote;
+    }
+  } catch {
+    /* none, or unreadable */
+  }
+  return null;
+};
+
+const writePendingSaveNote = (note: PendingSaveNote) => {
+  try {
+    localStorage.setItem(PENDING_SAVE_KEY, JSON.stringify(note));
+  } catch {
+    /* storage full: a retry after a reload gets an id of its own */
+  }
+};
+
+const clearPendingSaveNote = () => {
+  try {
+    localStorage.removeItem(PENDING_SAVE_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+};
+
+/** A new document id, made the way Firestore makes its own (20 characters) */
+const newSessionId = (): string => {
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(20));
+  return Array.from(bytes, byte => chars[byte % chars.length]).join('');
+};
+
+/**
+ * The id this session is saved under: the one an earlier attempt for the
+ * same session used (it shares a saved match with it), or a new one.
+ */
+const sessionSaveId = (uid: string, matches: Match[]): string => {
+  const note = readPendingSaveNote();
+  const ids = matches.map(match => match.id);
+  if (note && note.uid === uid && note.matchIds.some(id => ids.includes(id))) {
+    writePendingSaveNote({ ...note, matchIds: ids });
+    return note.id;
+  }
+  const id = newSessionId();
+  writePendingSaveNote({ id, uid, matchIds: ids });
+  return id;
+};
+
+/** Signed-in owners whose session names have been read on this page load */
+const namesReadFor = new Set<string>();
+
+/**
+ * The questions /active can still ask before it acts (everything else acts
+ * at once, with an Undo). Only one is ever open.
  *
- * - `endEarly`: end the running match before the buzzer
- * - `saveZeroEom`: save a finished match with nothing counted at the end
- * - `discardMatch`: throw the running match away
- * - `discardSession`: throw the whole session away
  * - `completeWithStray`: finish the session with numbers in Match Entry
  *   that belong to no saved match
  */
-export type PendingConfirm =
-  | 'endEarly'
-  | 'saveZeroEom'
-  | 'discardMatch'
-  | 'discardSession'
-  | 'completeWithStray';
+export type PendingConfirm = 'completeWithStray';
 
 /**
- * Whether a question takes the place of the Start / Save button. Questions
- * about the match always do. The two about the session are asked where
- * their own button is: Discard Session's with the session buttons, and
- * Complete Session's wherever that button is on this screen (in the bar on
- * a phone).
+ * Whether a question takes the place of the Start / Save button: Complete
+ * Session's is asked where that button is, beside Start.
  */
-export const isPrimarySlotConfirm = (
-  pending: PendingConfirm | null,
-  isCompact: boolean
-): boolean =>
-  pending === 'endEarly' ||
-  pending === 'saveZeroEom' ||
-  pending === 'discardMatch' ||
-  (pending === 'completeWithStray' && isCompact);
+export const isPrimarySlotConfirm = (pending: PendingConfirm | null): boolean =>
+  pending === 'completeWithStray';
 
 /** How long the whole signed-in save (checks + write) may take before giving up */
 const SAVE_TIMEOUT_MS = 12000;
@@ -141,13 +200,6 @@ const GUEST_STORAGE_WARN_RATIO = 0.8;
 let guestStorageWarned = false;
 
 /**
- * ID the completed session was saved under. Kept outside the hook so
- * "View Full Analysis Report" still opens it after leaving /active and
- * coming back; cleared when a new session starts.
- */
-let lastSavedSessionId: string | null = null;
-
-/**
  * A save that outlived its timeout. Firestore still delivers the write once
  * the network returns, so it is tracked until it settles: a retry of the
  * same session rejoins it instead of writing a second copy.
@@ -163,6 +215,8 @@ interface PendingSave {
   watched: boolean;
   epoch: unknown;
   duration: string;
+  /** The name it is saved under, for the toast once it lands */
+  name: string;
 }
 let pendingSave: PendingSave | null = null;
 
@@ -304,6 +358,18 @@ const wasSavedElsewhere = (matchIds: string[]): boolean => {
 const SAVED_ELSEWHERE_MESSAGE =
   "Another tab saved this session, so it can't be put back here. Find it in Sessions.";
 
+/**
+ * When a session was played: its first match. A session finished on a later
+ * day (left open overnight) is still dated, and sorted, by the day it was
+ * played, not by the day it was saved.
+ */
+const sessionDateOf = (matches: readonly Match[]): Date => {
+  const times = matches
+    .map(match => (match.createdAt ? toDate(match.createdAt).getTime() : NaN))
+    .filter(Number.isFinite);
+  return new Date(times.length > 0 ? Math.min(...times) : Date.now());
+};
+
 const localStorageUsage = (): number => {
   let chars = 0;
   for (let i = 0; i < localStorage.length; i++) {
@@ -313,12 +379,8 @@ const localStorageUsage = (): number => {
   return chars;
 };
 
-export const useLiveControlsState = ({
-  onOpenSessionSetup,
-  onTryStartWithoutSetup,
-  isSessionSetupSaved = false,
-  onSessionReset,
-}: LiveControlsProps) => {
+// Nothing comes in through the props the provider passes on.
+export const useLiveControlsState = (_props: LiveControlsProps) => {
   const {
     sessionData,
     completeSession,
@@ -370,20 +432,8 @@ export const useLiveControlsState = ({
     useState<boolean>(false);
   const [pendingConfirmState, setPendingConfirm] =
     useState<PendingConfirm | null>(null);
-  const [deleteConfirmId, setDeleteConfirmIdState] = useState<string | null>(
-    null
-  );
-  const [newSessionConfirm, setNewSessionConfirm] = useState<boolean>(false);
-  /** ID the completed session was saved under, so analysis can open (and share) it */
-  const [savedSessionId, setSavedSessionIdState] = useState<string | null>(
-    () => (sessionData.isSessionCompleted ? lastSavedSessionId : null)
-  );
-  const setSavedSessionId = (id: string | null) => {
-    lastSavedSessionId = id;
-    setSavedSessionIdState(id);
-  };
-  const [showSaveSessionDialog, setShowSaveSessionDialog] =
-    useState<boolean>(false);
+  /** The small dialog that renames the session (from the session menu) */
+  const [showRenameDialog, setShowRenameDialog] = useState<boolean>(false);
   /**
    * Another match was tapped while the one open for editing has changes.
    * The Match Log alone says so, under the row that was tapped; Save and
@@ -407,7 +457,6 @@ export const useLiveControlsState = ({
   const hasStartedRef = useRef(hasStarted);
   const editingMatchIdRef = useRef(editingMatchId);
   const tutorialActiveRef = useRef(isTutorialActive);
-  const saveSessionDialogRef = useRef(showSaveSessionDialog);
   const matchPhaseRef = useRef(matchPhase);
   useEffect(() => {
     sessionDataRef.current = sessionData;
@@ -416,7 +465,6 @@ export const useLiveControlsState = ({
     hasStartedRef.current = hasStarted;
     editingMatchIdRef.current = editingMatchId;
     tutorialActiveRef.current = isTutorialActive;
-    saveSessionDialogRef.current = showSaveSessionDialog;
   }, [
     sessionData,
     matchActive,
@@ -424,7 +472,6 @@ export const useLiveControlsState = ({
     hasStarted,
     editingMatchId,
     isTutorialActive,
-    showSaveSessionDialog,
   ]);
   /**
    * "Match N deleted - Undo" toasts that may still restore their match, by
@@ -454,12 +501,6 @@ export const useLiveControlsState = ({
   const matchRunRef = useRef(0);
   /** Which of them was saved last */
   const savedRunRef = useRef(-1);
-  /**
-   * Where the page was when End early asked: before a question in two rows
-   * on a phone lifted it, and before the buzzer brought End of Match into
-   * view.
-   */
-  const endEarlyScrollRef = useRef(0);
   const mountedRef = useRef(true);
 
   const dismissUndoToasts = () => {
@@ -500,12 +541,10 @@ export const useLiveControlsState = ({
     undoToastIdsRef.current.forEach((_, id) => toast.dismiss(id));
     undoToastIdsRef.current.clear();
     toast.dismiss(CLEARED_TOAST_ID);
-    // The save dialog and any open question were about the session that is
-    // gone (completed or discarded, here or in another tab). Left open, the
-    // dialog would save the empty session that replaced it.
-    setShowSaveSessionDialog(false);
+    // The rename dialog and any open question were about the session that
+    // is gone (completed or discarded, here or in another tab).
+    setShowRenameDialog(false);
     setPendingConfirm(null);
-    setDeleteConfirmIdState(null);
   }, [sessionEpoch, team]);
 
   // "Session discarded - Undo" only puts the session back over an untouched
@@ -567,6 +606,12 @@ export const useLiveControlsState = ({
       }
     };
     if (!isTutorialActive) toast.dismiss(TUTORIAL_TOAST_ID);
+    // The other toasts about the gap between matches ("Match 1 saved")
+    // would sit over the card's Skip and Next, and are done with once the
+    // tutorial is up.
+    if (isTutorialActive) {
+      BETWEEN_MATCHES_TOAST_IDS.forEach(id => toast.dismiss(id));
+    }
     const position = isTutorialActive ? walkthroughToastPosition : undefined;
     if (position) {
       undoToastsMovedRef.current = true;
@@ -598,24 +643,35 @@ export const useLiveControlsState = ({
     !sessionData.isSessionCompleted &&
     (hasSavedMatches || hasUnsavedMatchData || notesHaveText);
   /**
-   * Worth a "leave this page?" from the browser. Not notes on their own:
-   * a draft is kept in this browser and comes back with the page, and it is
-   * not a session in progress.
+   * A saved match open for editing with changes not saved. They are kept
+   * with this tab (see matchEditDraft): a reload brings them back, a closed
+   * tab does not.
    */
-  const warnBeforeUnload =
-    !sessionData.isSessionCompleted && (hasSavedMatches || hasUnsavedMatchData);
+  const editHasChanges = useMemo(() => {
+    if (!editingMatchId) return false;
+    const open = sessionData.matches?.find(m => m.id === editingMatchId);
+    return (
+      !open ||
+      JSON.stringify(pickScoringFields(open)) !==
+        JSON.stringify(pickScoringFields(sessionData))
+    );
+  }, [editingMatchId, sessionData]);
 
+  // Worth a "leave this page?" from the browser only while the session is
+  // being saved (leaving then may or may not keep the save), or while a
+  // match edit has changes (a closed tab loses them). Everything else comes
+  // back with the page (the session, its clocks), so the browser's "changes
+  // may not be saved" would be false.
+  const unloadLoses = isCompleting || editHasChanges;
   useEffect(() => {
+    if (!unloadLoses) return;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (warnBeforeUnload) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
+      e.preventDefault();
+      e.returnValue = '';
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [warnBeforeUnload]);
+  }, [unloadLoses]);
 
   /**
    * Whether the signed-in user is at their session cap. Only their own
@@ -684,17 +740,6 @@ export const useLiveControlsState = ({
     lastPrimaryActionAt.current = performance.now();
   };
 
-  const handleViewAnalysis = () => {
-    // The tail of a double tap on Save Session lands here once the completed
-    // screen replaces the dialog.
-    if (isRepeatedPrimaryAction()) return;
-    navigate(
-      savedSessionId
-        ? `${ROUTES.ANALYSIS}?sessionId=${encodeURIComponent(savedSessionId)}`
-        : ROUTES.ANALYSIS
-    );
-  };
-
   const savedMatchCount = sessionData.matches?.length ?? 0;
   /**
    * The number the match in the fields will be saved under. Matches keep
@@ -703,41 +748,24 @@ export const useLiveControlsState = ({
   const matchNumber = nextMatchNumber(sessionData.matches);
   /** The buzzer has gone and the match is waiting to be saved */
   const matchEnded = matchActive && matchPhase === 'ended';
-  /** Nothing counted in Flower, Flower Bonus, Left in Hive or Garden */
-  const endOfMatchEmpty =
-    !sessionData.flower &&
-    !sessionData.flowerBonus &&
-    !sessionData.ballsInHive &&
-    !sessionData.garden;
+  /**
+   * Why the session can't be completed (or a saved match opened) while a
+   * match is on: "Save Match 3 first" once its buzzer has gone, "Finish
+   * Match 3 first" while it is still being played.
+   */
+  const matchFirstMessage = `${matchEnded ? 'Save' : 'Finish'} Match ${matchNumber} first`;
 
   /**
-   * The open question, for as long as what it asks about is still there: the
-   * buzzer answers "end early?", a count answers "all 0?", and a match that
-   * is saved or discarded takes its questions with it.
+   * The open question, for as long as what it asks about is still there: a
+   * match started or opened, or the stray numbers gone, take it with them.
    */
-  const confirmStillApplies = (() => {
-    const liveMatch = matchActive && !editingMatchId;
-    switch (pendingConfirmState) {
-      case 'endEarly':
-        return liveMatch && !matchEnded;
-      case 'saveZeroEom':
-        return liveMatch && matchEnded && endOfMatchEmpty;
-      case 'discardMatch':
-        return liveMatch;
-      case 'discardSession':
-        return !sessionData.isSessionCompleted;
-      case 'completeWithStray':
-        return (
-          !matchActive &&
-          !editingMatchId &&
-          hasUnsavedMatchData &&
-          savedMatchCount > 0 &&
-          !sessionData.isSessionCompleted
-        );
-      default:
-        return false;
-    }
-  })();
+  const confirmStillApplies =
+    pendingConfirmState === 'completeWithStray' &&
+    !matchActive &&
+    !editingMatchId &&
+    hasUnsavedMatchData &&
+    savedMatchCount > 0 &&
+    !sessionData.isSessionCompleted;
   const pendingConfirm = confirmStillApplies ? pendingConfirmState : null;
   // A question that no longer applies is closed for good, not kept back for
   // the next time its conditions happen to hold.
@@ -751,8 +779,6 @@ export const useLiveControlsState = ({
   const askConfirm = (question: PendingConfirm) => {
     // The answer buttons appear where the pressed button was.
     absorbDoubleTap();
-    setDeleteConfirmIdState(null);
-    setNewSessionConfirm(false);
     setPendingConfirm(question);
   };
 
@@ -761,13 +787,6 @@ export const useLiveControlsState = ({
     // The button that asked comes back where this one was.
     absorbDoubleTap();
     setPendingConfirm(null);
-  };
-
-  /** Ask before deleting a logged match (null: stop asking). */
-  const setDeleteConfirmId = (matchId: string | null) => {
-    absorbDoubleTap();
-    if (matchId !== null) setPendingConfirm(null);
-    setDeleteConfirmIdState(matchId);
   };
 
   /**
@@ -786,60 +805,42 @@ export const useLiveControlsState = ({
     return true;
   };
 
+  /**
+   * On to a fresh session, ready to start: after this one is saved, or
+   * discarded (with its Undo). A draft of notes goes too.
+   */
   const startFreshSession = () => {
     // The fresh session's Start Match can land where the pressed button
     // was: a double tap must not start its first match.
     absorbDoubleTap();
     dismissUndoToasts();
-    setSavedSessionId(null);
-    // New Session (after a completed one) or Discard Session: both are asked
-    // for, so a draft of notes goes too (Discard has its Undo).
     resetSession({ discardDraft: true });
-    onSessionReset?.();
     setPendingConfirm(null);
-    setNewSessionConfirm(false);
-  };
-
-  const handleNewSession = () => {
-    if (isRepeatedPrimaryAction()) return;
-    if (isInWalkthrough('start a new session')) return;
-    if (
-      sessionData.matches &&
-      sessionData.matches.length > 0 &&
-      !sessionData.isSessionCompleted
-    ) {
-      setNewSessionConfirm(true);
-      return;
-    }
-
-    startFreshSession();
-  };
-
-  const handleConfirmNewSession = () => {
-    if (isInWalkthrough('start a new session')) return;
-    startFreshSession();
   };
 
   /**
-   * Discard Session only asks. The match clock is left alone: a mis-tap
-   * during a match must not put the app out of step with the field.
+   * Discard Session, from the session menu: it goes at once, and the page
+   * goes straight back to a fresh session, with an Undo that puts it back
+   * for as long as the fresh one has not been used. A match that was being
+   * played comes back where the field is now, its clock and audio with it,
+   * as Discard Match's Undo brings one back: the app stays in step with the
+   * field. One open for editing comes back as it was last saved.
    */
-  const handleRequestDiscardSession = () => {
-    if (isInWalkthrough('discard the session')) return;
-    askConfirm('discardSession');
-  };
-
-  /**
-   * Confirmed: discard everything and go straight back to a fresh setup,
-   * with an Undo that puts the session back for as long as the fresh one
-   * has not been used.
-   */
-  const handleConfirmDiscardSession = () => {
+  const handleDiscardSession = () => {
     if (isInWalkthrough('discard the session') || isSavingSession()) return;
+    // What is under the menu item must not take the second tap.
+    absorbDoubleTap();
 
     const worthKeeping = Boolean(hasUnsavedWork) || hasStarted;
-    // A match that was running comes back un-started, with its numbers in
-    // the fields; one open for editing comes back as it was last saved.
+    const liveMatch = matchActive && !editingMatchId;
+    // "Match N ended early - Undo" goes with the match; undoing the discard
+    // brings it back, if it was still on offer.
+    const endedEarly =
+      liveMatch &&
+      endedEarlyToastRef.current &&
+      undoToastIdsRef.current.has(endedEarlyToastRef.current.id)
+        ? endedEarlyToastRef.current
+        : null;
     const snapshot = {
       sessionData: JSON.parse(
         JSON.stringify({
@@ -848,9 +849,11 @@ export const useLiveControlsState = ({
         })
       ) as SessionFormData,
       sessionTimer: getTimers().sessionTimer,
-      // Without a saved match the session goes back to "not started", as it
-      // does when a first match is discarded.
-      hasStarted: hasStarted && savedMatchCount > 0,
+      // The match being played, and its clock as it stood
+      match: liveMatch ? holdMatchClock() : null,
+      // Without a saved match or one being played, the session goes back to
+      // "not started", as it does when a first match is discarded.
+      hasStarted: hasStarted && (savedMatchCount > 0 || liveMatch),
     };
 
     startFreshSession();
@@ -911,6 +914,20 @@ export const useLiveControlsState = ({
           replaceSessionData(snapshot.sessionData);
           setSessionTimer(snapshot.sessionTimer);
           setHasStarted(snapshot.hasStarted);
+          const held = snapshot.match;
+          if (!held) return;
+          setMatchActive(true);
+          // The clock goes back once the session it belongs to is the one
+          // in place (its match type decides how it runs on), after this
+          // update has been applied.
+          setTimeout(() => {
+            if (!mountedRef.current) return;
+            // A clock that was running has run on meanwhile, as the one on
+            // the field has: the match comes back where the field is now.
+            if (resumeMatch(held) === 'ended' && endedEarly) {
+              offerEndedEarlyUndo(endedEarly.held, endedEarly.scrolledTo);
+            }
+          }, 0);
         },
       },
     });
@@ -966,8 +983,10 @@ export const useLiveControlsState = ({
   /** Split out of the Start/Save button so both layouts share one code path */
   const handleStartMatch = () => {
     if (matchActive || isRepeatedPrimaryAction() || isSavingSession()) return;
-    if (!isSessionSetupSaved && !sessionData.sessionName?.trim()) {
-      onTryStartWithoutSetup?.();
+    // A session always has a name, unless one kept from an older build
+    // lost it: ask for one first.
+    if (!sessionData.sessionName?.trim()) {
+      setShowRenameDialog(true);
       return;
     }
     // Don't let a whole session be recorded that can't be saved afterwards.
@@ -1030,24 +1049,29 @@ export const useLiveControlsState = ({
     }
   }, [matchActive]);
 
-  /** Log the running match as it stands. */
-  const saveCurrentMatch = () => {
-    if (!matchActive) return;
-
+  /** The running match as it stands, as a saved match dated `at` (epoch ms) */
+  const runningMatchAsSaved = (at: number): Match & { finalScore: number } => {
     const scoring = normalizeForMatchType(
       pickScoringFields(sessionData),
       sessionData.matchType
     );
-    const breakdown = calculateScore(scoring);
-
-    const newMatch: Match = {
+    return {
       ...scoring,
+      // The robots it was played with, as the session had it then
+      robotCount: robotCountOf(sessionData),
       id: generateId(),
       matchNumber,
       matchType: sessionData.matchType,
-      finalScore: breakdown.total,
-      createdAt: new Date().toISOString(),
+      finalScore: calculateScore(scoring).total,
+      createdAt: new Date(at).toISOString(),
     };
+  };
+
+  /** Log the running match as it stands. */
+  const saveCurrentMatch = () => {
+    if (!matchActive) return;
+
+    const newMatch = runningMatchAsSaved(Date.now());
 
     const updatedMatches = [...(sessionData.matches || []), newMatch];
     updateSessionData({
@@ -1066,7 +1090,7 @@ export const useLiveControlsState = ({
     setPendingConfirm(null);
 
     toast.success(
-      `Match ${newMatch.matchNumber} saved · ${formatPoints(breakdown.total)}`,
+      `Match ${newMatch.matchNumber} saved · ${formatPoints(newMatch.finalScore)}`,
       { id: MATCH_SAVED_TOAST_ID }
     );
   };
@@ -1094,17 +1118,24 @@ export const useLiveControlsState = ({
   };
 
   /**
-   * "End Match", in answer to End early: the match ends as at its buzzer
-   * (see `handleSkipToEnd`), with an Undo that brings it back as if it had
-   * never been ended, for an answer that was not meant.
+   * End early. A match is only ever saved after its buzzer: what is left on
+   * the field (Flowers, Left in Hive, Garden) can only be counted once play
+   * has stopped. So End early ends the match at once, the way the buzzer
+   * does (see `handleSkipToEnd`), and it is saved from there like any
+   * other. Its Undo brings it back as if it had never been ended, for a
+   * press that was not meant.
    */
-  const handleConfirmEndMatch = () => {
+  const handleEndEarly = () => {
+    // Start (or Resume) was where this is a moment ago.
+    if (isRepeatedPrimaryAction()) return;
     if (!matchActive || matchEnded || editingMatchId) return;
     const held = holdMatchClock();
     // The buzzer got there first.
     if (held.clock.phase === 'ended') return;
+    // Where the page was, before the buzzer brings End of Match into view
+    const scrolledTo = window.scrollY;
     handleSkipToEnd();
-    offerEndedEarlyUndo(held, endEarlyScrollRef.current);
+    offerEndedEarlyUndo(held, scrolledTo);
   };
 
   /**
@@ -1211,11 +1242,6 @@ export const useLiveControlsState = ({
             wait('close the tutorial first');
             return;
           }
-          // The match would run on behind the dialog, which then can't save.
-          if (saveSessionDialogRef.current) {
-            wait('close the Save Session dialog first');
-            return;
-          }
           undoToastIdsRef.current.delete(toastId);
           // Unless its time ran out meanwhile: then End of Match is still
           // where the scorer is needed.
@@ -1228,23 +1254,8 @@ export const useLiveControlsState = ({
   };
 
   /**
-   * End early. A match is only ever saved after its buzzer: what is left on
-   * the field (Flowers, Left in Hive, Garden) can only be counted once play
-   * has stopped. So ending early asks, then ends the match the way the
-   * buzzer does, and it is saved from there like any other.
-   */
-  const handleRequestEndMatch = () => {
-    if (isRepeatedPrimaryAction()) return;
-    if (!matchActive || matchEnded || editingMatchId) return;
-    endEarlyScrollRef.current = window.scrollY;
-    askConfirm('endEarly');
-  };
-
-  /**
-   * The Save button, after the buzzer. A press with nothing counted at the
-   * end of the match is more often a slip than a decision, so that is asked
-   * about first. A match with nothing scored at all is a legitimate result
-   * (a failed run) and is covered by the same question.
+   * The Save button, after the buzzer: it saves the match as counted. A
+   * count left at 0 by mistake is fixed afterwards from the Match Log.
    */
   const handleSaveMatch = () => {
     if (isRepeatedPrimaryAction()) return;
@@ -1255,30 +1266,10 @@ export const useLiveControlsState = ({
       return;
     }
     if (!matchEnded) {
-      handleRequestEndMatch();
-      return;
-    }
-    if (endOfMatchEmpty) {
-      askConfirm('saveZeroEom');
+      handleEndEarly();
       return;
     }
     saveCurrentMatch();
-  };
-
-  /** "Save": the answer that saves a match with nothing counted at the end. */
-  const handleConfirmSaveMatch = () => saveCurrentMatch();
-
-  /**
-   * "Count them first": back to the page, at the End of Match steppers,
-   * shown as the buzzer shows them. Measured once Save Match is back in
-   * the question's place: on a phone the question made the bar taller.
-   */
-  const handleCountFirst = () => {
-    handleKeepConfirm();
-    requestAnimationFrame(() => {
-      const section = document.querySelector(END_OF_MATCH_SECTION);
-      if (section) revealFirstStepperRow(section);
-    });
   };
 
   /**
@@ -1314,49 +1305,40 @@ export const useLiveControlsState = ({
     returnToCurrentMatch();
   };
 
-  /** Open the dialog that confirms the session's name and saves it. */
-  const openSaveSessionDialog = () => {
-    // The dialog opens over the pressed button: a second press would
-    // dismiss it.
-    absorbDoubleTap();
-    setPendingConfirm(null);
-    setShowSaveSessionDialog(true);
-  };
-
   /**
-   * Checks the session can be saved, then asks the user to confirm its name.
-   * The save itself happens in handleCompleteSession once they confirm.
+   * Whether the session can be completed now; when it can't, a toast says
+   * why. Not under the walkthrough, which puts the session back as it found
+   * it, nor with a match on or open for editing: the session is saved as
+   * its saved matches stand.
    */
-  const handleRequestCompleteSession = () => {
-    // On a phone this button shares the bar with Start Match, where Save
-    // Match was a moment ago.
-    if (completingRef.current || isRepeatedPrimaryAction()) return;
-    if (isInWalkthrough('complete the session')) return;
+  const canCompleteSession = (): boolean => {
+    if (completingRef.current) return false;
+    if (isInWalkthrough('complete the session')) return false;
 
     if (matchActive) {
-      toast.error(RUNNING_MATCH_MESSAGE, { id: COMPLETE_BLOCKED_TOAST_ID });
-      return;
+      toast.error(matchFirstMessage, { id: COMPLETE_BLOCKED_TOAST_ID });
+      return false;
     }
 
     if (editingMatchId) {
       toast.error('Save or discard your match edit first', {
         id: COMPLETE_BLOCKED_TOAST_ID,
       });
-      return;
+      return false;
     }
 
     if (!sessionData.matches || sessionData.matches.length === 0) {
       toast.error('Save at least one match before completing the session', {
         id: COMPLETE_BLOCKED_TOAST_ID,
       });
-      return;
+      return false;
     }
 
     if (uid) {
       if (sessionLimitReached) {
         toast.error(SESSION_LIMIT_MESSAGE, { id: SESSION_LIMIT_TOAST_ID });
         void refreshSessionLimit();
-        return;
+        return false;
       }
 
       const problem = sessionSaveProblem({
@@ -1368,9 +1350,23 @@ export const useLiveControlsState = ({
           id: COMPLETE_BLOCKED_TOAST_ID,
           duration: UI_TIMING.UNDO_WINDOW,
         });
-        return;
+        return false;
       }
     }
+    return true;
+  };
+
+  /**
+   * Complete Session: the session is saved under the name it has (renamed
+   * from the session menu, if at all) and the page goes straight to its
+   * Analysis. Nothing is asked first, unless numbers in Match Entry belong
+   * to no saved match.
+   */
+  const handleRequestCompleteSession = () => {
+    // On a phone this button shares the bar with Start Match, where Save
+    // Match was a moment ago.
+    if (isRepeatedPrimaryAction()) return;
+    if (!canCompleteSession()) return;
 
     // Numbers in Match Entry that belong to no saved match are not part of
     // the session: say so before finishing without them.
@@ -1379,17 +1375,13 @@ export const useLiveControlsState = ({
       return;
     }
 
-    openSaveSessionDialog();
+    void completeSessionNow({ openAnalysis: true });
   };
 
-  /**
-   * "Discard them and finish". The numbers stay in the fields until the
-   * session is actually saved, so backing out of the dialog loses nothing.
-   */
+  /** "Discard them and finish". */
   const handleConfirmCompleteWithStray = () => {
-    if (completingRef.current) return;
-    if (isInWalkthrough('complete the session')) return;
-    openSaveSessionDialog();
+    if (!canCompleteSession()) return;
+    void completeSessionNow({ openAnalysis: true });
   };
 
   /** Everything stored for a completed session, signed in or guest. */
@@ -1432,17 +1424,25 @@ export const useLiveControlsState = ({
       session.matches || [],
     ]);
 
-  /** The session is stored: show the completed screen. */
-  const finishSavedSession = (id: string, duration: string) => {
+  /**
+   * The session is stored. The page moves on to a fresh session at once,
+   * ready for the next practice: the one just saved is in Sessions, and its
+   * Analysis is where Complete Session goes. Another tab that had it open
+   * is told what became of it, and the next session is numbered past it.
+   */
+  const finishSavedSession = (id: string, duration: string, name: string) => {
     markPrimaryAction();
     dismissUndoToasts();
-    setSavedSessionId(id);
-    // A write that lands late gets here with the dialog reopened for a
-    // retry: left open, it would come back over the next session.
-    setShowSaveSessionDialog(false);
     setPendingConfirm(null);
+    noteSessionFinished(
+      (sessionDataRef.current.matches ?? []).map(match => match.id),
+      { id, name }
+    );
+    clearPendingSaveNote();
+    if (uid) rememberSessionNames(uid, [name], { replace: false });
     completeSession(duration);
     markSessionCompleted();
+    startFreshSession();
   };
 
   /**
@@ -1472,16 +1472,22 @@ export const useLiveControlsState = ({
       !tutorialActiveRef.current &&
       sessionContentKey(current) === pending.content;
     if (unchanged) {
-      finishSavedSession(saved.id, pending.duration);
-      toast.success('Session saved');
-    } else {
+      finishSavedSession(saved.id, pending.duration, pending.name);
+      toast.success(`${pending.name} saved`);
+    } else if (!superseded) {
+      // A newer save of the session writes over it under the same id; with
+      // none on its way, the stale copy comes down.
       firebaseService.deleteSession(saved.id).catch(() => {});
     }
   };
 
-  /** Write the session, giving up (but not losing track of it) at `deadline`. */
+  /**
+   * Write the session under `id`, giving up (but not losing track of it) at
+   * `deadline`.
+   */
   const createSessionByDeadline = async (
     session: SessionToSave,
+    id: string,
     deadline: number
   ): Promise<Session | null> => {
     const content = sessionContentKey(session);
@@ -1493,11 +1499,16 @@ export const useLiveControlsState = ({
       pending = {
         key,
         content,
-        promise: firebaseService.createSession(session),
+        promise: firebaseService.createSession(
+          session,
+          id,
+          sessionDateOf(session.matches)
+        ),
         waiting: 0,
         watched: false,
         epoch: sessionEpoch,
         duration: session.sessionDuration,
+        name: session.sessionName,
       };
       pendingSave = pending;
     }
@@ -1526,11 +1537,16 @@ export const useLiveControlsState = ({
     }
   };
 
-  /** Signed-in save. Returns false when it was refused with its own toast. */
+  /**
+   * Signed-in save. Returns the id the session was stored under, or null
+   * when it was refused with its own toast. `leftOut` ends its toast (see
+   * `completeSessionNow`).
+   */
   const saveToAccount = async (
     userId: string,
-    sessionName: string
-  ): Promise<boolean> => {
+    sessionName: string,
+    leftOut = ''
+  ): Promise<string | null> => {
     if (!navigator.onLine) throw new SaveTimeoutError();
     const deadline = performance.now() + SAVE_TIMEOUT_MS;
 
@@ -1542,7 +1558,7 @@ export const useLiveControlsState = ({
     setSessionLimitReached(atLimit);
     if (atLimit) {
       toast.error(SESSION_LIMIT_MESSAGE);
-      return false;
+      return null;
     }
 
     // The team is only loaded at sign-in, so membership may have ended
@@ -1570,26 +1586,30 @@ export const useLiveControlsState = ({
     const problem = sessionSaveProblem(sessionToSave);
     if (problem) {
       toast.error(problem, { duration: UI_TIMING.UNDO_WINDOW });
-      return false;
+      return null;
     }
 
+    // Noted before anything is written: a reload from here on finds out
+    // whether this landed (see the check as the page opens).
+    const saveId = sessionSaveId(userId, sessionToSave.matches);
     let saved: Session | null;
     try {
-      saved = await createSessionByDeadline(sessionToSave, deadline);
+      saved = await createSessionByDeadline(sessionToSave, saveId, deadline);
     } catch (error) {
       if (!teamId || errorCode(error) !== 'permission-denied') throw error;
       savedAsPersonal = true;
       sessionToSave = buildSessionToSave(sessionName);
-      saved = await createSessionByDeadline(sessionToSave, deadline);
+      saved = await createSessionByDeadline(sessionToSave, saveId, deadline);
     }
 
     if (!saved?.id) {
       toast.error(saveErrorMessage(null));
-      return false;
+      return null;
     }
 
-    // Nothing on this page can be changed while the dialog is up, but the
-    // same session open in another tab can be.
+    // What is on this page is held still while the save is on its way (its
+    // buttons wait for it), but Notes can still be typed in, and the same
+    // session open in another tab can be changed.
     //
     // Edited there: what has just been stored is an older version. Take it
     // back down and leave the session open, rather than report the old one
@@ -1625,13 +1645,18 @@ export const useLiveControlsState = ({
         'This session changed while it was being saved, so nothing was saved. Complete it again to save it as it is now.',
         { duration: UI_TIMING.UNDO_WINDOW }
       );
-      return false;
+      return null;
     }
 
     if (closedElsewhere) {
       noteSavedElsewhere(sessionToSave.matches);
+      clearPendingSaveNote();
     } else {
-      finishSavedSession(saved.id, sessionToSave.sessionDuration);
+      finishSavedSession(
+        saved.id,
+        sessionToSave.sessionDuration,
+        sessionToSave.sessionName
+      );
     }
     if (savedAsPersonal && sessionTeam) {
       if (team) void refreshTeam();
@@ -1643,23 +1668,27 @@ export const useLiveControlsState = ({
       );
     } else if (closedElsewhere) {
       toast.success(
-        'Session saved. Another tab closed it meanwhile, so a new session is open here.',
+        `${sessionToSave.sessionName} saved. Another tab closed it meanwhile, so a new session is open here.`,
         { duration: UI_TIMING.UNDO_WINDOW }
       );
     } else {
-      toast.success('Session saved');
+      toast.success(`${sessionToSave.sessionName} saved${leftOut}`);
     }
-    return true;
+    return saved.id;
   };
 
-  /** Guest save: the session goes to this browser's storage only. */
-  const saveToBrowser = (sessionName: string) => {
+  /**
+   * Guest save: the session goes to this browser's storage only. Returns
+   * the id it was stored under. `leftOut` ends its toast (see
+   * `completeSessionNow`).
+   */
+  const saveToBrowser = (sessionName: string, leftOut = ''): string => {
     const sessionToSave = buildSessionToSave(sessionName);
     const guestSession = {
       ...sessionToSave,
       season: CURRENT_SEASON,
       id: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-      createdAt: new Date().toISOString(),
+      createdAt: sessionDateOf(sessionToSave.matches).toISOString(),
     };
     const existing = readGuestSessions();
 
@@ -1676,8 +1705,12 @@ export const useLiveControlsState = ({
       throw error;
     }
 
-    finishSavedSession(guestSession.id, sessionToSave.sessionDuration);
-    toast.success('Session saved on this device');
+    finishSavedSession(
+      guestSession.id,
+      sessionToSave.sessionDuration,
+      sessionName
+    );
+    toast.success(`${sessionName} saved in this browser${leftOut}`);
 
     if (
       !guestStorageWarned &&
@@ -1689,41 +1722,47 @@ export const useLiveControlsState = ({
         { duration: UI_TIMING.UNDO_WINDOW }
       );
     }
+    return guestSession.id;
   };
 
-  const handleCompleteSession = async (confirmedName: string) => {
-    // A second tap while the first save is still in flight saves nothing.
+  /**
+   * Save the session as it stands, under its name. Complete Session goes on
+   * to its Analysis (`openAnalysis`); finishing an old session to start a
+   * new one, or completing it before signing out (`onSaved`), stays put.
+   * Either way the page is on a fresh session once it is saved. The checks
+   * are the caller's (see `canCompleteSession`). `leftOut`: the number of a
+   * match that was on and is not in it, for the toast to say so.
+   */
+  const completeSessionNow = async ({
+    openAnalysis,
+    onSaved,
+    leftOut,
+  }: {
+    openAnalysis: boolean;
+    onSaved?: () => void;
+    leftOut?: number | null;
+  }) => {
+    // A second press while the first save is still in flight saves nothing.
     if (completingRef.current) return;
-    if (isInWalkthrough('complete the session')) return;
-    const sessionName = confirmedName.trim();
-    if (!sessionName) return;
-    if (matchActive) {
-      toast.error(RUNNING_MATCH_MESSAGE, { id: COMPLETE_BLOCKED_TOAST_ID });
+    const sessionName = sessionData.sessionName?.trim() ?? '';
+    // One kept from an older build without a name gets one first.
+    if (!sessionName) {
+      setShowRenameDialog(true);
       return;
     }
-    // A dialog left open over a session that has since been completed or
-    // discarded (in another tab) must not save the empty one that replaced
-    // it.
-    if (!sessionData.matches?.length) {
-      setShowSaveSessionDialog(false);
-      return;
-    }
+    if (matchActive || !sessionData.matches?.length) return;
 
     completingRef.current = true;
     setIsCompleting(true);
-    // The dialog stays up until the save settles, so nothing under it can be
-    // edited meanwhile: such an edit would not be in what was stored. It
-    // then closes onto the page or the completed screen.
     absorbDoubleTap();
-    updateSessionData({ sessionName });
-    setIsTimerRunning(false);
+    setPendingConfirm(null);
 
+    const without = leftOut ? `, without the unfinished Match ${leftOut}` : '';
+    let savedId: string | null = null;
     try {
-      if (uid) {
-        await saveToAccount(uid, sessionName);
-      } else {
-        saveToBrowser(sessionName);
-      }
+      savedId = uid
+        ? await saveToAccount(uid, sessionName, without)
+        : saveToBrowser(sessionName, without);
     } catch (error) {
       if (!(error instanceof SaveTimeoutError)) {
         logger.error('Error saving session', error);
@@ -1732,7 +1771,7 @@ export const useLiveControlsState = ({
         toast.error(
           isQuotaError(error)
             ? 'Guest storage is full - sign in or delete old sessions'
-            : 'An error occurred while saving the session. Your data is preserved — please try again.'
+            : "Couldn't save the session. Your matches are kept, try again."
         );
       } else {
         toast.error(saveErrorMessage(error));
@@ -1740,9 +1779,161 @@ export const useLiveControlsState = ({
     } finally {
       completingRef.current = false;
       setIsCompleting(false);
-      setShowSaveSessionDialog(false);
+    }
+    if (!savedId) return;
+    onSaved?.();
+    if (openAnalysis && mountedRef.current) {
+      navigate(`${ROUTES.ANALYSIS}?sessionId=${encodeURIComponent(savedId)}`);
     }
   };
+
+  /**
+   * "Finish it, start new", for a session left open since an earlier day:
+   * it is saved as it stands and a fresh session takes its place, without
+   * leaving the page. A match left unsaved in it that reached its buzzer
+   * with points is part of it, as Save Match would have made it, dated when
+   * it was played. One stopped part way through is not a match: it goes,
+   * and the toast says so. With no saved match there is nothing to save,
+   * and it is discarded, with its Undo.
+   */
+  const handleFinishAndStartNew = () => {
+    if (isRepeatedPrimaryAction()) return;
+    if (isInWalkthrough('complete the session') || completingRef.current)
+      return;
+    if (savedMatchCount === 0) {
+      handleDiscardSession();
+      return;
+    }
+    if (editingMatchId) returnToCurrentMatch();
+    let leftOut: number | null = null;
+    if (matchActive) {
+      const kept = matchEnded && hasUnsavedMatchData && !editingMatchId;
+      if (!matchEnded && hasUnsavedMatchData) leftOut = matchNumber;
+      updateSessionData({
+        ...(kept && {
+          matches: [
+            ...(sessionData.matches ?? []),
+            runningMatchAsSaved(lastActivityAt ?? Date.now()),
+          ],
+        }),
+        ...emptyScoringFields(),
+      });
+      resetTimer();
+      setMatchActive(false);
+      setIsTimerRunning(false);
+    }
+    // Once that has been applied: the save goes by the session as it stands.
+    setTimeout(() => {
+      if (mountedRef.current) {
+        void completeNowRef.current({ openAnalysis: false, leftOut });
+      }
+    }, 0);
+  };
+
+  /** The latest `completeSessionNow`, for a call made after a render */
+  const completeNowRef = useRef(completeSessionNow);
+  useEffect(() => {
+    completeNowRef.current = completeSessionNow;
+  });
+
+  // "Complete session" from the sign-out question: picked up as the page
+  // opens, or at once if it is open.
+  const completeRequestRef = useRef<(request: CompleteRequest) => void>(
+    () => {}
+  );
+  useEffect(() => {
+    completeRequestRef.current = request => {
+      if (!canCompleteSession()) return;
+      void completeSessionNow({
+        openAnalysis: false,
+        onSaved: request.onSaved,
+      });
+    };
+  });
+  useEffect(() => {
+    const take = () => {
+      const request = takeCompleteRequest();
+      if (request) completeRequestRef.current(request);
+    };
+    take();
+    return onCompleteRequest(take);
+  }, []);
+
+  // A save this browser started and lost track of (the page was reloaded or
+  // closed while it was on its way) may have landed: if the session it
+  // wrote is there, it is this one, finished, and the page moves on.
+  const pendingCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!uid || pendingCheckedRef.current) return;
+    pendingCheckedRef.current = true;
+    const note = readPendingSaveNote();
+    const matches = sessionData.matches ?? [];
+    if (
+      !note ||
+      note.uid !== uid ||
+      sessionData.isSessionCompleted ||
+      matchActive ||
+      !note.matchIds.some(id => matches.some(match => match.id === id))
+    ) {
+      return;
+    }
+    const epoch = sessionEpoch;
+    void firebaseService.getSession(note.id).then(stored => {
+      const current = sessionDataRef.current;
+      const ids = (current.matches ?? []).map(match => match.id);
+      const storedIds = (stored?.matches ?? []).map(match => match.id);
+      if (
+        !stored ||
+        !mountedRef.current ||
+        sessionEpochRef.current !== epoch ||
+        matchActiveRef.current ||
+        completingRef.current ||
+        ids.length !== storedIds.length ||
+        ids.some(id => !storedIds.includes(id))
+      ) {
+        return;
+      }
+      if (editingMatchIdRef.current) returnToCurrentMatch();
+      finishSavedSession(
+        note.id,
+        stored.sessionDuration ?? '',
+        stored.sessionName || current.sessionName
+      );
+      toast.success(`${stored.sessionName || current.sessionName} saved`, {
+        action: {
+          label: 'View',
+          onClick: () =>
+            navigate(
+              `${ROUTES.ANALYSIS}?sessionId=${encodeURIComponent(note.id)}`
+            ),
+        },
+      });
+    });
+    // Once, as the page opens with the account known.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);
+
+  // A new session is numbered past the account's own saved sessions: read
+  // their names once per page load while one is about to be named.
+  const freshSession = !hasStarted && !matchActive && savedMatchCount === 0;
+  useEffect(() => {
+    if (!uid || !freshSession || namesReadFor.has(uid) || !navigator.onLine) {
+      return;
+    }
+    namesReadFor.add(uid);
+    firebaseService
+      .getUserSessions(uid)
+      .then(sessions =>
+        rememberSessionNames(
+          uid,
+          sessions
+            .filter(session => session.userId === uid)
+            .map(session => session.sessionName ?? '')
+        )
+      )
+      // Offline or refused: numbered from what this browser remembers.
+      .catch(() => namesReadFor.delete(uid));
+  }, [uid, freshSession]);
 
   const handleDeleteMatch = (matchId: string) => {
     if (isSavingSession()) return;
@@ -1763,9 +1954,8 @@ export const useLiveControlsState = ({
     updateSessionData({
       matches: before.filter(m => m.id !== matchId),
     });
-    // The rows below move up to where the question was.
+    // The rows below move up to where the trash button was.
     absorbDoubleTap();
-    setDeleteConfirmIdState(null);
     // "Match N saved" would now be about a match that may be gone.
     toast.dismiss(MATCH_SAVED_TOAST_ID);
 
@@ -1837,19 +2027,15 @@ export const useLiveControlsState = ({
     });
   };
 
-  // Escape answers any open question with its safe choice.
+  // Escape answers the open question with its safe choice.
   useEscapeKey(pendingConfirm !== null, () => setPendingConfirm(null));
-  useEscapeKey(deleteConfirmId !== null, () => setDeleteConfirmIdState(null));
-  useEscapeKey(newSessionConfirm, () => setNewSessionConfirm(false));
 
-  /** The X beside the match controls: only asks. The clock keeps running. */
-  const handleRequestDiscardMatch = () => {
+  /**
+   * The X beside the match controls: the match goes at once, with an Undo
+   * that brings it back where the field is now.
+   */
+  const handleDiscardMatch = () => {
     if (!matchActive || editingMatchId) return;
-    askConfirm('discardMatch');
-  };
-
-  const handleDiscardCurrentMatch = () => {
-    if (!matchActive) return;
     // What its Undo puts back: the numbers, and the clock as it stood.
     const discarded = {
       scoring: pickScoringFields(sessionData),
@@ -1923,14 +2109,6 @@ export const useLiveControlsState = ({
             });
             return;
           }
-          // The match would run on behind the dialog, which then can't save.
-          if (saveSessionDialogRef.current) {
-            event.preventDefault();
-            toast.info('Close the Save Session dialog to undo', {
-              id: SAVE_DIALOG_OPEN_TOAST_ID,
-            });
-            return;
-          }
           // Only while no other match has taken its place.
           if (!undoToastIdsRef.current.delete(toastId)) return;
           const current = sessionDataRef.current;
@@ -1965,6 +2143,29 @@ export const useLiveControlsState = ({
     sessionData.matches?.find(match => match.id === editingMatchId)
       ?.matchNumber ?? null;
 
+  /**
+   * When the session was last used, in epoch ms: its newest saved match, or
+   * the session or a match being started. Null for a session not started.
+   */
+  const lastActivityAt = useMemo(() => {
+    if (!hasStarted && (sessionData.matches?.length ?? 0) === 0) return null;
+    const readTime = (key: string) => {
+      try {
+        return Number(localStorage.getItem(key)) || 0;
+      } catch {
+        return 0;
+      }
+    };
+    const times = [
+      ...(sessionData.matches ?? []).map(match =>
+        match.createdAt ? toDate(match.createdAt).getTime() || 0 : 0
+      ),
+      readTime(STORAGE_KEYS.SESSION_START_TIME),
+      matchActive ? readTime(STORAGE_KEYS.MATCH_START_TIME) : 0,
+    ];
+    return Math.max(...times) || null;
+  }, [hasStarted, matchActive, sessionData.matches]);
+
   return {
     sessionData,
     isDarkMode,
@@ -1995,35 +2196,23 @@ export const useLiveControlsState = ({
     sessionLimitReached,
     pendingConfirm,
     handleKeepConfirm,
-    deleteConfirmId,
-    setDeleteConfirmId,
-    newSessionConfirm,
-    setNewSessionConfirm,
-    showSaveSessionDialog,
-    setShowSaveSessionDialog,
+    showRenameDialog,
+    setShowRenameDialog,
     showUnsavedEditWarning,
     setShowUnsavedEditWarning,
+    /** "Save Match 3 first" / "Finish Match 3 first", while a match is on */
+    matchFirstMessage,
+    lastActivityAt,
 
-    isSessionSetupSaved,
-    onOpenSessionSetup,
-
-    handleViewAnalysis,
-    handleNewSession,
-    handleConfirmNewSession,
-    handleRequestDiscardSession,
-    handleConfirmDiscardSession,
+    handleDiscardSession,
     handleStartMatch,
-    handleRequestEndMatch,
-    handleConfirmEndMatch,
+    handleEndEarly,
     handleSaveMatch,
-    handleConfirmSaveMatch,
-    handleCountFirst,
     handleRequestCompleteSession,
     handleConfirmCompleteWithStray,
-    handleCompleteSession,
+    handleFinishAndStartNew,
     handleDeleteMatch,
-    handleRequestDiscardMatch,
-    handleDiscardCurrentMatch,
+    handleDiscardMatch,
   };
 };
 
