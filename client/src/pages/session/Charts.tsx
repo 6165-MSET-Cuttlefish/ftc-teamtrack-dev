@@ -626,9 +626,20 @@ const Charts = () => {
   const navigate = useNavigate();
   const finePointer = useMediaQuery(FINE_POINTER);
 
-  const { sessions, loading } = useLifetimeSessions();
-  const { scope, setScope, inScope, choices, scopeLabel } =
-    useSessionScope(sessions);
+  const {
+    sessions,
+    loading,
+    hasMore,
+    loadingOlder,
+    olderFailed,
+    completeAfter,
+    loadOlder,
+    loadAll,
+  } = useLifetimeSessions();
+  const { scope, setScope, inScope, choices, scopeLabel } = useSessionScope(
+    sessions,
+    !hasMore
+  );
   const [timeRange, setTimeRange] = useState<TimeRange>('30');
   /** The match type asked for; null until one is, and the commonest is used */
   const [pickedType, setPickedType] = useState<string | null>(null);
@@ -674,6 +685,40 @@ const Charts = () => {
     () => sessions.filter(inScope),
     [sessions, inScope]
   );
+
+  /**
+   * Sessions are read newest first, a page at a time. The range on screen
+   * is drawn from every session in it: older pages are read until it is
+   * covered (all of them for All time). The default 30 days takes only the
+   * first page unless more sessions were recorded in them than a page
+   * holds (a busy team, or a member with many of their own beside it):
+   * those are read too, rather than charted in part.
+   */
+  const rangeCovered =
+    !hasMore ||
+    (timeRange !== 'all' &&
+      completeAfter !== null &&
+      completeAfter.getTime() <=
+        Date.now() - parseInt(timeRange) * 24 * 60 * 60 * 1000);
+  /**
+   * Nothing read so far is this season's: whether there are any at all is
+   * only known once older pages say, whatever the range.
+   */
+  const noneRead = sessions.length === 0 && hasMore;
+  useEffect(() => {
+    if (loading || loadingOlder || olderFailed) return;
+    if (rangeCovered && !noneRead) return;
+    void (timeRange === 'all' ? loadAll() : loadOlder());
+  }, [
+    loading,
+    rangeCovered,
+    noneRead,
+    loadingOlder,
+    olderFailed,
+    timeRange,
+    loadAll,
+    loadOlder,
+  ]);
 
   const filteredSessions = useMemo((): Session[] => {
     if (timeRange === 'all') return scopedSessions;
@@ -738,7 +783,8 @@ const Charts = () => {
   const wrapClass = `${PAGE_CONTAINER} py-4 sm:py-6 md:py-8`;
   const cardClass = `rounded-xl shadow-none ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`;
 
-  if (loading) {
+  // Nothing read so far is this season's: older pages are read for some.
+  if (loading || (noneRead && !olderFailed)) {
     return (
       <div
         className={`min-h-[100dvh] flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
@@ -823,6 +869,10 @@ const Charts = () => {
       `${plural(emptySessionCount, 'empty session')} not counted`,
     RANGE_LABELS[timeRange],
     scopeLabel,
+    !rangeCovered &&
+      (olderFailed
+        ? "older sessions couldn't be read"
+        : 'reading older sessions...'),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -967,7 +1017,7 @@ const Charts = () => {
                 </h2>
                 <p className={`mb-6 text-sm sm:text-base ${muted}`}>
                   {scopedSessions.length === 0
-                    ? `${plural(sessions.length, 'session')} under All.`
+                    ? `${plural(sessions.length, 'session')} under All${hasMore ? ', and older ones not read yet' : ''}.`
                     : filteredSessions.length === 0
                       ? outOfRangeMessage(scopedSessions)
                       : filteredSessions.length === 1

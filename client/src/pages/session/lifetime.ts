@@ -3,113 +3,78 @@
  * analyse, and how a session, a date or a number is written on them.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from 'react';
-import { toast } from 'sonner';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { useAuth, useTeam } from '@/contexts';
-import { firebaseService } from '@/services';
-import {
-  calculateScore,
-  isAbortError,
-  logger,
-  readGuestSessions,
-  toDate,
-} from '@/lib';
+import { calculateScore, toDate } from '@/lib';
 import {
   getPendingDeleteIds,
-  onSessionDeleted,
   subscribePendingDeletes,
 } from '@/lib/pendingSessionDeletes';
 import type { Match, ScoreBreakdown, Session } from '@/types';
 import { inSessionScope, SESSION_SCOPES } from './sessionList';
 import type { SessionScope } from './sessionList';
+import { useSessionList } from './useSessionList';
+import type { SessionList } from './useSessionList';
 
 /**
  * The sessions the signed-in user (or their team, or this browser's guest)
- * has, newest first. Sessions deleted but still inside their undo window are
- * left out, and come back if the delete is undone.
+ * has, newest first: the newest page to begin with (the same one the
+ * Sessions page opens on), and older ones as `loadOlder` and `loadAll`
+ * read them. Sessions deleted but still inside their undo window are left
+ * out, and come back if the delete is undone.
  */
-export const useLifetimeSessions = (): {
-  sessions: Session[];
-  loading: boolean;
-} => {
-  const { user, isGuest } = useAuth();
-  const { team } = useTeam();
-  const [loaded, setLoaded] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
+export const useLifetimeSessions = (): Pick<
+  SessionList,
+  | 'sessions'
+  | 'loading'
+  | 'hasMore'
+  | 'loadingOlder'
+  | 'olderFailed'
+  | 'completeAfter'
+  | 'loadOlder'
+  | 'loadAll'
+> => {
+  const list = useSessionList();
   const hiddenIds = useSyncExternalStore(
     subscribePendingDeletes,
     getPendingDeleteIds
   );
 
-  const uid = user?.uid;
-  const teamId = team?.id;
-
-  useEffect(
-    () =>
-      onSessionDeleted(sessionId =>
-        setLoaded(prev => prev.filter(s => s.id !== sessionId))
-      ),
-    []
-  );
-
-  useEffect(() => {
-    // A guest's sessions live in this browser.
-    if (isGuest) {
-      setLoaded(readGuestSessions());
-      setLoading(false);
-      return;
-    }
-    if (!uid) return;
-
-    let active = true;
-    setLoading(true);
-    (async () => {
-      try {
-        const fetched = teamId
-          ? await firebaseService.getTeamSessions(teamId)
-          : await firebaseService.getUserSessions(uid);
-        if (active) setLoaded(fetched);
-      } catch (error) {
-        if (!active || isAbortError(error)) return;
-        logger.error('Error loading sessions', error);
-        toast.error('Failed to load sessions');
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [uid, isGuest, teamId]);
-
+  const loaded = list.sessions;
   const sessions = useMemo(
     () => loaded.filter(s => !hiddenIds.has(s.id)),
     [loaded, hiddenIds]
   );
 
-  return { sessions, loading };
+  return {
+    sessions,
+    loading: list.loading,
+    hasMore: list.hasMore,
+    loadingOlder: list.loadingOlder,
+    olderFailed: list.olderFailed,
+    completeAfter: list.completeAfter,
+    loadOlder: list.loadOlder,
+    loadAll: list.loadAll,
+  };
 };
 
 /**
  * In a team the list is the team's sessions plus the user's own unshared
  * ones. This narrows it to either half and says in words what is on screen.
- * Outside a team there is one list, so no choices and no label.
+ * Outside a team there is one list, so no choices and no label. `complete`
+ * says the list holds every session; until it does, the choices carry no
+ * counts, which would only count the sessions read so far.
  */
 export const useSessionScope = (
-  sessions: Session[]
+  sessions: Session[],
+  complete = true
 ): {
   scope: SessionScope;
   setScope: (scope: SessionScope) => void;
   /** Whether a session belongs to the chosen scope */
   inScope: (session: Session) => boolean;
   /** The choices with how many sessions each holds; empty outside a team */
-  choices: Array<{ value: SessionScope; label: string; count: number }>;
+  choices: Array<{ value: SessionScope; label: string; count?: number }>;
   /** 'shared with <team>' and the like; null outside a team */
   scopeLabel: string | null;
 } => {
@@ -136,12 +101,14 @@ export const useSessionScope = (
         ? SESSION_SCOPES.map(({ value, label }) => ({
             value,
             label,
-            count: sessions.filter(session =>
-              inSessionScope(session, value, { teamId, uid })
-            ).length,
+            count: complete
+              ? sessions.filter(session =>
+                  inSessionScope(session, value, { teamId, uid })
+                ).length
+              : undefined,
           }))
         : [],
-    [sessions, teamId, uid]
+    [sessions, complete, teamId, uid]
   );
 
   const scopeLabel = !teamId

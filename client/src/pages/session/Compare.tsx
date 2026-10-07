@@ -555,7 +555,14 @@ const Compare = () => {
   const { team } = useTeam();
   const [searchParams] = useSearchParams();
 
-  const { sessions: listedSessions, loading } = useLifetimeSessions();
+  // The newest page of sessions, and older ones a press away
+  const {
+    sessions: listedSessions,
+    loading,
+    hasMore,
+    loadingOlder,
+    loadOlder,
+  } = useLifetimeSessions();
   /**
    * The listed sessions that can be compared. A session with no matches has
    * nothing to compare, so it is never offered, nor counted in the scopes.
@@ -564,8 +571,10 @@ const Compare = () => {
     () => listedSessions.filter(s => s.matches.length > 0),
     [listedSessions]
   );
-  const { scope, setScope, inScope, choices, scopeLabel } =
-    useSessionScope(comparableSessions);
+  const { scope, setScope, inScope, choices, scopeLabel } = useSessionScope(
+    comparableSessions,
+    !hasMore
+  );
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   /** The match type asked for; the most common one until then */
   const [pickedType, setPickedType] = useState<string | null>(null);
@@ -1338,6 +1347,20 @@ const Compare = () => {
     </button>
   );
 
+  /** The end of the sessions read so far: the next page is a press away */
+  const showOlderButton = hasMore && (
+    <div aria-live="polite" className="mt-3">
+      <button
+        type="button"
+        onClick={() => void loadOlder()}
+        disabled={loadingOlder}
+        className={`min-h-11 rounded-lg border px-5 text-sm font-semibold transition-colors disabled:opacity-60 ${isDarkMode ? 'border-team-blue-40 text-white hover:border-team-blue' : 'border-gray-300 text-gray-900 hover:border-gray-400'}`}
+      >
+        {loadingOlder ? 'Loading older sessions...' : 'Show older sessions'}
+      </button>
+    </div>
+  );
+
   const sessionList =
     sessions.length === 0 ? (
       <div
@@ -1423,6 +1446,7 @@ const Compare = () => {
             );
           })}
         </div>
+        {showOlderButton}
         {isCompact && pickedCount > 0 && (
           // Clear only where the list carries the count: in Matches mode
           // the Clear beside the count clears the matches
@@ -2346,6 +2370,7 @@ const Compare = () => {
                   </div>
                 )}
                 {sessionList}
+                {sessions.length === 0 && showOlderButton}
               </>
             )}
           </div>
