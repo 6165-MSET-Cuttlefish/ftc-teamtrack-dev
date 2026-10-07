@@ -154,10 +154,10 @@ interface SessionCoreContextType {
   /** AUTO (or controller pickup) of a Full Game straight to the start of TELEOP */
   skipToTeleop: () => void;
   /**
-   * TELEOP straight to the start of ENDGAME (GAME_TIMING.ENDGAME_REMAINING
-   * left). A paused clock stays paused.
+   * TELEOP straight to 1:00, when FLOWERS unlock
+   * (GAME_TIMING.FLOWERS_UNLOCK_REMAINING left). A paused clock stays paused.
    */
-  skipToEndgame: () => void;
+  skipToFlowers: () => void;
   /**
    * A running match straight to the buzzer, from wherever it is: Skip to
    * Buzzer in its last period (TELEOP, or AUTO of an Autonomous match), or
@@ -1173,7 +1173,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     ) {
       return;
     }
-    // A paused match stays paused, as with Skip to Endgame: TELEOP starts
+    // A paused match stays paused, as with Skip to 1:00: TELEOP starts
     // on Resume, and so does its audio.
     const wasRunning =
       clock.phase === 'controller_pickup' ? !clock.pickupPaused : clock.running;
@@ -1194,28 +1194,29 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     );
   }, [commitClock]);
 
-  const skipToEndgame = useCallback(() => {
+  const skipToFlowers = useCallback(() => {
     const clock = clockRef.current;
-    const endgameMs = GAME_TIMING.ENDGAME_REMAINING * 1000;
-    // Only ever forward: once ENDGAME is on, the skip is to the end.
+    const flowersMs = GAME_TIMING.FLOWERS_UNLOCK_REMAINING * 1000;
+    // Only ever forward: once FLOWERS are unlocked, the skip is to the end.
     if (
       clock.phase !== 'teleop' ||
-      matchSecondsLeft(clock, Date.now()) <= GAME_TIMING.ENDGAME_REMAINING
+      matchSecondsLeft(clock, Date.now()) <=
+        GAME_TIMING.FLOWERS_UNLOCK_REMAINING
     ) {
       return;
     }
-    // The endgame chime is cued off the track, so it sounds as the clock
+    // The wind chimes start the track's 1:00, so they sound as the clock
     // lands there (or on Resume, if paused).
     cueMatchAudio(
       matchAudioTime(
         envRef.current.matchType,
         'teleop',
-        GAME_TIMING.ENDGAME_REMAINING
+        GAME_TIMING.FLOWERS_UNLOCK_REMAINING
       ),
       false
     );
     commitClock(
-      current => ({ ...current, remainingMs: endgameMs, deadline: null }),
+      current => ({ ...current, remainingMs: flowersMs, deadline: null }),
       true
     );
   }, [commitClock]);
@@ -1341,7 +1342,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       matchActive,
       setMatchActive,
       skipToTeleop,
-      skipToEndgame,
+      skipToFlowers,
       skipToEnd,
       holdMatchClock,
       resumeMatchClock,
@@ -1378,7 +1379,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       saveEditedMatch,
       matchActive,
       skipToTeleop,
-      skipToEndgame,
+      skipToFlowers,
       skipToEnd,
       holdMatchClock,
       resumeMatchClock,

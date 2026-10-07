@@ -41,8 +41,8 @@ export const GAME_TIMING = {
   AUTON_END_REMAINING: 120,
   /** Duration of the controller pickup phase (yellow) */
   CONTROLLER_PICKUP_SECONDS: 8,
-  /** Match clock value at which the BIOBUZZ endgame (the last 60 s of teleop) begins */
-  ENDGAME_REMAINING: 60,
+  /** Match clock value at which FLOWERS unlock: manual Table 9-1 "FLOWER Ownership Unlocked", G410/G426 (last 60 s) */
+  FLOWERS_UNLOCK_REMAINING: 60,
 } as const;
 
 /** Season tag written on every new session; older seasons are hidden. */

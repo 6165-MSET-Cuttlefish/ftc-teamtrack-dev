@@ -340,7 +340,7 @@ export const useLiveControlsState = ({
     matchActive,
     setMatchActive,
     skipToTeleop,
-    skipToEndgame,
+    skipToFlowers,
     skipToEnd,
     sessionEpoch,
     isTutorialActive,
@@ -1002,7 +1002,6 @@ export const useLiveControlsState = ({
       setMatchPhase('auton');
     }
     setIsTimerRunning(true);
-    window.dispatchEvent(new Event('teamtrack-match-started'));
   };
 
   // The "Cleared … - Undo" toast is for the match that was just started,
@@ -1980,7 +1979,7 @@ export const useLiveControlsState = ({
     saveEditedMatch: handleSaveEditedMatch,
     returnToCurrentMatch: handleCancelEditedMatch,
     skipToTeleop,
-    skipToEndgame,
+    skipToFlowers,
     skipToEnd: handleSkipToEnd,
     markPrimaryAction,
 

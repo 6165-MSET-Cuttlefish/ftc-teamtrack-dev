@@ -85,17 +85,17 @@ interface StepDef {
 const timingSentence = (matchType: string): string => {
   const auto = formatTime(GAME_TIMING.AUTONOMOUS_DURATION_SECONDS);
   const teleop = formatTime(GAME_TIMING.TELEOP_DURATION_SECONDS);
-  const endgame =
-    GAME_TIMING.ENDGAME_REMAINING === 60
-      ? 'the last minute'
-      : `the last ${GAME_TIMING.ENDGAME_REMAINING} seconds`;
+  // The FLOWERS on the field unlock mid-TELEOP, but End of Match (where the
+  // flowers are counted) waits for the buzzer: say so, or "unlock" reads as
+  // those counters opening.
+  const flowers = `Flowers unlock at ${formatTime(GAME_TIMING.FLOWERS_UNLOCK_REMAINING)}; count them after the buzzer.`;
   switch (matchType) {
     case 'Autonomous':
       return `The clock runs Auto (${auto}).`;
     case 'Teleop':
-      return `The clock runs Teleop (${teleop}). Endgame is ${endgame}.`;
+      return `The clock runs Teleop (${teleop}). ${flowers}`;
     default:
-      return `After a 3-2-1: Auto (${auto}), an ${GAME_TIMING.CONTROLLER_PICKUP_SECONDS}-second controller pickup, then Teleop (${teleop}). Endgame is ${endgame}.`;
+      return `After a 3-2-1: Auto (${auto}), an ${GAME_TIMING.CONTROLLER_PICKUP_SECONDS}-second controller pickup, then Teleop (${teleop}). ${flowers}`;
   }
 };
 

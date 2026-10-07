@@ -143,11 +143,11 @@ export const CancelMatchButton = () => {
 };
 
 /** The next point of the match that Skip jumps to */
-type SkipTarget = 'teleop' | 'endgame' | 'end';
+type SkipTarget = 'teleop' | 'flowers' | 'end';
 
 const SKIP_LABELS: Record<SkipTarget, { full: string; to: string }> = {
   teleop: { full: 'Skip to Teleop', to: 'to Teleop' },
-  endgame: { full: 'Skip to Endgame', to: 'to Endgame' },
+  flowers: { full: 'Skip to 1:00', to: 'to 1:00' },
   end: { full: 'Skip to Buzzer', to: 'to Buzzer' },
 };
 
@@ -155,9 +155,9 @@ const SKIP_LABELS: Record<SkipTarget, { full: string; to: string }> = {
 const skipTargetsFor = (matchType: string): SkipTarget[] => {
   switch (matchType) {
     case 'Full Game':
-      return ['teleop', 'endgame', 'end'];
+      return ['teleop', 'flowers', 'end'];
     case 'Teleop':
-      return ['endgame', 'end'];
+      return ['flowers', 'end'];
     default:
       return ['end'];
   }
@@ -165,8 +165,8 @@ const skipTargetsFor = (matchType: string): SkipTarget[] => {
 
 /**
  * Where Skip goes from here: TELEOP from AUTO (and controller pickup) of a
- * Full Game, ENDGAME from earlier in TELEOP, and the buzzer from ENDGAME or
- * from AUTO of an Autonomous match. Null once the match is over.
+ * Full Game, 1:00 (FLOWERS) from earlier in TELEOP, and the buzzer from
+ * FLOWERS or from AUTO of an Autonomous match. Null once the match is over.
  */
 const skipTargetOf = (
   matchType: string,
@@ -174,7 +174,7 @@ const skipTargetOf = (
   timer: number
 ): SkipTarget | null => {
   if (matchPhase === 'teleop') {
-    return timer > GAME_TIMING.ENDGAME_REMAINING ? 'endgame' : 'end';
+    return timer > GAME_TIMING.FLOWERS_UNLOCK_REMAINING ? 'flowers' : 'end';
   }
   if (matchPhase === 'auton' || matchPhase === 'controller_pickup') {
     if (matchType === 'Full Game') return 'teleop';
@@ -286,7 +286,7 @@ export const MatchExtras = () => {
     matchActive,
     editingMatchId,
     skipToTeleop,
-    skipToEndgame,
+    skipToFlowers,
     skipToEnd,
   } = useLiveControls();
   const { timer } = useSession();
@@ -297,7 +297,7 @@ export const MatchExtras = () => {
       ? null
       : skipTargetOf(sessionData.matchType, matchPhase, timer);
   // The label changes in place under the pointer: the second tap of a
-  // double tap (or a press right as ENDGAME starts) must not skip again.
+  // double tap (or a press right as FLOWERS starts) must not skip again.
   const armed = useArmed(SKIP_ARM_DELAY_MS, target);
   const targets = skipTargetsFor(sessionData.matchType);
 
@@ -331,7 +331,7 @@ export const MatchExtras = () => {
 
   if (!target) return null;
 
-  const skip = { teleop: skipToTeleop, endgame: skipToEndgame, end: skipToEnd };
+  const skip = { teleop: skipToTeleop, flowers: skipToFlowers, end: skipToEnd };
 
   return (
     <button

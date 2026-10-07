@@ -1,8 +1,44 @@
+/**
+ * The match sound, match-audio.mp3: one Full Game (see `matchAudioTime`) of
+ * FIRST's own sounds from FTC Live 8.0.0-beta.3, the BIOBUZZ scoring
+ * system, each at the time FTC Live plays it. By their cue in the manual's
+ * Table 9-1:
+ *
+ *   File s  Full Game clock  Table 9-1 cue                    FTC Live sound
+ *    1.000  3-2-1            (the app's 3-2-1 before AUTO)    3-2-1.flac
+ *    4.000  2:30             MATCH start: Cavalry Charge      charge.flac
+ *   34.000  2:00             AUTO ends: Buzzer x3             endauto.flac
+ *   36.000  pickup 0:06      AUTO to TELEOP Transition:       controllers.flac
+ *                              "Drivers, pick up your
+ *   39.000  pickup 0:03        controllers, 3-2-1"            3-2-1.flac
+ *   42.000  2:00             TELEOP begins: 3 Bells           firebell.flac
+ *  102.000  1:00             FLOWER Ownership Unlocked [TBD]  windchimes.flac
+ *  142.000  0:20             Final 20 seconds: Train Whistle  whistle.flac
+ *  162.000  0:00             MATCH end: 3-second Buzzer       endmatch.flac
+ *
+ * The manual still has [TBD] for the 1:00 sound as of TU03 (2026-10-01);
+ * the wind chimes are what FTC Live plays there. Re-check when FTC Live
+ * 8.0.0 final or a new Team Update ships. Left out: the optional "This MATCH
+ * begins in 3, 2, 1, GO" (countdown.flac) and the Foghorn of a MATCH
+ * stopped. Built by laying each sound at its file time, at FIRST's level
+ * (FTC Live plays each at full volume), with silence between (167.5 s),
+ * then ffmpeg libmp3lame mono 64 kb/s.
+ *
+ * Imported rather than kept in public/, so its URL carries a hash of the
+ * file: the times in `matchAudioTime` belong to this track, and a phone that
+ * cached an earlier one under the same name would play it against them.
+ */
+
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/contexts';
-import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
-import { clockAudioTime, TELEOP_AUDIO_OFFSET } from '@/lib/matchAudioTime';
+import { STORAGE_KEYS } from '@/constants';
+import {
+  clockAudioTime,
+  matchAudioStopTime,
+  matchAudioTime,
+} from '@/lib/matchAudioTime';
+import matchAudioUrl from '@/assets/audio/match-audio.mp3';
 
 interface TeamTrackWindow extends Window {
   __teamtrack_match_audio__?: HTMLAudioElement;
@@ -12,88 +48,12 @@ interface TeamTrackWindow extends Window {
 }
 const ttWindow = window as TeamTrackWindow;
 
-/**
- * File time of 1:00 remaining, when BIOBUZZ endgame (and flower scoring)
- * opens. The track is silent there: the manual's "FLOWER Ownership Unlocked"
- * sound is still TBD, so a short chime is synthesized on top. Once the
- * official sound is published, splice it into match-audio.mp3 at this file
- * time and delete the chime. The 0:20 whistle is already in the track.
- */
-const ENDGAME_CUE_AUDIO_TIME =
-  TELEOP_AUDIO_OFFSET +
-  GAME_TIMING.TELEOP_DURATION_SECONDS -
-  GAME_TIMING.ENDGAME_REMAINING;
-/** How far ahead of the cue the chime is queued, in seconds */
-const ENDGAME_CUE_LEAD = 0.5;
-/** How late the chime may still play if the cue was not seen coming, in seconds */
-const ENDGAME_CUE_GRACE = 1;
-
 /** Furthest the audio may be from the match clock before it is moved, in seconds */
 const MAX_AUDIO_DRIFT = 0.5;
 /** Shortest gap between two attempts to re-download a failed track, in ms */
 const RELOAD_RETRY_MS = 3000;
 
 const SOUND_UNAVAILABLE_TOAST_ID = 'match-sound-unavailable';
-
-let chimeContext: AudioContext | null = null;
-
-const getChimeContext = (): AudioContext | null => {
-  if (chimeContext) return chimeContext;
-  const Ctor =
-    window.AudioContext ??
-    (window as Window & { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-  if (!Ctor) return null;
-  chimeContext = new Ctor();
-  return chimeContext;
-};
-
-/** Browsers only allow audio started from a tap, so wake the context then. */
-const unlockChime = () => {
-  getChimeContext()
-    ?.resume()
-    .catch(() => {});
-};
-
-/** Two rising notes, starting `delay` seconds from now. */
-const playEndgameChime = (delay = 0) => {
-  const ctx = getChimeContext();
-  if (!ctx) return;
-
-  const schedule = (wait: number) => {
-    const start = ctx.currentTime + wait;
-    [880, 1175].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const t = start + i * 0.18;
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(t);
-      osc.stop(t + 0.4);
-    });
-  };
-
-  if (ctx.state === 'running') {
-    schedule(delay);
-    return;
-  }
-  // A context that is still locked would hold the notes until some later
-  // tap, long after 1:00. Only play if it wakes up in time to be on cue.
-  const askedAt = performance.now();
-  ctx
-    .resume()
-    .then(() => {
-      const waited = (performance.now() - askedAt) / 1000;
-      if (waited <= delay + ENDGAME_CUE_GRACE) {
-        schedule(Math.max(0, delay - waited));
-      }
-    })
-    .catch(() => {});
-};
 
 const clearAudioState = () => {
   try {
@@ -133,37 +93,16 @@ const reloadIfBroken = (audio: HTMLAudioElement, force = false): boolean => {
 const wireGlobalAudio = (audio: HTMLAudioElement) => {
   ttWindow.__teamtrack_match_audio_unwire__?.();
 
-  // The endgame chime runs off the audio's own clock, once per play-through.
-  let chimed = false;
-  const handleTimeUpdate = () => {
-    const untilCue = ENDGAME_CUE_AUDIO_TIME - audio.currentTime;
-    if (untilCue > ENDGAME_CUE_LEAD) {
-      chimed = false;
-      return;
-    }
-    if (chimed || audio.paused || untilCue <= -ENDGAME_CUE_GRACE) return;
-    chimed = true;
-    // Muted means the tutorial is running a practice match.
-    if (!audio.muted) playEndgameChime(Math.max(0, untilCue));
-  };
-
   const handleOnline = () => {
     reloadIfBroken(audio, true);
   };
 
-  audio.addEventListener('timeupdate', handleTimeUpdate);
   audio.addEventListener('ended', clearAudioState);
   window.addEventListener('online', handleOnline);
-  // A reload mid-match has no Start tap to wake the chime with.
-  window.addEventListener('pointerdown', unlockChime, { once: true });
-  window.addEventListener('keydown', unlockChime, { once: true });
 
   ttWindow.__teamtrack_match_audio_unwire__ = () => {
-    audio.removeEventListener('timeupdate', handleTimeUpdate);
     audio.removeEventListener('ended', clearAudioState);
     window.removeEventListener('online', handleOnline);
-    window.removeEventListener('pointerdown', unlockChime);
-    window.removeEventListener('keydown', unlockChime);
   };
 };
 
@@ -174,7 +113,7 @@ const getOrCreateGlobalAudio = (): HTMLAudioElement => {
     const audio = new Audio();
     // Buffer the whole track up front, so Start never waits on the network.
     audio.preload = 'auto';
-    audio.src = '/audio/match-audio.mp3';
+    audio.src = matchAudioUrl;
     audio.volume = 0.8;
     ttWindow.__teamtrack_match_audio__ = audio;
   }
@@ -448,7 +387,24 @@ export const useMatchAudio = () => {
       // not played yet (reloaded while paused)
       (hasPlayedRef.current || audioRef.current?.paused === false)
     ) {
-      const tailDuration = sessionData.matchType === 'Autonomous' ? 3000 : 5000;
+      // The buzzer plays out, then the track stops. Timed off where the
+      // track is, not the clock: audio a little ahead of the clock still
+      // stops an Autonomous match before the call to pick up the
+      // controllers, which follows AUTO's buzzer straight on.
+      const matchType = sessionData.matchType;
+      const audio = audioRef.current;
+      const playingAt =
+        audio && !audio.paused
+          ? audio.currentTime
+          : matchAudioTime(
+              matchType,
+              matchType === 'Autonomous' ? 'auton' : 'teleop',
+              0
+            );
+      const tailDuration = Math.max(
+        0,
+        (matchAudioStopTime(matchType) - playingAt) * 1000
+      );
       audioTailTimeoutRef.current = setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.pause();
@@ -460,12 +416,6 @@ export const useMatchAudio = () => {
       }, tailDuration);
     }
   }, [matchActive, timer, sessionData.matchType]);
-
-  useEffect(() => {
-    window.addEventListener('teamtrack-match-started', unlockChime);
-    return () =>
-      window.removeEventListener('teamtrack-match-started', unlockChime);
-  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
