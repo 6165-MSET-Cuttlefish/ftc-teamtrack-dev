@@ -22,6 +22,9 @@ export type TimestampValue = Timestamp | FirebaseTimestamp | string | Date;
  * timeline so an auton/teleop breakdown of tips can be derived later without
  * a data migration. Everything else is a count entered at the end.
  */
+/** Robots on the field for one team: alone, or as an alliance of two */
+export type RobotCount = 1 | 2;
+
 export interface MatchScoringFields {
   /** Hive tips — counted live during the match, 20 pts each in either period */
   tipping: number;
@@ -50,6 +53,12 @@ export interface MatchScoringFields {
    */
   minorPenalties: number;
   majorPenalties: number;
+  /**
+   * Robots this team had on the field: 1 when practicing alone, 2 for an
+   * alliance. Matches saved before it existed had two rows and read as 2;
+   * read it with `robotCountOf`.
+   */
+  robotCount?: RobotCount;
   /** Timeline of Hive Tips as they were counted, for cycle-time analysis */
   phaseLog?: ScoreEvent[];
 }

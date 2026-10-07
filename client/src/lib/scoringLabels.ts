@@ -25,8 +25,8 @@ export const ELEMENT_LABELS = {
   park: 'Park',
   /** Everything the robots earn by where they are: Leave and both parks */
   robots: 'Leave + Park',
-  minor: 'Minor Penalty',
-  major: 'Major Penalty',
+  minor: 'Minor Foul',
+  major: 'Major Foul',
   /** Points this alliance's fouls gave the opponent; never off its own score */
   penalties: 'Given to opponent',
 } as const;

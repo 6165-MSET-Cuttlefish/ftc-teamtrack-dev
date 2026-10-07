@@ -58,6 +58,8 @@ export {
   liveMatchType,
   includesAuto,
   includesTeleop,
+  DEFAULT_ROBOT_COUNT,
+  robotCountOf,
   robotRates,
 } from './scoring';
 export { formatPoints } from './points';

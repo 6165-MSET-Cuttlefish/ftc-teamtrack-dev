@@ -10,7 +10,7 @@
  * Table 10-4 (Section 10.6 Violations).
  */
 
-import type { MatchScoringFields, ScoreBreakdown } from '@/types';
+import type { MatchScoringFields, RobotCount, ScoreBreakdown } from '@/types';
 import { GAME_TIMING } from '@/constants';
 import { ELEMENT_LABELS } from './scoringLabels';
 
@@ -47,6 +47,16 @@ export const includesAuto = (matchType?: string): boolean =>
 /** Whether a match of this type runs a teleop period. */
 export const includesTeleop = (matchType?: string): boolean =>
   matchType !== 'Autonomous';
+
+/** Robots a new session starts with: most practice is one team alone */
+export const DEFAULT_ROBOT_COUNT: RobotCount = 1;
+
+/**
+ * Robots on the field for a match or a session's fields. Saved before the
+ * setting existed, it had two robot rows, so it counts as 2.
+ */
+export const robotCountOf = (fields: { robotCount?: RobotCount }): RobotCount =>
+  fields.robotCount ?? 2;
 
 /**
  * The same fields with the flags of periods that were not run cleared: a
