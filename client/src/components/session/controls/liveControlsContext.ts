@@ -1,6 +1,5 @@
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -13,13 +12,7 @@ import { toast } from 'sonner';
 import { useSessionCore, useTheme, useAuth, useTeam } from '@/contexts';
 import type { HeldMatchClock } from '@/contexts/SessionContext';
 import { useEscapeKey } from '@/hooks';
-import {
-  CURRENT_SEASON,
-  ROUTES,
-  SESSION_LIMITS,
-  STORAGE_KEYS,
-  UI_TIMING,
-} from '@/constants';
+import { CURRENT_SEASON, ROUTES, STORAGE_KEYS, UI_TIMING } from '@/constants';
 import {
   calculateScore,
   emptyScoringFields,
@@ -57,9 +50,6 @@ export interface LiveControlsProps {
   onSessionReset?: () => void;
 }
 
-/** Shown by the banner, by Start and by Complete when the user is at the cap */
-export const SESSION_LIMIT_MESSAGE = `You've reached the limit of ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} saved sessions. Delete some of your own old sessions to save new ones.`;
-
 const UNREACHABLE_MESSAGE =
   "Can't reach the server - your matches are kept on this device, try again";
 const RUNNING_MATCH_MESSAGE = 'Save or discard the running match first';
@@ -69,7 +59,6 @@ const CLEARED_TOAST_ID = 'cleared-before-start';
 const DISCARDED_TOAST_ID = 'session-discarded';
 /** One toast per reason Complete Session can't go ahead, however often it is pressed */
 const COMPLETE_BLOCKED_TOAST_ID = 'complete-session-blocked';
-const SESSION_LIMIT_TOAST_ID = 'session-limit';
 const SAVE_BLOCKED_TOAST_ID = 'save-match-blocked';
 const MATCH_SAVED_TOAST_ID = 'match-saved';
 /**
@@ -366,8 +355,6 @@ export const useLiveControlsState = ({
     ? undefined
     : ('top-right' as const);
 
-  const [sessionLimitReached, setSessionLimitReached] =
-    useState<boolean>(false);
   const [pendingConfirmState, setPendingConfirm] =
     useState<PendingConfirm | null>(null);
   const [deleteConfirmId, setDeleteConfirmIdState] = useState<string | null>(
@@ -616,55 +603,6 @@ export const useLiveControlsState = ({
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [warnBeforeUnload]);
-
-  /**
-   * Whether the signed-in user is at their session cap. Only their own
-   * sessions count (team or not) — those are the only ones they can delete.
-   */
-  const limitCheckRef = useRef<{ uid: string; promise: Promise<void> } | null>(
-    null
-  );
-  const refreshSessionLimit = useCallback((): Promise<void> => {
-    if (!uid) {
-      limitCheckRef.current = null;
-      setSessionLimitReached(false);
-      return Promise.resolve();
-    }
-    if (limitCheckRef.current?.uid === uid)
-      return limitCheckRef.current.promise;
-
-    const check = {
-      uid,
-      promise: firebaseService
-        .countUserSessions(uid)
-        .then(count => {
-          if (limitCheckRef.current !== check) return;
-          setSessionLimitReached(count >= SESSION_LIMITS.MAX_SESSIONS_PER_USER);
-        })
-        // Unknown (offline, …): leave the banner alone; saving re-checks.
-        .catch(() => {})
-        .finally(() => {
-          if (limitCheckRef.current === check) limitCheckRef.current = null;
-        }),
-    };
-    limitCheckRef.current = check;
-    return check.promise;
-  }, [uid]);
-
-  // Checked on arrival, after a session is completed or reset, and whenever
-  // the user comes back to the tab (they may have deleted sessions elsewhere).
-  useEffect(() => {
-    void refreshSessionLimit();
-    const recheck = () => {
-      if (document.visibilityState === 'visible') void refreshSessionLimit();
-    };
-    window.addEventListener('focus', recheck);
-    document.addEventListener('visibilitychange', recheck);
-    return () => {
-      window.removeEventListener('focus', recheck);
-      document.removeEventListener('visibilitychange', recheck);
-    };
-  }, [refreshSessionLimit, sessionData.isSessionCompleted]);
 
   // Lets the presses below that change what is under the pointer shrug off
   // the second half of a double tap.
@@ -968,12 +906,6 @@ export const useLiveControlsState = ({
     if (matchActive || isRepeatedPrimaryAction() || isSavingSession()) return;
     if (!isSessionSetupSaved && !sessionData.sessionName?.trim()) {
       onTryStartWithoutSetup?.();
-      return;
-    }
-    // Don't let a whole session be recorded that can't be saved afterwards.
-    if (sessionLimitReached && !hasStarted && !sessionData.matches?.length) {
-      toast.error(SESSION_LIMIT_MESSAGE, { id: SESSION_LIMIT_TOAST_ID });
-      void refreshSessionLimit();
       return;
     }
     markPrimaryAction();
@@ -1354,12 +1286,6 @@ export const useLiveControlsState = ({
     }
 
     if (uid) {
-      if (sessionLimitReached) {
-        toast.error(SESSION_LIMIT_MESSAGE, { id: SESSION_LIMIT_TOAST_ID });
-        void refreshSessionLimit();
-        return;
-      }
-
       const problem = sessionSaveProblem({
         notes: sessionData.notes,
         matches: sessionData.matches,
@@ -1534,17 +1460,6 @@ export const useLiveControlsState = ({
   ): Promise<boolean> => {
     if (!navigator.onLine) throw new SaveTimeoutError();
     const deadline = performance.now() + SAVE_TIMEOUT_MS;
-
-    const count = await withDeadline(
-      firebaseService.countUserSessions(userId),
-      deadline
-    );
-    const atLimit = count >= SESSION_LIMITS.MAX_SESSIONS_PER_USER;
-    setSessionLimitReached(atLimit);
-    if (atLimit) {
-      toast.error(SESSION_LIMIT_MESSAGE);
-      return false;
-    }
 
     // The team is only loaded at sign-in, so membership may have ended
     // since: a session filed under a team the user isn't in is refused.
@@ -1993,7 +1908,6 @@ export const useLiveControlsState = ({
     currentMatchTotal: currentMatchScore.total,
     editingMatchNumber,
 
-    sessionLimitReached,
     pendingConfirm,
     handleKeepConfirm,
     deleteConfirmId,

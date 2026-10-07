@@ -45,7 +45,6 @@ import {
 import {
   getPendingDeleteIds,
   subscribePendingDeletes,
-  onSessionDeleted,
   scheduleSessionDelete,
 } from '@/lib/pendingSessionDeletes';
 import { readAllGuestSessions } from '@/lib/guestSessions';
@@ -54,7 +53,6 @@ import {
   UI_TIMING,
   APP_CONFIG,
   ROUTES,
-  SESSION_LIMITS,
   STORAGE_KEYS,
   OPEN_SHARE_SESSIONS_EVENT,
   CURRENT_SEASON,
@@ -131,6 +129,7 @@ import {
   withCountedMatches,
 } from './sessionList';
 import type { SessionListFilters, SessionScope } from './sessionList';
+import { useSessionList } from './useSessionList';
 
 /** How long the search waits after the last key before it goes in the address */
 const SEARCH_TO_URL_MS = 300;
@@ -138,17 +137,30 @@ const SEARCH_TO_URL_MS = 300;
 /** History entries remembered: enough for a few trips there and back */
 const SCROLL_ENTRIES = 20;
 
-const readScrollPositions = (): Array<[string, number]> => {
+/**
+ * Where the list was left: how far down it was scrolled, and how far back
+ * it had been read (every session recorded after `through`, in ms; 0 for
+ * all of them), so coming Back reads that far again before scrolling.
+ */
+interface SavedScroll {
+  y: number;
+  through?: number;
+}
+
+type ScrollEntry = [string, number] | [string, number, number];
+
+const readScrollPositions = (): ScrollEntry[] => {
   try {
     const saved: unknown = JSON.parse(
       sessionStorage.getItem(STORAGE_KEYS.SESSIONS_SCROLL) ?? '[]'
     );
     return Array.isArray(saved)
       ? saved.filter(
-          (entry): entry is [string, number] =>
+          (entry): entry is ScrollEntry =>
             Array.isArray(entry) &&
             typeof entry[0] === 'string' &&
-            typeof entry[1] === 'number'
+            typeof entry[1] === 'number' &&
+            (entry[2] === undefined || typeof entry[2] === 'number')
         )
       : [];
   } catch {
@@ -157,22 +169,26 @@ const readScrollPositions = (): Array<[string, number]> => {
 };
 
 /** Remember how far down the list was, for coming Back to this entry */
-const rememberScroll = (historyKey: string, y: number) => {
+const rememberScroll = (historyKey: string, { y, through }: SavedScroll) => {
   try {
     const others = readScrollPositions().filter(([key]) => key !== historyKey);
+    const entry: ScrollEntry =
+      through === undefined
+        ? [historyKey, Math.round(y)]
+        : [historyKey, Math.round(y), through];
     sessionStorage.setItem(
       STORAGE_KEYS.SESSIONS_SCROLL,
-      JSON.stringify(
-        [...others, [historyKey, Math.round(y)]].slice(-SCROLL_ENTRIES)
-      )
+      JSON.stringify([...others, entry].slice(-SCROLL_ENTRIES))
     );
   } catch {
     /* storage unavailable: Back starts at the top */
   }
 };
 
-const savedScroll = (historyKey: string): number | null =>
-  readScrollPositions().find(([key]) => key === historyKey)?.[1] ?? null;
+const savedScroll = (historyKey: string): SavedScroll | null => {
+  const entry = readScrollPositions().find(([key]) => key === historyKey);
+  return entry ? { y: entry[1], through: entry[2] } : null;
+};
 
 /**
  * What the list looked like when it last loaded on this device, so the
@@ -189,6 +205,11 @@ interface ListLayout {
   unshared: { count: number; teamName: string } | null;
   /** How many sessions each set of list settings showed, latest last */
   shown: Array<[string, number]>;
+  /**
+   * Older sessions were left to read, so Quick Stats said it only counts
+   * the newest ones
+   */
+  more: boolean;
 }
 
 const LAYOUT_KEY = 'teamtrack-sessions-layout';
@@ -227,6 +248,7 @@ const readListLayout = (
           typeof entry[0] === 'string' &&
           typeof entry[1] === 'number'
       ),
+      more: saved.more === true,
     };
   } catch {
     return null;
@@ -341,7 +363,10 @@ const LoadingCard = () => {
 };
 
 interface UnsharedBannerProps {
+  /** Counted among the sessions read so far */
   count: number;
+  /** The viewer's own sessions aren't all read, so there may be more */
+  more: boolean;
   teamName: string;
   /**
    * Held in place while the sessions load, as it last showed: the words are
@@ -358,6 +383,7 @@ interface UnsharedBannerProps {
 /** The viewer's sessions their team can't see, with Share and Not now. */
 const UnsharedBanner = ({
   count,
+  more,
   teamName,
   pending,
   onShare,
@@ -392,8 +418,9 @@ const UnsharedBanner = ({
       >
         <span className="sm:flex-1">
           <span className={bar}>
-            {count} of your sessions {count === 1 ? "isn't" : "aren't"} shared
-            with {teamName}.
+            {count}
+            {more && '+'} of your sessions{' '}
+            {count === 1 && !more ? "isn't" : "aren't"} shared with {teamName}.
           </span>
         </span>{' '}
         <button
@@ -425,14 +452,28 @@ const Sessions = () => {
   const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
   const { resetSession, hasActiveSession } = useSessionCore();
-  const { team, loading: teamLoading, refreshTeam } = useTeam();
+  const { team, loading: teamLoading } = useTeam();
   const navigate = useNavigate();
   const location = useLocation();
   const navigationType = useNavigationType();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
-  /** The list couldn't be read, so an empty one doesn't mean "no sessions" */
-  const [loadFailed, setLoadFailed] = useState(false);
+  // A team's list follows the server while the page is open, so teammates'
+  // sessions arrive by themselves. Either list is read a page at a time.
+  const sessionList = useSessionList({ live: true });
+  const {
+    sessions,
+    sessionsRead,
+    loading,
+    loadFailed,
+    hasMore,
+    ownUnread,
+    loadingOlder,
+    olderFailed,
+    completeAfter,
+    loadOlder,
+    loadAll,
+    patch: patchSessions,
+  } = sessionList;
+  const reloadSessions = sessionList.reload;
 
   // How the list is narrowed and ordered lives in the address, so opening a
   // session and coming Back finds it as it was (and a link can share it).
@@ -516,14 +557,21 @@ const Sessions = () => {
   };
 
   // Coming Back to the list puts it where it was scrolled to, once the
-  // sessions are there to scroll past. The position is taken as the page
-  // goes, before the next page's shorter height can cut it down.
+  // sessions are there to scroll past (read as far back as they were). The
+  // position is taken as the page goes, before the next page's shorter
+  // height can cut it down.
   const [scrollToOnLoad] = useState(() =>
     navigationType === NavigationType.Pop ? savedScroll(location.key) : null
   );
+  /** How far back the list has been read, for `rememberScroll` */
+  const readThrough = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     const historyKey = location.key;
-    return () => rememberScroll(historyKey, window.scrollY);
+    return () =>
+      rememberScroll(historyKey, {
+        y: window.scrollY,
+        through: readThrough.current,
+      });
   }, [location.key]);
 
   const searchRef = useRef<HTMLInputElement>(null);
@@ -580,14 +628,7 @@ const Sessions = () => {
   useEffect(() => {
     const sync = () => setHiddenIds(getPendingDeleteIds());
     sync();
-    const stopChanges = subscribePendingDeletes(sync);
-    const stopDeleted = onSessionDeleted(sessionId =>
-      setSessions(prev => prev.filter(s => s.id !== sessionId))
-    );
-    return () => {
-      stopChanges();
-      stopDeleted();
-    };
+    return subscribePendingDeletes(sync);
   }, []);
 
   useEffect(() => {
@@ -614,129 +655,6 @@ const Sessions = () => {
     recount();
     return subscribePendingDeletes(recount);
   }, [uid, isGuest]);
-
-  const loadPersonalSessions = useCallback(async () => {
-    if (isGuest) {
-      setSessions(readGuestSessions());
-      setLoading(false);
-      return;
-    }
-
-    if (!uid) return;
-
-    setLoading(true);
-    try {
-      const fetchedSessions = await firebaseService.getUserSessions(uid);
-      setSessions(fetchedSessions);
-      setLoadFailed(false);
-    } catch (error) {
-      if (isAbortError(error)) return;
-      logger.error('Error loading sessions', error);
-      setLoadFailed(true);
-      toast.error('Failed to load sessions');
-    } finally {
-      setLoading(false);
-    }
-  }, [uid, isGuest]);
-
-  const loadSessions = useCallback(async () => {
-    if (!uid) return;
-    if (!teamId) {
-      await loadPersonalSessions();
-    }
-  }, [uid, teamId, loadPersonalSessions]);
-
-  /** The latest refreshTeam, for a listener that outlives its render. */
-  const refreshTeamRef = useRef(refreshTeam);
-  useEffect(() => {
-    refreshTeamRef.current = refreshTeam;
-  }, [refreshTeam]);
-
-  useEffect(() => {
-    if (!teamId) return;
-
-    setLoading(true);
-    let unsubscribe: (() => void) | undefined;
-    let subscribed = false;
-    let active = true;
-    let deniedNotice: ReturnType<typeof setTimeout> | undefined;
-
-    const syncFailed = () =>
-      toast.error(
-        "Couldn't sync your team's sessions. Check your connection and reload."
-      );
-
-    firebaseService
-      .subscribeTeamSessions(
-        teamId,
-        teamSessions => {
-          if (!active) return;
-          subscribed = true;
-          setSessions(teamSessions);
-          setLoadFailed(false);
-          setLoading(false);
-        },
-        async error => {
-          // A listener this effect has already let go of has nothing to say.
-          if (!active) return;
-          logger.error('Team sessions listener error:', {
-            error: String(error),
-          });
-
-          if (
-            (error as { code?: string } | null)?.code === 'permission-denied'
-          ) {
-            // Almost always means the user is no longer in this team (removed,
-            // or left on another device). Re-checking membership clears the
-            // stale team and says so, which tears this effect down and loads
-            // the personal list. If the team is still here a moment later,
-            // they are a member after all and the list just couldn't load.
-            await refreshTeamRef.current();
-            deniedNotice = setTimeout(() => {
-              if (!active) return;
-              syncFailed();
-              setLoadFailed(true);
-              setLoading(false);
-            }, UI_TIMING.SHORT_DELAY);
-            return;
-          }
-
-          if ((error?.message || '').includes('index')) {
-            toast.error(
-              'Firestore needs a composite index for team sessions. Check the browser console for the creation link.',
-              { duration: 10000 }
-            );
-          } else {
-            syncFailed();
-          }
-          if (!subscribed) {
-            try {
-              const fetched = await firebaseService.getTeamSessions(teamId);
-              if (active) setSessions(fetched);
-            } catch {
-              if (active) setLoadFailed(true);
-            }
-          }
-          if (active) setLoading(false);
-        }
-      )
-      .then(unsub => {
-        if (active) unsubscribe = unsub;
-        else unsub();
-      });
-
-    return () => {
-      active = false;
-      clearTimeout(deniedNotice);
-      unsubscribe?.();
-    };
-  }, [teamId]);
-
-  useEffect(() => {
-    if (!teamId) {
-      loadPersonalSessions();
-    }
-  }, [teamId, loadPersonalSessions]);
 
   /** Every loaded session except ones waiting out their undo window */
   const visibleSessions = useMemo(
@@ -794,6 +712,55 @@ const Sessions = () => {
    * session.
    */
   const archiveEmpty = showArchived || archivedCount > 0;
+
+  /**
+   * The list is read a page at a time, newest first. Every active session,
+   * newest first, is shown as far as it has been read, with Show older
+   * sessions at the end. A search, a filter, another order or the archive
+   * would only cover part of the sessions, so they read the rest first.
+   */
+  const needsAll = filtersActive || showArchived || sortBy !== DEFAULT_SORT;
+  /** None of what has been read is shown: older pages may hold some */
+  const noneShown = filteredSessions.length === 0;
+  useEffect(() => {
+    if (loading || loadingOlder || olderFailed || !hasMore) return;
+    if (needsAll) void loadAll();
+    else if (noneShown) void loadOlder();
+  }, [
+    loading,
+    loadingOlder,
+    olderFailed,
+    hasMore,
+    needsAll,
+    noneShown,
+    loadAll,
+    loadOlder,
+  ]);
+
+  /** Read on from the end of the list: a page, or all for a view that needs it */
+  const showOlder = () => void (needsAll ? loadAll() : loadOlder());
+
+  useEffect(() => {
+    readThrough.current = loading
+      ? undefined
+      : hasMore && completeAfter
+        ? completeAfter.getTime()
+        : 0;
+  }, [loading, hasMore, completeAfter]);
+  /** Back has come to a list read further back than its first page */
+  const restoreThrough = scrollToOnLoad?.through;
+  const readFarEnough =
+    restoreThrough === undefined ||
+    !hasMore ||
+    olderFailed ||
+    (restoreThrough > 0 &&
+      !!completeAfter &&
+      completeAfter.getTime() <= restoreThrough);
+  const restoring = scrollToOnLoad !== null && !readFarEnough;
+  useEffect(() => {
+    if (!restoring || loading || loadingOlder) return;
+    void (restoreThrough === 0 ? loadAll() : loadOlder());
+  }, [restoring, loading, loadingOlder, restoreThrough, loadAll, loadOlder]);
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -855,19 +822,23 @@ const Sessions = () => {
   /**
    * The viewer's own sessions that their team can't see. A team's list only
    * ever adds the viewer's own to what is filed under the team. Archived
-   * ones are put away, so they aren't asked about.
+   * ones are put away, so they aren't asked about. Counted over every
+   * session read, as Share them offers them all: one dated below the team's
+   * part of the list read so far isn't on screen yet, but it is unshared.
    */
   const unsharedIds = useMemo(
     () =>
       teamId
-        ? visibleSessions
+        ? sessionsRead
             .filter(
               session =>
-                session.teamId !== teamId && !archivedFor(session, viewer)
+                session.teamId !== teamId &&
+                !archivedFor(session, viewer) &&
+                !hiddenIds.has(session.id)
             )
             .map(session => session.id)
         : [],
-    [visibleSessions, teamId, viewer]
+    [sessionsRead, teamId, viewer, hiddenIds]
   );
   const unsharedCount = unsharedIds.length;
   const unsharedBannerDismissed = unsharedIds.every(id =>
@@ -896,6 +867,14 @@ const Sessions = () => {
     : undefined;
   /** The unshared banner as it last showed, held in place while loading */
   const pendingUnshared = loading && team ? lastLayout?.unshared : undefined;
+  /** Quick Stats' line about older sessions, held in place while loading */
+  const pendingMore = loading && !needsAll && !!lastLayout?.more;
+  /** Whether the first page left older sessions to read, on this visit */
+  const firstPageMore = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (loading) firstPageMore.current = null;
+    else if (firstPageMore.current === null) firstPageMore.current = hasMore;
+  }, [loading, hasMore]);
 
   // Remember how the list came out once it has, the search has settled
   // into the address and it is known whether there's a team, for the next
@@ -925,6 +904,8 @@ const Sessions = () => {
           ? { count: unsharedCount, teamName }
           : null,
       shown: [...others, [settledKey, shownCount]],
+      // What the next visit opens on: the first page, whatever was read since
+      more: firstPageMore.current ?? hasMore,
     });
   }, [
     loading,
@@ -938,14 +919,15 @@ const Sessions = () => {
     shownCount,
     unsharedBannerShown,
     unsharedCount,
+    hasMore,
   ]);
 
   const scrollRestored = useRef(false);
   useLayoutEffect(() => {
-    if (loading || scrollRestored.current) return;
+    if (loading || restoring || scrollRestored.current) return;
     scrollRestored.current = true;
-    if (scrollToOnLoad !== null) window.scrollTo(0, scrollToOnLoad);
-  }, [loading, scrollToOnLoad]);
+    if (scrollToOnLoad !== null) window.scrollTo(0, scrollToOnLoad.y);
+  }, [loading, restoring, scrollToOnLoad]);
 
   useEffect(() => {
     setUnsharedDismissedIds(
@@ -986,7 +968,7 @@ const Sessions = () => {
     const originalName = sessions.find(s => s.id === sessionId)?.sessionName;
 
     try {
-      setSessions(prevSessions =>
+      patchSessions(prevSessions =>
         prevSessions.map(session =>
           session.id === sessionId
             ? { ...session, sessionName: newName }
@@ -1009,7 +991,7 @@ const Sessions = () => {
       }
 
       if (!success) {
-        setSessions(prevSessions =>
+        patchSessions(prevSessions =>
           prevSessions.map(session =>
             session.id === sessionId
               ? { ...session, sessionName: originalName || newName }
@@ -1022,7 +1004,7 @@ const Sessions = () => {
       }
     } catch (error) {
       logger.error('Error updating session name', error);
-      setSessions(prevSessions =>
+      patchSessions(prevSessions =>
         prevSessions.map(session =>
           session.id === sessionId
             ? { ...session, sessionName: originalName || newName }
@@ -1053,7 +1035,7 @@ const Sessions = () => {
     isUndo = false
   ) => {
     const setArchived = (value: boolean) =>
-      setSessions(prev =>
+      patchSessions(prev =>
         prev.map(session =>
           session.id === sessionId ? { ...session, archived: value } : session
         )
@@ -1124,27 +1106,9 @@ const Sessions = () => {
     try {
       // Oldest first, so the account's list ends up in the original order
       // even if a session's date can't be carried over.
-      let toImport = importableGuestSessions().sort(
+      const toImport = importableGuestSessions().sort(
         (a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime()
       );
-      let overLimit = 0;
-      try {
-        const room = Math.max(
-          0,
-          SESSION_LIMITS.MAX_SESSIONS_PER_USER -
-            (await firebaseService.countUserSessions(uid))
-        );
-        if (toImport.length > room) {
-          overLimit = toImport.length - room;
-          // Keep the most recent ones.
-          toImport = toImport.slice(overLimit);
-        }
-      } catch (error) {
-        // The count needs the server; the uploads below will say so too.
-        logger.warn('Could not check the session limit before importing', {
-          error: String(error),
-        });
-      }
 
       let imported = 0;
       let failed = 0;
@@ -1198,14 +1162,10 @@ const Sessions = () => {
           `Couldn't import ${plural(failed, 'session')}. ${failed === 1 ? 'It is' : 'They are'} still saved on this device - try again.`
         );
       }
-      if (overLimit > 0) {
-        toast.error(
-          `${plural(overLimit, 'session')} not imported: accounts hold ${SESSION_LIMITS.MAX_SESSIONS_PER_USER} sessions. Delete some of your own old sessions, then import again.`,
-          { duration: UI_TIMING.UNDO_WINDOW }
-        );
-      }
-      // A team's list updates by itself; the personal one is fetched.
-      if (imported > 0 && !teamId) await loadPersonalSessions();
+      // Read again from the top: each one lands at the date it was
+      // recorded, which can be anywhere in the list (and, in a team, below
+      // the part that updates by itself).
+      if (imported > 0) reloadSessions();
     } finally {
       setImportingGuestSessions(false);
     }
@@ -1254,12 +1214,45 @@ const Sessions = () => {
   };
 
   /**
+   * Export what the list shows (`narrowed`) or the whole view, of every
+   * session: the ones not read yet are read first, so a file never stops
+   * at the oldest one on screen.
+   */
+  const [exporting, setExporting] = useState(false);
+  const exportView = async (narrowed: boolean) => {
+    if (exporting) return;
+    let everySession = visibleSessions;
+    if (hasMore) {
+      setExporting(true);
+      const all = await loadAll();
+      setExporting(false);
+      if (!all) return;
+      const pendingIds = getPendingDeleteIds();
+      everySession = all.filter(session => !pendingIds.has(session.id));
+    }
+    const view = sortSessions(
+      inArchiveView(everySession, showArchived, viewer),
+      sortBy
+    );
+    if (narrowed) {
+      exportSessions(
+        filterSessions(view, filters, { teamId, uid }),
+        filters.matchType,
+        true
+      );
+    } else {
+      exportSessions(view);
+    }
+  };
+
+  /**
    * Export follows the list: when a search, filter or scope leaves anything
    * out (a session, or under a one-type filter a match of another type), the
    * button exports what is shown (and what Quick Stats counts) and says
    * which part that is, and every session of the view is one more choice
    * away. Plain "Export" always writes the whole view: every active session,
-   * or under Archived every archived one. Rows follow the order on screen.
+   * or under Archived every archived one, older ones not on screen yet
+   * included. Rows follow the order on screen.
    */
   const canExport = viewSessions.length > 0;
   const sessionsLeftOut = filteredSessions.length < viewSessions.length;
@@ -1278,7 +1271,9 @@ const Sessions = () => {
         ? `Export ${oneMatchTypeLabel(filters.matchType)} only`
         : 'Export shown'
     : canExport && filtersActive && filteredSessions.length === 0
-      ? `Export all ${viewSessions.length}`
+      ? hasMore
+        ? 'Export all'
+        : `Export all ${viewSessions.length}`
       : 'Export';
 
   /** Export last season's sessions, in that season's columns. */
@@ -1471,15 +1466,8 @@ const Sessions = () => {
             {!loading && canExport && (
               <div className="flex ml-auto sm:ml-0">
                 <Button
-                  onClick={() =>
-                    exportsShown
-                      ? exportSessions(
-                          filteredSessions,
-                          filters.matchType,
-                          true
-                        )
-                      : exportSessions(viewSessions)
-                  }
+                  onClick={() => void exportView(exportsShown)}
+                  disabled={exporting}
                   className={`${outlineButton} max-[359px]:min-w-11 max-[359px]:justify-center ${exportsShown ? 'rounded-r-none' : ''}`}
                   variant="outline"
                 >
@@ -1517,11 +1505,15 @@ const Sessions = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
-                        onSelect={() => exportSessions(viewSessions)}
+                        onSelect={() => void exportView(false)}
                         className="flex items-center gap-2 cursor-pointer [@media(pointer:coarse)]:min-h-11"
                       >
                         <Download className="h-4 w-4" />
-                        <span>Export all {viewSessions.length}</span>
+                        <span>
+                          {hasMore
+                            ? 'Export all'
+                            : `Export all ${viewSessions.length}`}
+                        </span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1540,7 +1532,12 @@ const Sessions = () => {
               ref={teamManagerRef}
               className={team ? 'max-sm:hidden' : teamUpOpen ? '' : 'hidden'}
             >
-              <TeamManager onTeamChange={() => loadSessions()} />
+              <TeamManager
+                // Sessions shared with the team move from one query of the
+                // list to the other, at their own dates, which can be below
+                // the part that updates by itself: read it again.
+                onTeamChange={reloadSessions}
+              />
             </div>
           )}
           {!isGuest && !team && !teamLoading && !teamUpOpen && (
@@ -1622,6 +1619,7 @@ const Sessions = () => {
         {team && (unsharedBannerShown || pendingUnshared) && (
           <UnsharedBanner
             count={pendingUnshared ? pendingUnshared.count : unsharedCount}
+            more={!pendingUnshared && ownUnread}
             teamName={team.name}
             pending={!!pendingUnshared}
             onShare={() =>
@@ -1726,7 +1724,9 @@ const Sessions = () => {
                           data-testid="archived-count"
                           className={countBadge}
                         >
+                          {/* Counted among the sessions read so far */}
                           {archivedCount}
+                          {hasMore && '+'}
                         </span>
                       )}
                     </>
@@ -1790,7 +1790,11 @@ const Sessions = () => {
                     {
                       value: 'archived',
                       label: 'Archived',
-                      count: archivedCount > 0 ? archivedCount : undefined,
+                      // A count of the sessions read so far would be short
+                      count:
+                        archivedCount > 0 && !hasMore
+                          ? archivedCount
+                          : undefined,
                     },
                   ]}
                   onChange={value => setShowArchived(value === 'archived')}
@@ -1873,6 +1877,35 @@ const Sessions = () => {
                 />
               ))}
             </div>
+            {/* Older sessions not read yet aren't counted: say so, with
+                the way to count them */}
+            {loading
+              ? pendingMore && (
+                  <p
+                    aria-hidden="true"
+                    className="mt-2 h-4 sm:h-5 w-56 rounded bg-muted animate-pulse"
+                  />
+                )
+              : hasMore && (
+                  <p
+                    className={`mt-2 text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+                  >
+                    Over the newest {plural(quickStats.sessionCount, 'session')}{' '}
+                    ·{' '}
+                    {loadingOlder ? (
+                      'reading older ones...'
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void loadAll()}
+                        // 44px tall around a 16px line
+                        className="inline-block -my-3.5 py-3.5 font-medium text-team-blue underline underline-offset-4"
+                      >
+                        Count them all
+                      </button>
+                    )}
+                  </p>
+                )}
           </section>
         )}
 
@@ -1884,7 +1917,17 @@ const Sessions = () => {
               )
             )}
           </div>
-        ) : filteredSessions.length === 0 ? (
+        ) : noneShown && hasMore ? (
+          // Nothing read so far is shown; older pages are being read for
+          // some (or couldn't be: the button below tries again)
+          loadingOlder && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+              {[...Array(3)].map((_, i) => (
+                <LoadingCard key={i} />
+              ))}
+            </div>
+          )
+        ) : noneShown ? (
           <div className="text-center py-12 sm:py-16">
             <div
               className={`mx-auto w-16 sm:w-24 h-16 sm:h-24 rounded-full flex items-center justify-center mb-4 ${
@@ -2059,6 +2102,26 @@ const Sessions = () => {
                 }
               />
             ))}
+          </div>
+        )}
+
+        {/* The end of what has been read: the next page is a press away */}
+        {!loading && hasMore && (
+          <div aria-live="polite" className="mt-6 sm:mt-8 flex justify-center">
+            <Button
+              onClick={showOlder}
+              disabled={loadingOlder}
+              variant="outline"
+              className={`min-h-11 ${
+                isDarkMode
+                  ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
+                  : 'border-gray-300'
+              }`}
+            >
+              {loadingOlder
+                ? 'Loading older sessions...'
+                : 'Show older sessions'}
+            </Button>
           </div>
         )}
 

@@ -106,10 +106,6 @@ export const SessionActions = () => {
         />
       )}
 
-      {/*
-        Stays enabled at the session limit: pressing it is what explains why
-        the session can't be saved.
-      */}
       {!asking && !isCompact && savedMatchCount > 0 && (
         <button
           type="button"
