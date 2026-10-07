@@ -16,6 +16,7 @@ import { roomAboveBar } from './scrollUnderHeader';
 import { useTakeDroppedFocus, useWatchFocus } from './takeDroppedFocus';
 import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
+import { useScoringLocks } from '@/components/session/useScoringLocks';
 
 /** Match clock values above this are the 3-2-1 before AUTO of a Full Game */
 const PLAYING_SECONDS =
@@ -427,6 +428,8 @@ const EndEarlyButton = ({
  */
 export const PrimaryAction = () => {
   const { matchEnded, matchNumber } = useLiveControls();
+  // An Autonomous match has no flower counters (no flower scores in AUTO)
+  const { hasTeleop } = useScoringLocks();
   useWatchFocus();
 
   return (
@@ -435,7 +438,7 @@ export const PrimaryAction = () => {
           screen readers announce. */}
       <p role="status" className="sr-only">
         {matchEnded
-          ? `Match ${matchNumber} over: count the flowers, Left in Hive and Garden, then save`
+          ? `Match ${matchNumber} over: count ${hasTeleop ? 'the flowers, ' : ''}Left in Hive and Garden, then save`
           : ''}
       </p>
       <PrimaryControls />

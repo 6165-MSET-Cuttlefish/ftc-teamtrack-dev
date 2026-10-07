@@ -11,6 +11,12 @@ const fixedBar = (): HTMLElement | null => {
   return bar && getComputedStyle(bar).position === 'fixed' ? bar : null;
 };
 
+/** Whether two boxes share any of the screen's width */
+const overlapsAcross = (
+  a: { left: number; right: number },
+  b: { left: number; right: number }
+): boolean => a.left < b.right && a.right > b.left;
+
 /**
  * Where the controls on the page are on screen: not those in the bar or
  * the header (which stay put when the page scrolls), nor toasts, nor any
@@ -63,11 +69,14 @@ const MAX_SHORT = 48;
  * all under the bar; whichever is less, and only if that leaves no other
  * control cut instead. Else 0.
  */
-const clearOfBarEdge = (by: number): number => {
+export const clearOfBarEdge = (by: number): number => {
   const bar = fixedBar();
   if (!bar) return 0;
-  const edge = bar.getBoundingClientRect().top;
-  const controls = pageControls(bar);
+  const barRect = bar.getBoundingClientRect();
+  const edge = barRect.top;
+  // Side by side the bar only spans the clock's column: what scrolls
+  // beside it isn't cut by its edge.
+  const controls = pageControls(bar).filter(r => overlapsAcross(r, barRect));
   // The controls the edge cuts once the page is scrolled by `to`
   const cutAt = (to: number) =>
     controls.filter(r => r.top - to < edge && r.bottom - to > edge);
@@ -88,8 +97,14 @@ const clearOfBarEdge = (by: number): number => {
  * the bottom of the screen (the phone layout). On a full-size screen the
  * controls are pinned under the header after the buzzer, with a band of
  * background `HEADER_GAP` deep under them: the page shows below that.
+ *
+ * Given what is to be shown (`target`), the bar only counts where it is
+ * under it: on a phone on its side the bar spans the clock's column alone,
+ * and the scoring column beside it shows down to the bottom of the screen.
  */
-export const visibleBand = (): { top: number; bottom: number } => {
+export const visibleBand = (
+  target?: Element
+): { top: number; bottom: number } => {
   const header = document.querySelector('header');
   const headerPinned =
     header !== null &&
@@ -103,7 +118,13 @@ export const visibleBand = (): { top: number; bottom: number } => {
         ? headerHeight + bar.offsetHeight + HEADER_GAP
         : headerHeight,
     bottom:
-      bar && barPosition === 'fixed'
+      bar &&
+      barPosition === 'fixed' &&
+      (!target ||
+        overlapsAcross(
+          bar.getBoundingClientRect(),
+          target.getBoundingClientRect()
+        ))
         ? bar.getBoundingClientRect().top
         : window.innerHeight,
   };
@@ -122,7 +143,7 @@ export const scrollUnderHeader = (
   target: Element,
   { onlyIfHidden = false }: { onlyIfHidden?: boolean } = {}
 ) => {
-  const band = visibleBand();
+  const band = visibleBand(target);
   const { top, bottom } = target.getBoundingClientRect();
   if (onlyIfHidden && top >= band.top && bottom <= band.bottom) return;
   const reduceMotion = window.matchMedia(
@@ -143,7 +164,7 @@ export const scrollUnderHeader = (
  */
 export const revealInView = (target: Element) => {
   target.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-  const band = visibleBand();
+  const band = visibleBand(target);
   const { top, bottom } = target.getBoundingClientRect();
   const under = bottom + HEADER_GAP - band.bottom;
   const over = band.top + HEADER_GAP - top;

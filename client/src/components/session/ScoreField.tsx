@@ -35,6 +35,13 @@ interface ScoreFieldProps {
    */
   opponentPoints?: number;
   disabled?: boolean;
+  /**
+   * The field looks ready but takes nothing yet (no match is open): its
+   * buttons and its box stay drawn as usable, a press on any of them changes
+   * nothing and calls this instead (asking for Start), and they are read
+   * out as unavailable, with `lockedReasonId` saying why.
+   */
+  blockedPress?: () => void;
   max?: number;
   /** Render larger, for the scoring fields on the active-session page */
   size?: 'default' | 'large';
@@ -127,6 +134,7 @@ export const ScoreField = memo(
     points,
     opponentPoints,
     disabled = false,
+    blockedPress,
     max = 999,
     size = 'default',
     labelClassName,
@@ -162,6 +170,14 @@ export const ScoreField = memo(
     const hasLiveAction = stepper && liveActionLabel !== undefined;
     /** No text box: the count only changes by a tap */
     const isLive = hasLiveAction && live && !disabled;
+    /** Drawn usable, but every press goes to `blockedPress` */
+    const blocked = blockedPress !== undefined && !disabled;
+    /**
+     * The count is the readout rather than a text box: while live, and
+     * while a live counter waits for play to start, so it looks then as it
+     * will once play is on
+     */
+    const readout = isLive || (hasLiveAction && blocked);
     /** Changes counted while live; each one replays the readout's flash */
     const [liveChanges, setLiveChanges] = useState(0);
 
@@ -275,14 +291,22 @@ export const ScoreField = memo(
       setDraft(null);
       if (next !== value) onChange(next);
     };
+    /** A press on a stepper: the step, or the ask for Start */
+    const press = (delta: number) => (blocked ? blockedPress?.() : step(delta));
 
     // 48px on a phone keeps the tap target over the 44px minimum while
     // leaving room for the label on a 360px-wide screen. A stacked field
-    // gives up 4px of that so the pair still fits on a short phone.
+    // gives up 4px of that so the pair still fits on a short phone. The
+    // live row (+1 Tip) gives up its extra height on a phone on its side
+    // too narrow for the clock's column (an iPhone SE), down to 44px, so the
+    // robot rows under it clear the bar fixed over the bottom of the screen.
+    const shortStacked = hasLiveAction
+      ? '[@media(max-height:500px)_and_(max-width:639px)]:h-11'
+      : '';
     const stepBtnSize = isStacked
       ? 'w-11 h-11 md:w-12 md:h-12'
       : isLarge
-        ? 'w-12 h-12'
+        ? `w-12 h-12 ${shortStacked}`
         : 'w-10 h-10';
     const stepIconSize = isLarge || isStacked ? 20 : 16;
     // The one locked look, as on the robot toggles and the desktop pad: no
@@ -306,7 +330,7 @@ export const ScoreField = memo(
     // gives under the thumb. Hover moves the fill away from its text, as on
     // the other filled buttons (lighter would take white on slate under 4.5:1).
     const liveBtnClass = (atLimit: boolean) =>
-      `flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border-2 text-lg font-bold whitespace-nowrap select-none touch-manipulation transition-[transform,filter] duration-75 md:w-40 md:flex-none ${
+      `flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border-2 text-lg font-bold whitespace-nowrap select-none touch-manipulation transition-[transform,filter] duration-75 md:w-40 md:flex-none [@media(max-height:500px)_and_(max-width:639px)]:h-11 ${
         disabled || atLimit
           ? lockedTone
           : (liveActionFilled ?? isLive)
@@ -356,7 +380,7 @@ export const ScoreField = memo(
     const countBox = isStacked
       ? 'h-11 w-full md:h-12 md:w-20'
       : isCompact
-        ? `${isLarge ? 'h-12' : 'h-10'} ${hasLiveAction ? 'w-11' : 'w-12'} md:w-20`
+        ? `${isLarge ? `h-12 ${shortStacked}` : 'h-10'} ${hasLiveAction ? 'w-11' : 'w-12'} md:w-20`
         : isLarge
           ? 'h-12 w-16 md:w-20'
           : 'h-10 w-20';
@@ -373,7 +397,7 @@ export const ScoreField = memo(
         opponentPoints !== undefined ? opponentId : null,
         hint ? hintId : null,
         showLockedReason ? reasonId : null,
-        disabled && lockedReasonId ? lockedReasonId : null,
+        (disabled || blocked) && lockedReasonId ? lockedReasonId : null,
       ]
         .filter(Boolean)
         .join(' ') || undefined;
@@ -389,8 +413,11 @@ export const ScoreField = memo(
         aria-label={a11yName}
         aria-describedby={describedBy}
         aria-invalid={invalid || undefined}
+        aria-disabled={blocked || undefined}
+        readOnly={blocked}
         value={text}
         disabled={disabled}
+        onClick={blocked ? blockedPress : undefined}
         onChange={e => {
           reselectOnClick.current = false;
           setDraft(e.target.value);
@@ -420,6 +447,11 @@ export const ScoreField = memo(
           });
         }}
         onKeyDown={e => {
+          if (blocked) {
+            // Typing a count asks for Start, as a tap does
+            if (/^\d$|^Enter$/.test(e.key)) blockedPress?.();
+            return;
+          }
           if (e.key === 'Enter') {
             // Commit in place: blurring would drop keyboard focus to the
             // page, losing the scorer's place mid-match.
@@ -510,8 +542,9 @@ export const ScoreField = memo(
                 type="button"
                 aria-label={`Decrease ${a11yName}`}
                 aria-describedby={describedBy}
+                aria-disabled={blocked || undefined}
                 disabled={disabled || value <= 0}
-                onClick={() => step(-1)}
+                onClick={() => press(-1)}
                 className={segBtnClass(value <= 0)}
               >
                 <Minus size={18} />
@@ -535,8 +568,9 @@ export const ScoreField = memo(
                 type="button"
                 aria-label={`Increase ${a11yName}`}
                 aria-describedby={describedBy}
+                aria-disabled={blocked || undefined}
                 disabled={disabled || value >= max}
-                onClick={() => step(1)}
+                onClick={() => press(1)}
                 className={segBtnClass(value >= max)}
               >
                 <Plus size={18} />
@@ -562,7 +596,7 @@ export const ScoreField = memo(
             isStacked
               ? 'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1.5 gap-y-1 md:flex md:gap-3'
               : isCompact
-                ? `flex items-center gap-1.5 md:gap-3 ${hasLiveAction ? 'min-h-14' : ''}`
+                ? `flex items-center gap-1.5 md:gap-3 ${hasLiveAction ? 'min-h-14 [@media(max-height:500px)_and_(max-width:639px)]:min-h-11' : ''}`
                 : 'flex items-center gap-2 md:gap-3'
           }
         >
@@ -636,15 +670,16 @@ export const ScoreField = memo(
               type="button"
               aria-label={`Decrease ${a11yName}`}
               aria-describedby={describedBy}
+              aria-disabled={blocked || undefined}
               disabled={disabled || value <= 0}
-              onClick={() => step(-1)}
+              onClick={() => press(-1)}
               className={stepBtnClass(value <= 0)}
             >
               <Minus size={stepIconSize} />
             </button>
           )}
 
-          {isLive ? (
+          {readout ? (
             // Not an input and not focusable: a thumb that lands here does
             // nothing, where the text box would open the keyboard with the
             // count selected. The key replays the flash on every change. All
@@ -685,8 +720,9 @@ export const ScoreField = memo(
                 type="button"
                 aria-describedby={describedBy}
                 aria-keyshortcuts={isLive ? liveShortcut : undefined}
+                aria-disabled={blocked || undefined}
                 disabled={disabled || value >= max}
-                onClick={() => step(1)}
+                onClick={() => press(1)}
                 className={liveBtnClass(value >= max)}
               >
                 {/* Locked, the one target everyone tries first says so
@@ -709,8 +745,9 @@ export const ScoreField = memo(
                 type="button"
                 aria-label={`Increase ${a11yName}`}
                 aria-describedby={describedBy}
+                aria-disabled={blocked || undefined}
                 disabled={disabled || value >= max}
-                onClick={() => step(1)}
+                onClick={() => press(1)}
                 className={stepBtnClass(value >= max)}
               >
                 <Plus size={stepIconSize} />

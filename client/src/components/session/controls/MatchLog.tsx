@@ -79,7 +79,7 @@ const matchSummary = (match: Match): string => {
       : []),
     ...(hive > 0 ? [`${ELEMENT_LABELS.hive} ${hive}`] : []),
     ...(garden > 0 ? [`${ELEMENT_LABELS.garden} ${garden}`] : []),
-    ...(penalties > 0 ? [plural(penalties, 'penalty', 'penalties')] : []),
+    ...(penalties > 0 ? [plural(penalties, 'foul', 'fouls')] : []),
     ...(rp > 0 ? [`${rp} RP`] : []),
   ];
   return (parts.length > 0 ? parts : ['0 tips'])

@@ -514,7 +514,7 @@ export const MatchForm = ({
 
           {showFouls && (
             <Section
-              title="Penalties"
+              title="Fouls"
               note="Credited to the opponent · not off your score"
             >
               <ScoreField

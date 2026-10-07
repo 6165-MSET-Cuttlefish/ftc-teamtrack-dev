@@ -1,5 +1,12 @@
 import { useSessionCore } from '@/contexts';
 import { includesAuto, includesTeleop, liveMatchType } from '@/lib';
+import { robotsOf } from '@/lib/scoring';
+
+/**
+ * Why a field that looks ready before Start takes nothing yet, read out
+ * with it: the words the Start button shows when such a field is pressed
+ */
+export const START_FIRST = 'Press Start first';
 
 /**
  * Which scoring inputs on /active are open right now.
@@ -9,7 +16,11 @@ import { includesAuto, includesTeleop, liveMatchType } from '@/lib';
  *
  * - A saved match opened from the Match Log is final, so nothing about the
  *   clock locks it — not even a later match running underneath it.
- * - Nothing is entered before Start: no match is open to hold it.
+ * - Nothing is entered before Start: no match is open to hold it. What the
+ *   match starts with still looks as it will at Start (Hive Tips, Leave,
+ *   Park (Auto), a Scrim's fouls): only what its first period locks is
+ *   locked, so nothing changes look at Start, and a press on the rest asks
+ *   for Start instead (see `startNudge`).
  * - Tipping is counted while the match runs, but not during the 3-2-1.
  * - Flower, hive and garden contents can only be judged once play has
  *   stopped: after the buzzer (End early ends a match there too), or
@@ -37,6 +48,20 @@ export const useScoringLocks = () => {
 
   /** The type of the match in the fields: the saved one while editing. */
   const matchType = liveMatchType(sessionData, editingMatchId);
+  const hasAuto = includesAuto(matchType);
+
+  /**
+   * The robots the fields have rows for: the session's count, or while a
+   * saved match is open, the one it was played with (2 for a match saved
+   * before the count existed).
+   */
+  const edited = editing
+    ? sessionData.matches?.find(m => m.id === editingMatchId)
+    : undefined;
+  const robots = robotsOf({
+    ...sessionData,
+    robotCount: edited ? edited.robotCount : sessionData.robotCount,
+  });
 
   // The walkthrough holds a match open without starting its clock, which
   // would otherwise look like a countdown that never ends.
@@ -51,6 +76,7 @@ export const useScoringLocks = () => {
   return {
     editing,
     matchType,
+    robots,
     /** The fields being scored, tagged with the match type they belong to */
     scoring: { ...sessionData, matchType },
     /**
@@ -74,9 +100,11 @@ export const useScoringLocks = () => {
      */
     awaitingStart: !editing && !matchActive,
     /**
-     * Robots, End of Match and Scrim penalties wait for Start like Hive Tips
-     * do ('Unlocks at Start'): no match is open to put them in. A saved match
-     * opened for editing, and the walkthrough's practice match, keep them
+     * No match is open to put anything in (before Start and between
+     * matches): every field waits for Start. Those the match starts with
+     * look ready all the same, and a press on one asks for Start; End park
+     * and End of Match keep the lock their first period gives them. A saved
+     * match opened for editing, and the walkthrough's practice match, are
      * open.
      */
     entryLocked,
@@ -113,11 +141,13 @@ export const useScoringLocks = () => {
           : !isTimerRunning)),
     /**
      * End-of-match park can't be known while AUTO is still running; a pause
-     * opens it, as it opens the End of Match counts.
+     * opens it, as it opens the End of Match counts. Before Start it has
+     * the lock the match will start with: AUTO's, where there is one.
      */
     endParkLocked:
-      !editing && matchActive && matchPhase === 'auton' && isTimerRunning,
-    hasAuto: includesAuto(matchType),
+      (entryLocked && hasAuto) ||
+      (!editing && matchActive && matchPhase === 'auton' && isTimerRunning),
+    hasAuto,
     hasTeleop: includesTeleop(matchType),
   };
 };

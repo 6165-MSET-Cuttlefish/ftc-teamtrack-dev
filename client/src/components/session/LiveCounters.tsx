@@ -16,17 +16,18 @@ export const LiveCounters = () => {
     entryKey,
     tippingEnabled,
     tippingLive,
+    blockedPress,
     handleTipping,
     liveActionFilled,
     lockedReason,
   } = useLiveCounters();
   const reasonId = useId();
   /**
-   * Why Hive Tips is locked (before Start, and in the 3-2-1) is read out,
-   * not shown: the locked look and the lock on +1 Tip say it is locked, and
-   * Start, the one filled button, says what unlocks it. No line is kept for
-   * it either, so the robot rows sit right under the counter in every
-   * state and nothing moves when it unlocks.
+   * Why Hive Tips takes no taps yet (before Start, and in the 3-2-1) is
+   * read out, not shown: it looks ready, as it will be once play is on, and
+   * Start, the one filled button, is the next step (a tap on +1 Tip makes
+   * it say so). No line is kept for it either, so the robot rows sit right
+   * under the counter in every state and nothing moves at Start.
    */
   const silentReason = tippingEnabled ? undefined : lockedReason;
 
@@ -55,7 +56,7 @@ export const LiveCounters = () => {
           max={FIELD_LIMITS.tipping}
           value={sessionData.tipping}
           points={breakdown.tipping}
-          disabled={!tippingEnabled}
+          blockedPress={blockedPress}
           lockedReasonId={silentReason ? reasonId : undefined}
           resetKey={entryKey}
           onChange={handleTipping}
