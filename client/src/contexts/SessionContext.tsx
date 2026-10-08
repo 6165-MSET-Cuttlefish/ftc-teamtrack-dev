@@ -863,8 +863,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // A guest signed in and keeps the session they were running. Sign-up
-    // clears storage on its way in, so make sure it is stored again.
+    // A guest signed in (or up) and keeps the session they were running,
+    // stored as it was: refresh the clocks for the account.
     if (prevUid === null) setClockNonce(n => n + 1);
   }, [user, authLoading, resetState]);
 
@@ -1044,9 +1044,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         syncFromStorage();
       }
     };
-    // Sign-out and sign-up clear the stored session from outside this
-    // provider. What is in memory is now unsaved: store it again on the
-    // next change instead of mistaking the gap for another tab's doing.
+    // Sign-out clears the stored session from outside this provider. What
+    // is in memory is now unsaved: store it again on the next change
+    // instead of mistaking the gap for another tab's doing.
     const handleClearedHere = () => {
       lastSeenTokenRef.current = null;
       lastSyncedRef.current = null;

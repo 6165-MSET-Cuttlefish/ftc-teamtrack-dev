@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useTheme } from '@/contexts';
 import { mapAuthError, type AuthErrorInfo } from '@/lib/authErrors';
-import { getPendingInviteDestination } from '@/lib/pendingInvite';
+import {
+  getPendingInviteDestination,
+  hasPendingInvite,
+} from '@/lib/pendingInvite';
 import { APP_CONFIG, ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +29,12 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<AuthErrorInfo | null>(null);
   const [loading, setLoading] = useState(false);
+  /**
+   * Came from a team invite while signed out. Nearly everyone sent one is
+   * new, so the card leads with creating an account, and signing in comes
+   * second.
+   */
+  const [invited] = useState(hasPendingInvite);
 
   const { login, loginWithGoogle, continueAsGuest, user, loading: authLoading } = useAuth();
   const { isDarkMode } = useTheme();
@@ -94,17 +103,49 @@ const Login = () => {
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
           <CardTitle as="h1" className={`${PAGE_TITLE_CLASS} text-center`}>
-            Welcome Back
+            {invited ? `Join your team on ${APP_CONFIG.name}` : 'Welcome Back'}
           </CardTitle>
           <CardDescription
             className={`text-center text-sm sm:text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
           >
-            Sign in to your TeamTrack account
+            {invited
+              ? 'Create an account to accept the invite, or sign in if you have one.'
+              : `Sign in to your ${APP_CONFIG.name} account`}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6 px-4 sm:px-6">
-          <PendingInviteBanner />
+          {/* The title says why they are here; the way in comes first */}
+          {invited ? (
+            <>
+              <Button
+                asChild
+                variant="primary"
+                size="xl"
+                data-page-primary
+                className="w-full font-semibold"
+              >
+                <Link to={ROUTES.SIGNUP} state={location.state}>
+                  Create an account
+                </Link>
+              </Button>
+              <div className="flex items-center gap-4">
+                <div
+                  className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-300'}`}
+                />
+                <span
+                  className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+                >
+                  Or sign in
+                </span>
+                <div
+                  className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-300'}`}
+                />
+              </div>
+            </>
+          ) : (
+            <PendingInviteBanner />
+          )}
 
           <AuthErrorAlert
             error={error}
@@ -184,9 +225,15 @@ const Login = () => {
               </div>
             </div>
 
+            {/* Second to Create an account when invited: an outline then */}
             <Button
               type="submit"
-              className={`w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`}
+              variant={invited ? 'outline' : 'default'}
+              className={
+                invited
+                  ? `w-full h-12 text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`
+                  : `w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-[#FEFEFE]'}`
+              }
               disabled={loading}
             >
               {loading ? 'Signing in…' : 'Sign in'}
@@ -247,7 +294,10 @@ const Login = () => {
               navigate('/sessions', { replace: true });
             }}
           >
-            Continue as guest
+            {/* A guest can't be in a team: said before, not found out after */}
+            {invited
+              ? 'Continue as guest, without the team'
+              : 'Continue as guest'}
           </Button>
           <div className="text-sm text-center">
             <Link
@@ -257,19 +307,22 @@ const Login = () => {
               Forgot your password?
             </Link>
           </div>
-          <div
-            className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            Don't have an account?{' '}
-            {/* Carries where they were headed, so signing up lands there too */}
-            <Link
-              to={ROUTES.SIGNUP}
-              state={location.state}
-              className="inline-flex items-center text-team-blue hover:underline font-medium [@media(pointer:coarse)]:min-h-11"
+          {/* Invited, Create an account already leads the card */}
+          {!invited && (
+            <div
+              className={`text-sm text-center ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
             >
-              Sign up
-            </Link>
-          </div>
+              Don't have an account?{' '}
+              {/* Carries where they were headed, so signing up lands there too */}
+              <Link
+                to={ROUTES.SIGNUP}
+                state={location.state}
+                className="inline-flex items-center text-team-blue hover:underline font-medium [@media(pointer:coarse)]:min-h-11"
+              >
+                Sign up
+              </Link>
+            </div>
+          )}
         </CardFooter>
       </Card>
     </div>

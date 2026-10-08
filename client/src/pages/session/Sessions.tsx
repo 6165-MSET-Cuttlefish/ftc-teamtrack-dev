@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useCallback,
+  useSyncExternalStore,
 } from 'react';
 import {
   Link,
@@ -18,19 +19,16 @@ import { useAuth, useSessionCore, useTheme, useTeam } from '@/contexts';
 import { firebaseService, teamService } from '@/services';
 import { TeamManager } from '@/components';
 import {
-  toDate,
   isAbortError,
   generateShareableLink,
   copyShareLink,
   logger,
-  matchScore,
   buildSessionsCsv,
   buildLegacySessionsCsv,
   csvFileName,
   downloadCsv,
   SORT_LABELS,
   DEFAULT_SORT,
-  sortSessions,
   isArchived,
   isGuestSessionId,
   readGuestSessions,
@@ -48,6 +46,14 @@ import {
   scheduleSessionDelete,
 } from '@/lib/pendingSessionDeletes';
 import { readAllGuestSessions } from '@/lib/guestSessions';
+import {
+  importGuestSessions,
+  importableGuestSessions,
+  isImportingGuestSessions,
+  subscribeGuestImport,
+} from '@/lib/guestImport';
+import { safariMayEraseStorage } from '@/lib/browserStorage';
+import { filedUnderName, teamFiling } from '@/lib/sessionAccess';
 import { LEGACY_SEASON } from '@/lib/sessionNormalize';
 import {
   UI_TIMING,
@@ -57,7 +63,7 @@ import {
   OPEN_SHARE_SESSIONS_EVENT,
   CURRENT_SEASON,
 } from '@/constants';
-import type { CreateSessionData, Session } from '@/types';
+import type { Session } from '@/types';
 import {
   EYEBROW_CLASS,
   PAGE_TITLE_CLASS,
@@ -92,8 +98,8 @@ import {
 import {
   Archive,
   ArrowLeft,
-  ArrowRight,
   ArrowUpDown,
+  CloudOff,
   Search,
   Plus,
   BarChart3,
@@ -118,7 +124,6 @@ import {
   inSessionScope,
   matchCountOf,
   matchTypeFromParam,
-  matchTypeLabel,
   matchTypeParam,
   oneMatchTypeLabel,
   plural,
@@ -126,6 +131,7 @@ import {
   scopeFromParam,
   scopeLabel,
   sessionsToExport,
+  sortShown,
   withCountedMatches,
 } from './sessionList';
 import type { SessionListFilters, SessionScope } from './sessionList';
@@ -297,13 +303,27 @@ const expectedCount = (
 };
 
 /**
- * The guest sessions in this browser that an account can take in. One the
- * guest deleted but can still bring back is left out: it is on its way out,
- * and Undo puts it back on offer.
+ * "Not now" to importing this browser's guest sessions, for the account it
+ * was said in: it holds for the rest of the visit (this tab), and the offer
+ * is back the next time the app is opened. A dismissal that lasted would
+ * leave those sessions with no way into the account while signed in.
  */
-const importableGuestSessions = (): Session[] => {
-  const pendingIds = getPendingDeleteIds();
-  return readGuestSessions().filter(session => !pendingIds.has(session.id));
+const IMPORT_DISMISSED_KEY = 'teamtrack-guest-import-dismissed';
+
+const readImportDismissed = (uid: string | undefined): boolean => {
+  try {
+    return !!uid && sessionStorage.getItem(IMPORT_DISMISSED_KEY) === uid;
+  } catch {
+    return false;
+  }
+};
+
+const writeImportDismissed = (uid: string) => {
+  try {
+    sessionStorage.setItem(IMPORT_DISMISSED_KEY, uid);
+  } catch {
+    /* storage unavailable: dismissed until the page is left */
+  }
 };
 
 /**
@@ -452,7 +472,7 @@ const Sessions = () => {
   const { user, isGuest } = useAuth();
   const { isDarkMode } = useTheme();
   const { resetSession, hasActiveSession } = useSessionCore();
-  const { team, loading: teamLoading } = useTeam();
+  const { team, loading: teamLoading, unconfirmedTeamId } = useTeam();
   const navigate = useNavigate();
   const location = useLocation();
   const navigationType = useNavigationType();
@@ -464,6 +484,7 @@ const Sessions = () => {
     sessionsRead,
     loading,
     loadFailed,
+    offline,
     hasMore,
     ownUnread,
     loadingOlder,
@@ -584,15 +605,18 @@ const Sessions = () => {
   const searchRef = useRef<HTMLInputElement>(null);
   /** The phone's sheet of filters is open */
   const [filtersOpen, setFiltersOpen] = useState(false);
-  /** Someone without a team asked how to start or join one */
-  const [teamUpOpen, setTeamUpOpen] = useState(false);
-  const teamManagerRef = useRef<HTMLDivElement>(null);
   /** Sessions deleted but still inside their undo window */
   const [hiddenIds, setHiddenIds] = useState(getPendingDeleteIds);
   /** Sessions a guest saved in this browser that the account doesn't have */
   const [guestSessionCount, setGuestSessionCount] = useState(0);
-  const [importingGuestSessions, setImportingGuestSessions] = useState(false);
-  const [importBannerDismissed, setImportBannerDismissed] = useState(false);
+  /** They are being moved into the account: by Import, or by signing up */
+  const importingGuestSessions = useSyncExternalStore(
+    subscribeGuestImport,
+    isImportingGuestSessions
+  );
+  const [importBannerDismissed, setImportBannerDismissed] = useState(() =>
+    readImportDismissed(user?.uid)
+  );
   /** Unshared sessions already answered "Not now" to, kept across visits */
   const [unsharedDismissedIds, setUnsharedDismissedIds] = useState<
     ReadonlySet<string>
@@ -642,16 +666,13 @@ const Sessions = () => {
     document.title = `${showArchived ? 'Archived sessions' : 'Sessions'} - ${APP_CONFIG.name}`;
   }, [showArchived]);
 
-  // The Create and Join buttons were asked for: the first one takes focus.
-  useEffect(() => {
-    if (teamUpOpen) {
-      teamManagerRef.current?.querySelector<HTMLElement>('button')?.focus();
-    }
-  }, [teamUpOpen]);
-
   // Sessions recorded as a guest stay in this browser when the guest signs
-  // up or logs in; offer to bring them into the account. Counted again
-  // whenever a delete the guest left waiting is finished or undone.
+  // in; offer to bring them into the account (signing up brings them in by
+  // itself). Counted again whenever a delete the guest left waiting is
+  // finished or undone, and once a move into the account has finished,
+  // which also puts them in the list: each lands at the date it was
+  // recorded, anywhere in it (and, in a team, below the part that updates
+  // by itself), so the list is read again from the top.
   useEffect(() => {
     if (!uid || isGuest) {
       setGuestSessionCount(0);
@@ -660,8 +681,20 @@ const Sessions = () => {
     const recount = () =>
       setGuestSessionCount(importableGuestSessions().length);
     recount();
-    return subscribePendingDeletes(recount);
-  }, [uid, isGuest]);
+    const stopDeletes = subscribePendingDeletes(recount);
+    const stopImports = subscribeGuestImport(() => {
+      recount();
+      if (!isImportingGuestSessions()) reloadSessions();
+    });
+    return () => {
+      stopDeletes();
+      stopImports();
+    };
+  }, [uid, isGuest, reloadSessions]);
+
+  useEffect(() => {
+    setImportBannerDismissed(readImportDismissed(uid));
+  }, [uid]);
 
   /** Every loaded session except ones waiting out their undo window */
   const visibleSessions = useMemo(
@@ -695,22 +728,28 @@ const Sessions = () => {
   );
 
   /**
-   * The sessions of the view on screen, in the chosen order: the archived
-   * ones under Archived, the rest otherwise, whatever the search and filter
-   * say. Everything below (the cards, Quick Stats, the export) starts here.
+   * The sessions of the view on screen: the archived ones under Archived,
+   * the rest otherwise, whatever the search and filter say. Everything
+   * below (the cards, Quick Stats, the export) starts here.
    */
   const viewSessions = useMemo(
-    () =>
-      sortSessions(
-        inArchiveView(visibleSessions, showArchived, viewer),
-        sortBy
-      ),
-    [visibleSessions, showArchived, viewer, sortBy]
+    () => inArchiveView(visibleSessions, showArchived, viewer),
+    [visibleSessions, showArchived, viewer]
   );
 
+  /**
+   * The sessions the list shows, in the chosen order. Ordered as their
+   * cards show them: under a one-type filter by that type's matches alone,
+   * so the scores and counts they are sorted by are the ones on the cards.
+   */
   const filteredSessions = useMemo(
-    () => filterSessions(viewSessions, filters, { teamId, uid }),
-    [viewSessions, filters, teamId, uid]
+    () =>
+      sortShown(
+        filterSessions(viewSessions, filters, { teamId, uid }),
+        filters.matchType,
+        sortBy
+      ),
+    [viewSessions, filters, teamId, uid, sortBy]
   );
 
   /**
@@ -827,11 +866,13 @@ const Sessions = () => {
   );
 
   /**
-   * The viewer's own sessions that their team can't see. A team's list only
-   * ever adds the viewer's own to what is filed under the team. Archived
-   * ones are put away, so they aren't asked about. Counted over every
-   * session read, as Share them offers them all: one dated below the team's
-   * part of the list read so far isn't on screen yet, but it is unshared.
+   * The viewer's own sessions that no team can see. A team's list only ever
+   * adds the viewer's own to what is filed under the team; one still filed
+   * under a team they left stays with that team, so it isn't offered.
+   * Archived ones are put away, so they aren't asked about. Counted over
+   * every session read, as Share them offers them all: one dated below the
+   * team's part of the list read so far isn't on screen yet, but it is
+   * unshared.
    */
   const unsharedIds = useMemo(
     () =>
@@ -839,7 +880,7 @@ const Sessions = () => {
         ? sessionsRead
             .filter(
               session =>
-                session.teamId !== teamId &&
+                !session.teamId &&
                 !archivedFor(session, viewer) &&
                 !hiddenIds.has(session.id)
             )
@@ -947,9 +988,28 @@ const Sessions = () => {
     if (uid && teamId) writeUnsharedDismissed(uid, teamId, unsharedIds);
   };
 
-  /** The author of a session (and a guest, of their own) can rename it. */
+  /** Whether a session is filed under the viewer's team (see teamFiling) */
+  const filingOf = (session: Session) =>
+    isGuest
+      ? 'here'
+      : teamFiling(session, { teamId, teamLoading, unconfirmedTeamId });
+
+  /**
+   * A session of the viewer's that stays with a team they are no longer in
+   * (left, or removed): view-only for them, as the rules have it. Its card
+   * says so, and under which team.
+   */
+  const filedElsewhere = (session: Session): boolean =>
+    filingOf(session) === 'elsewhere';
+
+  /**
+   * The author of a session (and a guest, of their own) can rename it,
+   * unless it stays with a team they have left, or may have (their team
+   * can't be checked just now).
+   */
   const canRename = (session: Session): boolean =>
-    isGuest || (!!uid && session.userId === uid);
+    isGuest ||
+    (!!uid && session.userId === uid && filingOf(session) === 'here');
 
   /**
    * Archiving is an edit like renaming, so the same people can do it: the
@@ -958,11 +1018,13 @@ const Sessions = () => {
   const canArchive = canRename;
 
   /**
-   * The author can delete a session, and so can the owner of the team it is
-   * filed under — the same two people the Firestore rules allow.
+   * The author can delete a session (one that stays with a team they left
+   * too), and so can the owner of the team it is filed under — the same two
+   * people the Firestore rules allow.
    */
   const canDelete = (session: Session): boolean =>
-    canRename(session) ||
+    isGuest ||
+    (!!uid && session.userId === uid) ||
     (!!uid &&
       !!team &&
       session.teamId === team.id &&
@@ -1102,80 +1164,30 @@ const Sessions = () => {
 
   /**
    * Copy the sessions this browser saved for a guest into the signed-in
-   * account, as personal sessions. Each one leaves guest storage only once
-   * its upload has succeeded, so a failure part-way loses nothing and a
-   * retry can't duplicate what already went up.
+   * account, as personal sessions (see lib/guestImport: nothing leaves this
+   * browser until the account has it). The list is read again once it is
+   * done (see the effect above).
    */
   const handleImportGuestSessions = async () => {
     if (!uid || importingGuestSessions) return;
-    setImportingGuestSessions(true);
-
-    try {
-      // Oldest first, so the account's list ends up in the original order
-      // even if a session's date can't be carried over.
-      const toImport = importableGuestSessions().sort(
-        (a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime()
-      );
-
-      let imported = 0;
-      let failed = 0;
-      for (const guestSession of toImport) {
-        const {
-          id: guestId,
-          createdAt: recordedAt,
-          teamId: _teamId,
-          ...rest
-        } = guestSession;
-        const data: CreateSessionData = {
-          ...rest,
-          userId: uid,
-          userEmail: user?.email || '',
-          matchType: matchTypeLabel(guestSession),
-          matches: guestSession.matches.map(match => ({
-            ...match,
-            finalScore: matchScore(match, guestSession.matchType),
-          })),
-        };
-
-        try {
-          const created = await firebaseService.createSession(data);
-          if (!created?.id) throw new Error('Session was not saved');
-          writeGuestSessions(readGuestSessions().filter(s => s.id !== guestId));
-          imported++;
-          // createSession stamps the upload time; put back when the session
-          // was actually recorded.
-          const recorded = recordedAt ? toDate(recordedAt) : null;
-          if (recorded && !Number.isNaN(recorded.getTime())) {
-            await firebaseService
-              .updateSession(created.id, { createdAt: recorded })
-              .catch(error =>
-                logger.warn('Could not keep the date of an imported session', {
-                  error: String(error),
-                })
-              );
-          }
-        } catch (error) {
-          failed++;
-          logger.error('Error importing guest session', error);
-        }
-      }
-
-      setGuestSessionCount(importableGuestSessions().length);
-      if (imported > 0) {
-        toast.success(`Imported ${plural(imported, 'session')}`);
-      }
-      if (failed > 0) {
-        toast.error(
-          `Couldn't import ${plural(failed, 'session')}. ${failed === 1 ? 'It is' : 'They are'} still saved on this device - try again.`
-        );
-      }
-      // Read again from the top: each one lands at the date it was
-      // recorded, which can be anywhere in the list (and, in a team, below
-      // the part that updates by itself).
-      if (imported > 0) reloadSessions();
-    } finally {
-      setImportingGuestSessions(false);
+    const { imported, failed } = await importGuestSessions(
+      uid,
+      user?.email ?? null
+    );
+    if (imported > 0) {
+      toast.success(`Imported ${plural(imported, 'session')}`);
     }
+    if (failed > 0) {
+      toast.error(`Couldn't import ${plural(failed, 'session')}`, {
+        description: `${failed === 1 ? "It's" : "They're"} still in this browser. Try again.`,
+      });
+    }
+  };
+
+  /** "Not now": for this visit; the offer is back next time */
+  const dismissImport = () => {
+    setImportBannerDismissed(true);
+    if (uid) writeImportDismissed(uid);
   };
 
   /**
@@ -1237,18 +1249,20 @@ const Sessions = () => {
       const pendingIds = getPendingDeleteIds();
       everySession = all.filter(session => !pendingIds.has(session.id));
     }
-    const view = sortSessions(
-      inArchiveView(everySession, showArchived, viewer),
-      sortBy
-    );
+    // Rows follow the order on screen (see filteredSessions)
+    const view = inArchiveView(everySession, showArchived, viewer);
     if (narrowed) {
       exportSessions(
-        filterSessions(view, filters, { teamId, uid }),
+        sortShown(
+          filterSessions(view, filters, { teamId, uid }),
+          filters.matchType,
+          sortBy
+        ),
         filters.matchType,
         true
       );
     } else {
-      exportSessions(view);
+      exportSessions(sortShown(view, ALL_MATCH_TYPES, sortBy));
     }
   };
 
@@ -1314,11 +1328,16 @@ const Sessions = () => {
 
   const hasSessions = visibleSessions.length > 0;
   /**
-   * The banner offering this device's guest sessions: its Import is the
-   * page's one filled button while it shows
+   * The banner offering this browser's guest sessions: its Import is the
+   * page's one filled button while it shows. Also up while they are being
+   * moved in (by signing up, say), to say so.
    */
   const importOffered =
-    !isGuest && guestSessionCount > 0 && !importBannerDismissed;
+    !isGuest &&
+    guestSessionCount > 0 &&
+    (importingGuestSessions || !importBannerDismissed);
+  /** Safari erases an unvisited site's storage after a week */
+  const [safariErases] = useState(safariMayEraseStorage);
   /** Only the Team / Mine scope is narrowing the view */
   const scopeOnly =
     filters.scope !== 'all' &&
@@ -1532,12 +1551,21 @@ const Sessions = () => {
               step after joining) outlive a change of team; they open over
               the page wherever the row itself is. In a team the row is the
               team pill and Invite, left out on a phone, where the account
-              menu opens the team. Without one it is Create and Join, behind
-              one quiet "Team up" until asked for. */}
+              menu opens the team. Without one it is Create team and Join
+              team, outlined, as soon as it is known there is no team. From
+              640px either one shows, so a stand-in holds the row's place
+              until then. */}
+          {!isGuest && teamLoading && (
+            <div
+              aria-hidden="true"
+              className={`${placeholder} max-sm:hidden w-64 rounded-xl`}
+            />
+          )}
           {!isGuest && (
             <div
-              ref={teamManagerRef}
-              className={team ? 'max-sm:hidden' : teamUpOpen ? '' : 'hidden'}
+              className={
+                teamLoading ? 'hidden' : team ? 'max-sm:hidden' : undefined
+              }
             >
               <TeamManager
                 // Sessions shared with the team move from one query of the
@@ -1546,16 +1574,6 @@ const Sessions = () => {
                 onTeamChange={reloadSessions}
               />
             </div>
-          )}
-          {!isGuest && !team && !teamLoading && !teamUpOpen && (
-            <button
-              type="button"
-              onClick={() => setTeamUpOpen(true)}
-              className="self-start -my-1 inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-medium text-team-blue underline-offset-4 hover:underline"
-            >
-              Team up
-              <ArrowRight aria-hidden="true" className="h-4 w-4" />
-            </button>
           )}
         </div>
 
@@ -1568,12 +1586,15 @@ const Sessions = () => {
           >
             <Smartphone aria-hidden="true" className="h-4 w-4 shrink-0" />
             <span>
-              Stored on this device only ·{' '}
+              Saved only in this browser
+              {safariErases &&
+                `, and Safari can erase ${visibleSessions.length === 1 ? 'it' : 'them'} after a week unused`}
+              .{' '}
               <Link
                 to={ROUTES.SIGNUP}
                 className="inline-block -my-3 py-3 font-semibold text-team-blue underline underline-offset-2"
               >
-                Sign up to back up
+                Sign up to keep {visibleSessions.length === 1 ? 'it' : 'them'}
               </Link>
             </span>
           </p>
@@ -1582,45 +1603,59 @@ const Sessions = () => {
         {importOffered && (
           <div
             role="region"
-            aria-label="Import sessions saved on this device"
+            aria-label="Sessions saved in this browser"
+            aria-busy={importingGuestSessions || undefined}
             className={`mb-4 sm:mb-6 p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-3 ${bannerTone}`}
           >
             <div className="flex-1 min-w-0">
               <p className={`font-semibold ${headingText}`}>
-                {guestSessionCount} session{guestSessionCount === 1 ? '' : 's'}{' '}
-                saved on this device
+                {importingGuestSessions
+                  ? `Moving ${plural(guestSessionCount, 'session')} from this browser into your account...`
+                  : `Import ${plural(guestSessionCount, 'session')} from this browser`}
               </p>
               <p className={`text-sm ${mutedText}`}>
-                Recorded here before you signed in. Import{' '}
-                {guestSessionCount === 1 ? 'it' : 'them'} to keep{' '}
-                {guestSessionCount === 1 ? 'it' : 'them'} in your account.
+                {importingGuestSessions
+                  ? `${guestSessionCount === 1 ? 'It shows' : 'They show'} up here once ${guestSessionCount === 1 ? "it's" : "they're"} in.`
+                  : `Recorded here before you signed in. ${guestSessionCount === 1 ? "It isn't" : "They aren't"} in this account yet.`}
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Button
-                onClick={handleImportGuestSessions}
-                disabled={importingGuestSessions}
-                data-page-primary
-                className={`bg-team-blue hover:bg-team-blue/90 min-h-[44px] flex items-center gap-1.5 ${
-                  isDarkMode ? '!text-black' : '!text-white'
-                }`}
-              >
-                <Upload className="h-4 w-4" />
-                {importingGuestSessions
-                  ? 'Importing...'
-                  : `Import ${guestSessionCount} session${guestSessionCount === 1 ? '' : 's'}`}
-              </Button>
-              <button
-                onClick={() => setImportBannerDismissed(true)}
-                disabled={importingGuestSessions}
-                className={dismissButton}
-                aria-label="Not now"
-                title="Not now"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+            {!importingGuestSessions && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="neutral"
+                  size="touch"
+                  onClick={dismissImport}
+                  className="max-sm:flex-1"
+                >
+                  Not now
+                </Button>
+                <Button
+                  variant="primary"
+                  size="touch"
+                  onClick={handleImportGuestSessions}
+                  data-page-primary
+                  className="max-sm:flex-1"
+                >
+                  <Upload />
+                  Import
+                </Button>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* The list as it last loaded, while the server can't be reached */}
+        {offline && !loadFailed && !loading && (
+          <p
+            role="status"
+            className={`mb-4 px-3 py-2 rounded-xl border flex items-center gap-2 text-xs sm:text-sm ${bannerTone} ${
+              isDarkMode ? 'text-gray-100' : 'text-gray-900'
+            }`}
+          >
+            <CloudOff aria-hidden="true" className="h-4 w-4 shrink-0" />
+            You're offline. These are your sessions as they last loaded, and
+            they update once you're back online.
+          </p>
         )}
 
         {team && (unsharedBannerShown || pendingUnshared) && (
@@ -1858,16 +1893,36 @@ const Sessions = () => {
             <h2 id="quick-stats-title" className="sr-only">
               {loading
                 ? 'Quick Stats'
-                : `Quick Stats, ${scopeLabel(quickStats.sessionCount, filters, showArchived)}`}
+                : `Quick Stats, ${quickStats.countedType ? `${quickStats.countedType} matches from ` : ''}${scopeLabel(quickStats.sessionCount, filters, showArchived)}`}
             </h2>
+            {/* With more than one match type and none picked, the figures
+                are over the commonest type only, and say so */}
             <div className="grid grid-cols-3 gap-2 sm:gap-4">
               {[
-                { label: 'Avg score', value: quickStats.averageScore },
-                { label: 'Best score', value: quickStats.bestScore },
-                { label: 'Matches', value: quickStats.matchCount },
-              ].map(({ label, value }) => (
+                {
+                  id: 'avg',
+                  label: quickStats.countedType
+                    ? `${quickStats.countedType} avg`
+                    : 'Avg score',
+                  value: quickStats.averageScore,
+                },
+                {
+                  id: 'best',
+                  label: quickStats.countedType
+                    ? `${quickStats.countedType} best`
+                    : 'Best score',
+                  value: quickStats.bestScore,
+                },
+                {
+                  id: 'matches',
+                  label: quickStats.countedType
+                    ? `${quickStats.countedType} matches`
+                    : 'Matches',
+                  value: quickStats.matchCount,
+                },
+              ].map(({ id, label, value }) => (
                 <StatTile
-                  key={label}
+                  key={id}
                   label={label}
                   value={
                     loading ? (
@@ -1897,7 +1952,7 @@ const Sessions = () => {
                   <p
                     className={`mt-2 text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    Over the newest {plural(quickStats.sessionCount, 'session')}{' '}
+                    Over the newest {plural(filteredSessions.length, 'session')}{' '}
                     ·{' '}
                     {loadingOlder ? (
                       'reading older ones...'
@@ -1956,44 +2011,52 @@ const Sessions = () => {
             <h2 className={`mb-2 ${SECTION_TITLE_CLASS}`}>
               {loadFailed
                 ? "Couldn't load your sessions"
-                : scopeOnly && showArchived
-                  ? filters.scope === 'team'
-                    ? `No archived sessions shared with ${team?.name ?? 'your team'}`
-                    : "You haven't archived any of your sessions"
-                  : scopeOnly
+                : importOffered && !filtersActive && !archiveEmpty
+                  ? 'No sessions in this account yet'
+                  : scopeOnly && showArchived
                     ? filters.scope === 'team'
-                      ? `No sessions shared with ${team?.name ?? 'your team'} yet`
-                      : "You haven't recorded a session yet"
-                    : filtersActive
-                      ? `No ${showArchived ? 'archived ' : ''}sessions match these filters`
-                      : showArchived
-                        ? 'No archived sessions'
-                        : archivedCount > 0
-                          ? 'No active sessions'
-                          : 'No sessions yet'}
+                      ? `No archived sessions shared with ${team?.name ?? 'your team'}`
+                      : "You haven't archived any of your sessions"
+                    : scopeOnly
+                      ? filters.scope === 'team'
+                        ? `No sessions shared with ${team?.name ?? 'your team'} yet`
+                        : "You haven't recorded a session yet"
+                      : filtersActive
+                        ? `No ${showArchived ? 'archived ' : ''}sessions match these filters`
+                        : showArchived
+                          ? 'No archived sessions'
+                          : archivedCount > 0
+                            ? 'No active sessions'
+                            : 'No sessions yet'}
             </h2>
             <p
               className={`mb-6 max-w-md mx-auto text-balance ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
             >
               {loadFailed
-                ? 'Check your connection, then reload the page'
-                : scopeOnly && showArchived
-                  ? 'Sessions you archive are kept here, out of your main list.'
-                  : scopeOnly
-                    ? filters.scope === 'team'
-                      ? 'Sessions filed under the team show up here.'
-                      : 'Sessions you score show up here.'
-                    : filtersActive
-                      ? 'Try a different search or match type'
-                      : showArchived
-                        ? 'Sessions you archive are kept here, out of your main list.'
-                        : archivedCount > 0
-                          ? archivedCount === 1
-                            ? 'The only session here is archived.'
-                            : `All ${archivedCount} sessions here are archived.`
-                          : isGuest
-                            ? 'Score a practice and it shows up here. No account needed: sessions stay in this browser.'
-                            : 'Score a practice and it shows up here.'}
+                ? offline
+                  ? "You're offline. They load by themselves once you're back online."
+                  : 'Check your connection, then reload the page'
+                : importOffered && !filtersActive && !archiveEmpty
+                  ? importingGuestSessions
+                    ? `The ${guestSessionCount === 1 ? 'session above is on its' : `${guestSessionCount} sessions above are on their`} way in.`
+                    : `The ${guestSessionCount === 1 ? 'session' : `${guestSessionCount} sessions`} above ${guestSessionCount === 1 ? 'is' : 'are'} only in this browser until you import ${guestSessionCount === 1 ? 'it' : 'them'}.`
+                  : scopeOnly && showArchived
+                    ? 'Sessions you archive are kept here, out of your main list.'
+                    : scopeOnly
+                      ? filters.scope === 'team'
+                        ? 'Sessions filed under the team show up here.'
+                        : 'Sessions you score show up here.'
+                      : filtersActive
+                        ? 'Try a different search or match type'
+                        : showArchived
+                          ? 'Sessions you archive are kept here, out of your main list.'
+                          : archivedCount > 0
+                            ? archivedCount === 1
+                              ? 'The only session here is archived.'
+                              : `All ${archivedCount} sessions here are archived.`
+                            : isGuest
+                              ? 'Score a practice and it shows up here. No account needed: sessions stay in this browser.'
+                              : 'Score a practice and it shows up here.'}
             </p>
             {!loadFailed && filtersActive && (
               <Button
@@ -2021,26 +2084,30 @@ const Sessions = () => {
                 {showArchived ? 'Back to active' : 'Show archived sessions'}
               </Button>
             )}
-            {!loadFailed && !filtersActive && !archiveEmpty && !isGuest && (
-              <Button
-                onClick={() => {
-                  // A session already under way is carried on, not replaced.
-                  if (!hasActiveSession) resetSession();
-                  navigate(ROUTES.ACTIVE);
-                }}
-                // An outline while the Import banner above offers the
-                // sessions this device already holds
-                variant={importOffered ? 'neutral' : 'primary'}
-                // The view's one fill: the header's New Session steps back
-                data-page-primary={importOffered ? undefined : ''}
-                className="min-h-11"
-              >
-                {!hasActiveSession && <Plus className="h-4 w-4" />}
-                {hasActiveSession
-                  ? 'Back to your active session'
-                  : 'Start your first session'}
-              </Button>
-            )}
+            {/* While the banner above offers this browser's sessions,
+                Import is the one way on: no Start here */}
+            {!loadFailed &&
+              !filtersActive &&
+              !archiveEmpty &&
+              !isGuest &&
+              !importOffered && (
+                <Button
+                  onClick={() => {
+                    // A session already under way is carried on, not replaced.
+                    if (!hasActiveSession) resetSession();
+                    navigate(ROUTES.ACTIVE);
+                  }}
+                  variant="primary"
+                  // The view's one fill: the header's New Session steps back
+                  data-page-primary
+                  className="min-h-11"
+                >
+                  {!hasActiveSession && <Plus className="h-4 w-4" />}
+                  {hasActiveSession
+                    ? 'Back to your active session'
+                    : 'Start your first session'}
+                </Button>
+              )}
             {!loadFailed && !filtersActive && !archiveEmpty && isGuest && (
               <div className="flex flex-col gap-2 justify-center items-center">
                 <Button
@@ -2098,13 +2165,15 @@ const Sessions = () => {
                     : undefined
                 }
                 ownerName={getSessionOwnerName(session)}
-                // `shown` may hold only the filtered type's matches; Delete
-                // removes every one, so its question counts them all
-                matchesInSession={(session.matches || []).length}
                 // The banner above already says which aren't shared
                 notSharedWith={
-                  team && !unsharedBannerShown && session.teamId !== team.id
+                  team && !unsharedBannerShown && !session.teamId
                     ? team.name
+                    : undefined
+                }
+                filedUnder={
+                  filedElsewhere(session)
+                    ? { name: filedUnderName(session) }
                     : undefined
                 }
               />

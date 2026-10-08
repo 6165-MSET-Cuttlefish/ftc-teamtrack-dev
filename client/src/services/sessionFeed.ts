@@ -16,6 +16,10 @@
  * happened to read (a team's list caches the viewer's own sessions filed
  * under it), so a page made from it can end far past sessions never read,
  * or short of ones that exist.
+ *
+ * Offline, a list read earlier in the visit is shown as it was last read
+ * (see `remembered`) rather than not at all, marked `offline`, and read
+ * again once the connection is back.
  */
 
 import {
@@ -77,7 +81,37 @@ export interface SessionFeedState {
    * the list holds them all.
    */
   completeAfter: Date | null;
+  /**
+   * The server can't be reached: this is the list as it was last read
+   * during this visit, and it is read again once the connection is back.
+   */
+  offline: boolean;
 }
+
+/**
+ * The list each feed key (an account and its team) last showed during this
+ * visit. A page opened while the connection is down shows it, rather than
+ * a list with nothing in it that reads as "no sessions".
+ */
+const remembered = new Map<string, SessionFeedState>();
+
+/** How often a list shown offline tries the server again */
+const OFFLINE_RETRY_MS = 15_000;
+
+/**
+ * How long a followed list waits for the server's first answer before it
+ * is taken to be offline
+ */
+const FIRST_ANSWER_TIMEOUT_MS = 10_000;
+
+/** Whether a failed read failed for want of a connection. */
+const isOffline = (error?: unknown): boolean =>
+  (error as { code?: string } | null)?.code === 'unavailable' ||
+  (typeof navigator !== 'undefined' && navigator.onLine === false);
+
+/** What a list that couldn't be read at all rejects with, offline */
+const offlineError = (): Error =>
+  Object.assign(new Error("Can't reach the server"), { code: 'unavailable' });
 
 /** Where a document sits in the order: time, then ID, both descending. */
 interface Position {
@@ -223,13 +257,18 @@ export class SessionFeed {
   private readonly onChange: (state: SessionFeedState) => void;
   private readonly states: SourceState[];
   private readonly unsubscribes: Unsubscribe[] = [];
+  /** Where the list is remembered for a visit offline (see `remembered`) */
+  private readonly key: string | undefined;
   private closed = false;
+  /** Stops waiting for the connection to come back, while it waits */
+  private stopRetrying: (() => void) | null = null;
   private state: SessionFeedState = {
     sessions: [],
     read: [],
     hasMore: false,
     unread: [],
     completeAfter: null,
+    offline: false,
   };
   /** "Show older" and "load all" run one at a time, in order */
   private queue: Promise<unknown> = Promise.resolve();
@@ -239,7 +278,8 @@ export class SessionFeed {
    * `live` follows each source's first page as it changes on the server
    * (sessions saved, renamed or deleted by anyone); older pages are read
    * once. The first source is the list itself: if it can't be read, the
-   * list fails (`ready` rejects, or `onError` hears it later).
+   * list fails (`ready` rejects, or `onError` hears it later), unless it is
+   * offline with a list remembered under `key` to show instead.
    */
   constructor(
     db: Firestore,
@@ -248,10 +288,16 @@ export class SessionFeed {
     {
       live = false,
       onError,
-    }: { live?: boolean; onError?: (error: Error) => void } = {}
+      key,
+    }: {
+      live?: boolean;
+      onError?: (error: Error) => void;
+      key?: string;
+    } = {}
   ) {
     this.db = db;
     this.onChange = onChange;
+    this.key = key;
     this.states = sources.map((source, index) => ({
       source,
       required: index === 0,
@@ -260,7 +306,7 @@ export class SessionFeed {
       done: false,
       ready: false,
     }));
-    this.ready = live ? this.listen(onError) : this.readFirstPages();
+    this.ready = live ? this.listen(onError) : this.firstPagesOrRemembered();
     // A failed first load is the caller's to report; it is not left unhandled.
     this.ready.catch(() => {});
   }
@@ -269,6 +315,7 @@ export class SessionFeed {
   close(): void {
     this.closed = true;
     this.unsubscribes.forEach(unsubscribe => unsubscribe());
+    this.stopRetrying?.();
   }
 
   /**
@@ -278,12 +325,24 @@ export class SessionFeed {
    */
   patch(change: (sessions: Session[]) => Session[]): void {
     for (const state of this.states) state.loaded = change(state.loaded);
+    if (this.state.offline) {
+      // The list on screen is the remembered one: it takes the change too.
+      this.state = {
+        ...this.state,
+        sessions: change(this.state.sessions),
+        read: change(this.state.read),
+      };
+      this.onChange(this.state);
+      return;
+    }
     this.publish();
   }
 
   /** Read about one page further back. */
   loadOlder(): Promise<SessionFeedState> {
     return this.enqueue(async () => {
+      // The list remembered offline has nowhere to read on from.
+      if (this.state.offline) throw offlineError();
       const before = this.state.sessions.length;
       const target = Math.min(...this.states.map(s => s.source.pageSize));
       for (let round = 0; round < MAX_OLDER_ROUNDS; round++) {
@@ -305,6 +364,7 @@ export class SessionFeed {
   /** Read everything not read yet. Resolves with the whole list. */
   loadAll(): Promise<SessionFeedState> {
     return this.enqueue(async () => {
+      if (this.state.offline) throw offlineError();
       await Promise.all(
         this.open().map(state => this.readOn(state, Infinity, Infinity))
       );
@@ -362,6 +422,75 @@ export class SessionFeed {
     state.done = state.done || page.done;
   }
 
+  /**
+   * Show the list as it was last read during this visit, marked offline,
+   * when the server can't be reached (`error`, if a read said why) and
+   * there is one to show. False otherwise: the list is left as it is.
+   */
+  private showRemembered(error?: unknown): boolean {
+    const last = this.key === undefined ? undefined : remembered.get(this.key);
+    if (this.closed || !last || !isOffline(error)) return false;
+    this.state = { ...last, offline: true };
+    this.onChange(this.state);
+    return true;
+  }
+
+  /**
+   * Run `retry` once the connection looks to be back: when the browser says
+   * so, or at the next try every `OFFLINE_RETRY_MS` (a phone on a venue's
+   * Wi-Fi can be "online" with no way out).
+   */
+  private retryWhenOnline(retry: () => void): void {
+    if (this.closed || this.stopRetrying || typeof window === 'undefined') {
+      return;
+    }
+    const attempt = () => {
+      if (navigator.onLine === false) return;
+      this.stopRetrying?.();
+      retry();
+    };
+    const timer = setInterval(attempt, OFFLINE_RETRY_MS);
+    window.addEventListener('online', attempt);
+    this.stopRetrying = () => {
+      clearInterval(timer);
+      window.removeEventListener('online', attempt);
+      this.stopRetrying = null;
+    };
+  }
+
+  /**
+   * The first pages, read once. Offline, the list remembered from earlier
+   * in the visit stands in, and the pages are read again from the start
+   * once the connection is back.
+   */
+  private async firstPagesOrRemembered(): Promise<void> {
+    try {
+      await this.readFirstPages();
+    } catch (error) {
+      if (!this.showRemembered(error)) throw error;
+      this.retryWhenOnline(() => void this.readAgain());
+    }
+  }
+
+  /** Read the first pages again, from scratch, for a list shown offline. */
+  private readAgain(): Promise<SessionFeedState> {
+    return this.enqueue(async () => {
+      for (const state of this.states) {
+        state.loaded = [];
+        state.cursor = null;
+        state.done = false;
+        state.ready = false;
+      }
+      try {
+        await this.readFirstPages();
+      } catch (error) {
+        logger.warn('Sessions still unreachable', { error: String(error) });
+        this.retryWhenOnline(() => void this.readAgain());
+      }
+      return this.state;
+    });
+  }
+
   /** The first page of every source, read once. */
   private async readFirstPages(): Promise<void> {
     await Promise.all(
@@ -396,6 +525,7 @@ export class SessionFeed {
         if (this.closed) return;
         if (!settled) {
           settled = true;
+          stopWatchingOffline();
           reject(error);
         }
         onError?.(error);
@@ -404,9 +534,39 @@ export class SessionFeed {
         this.publish();
         if (!settled && this.states.every(state => state.ready)) {
           settled = true;
+          stopWatchingOffline();
           resolve();
         }
       };
+      // Offline before the server has answered (the browser says so, or the
+      // server hasn't answered for a long while: a venue's Wi-Fi can be
+      // "online" with no way out): the list remembered from earlier in the
+      // visit stands in, or with none the list fails rather than load for as
+      // long as the connection is down. Either way the listeners keep
+      // waiting, and the server's first answer replaces it.
+      const wentOffline = (timedOut = false) => {
+        if (settled || this.closed) return;
+        if (!timedOut && navigator.onLine !== false) return;
+        if (this.showRemembered(offlineError())) {
+          settled = true;
+          stopWatchingOffline();
+          resolve();
+        } else {
+          fail(offlineError());
+        }
+      };
+      const onOffline = () => wentOffline();
+      const noAnswer = setTimeout(
+        () => wentOffline(true),
+        FIRST_ANSWER_TIMEOUT_MS
+      );
+      const stopWatchingOffline = () => {
+        clearTimeout(noAnswer);
+        window.removeEventListener('offline', onOffline);
+      };
+      window.addEventListener('offline', onOffline);
+      this.unsubscribes.push(stopWatchingOffline);
+      queueMicrotask(onOffline);
 
       for (const state of this.states) {
         const { source } = state;
@@ -431,8 +591,13 @@ export class SessionFeed {
             // A page from the cache is never taken (see the top of the
             // file): before the server answers it holds other lists'
             // sessions, and one the SDK refills from it after a delete here
-            // can end on a session far past ones never read.
-            if (this.closed || snapshot.metadata.fromCache) return;
+            // can end on a session far past ones never read. It does say
+            // the SDK has noticed when the connection is down.
+            if (this.closed) return;
+            if (snapshot.metadata.fromCache) {
+              if (!answered) wentOffline();
+              return;
+            }
             const docs = snapshot.docs;
             const more = docs.length > source.pageSize;
             const last = docs[docs.length - 1];
@@ -492,13 +657,16 @@ export class SessionFeed {
                 );
               }
             } catch (error) {
-              if (state.required) {
+              if (state.required && !isOffline(error)) {
                 logger.error('Error reading sessions', error);
                 fail(error as Error);
                 return;
               }
               logger.error('Error fetching own sessions:', error);
-              state.done = true;
+              // Offline, the server's first page stands as it is, and Show
+              // older reads on once the connection is back. The viewer's
+              // own sessions beside a team's are dropped instead.
+              if (!state.required) state.done = true;
             } finally {
               filling = false;
             }
@@ -540,6 +708,7 @@ export class SessionFeed {
     }
     const merged = mergeSessions(this.states.map(state => state.loaded));
     const reached = frontier;
+    this.stopRetrying?.();
     this.state = {
       sessions: reached
         ? merged.filter(
@@ -555,7 +724,9 @@ export class SessionFeed {
       completeAfter: reached
         ? new Date(reached.seconds * 1000 + reached.nanos / 1e6)
         : null,
+      offline: false,
     };
+    if (this.key !== undefined) remembered.set(this.key, this.state);
     this.onChange(this.state);
   }
 }

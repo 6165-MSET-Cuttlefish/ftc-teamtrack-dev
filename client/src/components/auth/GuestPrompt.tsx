@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { ROUTES, STORAGE_KEYS } from '@/constants';
 import { readGuestSessions } from '@/lib/guestSessions';
+import {
+  requestPersistentStorage,
+  safariMayEraseStorage,
+} from '@/lib/browserStorage';
 
 const PROMPT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Show once per day
 
@@ -28,6 +32,8 @@ export const GuestPrompt = () => {
   const [hasSavedSession, setHasSavedSession] = useState(false);
   const [cardEl, setCardEl] = useState<HTMLDivElement | null>(null);
   const [cardHeight, setCardHeight] = useState(0);
+  /** Safari erases an unvisited site's storage after a week */
+  const [safariErases] = useState(safariMayEraseStorage);
 
   // Hide on auth pages where user is already trying to sign up/log in
   const isOnAuthPage = (AUTH_ROUTES as readonly string[]).includes(
@@ -62,7 +68,12 @@ export const GuestPrompt = () => {
   // session has been saved. Completing one leads to another page, so looking
   // again on each page change is enough to notice it.
   useEffect(() => {
-    setHasSavedSession(isGuest && readGuestSessions().length > 0);
+    const saved = isGuest && readGuestSessions().length > 0;
+    setHasSavedSession(saved);
+    // Once there is something to lose, ask the browser to keep this site's
+    // storage rather than clear it (granted where the browser trusts the
+    // site, such as an app added to the Home Screen).
+    if (saved) requestPersistentStorage();
   }, [isGuest, location.pathname]);
 
   // A first-time guest gets the tutorial before anything else. The tutorial
@@ -176,7 +187,9 @@ export const GuestPrompt = () => {
         className="fixed bottom-4 left-4 right-4 ml-auto sm:left-auto sm:w-max max-w-md flex items-center gap-2 rounded-xl border border-team-blue-40 bg-popover text-popover-foreground shadow-2xl py-1.5 pl-4 pr-1.5 z-40 animate-slide-up"
       >
         <p className="min-w-0 flex-1 text-sm font-medium leading-tight text-balance">
-          Saved only in this browser
+          {safariErases
+            ? 'Saved only in this browser, and Safari can erase it after a week unused'
+            : 'Saved only in this browser'}
         </p>
         <Button
           asChild

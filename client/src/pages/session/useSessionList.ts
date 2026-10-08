@@ -31,6 +31,12 @@ export interface SessionList {
   loading: boolean;
   /** The list couldn't be read, so an empty one doesn't mean "no sessions" */
   loadFailed: boolean;
+  /**
+   * The server can't be reached: the list is as it was last read in this
+   * visit (or, with `loadFailed`, couldn't be read at all), and it is read
+   * again by itself once the connection is back.
+   */
+  offline: boolean;
   /** Older sessions exist that aren't in `sessions` yet */
   hasMore: boolean;
   /**
@@ -60,13 +66,22 @@ export interface SessionList {
   reload: () => void;
 }
 
+/** How often a list that couldn't be read offline tries again */
+const OFFLINE_RETRY_MS = 15_000;
+
 const EMPTY: SessionFeedState = {
   sessions: [],
   read: [],
   hasMore: false,
   unread: [],
   completeAfter: null,
+  offline: false,
 };
+
+/** Whether a failed read failed for want of a connection. */
+const isOfflineError = (error: unknown): boolean =>
+  (error as { code?: string } | null)?.code === 'unavailable' ||
+  navigator.onLine === false;
 
 /**
  * `live` keeps a team's list in step with the server while it is open
@@ -81,10 +96,17 @@ export const useSessionList = ({
   const [list, setList] = useState<SessionFeedState>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  /** The list failed because the server couldn't be reached */
+  const [failedOffline, setFailedOffline] = useState(false);
   const [olderReads, setOlderReads] = useState(0);
   const [olderFailed, setOlderFailed] = useState(false);
   const [reloads, setReloads] = useState(0);
   const feedRef = useRef<SessionFeed | null>(null);
+  /**
+   * The next read is a try at a list that couldn't be read offline: the
+   * page keeps saying so meanwhile, rather than going back to loading.
+   */
+  const quietRetry = useRef(false);
 
   // Which list to read is only known once the team is: read before then,
   // a team member's list would be read twice, the personal one first.
@@ -118,7 +140,9 @@ export const useSessionList = ({
     let feed: SessionFeed | null = null;
     let received = false;
     let deniedNotice: ReturnType<typeof setTimeout> | undefined;
-    setLoading(true);
+    const quiet = quietRetry.current;
+    quietRetry.current = false;
+    if (!quiet) setLoading(true);
     setOlderReads(0);
     setOlderFailed(false);
 
@@ -127,11 +151,13 @@ export const useSessionList = ({
       received = true;
       setList(state);
       setLoadFailed(false);
+      setFailedOffline(false);
       setLoading(false);
     };
-    const fail = () => {
+    const fail = (offline = false) => {
       if (!active) return;
       setLoadFailed(true);
+      setFailedOffline(offline);
       setLoading(false);
     };
     const open = async (follow: boolean) => {
@@ -159,6 +185,13 @@ export const useSessionList = ({
       // A listener this effect has already let go of has nothing to say.
       if (!active) return;
       logger.error('Team sessions listener error:', { error: String(error) });
+
+      // Offline with nothing read yet: the page says so, and the list is
+      // read again once the connection is back (see below).
+      if (!received && isOfflineError(error)) {
+        fail(true);
+        return;
+      }
 
       if ((error as { code?: string } | null)?.code === 'permission-denied') {
         // Almost always means the user is no longer in this team (removed,
@@ -203,6 +236,17 @@ export const useSessionList = ({
         // A followed list reports its failures to onLiveError.
         if (following || !active || isAbortError(error)) return;
         logger.error('Error loading sessions', error);
+        if (isOfflineError(error)) {
+          // Said once, not on every try; read again once back online
+          if (!quiet) {
+            toast.error("Can't load your sessions while offline", {
+              id: 'sessions-offline',
+              description: 'They load by themselves once you are back online.',
+            });
+          }
+          fail(true);
+          return;
+        }
         toast.error('Failed to load sessions');
         fail();
       }
@@ -275,11 +319,30 @@ export const useSessionList = ({
 
   const reload = useCallback(() => setReloads(n => n + 1), []);
 
+  // A list that couldn't be read for want of a connection is read again
+  // once the connection is back: when the browser says so, or every so
+  // often (on a venue's Wi-Fi it can say "online" with no way out).
+  useEffect(() => {
+    if (!loadFailed || !failedOffline) return;
+    const retry = () => {
+      if (navigator.onLine === false) return;
+      quietRetry.current = true;
+      reload();
+    };
+    const timer = setInterval(retry, OFFLINE_RETRY_MS);
+    window.addEventListener('online', retry);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('online', retry);
+    };
+  }, [loadFailed, failedOffline, reload]);
+
   return {
     sessions: list.sessions,
     sessionsRead: list.read,
     loading,
     loadFailed,
+    offline: list.offline || (loadFailed && failedOffline),
     hasMore: list.hasMore,
     ownUnread: list.unread.includes(OWN_SESSIONS),
     loadingOlder: olderReads > 0,

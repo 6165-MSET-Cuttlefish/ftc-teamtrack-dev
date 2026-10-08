@@ -12,6 +12,7 @@ import { useAuth } from './AuthContext';
 import { teamService } from '@/services';
 import type { JoinTeamResult, LeaveOutcome, Team } from '@/types';
 import { logger, toDate } from '@/lib';
+import { isLeavingTeam } from '@/lib/leavingTeams';
 
 interface TeamContextType {
   /**
@@ -21,6 +22,12 @@ interface TeamContextType {
    */
   team: Team | null;
   loading: boolean;
+  /**
+   * The team this browser last showed the user, while it can't be told
+   * whether they are still in it (the load found no team, but the server
+   * couldn't be asked). Checked again until it can; null otherwise.
+   */
+  unconfirmedTeamId: string | null;
   createTeam: (name: string) => Promise<Team | null>;
   /**
    * Join the team an invite code belongs to. Someone already in another team
@@ -102,6 +109,9 @@ const rememberedTeam = (uid: string): string | null =>
 /** How often, at most, coming back to the app re-checks team membership. */
 const MEMBERSHIP_RECHECK_MS = 30_000;
 
+/** How often a team that couldn't be confirmed is asked about again. */
+const UNCONFIRMED_RECHECK_MS = 15_000;
+
 /**
  * Tell the user they are no longer in a team they did not choose to leave.
  * Stays until dismissed: it explains why their session list just changed.
@@ -115,23 +125,30 @@ const notifyMembershipEnded = (teamId: string, teamName: string) =>
   });
 
 /**
- * On load the user is in no team, but this browser last showed them one:
- * they were removed (or the team was deleted) while the app was closed. Say
- * so once. A lookup that fails proves nothing, so it says nothing.
+ * On load the user is in no team, but this browser last showed them one.
+ * Still in it (the load only came back empty for want of a connection):
+ * resolves to that team. Removed, or the team deleted, while the app was
+ * closed: says so once, and resolves to null. A lookup that fails proves
+ * nothing, so it says nothing and resolves to undefined.
  */
-const noticeTeamLostWhileAway = async (uid: string) => {
+const checkTeamLostWhileAway = async (
+  uid: string
+): Promise<Team | null | undefined> => {
   const teamId = rememberedTeam(uid);
-  if (!teamId) return;
+  if (!teamId) return null;
+  let kept: Team | null;
   try {
-    if (await teamService.getMembership(teamId, uid)) return;
+    kept = await teamService.getMembership(teamId, uid);
   } catch {
-    return;
+    return undefined;
   }
   // They may have created or joined a team while that was being checked.
-  if (rememberedTeam(uid) !== teamId) return;
+  if (rememberedTeam(uid) !== teamId) return null;
+  if (kept) return kept;
   const teamName = stored(rememberedTeamNameKey(uid));
   rememberTeam(uid, null);
   if (teamName) notifyMembershipEnded(teamId, teamName);
+  return null;
 };
 
 /** Finish leaving a team that a previous join could not get the user out of. */
@@ -178,6 +195,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
   const { user } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unconfirmedTeamId, setUnconfirmedTeamId] = useState<string | null>(
+    null
+  );
   const uid = user?.uid;
   const teamId = team?.id;
 
@@ -212,7 +232,8 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     (userId: string, lost: Team) => {
       if (teamRef.current?.id !== lost.id) return;
       showTeam(userId, null);
-      if (leavingTeamId.current === lost.id) {
+      // Left from here, or by deleting the account: nothing to tell them.
+      if (leavingTeamId.current === lost.id || isLeavingTeam(lost.id)) {
         leavingTeamId.current = null;
         return;
       }
@@ -228,6 +249,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
       if (!user) {
         teamRef.current = null;
         setTeam(null);
+        setUnconfirmedTeamId(null);
         setLoading(false);
         return;
       }
@@ -244,9 +266,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
           // Fire-and-forget: backfills the owner fields and invite lookup
           // that older teams are missing.
           teamService.ensureOwnerSetup(current, user.uid);
-        } else {
-          noticeTeamLostWhileAway(user.uid);
         }
+        // No team found, but one shown here before: asked about below.
+        setUnconfirmedTeamId(current ? null : rememberedTeam(user.uid));
         finishLeaving(user.uid, teams, current);
       } catch (error) {
         logger.error('Error loading team:', error);
@@ -260,6 +282,32 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
       cancelled = true;
     };
   }, [user]);
+
+  // A team the load couldn't confirm or rule out is asked about now, and
+  // again once the connection is back: when the browser says so, or every
+  // so often (on a venue's Wi-Fi it can say "online" with no way out).
+  useEffect(() => {
+    if (!uid || !unconfirmedTeamId) return;
+    let active = true;
+    let asking = false;
+    const ask = async () => {
+      if (asking || navigator.onLine === false) return;
+      asking = true;
+      const kept = await checkTeamLostWhileAway(uid);
+      asking = false;
+      if (!active || kept === undefined) return;
+      if (kept && !teamRef.current) showTeam(uid, kept);
+      setUnconfirmedTeamId(null);
+    };
+    void ask();
+    window.addEventListener('online', ask);
+    const timer = setInterval(ask, UNCONFIRMED_RECHECK_MS);
+    return () => {
+      active = false;
+      window.removeEventListener('online', ask);
+      clearInterval(timer);
+    };
+  }, [uid, unconfirmedTeamId, showTeam]);
 
   // Keep the team live. Being removed (or the team being deleted) otherwise
   // goes unnoticed until a reload, and sessions keep being filed under a
@@ -539,6 +587,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
       value={{
         team,
         loading,
+        unconfirmedTeamId,
         createTeam,
         joinTeam,
         leaveTeam,

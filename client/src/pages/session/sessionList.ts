@@ -4,7 +4,14 @@
  * Stats, the cards and the export take from them.
  */
 
-import { MIXED_MATCH_TYPE, matchScore, sessionMatchType, toDate } from '@/lib';
+import {
+  MIXED_MATCH_TYPE,
+  matchScore,
+  sessionMatchType,
+  sortSessions,
+  toDate,
+} from '@/lib';
+import type { SortOption } from '@/lib';
 import type { Session } from '@/types';
 
 /** Filter value that lets every match type through. */
@@ -152,6 +159,27 @@ export const withCountedMatches = (
     : session;
 
 /**
+ * `sessions` in the order `sortBy` puts them, judged as their cards show
+ * them: under a filter that names one match type, by that type's matches
+ * alone, so "Highest score" under Autonomous ranks the best Autonomous runs.
+ * Returns the sessions themselves, not the copies.
+ */
+export const sortShown = (
+  sessions: Session[],
+  matchType: string,
+  sortBy: SortOption
+): Session[] => {
+  if (!oneMatchTypeLabel(matchType)) return sortSessions(sessions, sortBy);
+  const original = new Map<Session, Session>();
+  const shown = sessions.map(session => {
+    const copy = withCountedMatches(session, matchType);
+    original.set(copy, session);
+    return copy;
+  });
+  return sortSessions(shown, sortBy).map(copy => original.get(copy) ?? copy);
+};
+
+/**
  * The shown sessions as the export writes them: each with the matches Quick
  * Stats counts, so under an Autonomous filter the file holds the Autonomous
  * matches and the two give the same match count.
@@ -172,29 +200,74 @@ export const matchCountOf = (sessions: Session[]): number =>
   );
 
 export interface QuickStats {
+  /** Sessions holding a counted match: the ones the figures come from */
   sessionCount: number;
   matchCount: number;
   /** Null when no match was counted: nothing has an average or a best */
   averageScore: number | null;
   bestScore: number | null;
+  /**
+   * The one match type counted, as its label, when the sessions hold more
+   * than one and no filter named one (see `quickStatsOf`); else null
+   */
+  countedType: string | null;
 }
+
+/** The order match types are offered in, and win a tie for commonest in */
+const TYPE_ORDER: readonly string[] = MATCH_TYPE_FILTERS.map(f => f.value);
+
+/**
+ * The match type most of these matches were run as, lower-cased: Charts'
+ * rule for the type it opens on, so the two pages agree. A tie goes to the
+ * type offered first (Full Game).
+ */
+const commonestMatchType = (types: string[]): string | null => {
+  const counts = new Map<string, number>();
+  for (const type of types) counts.set(type, (counts.get(type) ?? 0) + 1);
+  const rank = (type: string) =>
+    TYPE_ORDER.includes(type) ? TYPE_ORDER.indexOf(type) : TYPE_ORDER.length;
+  return (
+    [...counts].sort(
+      ([a, countA], [b, countB]) => countB - countA || rank(a) - rank(b)
+    )[0]?.[0] ?? null
+  );
+};
 
 /**
  * Quick Stats over the sessions on screen, counting the matches a match-type
- * filter lets through (see `countedMatches`).
+ * filter lets through (see `countedMatches`). With no one type named and
+ * matches of more than one, only the commonest type counts: a 30-second
+ * Autonomous run is never averaged in with full games, as on Charts and
+ * Compare. `countedType` then names it.
  */
 export const quickStatsOf = (
   sessions: Session[],
   matchType: string
 ): QuickStats => {
-  const scores = sessions.flatMap(session =>
-    countedMatches(session, matchType).map(match =>
-      matchScore(match, session.matchType)
-    )
+  const counted = sessions.flatMap(session =>
+    countedMatches(session, matchType).map(match => ({
+      session: session.id,
+      type: matchTypeOf(match, session),
+      score: matchScore(match, session.matchType),
+    }))
   );
+  const types = new Set(counted.map(match => match.type));
+  const onlyType =
+    !oneMatchTypeLabel(matchType) && types.size > 1
+      ? commonestMatchType(counted.map(match => match.type))
+      : null;
+  const kept = counted.filter(
+    match => onlyType === null || match.type === onlyType
+  );
+  const scores = kept.map(match => match.score);
 
   return {
-    sessionCount: sessions.length,
+    countedType:
+      onlyType === null
+        ? null
+        : (MATCH_TYPE_FILTERS.find(filter => filter.value === onlyType)
+            ?.label ?? onlyType),
+    sessionCount: new Set(kept.map(match => match.session)).size,
     matchCount: scores.length,
     averageScore:
       scores.length > 0
