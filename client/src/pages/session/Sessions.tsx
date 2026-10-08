@@ -553,7 +553,14 @@ const Sessions = () => {
   /** Open another page, taking the search along into this page's entry. */
   const leaveTo = (route: string) => {
     flushSearch();
-    navigate(route);
+    // Charts and Compare open on the match type and scope picked here
+    const carried = new URLSearchParams();
+    for (const key of ['type', 'scope']) {
+      const value = searchParams.get(key);
+      if (value) carried.set(key, value);
+    }
+    const query = carried.toString();
+    navigate(query ? `${route}?${query}` : route);
   };
 
   // Coming Back to the list puts it where it was scrolled to, once the

@@ -11,7 +11,13 @@ import {
   SECTION_TITLE_CLASS,
 } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
-import { BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
+import {
+  BarChart3,
+  AlertTriangle,
+  ArrowLeft,
+  RotateCw,
+  WifiOff,
+} from 'lucide-react';
 import type { Match, Session } from '@/types';
 import {
   SummaryTab,
@@ -33,6 +39,8 @@ const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
 interface LoadError {
   title: string;
   body: string;
+  /** The read didn't get through: trying again may well work */
+  retry?: boolean;
 }
 
 const NOT_FOUND: LoadError = {
@@ -46,6 +54,8 @@ const SharedSession = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<LoadError | null>(null);
+  /** Bumped by Try again, to read the link once more */
+  const [attempt, setAttempt] = useState(0);
   const { activeTab, setActiveTab, selectedIdx, setSelectedIdx, openMatch } =
     useAnalysisNav();
 
@@ -86,7 +96,8 @@ const SharedSession = () => {
         logger.error('Error loading shared session', err);
         setError({
           title: "Couldn't load this session",
-          body: 'Check your connection, then reload the page.',
+          body: "The server couldn't be reached. Check your connection, then try again.",
+          retry: true,
         });
       } finally {
         setLoading(false);
@@ -94,7 +105,7 @@ const SharedSession = () => {
     };
 
     load();
-  }, []);
+  }, [attempt]);
 
   // A snapshot of a session recorded before this season has none of this
   // season's scoring fields: it is shown as saved, not recomputed to zeros.
@@ -154,11 +165,19 @@ const SharedSession = () => {
               : 'bg-white border-gray-200'
           }`}
         >
-          <AlertTriangle
-            size={40}
-            aria-hidden="true"
-            className="mx-auto text-amber-500"
-          />
+          {error.retry ? (
+            <WifiOff
+              size={40}
+              aria-hidden="true"
+              className="mx-auto text-amber-500"
+            />
+          ) : (
+            <AlertTriangle
+              size={40}
+              aria-hidden="true"
+              className="mx-auto text-amber-500"
+            />
+          )}
           {/* The page's one heading */}
           <h1
             className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -170,13 +189,25 @@ const SharedSession = () => {
           >
             {error.body}
           </p>
-          {/* A link that looks like a button: one control, one tab stop */}
-          <Button asChild variant="outline" className="mt-2">
-            <Link to={ROUTES.HOME}>
-              <ArrowLeft aria-hidden="true" />
-              Go home
-            </Link>
-          </Button>
+          <div className="mt-2 flex flex-col items-center gap-3">
+            {error.retry && (
+              <Button
+                variant="primary"
+                size="touch"
+                onClick={() => setAttempt(n => n + 1)}
+              >
+                <RotateCw aria-hidden="true" />
+                Try again
+              </Button>
+            )}
+            {/* A link that looks like a button: one control, one tab stop */}
+            <Button asChild variant="outline">
+              <Link to={ROUTES.HOME}>
+                <ArrowLeft aria-hidden="true" />
+                Go home
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     );

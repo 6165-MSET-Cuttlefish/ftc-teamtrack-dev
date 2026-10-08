@@ -36,7 +36,10 @@ const Login = () => {
     document.title = `Sign In - ${APP_CONFIG.name}`;
   }, []);
 
-  const from = location.state?.from?.pathname || '/sessions';
+  // With its query: an /analysis link is nothing without its sessionId
+  const from = location.state?.from?.pathname
+    ? `${location.state.from.pathname}${location.state.from.search ?? ''}`
+    : '/sessions';
 
   // An invite opened while signed out comes first, then wherever they were
   // headed.

@@ -3,7 +3,8 @@
  * analyse, and how a session, a date or a number is written on them.
  */
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth, useTeam } from '@/contexts';
 import { calculateScore, toDate } from '@/lib';
 import {
@@ -11,7 +12,7 @@ import {
   subscribePendingDeletes,
 } from '@/lib/pendingSessionDeletes';
 import type { Match, ScoreBreakdown, Session } from '@/types';
-import { inSessionScope, SESSION_SCOPES } from './sessionList';
+import { inSessionScope, scopeFromParam, SESSION_SCOPES } from './sessionList';
 import type { SessionScope } from './sessionList';
 import { useSessionList } from './useSessionList';
 import type { SessionList } from './useSessionList';
@@ -59,11 +60,48 @@ export const useLifetimeSessions = (): Pick<
 };
 
 /**
+ * A page's settings kept in its address, as the Sessions page keeps its
+ * filters: opening a session from the page and coming Back finds them as
+ * they were, and a link carries them. Returns the address's settings and a
+ * function that changes some of them (null takes one out). The page's
+ * history entry is replaced, not added to, so Back still leaves the page in
+ * one press. Nothing is written once the browser's address has moved on to
+ * another page: that would replace the new page's entry with this one's.
+ */
+export const useAddressSettings = (): [
+  URLSearchParams,
+  (changes: Record<string, string | null>) => void,
+] => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { pathname } = useLocation();
+  const update = useCallback(
+    (changes: Record<string, string | null>) => {
+      if (window.location.pathname !== pathname) return;
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          for (const [key, value] of Object.entries(changes)) {
+            if (value === null) next.delete(key);
+            else next.set(key, value);
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams, pathname]
+  );
+  return [searchParams, update];
+};
+
+/**
  * In a team the list is the team's sessions plus the user's own unshared
  * ones. This narrows it to either half and says in words what is on screen.
  * Outside a team there is one list, so no choices and no label. `complete`
  * says the list holds every session; until it does, the choices carry no
- * counts, which would only count the sessions read so far.
+ * counts, which would only count the sessions read so far. The choice is
+ * the address's `scope`, the one the Sessions page writes, so it carries
+ * over from there and survives a trip to a session and Back.
  */
 export const useSessionScope = (
   sessions: Session[],
@@ -80,7 +118,13 @@ export const useSessionScope = (
 } => {
   const { user, isGuest } = useAuth();
   const { team } = useTeam();
-  const [picked, setScope] = useState<SessionScope>('all');
+  const [searchParams, updateAddress] = useAddressSettings();
+  const picked = scopeFromParam(searchParams.get('scope'));
+  const setScope = useCallback(
+    (value: SessionScope) =>
+      updateAddress({ scope: value === 'all' ? null : value }),
+    [updateAddress]
+  );
 
   const uid = user?.uid;
   const teamId = isGuest ? undefined : team?.id;
@@ -132,6 +176,17 @@ export const sessionTitle = (session: Session): string =>
 
 /** The order match types are offered in, on Charts and on Compare. */
 export const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
+
+/** A match type as an address holds it, as Sessions writes it: 'full-game' */
+export const matchTypeParam = (type: string): string =>
+  type
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+/** The match type an address names, or null for none (or 'mixed') */
+export const matchTypeFromParam = (param: string | null): string | null =>
+  MATCH_TYPES.find(type => matchTypeParam(type) === param) ?? null;
 
 /** The type a match was run as; one saved without its own has its session's. */
 export const matchTypeOf = (match: Match, session: Session): string =>

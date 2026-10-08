@@ -386,7 +386,9 @@ class TeamService {
 
   /**
    * Look up which team an invite code belongs to. A retired code (replaced,
-   * or its team deleted) is as invalid as one that never existed.
+   * or its team deleted) is as invalid as one that never existed. Throws
+   * when the lookup itself failed (offline), so a dropped connection is
+   * never taken for a bad code, and the invite is kept to try again.
    */
   async getInviteByCode(inviteCode: string): Promise<TeamInvite | null> {
     return this.safeExecute(
@@ -394,12 +396,16 @@ class TeamService {
         const db = await this.getDB();
         const code = inviteCode.trim().toUpperCase();
         if (!code) return null;
-        const invite = await this.readInvite(db, code);
+        const invite = await this.readInvite(db, code).catch(error => {
+          if (isPermissionDenied(error)) return null;
+          throw error;
+        });
         if (!invite || invite.revoked || !invite.teamId) return null;
         return { code, teamId: invite.teamId, teamName: invite.teamName };
       },
       null,
-      'Error fetching team by invite code:'
+      'Error fetching team by invite code:',
+      true
     );
   }
 

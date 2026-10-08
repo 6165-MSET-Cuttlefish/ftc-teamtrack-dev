@@ -14,6 +14,7 @@ import {
   includesAuto,
   includesTeleop,
   rankingPoints,
+  robotsOf,
   sessionMatchType,
 } from './scoring';
 import { ELEMENT_LABELS as L } from './scoringLabels';
@@ -100,8 +101,9 @@ const SESSION_HEADERS = [
  * Columns that describe one match. Blank for a session with no matches.
  * Scoring columns carry the names the app shows (`ELEMENT_LABELS`) and
  * follow `ELEMENT_ORDER`, the order the scoring page asks for them: Hive
- * Tips, the robots' Leave and Park, then Flower, Flower Bonus, Left in Hive
- * and Garden. The row cells in `buildSessionsCsv` are in the same order.
+ * Tips, the robots' Leave and Park, then the owned flower pieces, the flower
+ * nectar at bottom, Left in Hive and Garden. The row cells in
+ * `buildSessionsCsv` are in the same order.
  */
 const MATCH_HEADERS = [
   'Match Number',
@@ -145,7 +147,8 @@ const BLANK = '""';
  * earned: fouls are never taken off it. They are listed in their own columns
  * as points given to the opponent, and only for Scrim sessions — a Practice
  * session has no opponent, so those cells are blank. A robot flag is blank
- * when the match type did not run that period. Ranking points are the ones a
+ * when the match type did not run that period, and Robot 2's are blank for a
+ * match played with one robot. Ranking points are the ones a
  * match earns from its own scoring (SWARM, POLLINATOR); the opponent's score
  * is not recorded, so a win or tie is not counted.
  */
@@ -185,6 +188,8 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
         ran ? esc(value ? 'yes' : 'no') : BLANK;
       const auto = includesAuto(matchType);
       const teleop = includesTeleop(matchType);
+      /** A second robot was on the field (`robotsOf`) */
+      const second = robotsOf(match) === 2;
       const foul = (value: unknown) => (isScrim ? num(value) : BLANK);
 
       rows.push([
@@ -198,9 +203,9 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
         flag(auto, match.robot1Leave),
         flag(auto, match.robot1ParkAuto),
         flag(teleop, match.robot1ParkTeleop),
-        flag(auto, match.robot2Leave),
-        flag(auto, match.robot2ParkAuto),
-        flag(teleop, match.robot2ParkTeleop),
+        flag(auto && second, match.robot2Leave),
+        flag(auto && second, match.robot2ParkAuto),
+        flag(teleop && second, match.robot2ParkTeleop),
         num(match.flower),
         num(b.flower),
         num(match.flowerBonus),
@@ -349,8 +354,10 @@ export const buildLegacySessionsCsv = (sessions: Session[]): string => {
 
 /**
  * A download name for an export: `base` reduced to characters every OS takes
- * in a file name, followed by today's date where the export is made (an
- * evening practice in California is still that day, not tomorrow in UTC). A
+ * in a file name, with each run of spaces and hyphens one hyphen ("Practice -
+ * Sep 28" is `Practice-Sep-28`), followed by today's date where the export
+ * is made (an evening practice in California is still that day, not tomorrow
+ * in UTC), which also gives the year a session's name leaves out. A
  * session's name is whatever its author typed, so it is never used as a file
  * name as it is.
  */
@@ -358,9 +365,10 @@ export const csvFileName = (base: string): string => {
   const safe =
     (base || '')
       .replace(/[^a-z0-9\-_ ]/gi, '')
-      .trim()
-      .replace(/\s+/g, '-')
-      .slice(0, 60) || 'session';
+      .replace(/[\s-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60)
+      .replace(/-+$/, '') || 'session';
   const today = new Date();
   const date = [
     today.getFullYear(),

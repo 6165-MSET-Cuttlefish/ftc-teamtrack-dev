@@ -16,7 +16,12 @@ import {
   TEAM_MANAGER_PATHS,
 } from '@/constants';
 import { ACTIVE_PAGE_CONTAINER, PAGE_CONTAINER } from '@/constants/layout';
-import { calculateScore, getInitials, liveMatchType } from '@/lib';
+import {
+  calculateScore,
+  getInitials,
+  liveMatchType,
+  readGuestSessions,
+} from '@/lib';
 import { formatPoints } from '@/lib/points';
 import { flushPendingDeletes } from '@/lib/pendingSessionDeletes';
 import {
@@ -894,6 +899,7 @@ export const Header = () => {
   const { hasStarted, sessionData, matchActive, matchPhase, editingMatchId } =
     useSessionCore();
   const location = useLocation();
+  const { user } = useAuth();
   const isOnSessionsPage = location.pathname === '/sessions';
   const isOnActivePage = location.pathname.includes('/active');
   const isAuthPage = AUTH_PATHS.includes(location.pathname);
@@ -986,8 +992,16 @@ export const Header = () => {
     isCompact,
   ]);
 
+  // Someone not signed in, with no sessions here, who opened a share link
+  // (a parent from the team chat) has no Sessions to go back to: the arrow
+  // would put them in an empty list as a new guest.
+  const isVisitorOnShare =
+    location.pathname === ROUTES.SHARED_SESSION &&
+    !user &&
+    readGuestSessions().length === 0;
+
   // No way "back" from a sign-in page: the logo still goes to the sessions
-  const backButton = !isOnSessionsPage && !isAuthPage && (
+  const backButton = !isOnSessionsPage && !isAuthPage && !isVisitorOnShare && (
     <Link
       to={ROUTES.SESSIONS}
       aria-label="Back to sessions"

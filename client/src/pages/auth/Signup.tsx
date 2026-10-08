@@ -50,7 +50,10 @@ const Signup = () => {
     document.title = `Create Account - ${APP_CONFIG.name}`;
   }, []);
 
-  const from = location.state?.from?.pathname || ROUTES.SESSIONS;
+  // With its query: an /analysis link is nothing without its sessionId
+  const from = location.state?.from?.pathname
+    ? `${location.state.from.pathname}${location.state.from.search ?? ''}`
+    : ROUTES.SESSIONS;
 
   const passwordTooShort =
     formData.password.length > 0 &&

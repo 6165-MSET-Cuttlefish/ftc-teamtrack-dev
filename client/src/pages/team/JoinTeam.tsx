@@ -91,7 +91,9 @@ const JoinTeam = () => {
         }
       } catch {
         setStatus('error');
-        setErrorMessage('Failed to look up team. The invite code may be invalid or expired.');
+        setErrorMessage(
+          "Couldn't look up this team. Check your connection, then reload the page."
+        );
       }
     };
 

@@ -3,7 +3,14 @@ import type { MouseEvent, ReactNode, RefObject } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts';
 import { useEscapeKey } from '@/hooks';
-import { formatDate, isArchived, rankingPointTally, toDate } from '@/lib';
+import {
+  formatDate,
+  isArchived,
+  matchScore,
+  rankingPointTally,
+  toDate,
+} from '@/lib';
+import { headlineMatches } from '@/lib/headlineMatches';
 import { SESSION_LIMITS } from '@/constants';
 import type { Session } from '@/types';
 import { ignoreHeldEnter } from '@/components/session/controls/ignoreHeldEnter';
@@ -349,9 +356,14 @@ export const SessionCard = ({
   const scores = scoresOf(session);
   const matchCount = (session.matches || []).length;
   const highestScore = scores.length > 0 ? Math.max(...scores) : null;
+  // Of one match type in a Mixed session, as on its Analysis page
+  const averaged = headlineMatches(
+    session.matches || [],
+    session.matchType
+  ).matches.map(match => matchScore(match, session.matchType));
   const averageScore =
-    scores.length > 0
-      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+    averaged.length > 0
+      ? Math.round(averaged.reduce((a, b) => a + b, 0) / averaged.length)
       : null;
   const rp = rankingPointTally(session.matches || [], session.matchType);
   const dateLabel = sessionDateLabel(session.createdAt);

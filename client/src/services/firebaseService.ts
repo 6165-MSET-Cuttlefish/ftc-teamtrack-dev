@@ -309,20 +309,29 @@ class FirebaseService {
     });
   }
 
-  /** Get a single session by ID */
-  async getSession(sessionId: string): Promise<Session | null> {
+  /**
+   * Get a single session by ID: null when it doesn't exist or this viewer
+   * can't read it. By default a failed read is null too; pass `strict` to
+   * have it throw instead, for a page that must not mistake being offline
+   * for a session that isn't there.
+   */
+  async getSession(sessionId: string, strict = false): Promise<Session | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
         const docRef = doc(db, 'sessions', sessionId);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDoc(docRef).catch(error => {
+          if (isPermissionDenied(error)) return null;
+          throw error;
+        });
 
-        if (!docSnap.exists()) return null;
+        if (!docSnap?.exists()) return null;
 
         return normalizeSession(docSnap.data(), docSnap.id);
       },
       null,
-      'Error fetching session:'
+      'Error fetching session:',
+      strict
     );
   }
 
@@ -809,7 +818,11 @@ class FirebaseService {
     throw new Error('Failed to create shared session after retries');
   }
 
-  /** Retrieve a shared session snapshot by short ID; returns null if not found */
+  /**
+   * Retrieve a shared session snapshot by short ID; returns null if not
+   * found. Throws when it couldn't be read (offline), which says nothing
+   * about whether the link still works.
+   */
   async getSharedSession(
     shortId: string
   ): Promise<Record<string, unknown> | null> {
@@ -817,12 +830,16 @@ class FirebaseService {
       async () => {
         const db = await this.getDB();
         const ref = doc(db, 'sharedSessions', shortId);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) return null;
+        const snap = await getDoc(ref).catch(error => {
+          if (isPermissionDenied(error)) return null;
+          throw error;
+        });
+        if (!snap?.exists()) return null;
         return snap.data() as Record<string, unknown>;
       },
       null,
-      'Error fetching shared session:'
+      'Error fetching shared session:',
+      true
     );
   }
 

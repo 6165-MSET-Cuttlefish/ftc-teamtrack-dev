@@ -335,6 +335,20 @@ export const swarmReachable = (f: ScoringInput): boolean =>
   includesAuto(f.matchType) && robotsOf(f) === 2;
 
 /**
+ * What matches none of which could earn SWARM were missing, said in place
+ * of its figure (Analysis, Charts and Compare word it alike): a second
+ * robot, or with no AUTO run in any of them, an Auto period.
+ * `fallbackMatchType` is the session's type, for matches saved without one.
+ */
+export const swarmMissing = (
+  matches: ReadonlyArray<{ matchType?: string }>,
+  fallbackMatchType?: string
+): string =>
+  matches.some(m => includesAuto(m.matchType ?? fallbackMatchType))
+    ? 'needs 2 robots'
+    : 'needs an Auto period';
+
+/**
  * Ranking points earned by a match. LEAVE and PARK are counted the same way
  * `calculateScore` counts them, so a period that was not run can't earn
  * SWARM.
@@ -445,14 +459,14 @@ export const FOULS_RULE = `Fouls go to the opponent (Minor\u00a0+${POINTS.MINOR_
 
 /**
  * The name over each end-of-match counter on the scoring page and in the
- * Add/Edit Match dialog, with its full rule (FIELD_HINTS) behind an (i). The
+ * Add/Edit Match dialog, with its full rule (FIELD_HINTS) behind an (i): its
+ * ELEMENT_LABELS name, the one Analysis, Charts, Compare and the CSV use. The
  * two flower counters say "flower" in their own names, so they need no group
- * heading over them; everywhere else (Analysis, Charts, CSV) each element
- * keeps its ELEMENT_LABELS name.
+ * heading over them.
  */
 export const COUNT_LABELS = {
-  flower: 'Owned flower pieces',
-  flowerBonus: 'Flower nectar at bottom',
+  flower: ELEMENT_LABELS.flower,
+  flowerBonus: ELEMENT_LABELS.flowerBonus,
   ballsInHive: ELEMENT_LABELS.hive,
   garden: ELEMENT_LABELS.garden,
 } as const;

@@ -6,7 +6,6 @@ import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { CHIP_BASE, CHIP_SIZES, chipTone } from '@/components/ui/tokens';
 import {
   calculateScore,
-  FLOWERS_LABEL,
   ELEMENT_LABELS,
   matchScore,
   pickScoringFields,
@@ -49,8 +48,9 @@ const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`;
 
 /**
- * "3 tips · Leave + Park 16 pts · Flowers 6 + 1 bonus · Left in Hive 3 ·
- * Garden 4 · 2 RP", in the order of the form and in the breakdown's words.
+ * "3 tips · Leave + Park 16 pts · Owned flower pieces 6 · Flower nectar at
+ * bottom 1 · Left in Hive 3 · Garden 4 · 2 RP", in the order of the form and
+ * in its counters' words.
  * Only what was scored is listed; a match with nothing at all reads
  * "0 tips". Each part stays on one line with its name when the row wraps,
  * and a dot stays at the end of the line it follows rather than starting
@@ -69,14 +69,9 @@ const matchSummary = (match: Match): string => {
   const parts = [
     ...(tips > 0 ? [plural(tips, 'tip')] : []),
     ...(robots > 0 ? [`${ELEMENT_LABELS.robots} ${formatPoints(robots)}`] : []),
-    ...(flower > 0 || bonus > 0
-      ? [
-          `${FLOWERS_LABEL} ${[
-            ...(flower > 0 ? [String(flower)] : []),
-            ...(bonus > 0 ? [`${bonus} bonus`] : []),
-          ].join(' + ')}`,
-        ]
-      : []),
+    // Each in the name its counter has, so it reads as what was counted
+    ...(flower > 0 ? [`${ELEMENT_LABELS.flower} ${flower}`] : []),
+    ...(bonus > 0 ? [`${ELEMENT_LABELS.flowerBonus} ${bonus}`] : []),
     ...(hive > 0 ? [`${ELEMENT_LABELS.hive} ${hive}`] : []),
     ...(garden > 0 ? [`${ELEMENT_LABELS.garden} ${garden}`] : []),
     ...(penalties > 0 ? [plural(penalties, 'foul', 'fouls')] : []),

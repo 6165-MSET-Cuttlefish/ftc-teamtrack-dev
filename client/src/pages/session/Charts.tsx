@@ -9,6 +9,7 @@ import {
   cycleTimesOf,
   robotRates,
   rankingPointTally,
+  swarmMissing,
   toneOf,
   CHART_COLORS,
   ELEMENT_COLORS,
@@ -62,6 +63,7 @@ import {
 } from 'recharts';
 import type { MouseHandlerDataParam } from 'recharts';
 import {
+  useAddressSettings,
   useLifetimeSessions,
   useSessionScope,
   byDateAscending,
@@ -75,6 +77,8 @@ import {
   mean,
   MATCH_TYPES,
   matchTypeOf,
+  matchTypeFromParam,
+  matchTypeParam,
   ofMatchType,
 } from './lifetime';
 import { Segmented } from './LifetimeControls';
@@ -181,6 +185,16 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   '90': 'last 90 days',
   all: 'all time',
 };
+
+/** The range Charts opens on, which the address leaves out */
+const DEFAULT_RANGE: TimeRange = '30';
+
+/** Only the ranges offered: `in` would also take toString and the like */
+const isTimeRange = (value: string | null): value is TimeRange =>
+  value !== null && Object.keys(RANGE_LABELS).includes(value);
+
+const isSeries = (value: string | null): value is Series =>
+  SERIES.some(s => s.value === value);
 
 /** A session with no usable date is in no day range, only in "All time". */
 const isUndated = (session: Session): boolean =>
@@ -329,7 +343,7 @@ const cycleTimeRows = (
       {
         id: session.id,
         label: labels.get(session.id)?.full,
-        'Avg Cycle': round1(mean(cycleTimes) ?? 0),
+        Average: round1(mean(cycleTimes) ?? 0),
         Fastest: round1(Math.min(...cycleTimes)),
         Slowest: round1(Math.max(...cycleTimes)),
       },
@@ -362,7 +376,7 @@ const foulSummary = (
         id: session.id,
         label: labels.get(session.id)?.full,
         [ELEMENT_LABELS.penalties]: round1(mean(given) ?? 0),
-        note: `Penalty-free: ${penaltyFree} of ${plural(given.length, 'match', 'matches')}`,
+        note: `Foul-free: ${penaltyFree} of ${plural(given.length, 'match', 'matches')}`,
       };
     });
   return { rows, clean, total };
@@ -606,7 +620,10 @@ const keyInsights = (
     },
     {
       label: 'RP',
-      text: `${rp.rate ?? 0}% (${rp.earned}/${rp.possible}) · SWARM ${rp.swarm} · P1 ${rp.pollinator1} · P2 ${rp.pollinator2}`,
+      // One robot, or no Auto period, can't earn SWARM: no count of 0
+      text: `${rp.rate ?? 0}% (${rp.earned}/${rp.possible}), SWARM ${
+        rp.swarmChances > 0 ? rp.swarm : swarmMissing(matches)
+      }, P1 ${rp.pollinator1}, P2 ${rp.pollinator2}`,
     },
     avgGiven !== null
       ? {
@@ -636,15 +653,35 @@ const Charts = () => {
     loadOlder,
     loadAll,
   } = useLifetimeSessions();
+  /**
+   * The sessions with matches: an empty one is never charted, so the scope
+   * choices don't count it either (as on Compare).
+   */
+  const scorableSessions = useMemo(
+    () => sessions.filter(session => session.matches.length > 0),
+    [sessions]
+  );
   const { scope, setScope, inScope, choices, scopeLabel } = useSessionScope(
-    sessions,
+    scorableSessions,
     !hasMore
   );
-  const [timeRange, setTimeRange] = useState<TimeRange>('30');
+  // What the page shows lives in its address, so opening a session from a
+  // chart and coming Back finds it as it was (and Sessions' Charts button
+  // can pass on its match type and scope).
+  const [address, updateAddress] = useAddressSettings();
+  const rangeParam = address.get('range');
+  const timeRange = isTimeRange(rangeParam) ? rangeParam : DEFAULT_RANGE;
+  const setTimeRange = (value: TimeRange) =>
+    updateAddress({ range: value === DEFAULT_RANGE ? null : value });
   /** The match type asked for; null until one is, and the commonest is used */
-  const [pickedType, setPickedType] = useState<string | null>(null);
+  const pickedType = matchTypeFromParam(address.get('type'));
+  const setPickedType = (value: string) =>
+    updateAddress({ type: matchTypeParam(value) });
   /** What Score Trends draws */
-  const [series, setSeries] = useState<Series>('total');
+  const seriesParam = address.get('series');
+  const series = isSeries(seriesParam) ? seriesParam : 'total';
+  const setSeries = (value: Series) =>
+    updateAddress({ series: value === 'total' ? null : value });
   /** The session last tapped on a chart, on a screen with no hover */
   const [tapped, setTapped] = useState<{ chart: ChartId; id: string } | null>(
     null
@@ -1322,7 +1359,7 @@ const Charts = () => {
                         onClick={openSession('volume')}
                         style={chartStyle}
                         title="Scoring volume per session"
-                        desc="Average count per match of Hive Tips, Garden, Flower and Left in Hive in each session"
+                        desc="Average count per match of Hive Tips, owned flower pieces, Left in Hive and Garden in each session"
                       >
                         <CartesianGrid
                           strokeDasharray="3 3"
@@ -1374,7 +1411,7 @@ const Charts = () => {
 
                 <ChartCard
                   title="Ranking Points per Match"
-                  description="Average RP a match earned from scoring in each session, out of 3. A win or tie is not counted."
+                  description="Average RP a match earned from scoring in each session, out of 3 (2 with one robot, which can't earn SWARM). A win or tie is not counted."
                   isDarkMode={isDarkMode}
                 >
                   <div className="mt-auto min-w-0">
@@ -1451,7 +1488,7 @@ const Charts = () => {
 
                 {cycleTimeData.length > 0 && (
                   <ChartCard
-                    title="Average Cycle Time Trend"
+                    title="Time Between Hive Tips"
                     description="Average, fastest and slowest time between Hive Tips in each session, in seconds"
                     isDarkMode={isDarkMode}
                   >
@@ -1497,7 +1534,7 @@ const Charts = () => {
                           <Legend {...LEGEND_PROPS} itemSorter={null} />
                           {(
                             [
-                              ['Avg Cycle', CHART_COLORS.cycle, false],
+                              ['Average', CHART_COLORS.cycle, false],
                               ['Fastest', CHART_COLORS.better, true],
                               ['Slowest', CHART_COLORS.worse, true],
                             ] as const

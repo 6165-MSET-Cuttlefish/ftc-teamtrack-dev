@@ -1,8 +1,14 @@
 import { Fragment, useState, useEffect, useId, useRef } from 'react';
 import { useTheme } from '@/contexts';
-import type { Match, MatchScoringFields, SessionType } from '@/types';
+import type {
+  Match,
+  MatchScoringFields,
+  RobotCount,
+  SessionType,
+} from '@/types';
 import {
   COUNT_LABELS,
+  DEFAULT_ROBOT_COUNT,
   EACH_LABELS,
   ELEMENT_LABELS,
   FIELD_HINTS,
@@ -14,6 +20,7 @@ import {
   includesTeleop,
   normalizeForMatchType,
   pickScoringFields,
+  robotsOf,
   scoreRows,
 } from '@/lib';
 import { Button } from '@/components/ui/button';
@@ -51,6 +58,13 @@ interface MatchFormProps {
   isLoading?: boolean;
   /** Fouls are only recorded for a Scrim; other sessions don't show them */
   sessionType?: SessionType;
+  /**
+   * What a new match starts as: the session's match type, so a run added to
+   * an Autonomous session is an Autonomous run unless changed here.
+   */
+  defaultMatchType?: string;
+  /** The robots a new match starts with, as the session was played */
+  defaultRobotCount?: RobotCount;
 }
 
 /**
@@ -133,9 +147,29 @@ const COL_SPAN = { 1: 'col-span-1', 2: 'col-span-2' } as const;
 /** Which end-of-match rule is open under its (i) */
 type InfoKey = 'flower' | 'flowerBonus' | 'hive' | 'garden';
 
-const blankForm = (): Partial<Match> => ({
-  matchType: 'Full Game',
+const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
+
+/** The robot counts offered, in the session menu's words */
+const ROBOT_COUNTS: Array<{ value: RobotCount; label: string }> = [
+  { value: 1, label: '1 robot' },
+  { value: 2, label: '2 robots' },
+];
+
+const blankForm = (
+  matchType = 'Full Game',
+  robotCount: RobotCount = DEFAULT_ROBOT_COUNT
+): Partial<Match> => ({
+  matchType: MATCH_TYPES.includes(matchType) ? matchType : 'Full Game',
   ...emptyScoringFields(),
+  robotCount,
+});
+
+/** A saved match as the form edits it */
+const formOf = (match: Match): Partial<Match> => ({
+  matchType: match.matchType || 'Full Game',
+  ...pickScoringFields(match),
+  // Saved before the count existed, or with Robot 2 marked: both rows
+  robotCount: robotsOf(match),
 });
 
 export const MatchForm = ({
@@ -145,6 +179,8 @@ export const MatchForm = ({
   initialMatch,
   isLoading = false,
   sessionType,
+  defaultMatchType,
+  defaultRobotCount,
 }: MatchFormProps) => {
   const { isDarkMode } = useTheme();
   /** A save is in flight: a second click must not send it twice */
@@ -165,25 +201,19 @@ export const MatchForm = ({
   };
   const [formData, setFormData] = useState<Partial<Match>>(() =>
     initialMatch
-      ? {
-          matchType: initialMatch.matchType || 'Full Game',
-          ...pickScoringFields(initialMatch),
-        }
-      : blankForm()
+      ? formOf(initialMatch)
+      : blankForm(defaultMatchType, defaultRobotCount)
   );
 
   useEffect(() => {
     if (initialMatch) {
-      setFormData({
-        matchType: initialMatch.matchType || 'Full Game',
-        ...pickScoringFields(initialMatch),
-      });
+      setFormData(formOf(initialMatch));
     } else if (isOpen) {
-      setFormData(blankForm());
+      setFormData(blankForm(defaultMatchType, defaultRobotCount));
     }
     // Each opening starts with every rule closed.
     if (isOpen) setInfoOpen(null);
-  }, [initialMatch, isOpen]);
+  }, [initialMatch, isOpen, defaultMatchType, defaultRobotCount]);
 
   const setField = <K extends keyof MatchScoringFields>(
     field: K,
@@ -193,6 +223,29 @@ export const MatchForm = ({
   const matchType = formData.matchType || 'Full Game';
   const hasAuto = includesAuto(matchType);
   const hasTeleop = includesTeleop(matchType);
+  /** One robot row, or two, as on the scoring page */
+  const robots = robotsOf(formData);
+  /**
+   * The flower counters, where flowers can score, as on the scoring page:
+   * not in an Autonomous-only match, unless it has some to fix (saved with
+   * them, or counted before the type was changed here).
+   */
+  const flowersShown =
+    hasTeleop ||
+    (initialMatch?.flower ?? 0) + (initialMatch?.flowerBonus ?? 0) > 0 ||
+    (formData.flower ?? 0) + (formData.flowerBonus ?? 0) > 0;
+
+  /** One robot clears a second robot's LEAVE and PARK, as the session menu does */
+  const setRobotCount = (robotCount: RobotCount) =>
+    setFormData(prev => ({
+      ...prev,
+      robotCount,
+      ...(robotCount === 1 && {
+        robot2Leave: false,
+        robot2ParkAuto: false,
+        robot2ParkTeleop: false,
+      }),
+    }));
 
   const breakdown = calculateScore(formData);
   // Fouls are credited to the opponent, so they are not one of the rows
@@ -214,6 +267,7 @@ export const MatchForm = ({
       await onSave({
         ...normalizeForMatchType(formData, matchType),
         matchType,
+        robotCount: robots,
         finalScore: breakdown.total,
       });
     } catch (error) {
@@ -231,7 +285,7 @@ export const MatchForm = ({
   const periodNote = !hasAuto
     ? `No Leave or Auto park in a ${matchType} match`
     : !hasTeleop
-      ? `No End park in an ${matchType} match`
+      ? `No End park${flowersShown ? '' : ' or flowers'} in an ${matchType} match`
       : undefined;
 
   /** Only the toggles this match type can score: no dead columns */
@@ -403,6 +457,39 @@ export const MatchForm = ({
             </Select>
           </div>
 
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="robotCount" className="text-foreground">
+              Robots
+            </Label>
+            <Select
+              value={String(robots)}
+              onValueChange={value =>
+                setRobotCount(Number(value) as RobotCount)
+              }
+            >
+              <SelectTrigger
+                id="robotCount"
+                disabled={isLoading}
+                className={`w-44 ${
+                  isDarkMode
+                    ? 'bg-team-dark border border-team-blue-40 text-white'
+                    : 'bg-white border border-team-blue-40'
+                }`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                className={isDarkMode ? 'bg-team-dark border-team-blue-40' : ''}
+              >
+                {ROBOT_COUNTS.map(count => (
+                  <SelectItem key={count.value} value={String(count.value)}>
+                    {count.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <ScoreField
             {...stepperProps}
             labelClassName={nameClass}
@@ -440,7 +527,7 @@ export const MatchForm = ({
                   Park
                 </div>
                 {/* Each toggle's own name says which robot it is for */}
-                {ROBOTS.map(robot => (
+                {ROBOTS.slice(0, robots).map(robot => (
                   <Fragment key={robot.name}>
                     <div
                       aria-hidden
@@ -479,22 +566,24 @@ export const MatchForm = ({
                 picture before the two flower names says where your nectar
                 is.
               */}
-              {counter(
-                'flower',
-                'flower',
-                ids.flowerLine,
-                'flower',
-                breakdown.flower,
-                <FlowerSlots nectar="top" />
-              )}
-              {counter(
-                'flowerBonus',
-                'flowerBonus',
-                ids.flowerBonusLine,
-                'flower-bonus',
-                breakdown.flowerBonus,
-                <FlowerSlots nectar="bottom" />
-              )}
+              {flowersShown &&
+                counter(
+                  'flower',
+                  'flower',
+                  ids.flowerLine,
+                  'flower',
+                  breakdown.flower,
+                  <FlowerSlots nectar="top" />
+                )}
+              {flowersShown &&
+                counter(
+                  'flowerBonus',
+                  'flowerBonus',
+                  ids.flowerBonusLine,
+                  'flower-bonus',
+                  breakdown.flowerBonus,
+                  <FlowerSlots nectar="bottom" />
+                )}
               {counter(
                 'ballsInHive',
                 'hive',

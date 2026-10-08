@@ -7,15 +7,20 @@
  */
 
 /**
- * The name of each scoring element, in the Competition Manual's words.
- * "Hive" never stands alone: tips happen at the HIVE, so the pieces left in
- * its upward CELL are always "Left in Hive".
+ * The name of each scoring element. The scoring page, the Add/Edit Match
+ * dialog, Analysis, Charts, Compare and the CSV all say these, so a count
+ * keeps one name from the field to the spreadsheet. The two flower counts
+ * say what is counted: pieces in a flower this alliance owns ("Flower" alone
+ * read as a number of flowers), and flowers with this alliance's nectar in
+ * the bottom slot (the manual's Bottom NECTAR Bonus). "Hive" never stands
+ * alone: tips happen at the HIVE, so the pieces left in its upward CELL are
+ * always "Left in Hive".
  */
 export const ELEMENT_LABELS = {
   tipping: 'Hive Tips',
   garden: 'Garden',
-  flower: 'Flower',
-  flowerBonus: 'Flower Bonus',
+  flower: 'Owned flower pieces',
+  flowerBonus: 'Flower nectar at bottom',
   hive: 'Left in Hive',
   leave: 'Leave',
   /** PARK at the end of AUTO, and at the end of the match */
@@ -30,12 +35,6 @@ export const ELEMENT_LABELS = {
   /** Points this alliance's fouls gave the opponent; never off its own score */
   penalties: 'Given to opponent',
 } as const;
-
-/**
- * Flower and Flower Bonus together, where a summary shows the two as one
- * (the Match Log's line for a match, the running breakdown).
- */
-export const FLOWERS_LABEL = 'Flowers';
 
 /**
  * A chart colour: `dark` on the dark cards (default, Honeycomb, Deep Sea),

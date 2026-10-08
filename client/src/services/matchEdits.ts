@@ -28,17 +28,13 @@ export type MatchEdit =
 /** An edit refused for a reason worth showing the user as it is. */
 export class MatchEditError extends Error {}
 
-/** Number matches 1..n in list order, so a delete never leaves a gap. */
-const renumber = (matches: Match[]): Match[] =>
-  matches.map((match, index) =>
-    match.matchNumber === index + 1
-      ? match
-      : { ...match, matchNumber: index + 1 }
-  );
-
 /**
  * The stored matches with one edit applied. Pure: Firestore may run it more
  * than once for a single edit.
+ *
+ * A match keeps its number for good, as on the scoring page: deleting an
+ * earlier one leaves a gap rather than renumbering the rest, so notes, video
+ * and scouting sheets that say "M3" still mean the same match.
  */
 export const applyMatchEdit = (current: Match[], edit: MatchEdit): Match[] => {
   switch (edit.kind) {
@@ -68,12 +64,12 @@ export const applyMatchEdit = (current: Match[], edit: MatchEdit): Match[] => {
       );
     }
     case 'delete':
-      return renumber(current.filter(match => match.id !== edit.matchId));
+      return current.filter(match => match.id !== edit.matchId);
     case 'restore': {
       if (current.some(match => match.id === edit.match.id)) return current;
       const matches = [...current];
       matches.splice(Math.min(edit.index, matches.length), 0, edit.match);
-      return renumber(matches);
+      return matches;
     }
   }
 };
