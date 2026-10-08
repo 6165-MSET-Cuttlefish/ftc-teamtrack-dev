@@ -82,6 +82,10 @@ const withoutUndefined = <T>(value: T): T => {
   return value;
 };
 
+/** A read this viewer isn't allowed: for a single document, it isn't theirs to see */
+const isPermissionDenied = (error: unknown): boolean =>
+  (error as { code?: string } | null)?.code === 'permission-denied';
+
 /** String IDs of the matches in a stored `matches` value. */
 const matchIdsOf = (matches: unknown): string[] =>
   Array.isArray(matches)
