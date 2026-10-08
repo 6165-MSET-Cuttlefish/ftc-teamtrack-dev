@@ -5,7 +5,6 @@ import {
   getDoc,
   setDoc,
   updateDoc,
-  deleteField,
   query,
   where,
   runTransaction,
@@ -82,13 +81,6 @@ const withoutUndefined = <T>(value: T): T => {
   }
   return value;
 };
-
-const isPermissionDenied = (error: unknown): boolean =>
-  (error as { code?: string } | null)?.code === 'permission-denied';
-
-/** Whether a stored session is filed under a team. */
-const hasTeam = (stored: DocumentData | undefined): boolean =>
-  typeof stored?.teamId === 'string' && stored.teamId !== '';
 
 /** String IDs of the matches in a stored `matches` value. */
 const matchIdsOf = (matches: unknown): string[] =>
@@ -285,9 +277,11 @@ class FirebaseService {
    * own, or in a team the team's (see `sessionSources`). `onChange` hears
    * the list once its first page is in and after every change; the feed's
    * `ready` settles then too, and rejects when the list can't be read (no
-   * connection, a missing index, no longer in the team). `live` follows the
-   * first page as it changes on the server, reporting failures after that
-   * to `onError`. Close the feed when done with it.
+   * connection, a missing index, no longer in the team). With no connection
+   * a list already read in this visit is shown as it was instead, marked
+   * `offline`. `live` follows the first page as it changes on the server,
+   * reporting failures after that to `onError`. Close the feed when done
+   * with it.
    */
   async openSessionFeed(
     {
@@ -306,6 +300,8 @@ class FirebaseService {
     return new SessionFeed(db, this.sessionSources(uid, teamId), onChange, {
       live,
       onError,
+      // Live or not, the same account and team list the same sessions.
+      key: `${uid}|${teamId ?? ''}`,
     });
   }
 
@@ -413,10 +409,9 @@ class FirebaseService {
    * Update an existing session.
    *
    * The rules only let an author change a team session while they are still
-   * in that team. For someone who has left it (or was removed), the same
-   * change is retried with the session taken out of the team, which the
-   * rules do allow — otherwise they could never rename or edit their own
-   * old sessions again.
+   * in that team. Someone who has left it (or was removed) is refused, and
+   * the session stays with the team as it was: a change never takes it out
+   * of the team on the quiet. The lists show such a session as view-only.
    */
   async updateSession(
     sessionId: string,
@@ -430,22 +425,10 @@ class FirebaseService {
         // left untagged; the update itself still goes ahead.
         const stored = await getDoc(docRef).catch(() => null);
         const data = stored?.exists() ? stored.data() : undefined;
-        const changes = {
+        await updateDoc(docRef, {
           ...(withoutUndefined(updates) as Record<string, unknown>),
           ...(data ? this.seasonTag(data) : {}),
-        };
-        try {
-          await updateDoc(docRef, changes);
-        } catch (error) {
-          if (
-            !isPermissionDenied(error) ||
-            !hasTeam(data) ||
-            'teamId' in changes
-          ) {
-            throw error;
-          }
-          await updateDoc(docRef, { ...changes, teamId: deleteField() });
-        }
+        });
         return true;
       },
       false,
@@ -463,7 +446,7 @@ class FirebaseService {
    * side effects.
    *
    * Like `updateSession`, an author who is no longer in the session's team
-   * gets the edit by taking the session out of that team.
+   * is refused, and the session stays with the team.
    */
   async mutateSessionMatches(
     sessionId: string,
@@ -472,29 +455,16 @@ class FirebaseService {
     try {
       const db = await this.getDB();
       const docRef = doc(db, 'sessions', sessionId);
-      let inTeam = false;
-      const write = (leaveTeam: boolean) =>
-        runTransaction(db, async transaction => {
-          const stored = await transaction.get(docRef);
-          if (!stored.exists()) throw new Error('Session not found');
-          const data = stored.data();
-          inTeam = hasTeam(data);
-          const matches = withoutUndefined(
-            mutate(normalizeSession(data, stored.id).matches)
-          );
-          transaction.update(docRef, {
-            matches,
-            ...(leaveTeam ? { teamId: deleteField() } : {}),
-            ...this.seasonTag(data),
-          });
-          return matches;
-        });
-      try {
-        return await write(false);
-      } catch (error) {
-        if (!isPermissionDenied(error) || !inTeam) throw error;
-        return await write(true);
-      }
+      return await runTransaction(db, async transaction => {
+        const stored = await transaction.get(docRef);
+        if (!stored.exists()) throw new Error('Session not found');
+        const data = stored.data();
+        const matches = withoutUndefined(
+          mutate(normalizeSession(data, stored.id).matches)
+        );
+        transaction.update(docRef, { matches, ...this.seasonTag(data) });
+        return matches;
+      });
     } catch (error) {
       logger.error('Error updating session matches:', error);
       throw error;

@@ -98,11 +98,12 @@ const Signup = () => {
       return;
     }
 
+    // Whatever this browser holds as a guest (saved sessions, a session
+    // still open) carries into the new account: nothing is cleared here,
+    // so a sign-up that fails or is abandoned costs nothing either.
     try {
       setError(null);
       setLoading(true);
-      const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
-      clearSessionFromStorage();
       await signup(formData.email, formData.password, formData.displayName);
       navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
@@ -116,8 +117,6 @@ const Signup = () => {
     try {
       setError(null);
       setLoading(true);
-      const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
-      clearSessionFromStorage();
       await loginWithGoogle();
       navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
@@ -159,7 +158,7 @@ const Signup = () => {
                 htmlFor="displayName"
                 className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
-                Full Name
+                Name
               </Label>
               <div
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
@@ -172,14 +171,21 @@ const Signup = () => {
                   id="displayName"
                   name="displayName"
                   type="text"
-                  placeholder="Enter your full name"
-                  autoComplete="name"
+                  placeholder="Your name"
+                  autoComplete="given-name"
                   value={formData.displayName}
                   onChange={handleChange}
+                  aria-describedby="displayName-hint"
                   className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
               </div>
+              <p
+                id="displayName-hint"
+                className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+              >
+                Teammates see this. A first name is fine.
+              </p>
             </div>
 
             <div className="space-y-2">

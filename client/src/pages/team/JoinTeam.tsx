@@ -53,7 +53,9 @@ const JoinTeam = () => {
         localStorage.setItem(STORAGE_KEYS.PENDING_INVITE_CODE, inviteCode);
         localStorage.setItem(STORAGE_KEYS.PENDING_INVITE_EXPIRY, String(Date.now() + 60 * 60 * 1000));
       }
-      navigate(ROUTES.LOGIN);
+      // In place of this page, so Back from sign-in leaves rather than
+      // coming here to be sent straight back again
+      navigate(ROUTES.LOGIN, { replace: true });
       return;
     }
 
@@ -98,20 +100,24 @@ const JoinTeam = () => {
     doLookup();
   }, [user, authLoading, inviteCode, navigate]);
 
-  /** Find the user's own sessions that `forTeamId` doesn't have yet. */
-  const loadShareable = async (forTeamId: string) => {
-    if (!user?.uid) return;
+  /**
+   * Find the user's own sessions that no team has yet. Resolves with them,
+   * or null when they couldn't be looked up.
+   */
+  const loadShareable = async (): Promise<Session[] | null> => {
+    if (!user?.uid) return null;
     setLoadingShareable(true);
     try {
       const allSessions = await firebaseService.getUserSessions(user.uid);
-      // Archived sessions are put away: not offered for sharing.
-      const shareable = allSessions.filter(
-        s => s.teamId !== forTeamId && !isArchived(s)
-      );
+      // Personal ones only: archived sessions are put away, and one filed
+      // under a team the user has left stays with that team.
+      const shareable = allSessions.filter(s => !s.teamId && !isArchived(s));
       setShareableSessions(shareable as Session[]);
       setSelectedSessionIds(new Set(shareable.map(s => s.id)));
+      return shareable;
     } catch (err) {
       logger.warn('Could not fetch sessions to share', err instanceof Error ? { message: err.message } : undefined);
+      return null;
     } finally {
       setLoadingShareable(false);
     }
@@ -145,9 +151,22 @@ const JoinTeam = () => {
       setTeamName(joined.name);
       setTeamId(joined.id);
       setTeamUnloaded(result.status === 'joined-unloaded');
-      setStatus('success');
       clearPendingInvite();
-      await loadShareable(joined.id);
+      // Still "Joining" while the user's own sessions are looked up: with
+      // some to share, this page asks about them; with none (or none found)
+      // there is nothing more to do here, and Sessions offers any it finds.
+      const shareable = await loadShareable();
+      if (shareable && shareable.length > 0) {
+        setStatus('success');
+        return;
+      }
+      toast.success(`Joined ${joined.name}`, {
+        description:
+          result.status === 'joined-unloaded'
+            ? "The team couldn't be loaded yet. Reload the page if it doesn't show up."
+            : undefined,
+      });
+      navigate(ROUTES.SESSIONS, { replace: true });
     } catch {
       setStatus('error');
       setErrorMessage('Failed to join team. The invite code may be invalid or expired.');
@@ -157,7 +176,8 @@ const JoinTeam = () => {
   /** Leave the invite (turned down, or nothing left to do) for the list */
   const goToSessions = () => {
     clearPendingInvite();
-    navigate(ROUTES.SESSIONS);
+    // The invite is answered: Back from Sessions doesn't bring it up again
+    navigate(ROUTES.SESSIONS, { replace: true });
   };
 
   const handleShare = async () => {
@@ -178,13 +198,19 @@ const JoinTeam = () => {
             "Couldn't share your sessions. They stay private; you can share them later from the team panel."
           );
         }
-        await loadShareable(teamId);
+        await loadShareable();
         return;
       }
       toast.success(`Shared ${plural(count, 'session')} with ${teamName}`);
-      setShareableSessions(prev =>
-        (prev ?? []).filter(s => !selectedSessionIds.has(s.id))
+      const left = (shareableSessions ?? []).filter(
+        s => !selectedSessionIds.has(s.id)
       );
+      // Shared, the step is done; asked again only about the ones left
+      if (left.length === 0 && status === 'success') {
+        goToSessions();
+        return;
+      }
+      setShareableSessions(left);
       setSelectedSessionIds(new Set());
     } catch {
       toast.error(
@@ -215,27 +241,36 @@ const JoinTeam = () => {
   const heading = `${PAGE_TITLE_CLASS} mb-2 text-balance`;
   const hasShareable = !!shareableSessions && shareableSessions.length > 0;
 
-  /** Matches the team dialog's share step: same picker, same words */
-  const sharePanel = hasShareable && (
-    <div className="mb-6 text-left">
-      <p
-        className={`text-sm mb-2 ${
-          isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-        }`}
-      >
-        Share your{' '}
-        <strong>{plural(shareableSessions.length, 'session')}</strong> with{' '}
-        <strong>{teamName}</strong>? Teammates see shared sessions with their
-        notes, and they stay with the team if you leave.
-      </p>
-      <ShareSessionsPicker
-        sessions={shareableSessions}
-        selected={selectedSessionIds}
-        onChange={setSelectedSessionIds}
-        isDarkMode={isDarkMode}
-      />
-    </div>
-  );
+  /**
+   * Matches the team dialog's share step: same picker, same words. Asks the
+   * question itself unless the page's title already does (`titleAsks`).
+   */
+  const sharePanel = (titleAsks = false) =>
+    hasShareable && (
+      <div className="mb-6 text-left">
+        <p
+          className={`text-sm mb-2 ${
+            isDarkMode ? 'text-team-white-60' : 'text-gray-600'
+          }`}
+        >
+          {!titleAsks && (
+            <>
+              Share your{' '}
+              <strong>{plural(shareableSessions.length, 'session')}</strong>{' '}
+              with <strong>{teamName}</strong>?{' '}
+            </>
+          )}
+          Teammates see shared sessions with their notes, and they stay with the
+          team if you leave.
+        </p>
+        <ShareSessionsPicker
+          sessions={shareableSessions}
+          selected={selectedSessionIds}
+          onChange={setSelectedSessionIds}
+          isDarkMode={isDarkMode}
+        />
+      </div>
+    );
 
   /**
    * A card's buttons: side by side from `sm` up, the main one last; stacked
@@ -292,7 +327,7 @@ const JoinTeam = () => {
   const switchConsequence = !currentTeam
     ? ''
     : leaveEffect?.kind === 'deleted'
-      ? `You're its only member, so ${currentTeam.name} and its invite link are deleted.`
+      ? `You're its only member, so ${currentTeam.name} and its invite link are deleted. You keep your sessions.`
       : leaveEffect?.kind === 'handed-over'
         ? `${leaveEffect.newOwner.displayName || leaveEffect.newOwner.email} becomes the owner of ${currentTeam.name}, and sessions you shared there stay with it.`
         : `Sessions you shared with ${currentTeam.name} stay with that team.`;
@@ -336,7 +371,7 @@ const JoinTeam = () => {
               This invite is for the team you're in, so there's nothing to
               join.
             </p>
-            {sharePanel}
+            {sharePanel()}
             {shareableSessions?.length === 0 && (
               <p
                 role="status"
@@ -352,7 +387,7 @@ const JoinTeam = () => {
             {finishButtons(
               shareableSessions === null && (
                 <Button
-                  onClick={() => loadShareable(teamId)}
+                  onClick={() => loadShareable()}
                   disabled={loadingShareable}
                   variant="neutral"
                   className={rowButton}
@@ -433,7 +468,11 @@ const JoinTeam = () => {
                 className={`text-green-500 ${hasShareable ? 'h-6 w-6' : 'h-8 w-8'}`}
               />
             </div>
-            <h1 className={heading}>Welcome to {teamName}!</h1>
+            <h1 className={heading}>
+              {hasShareable
+                ? `Share your sessions with ${teamName}?`
+                : `You're in ${teamName}`}
+            </h1>
             <p
               className={`${hasShareable ? 'mb-4' : 'mb-6'} ${
                 isDarkMode ? 'text-team-white-60' : 'text-gray-500'
@@ -456,7 +495,7 @@ const JoinTeam = () => {
               </p>
             )}
 
-            {sharePanel}
+            {sharePanel(true)}
 
             {finishButtons()}
           </>

@@ -96,7 +96,7 @@ const Section = ({
   );
 };
 
-/** The small capitals over a field (Display name, Email, Current password…) */
+/** The small capitals over a field (Name, Email, Current password…) */
 const fieldLabelClass = (isDarkMode: boolean) =>
   `text-xs font-medium uppercase tracking-wider ${
     isDarkMode ? 'text-team-white-60' : 'text-gray-500'
@@ -136,6 +136,7 @@ const PasswordInput = ({
   errorId,
   invalid,
   autoFocus,
+  fullWidth = false,
   isDarkMode,
 }: {
   id: string;
@@ -148,11 +149,16 @@ const PasswordInput = ({
   errorId?: string;
   invalid?: boolean;
   autoFocus?: boolean;
+  /**
+   * As wide as the fields around it, in a dialog; on the page it stops at
+   * the width of the forms beside it
+   */
+  fullWidth?: boolean;
   isDarkMode: boolean;
 }) => {
   const [shown, setShown] = useState(false);
   return (
-    <div className="relative sm:max-w-sm">
+    <div className={`relative ${fullWidth ? '' : 'sm:max-w-sm'}`}>
       <Input
         id={id}
         type={shown ? 'text' : 'password'}
@@ -275,6 +281,8 @@ const Profile = () => {
    * account menu) or deleting the account from here is not "please sign in".
    */
   const wasSignedInRef = useRef(signedIn);
+  /** The account is being deleted from here */
+  const deletingRef = useRef(false);
   useEffect(() => {
     if (signedIn) wasSignedInRef.current = true;
   }, [signedIn]);
@@ -373,7 +381,7 @@ const Profile = () => {
       await updateDisplayName(nameValue.trim());
       await updateMemberDisplayName(nameValue.trim());
       setEditingName(false);
-      toast.success('Display name updated');
+      toast.success('Name updated');
     } catch (err) {
       showAuthError(err);
     } finally {
@@ -464,11 +472,15 @@ const Profile = () => {
 
   const handleDeleteAccount = async () => {
     clearFieldError('deletePassword');
+    // Set first: the page leaves as soon as the account is gone, before the
+    // deletion's promise settles.
+    deletingRef.current = true;
     try {
       setDeleteLoading(true);
       await deleteAccount(isPasswordProvider ? deletePassword : undefined);
       toast.success('Your account and data were deleted');
     } catch (err) {
+      deletingRef.current = false;
       showAuthError(err, { password: 'deletePassword' });
     } finally {
       setDeleteLoading(false);
@@ -477,9 +489,17 @@ const Profile = () => {
 
   if (!signedIn || !user) {
     // Signed out or deleted from this page: that isn't "please sign in".
+    // After deleting the account they are a guest, and go where a guest
+    // starts; after signing out, to sign in again.
     return (
       <Navigate
-        to={wasSignedInRef.current ? ROUTES.LOGIN : ROUTES.SESSIONS}
+        to={
+          deletingRef.current
+            ? ROUTES.HOME
+            : wasSignedInRef.current
+              ? ROUTES.LOGIN
+              : ROUTES.SESSIONS
+        }
         replace
       />
     );
@@ -509,7 +529,7 @@ const Profile = () => {
             email's badge. Sign out is in the account menu. */}
         <Section title="Profile Information" isDarkMode={isDarkMode}>
           <Field
-            label="Display Name"
+            label="Name"
             htmlFor={editingName ? 'profile-display-name' : undefined}
             isDarkMode={isDarkMode}
           >
@@ -524,7 +544,7 @@ const Profile = () => {
                     if (e.key === 'Escape') cancelNameEdit();
                   }}
                   autoFocus
-                  placeholder="Enter display name"
+                  placeholder="Your name"
                   autoComplete="name"
                   className={INLINE_EDIT_INPUT}
                 />
@@ -571,7 +591,7 @@ const Profile = () => {
                   variant="neutral"
                   size="sm"
                   className="shrink-0"
-                  aria-label="Edit display name"
+                  aria-label="Edit name"
                   onClick={() => {
                     setNameValue(user?.displayName || '');
                     setEditingName(true);
@@ -991,6 +1011,8 @@ const Profile = () => {
                 autoComplete="current-password"
                 invalid={!!fieldErrors.deletePassword}
                 errorId="delete-password-error"
+                // Lined up with Type DELETE under it
+                fullWidth
                 isDarkMode={isDarkMode}
               />
               {fieldErrors.deletePassword && (

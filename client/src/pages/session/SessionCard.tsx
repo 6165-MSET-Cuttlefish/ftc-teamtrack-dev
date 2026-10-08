@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactNode, RefObject } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts';
@@ -6,22 +6,21 @@ import { useEscapeKey } from '@/hooks';
 import { formatDate, isArchived, rankingPointTally, toDate } from '@/lib';
 import { SESSION_LIMITS } from '@/constants';
 import type { Session } from '@/types';
-import { ignoreHeldEnter } from '@/components/session/controls/ignoreHeldEnter';
-import { useArmed } from '@/components/session/controls/useArmed';
-import { Button } from '@/components/ui/button';
+import { viewOnlyNote } from '@/lib/sessionAccess';
 import { Card, CardTitle } from '@/components/ui/card';
 import { SECTION_TITLE_CLASS } from '@/components/ui/page-header';
 import {
   CHIP_BASE,
   CHIP_SIZES,
   DATA_CLASS,
-  DESTRUCTIVE_CLASS,
   chipTone,
 } from '@/components/ui/tokens';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -49,96 +48,37 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  matchTypeLabel,
-  plural,
-  scoresOf,
-  sessionDateLabel,
-} from './sessionList';
+import { matchTypeLabel, scoresOf, sessionDateLabel } from './sessionList';
 import { SignUpToShare } from './SignUpToShare';
 
-/** How long after its menu closes a card ignores presses on itself */
+/**
+ * How long after a card's menu closes every card ignores presses. Archive
+ * and Delete take the card away at once, so the second half of a double
+ * tap on one lands on whichever card moves into its place.
+ */
 const MENU_SETTLE_MS = 500;
+
+/** When any card's menu last closed, or one of its items was chosen */
+let menuClosedAt = 0;
+
+/**
+ * A press that is the second half of a double tap on a menu item. The item
+ * may have taken its card away (Archive, Delete) before its menu could say
+ * it closed, so choosing one counts too (see `settled`).
+ */
+const settling = () => Date.now() - menuClosedAt < MENU_SETTLE_MS;
+
+/** A menu item's action, after which presses settle for a moment */
+const settled = (action?: () => void) => () => {
+  menuClosedAt = Date.now();
+  action?.();
+};
 
 /** A row in the card's menu: big enough for a thumb, icon then text. */
 const MENU_ITEM =
   'flex items-center gap-2 cursor-pointer [@media(pointer:coarse)]:min-h-11';
 
 const stop = (e: MouseEvent) => e.stopPropagation();
-
-interface DeleteConfirmProps {
-  name: string;
-  matchCount: number;
-  keepRef: RefObject<HTMLButtonElement | null>;
-  onKeep: () => void;
-  onConfirm: () => void;
-}
-
-/**
- * The question a card asks before its session goes: worded, naming the
- * session and what goes with it, with the safe answer first. Delete ignores
- * presses for a moment after the question appears, so a double tap on the
- * menu can never answer it. On a phone the question has a line of its own
- * with the answers under it; from 640px it takes the stats' place, so the
- * card keeps its height and its neighbours in the row don't stretch.
- */
-const DeleteConfirm = ({
-  name,
-  matchCount,
-  keepRef,
-  onKeep,
-  onConfirm,
-}: DeleteConfirmProps) => {
-  const { isDarkMode } = useTheme();
-  const questionId = useId();
-  const armed = useArmed();
-
-  return (
-    <div
-      role="group"
-      aria-labelledby={questionId}
-      onClick={stop}
-      className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3 cursor-default sm:border-t-0 sm:pt-0 ${
-        isDarkMode ? 'border-team-blue-40' : 'border-gray-200'
-      }`}
-    >
-      <p
-        id={questionId}
-        className={`basis-full min-w-0 text-sm leading-snug break-words text-balance sm:flex-1 sm:basis-40 ${
-          isDarkMode ? 'text-gray-100' : 'text-gray-900'
-        }`}
-      >
-        Delete <span className="font-bold">{name}</span>
-        {matchCount > 0 && ` and its ${plural(matchCount, 'match', 'matches')}`}
-        ?
-      </p>
-      <div className="flex gap-2 ml-auto">
-        <Button
-          ref={keepRef}
-          type="button"
-          variant="neutral"
-          size="touch"
-          onKeyDown={ignoreHeldEnter}
-          onClick={onKeep}
-          // The same shape as Delete beside it
-          className="border-2 font-bold"
-        >
-          Keep
-        </Button>
-        <button
-          type="button"
-          onKeyDown={ignoreHeldEnter}
-          onClick={() => {
-            if (armed) onConfirm();
-          }}
-          className={`h-11 px-4 rounded-lg border-2 text-sm font-bold transition-colors ${DESTRUCTIVE_CLASS}`}
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  );
-};
 
 interface StatProps {
   icon: LucideIcon;
@@ -239,14 +179,14 @@ interface SessionCardProps {
   /** Copy a share link. Left out for a guest, who is told what sharing needs. */
   onShare?: () => void;
   ownerName?: string;
-  /** Name of the viewer's team when this session isn't filed under it */
+  /** Name of the viewer's team when this session is in no team */
   notSharedWith?: string;
   /**
-   * How many matches the whole session holds, when `session` carries only
-   * the ones a match-type filter counts (Sessions under a one-type filter).
-   * Delete removes them all, so its question says this number.
+   * The session stays with a team the viewer is no longer in, so it is
+   * view-only for them: that team's name (`name`), when this browser knows
+   * it.
    */
-  matchesInSession?: number;
+  filedUnder?: { name?: string };
 }
 
 export const SessionCard = ({
@@ -258,24 +198,21 @@ export const SessionCard = ({
   onShare,
   ownerName,
   notSharedWith,
-  matchesInSession,
+  filedUnder,
 }: SessionCardProps) => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const name = session.sessionName || 'Untitled Session';
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(session.sessionName || '');
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [shareNote, setShareNote] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [isTitleTruncated, setIsTitleTruncated] = useState(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const keepRef = useRef<HTMLButtonElement>(null);
   const signUpRef = useRef<HTMLAnchorElement>(null);
   /** What a menu item opened, which gets the focus the closing menu would take back */
   const focusAfterMenu = useRef<RefObject<HTMLElement | null> | null>(null);
-  const menuClosedAt = useRef(0);
   const savingName = useRef(false);
 
   useEffect(() => {
@@ -288,7 +225,6 @@ export const SessionCard = ({
     }
   }, [session.sessionName, isEditing]);
 
-  useEscapeKey(deleteConfirm, () => setDeleteConfirm(false));
   useEscapeKey(shareNote, () => setShareNote(false));
 
   const handleSaveName = async () => {
@@ -323,17 +259,10 @@ export const SessionCard = ({
   };
 
   const startRename = () => {
-    setDeleteConfirm(false);
     setShareNote(false);
     setEditedName(session.sessionName || '');
     setIsEditing(true);
     focusAfterMenu.current = nameInputRef;
-  };
-
-  const askDelete = () => {
-    setShareNote(false);
-    setDeleteConfirm(true);
-    focusAfterMenu.current = keepRef;
   };
 
   const handleShare = () => {
@@ -341,7 +270,6 @@ export const SessionCard = ({
       onShare();
       return;
     }
-    setDeleteConfirm(false);
     setShareNote(true);
     focusAfterMenu.current = signUpRef;
   };
@@ -371,7 +299,14 @@ export const SessionCard = ({
       className={`${SECTION_TITLE_CLASS} leading-snug tracking-normal line-clamp-2 break-words`}
     >
       {/* The card opens on a click anywhere; the name is what a keyboard reaches */}
-      <Link to={href} onClick={stop} className="rounded-sm hover:underline">
+      <Link
+        to={href}
+        onClick={e => {
+          stop(e);
+          if (settling()) e.preventDefault();
+        }}
+        className="rounded-sm hover:underline"
+      >
         {name}
       </Link>
     </CardTitle>
@@ -386,7 +321,7 @@ export const SessionCard = ({
       }`}
       onClick={() => {
         // The second half of a double tap on a menu item lands here.
-        if (Date.now() - menuClosedAt.current < MENU_SETTLE_MS) return;
+        if (settling()) return;
         navigate(href);
       }}
     >
@@ -440,7 +375,7 @@ export const SessionCard = ({
           ) : (
             <DropdownMenu
               onOpenChange={open => {
-                if (!open) menuClosedAt.current = Date.now();
+                if (!open) menuClosedAt = Date.now();
               }}
             >
               <DropdownMenuTrigger asChild>
@@ -465,12 +400,27 @@ export const SessionCard = ({
                   const target = focusAfterMenu.current?.current;
                   focusAfterMenu.current = null;
                   if (!target) return;
-                  // Rename, Delete and a guest's Share carry on in the card.
+                  // Rename and a guest's Share carry on in the card.
                   e.preventDefault();
                   if (document.activeElement !== target) target.focus();
                 }}
               >
-                <DropdownMenuItem onSelect={handleShare} className={MENU_ITEM}>
+                {/* Why Rename and Archive aren't here: read on a touch
+                    screen too, where the chip's tooltip never shows */}
+                {filedUnder && (
+                  <>
+                    <DropdownMenuLabel
+                      className={`max-w-64 text-xs font-normal leading-snug ${muted}`}
+                    >
+                      {viewOnlyNote(filedUnder.name)}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem
+                  onSelect={settled(handleShare)}
+                  className={MENU_ITEM}
+                >
                   {onShare ? (
                     <Share2 className="h-4 w-4" />
                   ) : (
@@ -480,7 +430,7 @@ export const SessionCard = ({
                 </DropdownMenuItem>
                 {onNameChange && (
                   <DropdownMenuItem
-                    onSelect={startRename}
+                    onSelect={settled(startRename)}
                     className={MENU_ITEM}
                   >
                     <Pencil className="h-4 w-4" />
@@ -489,7 +439,7 @@ export const SessionCard = ({
                 )}
                 {onToggleArchive && (
                   <DropdownMenuItem
-                    onSelect={onToggleArchive}
+                    onSelect={settled(onToggleArchive)}
                     className={MENU_ITEM}
                   >
                     {archived ? (
@@ -500,9 +450,10 @@ export const SessionCard = ({
                     <span>{archived ? 'Unarchive' : 'Archive'}</span>
                   </DropdownMenuItem>
                 )}
+                {/* Deleted at once: the toast's Undo brings it back */}
                 {onDelete && (
                   <DropdownMenuItem
-                    onSelect={askDelete}
+                    onSelect={settled(onDelete)}
                     className={`${MENU_ITEM} text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -551,21 +502,29 @@ export const SessionCard = ({
           {notSharedWith && (
             <span
               className={chip}
-              title={
-                // Leaving a team doesn't take a session out of it.
-                session.teamId
-                  ? `Still filed under another team, whose members can see it. It isn't shared with ${notSharedWith}.`
-                  : `Only you can see this session. It isn't shared with ${notSharedWith}.`
-              }
+              title={`Only you can see this session. It isn't shared with ${notSharedWith}.`}
             >
-              {session.teamId ? 'Other team' : 'Not shared'}
+              Not shared
+            </span>
+          )}
+          {/* Leaving a team doesn't take a session out of it: it stays,
+              view-only for its author (the menu says why) */}
+          {filedUnder && (
+            <span
+              className={`${chip} min-w-0 max-w-full gap-1`}
+              title={viewOnlyNote(filedUnder.name)}
+            >
+              <Lock aria-hidden="true" className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                {filedUnder.name
+                  ? `Filed under ${filedUnder.name}`
+                  : 'Old team'}
+              </span>
             </span>
           )}
         </div>
 
-        {/* While the card asks to delete, the question takes the stats'
-            place from 640px (see DeleteConfirm) */}
-        <div className={`overflow-hidden ${deleteConfirm ? 'sm:hidden' : ''}`}>
+        <div className="overflow-hidden">
           <div className="-ml-3 flex flex-wrap gap-y-0.5 text-sm sm:ml-0 sm:grid sm:grid-cols-3 sm:items-start sm:gap-x-3 sm:gap-y-3">
             <Stat
               icon={Trophy}
@@ -647,19 +606,6 @@ export const SessionCard = ({
               <X className="h-4 w-4" />
             </button>
           </div>
-        )}
-
-        {deleteConfirm && (
-          <DeleteConfirm
-            name={name}
-            matchCount={matchesInSession ?? matchCount}
-            keepRef={keepRef}
-            onKeep={() => setDeleteConfirm(false)}
-            onConfirm={() => {
-              setDeleteConfirm(false);
-              onDelete?.();
-            }}
-          />
         )}
       </div>
     </Card>

@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { getFirebase, logger, clearSessionFromStorage, clearHasCompletedSession } from '@/lib';
+import { markLeavingTeam, unmarkLeavingTeam } from '@/lib/leavingTeams';
 import { STORAGE_KEYS } from '@/constants';
 import type { User } from '@/types';
 import type {
@@ -43,6 +44,9 @@ type FirebaseAuthModule = {
     auth: Auth,
     provider: FirebaseGoogleAuthProvider
   ) => Promise<UserCredential>;
+  getAdditionalUserInfo?: (
+    credential: UserCredential
+  ) => { isNewUser: boolean } | null;
 };
 
 let firebaseAuthModule: FirebaseAuthModule | null = null;
@@ -82,6 +86,19 @@ export const useAuth = () => {
 
 const GUEST_ID_KEY = 'teamtrack-guest-id';
 const GUEST_MODE_KEY = 'teamtrack-guest-mode';
+
+/**
+ * A new account is the guest's own, so the sessions they saved in this
+ * browser move into it (see lib/guestImport). Not waited for: Sessions
+ * shows the move while it runs, and reads the list again once it is done.
+ */
+const moveGuestSessions = (uid: string, email: string | null) => {
+  void import('@/lib/guestImport')
+    .then(({ moveGuestSessionsIntoNewAccount }) =>
+      moveGuestSessionsIntoNewAccount(uid, email)
+    )
+    .catch(error => logger.error('Could not move guest sessions', error));
+};
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
@@ -143,6 +160,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       const { uid } = userCredential.user;
       setUser(prev => (prev?.uid === uid ? { ...prev, displayName } : prev));
     }
+    moveGuestSessions(userCredential.user.uid, userCredential.user.email);
   };
 
   const login = async (email: string, password: string) => {
@@ -301,7 +319,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       'removed from your team, so your account is still here. Please try again.';
     try {
       for (const teamId of await firebaseService.getUserTeamIds(uid)) {
-        await teamService.leaveTeam(teamId, uid);
+        // Chosen, not a removal: no "You're no longer a member" notice.
+        markLeavingTeam(teamId);
+        try {
+          await teamService.leaveTeam(teamId, uid);
+        } catch (error) {
+          unmarkLeavingTeam(teamId);
+          throw error;
+        }
       }
     } catch (error) {
       logger.error('Error leaving team while deleting account', error);
@@ -315,6 +340,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     clearSessionFromStorage();
     clearHasCompletedSession();
     setUser(null);
+    // A guest from here on, at once rather than when the sign-in listener
+    // catches up: the page they go to is the guest start, not a sign-in.
+    becomeGuest();
   };
 
   const loginWithGoogle = async () => {
@@ -333,8 +361,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
 
     const provider = new authModule.GoogleAuthProvider();
-    await authModule.signInWithPopup(authInstance, provider);
+    const credential = await authModule.signInWithPopup(authInstance, provider);
+    // A Google account seen for the first time is a sign-up, whichever
+    // page it came from.
+    if (authModule.getAdditionalUserInfo?.(credential)?.isNewUser) {
+      moveGuestSessions(credential.user.uid, credential.user.email);
+    }
   };
+
+  // Module-scoped flag survives React StrictMode double-mount
+  const guestToastShownRef = useRef(false);
 
   const continueAsGuest = () => {
     let guestUserId = localStorage.getItem(GUEST_ID_KEY);
@@ -350,8 +386,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setLoading(false);
   };
 
-  // Module-scoped flag survives React StrictMode double-mount
-  const guestToastShownRef = useRef(false);
+  /** A guest now, for good: the sign-in listener leaves it at that. */
+  const becomeGuest = () => {
+    guestToastShownRef.current = true;
+    continueAsGuest();
+  };
 
   useEffect(() => {
     let unsubscribe: () => void = () => {};

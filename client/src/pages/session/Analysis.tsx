@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation, Link } from 'react-router-dom';
-import { useSessionCore, useTheme, useAuth } from '@/contexts';
+import { useSessionCore, useTheme, useAuth, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import {
   saveMatchEdit,
@@ -25,6 +25,7 @@ import {
   logger,
 } from '@/lib';
 import { readAllGuestSessions } from '@/lib/guestSessions';
+import { filedUnderName, teamFiling, viewOnlyNote } from '@/lib/sessionAccess';
 import { countShareLinks } from '@/lib/shareService';
 import {
   APP_CONFIG,
@@ -98,6 +99,8 @@ interface LoadedSession {
    */
   createdAt?: Session['createdAt'];
   userEmail?: string;
+  /** The team it is filed under, as stored */
+  teamId?: string;
   /** Season tag of a session recorded before this season, else null */
   legacySeason: string | null;
 }
@@ -159,6 +162,7 @@ const toLoaded = (
   sessionType: session?.sessionType,
   createdAt: session?.createdAt,
   userEmail: session?.userEmail,
+  teamId: session?.teamId,
   legacySeason:
     session && !isCurrentSeasonSession(session)
       ? session.season || 'decode'
@@ -169,6 +173,7 @@ const Analysis = () => {
   const { sessionData: contextSessionData } = useSessionCore();
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
+  const { team, loading: teamLoading, unconfirmedTeamId } = useTeam();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const sessionId = searchParams.get('sessionId');
@@ -214,11 +219,22 @@ const Analysis = () => {
   const createdAt = current?.createdAt;
 
   const isGuestSession = !!sessionId && isGuestSessionId(sessionId);
-  /** A saved session this viewer may change: their own, in this season */
+  /**
+   * Their own session filed under a team they are no longer in stays with
+   * that team, view-only for them (see lib/sessionAccess)
+   */
+  const filing = current
+    ? teamFiling(current, { teamId: team?.id, teamLoading, unconfirmedTeamId })
+    : 'here';
+  /**
+   * A saved session this viewer may change: their own, in this season, not
+   * left with a team they are no longer in
+   */
   const canEdit =
     !!current?.session &&
     !legacySeason &&
-    (isGuestSession || (!!viewer && current.ownerId === viewer));
+    (isGuestSession ||
+      (!!viewer && current.ownerId === viewer && filing === 'here'));
   /**
    * The saved session this page shows, needed to make a revocable share link
    * and to take its links down. Of any season: an older one can't be shared
@@ -629,13 +645,26 @@ const Analysis = () => {
       ? sessionMatchType(sessionMatches, sessionData.matchType)
       : sessionData.matchType;
   /** Why the page has no edit controls, when the reason isn't obvious */
+  const recorder =
+    current && current.ownerId !== viewer
+      ? (() => {
+          const member = team?.members.find(m => m.userId === current.ownerId);
+          return member?.displayName || member?.email || current.userEmail;
+        })()
+      : undefined;
   const readOnlyReason = canEdit
     ? null
     : legacySeason
       ? null
       : !sessionId
         ? 'Open this session from Sessions to edit its matches'
-        : 'View only - recorded by a teammate';
+        : current && current.ownerId === viewer
+          ? filing === 'elsewhere'
+            ? viewOnlyNote(filedUnderName(current))
+            : null
+          : recorder
+            ? `Recorded by ${recorder}, view only`
+            : 'Recorded by a teammate, view only';
   const badgeClass = `inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${
     isDarkMode ? 'bg-white/10 text-team-white-60' : 'bg-gray-100 text-gray-600'
   }`;

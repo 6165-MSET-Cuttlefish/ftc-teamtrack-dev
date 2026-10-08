@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTeam, useTheme, useAuth } from '@/contexts';
 import { firebaseService, teamService } from '@/services';
 import { logger, copyToClipboard } from '@/lib';
+import { rememberTeamName } from '@/lib/knownTeams';
 import {
   OPEN_SHARE_SESSIONS_EVENT,
   OPEN_TEAM_DIALOG_EVENT,
@@ -154,6 +155,8 @@ export const TeamManager = ({
   const [personalSessions, setPersonalSessions] = useState<Session[]>([]);
   /** The user has recorded sessions at all, shared or not */
   const [hasOwnSessions, setHasOwnSessions] = useState(false);
+  /** Some of them stay with another team (one the user has left) */
+  const [ownInOtherTeam, setOwnInOtherTeam] = useState(false);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [sharing, setSharing] = useState(false);
   const [loadingPersonal, setLoadingPersonal] = useState(false);
@@ -164,14 +167,20 @@ export const TeamManager = ({
   const showTeamInfo = !!teamId && teamDialogFor === teamId;
   const showShareDialog = !!teamId && shareDialogFor === teamId;
 
+  // Kept for once the user has left: their sessions stay filed under the
+  // team, and the lists still name it.
+  const currentName = team?.name;
+  useEffect(() => {
+    if (teamId && currentName) rememberTeamName(teamId, currentName);
+  }, [teamId, currentName]);
+
   /** Show the user's sessions that `forTeamId` doesn't have, all ticked. */
   const showShareable = (sessions: Session[], forTeamId: string) => {
-    // Personal sessions and ones left behind in a team the user has left.
-    // Archived ones are put away, so they are not offered.
-    const shareable = sessions.filter(
-      s => s.teamId !== forTeamId && !isArchived(s)
-    );
+    // Personal sessions only. One filed under a team the user has left
+    // stays with that team; archived ones are put away. Neither is offered.
+    const shareable = sessions.filter(s => !s.teamId && !isArchived(s));
     setHasOwnSessions(sessions.length > 0);
+    setOwnInOtherTeam(sessions.some(s => !!s.teamId && s.teamId !== forTeamId));
     setPersonalSessions(shareable);
     setSelectedSessionIds(new Set(shareable.map(s => s.id)));
     return shareable;
@@ -347,7 +356,7 @@ export const TeamManager = ({
         setShowCreateDialog(false);
         setTeamName('');
         if (offerShare) setShareDialogFor(newTeam.id);
-        else toast.success(`Team "${newTeam.name}" created!`);
+        else toast.success(`Created ${newTeam.name}`);
       } else {
         toast.error('Failed to create team. Please try again.');
       }
@@ -388,7 +397,7 @@ export const TeamManager = ({
         if (result.status === 'joined-unloaded') {
           toast.warning("Joined, but couldn't load the team. Reload the page to see it.");
         } else if (!offerShare) {
-          toast.success(`Joined team "${joined.name}"!`);
+          toast.success(`Joined ${joined.name}`);
         }
         if (offerShare) setShareDialogFor(joined.id);
       }
@@ -548,7 +557,7 @@ export const TeamManager = ({
           return {
             question: `Leave ${team.name}?`,
             consequence:
-              "You're the only member, so leaving deletes the team and its invite link.",
+              "You're the only member, so leaving deletes the team and its invite link. You keep your sessions.",
             action: 'Delete team and leave',
             destructive: true,
             icon: LogOut,
@@ -558,8 +567,8 @@ export const TeamManager = ({
           question: `Leave ${team.name}?`,
           consequence:
             leaveEffect?.kind === 'handed-over'
-              ? `You lose access to team sessions (the ones you shared stay), and ${memberName(leaveEffect.newOwner)} becomes the owner.`
-              : 'You lose access to team sessions; the ones you shared stay with the team.',
+              ? `You lose access to team sessions, and ${memberName(leaveEffect.newOwner)} becomes the owner. The ones you shared stay with the team, view-only for you.`
+              : 'You lose access to team sessions. The ones you shared stay with the team, view-only for you.',
           action: 'Leave team',
           destructive: true,
           icon: LogOut,
@@ -1265,9 +1274,11 @@ export const TeamManager = ({
             ) : personalSessions.length === 0 ? (
               <div className={`text-center py-8 ${muted}`}>
                 <p>
-                  {hasOwnSessions
-                    ? `All your sessions are already shared with ${team?.name}.`
-                    : "You haven't recorded any sessions yet."}
+                  {ownInOtherTeam
+                    ? 'No sessions left to share. The rest stay with the team you left.'
+                    : hasOwnSessions
+                      ? `All your sessions are already shared with ${team?.name}.`
+                      : "You haven't recorded any sessions yet."}
                 </p>
               </div>
             ) : (

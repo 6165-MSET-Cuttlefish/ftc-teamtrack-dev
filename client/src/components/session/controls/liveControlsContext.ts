@@ -1633,7 +1633,7 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
     ) {
       guestStorageWarned = true;
       toast.warning(
-        'Guest storage is almost full - sign in or delete old sessions to keep saving',
+        'This browser is almost out of space. Sign in or delete old sessions to keep saving.',
         { duration: UI_TIMING.UNDO_WINDOW }
       );
     }
@@ -1685,7 +1685,7 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
       if (!uid) {
         toast.error(
           isQuotaError(error)
-            ? 'Guest storage is full - sign in or delete old sessions'
+            ? 'This browser is out of space. Sign in or delete old sessions.'
             : "Couldn't save the session. Your matches are kept, try again."
         );
       } else {

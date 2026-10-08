@@ -39,13 +39,8 @@ import { TUTORIAL_RESTART_EVENT } from '@/constants/events';
 import { useAuth, useTheme, useSession, useSessionCore } from '@/contexts';
 import { useMatchAudio, useNavigationGuard } from '@/hooks';
 import { useWakeLock } from '@/hooks/useWakeLock';
-import { APP_CONFIG, ROUTES, STORAGE_KEYS } from '@/constants';
-import {
-  calculateScore,
-  isWorthStoring,
-  liveMatchType,
-  matchScore,
-} from '@/lib';
+import { APP_CONFIG, STORAGE_KEYS } from '@/constants';
+import { calculateScore, liveMatchType, matchScore } from '@/lib';
 import { nextMatchNumber } from '@/lib/matchNumber';
 import { formatPoints } from '@/lib/points';
 import { cn } from '@/lib/utils';
@@ -513,7 +508,7 @@ const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
  * going ahead is the ordinary blue, not red; the question is only there
  * because a match can be scored and saved from this page alone. Between
  * matches leaving simply leaves (the header has the way back), Sign up
- * aside (see signupQuestion).
+ * included: signing up carries the session into the new account.
  */
 const leaveQuestion = (matchEnded: boolean, matchNumber: number) =>
   matchEnded
@@ -528,30 +523,10 @@ const leaveQuestion = (matchEnded: boolean, matchNumber: number) =>
           'Its clock keeps going, and you can only score it on this page.',
       };
 
-/**
- * Signing up clears a guest's open session from this browser on the way in
- * (see Signup), so a guest with one worth keeping is told before going
- * there, between matches too: the one place leaving costs something. Goes
- * once sign-up carries the session into the new account instead.
- */
-const signupQuestion = (savedMatches: number) => ({
-  title: 'Signing up clears this session',
-  description:
-    savedMatches === 0
-      ? 'It is only in this browser, and creating an account clears it.'
-      : savedMatches === 1
-        ? 'Its saved match is only in this browser, and creating an account clears it.'
-        : `Its ${savedMatches} saved matches are only in this browser, and creating an account clears them.`,
-});
-
-/** The pages a guest is asked about going to, while sign-up would cost */
-const SIGNUP_PAGE = [ROUTES.SIGNUP];
-
 const Active = () => {
   const { isDarkMode } = useTheme();
   const isCompact = useActiveCompact();
-  const { isGuest } = useAuth();
-  const { sessionData, hasStarted, matchActive, matchPhase, isTutorialActive } =
+  const { sessionData, matchActive, matchPhase, isTutorialActive } =
     useSessionCore();
 
   useEffect(() => {
@@ -564,21 +539,12 @@ const Active = () => {
     matchActive && matchPhase === 'ended',
     nextMatchNumber(sessionData.matches)
   );
-  const signupClears =
-    isGuest &&
-    !isTutorialActive &&
-    !sessionData.isSessionCompleted &&
-    isWorthStoring(sessionData, hasStarted);
   // Not the walkthrough's practice match: it goes back when the page does.
   const navGuard = useNavigationGuard(
     matchActive && !isTutorialActive && !sessionData.isSessionCompleted,
     leave.description,
-    { beforeUnload: false, askBefore: signupClears ? SIGNUP_PAGE : undefined }
+    { beforeUnload: false }
   );
-  const toSignup = navGuard.target === ROUTES.SIGNUP && signupClears;
-  const question = toSignup
-    ? signupQuestion(sessionData.matches?.length ?? 0)
-    : leave;
   const tutorial = useTutorialWanted();
 
   const sessionName =
@@ -680,11 +646,11 @@ const Active = () => {
         onOpenChange={open => {
           if (!open) navGuard.reset();
         }}
-        tone={toSignup ? 'destructive' : 'primary'}
-        title={question.title}
-        description={question.description}
-        cancelLabel={toSignup ? 'Stay' : 'Keep scoring'}
-        confirmLabel={toSignup ? 'Go to Sign up' : 'Leave'}
+        tone="primary"
+        title={leave.title}
+        description={leave.description}
+        cancelLabel="Keep scoring"
+        confirmLabel="Leave"
         onConfirm={navGuard.proceed}
       />
 
