@@ -55,7 +55,7 @@ import { useCompactControls } from './useCompactControls';
 export type LiveControlsProps = Record<never, never>;
 
 const UNREACHABLE_MESSAGE =
-  "Can't reach the server - your matches are kept on this device, try again";
+  "Couldn't reach the server. Your matches are kept in this browser. Check your connection and try again.";
 const SAVING_TOAST_ID = 'saving-session';
 const TUTORIAL_TOAST_ID = 'walkthrough-open';
 const CLEARED_TOAST_ID = 'cleared-before-start';
@@ -281,13 +281,13 @@ export const saveErrorMessage = (error: unknown): string => {
       return UNREACHABLE_MESSAGE;
     case 'permission-denied':
     case 'unauthenticated':
-      return "You don't have permission to save this session. Sign out and back in, then try again - your matches are kept on this device.";
+      return "You don't have permission to save this session. Sign out and back in, then try again. Your matches are kept in this browser.";
     case 'invalid-argument':
-      return "The server rejected this session as too large or malformed. Delete some matches or shorten the notes, then try again - retrying as-is won't work.";
+      return "The server won't take this session as it is. Delete some matches or shorten the notes, then try again.";
     case 'resource-exhausted':
-      return 'The server is over its usage limit right now. Your matches are kept on this device - try again later.';
+      return 'The server is over its usage limit right now. Your matches are kept in this browser. Try again later.';
     default:
-      return 'Failed to save session. Your data is preserved — please try again.';
+      return "Couldn't save the session. Your matches are kept in this browser. Try again.";
   }
 };
 
@@ -1022,7 +1022,7 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
     setPendingConfirm(null);
 
     toast.success(
-      `Match ${newMatch.matchNumber} saved · ${formatPoints(newMatch.finalScore)}`,
+      `Match ${newMatch.matchNumber} saved: ${formatPoints(newMatch.finalScore)}`,
       { id: MATCH_SAVED_TOAST_ID }
     );
   };
@@ -1577,8 +1577,8 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
       if (team) void refreshTeam();
       toast.warning(
         stillListed
-          ? `Couldn't save to ${sessionTeam.name}; saved as a personal session`
-          : `You are no longer in ${sessionTeam.name}; saved as a personal session`,
+          ? `Couldn't save to ${sessionTeam.name}, so it was saved as a personal session`
+          : `You're no longer in ${sessionTeam.name}, so it was saved as a personal session`,
         { duration: UI_TIMING.UNDO_WINDOW }
       );
     } else if (closedElsewhere) {
@@ -1686,7 +1686,7 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
         toast.error(
           isQuotaError(error)
             ? 'This browser is out of space. Sign in or delete old sessions.'
-            : "Couldn't save the session. Your matches are kept, try again."
+            : "Couldn't save the session. Your matches are kept in this browser. Try again."
         );
       } else {
         toast.error(saveErrorMessage(error));

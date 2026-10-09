@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { firebaseService } from '@/services';
 import type { ShareLink } from '@/services/firebaseService';
 import { formatDate, logger } from '@/lib';
@@ -50,6 +50,28 @@ export const ShareLinks = ({
   // time it is asked, so asking again right after it was dismissed is
   // guarded too.
   const allArmed = useArmedAfterOpen(confirmingAll);
+  /** The list, for finding the control that takes over a removed row's focus */
+  const listRef = useRef<HTMLDivElement>(null);
+  /**
+   * Where focus goes once a removal has re-rendered the list: the Remove
+   * button of this link, or (null) the list's own line when it is empty.
+   */
+  const focusAfterRemove = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (focusAfterRemove.current === undefined || removing !== null) return;
+    const target = focusAfterRemove.current;
+    focusAfterRemove.current = undefined;
+    const root = listRef.current;
+    if (!root) return;
+    const el =
+      (target &&
+        root.querySelector<HTMLElement>(
+          `[data-remove-link="${CSS.escape(target)}"]`
+        )) ||
+      root.querySelector<HTMLElement>('[data-share-links-focus]');
+    el?.focus();
+  }, [links, removing]);
 
   useEffect(() => {
     let mounted = true;
@@ -70,9 +92,18 @@ export const ShareLinks = ({
   }, [userId, attempt]);
 
   const remove = async (ids: string[], key: string) => {
+    // Asked before the buttons are disabled, which takes focus off them
+    const hadFocus = !!listRef.current?.contains(document.activeElement);
     setRemoving(key);
     try {
       await firebaseService.deleteShareLinks(userId, ids);
+      // The row's own button goes with it: focus moves to the next row's
+      // Remove, else the one before, else the list's empty line.
+      const all = links ?? [];
+      const left = all.filter(link => !ids.includes(link.id));
+      const at = all.findIndex(link => ids.includes(link.id));
+      const next = left[Math.min(at, left.length - 1)];
+      if (hadFocus) focusAfterRemove.current = next ? next.id : null;
       setLinks(prev => prev && prev.filter(link => !ids.includes(link.id)));
       toast.success(
         ids.length === 1
@@ -87,14 +118,21 @@ export const ShareLinks = ({
       );
     } catch (error) {
       logger.error('Error removing share links', error);
-      toast.error('Failed to remove share links', {
-        // Firestore errors carry a code; anything else is one of our own
-        // messages, written to be shown.
-        description:
-          error instanceof Error && !('code' in error)
-            ? error.message
-            : undefined,
-      });
+      // Back on the button that was pressed, to try again
+      if (hadFocus) focusAfterRemove.current = key;
+      toast.error(
+        ids.length === 1
+          ? "Couldn't remove the share link"
+          : "Couldn't remove the share links",
+        {
+          // Firestore errors carry a code; anything else is one of our own
+          // messages, written to be shown.
+          description:
+            error instanceof Error && !('code' in error)
+              ? error.message
+              : 'Check your connection and try again.',
+        }
+      );
     } finally {
       setRemoving(null);
       setConfirmingAll(false);
@@ -125,11 +163,22 @@ export const ShareLinks = ({
   if (!links) return <p className={muted}>Loading share links…</p>;
 
   if (links.length === 0) {
-    return <p className={muted}>You have no share links.</p>;
+    return (
+      <div ref={listRef}>
+        {/* Takes the focus when the last link is removed */}
+        <p
+          tabIndex={-1}
+          data-share-links-focus
+          className={`${muted} focus:outline-none`}
+        >
+          You have no share links.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-3">
+    <div ref={listRef} className="space-y-3">
       {/* Rows divided by rules, not boxed in a second border inside the card */}
       <ul
         className={`divide-y ${
@@ -157,14 +206,13 @@ export const ShareLinks = ({
                 >
                   {name}
                 </span>
+                {/* Set apart by space; read out with commas */}
                 <span
-                  className={`flex flex-wrap gap-x-1.5 text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
+                  className={`flex flex-wrap gap-x-3 text-xs mt-0.5 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
                 >
-                  {describe(link).map(part => (
-                    <span
-                      key={part}
-                      className="whitespace-nowrap before:mr-1.5 before:content-['·'] first:before:content-none"
-                    >
+                  {describe(link).map((part, i) => (
+                    <span key={part} className="whitespace-nowrap">
+                      {i > 0 && <span className="sr-only">, </span>}
                       {part}
                     </span>
                   ))}
@@ -175,6 +223,7 @@ export const ShareLinks = ({
                 size="sm"
                 className="shrink-0"
                 disabled={removing !== null}
+                data-remove-link={link.id}
                 aria-label={`Remove share link for ${name}`}
                 onClick={() => remove([link.id], link.id)}
               >
@@ -192,6 +241,7 @@ export const ShareLinks = ({
           variant={confirmingAll ? 'dangerOutline' : 'neutral'}
           size="sm"
           disabled={removing !== null}
+          data-remove-link="all"
           onBlur={() => setConfirmingAll(false)}
           // Held down, Enter would ask and then answer
           onKeyDown={ignoreHeldEnter}

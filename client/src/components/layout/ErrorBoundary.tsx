@@ -1,17 +1,14 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, createRef, ErrorInfo, ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
   RotateCcw,
   RefreshCw,
-  Home,
+  List,
   WifiOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isChunkLoadError } from '@/lib/lazyWithRetry';
-
-const STEP_NUMBER =
-  'w-4 shrink-0 text-right tabular-nums text-team-blue font-medium mt-px';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -64,6 +61,29 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     });
   }
 
+  /** The fallback's heading, which takes the focus the broken page dropped */
+  private headingRef = createRef<HTMLHeadingElement>();
+
+  private focusHeadingIfDropped() {
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    this.headingRef.current?.focus();
+  }
+
+  componentDidMount() {
+    if (this.state.hasError) this.focusHeadingIfDropped();
+  }
+
+  componentDidUpdate(_: ErrorBoundaryProps, prev: ErrorBoundaryState) {
+    // Shown, or shown again after Try again broke the page once more
+    if (
+      this.state.hasError &&
+      (!prev.hasError || prev.retryCount !== this.state.retryCount)
+    ) {
+      this.focusHeadingIfDropped();
+    }
+  }
+
   handleReset = () => {
     this.setState(prev => ({
       hasError: false,
@@ -75,7 +95,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (this.state.hasError) {
-      // If we've retried too many times, don't offer "Try Again" to avoid infinite loops
+      // If we've retried too many times, don't offer "Try again" to avoid infinite loops
       const maxRetries = 3;
       const canRetry = this.state.retryCount < maxRetries;
       if (this.props.fallback) {
@@ -97,7 +117,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 <WifiOff className="h-8 w-8 text-team-blue" />
               </div>
 
-              <h1 className="text-2xl font-bold text-foreground mb-2">
+              <h1
+                ref={this.headingRef}
+                tabIndex={-1}
+                className="text-2xl font-bold text-foreground mb-2 text-balance focus:outline-none"
+              >
                 This page couldn't load
               </h1>
               <p className="text-sm text-muted-foreground mb-6">
@@ -138,34 +162,26 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
 
-            <h1 className="text-2xl font-bold text-foreground mb-2">
-              Something went wrong
+            {/* Mid-match this is what a scorer needs to hear: the session
+                is kept in this browser and comes back on a reload. No
+                advice to clear the cache, which would erase a guest's
+                sessions. */}
+            <h1
+              ref={this.headingRef}
+              tabIndex={-1}
+              className="text-2xl font-bold text-foreground mb-2 text-balance focus:outline-none"
+            >
+              Something broke on this page
             </h1>
-            <p className="text-sm text-muted-foreground mb-6">
-              An unexpected error occurred. Try one of these steps to recover:
+            <p className="text-sm text-muted-foreground mb-6 text-balance">
+              Your session and saved matches are kept in this browser. Reload to
+              pick up where you left off.
             </p>
-
-            {/* Numbers in a fixed, right-aligned column, so every step's
-                text starts at the same edge */}
-            <ul className="text-sm text-left text-muted-foreground mb-6 space-y-2 max-w-xs mx-auto">
-              <li className="flex items-start gap-2">
-                <span className={STEP_NUMBER}>1.</span>
-                Click "Try again" to re-render the page
-              </li>
-              <li className="flex items-start gap-2">
-                <span className={STEP_NUMBER}>2.</span>
-                Refresh the page to start fresh
-              </li>
-              <li className="flex items-start gap-2">
-                <span className={STEP_NUMBER}>3.</span>
-                Clear your browser cache if the issue persists
-              </li>
-            </ul>
 
             {import.meta.env.DEV && this.state.error && (
               <details className="mt-4 mb-6 p-3 bg-muted rounded-lg text-xs text-left">
                 <summary className="cursor-pointer font-medium text-muted-foreground">
-                  Error Details (dev only)
+                  Error details (dev only)
                 </summary>
                 <pre className="mt-2 overflow-auto text-destructive whitespace-pre-wrap">
                   {this.state.error.toString()}
@@ -174,10 +190,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               </details>
             )}
 
-            <div className="flex gap-3 justify-center">
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => window.location.reload()}
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Reload
+              </Button>
               {canRetry && (
                 <Button
-                  variant="default"
+                  variant="outline"
                   size="sm"
                   onClick={this.handleReset}
                   className="gap-2"
@@ -189,23 +214,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.location.reload()}
-                className="gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={() => {
                   // Navigate to sessions using replace to avoid back-button loops
                   window.location.replace('/sessions');
                 }}
                 className="gap-2"
               >
-                <Home className="h-4 w-4" />
-                Home
+                <List className="h-4 w-4" />
+                Go to Sessions
               </Button>
             </div>
           </div>

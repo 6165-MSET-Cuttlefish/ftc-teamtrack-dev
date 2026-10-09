@@ -92,7 +92,7 @@ export const Notes = () => {
           // Read out as the editor's name; on screen the heading says it.
           className="sr-only"
         >
-          Performance Notes & Observations
+          Session notes
         </span>
 
         {/* A cancelled or reset session starts the box over (its epoch) */}

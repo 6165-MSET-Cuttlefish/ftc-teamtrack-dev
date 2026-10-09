@@ -141,8 +141,9 @@ const playMatchAudio = (audio: HTMLAudioElement) => {
       if (name === 'AbortError' || name === 'NotAllowedError') return;
       if (soundToastShown) return;
       soundToastShown = true;
-      toast.error('Match sound unavailable', {
+      toast.error("Match sounds can't play", {
         id: SOUND_UNAVAILABLE_TOAST_ID,
+        description: 'The clock keeps running without them.',
       });
     }
   );

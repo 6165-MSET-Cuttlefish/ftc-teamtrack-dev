@@ -16,6 +16,7 @@ import { absorbDoubleTap } from './doubleTap';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { formatPoints, useLiveControls } from './liveControlsContext';
 import { revealInView, scrollUnderHeader } from './scrollUnderHeader';
+import { focusMatchRow, hasKeyboardFocus } from './takeDroppedFocus';
 import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
 
@@ -48,13 +49,12 @@ const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`;
 
 /**
- * "3 tips · Leave + Park 16 pts · Owned flower pieces 6 · Flower nectar at
- * bottom 1 · Left in Hive 3 · Garden 4 · 2 RP", in the order of the form and
+ * "3 tips, Leave + Park 16 pts, Owned flower pieces 6, Flower nectar at
+ * bottom 1, Left in Hive 3, Garden 4, 2 RP", in the order of the form and
  * in its counters' words.
  * Only what was scored is listed; a match with nothing at all reads
  * "0 tips". Each part stays on one line with its name when the row wraps,
- * and a dot stays at the end of the line it follows rather than starting
- * the next.
+ * and a comma stays at the end of the line it follows.
  */
 const matchSummary = (match: Match): string => {
   const tips = match.tipping ?? 0;
@@ -79,7 +79,7 @@ const matchSummary = (match: Match): string => {
   ];
   return (parts.length > 0 ? parts : ['0 tips'])
     .map(part => part.replace(/ /g, ' '))
-    .join(' · ');
+    .join(', ');
 };
 
 /** The scoring fields as one comparable string */
@@ -87,7 +87,7 @@ const scoringKey = (fields: Partial<MatchScoringFields>) =>
   JSON.stringify(pickScoringFields(fields));
 
 /**
- * The list of saved matches, newest first — the match just saved is the one
+ * The list of saved matches, newest first: the match just saved is the one
  * most likely to need a correction. Each row says what was scored in words,
  * in the order of the entry form. Tapping a row opens it for editing; with
  * another match open, it goes straight over to the tapped one unless the
@@ -341,6 +341,7 @@ export const MatchLog = () => {
                   type="button"
                   onKeyDown={ignoreHeldEnter}
                   onClick={() => openMatch(match)}
+                  data-match-id={match.id}
                   aria-label={`Edit match ${match.matchNumber}`}
                   aria-describedby={
                     rowsLocked ? `${rowSummaryId} ${lockedId}` : rowSummaryId
@@ -355,12 +356,19 @@ export const MatchLog = () => {
                     id={rowSummaryId}
                     className="min-w-0 flex items-baseline gap-x-3 gap-y-0.5 flex-wrap"
                   >
+                    {/* Its points go under its name where the row is too
+                        narrow for both (a 200% zoom), not over the trash */}
                     <span
-                      className={`text-sm font-bold whitespace-nowrap ${
+                      className={`text-sm font-bold ${
                         isDarkMode ? 'text-white' : 'text-gray-900'
                       }`}
                     >
-                      Match {match.matchNumber} · {formatPoints(score)}
+                      <span className="whitespace-nowrap">
+                        Match {match.matchNumber}:
+                      </span>{' '}
+                      <span className="whitespace-nowrap">
+                        {formatPoints(score)}
+                      </span>
                     </span>
                     <span className={`text-xs ${detailText}`}>
                       {matchSummary(match)}
@@ -374,11 +382,21 @@ export const MatchLog = () => {
                     </span>
                   )}
                 </button>
-                {/* Goes at once: its toast has the Undo */}
+                {/* Goes at once: its toast has the Undo. From the keyboard,
+                    focus carries on from the row that takes its place (the
+                    one under it, else the one over it); with no row left,
+                    from Start Match (see `useCatchDroppedFocus`). */}
                 <button
                   type="button"
                   onKeyDown={ignoreHeldEnter}
-                  onClick={() => handleDeleteMatch(match.id)}
+                  onClick={e => {
+                    const viaKeyboard = hasKeyboardFocus(e.currentTarget);
+                    const shown = [...matches].reverse();
+                    const at = shown.findIndex(m => m.id === match.id);
+                    const neighbour = shown[at + 1] ?? shown[at - 1];
+                    handleDeleteMatch(match.id);
+                    if (viaKeyboard) focusMatchRow(neighbour?.id);
+                  }}
                   className={`shrink-0 ${ICON_BUTTON} ${detailText} ${
                     isDarkMode
                       ? 'hover:bg-red-500/20 hover:text-red-400'

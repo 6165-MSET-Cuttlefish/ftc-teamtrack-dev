@@ -19,6 +19,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { getFirebase, logger, isAbortError, toDate } from '@/lib';
+import { ShownError } from '@/lib/failure';
 import {
   LEGACY_SEASON,
   normalizeSession,
@@ -170,7 +171,7 @@ class FirebaseService {
       return await read();
     } catch (error) {
       if ((error as { code?: string } | null)?.code === 'unavailable') {
-        throw new Error(UNREACHABLE_MESSAGE);
+        throw new ShownError(UNREACHABLE_MESSAGE);
       }
       throw error;
     }
@@ -509,7 +510,7 @@ class FirebaseService {
     const team = await getDocFromServer(doc(db, 'teams', teamId)).catch(
       error => {
         if ((error as { code?: string } | null)?.code === 'unavailable') {
-          throw new Error(UNREACHABLE_MESSAGE);
+          throw new ShownError(UNREACHABLE_MESSAGE);
         }
         return null;
       }
@@ -532,8 +533,8 @@ class FirebaseService {
       const session = stored.data();
       const asTeamOwner = !!session && session.userId !== uid;
       if (asTeamOwner && !(await this.ownsTeam(db, session.teamId, uid))) {
-        throw new Error(
-          "Only the person who recorded a session, or their team's owner, can delete it"
+        throw new ShownError(
+          "Only the person who recorded a session, or their team's owner, can delete it."
         );
       }
       const links = await this.sharedSessionRefs(

@@ -199,7 +199,9 @@ const MatchClock = () => {
   // A clock that is not counting for the match in the fields steps back:
   // paused, or behind a saved match that is open for editing. The digits
   // keep the text colour in every phase; the chip beside them carries it.
+  // Still 3:1 dimmed: a step less faded on the light page.
   const dimmed = paused || editingMatchId !== null;
+  const dimClass = isDarkMode ? 'opacity-40' : 'opacity-50';
   const reading = matchClockText({
     matchActive,
     matchPhase,
@@ -220,7 +222,7 @@ const MatchClock = () => {
       // side (smaller still where it shares its row with the title), and a
       // little smaller on a short laptop screen, where every line above the
       // scoring fields counts.
-      className={`min-w-[2.3em] text-center leading-none transition-opacity font-righteous text-[clamp(3rem,min(20vw,calc((100vw_-_12.25rem)/2.3)),5.5rem)] [@media(max-height:500px)]:text-[3.5rem] [@media(max-height:500px)_and_(max-width:639px)]:text-[3rem] [@media(min-width:768px)_and_(min-height:501px)_and_(max-height:760px)]:text-[4.5rem] ${isDarkMode ? 'text-white' : 'text-gray-900'} ${dimmed ? 'opacity-40' : ''}`}
+      className={`min-w-[2.3em] text-center leading-none transition-opacity font-righteous text-[clamp(3rem,min(20vw,calc((100vw_-_12.25rem)/2.3)),5.5rem)] [@media(max-height:500px)]:text-[3.5rem] [@media(max-height:500px)_and_(max-width:639px)]:text-[3rem] [@media(min-width:768px)_and_(min-height:501px)_and_(max-height:760px)]:text-[4.5rem] ${isDarkMode ? 'text-white' : 'text-gray-900'} ${dimmed ? dimClass : ''}`}
     >
       <ClockDigits text={reading} />
       <span className="sr-only">{reading}</span>
@@ -245,11 +247,14 @@ const MatchClockRow = () => {
     // `data-clock-row` lets a layout that puts other things beside the
     // clock lay these three tracks out on its own row's (see
     // `ShortStackedTitleRow`).
+    //
+    // Under 260px wide (a phone at 200% zoom) the digits leave no room for
+    // the phase beside them: it goes under them, both in the middle.
     <div
       data-clock-row
-      className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 md:gap-3 [@media(max-height:500px)_and_(min-width:640px)]:min-h-[4.75rem] [@media(min-width:768px)_and_(min-height:501px)_and_(max-height:760px)]:min-h-[4.75rem]"
+      className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 md:gap-3 max-[259px]:flex max-[259px]:flex-col max-[259px]:gap-1 [@media(max-height:500px)_and_(min-width:640px)]:min-h-[4.75rem] [@media(min-width:768px)_and_(min-height:501px)_and_(max-height:760px)]:min-h-[4.75rem]"
     >
-      <span aria-hidden />
+      <span aria-hidden className="max-[259px]:hidden" />
       <MatchClock />
       <div className="flex min-w-0 justify-start">
         {paused ? (
@@ -265,6 +270,20 @@ const MatchClockRow = () => {
 /** Muted text for the line under the clock */
 const statusTone = (isDarkMode: boolean) =>
   isDarkMode ? 'text-gray-400' : 'text-gray-600';
+
+/**
+ * Between two facts on the line under the clock ("Match 2", "Session
+ * 4:10"): a hairline, as between the match and its points in the header.
+ */
+const StatusDivider = () => {
+  const { isDarkMode } = useTheme();
+  return (
+    <span
+      aria-hidden
+      className={`h-4 w-px shrink-0 ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+    />
+  );
+};
 
 /**
  * The line under the clock on a full-size screen: which match is next and
@@ -302,27 +321,23 @@ const DesktopStatus = () => {
           matchType: liveMatchType(sessionData, editingMatchId),
         }).total
       : null;
-  const dot = (
-    <span aria-hidden className="opacity-60">
-      ·
-    </span>
-  );
+  const divider = <StatusDivider />;
 
   return (
     <div
       data-match-status
-      className={`h-6 flex items-center justify-center gap-2 whitespace-nowrap text-sm sm:text-base font-semibold tabular-nums ${statusTone(isDarkMode)}`}
+      className={`h-6 flex items-center justify-center gap-3 whitespace-nowrap text-sm sm:text-base font-semibold tabular-nums ${statusTone(isDarkMode)}`}
     >
       <span>Match {matchNumber}</span>
       {!matchActive && (
         <>
-          {dot}
+          {divider}
           <span>Session {formatTime(sessionTimer)}</span>
         </>
       )}
       {total !== null && (
         <>
-          {dot}
+          {divider}
           <span className={DATA_CLASS}>{formatPoints(total)}</span>
         </>
       )}
@@ -444,12 +459,8 @@ const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
     namesMatch && matchPhase !== 'ended'
   );
   const line = 'h-6 text-xs min-[375px]:text-sm font-medium tabular-nums';
-  const lineClass = `${line} flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap ${statusTone(isDarkMode)}`;
-  const dot = (
-    <span aria-hidden className="shrink-0 opacity-60">
-      ·
-    </span>
-  );
+  const lineClass = `${line} flex min-w-0 items-center justify-center gap-2.5 whitespace-nowrap ${statusTone(isDarkMode)}`;
+  const divider = <StatusDivider />;
 
   if (editing) {
     return <div aria-hidden data-match-status className={line} />;
@@ -463,7 +474,7 @@ const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
         <span>Match {nextMatchNumber(sessionData.matches)}</span>
         {total !== null && (
           <>
-            {dot}
+            {divider}
             <span className={DATA_CLASS}>{formatPoints(total)}</span>
           </>
         )}
@@ -479,7 +490,7 @@ const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
       <span className="shrink-0">Session {formatTime(sessionTimer)}</span>
       {last && (
         <>
-          {dot}
+          {divider}
           <button
             type="button"
             onClick={showMatchLog}
@@ -492,7 +503,7 @@ const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
             className={`relative flex h-6 min-h-0 min-w-0 items-center after:absolute after:inset-x-0 after:-inset-y-2.5 ${isDarkMode ? 'hover:text-gray-200' : 'hover:text-gray-900'}`}
           >
             <span className="truncate underline decoration-dotted underline-offset-4">
-              Last: Match {last.matchNumber} ·{' '}
+              Last: Match {last.matchNumber},{' '}
               {formatPoints(matchScore(last, fallbackMatchType))}
             </span>
           </button>
@@ -504,7 +515,7 @@ const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
 
 /**
  * The way away from /active that asks first: while a match is on. Nothing
- * is lost by leaving (the match and its clock are kept on this device), so
+ * is lost by leaving (the match and its clock are kept in this browser), so
  * going ahead is the ordinary blue, not red; the question is only there
  * because a match can be scored and saved from this page alone. Between
  * matches leaving simply leaves (the header has the way back), Sign up

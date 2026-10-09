@@ -21,6 +21,7 @@ import { TeamManager } from '@/components';
 import {
   isAbortError,
   generateShareableLink,
+  failureReason,
   copyShareLink,
   logger,
   buildSessionsCsv,
@@ -1067,9 +1068,11 @@ const Sessions = () => {
               : session
           )
         );
-        toast.error('Failed to update session name');
+        toast.error("Couldn't rename the session", {
+          description: failureReason(undefined),
+        });
       } else {
-        toast.success('Session name updated');
+        toast.success(`Renamed to ${newName}`);
       }
     } catch (error) {
       logger.error('Error updating session name', error);
@@ -1080,7 +1083,9 @@ const Sessions = () => {
             : session
         )
       );
-      toast.error('Failed to update session name');
+      toast.error("Couldn't rename the session", {
+        description: failureReason(error),
+      });
     }
   };
 
@@ -1126,7 +1131,10 @@ const Sessions = () => {
     } catch (error) {
       logger.error('Error archiving session', error);
       setArchived(!archived);
-      toast.error(`Failed to ${archived ? 'archive' : 'unarchive'} session`);
+      toast.error(
+        `Couldn't ${archived ? 'archive' : 'unarchive'} the session`,
+        { description: failureReason(error) }
+      );
       return;
     }
 
@@ -1158,7 +1166,9 @@ const Sessions = () => {
       );
     } catch (error) {
       logger.error('Error sharing session', error);
-      toast.error('Failed to generate share link');
+      toast.error("Couldn't make a share link", {
+        description: failureReason(error),
+      });
     }
   };
 
@@ -1320,7 +1330,9 @@ const Sessions = () => {
     } catch (error) {
       if (isAbortError(error)) return;
       logger.error('Error exporting older-season sessions', error);
-      toast.error("Couldn't export last season's sessions. Please try again.");
+      toast.error("Couldn't export last season's sessions", {
+        description: failureReason(error, { reading: true }),
+      });
     } finally {
       setExportingOlder(false);
     }
@@ -1425,9 +1437,10 @@ const Sessions = () => {
       className={className}
     />
   );
+  // A tint light enough for the accent's text on it to hold 4.5:1
   const bannerTone = isDarkMode
     ? 'bg-team-blue/10 border-team-blue-40'
-    : 'bg-team-blue/5 border-team-blue/40';
+    : 'bg-team-blue/[0.04] border-team-blue/40';
   const dismissButton = `inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-team-blue/20 transition-colors disabled:opacity-50 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
     isDarkMode ? 'text-team-white-60' : 'text-gray-500'
   }`;
@@ -1448,8 +1461,11 @@ const Sessions = () => {
               room, and under 360px Export is its icon alone. While the
               sessions load, stand-ins hold the row's height. */}
           <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 md:gap-x-3 gap-y-2">
+            {/* Takes the focus when an archive or delete leaves no card */}
             <h1
-              className={`w-full sm:w-auto sm:mr-auto min-h-11 sm:min-h-0 flex items-center ${PAGE_TITLE_CLASS}`}
+              tabIndex={-1}
+              data-session-list-heading
+              className={`w-full sm:w-auto sm:mr-auto min-h-11 sm:min-h-0 flex items-center outline-none ${PAGE_TITLE_CLASS}`}
             >
               {showArchived ? 'Archived sessions' : 'Sessions'}
             </h1>
@@ -1750,12 +1766,12 @@ const Sessions = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowArchived(!showArchived)}
-                  className={`h-11 w-[9.75rem] shrink-0 rounded-xl shadow-sm text-sm md:text-base px-3 gap-1.5 hover:text-current ${fieldTone}`}
+                  className={`h-11 w-[11rem] shrink-0 rounded-xl shadow-sm text-sm md:text-base px-3 gap-1.5 hover:text-current ${fieldTone}`}
                 >
                   {showArchived ? (
                     <>
                       <ArrowLeft aria-hidden="true" />
-                      Back to active
+                      Back to sessions
                     </>
                   ) : (
                     <>
@@ -1828,7 +1844,7 @@ const Sessions = () => {
                   label="Show"
                   value={showArchived ? 'archived' : 'active'}
                   options={[
-                    { value: 'active', label: 'Active' },
+                    { value: 'active', label: 'Sessions' },
                     {
                       value: 'archived',
                       label: 'Archived',
@@ -1952,10 +1968,9 @@ const Sessions = () => {
                   <p
                     className={`mt-2 text-xs sm:text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
                   >
-                    Over the newest {plural(filteredSessions.length, 'session')}{' '}
-                    ·{' '}
+                    {`Over the newest ${plural(filteredSessions.length, 'session')}.`}{' '}
                     {loadingOlder ? (
-                      'reading older ones...'
+                      'Reading older ones...'
                     ) : (
                       <button
                         type="button"
@@ -2026,7 +2041,9 @@ const Sessions = () => {
                         : showArchived
                           ? 'No archived sessions'
                           : archivedCount > 0
-                            ? 'No active sessions'
+                            ? archivedCount === 1
+                              ? 'Your only session is archived'
+                              : `All ${archivedCount} sessions are archived`
                             : 'No sessions yet'}
             </h2>
             <p
@@ -2051,9 +2068,7 @@ const Sessions = () => {
                         : showArchived
                           ? 'Sessions you archive are kept here, out of your main list.'
                           : archivedCount > 0
-                            ? archivedCount === 1
-                              ? 'The only session here is archived.'
-                              : `All ${archivedCount} sessions here are archived.`
+                            ? `Find ${archivedCount === 1 ? 'it' : 'them'} under Archived.`
                             : isGuest
                               ? 'Score a practice and it shows up here. No account needed: sessions stay in this browser.'
                               : 'Score a practice and it shows up here.'}
@@ -2081,7 +2096,7 @@ const Sessions = () => {
                     : 'border-gray-300'
                 }`}
               >
-                {showArchived ? 'Back to active' : 'Show archived sessions'}
+                {showArchived ? 'Back to sessions' : 'Show archived sessions'}
               </Button>
             )}
             {/* While the banner above offers this browser's sessions,

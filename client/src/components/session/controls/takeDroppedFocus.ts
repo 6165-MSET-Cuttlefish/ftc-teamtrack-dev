@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 
 /**
  * Keyboard focus for controls that take the place of the button pressed.
@@ -57,4 +57,81 @@ export const useTakeDroppedFocus = (ref: RefObject<HTMLElement | null>) => {
     // Only as it appears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+};
+
+/**
+ * True if keyboard focus is on `el` now: a press it gets is the keyboard's
+ * (Enter or Space), so whatever comes next should take the focus on.
+ */
+export const hasKeyboardFocus = (el: Element): boolean => {
+  if (document.activeElement !== el) return false;
+  try {
+    return el.matches(':focus-visible');
+  } catch {
+    return true;
+  }
+};
+
+/**
+ * The page's last resort: when the control that had keyboard focus is
+ * taken off the page (pressed, or gone with what it did) and nothing picks
+ * its focus up, it goes to `fallback()` rather than to the top of the page,
+ * where the next Tab would start again. Looked at a frame later, once
+ * whatever does pick it up (`useTakeDroppedFocus`, a dialog handing it
+ * back, a toast's own way) has had its turn. Not while a dialog or the
+ * walkthrough is up: those keep focus their own way.
+ */
+export const useCatchDroppedFocus = (fallback: () => HTMLElement | null) => {
+  const fallbackRef = useRef(fallback);
+  useEffect(() => {
+    fallbackRef.current = fallback;
+  });
+  useEffect(() => {
+    let frame = 0;
+    /** The control whose focus was looked after already (once only) */
+    let handled: Element | null = null;
+    const dropped = () =>
+      lastFocused !== null &&
+      lastFocused !== handled &&
+      !lastFocused.isConnected &&
+      lastFocusVisible;
+    const check = () => {
+      frame = 0;
+      if (!dropped()) return;
+      handled = lastFocused;
+      const active = document.activeElement;
+      if (active !== null && active !== document.body) return;
+      if (
+        document.querySelector(
+          '[role="dialog"], [role="alertdialog"], [data-tutorial-card]'
+        )
+      ) {
+        return;
+      }
+      fallbackRef.current()?.focus();
+    };
+    const observer = new MutationObserver(() => {
+      if (frame === 0 && dropped()) frame = requestAnimationFrame(check);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      if (frame !== 0) cancelAnimationFrame(frame);
+    };
+  }, []);
+};
+
+/**
+ * Keyboard focus to a Match Log row (its Edit button, `data-match-id`), a
+ * frame from now: once the log shows what was just done.
+ */
+export const focusMatchRow = (matchId: string | null | undefined) => {
+  if (!matchId) return;
+  requestAnimationFrame(() =>
+    document
+      .querySelector<HTMLElement>(
+        `[data-match-log] [data-match-id="${CSS.escape(matchId)}"]`
+      )
+      ?.focus()
+  );
 };

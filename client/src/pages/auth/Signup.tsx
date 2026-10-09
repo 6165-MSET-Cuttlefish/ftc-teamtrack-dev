@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -47,7 +46,7 @@ const Signup = () => {
   const location = useLocation();
 
   useEffect(() => {
-    document.title = `Create Account - ${APP_CONFIG.name}`;
+    document.title = `Create an account - ${APP_CONFIG.name}`;
   }, []);
 
   // With its query: an /analysis link is nothing without its sessionId
@@ -89,7 +88,10 @@ const Signup = () => {
       !formData.password ||
       !formData.confirmPassword
     ) {
-      setError({ message: 'Please fill in all fields', code: null });
+      setError({
+        message: 'Fill in your name, email and both password fields.',
+        code: null,
+      });
       return;
     }
 
@@ -141,13 +143,8 @@ const Signup = () => {
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
           <CardTitle as="h1" className={`${PAGE_TITLE_CLASS} text-center`}>
-            Create Account
+            Create an account
           </CardTitle>
-          <CardDescription
-            className={`text-center text-sm sm:text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            Sign up to get started with TeamTrack
-          </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6 px-4 sm:px-6">
@@ -280,7 +277,7 @@ const Signup = () => {
                 htmlFor="confirmPassword"
                 className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
-                Confirm Password
+                Confirm password
               </Label>
               <div
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
@@ -346,7 +343,7 @@ const Signup = () => {
             <span
               className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
             >
-              Or continue with
+              or
             </span>
             <div
               className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-300'}`}

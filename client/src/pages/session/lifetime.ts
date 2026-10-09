@@ -113,7 +113,7 @@ export const useSessionScope = (
   inScope: (session: Session) => boolean;
   /** The choices with how many sessions each holds; empty outside a team */
   choices: Array<{ value: SessionScope; label: string; count?: number }>;
-  /** 'shared with <team>' and the like; null outside a team */
+  /** 'shared with <team>', 'recorded by you' or 'from <team> and your own'; null outside a team */
   scopeLabel: string | null;
 } => {
   const { user, isGuest } = useAuth();
@@ -161,7 +161,7 @@ export const useSessionScope = (
       ? `shared with ${teamName}`
       : scope === 'mine'
         ? 'recorded by you'
-        : `${teamName} + your own`;
+        : `from ${teamName} and your own`;
 
   return { scope, setScope, inScope, choices, scopeLabel };
 };

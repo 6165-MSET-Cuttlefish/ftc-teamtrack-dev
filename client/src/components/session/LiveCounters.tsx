@@ -5,7 +5,7 @@ import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
 
 /**
  * The counter tapped while the match is running: Tipping. It gets a block of
- * its own — outside Match Entry's Robots section — so the phone layout can
+ * its own (outside Match Entry's Robots section) so the phone layout can
  * keep it next to the clock. A Scrim's fouls are not timed and sit under the
  * robot rows instead (see `MatchEntry`).
  */
@@ -33,8 +33,12 @@ export const LiveCounters = () => {
 
   return (
     // `gap`, not `space-y`: the heading is visually hidden and must not
-    // leave its margin behind on the first counter.
-    <div className="flex flex-col gap-2" data-tutorial="live">
+    // leave its margin behind on the first counter. A size container: the
+    // row lays itself out by the width it has (see ScoreField).
+    <div
+      className="flex flex-col gap-2 [container-type:inline-size]"
+      data-tutorial="live"
+    >
       {/* For screen readers only, on every layout this is used in (a phone
           either way up): on a phone on its side a visible heading here
           pushed Robot 2 to the bottom edge. */}

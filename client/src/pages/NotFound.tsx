@@ -14,7 +14,7 @@ const NotFound = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = `Page Not Found - ${APP_CONFIG.name}`;
+    document.title = `Page not found - ${APP_CONFIG.name}`;
   }, []);
 
   return (
@@ -29,7 +29,7 @@ const NotFound = () => {
         <p
           className={`${isDarkMode ? 'text-team-white-60' : 'text-gray-600'} text-sm sm:text-base mb-8 max-w-xs mx-auto text-balance`}
         >
-          The page you're looking for doesn't exist or may have been moved.
+          Nothing is at this address. Check the link, or go to Sessions.
         </p>
         <div className="flex flex-col items-center gap-2">
           {/* The view's one fill: the header's New Session steps back */}

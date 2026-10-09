@@ -167,7 +167,9 @@ export const Toggle = ({
       // side padding, so the check mark fits beside "Leave" in the 69px a
       // 320px phone gives each toggle, and thinner still in a column
       // narrower than that phone's (a 200% zoom).
-      className={`h-11 min-w-0 px-1 rounded-lg border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-1 select-none touch-manipulation [@container(max-width:18.5rem)]:gap-0.5 [@container(max-width:18.5rem)]:px-0.5 ${
+      // Narrower than 15rem (a 200% zoom), the check mark or lock goes
+      // over the label rather than beside it, so "Leave" still fits.
+      className={`h-11 min-w-0 px-1 rounded-lg border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-1 select-none touch-manipulation [@container(max-width:18.5rem)]:gap-0.5 [@container(max-width:18.5rem)]:px-0.5 [@container(max-width:15rem)]:flex-col [@container(max-width:15rem)]:gap-0 ${
         disabled
           ? // The one locked look: no outline, muted but readable (over 3:1)
             `cursor-not-allowed ${LOCKED_SURFACE}`
@@ -237,6 +239,17 @@ const ROBOT_GRID = {
 } as const;
 
 /**
+ * Narrower than 15rem (a 200% zoom) the name can't have a column of its
+ * own: it goes on a line over the toggles (see `RobotRow`), which then
+ * share the whole width.
+ */
+const NARROW_ROBOT_GRID = {
+  1: '[@container(max-width:15rem)]:grid-cols-1 [@container(max-width:15rem)]:gap-1',
+  2: '[@container(max-width:15rem)]:grid-cols-2 [@container(max-width:15rem)]:gap-1',
+  3: '[@container(max-width:15rem)]:grid-cols-3 [@container(max-width:15rem)]:gap-1',
+} as const;
+
+/**
  * BIOBUZZ scores PARK twice per robot: once for parking by the end of AUTO,
  * once for parking by the end of the match. A robot can leave the loading
  * zone in between and still collect both.
@@ -286,7 +299,7 @@ const RobotRow = memo(function RobotRow({
         checked={leave}
         onChange={onLeave}
         label={ELEMENT_LABELS.leave}
-        ariaLabel={`${label} leave`}
+        ariaLabel={`${label} ${ELEMENT_LABELS.leave}`}
         disabled={autoDisabledReason !== undefined}
         disabledReason={autoDisabledReason}
         describedBy={autoDisabledReason ? reasonId : blockedReasonId}
@@ -300,7 +313,8 @@ const RobotRow = memo(function RobotRow({
         onChange={onParkAuto}
         label={bothParks ? 'Auto' : ELEMENT_LABELS.park}
         wideLabel={bothParks ? ELEMENT_LABELS.parkAuto : undefined}
-        ariaLabel={`${label} parked at end of auto`}
+        // What it shows ('Auto', 'Park (Auto)', 'Park') is in its name
+        ariaLabel={`${label} ${ELEMENT_LABELS.parkAuto}`}
         disabled={autoDisabledReason !== undefined}
         disabledReason={autoDisabledReason}
         describedBy={autoDisabledReason ? reasonId : blockedReasonId}
@@ -314,7 +328,7 @@ const RobotRow = memo(function RobotRow({
         onChange={onParkTeleop}
         label={bothParks ? 'End' : ELEMENT_LABELS.park}
         wideLabel={bothParks ? ELEMENT_LABELS.parkEnd : undefined}
-        ariaLabel={`${label} parked at end of match`}
+        ariaLabel={`${label} ${ELEMENT_LABELS.parkEnd}`}
         disabled={parkTeleopDisabledReason !== undefined}
         disabledReason={parkTeleopDisabledReason}
         describedBy={parkTeleopDisabledReason ? reasonId : blockedReasonId}
@@ -324,12 +338,26 @@ const RobotRow = memo(function RobotRow({
     ),
   };
   return (
-    <div className={`${ROBOT_GRID[columns.length]} items-center`}>
+    <div
+      className={`${ROBOT_GRID[columns.length]} ${NARROW_ROBOT_GRID[columns.length]} items-center`}
+    >
       <div
-        className={`text-sm md:text-lg font-semibold whitespace-nowrap ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+        className={`text-sm md:text-lg font-semibold whitespace-nowrap ${isDarkMode ? 'text-gray-200' : 'text-gray-800'} ${
+          bothParks ? '' : '[@container(max-width:15rem)]:col-span-full'
+        }`}
       >
         {label}
       </div>
+      {/* In place of ParkHeader where the name is over the toggles: on the
+          name's line, over the two parks */}
+      {bothParks && (
+        <div
+          aria-hidden
+          className={`${EYEBROW_CLASS} col-span-2 hidden text-center leading-4 [@container(max-width:15rem)]:block`}
+        >
+          Park
+        </div>
+      )}
       {columns.map(column => toggles[column])}
     </div>
   );
@@ -343,7 +371,7 @@ const RobotRow = memo(function RobotRow({
  */
 const ParkHeader = () => (
   <div
-    className={`${ROBOT_GRID[3]} [@container(min-width:27.5rem)]:hidden`}
+    className={`${ROBOT_GRID[3]} [@container(max-width:15rem)]:hidden [@container(min-width:27.5rem)]:hidden`}
     aria-hidden
   >
     <div

@@ -8,6 +8,7 @@ import { absorbDoubleTap } from './doubleTap';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
 import { actionClass } from './tones';
+import { useTakeDroppedFocus } from './takeDroppedFocus';
 import { useArmed } from './useArmed';
 import { useCompactControls } from './useCompactControls';
 
@@ -43,6 +44,10 @@ const PauseResumeButton = () => {
     useLiveControls();
   const { isPickupPaused, setIsPickupPaused, isTutorialActive } =
     useSessionCore();
+  // It comes up as Start Match goes: a keyboard user carries on from here,
+  // the big target while play is on (End early beside it ends the match).
+  const ref = useRef<HTMLButtonElement>(null);
+  useTakeDroppedFocus(ref);
 
   const inPickup = matchPhase === 'controller_pickup';
   // The walkthrough's practice match never starts its clock, and stands for
@@ -85,11 +90,15 @@ const PauseResumeButton = () => {
 
   return (
     <button
+      ref={ref}
       type="button"
       onKeyDown={ignoreHeldEnter}
       onClick={toggle}
+      data-play-pause
       aria-keyshortcuts={isTutorialActive ? undefined : PAUSE_SHORTCUT}
-      className={`flex-1 min-w-0 px-4 h-12 rounded-2xl text-base gap-2 ${actionClass(running ? 'neutral' : 'primary', isDarkMode)}`}
+      // As wide as its words at least, so that where End early can't fit
+      // beside it (a 200% zoom) that goes onto a line of its own
+      className={`min-w-0 flex-[1_1_auto] px-4 h-12 rounded-2xl text-base gap-2 ${actionClass(running ? 'neutral' : 'primary', isDarkMode)}`}
     >
       <Icon className="h-5 w-5 shrink-0" aria-hidden />
       {running ? 'Pause' : 'Resume'}
@@ -98,7 +107,9 @@ const PauseResumeButton = () => {
         <kbd
           aria-hidden
           title={`Shortcut: press ${PAUSE_SHORTCUT} to ${running ? 'pause' : 'resume'}`}
-          className="rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 opacity-70 [@media(pointer:coarse)]:hidden"
+          // Faded only where that still reads: white on the light theme's
+          // filled Resume is under 4.5:1 at anything less than full
+          className={`rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 [@media(pointer:coarse)]:hidden ${isDarkMode ? 'opacity-70' : ''}`}
         >
           {PAUSE_SHORTCUT}
         </kbd>
@@ -186,6 +197,13 @@ const skipTargetOf = (
 /** A press this soon after Skip changed where it goes is ignored */
 const SKIP_ARM_DELAY_MS = 1000;
 
+/**
+ * Under 260px wide (a phone at 200% zoom) the title row has room for the
+ * Skip icon alone beside Discard and the menu; the button's name still
+ * says where it goes.
+ */
+const NARROW_HIDDEN = 'max-[259px]:hidden';
+
 /** One target's label: "Skip to Teleop", or "Skip" over a small "to Teleop" */
 const SkipLabel = ({
   target,
@@ -198,14 +216,16 @@ const SkipLabel = ({
     <span className="flex flex-col items-center gap-0.5 leading-none">
       <span className="flex items-center gap-1.5">
         <SkipForward className="h-4 w-4 shrink-0" />
-        Skip
+        <span className={NARROW_HIDDEN}>Skip</span>
       </span>
-      <span className="text-xs font-semibold">{SKIP_LABELS[target].to}</span>
+      <span className={`text-xs font-semibold ${NARROW_HIDDEN}`}>
+        {SKIP_LABELS[target].to}
+      </span>
     </span>
   ) : (
     <span className="flex items-center gap-2">
       <SkipForward className="h-4 w-4 shrink-0" />
-      {SKIP_LABELS[target].full}
+      <span className={NARROW_HIDDEN}>{SKIP_LABELS[target].full}</span>
     </span>
   );
 
@@ -345,7 +365,8 @@ export const MatchExtras = () => {
         skip[target]();
       }}
       aria-label={SKIP_LABELS[target].full}
-      className={`relative shrink-0 px-3 whitespace-nowrap ${
+      title={SKIP_LABELS[target].full}
+      className={`relative shrink-0 px-3 whitespace-nowrap max-[259px]:w-11 max-[259px]:px-0 ${
         isCompact ? 'h-11 rounded-xl text-sm' : 'h-12 rounded-2xl text-base'
       } ${actionClass('neutral', isDarkMode)}`}
     >

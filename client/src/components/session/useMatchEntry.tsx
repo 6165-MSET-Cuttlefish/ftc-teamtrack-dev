@@ -1,11 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useSessionCore } from '@/contexts';
 import type { MatchScoringFields } from '@/types';
-import { calculateScore } from '@/lib';
+import { ELEMENT_LABELS, calculateScore } from '@/lib';
 import { revealFirstStepperRow } from './controls/revealStepperRow';
 import { requestStartNudge } from './controls/startNudge';
 import { EndNote } from './EndOfMatchParts';
-import { useScoringLocks } from './useScoringLocks';
+import { LOCK_REASONS, useScoringLocks } from './useScoringLocks';
 
 /** How long the End of Match heading stays lit after the buzzer */
 const UNLOCK_PULSE_MS = 1600;
@@ -79,11 +79,11 @@ export const useMatchEntry = () => {
   // phone layout leaves those toggles out. End park waits for AUTO to end,
   // from before Start on, as the match starts with it locked. Only the locks
   // that lift on their own are said, beside the Robots heading.
-  const autoDisabledReason = hasAuto ? undefined : 'No Auto in a Teleop match';
+  const autoDisabledReason = hasAuto ? undefined : LOCK_REASONS.noAuto;
   const parkTeleopDisabledReason = !hasTeleop
-    ? 'No End park in an Autonomous match'
+    ? LOCK_REASONS.noEndPark
     : endParkLocked
-      ? 'End park unlocks in Teleop or on pause'
+      ? LOCK_REASONS.endParkWaits
       : undefined;
   /** The note beside the Robots heading, when something waits */
   const robotsReason =
@@ -149,11 +149,12 @@ export const useMatchEntry = () => {
     </>
   );
   const pausedNote = 'Unlocked while paused';
-  // The park toggle's own name: 'End' beside 'Auto', else 'Park'
+  // The park toggle's own name: 'Park (End)' beside 'Park (Auto)', else
+  // 'Park'
   const buzzerNote =
     hasAuto && hasTeleop
-      ? 'Mark End park, count, then save'
-      : 'Mark Park, count, then save';
+      ? `Mark ${ELEMENT_LABELS.parkEnd}, count, then save`
+      : `Mark ${ELEMENT_LABELS.park}, count, then save`;
   const editingNote = 'Fix any count, then save';
   const notes = [unlockNote, pausedNote, buzzerNote, editingNote];
   const note = (current: number, locked: boolean) => (

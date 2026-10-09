@@ -10,7 +10,7 @@ import { useAuth, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import { OWN_SESSIONS } from '@/services/firebaseService';
 import type { SessionFeed, SessionFeedState } from '@/services/sessionFeed';
-import { isAbortError, logger, readGuestSessions } from '@/lib';
+import { failureReason, isAbortError, logger, readGuestSessions } from '@/lib';
 import { onSessionDeleted } from '@/lib/pendingSessionDeletes';
 import { UI_TIMING } from '@/constants';
 import type { Session } from '@/types';
@@ -209,10 +209,11 @@ export const useSessionList = ({
       }
 
       if ((error?.message || '').includes('index')) {
-        toast.error(
-          'Firestore needs a composite index for team sessions. Check the browser console for the creation link.',
-          { duration: 10000 }
-        );
+        // A deploy without the team-sessions index: the link to create it is
+        // in Firestore's own message, logged above; the user can only wait.
+        toast.error("Couldn't load your team's sessions", {
+          description: 'Try again later.',
+        });
       } else {
         syncFailed();
       }
@@ -247,7 +248,9 @@ export const useSessionList = ({
           fail(true);
           return;
         }
-        toast.error('Failed to load sessions');
+        toast.error("Couldn't load your sessions", {
+          description: failureReason(error, { reading: true }),
+        });
         fail();
       }
     })();

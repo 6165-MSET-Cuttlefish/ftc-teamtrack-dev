@@ -19,7 +19,7 @@ export interface StatTileProps {
   label: string;
   /**
    * The figure. `null` or `undefined` means there is nothing to show yet and
-   * draws a muted em dash (with 'No data' for screen readers); 0 is a figure.
+   * draws a muted 'None'; 0 is a figure.
    */
   value: ReactNode;
   /** One line of context under the figure */
@@ -86,8 +86,11 @@ export const StatTile = ({
   const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
   const empty = value === null || value === undefined;
   const hasInfo = Boolean(info) && !onClick;
+  // Below 280px (a phone zoomed to 200%) its one column may shrink below a
+  // long word, which then wraps, so a tile never spills past its neighbour
+  // or the screen's edge. Wider, a word keeps whole and may use the padding.
   const box = cn(
-    'relative row-span-3 grid grid-rows-subgrid gap-y-0 content-start min-w-0 rounded-xl p-3 sm:p-5 text-left',
+    'relative row-span-3 grid grid-rows-subgrid gap-y-0 content-start min-w-0 rounded-xl p-3 sm:p-5 text-left max-[279px]:grid-cols-[minmax(0,1fr)] max-[279px]:[overflow-wrap:anywhere]',
     isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5',
     className
   );
@@ -108,14 +111,7 @@ export const StatTile = ({
         empty ? `font-normal ${muted}` : `font-bold ${valueColor}`
       }`}
     >
-      {empty ? (
-        <>
-          <span aria-hidden="true">—</span>
-          <span className="sr-only">No data</span>
-        </>
-      ) : (
-        value
-      )}
+      {empty ? 'None' : value}
     </Row>
   );
 

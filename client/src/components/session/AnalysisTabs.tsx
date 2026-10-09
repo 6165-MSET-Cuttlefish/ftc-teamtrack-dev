@@ -516,7 +516,9 @@ export type TabId = 'summary' | 'matches' | 'compare';
 export const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: 'summary', label: 'Summary', icon: BarChart3 },
   { id: 'matches', label: 'Matches', icon: LayoutList },
-  { id: 'compare', label: 'Compare', icon: ArrowRightLeft },
+  // Two matches of this session. Not 'Compare', the page of sessions side
+  // by side, and short enough for one line in a 320px wide tab bar.
+  { id: 'compare', label: 'Side by Side', icon: ArrowRightLeft },
 ];
 
 /** DOM ids tying each tab button to the panel it shows */
@@ -621,9 +623,9 @@ const durationLabel = (duration: string): string => {
 };
 
 /**
- * The line under a session's name that says what it was and when:
- * "Practice · Full Game · Wed, Sep 30, 2026 · 6 matches · 48 min".
- * Whatever isn't known is left out.
+ * The line under a session's name that says what it was and when: Practice,
+ * Full Game, Wed, Sep 30, 2026, 6 matches, 48 min, each part set apart by
+ * space alone. Whatever isn't known is left out.
  */
 export const SessionMeta = ({
   sessionType,
@@ -675,24 +677,17 @@ export const SessionMeta = ({
   ];
 
   return (
-    // Every part carries the dot before it, in its own left padding. The
-    // line is pulled left by that much inside a box that clips, so the dot
-    // of the first part on each line falls outside and is cut off: no line
-    // starts or ends with a dot.
-    <div className="overflow-hidden">
-      <p
-        className={`-ml-5 flex flex-wrap gap-y-0.5 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-      >
-        {parts.map(part => (
-          <span key={part.key} className="relative pl-5 whitespace-nowrap">
-            <span aria-hidden className="absolute left-0 w-5 text-center">
-              ·
-            </span>
-            {part.node}
-          </span>
-        ))}
-      </p>
-    </div>
+    <p
+      className={`flex flex-wrap gap-x-4 gap-y-0.5 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+    >
+      {parts.map((part, i) => (
+        <span key={part.key} className="whitespace-nowrap">
+          {part.node}
+          {/* The gap sets the parts apart on screen; a pause, when read */}
+          {i < parts.length - 1 && <span className="sr-only">,</span>}
+        </span>
+      ))}
+    </p>
   );
 };
 
@@ -1475,7 +1470,7 @@ export const SummaryTab = ({
       )}
 
       <Section
-        title="Where the Points Came From"
+        title="Points by Element"
         // Per match of the type the average is about
         action={
           head.mixed && (
@@ -1615,7 +1610,7 @@ export const SummaryTab = ({
                 </div>
               ) : (
                 <EmptyChart
-                  message="No fouls recorded, nice driving"
+                  message="No fouls this session"
                   isDarkMode={isDarkMode}
                 />
               )}
@@ -1919,7 +1914,8 @@ export const MatchDetailTab = ({
             <button
               key={m.id}
               type="button"
-              aria-label={`Match ${m.matchNumber}, ${plural(scoreOf(m), 'point')}${chipRank ? `, ${chipRank} ${ranking.mixed ? typeOf(m) : 'match'}` : ''}`}
+              // Led by what the chip shows ('M1'), so speech can press it
+              aria-label={`M${m.matchNumber}, Match ${m.matchNumber}, ${plural(scoreOf(m), 'point')}${chipRank ? `, ${chipRank} ${ranking.mixed ? typeOf(m) : 'match'}` : ''}`}
               aria-pressed={i === idx}
               onClick={() => select(i)}
               className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors [@media(pointer:coarse)]:min-h-11 ${
@@ -1981,7 +1977,7 @@ export const MatchDetailTab = ({
               className={`${SECTION_TITLE_CLASS} flex items-baseline gap-x-2 flex-wrap`}
             >
               Match {match.matchNumber}
-              <span className={`font-medium ${muted}`}>· {typeOf(match)}</span>
+              <span className={`font-medium ${muted}`}>{typeOf(match)}</span>
             </h2>
             <p className={`text-sm tabular-nums ${muted}`}>
               <span className="font-semibold text-foreground">
@@ -1989,7 +1985,7 @@ export const MatchDetailTab = ({
               </span>
               {showDiff && (
                 <>
-                  {' · '}
+                  {', '}
                   <span className={`font-semibold ${diffTone}`}>
                     {formatDiff(diff)}
                   </span>{' '}
@@ -2206,8 +2202,8 @@ export const CompareTab = ({
 
   // The letter tells the two sides apart even when they share a match
   // number (sessions edited before deletes renumbered) or are one match.
-  const aLabel = `A · Match ${a.matchNumber}`;
-  const bLabel = `B · Match ${b.matchNumber}`;
+  const aLabel = `A (Match ${a.matchNumber})`;
+  const bLabel = `B (Match ${b.matchNumber})`;
 
   const cellTone = isDarkMode ? 'text-gray-300' : 'text-gray-700';
   const mutedTone = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
@@ -2236,7 +2232,7 @@ export const CompareTab = ({
           const r = ranking.rank(i);
           return (
             <option key={m.id} value={i}>
-              Match {m.matchNumber} · {plural(scoreOf(m), 'pt')}
+              Match {m.matchNumber}, {plural(scoreOf(m), 'pt')}
               {/* Ranked within its type when the session mixes them */}
               {r ? ` (${r}${ranking.mixed ? ` ${typeOf(m)}` : ''})` : ''}
             </option>
@@ -2430,7 +2426,7 @@ export const CompareTab = ({
         {typeOf(a) !== typeOf(b) && (
           <span className={mutedTone}>
             {' '}
-            · {typeOf(a)} vs {typeOf(b)}
+            ({typeOf(a)} vs {typeOf(b)})
           </span>
         )}
       </p>
@@ -2446,10 +2442,10 @@ export const CompareTab = ({
                 Element
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
-                A · M{a.matchNumber}
+                A: M{a.matchNumber}
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
-                B · M{b.matchNumber}
+                B: M{b.matchNumber}
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
                 Change
@@ -2634,7 +2630,7 @@ export const LegacySeasonView = ({
                 <span>
                   Match {m.matchNumber || i + 1}
                   {m.matchType && (
-                    <span className={muted}> · {m.matchType}</span>
+                    <span className={muted}>, {m.matchType}</span>
                   )}
                 </span>
                 <span className={`font-bold ${DATA_CLASS}`}>

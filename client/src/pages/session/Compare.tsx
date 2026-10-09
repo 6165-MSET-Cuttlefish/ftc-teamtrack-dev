@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import {
+  failureReason,
   formatDate,
   logger,
   cycleTimesOf,
@@ -872,7 +873,9 @@ const Compare = () => {
         })
         .catch(error => {
           logger.error('Error loading sessions', error);
-          toast.error('Failed to load some sessions');
+          toast.error("Couldn't load a linked session", {
+            description: failureReason(error, { reading: true }),
+          });
         });
     }
   }, [loading, isGuest, selectedSessionIds, listedSessions]);
@@ -1005,16 +1008,16 @@ const Compare = () => {
     return member?.displayName || member?.email || session.userEmail;
   };
 
-  /** 'Sep 25', plus who recorded it when that was a teammate. */
+  /** 'Sep 25', plus who recorded it when that was a teammate ('by Vedant'). */
   const whenAndWho = (session: Session): string => {
     const owner = ownerOf(session);
     const date = dateLabels.get(session.id) ?? '';
-    return owner ? `${date} · ${owner}` : date;
+    return owner ? `${date} by ${owner}` : date;
   };
 
   /**
    * The same, for a narrow column: it may break only between its parts
-   * ('Sep 26,' '10:15 AM' '· Vedant'), never inside one.
+   * ('Sep 26,' '10:15 AM' 'by Vedant'), never inside one.
    */
   const whenAndWhoLines = (session: Session): ReactNode => {
     const [day, time] = (dateLabels.get(session.id) ?? '').split(', ');
@@ -1034,7 +1037,7 @@ const Compare = () => {
         {owner && (
           <>
             {' '}
-            <span className="whitespace-nowrap">· {owner}</span>
+            <span className="whitespace-nowrap">by {owner}</span>
           </>
         )}
       </>
@@ -1353,7 +1356,7 @@ const Compare = () => {
   });
 
   /**
-   * Match charts: session over 'M# · date' on the axis. The time of day,
+   * Match charts: session over 'M#, date' on the axis. The time of day,
    * when the date has one, is only in the tooltip: on the axis it made each
    * tick wider than its bar and ran into the next.
    */
@@ -1362,7 +1365,7 @@ const Compare = () => {
       match.key,
       [
         shorten(match.sessionName),
-        `M${match.matchNumber} · ${dayOf(match.sessionDate)}`,
+        `M${match.matchNumber}, ${dayOf(match.sessionDate)}`,
       ] as const,
     ])
   );
@@ -1411,9 +1414,7 @@ const Compare = () => {
   /** The line over a table that says what its marks mean. */
   const tableKey = (withOpponentRow: boolean) => (
     <div className="mb-3">
-      <p
-        className={`flex flex-wrap items-center gap-x-1.5 text-xs ${mutedText}`}
-      >
+      <p className={`flex flex-wrap items-center gap-x-3 text-xs ${mutedText}`}>
         <span className="inline-flex items-center gap-1">
           <Star
             aria-hidden="true"
@@ -1421,16 +1422,12 @@ const Compare = () => {
           />
           best
         </span>
-        <span aria-hidden="true">·</span>
         <span>N/A not run</span>
         {withOpponentRow && (
-          <>
-            <span aria-hidden="true">·</span>
-            <span>
-              <span className={`font-semibold ${badTone}`}>red</span> most to
-              opponent
-            </span>
-          </>
+          <span>
+            <span className={`font-semibold ${badTone}`}>red</span> most to
+            opponent
+          </span>
         )}
         <button
           type="button"
@@ -1493,7 +1490,7 @@ const Compare = () => {
       className={`w-3.5 h-3.5 shrink-0 ${active ? '' : 'invisible'}`}
     />
   );
-  const chipDetail = `text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`;
+  const chipDetail = `text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`;
 
   const pickedCount = pickedSessions.length;
   /**
@@ -1533,7 +1530,7 @@ const Compare = () => {
           {plural(pickedCount, 'session')}
         </span>
         <span className={mutedText}>
-          {' · '}
+          {': '}
           {pickedSessions.map(sessionTitle).join(', ')}
         </span>
       </span>
@@ -1565,15 +1562,13 @@ const Compare = () => {
         <p
           className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
         >
-          {scope === 'all'
-            ? 'No sessions available'
-            : `No sessions ${scopeLabel}`}
+          {scope === 'all' ? 'No sessions yet' : `No sessions ${scopeLabel}`}
         </p>
         <p
           className={`text-sm mb-4 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
         >
           {scope === 'all'
-            ? 'Complete some practice sessions first, then come back to compare them.'
+            ? 'Score at least two sessions to compare them.'
             : `${plural(comparableSessions.length, 'session')} under All.`}
         </p>
         {/* The view's one fill: the header's New Session steps back */}
@@ -1618,7 +1613,7 @@ const Compare = () => {
                   handFocusOn(e.currentTarget, pickerSummaryButton);
                 }}
                 aria-pressed={isSelected}
-                title={`${sessionTitle(session)} · ${formatDate(session.createdAt)}${owner ? ` · ${owner}` : ''}`}
+                title={`${sessionTitle(session)}, ${formatDate(session.createdAt)}${owner ? `, by ${owner}` : ''}`}
                 className={`${toggleChip(isSelected)} flex min-w-0 flex-col items-stretch px-3 py-1.5 text-left ${isCompact ? '' : 'max-w-[18rem]'}`}
               >
                 <span className="flex min-w-0 items-start gap-1.5">
@@ -1635,7 +1630,7 @@ const Compare = () => {
                   {/* Who recorded it before how many matches: cut short,
                       the count is the part to lose */}
                   {dateLabels.get(session.id)}
-                  {owner && ` · ${owner}`} ·{' '}
+                  {owner && ` by ${owner}`},{' '}
                   {plural(session.matches.length, 'match', 'matches')}
                 </span>
               </button>
@@ -1792,7 +1787,7 @@ const Compare = () => {
     const color = tone(ELEMENT_TONES[matchScoreChartPhase]);
     const chartData = matchColumns.map(match => ({
       key: match.key,
-      label: `Match ${match.matchNumber} · ${match.sessionName}`,
+      label: `Match ${match.matchNumber}, ${match.sessionName}`,
       note: match.sessionDate,
       score: elementPoints(match.breakdown, matchScoreChartPhase),
     }));
@@ -1906,7 +1901,7 @@ const Compare = () => {
                 <Line
                   key={match.key}
                   dataKey={`match${idx}`}
-                  name={`M${match.matchNumber} · ${shorten(match.sessionName, 20)}`}
+                  name={`M${match.matchNumber}, ${shorten(match.sessionName, 20)}`}
                   stroke={color}
                   strokeWidth={2.5}
                   type="linear"
@@ -2253,10 +2248,8 @@ const Compare = () => {
               <div
                 className={`text-xs font-semibold uppercase tracking-wide mb-2 break-words [overflow-wrap:anywhere] min-w-0 ${mutedText}`}
               >
-                {sessionTitle(session)}{' '}
-                <span className="whitespace-nowrap">
-                  · {whenAndWho(session)}
-                </span>
+                {sessionTitle(session)},{' '}
+                <span className="whitespace-nowrap">{whenAndWho(session)}</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {sessionMatches.map(match => {
@@ -2267,7 +2260,7 @@ const Compare = () => {
                       type="button"
                       onClick={() => toggleMatch(match)}
                       aria-pressed={isChecked}
-                      title={`${ELEMENT_LABELS.tipping} ${match.tipping || 0} · ${ELEMENT_LABELS.garden} ${match.garden || 0} · ${ELEMENT_LABELS.flower} ${match.flower || 0} · ${ELEMENT_LABELS.hive} ${match.ballsInHive || 0}`}
+                      title={`${ELEMENT_LABELS.tipping} ${match.tipping || 0}, ${ELEMENT_LABELS.garden} ${match.garden || 0}, ${ELEMENT_LABELS.flower} ${match.flower || 0}, ${ELEMENT_LABELS.hive} ${match.ballsInHive || 0}`}
                       className={`${toggleChip(isChecked)} inline-flex items-center gap-1.5 px-3 py-1.5 text-sm`}
                     >
                       <span className="font-medium whitespace-nowrap">
@@ -2471,10 +2464,7 @@ const Compare = () => {
                   {textMatchRow('Earned', match => {
                     const earned = earnedOf(match);
                     return earned.length === 0 ? (
-                      <span className={mutedText}>
-                        <span aria-hidden="true">—</span>
-                        <span className="sr-only">none</span>
-                      </span>
+                      <span className={mutedText}>None</span>
                     ) : (
                       <span className="inline-flex flex-wrap justify-end gap-1">
                         {earned.map(([badge, name]) => (
@@ -2532,13 +2522,8 @@ const Compare = () => {
       {/* The header's column, so their ends line up at every width */}
       <div className={`${PAGE_CONTAINER} py-8`}>
         <PageHeader
-          title="Comparison"
-          subtitle={
-            <>
-              Compare sessions and matches side-by-side
-              {scopeLabel && ` · ${scopeLabel}`}
-            </>
-          }
+          title="Compare"
+          subtitle={scopeLabel ? `Sessions ${scopeLabel}.` : undefined}
         >
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex flex-wrap gap-2">
@@ -2575,7 +2560,7 @@ const Compare = () => {
                   selected
                   {!statusInPicker && (
                     <>
-                      {' · '}
+                      {' '}
                       <button
                         type="button"
                         onClick={e => {

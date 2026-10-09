@@ -213,6 +213,14 @@ const AUTH_PATHS: readonly string[] = [
   ROUTES.FORGOT_PASSWORD,
 ];
 
+/**
+ * A phone zoomed in a long way (390px at 200% is 195px): the bar's buttons
+ * alone are wider than that. Sign in and the account menu fold into the
+ * overflow menu, and the logo gives way to the back arrow, which leads to
+ * the same place.
+ */
+const TINY_QUERY = '(max-width: 279px)';
+
 /** 44px for a finger, whatever the width of the screen it is on */
 const TOUCH_TARGET =
   '[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
@@ -259,6 +267,7 @@ const NavigationMenu = ({
   const { isDarkMode, themeMode } = useTheme();
   const { user, logout } = useAuth();
   const { team } = useTeam();
+  const tiny = useMediaQuery(TINY_QUERY);
   const { sessionData, hasStarted, matchActive, isTutorialActive } =
     useSessionCore();
   const navigate = useNavigate();
@@ -329,7 +338,9 @@ const NavigationMenu = ({
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Logout failed', error);
-      toast.error('Failed to sign out. Please try again.');
+      toast.error("Couldn't sign out", {
+        description: 'Check your connection and try again.',
+      });
     }
   };
 
@@ -423,6 +434,18 @@ const NavigationMenu = ({
     </DropdownMenuItem>
   );
 
+  const signInItem = (
+    <DropdownMenuItem asChild>
+      <Link
+        to={ROUTES.LOGIN}
+        className="flex items-center gap-2 cursor-pointer"
+      >
+        <LogIn className="w-4 h-4" />
+        <span>Sign in</span>
+      </Link>
+    </DropdownMenuItem>
+  );
+
   const signUpItem = (
     <DropdownMenuItem asChild>
       <Link
@@ -492,7 +515,7 @@ const NavigationMenu = ({
     <Link
       to={ROUTES.ACTIVE}
       aria-label="Active session"
-      className={`flex items-center justify-center gap-1.5 sm:gap-2 sm:px-3 sm:py-1.5 rounded-full whitespace-nowrap transition-colors ${TOUCH_TARGET} ${isDarkMode ? 'text-green-400 hover:text-green-300 hover:bg-team-white-10' : 'text-green-600 hover:text-green-700 hover:bg-gray-100'}`}
+      className={`flex items-center justify-center gap-1.5 sm:gap-2 sm:px-3 sm:py-1.5 rounded-full whitespace-nowrap transition-colors ${TOUCH_TARGET} ${isDarkMode ? 'text-green-400 hover:text-green-300 hover:bg-team-white-10' : 'text-green-700 hover:text-green-800 hover:bg-gray-100'}`}
     >
       {/* Label collapses to an icon when the bar is short of room, so this
           doesn't crowd the buttons next to it. The padding keeps the
@@ -580,15 +603,7 @@ const NavigationMenu = ({
               accountItems(compactMenu)
             ) : (
               <>
-                <DropdownMenuItem asChild>
-                  <Link
-                    to={ROUTES.LOGIN}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    <span>Sign in</span>
-                  </Link>
-                </DropdownMenuItem>
+                {signInItem}
                 {signUpItem}
               </>
             )}
@@ -625,7 +640,8 @@ const NavigationMenu = ({
           {themeMenu}
 
           {/* On a phone there is no room for a button each: the tutorial, the
-              theme and (for guests) Sign up share one menu. */}
+              theme and (for guests) Sign up share one menu; zoomed right in,
+              Sign in or the account items too. */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -635,7 +651,11 @@ const NavigationMenu = ({
                 <EllipsisVertical className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[160px]">
+            <DropdownMenuContent
+              align="end"
+              className="min-w-[160px]"
+              onCloseAutoFocus={afterAccountMenuClosed}
+            >
               {tutorialItem}
               {tutorialItem && <DropdownMenuSeparator />}
               <DropdownMenuLabel>Theme</DropdownMenuLabel>
@@ -643,13 +663,20 @@ const NavigationMenu = ({
               {!user && (
                 <>
                   <DropdownMenuSeparator />
+                  {tiny && signInItem}
                   {signUpItem}
+                </>
+              )}
+              {user && tiny && (
+                <>
+                  <DropdownMenuSeparator />
+                  {accountItems(true)}
                 </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {user ? (
+          {tiny ? null : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -876,14 +903,16 @@ const MatchLabel = ({ withTotal }: { withTotal: boolean }) => {
   return (
     <span
       data-header-match
-      className={`text-sm font-semibold whitespace-nowrap tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+      className={`inline-flex items-center text-sm font-semibold whitespace-nowrap tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
     >
       Match {matchNumber}
       {total !== null && (
         <>
-          <span aria-hidden className="mx-1.5">
-            ·
-          </span>
+          {/* The rule between the clock and the total in the wider bar */}
+          <span
+            aria-hidden
+            className={`mx-2 h-4 w-px ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+          />
           <span className="sr-only">, </span>
           <span className={TEXT[isDarkMode ? 1 : 0]}>
             {formatPoints(total)}
@@ -932,6 +961,7 @@ export const Header = () => {
   const clockInBar =
     !isCompact && (showCompactTimer || (isOnActivePage && isEditing));
   const isWide = useMediaQuery(SPLIT_QUERY);
+  const tiny = useMediaQuery(TINY_QUERY);
 
   /**
    * A match is being scored, or a saved one corrected, on a phone. The bar
@@ -1068,7 +1098,7 @@ export const Header = () => {
           {backButton}
           {/* The clock needs the room in the middle more than the logo
               needs its name, short of the widest bar. */}
-          {!isScoringBar && (
+          {!isScoringBar && !(tiny && backButton) && (
             <TeamTrackLogo
               iconOnly={isShort || (clockInBar && !isWide)}
               roomy={!backButton}

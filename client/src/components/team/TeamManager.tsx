@@ -89,6 +89,9 @@ interface ConfirmCopy {
 
 const memberName = (member: TeamMember) => member.displayName || member.email;
 
+/** The next step after a team change the server didn't take */
+const TRY_AGAIN = 'Check your connection and try again.';
+
 const plural = (count: number, noun: string) =>
   `${count} ${noun}${count !== 1 ? 's' : ''}`;
 
@@ -160,6 +163,10 @@ export const TeamManager = ({
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [sharing, setSharing] = useState(false);
   const [loadingPersonal, setLoadingPersonal] = useState(false);
+  /** The share step couldn't read the user's sessions */
+  const [loadFailed, setLoadFailed] = useState(false);
+  /** Bumped by the share step's Try again, to read the list again */
+  const [loadAttempt, setLoadAttempt] = useState(0);
   /** The share step's list was already read for this team by `offerShare` */
   const sharePreloadedFor = useRef<string | null>(null);
 
@@ -179,6 +186,7 @@ export const TeamManager = ({
     // Personal sessions only. One filed under a team the user has left
     // stays with that team; archived ones are put away. Neither is offered.
     const shareable = sessions.filter(s => !s.teamId && !isArchived(s));
+    setLoadFailed(false);
     setHasOwnSessions(sessions.length > 0);
     setOwnInOtherTeam(sessions.some(s => !!s.teamId && s.teamId !== forTeamId));
     setPersonalSessions(shareable);
@@ -194,19 +202,33 @@ export const TeamManager = ({
     }
 
     const loadPersonalSessions = async () => {
+      setLoadFailed(false);
       setLoadingPersonal(true);
       try {
         const sessions = await firebaseService.getUserSessions(user.uid);
         showShareable(sessions, teamId);
       } catch {
-        toast.error('Failed to load your sessions');
+        // Nothing from an earlier load stays ticked behind the error
+        setPersonalSessions([]);
+        setSelectedSessionIds(new Set());
+        setLoadFailed(true);
       } finally {
         setLoadingPersonal(false);
       }
     };
 
     loadPersonalSessions();
-  }, [showShareDialog, user?.uid, teamId]);
+  }, [showShareDialog, user?.uid, teamId, loadAttempt]);
+
+  // Try again gives way to the spinner, which takes its focus with it: once
+  // the list (or the error) is back, focus its first control.
+  const shareBodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (loadingPersonal || !showShareDialog) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    shareBodyRef.current?.querySelector<HTMLElement>('button')?.focus();
+  }, [loadingPersonal, showShareDialog]);
 
   /**
    * Right after creating or joining a team: whether to go on to the share
@@ -339,7 +361,7 @@ export const TeamManager = ({
   const handleCreateTeam = async () => {
     const name = teamName.trim();
     if (!name) {
-      toast.error('Please enter a team name');
+      toast.error('Enter a team name');
       return;
     }
     if (name.length > MAX_TEAM_NAME_LENGTH) {
@@ -358,13 +380,13 @@ export const TeamManager = ({
         if (offerShare) setShareDialogFor(newTeam.id);
         else toast.success(`Created ${newTeam.name}`);
       } else {
-        toast.error('Failed to create team. Please try again.');
+        toast.error("Couldn't create the team", { description: TRY_AGAIN });
       }
     } catch (err) {
       // The raw error (often a bare Firestore permission message) goes to
       // the log; it means nothing to the person creating the team.
       logger.error('Create team error', err);
-      toast.error('Failed to create team. Please try again.');
+      toast.error("Couldn't create the team", { description: TRY_AGAIN });
     } finally {
       setCreating(false);
     }
@@ -403,9 +425,7 @@ export const TeamManager = ({
       }
     } catch (err) {
       logger.error('Join team error', err);
-      setJoinError(
-        "Couldn't join the team. The code may be invalid or expired."
-      );
+      setJoinError(`Couldn't join the team. ${TRY_AGAIN}`);
     } finally {
       setJoining(false);
     }
@@ -418,10 +438,12 @@ export const TeamManager = ({
     try {
       await copyToClipboard(inviteUrl);
       onCopied(true);
-      toast.success('Invite link copied!');
+      toast.success('Invite link copied');
       setTimeout(() => onCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error("Couldn't copy the invite link", {
+        description: `This browser blocked copying. Share the code ${team.inviteCode} instead.`,
+      });
     }
   };
 
@@ -431,10 +453,12 @@ export const TeamManager = ({
     try {
       await copyToClipboard(team.inviteCode);
       setCodeCopied(true);
-      toast.success('Invite code copied!');
+      toast.success('Invite code copied');
       setTimeout(() => setCodeCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error("Couldn't copy the invite code", {
+        description: `This browser blocked copying. Type ${team.inviteCode} where you want to share it.`,
+      });
     }
   };
 
@@ -458,10 +482,10 @@ export const TeamManager = ({
         setIsRenaming(false);
         setRenameValue('');
       } else {
-        toast.error('Failed to rename team');
+        toast.error("Couldn't rename the team", { description: TRY_AGAIN });
       }
     } catch {
-      toast.error('Failed to rename team');
+      toast.error("Couldn't rename the team", { description: TRY_AGAIN });
     } finally {
       setRenaming(false);
     }
@@ -628,12 +652,12 @@ export const TeamManager = ({
       }
     } catch {
       const failed: Record<PendingAction['type'], string> = {
-        transfer: "Couldn't change the owner. Please try again.",
-        remove: "Couldn't remove that member. Please try again.",
-        resetInvite: "Couldn't reset the invite link. Please try again.",
-        leave: `Couldn't leave ${team.name}. Please try again.`,
+        transfer: "Couldn't change the owner",
+        remove: "Couldn't remove that member",
+        resetInvite: "Couldn't reset the invite link",
+        leave: `Couldn't leave ${team.name}`,
       };
-      toast.error(failed[activeAction.type]);
+      toast.error(failed[activeAction.type], { description: TRY_AGAIN });
     } finally {
       setActing(false);
     }
@@ -690,7 +714,8 @@ export const TeamManager = ({
             <button
               type="button"
               onClick={openTeamDialog}
-              aria-label={`${team.name} · ${memberCount} · Manage team`}
+              // Starts with what it shows, so it can be said by name
+              aria-label={`${team.name} (${memberCount}), Manage team`}
               className={
                 compact
                   ? cn(rowButton, 'min-w-0 justify-start')
@@ -708,10 +733,10 @@ export const TeamManager = ({
               <span
                 className={`hidden sm:inline text-xs whitespace-nowrap ${muted}`}
               >
-                · {memberCount}
+                ({memberCount})
               </span>
-              <span className="hidden sm:inline text-xs whitespace-nowrap text-team-blue">
-                · Manage
+              <span className="hidden sm:inline ml-1 text-xs whitespace-nowrap text-team-blue">
+                Manage
               </span>
               <ChevronRight
                 aria-hidden="true"
@@ -1262,7 +1287,10 @@ export const TeamManager = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto p-6 pb-2">
+          <div
+            ref={shareBodyRef}
+            className="flex-1 min-h-0 overflow-y-auto p-6 pb-2"
+          >
             {loadingPersonal ? (
               <div className="flex items-center justify-center py-8" role="status">
                 <div
@@ -1270,6 +1298,20 @@ export const TeamManager = ({
                   className="h-6 w-6 border-2 border-team-blue border-t-transparent rounded-full animate-spin"
                 />
                 <span className="sr-only">Loading your sessions</span>
+              </div>
+            ) : loadFailed ? (
+              <div className={`text-center py-8 space-y-3 ${muted}`}>
+                <p role="alert">
+                  Couldn't load your sessions. Check your connection and try
+                  again.
+                </p>
+                <Button
+                  onClick={() => setLoadAttempt(n => n + 1)}
+                  variant="neutral"
+                  className={footerButton}
+                >
+                  Try again
+                </Button>
               </div>
             ) : personalSessions.length === 0 ? (
               <div className={`text-center py-8 ${muted}`}>
@@ -1292,7 +1334,7 @@ export const TeamManager = ({
           </div>
 
           <DialogFooter className="shrink-0 pt-3 pb-6">
-            {personalSessions.length > 0 && !loadingPersonal ? (
+            {personalSessions.length > 0 && !loadingPersonal && !loadFailed ? (
               <>
                 <Button
                   onClick={handleSkipShare}

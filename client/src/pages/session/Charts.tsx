@@ -265,7 +265,7 @@ const labelSessions = (sessions: Session[]): SessionLabels => {
       session.id,
       {
         tick: sessionDay(session),
-        full: `${dates.get(session.id) ?? ''} · ${sessionTitle(session)}`,
+        full: `${sessionTitle(session)} (${dates.get(session.id) ?? sessionDay(session)})`,
       },
     ])
   );
@@ -462,7 +462,11 @@ const CHART_MARGIN = { top: 10, right: 12, left: 0, bottom: 0 };
 /** Wide enough for '160' or '0.5'. The plot starts this far from the left. */
 const Y_AXIS_WIDTH = 40;
 
-/** Narrow enough for a 320px phone: the chart then fits its card. */
+/**
+ * Narrow enough for a 320px phone: the chart then fits its card. Narrower
+ * still (a phone zoomed to 200%), the chart scrolls sideways in its card
+ * rather than the page.
+ */
 const MIN_CHART_WIDTH = 240;
 
 /**
@@ -605,25 +609,29 @@ const keyInsights = (
 
   return [
     {
-      label: 'Top scorer',
+      label: 'Most points',
       text:
         avgScore > 0
-          ? `${best.label} · ${best.avg >= 10 ? Math.round(best.avg) : formatNumber(best.avg)} pts/match (${Math.round((best.avg / avgScore) * 100)}%)`
+          ? `${best.label}, ${best.avg >= 10 ? Math.round(best.avg) : formatNumber(best.avg)} per match (${Math.round((best.avg / avgScore) * 100)}%)`
           : 'No points scored yet',
     },
     {
       label: 'Robots',
       text:
         robots.length > 0
-          ? `${robots.join(' · ')} of chances`
+          ? `${robots.join(', ')} of chances`
           : 'No Leave or Park chances',
     },
     {
       label: 'RP',
-      // One robot, or no Auto period, can't earn SWARM: no count of 0
-      text: `${rp.rate ?? 0}% (${rp.earned}/${rp.possible}), SWARM ${
-        rp.swarmChances > 0 ? rp.swarm : swarmMissing(matches)
-      }, P1 ${rp.pollinator1}, P2 ${rp.pollinator2}`,
+      // One robot, or no Auto period, can't earn SWARM: no count of 0. The
+      // space in 'POLLINATOR 1' is U+00A0: the name never breaks before its
+      // number.
+      text: `${rp.rate ?? 0}% (${rp.earned} of ${rp.possible}). SWARM ${
+        rp.swarmChances > 0
+          ? `in ${plural(rp.swarm, 'match', 'matches')}`
+          : swarmMissing(matches)
+      }, POLLINATOR\u00A01 in ${rp.pollinator1}, POLLINATOR\u00A02 in ${rp.pollinator2}`,
     },
     avgGiven !== null
       ? {
@@ -632,7 +640,7 @@ const keyInsights = (
         }
       : {
           label: 'Best session',
-          text: `${sessionDay(bestSession)} · ${sessionTitle(bestSession)} · ${sessionAverage(bestSession)} avg`,
+          text: `${sessionTitle(bestSession)} on ${sessionDay(bestSession)}, ${sessionAverage(bestSession)} avg`,
         },
   ];
 };
@@ -838,7 +846,7 @@ const Charts = () => {
     return (
       <div className={pageClass}>
         <div className={wrapClass}>
-          <PageHeader title="Performance Charts" />
+          <PageHeader title="Charts" />
           <Card className={cardClass}>
             <CardContent className="px-4 py-10 sm:py-12">
               <div className="text-center">
@@ -897,22 +905,23 @@ const Charts = () => {
   const gridStroke = isDarkMode ? '#2a2a2a' : '#e5e7eb';
   const axis = axisProps(isDarkMode);
 
-  /** What the page is looking at, under its title. */
+  /**
+   * What the page is looking at, under its title, in sentences: what the
+   * controls under it don't already say (the range is on its own control).
+   */
   const subtitle = [
     scoredSessions.length > 0
-      ? `${plural(allScores.length, `${matchType} match`, `${matchType} matches`)} · ${plural(scoredSessions.length, 'session')}`
-      : 'No matches',
+      ? `${plural(allScores.length, `${matchType} match`, `${matchType} matches`)} in ${plural(scoredSessions.length, 'session')}${scopeLabel ? ` (${scopeLabel})` : ''}.`
+      : 'No matches.',
     emptySessionCount > 0 &&
-      `${plural(emptySessionCount, 'empty session')} not counted`,
-    RANGE_LABELS[timeRange],
-    scopeLabel,
+      `${plural(emptySessionCount, 'empty session')} not counted.`,
     !rangeCovered &&
       (olderFailed
-        ? "older sessions couldn't be read"
-        : 'reading older sessions...'),
+        ? "Older sessions couldn't be read."
+        : 'Reading older sessions...'),
   ]
     .filter(Boolean)
-    .join(' · ');
+    .join(' ');
 
   const analysisPath = (id: string) =>
     `${ROUTES.ANALYSIS}?sessionId=${encodeURIComponent(id)}`;
@@ -998,7 +1007,7 @@ const Charts = () => {
   return (
     <div className={pageClass}>
       <div className={wrapClass}>
-        <PageHeader title="Performance Charts" subtitle={subtitle}>
+        <PageHeader title="Charts" subtitle={subtitle}>
           <div className="flex flex-wrap items-center gap-2">
             {typeChoices.length > 1 && (
               <Segmented
@@ -1107,14 +1116,14 @@ const Charts = () => {
               <Card className={cardClass}>
                 <CardContent className="p-4 sm:p-6">
                   <p className={`text-sm sm:text-base ${muted}`}>
-                    Trends appear after 2 sessions —{' '}
+                    Trends appear after 2 sessions.{' '}
                     <Link
                       to={analysisPath(scoredSessions[0].id)}
                       // Inline, so the sentence wraps as one; the padding
                       // makes it a full-size target without moving a line
                       className="py-3 font-semibold text-team-blue underline underline-offset-2"
                     >
-                      open {labels.get(scoredSessions[0].id)?.full} in Analysis
+                      Open {labels.get(scoredSessions[0].id)?.full} in Analysis
                     </Link>
                   </p>
                 </CardContent>
@@ -1147,7 +1156,7 @@ const Charts = () => {
                       className="w-max flex-nowrap"
                     />
                   </div>
-                  <div className="mt-auto min-w-0">
+                  <div className="mt-auto min-w-0 overflow-x-auto">
                     <ResponsiveContainer
                       width="100%"
                       height={250}
@@ -1249,7 +1258,7 @@ const Charts = () => {
                       as="h2"
                       className={`${SECTION_TITLE_CLASS} leading-snug tracking-normal`}
                     >
-                      Key Insights
+                      Highlights
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
@@ -1281,7 +1290,7 @@ const Charts = () => {
                       foul-free, {fouls.clean} of{' '}
                       {plural(fouls.total, 'Scrim match', 'Scrim matches')}
                     </p>
-                    <div className="mt-auto min-w-0">
+                    <div className="mt-auto min-w-0 overflow-x-auto">
                       <ResponsiveContainer
                         width="100%"
                         height={220}
@@ -1347,7 +1356,7 @@ const Charts = () => {
                   description="Average count of each element scored per match"
                   isDarkMode={isDarkMode}
                 >
-                  <div className="mt-auto min-w-0">
+                  <div className="mt-auto min-w-0 overflow-x-auto">
                     <ResponsiveContainer
                       width="100%"
                       height={240}
@@ -1414,7 +1423,7 @@ const Charts = () => {
                   description="Average RP a match earned from scoring in each session, out of 3 (2 with one robot, which can't earn SWARM). A win or tie is not counted."
                   isDarkMode={isDarkMode}
                 >
-                  <div className="mt-auto min-w-0">
+                  <div className="mt-auto min-w-0 overflow-x-auto">
                     <ResponsiveContainer
                       width="100%"
                       height={240}
@@ -1492,7 +1501,7 @@ const Charts = () => {
                     description="Average, fastest and slowest time between Hive Tips in each session, in seconds"
                     isDarkMode={isDarkMode}
                   >
-                    <div className="mt-auto min-w-0">
+                    <div className="mt-auto min-w-0 overflow-x-auto">
                       <ResponsiveContainer
                         width="100%"
                         height={240}

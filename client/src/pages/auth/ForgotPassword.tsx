@@ -31,7 +31,7 @@ const ForgotPassword = () => {
   const { isDarkMode } = useTheme();
 
   useEffect(() => {
-    document.title = `Reset Password - ${APP_CONFIG.name}`;
+    document.title = `Reset your password - ${APP_CONFIG.name}`;
   }, []);
 
   const send = async (address: string) => {
@@ -52,7 +52,7 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     if (!email) {
-      setError({ message: 'Please enter your email address', code: null });
+      setError({ message: 'Enter your email.', code: null });
       return;
     }
 
@@ -145,14 +145,16 @@ const ForgotPassword = () => {
         ) : (
           <>
             <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
-              <CardTitle as="h1" className={`${PAGE_TITLE_CLASS} text-center`}>
-                Reset Password
+              <CardTitle
+                as="h1"
+                className={`${PAGE_TITLE_CLASS} text-center text-balance`}
+              >
+                Reset your password
               </CardTitle>
               <CardDescription
                 className={`text-center text-sm sm:text-base text-balance ${mutedText}`}
               >
-                Enter your email address and we'll send you a link to reset your
-                password
+                We'll email you a link to set a new one.
               </CardDescription>
             </CardHeader>
 
@@ -165,7 +167,7 @@ const ForgotPassword = () => {
                     htmlFor="email"
                     className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
                   >
-                    Email Address
+                    Email
                   </Label>
                   <div
                     className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}

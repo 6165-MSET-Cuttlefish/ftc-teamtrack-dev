@@ -23,8 +23,8 @@ export type SortOption =
 export const SORT_LABELS: Record<SortOption, string> = {
   'date-desc': 'Newest first',
   'date-asc': 'Oldest first',
-  'name-asc': 'Name (A–Z)',
-  'name-desc': 'Name (Z–A)',
+  'name-asc': 'Name (A to Z)',
+  'name-desc': 'Name (Z to A)',
   'score-desc': 'Highest score',
   'score-asc': 'Lowest score',
   'matches-desc': 'Most matches',

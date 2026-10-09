@@ -25,7 +25,7 @@ export interface AuthErrorInfo {
  */
 export type AuthErrorContext = 'sign-in' | 'reset' | 'reauth';
 
-export const GENERIC_AUTH_ERROR = 'Something went wrong. Please try again.';
+export const GENERIC_AUTH_ERROR = 'Something went wrong. Try again.';
 
 /** The password didn't match. Production reports an unknown email the same way. */
 const WRONG_CREDENTIAL_CODES = [

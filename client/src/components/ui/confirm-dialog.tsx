@@ -1,5 +1,5 @@
 import { Loader2, type LucideIcon } from 'lucide-react';
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useArmedAfterOpen } from '@/hooks/useArmedAfterOpen';
@@ -104,6 +104,24 @@ export const ConfirmDialog = ({
 }: ConfirmDialogProps) => {
   const { isDarkMode } = useTheme();
   const armed = useArmedAfterOpen(open);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const wasBusy = useRef(false);
+
+  // Both buttons are disabled while it runs, which drops the focus. If the
+  // dialog is still up afterwards (it failed), focus goes back: to the field
+  // the error is about, else to the button that was pressed.
+  useEffect(() => {
+    const finished = wasBusy.current && !busy;
+    wasBusy.current = busy;
+    if (!finished || !open) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    const dialog = confirmRef.current?.closest('[role="alertdialog"]');
+    const field = dialog?.querySelector<HTMLElement>(
+      'input[aria-invalid="true"]'
+    );
+    (field ?? confirmRef.current)?.focus();
+  }, [busy, open]);
   const iconTone =
     tone === 'primary'
       ? 'text-team-blue'
@@ -156,6 +174,7 @@ export const ConfirmDialog = ({
             {cancelLabel}
           </button>
           <button
+            ref={confirmRef}
             type="button"
             disabled={busy || confirmDisabled}
             onKeyDown={ignoreHeldEnter}

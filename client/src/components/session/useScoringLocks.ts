@@ -1,5 +1,10 @@
 import { useSessionCore } from '@/contexts';
-import { includesAuto, includesTeleop, liveMatchType } from '@/lib';
+import {
+  ELEMENT_LABELS,
+  includesAuto,
+  includesTeleop,
+  liveMatchType,
+} from '@/lib';
 import { robotsOf } from '@/lib/scoring';
 
 /**
@@ -7,6 +12,22 @@ import { robotsOf } from '@/lib/scoring';
  * with it: the words the Start button shows when such a field is pressed
  */
 export const START_FIRST = 'Press Start first';
+
+/**
+ * Why a robot toggle can't be scored, in the same words on the phone and
+ * the desktop pad (and for the Add/Edit Match dialog to say too), with
+ * each park toggle called by its own name.
+ */
+export const LOCK_REASONS = {
+  /** A Teleop match has no AUTO */
+  noAuto: `No ${ELEMENT_LABELS.leave} or ${ELEMENT_LABELS.parkAuto} in a Teleop match`,
+  /** An Autonomous match has no end of TELEOP */
+  noEndPark: `No ${ELEMENT_LABELS.parkEnd} in an Autonomous match`,
+  /** The same, where its flower counters are left out too */
+  noEndParkOrFlowers: `No ${ELEMENT_LABELS.parkEnd} or flowers in an Autonomous match`,
+  /** During AUTO (and before Start, as the match starts in AUTO) */
+  endParkWaits: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop or on pause`,
+} as const;
 
 /**
  * Which scoring inputs on /active are open right now.

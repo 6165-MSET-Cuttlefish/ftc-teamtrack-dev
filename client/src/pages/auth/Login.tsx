@@ -42,7 +42,7 @@ const Login = () => {
   const location = useLocation();
 
   useEffect(() => {
-    document.title = `Sign In - ${APP_CONFIG.name}`;
+    document.title = `Sign in - ${APP_CONFIG.name}`;
   }, []);
 
   // With its query: an /analysis link is nothing without its sessionId
@@ -62,7 +62,10 @@ const Login = () => {
     e.preventDefault();
 
     if (!email || !password) {
-      setError({ message: 'Please fill in all fields', code: null });
+      setError({
+        message: email ? 'Enter your password.' : 'Enter your email.',
+        code: null,
+      });
       return;
     }
 
@@ -103,15 +106,16 @@ const Login = () => {
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
           <CardTitle as="h1" className={`${PAGE_TITLE_CLASS} text-center`}>
-            {invited ? `Join your team on ${APP_CONFIG.name}` : 'Welcome Back'}
+            {invited ? `Join your team on ${APP_CONFIG.name}` : 'Sign in'}
           </CardTitle>
-          <CardDescription
-            className={`text-center text-sm sm:text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            {invited
-              ? 'Create an account to accept the invite, or sign in if you have one.'
-              : `Sign in to your ${APP_CONFIG.name} account`}
-          </CardDescription>
+          {invited && (
+            <CardDescription
+              className={`text-center text-sm sm:text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+            >
+              Create an account to accept the invite, or sign in if you have
+              one.
+            </CardDescription>
+          )}
         </CardHeader>
 
         <CardContent className="space-y-6 px-4 sm:px-6">
@@ -158,7 +162,7 @@ const Login = () => {
                 htmlFor="email"
                 className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
-                Email Address
+                Email
               </Label>
               <div
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
@@ -245,7 +249,7 @@ const Login = () => {
             <span
               className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
             >
-              Or continue with
+              or
             </span>
             <div className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-300'}`} />
           </div>

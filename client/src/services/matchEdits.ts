@@ -11,6 +11,7 @@
 
 import type { Match } from '@/types';
 import { isGuestSessionId, readGuestSessions, writeGuestSessions } from '@/lib';
+import { failureReason, ShownError } from '@/lib/failure';
 import { firebaseService } from './firebaseService';
 
 /** Limits enforced by firestore.rules (matches) and by Firestore itself (1 MiB) */
@@ -26,7 +27,7 @@ export type MatchEdit =
   | { kind: 'restore'; match: Match; index: number };
 
 /** An edit refused for a reason worth showing the user as it is. */
-export class MatchEditError extends Error {}
+export class MatchEditError extends ShownError {}
 
 /**
  * The stored matches with one edit applied. Pure: Firestore may run it more
@@ -149,37 +150,9 @@ export const saveMatchEdit = async (
 export const newMatchId = (): string =>
   `match_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
-/** Firestore error code ('permission-denied', 'unavailable', ...), or '' */
-const errorCode = (error: unknown): string =>
-  typeof error === 'object' && error !== null && 'code' in error
-    ? String((error as { code: unknown }).code).replace(/^firestore\//, '')
-    : '';
-
 /**
- * Why a match edit failed, in words for a toast description, or undefined
- * when there is nothing more specific to say than "it failed".
+ * Why a match edit failed and what to do next, in words for a toast
+ * description (see `failureReason`).
  */
-export const matchEditFailure = (error: unknown): string | undefined => {
-  if (error instanceof MatchEditError) return error.message;
-  switch (errorCode(error)) {
-    case 'permission-denied':
-    case 'unauthenticated':
-      return "You don't have permission to change this session.";
-    case 'unavailable':
-    case 'deadline-exceeded':
-      return "Couldn't reach the server, so nothing was changed. Check your connection and try again.";
-    case 'invalid-argument':
-      return 'The server rejected this session as too large or malformed.';
-    case 'resource-exhausted':
-      return 'The server is over its usage limit right now. Try again later.';
-  }
-  if (error instanceof Error) {
-    if (error.name === 'QuotaExceededError') {
-      return "This browser's storage is full, so the change wasn't saved.";
-    }
-    if (error.message === 'Session not found') {
-      return 'This session no longer exists.';
-    }
-  }
-  return undefined;
-};
+export const matchEditFailure = (error: unknown): string =>
+  failureReason(error, { nothingChanged: true });

@@ -11,6 +11,7 @@ export {
   getErrorMessage,
 } from './utils';
 export { logger } from './logger';
+export { failureReason, ShownError } from './failure';
 export {
   hasCompletedASession,
   markSessionCompleted,

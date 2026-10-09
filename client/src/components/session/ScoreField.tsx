@@ -596,7 +596,10 @@ export const ScoreField = memo(
             isStacked
               ? 'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1.5 gap-y-1 md:flex md:gap-3'
               : isCompact
-                ? `flex items-center gap-1.5 md:gap-3 ${hasLiveAction ? 'min-h-14 [@media(max-height:500px)_and_(max-width:639px)]:min-h-11' : ''}`
+                ? // In a column narrower than 15rem (a 200% zoom) the live
+                  // row's name takes a line of its own above −, the count
+                  // and +1 Tip, which would not fit beside it
+                  `flex items-center gap-1.5 md:gap-3 ${hasLiveAction ? 'min-h-14 [@media(max-height:500px)_and_(max-width:639px)]:min-h-11 [@container(max-width:15rem)]:flex-wrap [@container(max-width:15rem)]:gap-y-1' : ''}`
                 : 'flex items-center gap-2 md:gap-3'
           }
         >
@@ -610,7 +613,7 @@ export const ScoreField = memo(
                 isStacked
                   ? 'col-span-3 md:flex-1'
                   : hasLiveAction
-                    ? 'flex-none md:flex-1'
+                    ? 'flex-none md:flex-1 [@container(max-width:15rem)]:basis-full'
                     : 'flex-1'
               }`}
             >
@@ -653,7 +656,7 @@ export const ScoreField = memo(
                   <div
                     className={`text-xs leading-4 font-semibold tabular-nums ${
                       isCompact
-                        ? 'absolute left-0 top-full whitespace-nowrap'
+                        ? `absolute left-0 top-full whitespace-nowrap ${hasLiveAction ? '[@container(max-width:15rem)]:static' : ''}`
                         : ''
                     } ${
                       pointsUnderOnNarrow ? 'min-[360px]:hidden' : 'md:hidden'
@@ -734,7 +737,9 @@ export const ScoreField = memo(
                 {isLive && liveShortcut && (
                   <kbd
                     aria-hidden
-                    className="hidden rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 opacity-70 md:inline-block [@media(pointer:coarse)]:hidden"
+                    // Faded only where that still reads: white on the
+                    // light theme's filled button is under 4.5:1 faded
+                    className={`hidden rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 md:inline-block [@media(pointer:coarse)]:hidden ${isDarkMode ? 'opacity-70' : ''}`}
                   >
                     {liveShortcut}
                   </kbd>

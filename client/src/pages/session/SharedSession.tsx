@@ -229,7 +229,7 @@ const SharedSession = () => {
             className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
               isDarkMode
                 ? 'bg-team-blue-40/30 text-team-blue'
-                : 'bg-blue-50 text-team-blue'
+                : 'bg-blue-50 text-gray-700'
             }`}
           >
             Shared Session
@@ -337,13 +337,12 @@ const SharedSession = () => {
           >
             <div className="text-center space-y-4">
               <h2 className={`${SECTION_TITLE_CLASS} text-balance`}>
-                Want to track your own sessions?
+                Score your own matches with TeamTrack
               </h2>
               <p
                 className={isDarkMode ? 'text-team-white-60' : 'text-gray-600'}
               >
-                Create a free account to start tracking and analyzing your
-                team's performance.
+                It's free.
               </p>
               {/* Links that look like buttons (one control, one tab stop
                   each), in the header's words: the main one first */}

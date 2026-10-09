@@ -9,7 +9,11 @@ import {
   useLiveControls,
 } from './liveControlsContext';
 import { useStartNudge } from './startNudge';
-import { useTakeDroppedFocus, useWatchFocus } from './takeDroppedFocus';
+import {
+  useCatchDroppedFocus,
+  useTakeDroppedFocus,
+  useWatchFocus,
+} from './takeDroppedFocus';
 import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
 import { useScoringLocks } from '@/components/session/useScoringLocks';
@@ -19,6 +23,19 @@ const BAR_BUTTON = 'h-12 rounded-2xl text-base whitespace-nowrap';
 
 /** How long "Press Start first" stays up after a nudge */
 const NUDGE_NOTE_MS = 2200;
+
+/**
+ * Where keyboard focus goes when the control that had it is gone and
+ * nothing took its place: Pause while a match is played, else the one
+ * filled button of the moment (Start Match, Save Match, Save the edit).
+ */
+const focusFallback = (): HTMLElement | null => {
+  for (const selector of ['[data-play-pause]', '[data-primary-action]']) {
+    const el = document.querySelector<HTMLButtonElement>(selector);
+    if (el && !el.disabled && el.getClientRects().length > 0) return el;
+  }
+  return null;
+};
 
 /**
  * Save / Discard changes for a logged match that is open for editing.
@@ -46,7 +63,9 @@ export const EditMatchActions = ({ quiet = false }: { quiet?: boolean }) => {
     // the rest goes by the width the pair actually has (a phone's bar, or
     // its narrower column on its side), not the screen's: under 22rem
     // "Discard changes" would be the wider, so it is just "Discard" there.
-    <div className="flex-1 min-w-0 flex items-center gap-2 [container-type:inline-size]">
+    // Too narrow for both on one line (a 200% zoom), Discard goes under
+    // Save, at the end of the line, rather than past the screen's edge.
+    <div className="flex-1 min-w-0 flex flex-wrap items-center justify-end gap-2 [container-type:inline-size]">
       <button
         type="button"
         onKeyDown={ignoreHeldEnter}
@@ -56,7 +75,8 @@ export const EditMatchActions = ({ quiet = false }: { quiet?: boolean }) => {
           toast.success(`${name} updated`);
           setShowUnsavedEditWarning(false);
         }}
-        className={`flex-1 min-w-0 px-4 ${size} ${actionClass(quiet ? 'neutral' : 'primary', isDarkMode)}`}
+        data-primary-action={quiet ? undefined : true}
+        className={`min-w-0 flex-[1_1_auto] px-4 ${size} ${actionClass(quiet ? 'neutral' : 'primary', isDarkMode)}`}
       >
         Save {name}
       </button>
@@ -141,8 +161,11 @@ const StartMatchButton = () => {
       onKeyDown={ignoreHeldEnter}
       onClick={handleStartMatch}
       data-start-match
+      data-primary-action
       title={hasName ? undefined : 'Name the session before starting'}
-      className={`relative flex-1 min-w-0 px-3 ${BAR_BUTTON} ${actionClass('primary', isDarkMode)}`}
+      // As wide as its words at least, so that where Complete Session
+      // can't fit beside it (a 200% zoom) that goes onto a line of its own
+      className={`relative min-w-0 flex-[1_1_auto] px-3 ${BAR_BUTTON} ${actionClass('primary', isDarkMode)}`}
     >
       Start Match {matchNumber}
       {/* Replayed from the start on every nudge */}
@@ -220,7 +243,7 @@ const EndEarlyButton = () => {
  *   during play is Pause and a stray thumb can't end the match. It ends
  *   the match as the buzzer does (it is never saved before the
  *   end-of-match counts can be made), with an Undo;
- * - after the buzzer: "Save Match N · X pts" alone. What to count first is
+ * - after the buzzer: "Save Match N (X pts)" alone. What to count first is
  *   said once, by End of Match's own caption; here it is only announced;
  * - a logged match open for editing: Save / Discard changes;
  * - Complete Session's question about stray numbers, in place of Start.
@@ -234,6 +257,7 @@ export const PrimaryAction = () => {
   // An Autonomous match has no flower counters (no flower scores in AUTO)
   const { hasTeleop } = useScoringLocks();
   useWatchFocus();
+  useCatchDroppedFocus(focusFallback);
 
   return (
     <>
@@ -291,17 +315,48 @@ const PrimaryControls = () => {
 
   if (!matchEnded) return <EndEarlyButton />;
 
-  // One button, the width Start Match will have: on a phone the bar stays
-  // one button tall at the buzzer, and on a full-size screen the next
-  // match's Start comes up where this was.
+  return (
+    <SaveMatchButton
+      matchNumber={matchNumber}
+      total={currentMatchTotal}
+      onSave={handleSaveMatch}
+    />
+  );
+};
+
+/**
+ * Save Match N, with its points, after the buzzer. One button, the width
+ * Start Match will have: on a phone the bar stays one button tall at the
+ * buzzer, and on a full-size screen the next match's Start comes up where
+ * this was. It comes up where End early or Skip to Buzzer was pressed, and
+ * a keyboard user's focus carries on from them.
+ *
+ * Too narrow for it on one line (a 200% zoom), the points go under the
+ * name rather than past the edge of the screen.
+ */
+const SaveMatchButton = ({
+  matchNumber,
+  total,
+  onSave,
+}: {
+  matchNumber: number;
+  total: number;
+  onSave: () => void;
+}) => {
+  const { isDarkMode } = useLiveControls();
+  const ref = useRef<HTMLButtonElement>(null);
+  useTakeDroppedFocus(ref);
+
   return (
     <button
+      ref={ref}
       type="button"
       onKeyDown={ignoreHeldEnter}
-      onClick={handleSaveMatch}
-      className={`flex-1 min-w-0 px-3 ${BAR_BUTTON} ${actionClass('primary', isDarkMode)}`}
+      onClick={onSave}
+      data-primary-action
+      className={`flex-1 min-w-0 flex-wrap gap-x-1.5 px-3 ${BAR_BUTTON} max-[259px]:h-auto max-[259px]:min-h-12 max-[259px]:py-1 max-[259px]:leading-tight ${actionClass('primary', isDarkMode)}`}
     >
-      Save Match {matchNumber} · {formatPoints(currentMatchTotal)}
+      <span>Save Match {matchNumber}</span> <span>({formatPoints(total)})</span>
     </button>
   );
 };

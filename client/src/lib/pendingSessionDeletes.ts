@@ -32,6 +32,7 @@ import {
   writeGuestSessions,
 } from './guestSessions';
 import { logger } from './logger';
+import { failureReason } from './failure';
 
 /** What is remembered across a reload for one waiting delete. */
 interface StoredDelete {
@@ -195,7 +196,10 @@ const run = async (entry: PendingDelete): Promise<void> => {
     deleted = true;
   } catch (error) {
     logger.error('Error deleting session', error);
-    toast.error(`Failed to delete "${entry.name}"`);
+    // The session is back in every list, so nothing is lost.
+    toast.error(`Couldn't delete "${entry.name}"`, {
+      description: failureReason(error),
+    });
   } finally {
     // Other windows drop the session from their lists on this write, and
     // stop hiding it on the next.

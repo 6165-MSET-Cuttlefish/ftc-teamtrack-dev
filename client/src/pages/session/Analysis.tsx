@@ -9,6 +9,7 @@ import {
   type MatchEdit,
 } from '@/services/matchEdits';
 import {
+  failureReason,
   generateShareableLink,
   copyShareLink,
   calculateTotal,
@@ -560,9 +561,10 @@ const Analysis = () => {
         // It may be a new link: Stop sharing now has one more to take down.
         setShareLinksTick(tick => tick + 1);
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Failed to generate share link'
-        );
+        logger.error('Error making share link', err);
+        toast.error("Couldn't make a share link", {
+          description: failureReason(err),
+        });
       } finally {
         copyingRef.current = false;
         setIsCopyingLink(false);
@@ -639,13 +641,8 @@ const Analysis = () => {
       }
     } catch (error) {
       logger.error('Error removing share links', error);
-      toast.error('Failed to remove share links', {
-        // Firestore errors carry a code; anything else is one of our own
-        // messages, written to be shown.
-        description:
-          error instanceof Error && !('code' in error)
-            ? error.message
-            : undefined,
+      toast.error("Couldn't stop sharing", {
+        description: failureReason(error),
       });
     } finally {
       setIsRevoking(false);
@@ -705,9 +702,12 @@ const Analysis = () => {
                 toast.success(`Match ${removed.match.matchNumber} restored`);
               } catch (error) {
                 logger.error('Error restoring match', error);
-                toast.error('Failed to restore match', {
-                  description: matchEditFailure(error),
-                });
+                toast.error(
+                  `Couldn't restore Match ${removed.match.matchNumber}`,
+                  {
+                    description: matchEditFailure(error),
+                  }
+                );
               }
             },
           },
@@ -715,7 +715,7 @@ const Analysis = () => {
       );
     } catch (error) {
       logger.error('Error deleting match', error);
-      toast.error('Failed to delete match', {
+      toast.error("Couldn't delete the match", {
         description: matchEditFailure(error),
       });
     } finally {
@@ -738,7 +738,7 @@ const Analysis = () => {
           matchId: editingMatch.id,
           changes: matchData,
         });
-        toast.success('Match updated successfully');
+        toast.success(`Match ${editingMatch.matchNumber} updated`);
       } else {
         const matchId = newMatchId();
         const { matches } = await applyEdit(sessionId, {
@@ -761,7 +761,7 @@ const Analysis = () => {
           setActiveTab('matches');
           const points = matchScore(added, sessionData.matchType);
           toast.success(
-            `Match ${added.matchNumber} added · ${points} ${points === 1 ? 'pt' : 'pts'}`,
+            `Match ${added.matchNumber} added: ${points} ${points === 1 ? 'pt' : 'pts'}`,
             {
               duration: UI_TIMING.UNDO_WINDOW,
               action: {
@@ -772,7 +772,7 @@ const Analysis = () => {
                     toast.message(`Match ${added.matchNumber} removed`);
                   } catch (error) {
                     logger.error('Error undoing added match', error);
-                    toast.error('Failed to remove the match', {
+                    toast.error(`Couldn't remove Match ${added.matchNumber}`, {
                       description: matchEditFailure(error),
                     });
                   }
@@ -787,7 +787,7 @@ const Analysis = () => {
     } catch (error) {
       // The form stays open with what was typed, so it can be tried again.
       logger.error('Error saving match', error);
-      toast.error('Failed to save match', {
+      toast.error("Couldn't save the match", {
         description: matchEditFailure(error),
       });
     } finally {
@@ -1268,7 +1268,7 @@ const Analysis = () => {
             to={ROUTES.CHARTS}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-team-blue underline-offset-4 hover:underline"
           >
-            Lifetime charts
+            Charts
             <ArrowRight size={16} aria-hidden />
           </Link>
         </div>

@@ -15,6 +15,7 @@ import {
   FIELD_LIMITS,
   POINTS,
   calculateScore,
+  failureReason,
   emptyScoringFields,
   includesAuto,
   includesTeleop,
@@ -36,7 +37,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -45,6 +45,7 @@ import { toast } from 'sonner';
 import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
 import { Toggle } from './MatchEntry';
 import { ScoreField } from './ScoreField';
+import { LOCK_REASONS } from './useScoringLocks';
 
 interface MatchFormProps {
   isOpen: boolean;
@@ -273,7 +274,9 @@ export const MatchForm = ({
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error saving match', error);
-      toast.error('Failed to save match');
+      toast.error("Couldn't save the match", {
+        description: failureReason(error, { nothingChanged: true }),
+      });
     } finally {
       savingRef.current = false;
     }
@@ -281,11 +284,16 @@ export const MatchForm = ({
 
   const mutedTone = isDarkMode ? 'text-gray-400' : 'text-gray-600';
 
-  /** Which toggles this match type leaves out, said once for the section */
+  /**
+   * Which toggles this match type leaves out, said once for the section in
+   * the live page's words
+   */
   const periodNote = !hasAuto
-    ? `No Leave or Auto park in a ${matchType} match`
+    ? LOCK_REASONS.noAuto
     : !hasTeleop
-      ? `No End park${flowersShown ? '' : ' or flowers'} in an ${matchType} match`
+      ? flowersShown
+        ? LOCK_REASONS.noEndPark
+        : LOCK_REASONS.noEndParkOrFlowers
       : undefined;
 
   /** Only the toggles this match type can score: no dead columns */
@@ -398,11 +406,11 @@ export const MatchForm = ({
             {initialMatch ? (
               <>
                 <Pencil className="h-5 w-5 shrink-0" aria-hidden />
-                {/* Where it has to wrap, the type goes down whole, dot and
-                    all: never one word of it on a line of its own. */}
+                {/* Where it has to wrap, the type goes down whole:
+                    never one word of it on a line of its own. */}
                 <span>
                   Edit Match {initialMatch.matchNumber}{' '}
-                  <span className="whitespace-nowrap">· {matchType}</span>
+                  <span className="whitespace-nowrap">({matchType})</span>
                 </span>
               </>
             ) : (
@@ -412,11 +420,6 @@ export const MatchForm = ({
               </>
             )}
           </DialogTitle>
-          <DialogDescription className="sr-only">
-            {initialMatch
-              ? 'Change what was scored in this match, then update it.'
-              : 'Enter what was scored in the new match.'}
-          </DialogDescription>
         </DialogHeader>
 
         {/*
@@ -504,7 +507,7 @@ export const MatchForm = ({
 
           <Section
             title="Robots"
-            note={`Leave ${POINTS.LEAVE} pts · Park ${POINTS.PARK} pts each`}
+            note={`Leave ${POINTS.LEAVE} pts and Park ${POINTS.PARK} pts each`}
           >
             {/*
               Rows as on the scoring page. Its own width picks the labels (a
@@ -604,7 +607,7 @@ export const MatchForm = ({
           {showFouls && (
             <Section
               title="Fouls"
-              note="Credited to the opponent · not off your score"
+              note="Goes to the opponent, not off your score"
             >
               <ScoreField
                 {...stepperProps}

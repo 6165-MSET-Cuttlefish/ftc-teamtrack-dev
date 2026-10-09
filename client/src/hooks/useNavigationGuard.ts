@@ -103,8 +103,7 @@ export const useNavigationGuard = (
     askBefore?: readonly string[];
   } = {}
 ) => {
-  const msg =
-    message ?? 'You have unsaved changes. Are you sure you want to leave?';
+  const msg = message ?? "What you changed here isn't saved yet.";
   const navigate = useNavigate();
   const location = useLocation();
 

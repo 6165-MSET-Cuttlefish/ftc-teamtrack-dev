@@ -17,6 +17,10 @@ import { isArchived } from '@/lib/sessionFilters';
 const plural = (count: number, noun: string) =>
   `${count} ${noun}${count !== 1 ? 's' : ''}`;
 
+/** An invite code no team has (any more): reset, or the team deleted */
+const INVITE_GONE =
+  'This invite link no longer works. Ask a teammate for a new one.';
+
 const JoinTeam = () => {
   const { inviteCode } = useParams<{ inviteCode: string }>();
   const { user, loading: authLoading } = useAuth();
@@ -40,9 +44,11 @@ const JoinTeam = () => {
   const [resolvedCode, setResolvedCode] = useState<string>('');
   /** Asking whether to leave the current team for the invited one */
   const [confirmSwitch, setConfirmSwitch] = useState(false);
+  /** The card's title: it takes the focus when the card's buttons go */
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    document.title = `Join Team - ${APP_CONFIG.name}`;
+    document.title = `Join team - ${APP_CONFIG.name}`;
   }, []);
 
   useEffect(() => {
@@ -69,7 +75,9 @@ const JoinTeam = () => {
 
     if (!codeToUse) {
       setStatus('error');
-      setErrorMessage('No invite code provided');
+      setErrorMessage(
+        'This link has no invite code. Ask a teammate to send the invite link again.'
+      );
       return;
     }
 
@@ -89,7 +97,7 @@ const JoinTeam = () => {
         } else {
           clearPendingInvite();
           setStatus('error');
-          setErrorMessage('Invalid invite code. Please check the link and try again.');
+          setErrorMessage(INVITE_GONE);
         }
       } catch {
         setStatus('error');
@@ -145,7 +153,7 @@ const JoinTeam = () => {
       if (result.status === 'invalid') {
         clearPendingInvite();
         setStatus('error');
-        setErrorMessage('Invalid invite code. Please check the link and try again.');
+        setErrorMessage(INVITE_GONE);
         return;
       }
 
@@ -171,7 +179,9 @@ const JoinTeam = () => {
       navigate(ROUTES.SESSIONS, { replace: true });
     } catch {
       setStatus('error');
-      setErrorMessage('Failed to join team. The invite code may be invalid or expired.');
+      setErrorMessage(
+        "Couldn't join the team. Check your connection, then reload the page."
+      );
     }
   };
 
@@ -226,6 +236,16 @@ const JoinTeam = () => {
   // The invite is read against the team the user is in, so that is waited
   // for: the card differs for someone already in this team, or in another.
   const view = status === 'preview' && teamLoading ? 'loading' : status;
+
+  // Each step of the card replaces the buttons of the one before (and Share
+  // is disabled while it runs): where focus fell to the page, the new
+  // title takes it.
+  useEffect(() => {
+    if (sharing) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    headingRef.current?.focus();
+  }, [view, sharing]);
   const alreadyMember = !!team && team.id === teamId;
   const currentTeam = team && team.id !== teamId ? team : null;
   /** What leaving the current team to take this invite would do to it */
@@ -240,7 +260,7 @@ const JoinTeam = () => {
    */
   const primaryButton = `bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`;
   /** The card is the page: its title is the page's h1 */
-  const heading = `${PAGE_TITLE_CLASS} mb-2 text-balance`;
+  const heading = `${PAGE_TITLE_CLASS} mb-2 text-balance focus:outline-none`;
   const hasShareable = !!shareableSessions && shareableSessions.length > 0;
 
   /**
@@ -304,7 +324,7 @@ const JoinTeam = () => {
           >
             {selectedSessionIds.size > 0 && <Share2 className="h-4 w-4" />}
             {sharing
-              ? 'Sharing...'
+              ? 'Sharing…'
               : selectedSessionIds.size === 0
                 ? 'Select sessions to share'
                 : `Share ${plural(selectedSessionIds.size, 'session')}`}
@@ -354,12 +374,13 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
               <div className="h-8 w-8 border-[3px] border-team-blue border-t-transparent rounded-full animate-spin" />
             </div>
-            <h1 className={heading}>
-              {view === 'joining' ? 'Joining team...' : 'Looking up team...'}
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              {view === 'joining'
+                ? teamName
+                  ? `Joining ${teamName}…`
+                  : 'Joining team…'
+                : 'Opening invite…'}
             </h1>
-            <p className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              {view === 'joining' ? 'Please wait while we add you to the team.' : 'Verifying invite code...'}
-            </p>
           </>
         )}
 
@@ -368,7 +389,9 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
               <Users className="h-8 w-8 text-team-blue" />
             </div>
-            <h1 className={heading}>You're already in {teamName}</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              You're already in {teamName}
+            </h1>
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
               This invite is for the team you're in, so there's nothing to
               join.
@@ -395,7 +418,7 @@ const JoinTeam = () => {
                   className={rowButton}
                 >
                   <Share2 className="h-4 w-4" />
-                  {loadingShareable ? 'Loading...' : 'Share more sessions'}
+                  {loadingShareable ? 'Loading…' : 'Share more sessions'}
                 </Button>
               )
             )}
@@ -409,7 +432,9 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
               <Users className="h-8 w-8 text-team-blue" />
             </div>
-            <h1 className={heading}>Join {teamName}?</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              Join {teamName}?
+            </h1>
             <p className={`mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
               You've been invited to join this team.
             </p>
@@ -470,7 +495,7 @@ const JoinTeam = () => {
                 className={`text-green-500 ${hasShareable ? 'h-6 w-6' : 'h-8 w-8'}`}
               />
             </div>
-            <h1 className={heading}>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
               {hasShareable
                 ? `Share your sessions with ${teamName}?`
                 : `You're in ${teamName}`}
@@ -508,7 +533,9 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-red-500/15 flex items-center justify-center mb-6">
               <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
-            <h1 className={heading}>Unable to Join</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              Couldn't join
+            </h1>
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
               {errorMessage}
             </p>

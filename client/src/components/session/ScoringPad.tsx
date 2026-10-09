@@ -26,7 +26,7 @@ import { toggleOffClass, toggleOnClass } from './toggleTone';
 import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
 import { useMatchEntry } from './useMatchEntry';
 import { usePenaltyCounters } from './usePenaltyCounters';
-import { START_FIRST, useScoringLocks } from './useScoringLocks';
+import { LOCK_REASONS, START_FIRST, useScoringLocks } from './useScoringLocks';
 
 /**
  * Scoring on a full-size screen, laid out around how a match is watched.
@@ -162,7 +162,9 @@ const TipsPad = () => {
             <kbd
               aria-hidden
               title={`Shortcut: press ${TIP_SHORTCUT} to add a Hive Tip`}
-              className="rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 opacity-70 [@media(pointer:coarse)]:hidden"
+              // Faded only where that still reads: white on the light
+              // theme's filled pad is under 4.5:1 at anything less than full
+              className={`rounded border border-current px-1.5 font-sans text-xs font-semibold leading-5 [@media(pointer:coarse)]:hidden ${isDarkMode ? 'opacity-70' : ''}`}
             >
               {TIP_SHORTCUT}
             </kbd>
@@ -212,7 +214,8 @@ const TipsPad = () => {
         onClick={() =>
           blocked ? blockedPress() : handleTipping(Math.max(0, value - 1))
         }
-        aria-label={`Decrease ${ELEMENT_LABELS.tipping}`}
+        // Named by what it shows, as the pad is by its "+1 Tip"
+        aria-label="−1 Tip"
         title="Take one tip off"
         className={`col-start-1 row-start-1 flex w-11 shrink-0 items-center justify-center self-stretch rounded-xl border-2 text-base font-bold tabular-nums select-none touch-manipulation transition-[background-color,transform] duration-150 ease-out ${minus}`}
       >
@@ -365,18 +368,15 @@ export const ScoringPad = () => {
   // Start it is what AUTO says, as the match starts with that lock.
   const robotsNote =
     endParkLocked && hasTeleop
-      ? {
-          locked: true,
-          text: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop or on pause`,
-        }
+      ? { locked: true, text: LOCK_REASONS.endParkWaits }
       : !hasAuto
-        ? { locked: false, text: 'Teleop match: no Auto scoring' }
+        ? { locked: false, text: LOCK_REASONS.noAuto }
         : !hasTeleop
           ? {
               locked: false,
               text: flowersShown
-                ? 'Autonomous match: no End park'
-                : 'Autonomous match: no End park or flowers',
+                ? LOCK_REASONS.noEndPark
+                : LOCK_REASONS.noEndParkOrFlowers,
             }
           : null;
 
@@ -493,7 +493,7 @@ export const ScoringPad = () => {
                   <Chip
                     on={r.leave}
                     label={ELEMENT_LABELS.leave}
-                    ariaLabel={`Robot ${r.id} leave`}
+                    ariaLabel={`Robot ${r.id} ${ELEMENT_LABELS.leave}`}
                     disabled={false}
                     describedBy={startFirstId}
                     blockedPress={blockedPress}
@@ -503,7 +503,7 @@ export const ScoringPad = () => {
                   <Chip
                     on={r.parkAuto}
                     label={ELEMENT_LABELS.parkAuto}
-                    ariaLabel={`Robot ${r.id} parked at end of auto`}
+                    ariaLabel={`Robot ${r.id} ${ELEMENT_LABELS.parkAuto}`}
                     disabled={false}
                     describedBy={startFirstId}
                     blockedPress={blockedPress}
@@ -516,7 +516,7 @@ export const ScoringPad = () => {
                 <Chip
                   on={r.parkEnd}
                   label={ELEMENT_LABELS.parkEnd}
-                  ariaLabel={`Robot ${r.id} parked at end of match`}
+                  ariaLabel={`Robot ${r.id} ${ELEMENT_LABELS.parkEnd}`}
                   disabled={endParkLocked}
                   describedBy={endParkLocked ? ids.robotsNote : startFirstId}
                   blockedPress={blockedPress}

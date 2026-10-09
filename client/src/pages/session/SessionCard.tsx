@@ -107,14 +107,9 @@ interface StatProps {
 
 /**
  * One number about a session. On a phone the stats run together as a line
- * of text ("Best 142 · 6 matches · avg 131 · 48:12"), each one kept whole
- * when the line wraps; from 640px each sits in its own cell with an icon and
- * its label above it.
- *
- * The dot before each stat is drawn in the gap the stat's own left padding
- * makes. The line is pulled left by that much inside a box that clips, so
- * the dot of whichever stat starts a line is cut off: a wrapped line never
- * starts with a dot, and none is left dangling at the end of one.
+ * of text ("Best 142   6 matches   avg 131   48:12"), set apart by space
+ * alone and each one kept whole when the line wraps; from 640px each sits in
+ * its own cell with an icon and its label above it.
  */
 const Stat = ({
   icon: Icon,
@@ -151,9 +146,7 @@ const Stat = ({
 
   return (
     <div
-      className={`${wideOnly ? 'hidden' : ''} relative whitespace-nowrap pl-3 before:absolute before:left-[5px] before:top-1/2 before:h-[3px] before:w-[3px] before:-translate-y-1/2 before:rounded-full ${
-        isDarkMode ? 'before:bg-gray-500' : 'before:bg-gray-400'
-      } sm:flex sm:items-center sm:gap-2 sm:whitespace-normal sm:pl-0 sm:before:hidden ${className}`}
+      className={`${wideOnly ? 'hidden' : ''} whitespace-nowrap sm:flex sm:items-center sm:gap-2 sm:whitespace-normal ${className}`}
     >
       <Icon
         aria-hidden="true"
@@ -221,6 +214,20 @@ export const SessionCard = ({
   /** What a menu item opened, which gets the focus the closing menu would take back */
   const focusAfterMenu = useRef<RefObject<HTMLElement | null> | null>(null);
   const savingName = useRef(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  /**
+   * Set when the name field still has the focus as the rename ends (Enter
+   * or Escape): the field goes, so the focus goes back to the card's menu
+   * rather than to the page. A rename ended by clicking elsewhere leaves
+   * the focus where the click put it.
+   */
+  const refocusMenu = useRef(false);
+
+  useEffect(() => {
+    if (isEditing || isSavingName || !refocusMenu.current) return;
+    refocusMenu.current = false;
+    menuButtonRef.current?.focus();
+  }, [isEditing, isSavingName]);
 
   useEffect(() => {
     if (titleRef.current && !isEditing) {
@@ -237,6 +244,9 @@ export const SessionCard = ({
   const handleSaveName = async () => {
     // Enter saves, and so does the blur that follows it: once is enough.
     if (savingName.current) return;
+    if (document.activeElement === nameInputRef.current) {
+      refocusMenu.current = true;
+    }
     const trimmed = editedName.trim();
     if (!trimmed) {
       toast.error('Session name cannot be empty');
@@ -261,8 +271,29 @@ export const SessionCard = ({
   };
 
   const handleCancelEdit = () => {
+    if (document.activeElement === nameInputRef.current) {
+      refocusMenu.current = true;
+    }
     setEditedName(session.sessionName || '');
     setIsEditing(false);
+  };
+
+  /**
+   * Archive and Delete take the card away, its menu button with it: the
+   * focus goes on to the next card's menu (the one before, for the last
+   * card), or to the list's heading once no card is left.
+   */
+  const passFocusOn = () => {
+    const menus = [
+      ...document.querySelectorAll<HTMLElement>('[data-session-menu]'),
+    ];
+    const at = menuButtonRef.current
+      ? menus.indexOf(menuButtonRef.current)
+      : -1;
+    const next =
+      (at === -1 ? undefined : (menus[at + 1] ?? menus[at - 1])) ??
+      document.querySelector<HTMLElement>('[data-session-list-heading]');
+    focusAfterMenu.current = { current: next };
   };
 
   const startRename = () => {
@@ -393,8 +424,10 @@ export const SessionCard = ({
               <DropdownMenuTrigger asChild>
                 {/* Centred on the name's first line, taking no more height than it */}
                 <button
+                  ref={menuButtonRef}
                   type="button"
                   aria-label={`More actions for ${name}`}
+                  data-session-menu
                   onClick={stop}
                   className={`-mr-2 -my-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-team-blue/20 hover:text-team-blue [@media(pointer:coarse)]:-my-2.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 ${
                     isDarkMode ? 'text-team-white-60' : 'text-gray-500'
@@ -451,7 +484,10 @@ export const SessionCard = ({
                 )}
                 {onToggleArchive && (
                   <DropdownMenuItem
-                    onSelect={settled(onToggleArchive)}
+                    onSelect={settled(() => {
+                      passFocusOn();
+                      onToggleArchive();
+                    })}
                     className={MENU_ITEM}
                   >
                     {archived ? (
@@ -465,7 +501,10 @@ export const SessionCard = ({
                 {/* Deleted at once: the toast's Undo brings it back */}
                 {onDelete && (
                   <DropdownMenuItem
-                    onSelect={settled(onDelete)}
+                    onSelect={settled(() => {
+                      passFocusOn();
+                      onDelete();
+                    })}
                     className={`${MENU_ITEM} text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -537,7 +576,7 @@ export const SessionCard = ({
         </div>
 
         <div className="overflow-hidden">
-          <div className="-ml-3 flex flex-wrap gap-y-0.5 text-sm sm:ml-0 sm:grid sm:grid-cols-3 sm:items-start sm:gap-x-3 sm:gap-y-3">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm sm:grid sm:grid-cols-3 sm:items-start sm:gap-y-3">
             <Stat
               icon={Trophy}
               label="Best"
@@ -546,7 +585,7 @@ export const SessionCard = ({
               // Nothing scored, nothing to lead the phone's line with.
               wideOnly={highestScore === null}
             >
-              {highestScore ?? '–'}
+              {highestScore ?? 'None'}
               {highestScore !== null && (
                 <span className="hidden sm:inline"> pts</span>
               )}
@@ -565,7 +604,7 @@ export const SessionCard = ({
               // An empty session has no average to put in the phone's line.
               wideOnly={averageScore === null}
             >
-              {averageScore ?? '–'}
+              {averageScore ?? 'None'}
               {averageScore !== null && (
                 <span className="hidden sm:inline"> pts</span>
               )}

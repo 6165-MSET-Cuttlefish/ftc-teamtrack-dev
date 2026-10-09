@@ -86,12 +86,15 @@ export const StaleSessionNotice = () => {
       >
         {sessionData.sessionName || 'This session'} from {date} is still open
       </p>
-      <div className="flex shrink-0 gap-2">
+      {/* Too narrow for both buttons side by side (a 320px phone, or 200%
+          zoom): each takes its own full-width line instead of running off
+          the card */}
+      <div className="flex min-w-0 flex-wrap gap-2">
         <button
           type="button"
           onKeyDown={ignoreHeldEnter}
           onClick={keep}
-          className={`min-h-11 px-4 rounded-xl text-sm ${actionClass('neutral', isDarkMode)}`}
+          className={`min-h-11 grow px-4 rounded-xl text-sm ${actionClass('neutral', isDarkMode)}`}
         >
           Continue
         </button>
@@ -100,7 +103,7 @@ export const StaleSessionNotice = () => {
           onKeyDown={ignoreHeldEnter}
           onClick={handleFinishAndStartNew}
           disabled={loading}
-          className={`min-h-11 px-4 rounded-xl text-sm ${actionClass('neutral', isDarkMode)}`}
+          className={`min-h-11 grow px-4 rounded-xl text-sm ${actionClass('neutral', isDarkMode)}`}
         >
           {loading
             ? 'Saving…'

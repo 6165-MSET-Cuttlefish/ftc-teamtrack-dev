@@ -245,12 +245,11 @@ export const saveSessionToStorage = (
     // toast would keep it over the header for as long as the user scores.
     if (!storageFailureShown) {
       storageFailureShown = true;
-      toast.error(
-        'Unable to save session data locally. Your browser storage may be full.',
-        {
-          id: 'storage-full',
-        }
-      );
+      toast.error('This browser has stopped saving your scores', {
+        id: 'storage-full',
+        description:
+          'Save the match and complete the session before reloading.',
+      });
     }
     return null;
   }
@@ -275,7 +274,7 @@ const readSessionData = (
       if (hadData) {
         setTimeout(() => {
           toast.warning(
-            'Your in-progress session was cleared due to an app update. Sorry for the inconvenience!',
+            "An app update couldn't read your unfinished session, so it was cleared.",
             { duration: 8000 }
           );
         }, 1000);
