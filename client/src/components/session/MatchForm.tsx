@@ -45,7 +45,7 @@ import { toast } from 'sonner';
 import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
 import { Toggle } from './MatchEntry';
 import { ScoreField } from './ScoreField';
-import { LOCK_REASONS } from './useScoringLocks';
+import { LOCK_REASONS, autonomousNote, countersShown } from './useScoringLocks';
 
 interface MatchFormProps {
   isOpen: boolean;
@@ -77,14 +77,18 @@ interface MatchFormProps {
 const Section = ({
   title,
   note,
+  hidden = false,
   children,
 }: {
   title: string;
   /** One muted line beside the title: what the section's entries are worth */
   note?: string;
+  /** Left out, with its title: it has nothing to show */
+  hidden?: boolean;
   children: React.ReactNode;
 }) => {
   const { isDarkMode } = useTheme();
+  if (hidden) return null;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
@@ -205,6 +209,13 @@ export const MatchForm = ({
       ? formOf(initialMatch)
       : blankForm(defaultMatchType, defaultRobotCount)
   );
+  /**
+   * The counts in the form when its match type was last changed: an
+   * Autonomous match keeps showing those it had, to be fixed (see
+   * `countersShown`)
+   */
+  const [countedAtTypeChange, setCountedAtTypeChange] =
+    useState<Partial<Match>>();
 
   useEffect(() => {
     if (initialMatch) {
@@ -213,7 +224,10 @@ export const MatchForm = ({
       setFormData(blankForm(defaultMatchType, defaultRobotCount));
     }
     // Each opening starts with every rule closed.
-    if (isOpen) setInfoOpen(null);
+    if (isOpen) {
+      setInfoOpen(null);
+      setCountedAtTypeChange(undefined);
+    }
   }, [initialMatch, isOpen, defaultMatchType, defaultRobotCount]);
 
   const setField = <K extends keyof MatchScoringFields>(
@@ -227,14 +241,19 @@ export const MatchForm = ({
   /** One robot row, or two, as on the scoring page */
   const robots = robotsOf(formData);
   /**
-   * The flower counters, where flowers can score, as on the scoring page:
-   * not in an Autonomous-only match, unless it has some to fix (saved with
-   * them, or counted before the type was changed here).
+   * The end-of-match counters, where they can score, as on the scoring
+   * page: not in an Autonomous-only match, unless it has some to fix (saved
+   * with them, or counted before the type was changed here). Those stay
+   * while the form is open, at 0 too.
    */
-  const flowersShown =
-    hasTeleop ||
-    (initialMatch?.flower ?? 0) + (initialMatch?.flowerBonus ?? 0) > 0 ||
-    (formData.flower ?? 0) + (formData.flowerBonus ?? 0) > 0;
+  const shown = countersShown(
+    hasTeleop,
+    initialMatch,
+    countedAtTypeChange,
+    formData
+  );
+  const flowersShown = shown.flowers;
+  const hiveGardenShown = shown.hiveGarden;
 
   /** One robot clears a second robot's LEAVE and PARK, as the session menu does */
   const setRobotCount = (robotCount: RobotCount) =>
@@ -291,9 +310,7 @@ export const MatchForm = ({
   const periodNote = !hasAuto
     ? LOCK_REASONS.noAuto
     : !hasTeleop
-      ? flowersShown
-        ? LOCK_REASONS.noEndPark
-        : LOCK_REASONS.noEndParkOrFlowers
+      ? autonomousNote(shown)
       : undefined;
 
   /** Only the toggles this match type can score: no dead columns */
@@ -435,9 +452,10 @@ export const MatchForm = ({
             </Label>
             <Select
               value={formData.matchType || 'Full Game'}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, matchType: value }))
-              }
+              onValueChange={value => {
+                setCountedAtTypeChange(formData);
+                setFormData(prev => ({ ...prev, matchType: value }));
+              }}
             >
               <SelectTrigger
                 id="matchType"
@@ -562,7 +580,11 @@ export const MatchForm = ({
             )}
           </Section>
 
-          <Section title="End of Match">
+          {/* An Autonomous match has none of its counters to show */}
+          <Section
+            title="End of Match"
+            hidden={!flowersShown && !hiveGardenShown}
+          >
             <div className="space-y-3">
               {/*
                 Each counter under its own name, as on the scoring page: the
@@ -587,20 +609,22 @@ export const MatchForm = ({
                   breakdown.flowerBonus,
                   <FlowerSlots nectar="bottom" />
                 )}
-              {counter(
-                'ballsInHive',
-                'hive',
-                ids.hiveLine,
-                'left-in-hive',
-                breakdown.hive
-              )}
-              {counter(
-                'garden',
-                'garden',
-                ids.gardenLine,
-                'garden',
-                breakdown.garden
-              )}
+              {hiveGardenShown &&
+                counter(
+                  'ballsInHive',
+                  'hive',
+                  ids.hiveLine,
+                  'left-in-hive',
+                  breakdown.hive
+                )}
+              {hiveGardenShown &&
+                counter(
+                  'garden',
+                  'garden',
+                  ids.gardenLine,
+                  'garden',
+                  breakdown.garden
+                )}
             </div>
           </Section>
 

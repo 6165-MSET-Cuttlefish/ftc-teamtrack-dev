@@ -1,4 +1,5 @@
 import { useSessionCore } from '@/contexts';
+import type { MatchScoringFields } from '@/types';
 import {
   ELEMENT_LABELS,
   includesAuto,
@@ -25,9 +26,52 @@ export const LOCK_REASONS = {
   noEndPark: `No ${ELEMENT_LABELS.parkEnd} in an Autonomous match`,
   /** The same, where its flower counters are left out too */
   noEndParkOrFlowers: `No ${ELEMENT_LABELS.parkEnd} or flowers in an Autonomous match`,
+  /** The same, where every end-of-match counter is left out */
+  noEndParkOrCounts: `No ${ELEMENT_LABELS.parkEnd}, flowers, ${ELEMENT_LABELS.hive} or ${ELEMENT_LABELS.garden} in an Autonomous match`,
   /** During AUTO (and before Start, as the match starts in AUTO) */
   endParkWaits: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop or on pause`,
 } as const;
+
+/** The end-of-match counters in their pairs, as they are laid out */
+const COUNTER_PAIRS = {
+  flowers: ['flower', 'flowerBonus'],
+  hiveGarden: ['ballsInHive', 'garden'],
+} as const;
+
+/** Which pairs of end-of-match counters a match shows */
+export interface CountersShown {
+  /** Owned flower pieces and Flower nectar at bottom */
+  flowers: boolean;
+  /** Left in Hive and Garden */
+  hiveGarden: boolean;
+}
+
+/**
+ * The end-of-match counters a match has, a pair at a time. AUTO scores none
+ * of them, so an Autonomous-only match leaves them out, unless one of
+ * `counted` (the match as saved, the counts in the fields) has some of a
+ * pair: those stay, to be seen and fixed, as nothing counted is ever hidden.
+ */
+export const countersShown = (
+  hasTeleop: boolean,
+  ...counted: Array<Partial<MatchScoringFields> | undefined>
+): CountersShown => {
+  const shown = (keys: readonly (keyof MatchScoringFields)[]) =>
+    hasTeleop ||
+    counted.some(fields => keys.some(key => Number(fields?.[key] ?? 0) > 0));
+  return {
+    flowers: shown(COUNTER_PAIRS.flowers),
+    hiveGarden: shown(COUNTER_PAIRS.hiveGarden),
+  };
+};
+
+/** What an Autonomous match leaves out, said once over its robot rows */
+export const autonomousNote = (shown: CountersShown): string =>
+  !shown.flowers && !shown.hiveGarden
+    ? LOCK_REASONS.noEndParkOrCounts
+    : !shown.flowers
+      ? LOCK_REASONS.noEndParkOrFlowers
+      : LOCK_REASONS.noEndPark;
 
 /**
  * Which scoring inputs on /active are open right now.
@@ -96,6 +140,8 @@ export const useScoringLocks = () => {
 
   return {
     editing,
+    /** The saved match open for editing, as it was saved */
+    edited,
     matchType,
     robots,
     /** The fields being scored, tagged with the match type they belong to */

@@ -26,7 +26,12 @@ import { toggleOffClass, toggleOnClass } from './toggleTone';
 import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
 import { useMatchEntry } from './useMatchEntry';
 import { usePenaltyCounters } from './usePenaltyCounters';
-import { LOCK_REASONS, START_FIRST, useScoringLocks } from './useScoringLocks';
+import {
+  LOCK_REASONS,
+  START_FIRST,
+  autonomousNote,
+  useScoringLocks,
+} from './useScoringLocks';
 
 /**
  * Scoring on a full-size screen, laid out around how a match is watched.
@@ -291,7 +296,10 @@ const ROBOT_COLUMNS: Record<number, string> = {
   3: 'grid-cols-[3rem_repeat(3,minmax(0,1fr))]',
 };
 
-/** The two counters only a match with flowers in it has (see `flowersShown`) */
+/**
+ * The flower pair of counters (see `flowersShown`); the other pair is Left
+ * in Hive and Garden (see `hiveGardenShown`)
+ */
 const FLOWER_KEYS: readonly string[] = ['flower', 'flowerBonus'];
 
 export const ScoringPad = () => {
@@ -315,6 +323,7 @@ export const ScoringPad = () => {
     startFirstId,
     robots,
     flowersShown,
+    hiveGardenShown,
   } = entry;
   const foulsShown = fouls.shown;
 
@@ -363,9 +372,10 @@ export const ScoringPad = () => {
 
   // The rows show only what the match type scores (no dead chips): a
   // Teleop match has no Leave or Park (Auto), an Autonomous one no Park
-  // (End), nor flowers. What is locked, or why something is missing, is one
-  // line over the rows, kept in every state so they never move. Before
-  // Start it is what AUTO says, as the match starts with that lock.
+  // (End), nor end-of-match counters. What is locked, or why something is
+  // missing, is one line over the rows, kept in every state so they never
+  // move. Before Start it is what AUTO says, as the match starts with that
+  // lock.
   const robotsNote =
     endParkLocked && hasTeleop
       ? { locked: true, text: LOCK_REASONS.endParkWaits }
@@ -374,9 +384,10 @@ export const ScoringPad = () => {
         : !hasTeleop
           ? {
               locked: false,
-              text: flowersShown
-                ? LOCK_REASONS.noEndPark
-                : LOCK_REASONS.noEndParkOrFlowers,
+              text: autonomousNote({
+                flowers: flowersShown,
+                hiveGarden: hiveGardenShown,
+              }),
             }
           : null;
 
@@ -613,11 +624,14 @@ export const ScoringPad = () => {
           their neighbours too.
         */}
         {/* The walkthrough spotlights the fields, not the note over them,
-            which is empty while it runs */}
+            which is empty while it runs. An Autonomous match has none to
+            show (see `useMatchEntry`): then there is nothing to spotlight. */}
         <div
-          data-tutorial="end-of-match"
-          className={`grid grid-cols-2 gap-x-4 gap-y-1.5 lg:gap-x-5 ${
-            flowersShown ? 'lg:grid-cols-4' : ''
+          data-tutorial={
+            flowersShown || hiveGardenShown ? 'end-of-match' : undefined
+          }
+          className={`grid grid-cols-2 gap-x-4 gap-y-1.5 empty:hidden lg:gap-x-5 ${
+            flowersShown && hiveGardenShown ? 'lg:grid-cols-4' : ''
           }`}
         >
           {(
@@ -663,7 +677,9 @@ export const ScoringPad = () => {
               },
             ] as const
           )
-            .filter(c => flowersShown || !FLOWER_KEYS.includes(c.key))
+            .filter(c =>
+              FLOWER_KEYS.includes(c.key) ? flowersShown : hiveGardenShown
+            )
             .map(c => {
               const which = 'info' in c ? c.info : c.key;
               return (
@@ -672,9 +688,11 @@ export const ScoringPad = () => {
                   role="group"
                   aria-labelledby={c.headId}
                   className={`row-span-3 grid grid-rows-subgrid ${
-                    !flowersShown || FLOWER_KEYS.includes(c.key)
-                      ? ''
-                      : 'md:max-lg:mt-3'
+                    flowersShown &&
+                    hiveGardenShown &&
+                    !FLOWER_KEYS.includes(c.key)
+                      ? 'md:max-lg:mt-3'
+                      : ''
                   }`}
                 >
                   <div>

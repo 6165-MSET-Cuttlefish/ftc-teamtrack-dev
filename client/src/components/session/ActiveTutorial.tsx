@@ -13,12 +13,16 @@ import {
   TUTORIAL_ENDED_EVENT,
 } from '@/constants/events';
 import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
-import { POINTS } from '@/lib';
+import { ELEMENT_LABELS, POINTS } from '@/lib';
 import { nextMatchNumber } from '@/lib/matchNumber';
 import { setWalkthroughSession } from '@/lib/signOutLoss';
 import { formatTime } from '@/lib/utils';
 import type { MatchPhase, SessionFormData } from '@/types';
-import { useActiveCompact } from './layout/useActiveCompact';
+import {
+  useActiveCompact,
+  useActiveShort,
+  useActiveSideBySide,
+} from './layout/useActiveCompact';
 import {
   hasSeenTutorial as seenUnder,
   tutorialSeenKey,
@@ -59,6 +63,12 @@ interface StepContext {
   matchType: string;
   /** A Scrim, where penalties are counted */
   scrim: boolean;
+  /**
+   * Where a scrim's fouls are on a short screen (a phone on its side):
+   * over the robots beside the clock, after the End of Match counters
+   * under it. Null on a taller one.
+   */
+  shortFouls: 'over' | 'after' | null;
   /** No mouse, so nothing is clicked and there is no keyboard to press keys on */
   touch: boolean;
 }
@@ -124,7 +134,7 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'Score while you watch',
-    body: ({ compact, scrim, touch }) => (
+    body: ({ compact, scrim, shortFouls, touch }) => (
       <div className="space-y-2">
         <p>
           {compact
@@ -137,8 +147,14 @@ const STEPS: StepDef[] = [
           <Aside>
             Count your Minor ({POINTS.MINOR_PENALTY}) and Major (
             {POINTS.MAJOR_PENALTY}) fouls{' '}
-            {compact ? 'under the robots' : 'beside the robots'}: they go to the
-            opponent, never off your score.
+            {shortFouls === 'over'
+              ? 'under Hive Tips'
+              : shortFouls === 'after'
+                ? 'further down'
+                : compact
+                  ? 'under the robots'
+                  : 'beside the robots'}
+            : they go to the opponent, never off your score.
           </Aside>
         )}
       </div>
@@ -150,13 +166,19 @@ const STEPS: StepDef[] = [
   },
   {
     title: 'After the buzzer',
-    body: () => (
-      <p>
-        Count what&apos;s left on the field once play stops, then save. The (i)
-        beside each name has the full rule.
-      </p>
-    ),
+    // An Autonomous match has no End of Match counters, only its park to
+    // mark (see useMatchEntry): the robots instead.
+    body: ({ matchType }) =>
+      matchType === 'Autonomous' ? (
+        <p>At the buzzer, mark {ELEMENT_LABELS.parkAuto}, then save.</p>
+      ) : (
+        <p>
+          Count what&apos;s left on the field once play stops, then save. The
+          (i) beside each name has the full rule.
+        </p>
+      ),
     target: 'end-of-match',
+    fallbackTarget: 'robots',
   },
   {
     title: 'Save and finish',
@@ -316,6 +338,8 @@ export const ActiveTutorial = ({
 }) => {
   const { isDarkMode } = useTheme();
   const isCompactLayout = useActiveCompact();
+  const isShortLayout = useActiveShort();
+  const isSideBySide = useActiveSideBySide();
   const { user, isGuest, guestId, loading } = useAuth();
   const {
     sessionData,
@@ -1337,6 +1361,11 @@ export const ActiveTutorial = ({
               compact: isCompactLayout,
               matchType: sessionData.matchType,
               scrim: sessionData.sessionType === 'Scrim',
+              shortFouls: isSideBySide
+                ? 'over'
+                : isShortLayout
+                  ? 'after'
+                  : null,
               touch: window.matchMedia('(pointer: coarse)').matches,
             })}
           </div>

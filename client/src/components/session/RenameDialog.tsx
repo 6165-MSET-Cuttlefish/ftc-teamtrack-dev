@@ -118,7 +118,7 @@ export const RenameDialog = ({
               disabled={!hasName || saving}
               aria-busy={saving}
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? 'Saving…' : 'Save'}
             </Button>
           </div>
         </form>

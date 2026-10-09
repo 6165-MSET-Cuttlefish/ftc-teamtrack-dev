@@ -613,9 +613,62 @@ const parseMatches = (value: string | null | undefined): PickedMatch[] =>
   });
 
 /**
+ * The match types some sessions ran, with how many matches each, in the
+ * order they are offered.
+ */
+const typeCounts = (
+  sessions: Session[]
+): { value: string; label: string; count: number }[] => {
+  const counts = new Map<string, number>();
+  for (const session of sessions) {
+    for (const match of session.matches) {
+      const type = matchTypeOf(match, session);
+      counts.set(type, (counts.get(type) ?? 0) + 1);
+    }
+  }
+  const rank = (type: string) =>
+    MATCH_TYPES.includes(type) ? MATCH_TYPES.indexOf(type) : MATCH_TYPES.length;
+  return [...counts]
+    .map(([value, count]) => ({ value, label: value, count }))
+    .sort((a, b) => rank(a.value) - rank(b.value));
+};
+
+/** The type with the most matches (on a tie, the one offered first) */
+const mostMatchesType = (choices: { value: string; count: number }[]) =>
+  [...choices].sort((a, b) => b.count - a.count)[0]?.value;
+
+/**
+ * What a first visit compares: the newest session and the newest one
+ * before it that ran the type most of its matches are, so the first view
+ * compares two sessions rather than leaving one out; the two newest when no
+ * earlier session ran that type. `type` is that type when the pair's own
+ * most-matches type would still leave one of them out, otherwise null.
+ */
+const firstPick = (
+  sessions: Session[]
+): { sessions: string[]; type: string | null } => {
+  const [newest, ...older] = [...sessions].sort(byDateAscending).reverse();
+  if (!newest) return { sessions: [], type: null };
+  const type = mostMatchesType(typeCounts([newest]));
+  const ran = (session: Session) =>
+    session.matches.some(match => matchTypeOf(match, session) === type);
+  const partner = older.find(ran) ?? older[0];
+  if (!partner) return { sessions: [newest.id], type: null };
+  const shared = mostMatchesType(typeCounts([partner, newest]));
+  const bothRan = [partner, newest].every(session =>
+    session.matches.some(match => matchTypeOf(match, session) === shared)
+  );
+  return {
+    sessions: [partner.id, newest.id],
+    type: !bothRan && type && ran(partner) ? type : null,
+  };
+};
+
+/**
  * The last comparison made in this browser, by whom: the sessions (`s`),
  * matches (`m`) and mode, as the address holds them. A convenience: if it
- * can't be read or written, Compare opens on the two newest sessions.
+ * can't be read or written, Compare opens on the two newest sessions that
+ * share a match type.
  */
 const PICK_KEY = 'teamtrack-compare-pick';
 
@@ -677,10 +730,13 @@ const usePick = () => {
       sessions,
       matches,
       mode,
+      type,
     }: {
       sessions?: string[];
       matches?: PickedMatch[];
       mode?: CompareMode;
+      /** A match type to compare, when the most common one won't do */
+      type?: string;
     }) =>
       updateAddress({
         ...(sessions && {
@@ -690,6 +746,7 @@ const usePick = () => {
         }),
         ...(matches && { m: serializeMatches(matches) || null }),
         ...(mode && { mode: mode === 'matches' ? 'matches' : null }),
+        ...(type && { type: matchTypeParam(type) }),
       }),
     [updateAddress]
   );
@@ -817,9 +874,10 @@ const Compare = () => {
   /** This viewer's last pick, kept in this browser */
   const pickOwner = user?.uid ?? 'guest';
 
-  // The first visit compares the two newest sessions, and every later one
-  // what was compared last, unless the address names a pick (a link, or
-  // Back from a session). Only sessions still listed are picked again.
+  // The first visit compares the two newest sessions that share a match
+  // type (`firstPick`), and every later one what was compared last, unless
+  // the address names a pick (a link, or Back from a session). Only
+  // sessions still listed are picked again.
   const preselected = useRef(false);
   useEffect(() => {
     if (preselected.current || loading) return;
@@ -838,12 +896,10 @@ const Compare = () => {
       });
       return;
     }
-    const newest = comparableSessions
-      .filter(inScope)
-      .sort(byDateAscending)
-      .slice(-2)
-      .map(s => s.id);
-    if (newest.length > 0) setPick({ sessions: newest });
+    const first = firstPick(comparableSessions.filter(inScope));
+    if (first.sessions.length > 0) {
+      setPick({ sessions: first.sessions, type: first.type ?? undefined });
+    }
   }, [loading, named, comparableSessions, inScope, pickOwner, setPick]);
 
   // Whatever is compared now is what the next visit opens on
@@ -922,22 +978,10 @@ const Compare = () => {
   );
 
   /** The match types the picked sessions ran, with how many matches each. */
-  const typeChoices = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const session of pickedSessions) {
-      for (const match of session.matches) {
-        const type = matchTypeOf(match, session);
-        counts.set(type, (counts.get(type) ?? 0) + 1);
-      }
-    }
-    const rank = (type: string) =>
-      MATCH_TYPES.includes(type)
-        ? MATCH_TYPES.indexOf(type)
-        : MATCH_TYPES.length;
-    return [...counts]
-      .map(([value, count]) => ({ value, label: value, count }))
-      .sort((a, b) => rank(a.value) - rank(b.value));
-  }, [pickedSessions]);
+  const typeChoices = useMemo(
+    () => typeCounts(pickedSessions),
+    [pickedSessions]
+  );
 
   /**
    * The one match type compared, as on Charts: the one asked for while the
@@ -945,7 +989,7 @@ const Compare = () => {
    */
   const matchType =
     typeChoices.find(choice => choice.value === pickedType)?.value ??
-    [...typeChoices].sort((a, b) => b.count - a.count)[0]?.value ??
+    mostMatchesType(typeChoices) ??
     MATCH_TYPES[0];
 
   /**
@@ -1380,7 +1424,7 @@ const Compare = () => {
       >
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
-          <p className="text-sm text-team-blue">Loading sessions...</p>
+          <p className="text-sm text-team-blue">Loading sessions…</p>
         </div>
       </div>
     );
@@ -1549,7 +1593,7 @@ const Compare = () => {
         disabled={loadingOlder}
         className={`min-h-11 rounded-lg border px-5 text-sm font-semibold transition-colors disabled:opacity-60 ${isDarkMode ? 'border-team-blue-40 text-white hover:border-team-blue' : 'border-gray-300 text-gray-900 hover:border-gray-400'}`}
       >
-        {loadingOlder ? 'Loading older sessions...' : 'Show older sessions'}
+        {loadingOlder ? 'Loading older sessions…' : 'Show older sessions'}
       </button>
     </div>
   );

@@ -14,13 +14,17 @@ import { loadStoredSession, readSessionToken } from './sessionPersistence';
  *
  * A session not started yet goes too: notes typed before the first Start are
  * kept on this device like the rest of it, and are never wiped unasked.
+ *
+ * `completeOffered`: the question has its own "Complete session and sign
+ * out" button, so the sentence names the loss and leaves the remedy to it.
  */
 export const describeSignOutLoss = (
   sessionData: Pick<
     SessionFormData,
     'isSessionCompleted' | 'matches' | 'notes'
   >,
-  matchActive: boolean
+  matchActive: boolean,
+  completeOffered = false
 ): string | null => {
   if (sessionData.isSessionCompleted) return null;
   const saved = sessionData.matches?.length ?? 0;
@@ -32,7 +36,10 @@ export const describeSignOutLoss = (
 
   const savedMatches = `${saved} saved ${saved === 1 ? 'match' : 'matches'}`;
   if (!matchActive) {
-    return `Signing out discards this unsaved session and its ${savedMatches}. Complete the session to keep ${saved === 1 ? 'it' : 'them'}.`;
+    const loss = `Signing out discards this unsaved session and its ${savedMatches}.`;
+    return completeOffered
+      ? loss
+      : `${loss} Complete the session to keep ${saved === 1 ? 'it' : 'them'}.`;
   }
   // The match being scored is saved under the number /active gives it: one
   // past the highest saved, not the count (a deleted match leaves a gap).

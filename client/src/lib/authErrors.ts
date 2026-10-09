@@ -67,8 +67,7 @@ const MESSAGES: Record<string, Omit<AuthErrorInfo, 'code'>> = {
       'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.',
   },
   'auth/requires-recent-login': {
-    message:
-      'For security, please sign out and sign back in before making this change.',
+    message: 'Sign out and sign back in, then make this change again.',
   },
   'auth/user-mismatch': {
     message: 'That is a different account. Use the one you are signed in with.',

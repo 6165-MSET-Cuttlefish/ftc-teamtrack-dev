@@ -145,6 +145,14 @@ const SEARCH_TO_URL_MS = 300;
 const SCROLL_ENTRIES = 20;
 
 /**
+ * A button under the list or in its place when it is empty. At 200% zoom a
+ * phone is 195px across, narrower than 'Start your first session' on one
+ * line, so its label wraps rather than runs past the edge of the page.
+ */
+const WRAPPING_BUTTON =
+  'h-auto min-h-11 max-w-full whitespace-normal text-balance text-center';
+
+/**
  * Where the list was left: how far down it was scrolled, and how far back
  * it had been read (every session recorded after `through`, in ms; 0 for
  * all of them), so coming Back reads that far again before scrolling.
@@ -1626,7 +1634,7 @@ const Sessions = () => {
             <div className="flex-1 min-w-0">
               <p className={`font-semibold ${headingText}`}>
                 {importingGuestSessions
-                  ? `Moving ${plural(guestSessionCount, 'session')} from this browser into your account...`
+                  ? `Moving ${plural(guestSessionCount, 'session')} from this browser into your account…`
                   : `Import ${plural(guestSessionCount, 'session')} from this browser`}
               </p>
               <p className={`text-sm ${mutedText}`}>
@@ -1970,7 +1978,7 @@ const Sessions = () => {
                   >
                     {`Over the newest ${plural(filteredSessions.length, 'session')}.`}{' '}
                     {loadingOlder ? (
-                      'Reading older ones...'
+                      'Reading older ones…'
                     ) : (
                       <button
                         type="button"
@@ -2077,7 +2085,7 @@ const Sessions = () => {
               <Button
                 onClick={clearFilters}
                 variant="outline"
-                className={`min-h-11 ${
+                className={`${WRAPPING_BUTTON} ${
                   isDarkMode
                     ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
                     : 'border-gray-300'
@@ -2090,7 +2098,7 @@ const Sessions = () => {
               <Button
                 onClick={() => setShowArchived(!showArchived)}
                 variant="outline"
-                className={`min-h-11 ${
+                className={`${WRAPPING_BUTTON} ${
                   isDarkMode
                     ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
                     : 'border-gray-300'
@@ -2115,7 +2123,7 @@ const Sessions = () => {
                   variant="primary"
                   // The view's one fill: the header's New Session steps back
                   data-page-primary
-                  className="min-h-11"
+                  className={WRAPPING_BUTTON}
                 >
                   {!hasActiveSession && <Plus className="h-4 w-4" />}
                   {hasActiveSession
@@ -2128,7 +2136,7 @@ const Sessions = () => {
                 <Button
                   onClick={() => navigate(ROUTES.ACTIVE)}
                   data-page-primary
-                  className={`bg-team-blue hover:bg-team-blue/90 min-h-11 ${isDarkMode ? 'text-black' : 'text-white'}`}
+                  className={`bg-team-blue hover:bg-team-blue/90 ${WRAPPING_BUTTON} ${isDarkMode ? 'text-black' : 'text-white'}`}
                 >
                   {/* A match under way is gone back to, not started again */}
                   {!hasActiveSession && <Plus className="h-4 w-4" />}
@@ -2203,15 +2211,13 @@ const Sessions = () => {
               onClick={showOlder}
               disabled={loadingOlder}
               variant="outline"
-              className={`min-h-11 ${
+              className={`${WRAPPING_BUTTON} ${
                 isDarkMode
                   ? 'border-team-blue-40 text-team-white hover:bg-team-blue-10'
                   : 'border-gray-300'
               }`}
             >
-              {loadingOlder
-                ? 'Loading older sessions...'
-                : 'Show older sessions'}
+              {loadingOlder ? 'Loading older sessions…' : 'Show older sessions'}
             </Button>
           </div>
         )}
@@ -2228,7 +2234,7 @@ const Sessions = () => {
               disabled={exportingOlder}
               className="inline-block -my-3 py-3 font-medium text-team-blue underline underline-offset-4 disabled:opacity-50"
             >
-              {exportingOlder ? 'Exporting...' : 'Export them as CSV'}
+              {exportingOlder ? 'Exporting…' : 'Export them as CSV'}
             </button>
           </p>
         )}

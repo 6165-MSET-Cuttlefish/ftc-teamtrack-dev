@@ -16,6 +16,7 @@ import {
   rankingPoints,
   robotsOf,
   sessionMatchType,
+  swarmReachable,
 } from './scoring';
 import { ELEMENT_LABELS as L } from './scoringLabels';
 import { toDate } from './utils';
@@ -150,7 +151,9 @@ const BLANK = '""';
  * when the match type did not run that period, and Robot 2's are blank for a
  * match played with one robot. Ranking points are the ones a
  * match earns from its own scoring (SWARM, POLLINATOR); the opponent's score
- * is not recorded, so a win or tie is not counted.
+ * is not recorded, so a win or tie is not counted. SWARM RP is blank too
+ * where the match couldn't earn it (no Auto period, or one robot), as
+ * the app leaves it out of the RP a match could earn.
  */
 export const buildSessionsCsv = (sessions: Session[]): string => {
   const rows: string[][] = [];
@@ -218,7 +221,7 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
         foul(match.majorPenalties),
         foul(b.penalties),
         esc(cycleTimesOf(match).join('; ')),
-        esc(rp.swarm ? 'yes' : 'no'),
+        flag(swarmReachable({ ...match, matchType }), rp.swarm),
         num(rp.pollinator),
         num(rp.total),
         index === 0 ? notes : BLANK,

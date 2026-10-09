@@ -836,7 +836,7 @@ const Charts = () => {
       >
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
-          <p className="text-sm text-team-blue">Loading charts...</p>
+          <p className="text-sm text-team-blue">Loading charts…</p>
         </div>
       </div>
     );
@@ -892,6 +892,14 @@ const Charts = () => {
   const fouls = foulSummary(scoredSessions, labels);
   const foulData = fouls.rows;
   const rankingPointData = rankingPointRows(scoredSessions, labels);
+  // Where no match could earn SWARM (no Auto period, or one robot), it is
+  // not one of the bars, and the card says why, as Highlights does
+  const swarmCounted = scoredSessions.some(
+    s => rankingPointTally(s.matches, s.matchType).swarmChances > 0
+  );
+  const rankingPointSeries = swarmCounted
+    ? RANKING_POINT_SERIES
+    : RANKING_POINT_SERIES.filter(({ key }) => key !== 'swarm');
 
   // Match-level figures, the same ones Analysis shows for a single session.
   const allScores = scoredSessions.flatMap(matchScores);
@@ -918,7 +926,7 @@ const Charts = () => {
     !rangeCovered &&
       (olderFailed
         ? "Older sessions couldn't be read."
-        : 'Reading older sessions...'),
+        : 'Reading older sessions…'),
   ]
     .filter(Boolean)
     .join(' ');
@@ -1420,7 +1428,11 @@ const Charts = () => {
 
                 <ChartCard
                   title="Ranking Points per Match"
-                  description="Average RP a match earned from scoring in each session, out of 3 (2 with one robot, which can't earn SWARM). A win or tie is not counted."
+                  description={
+                    swarmCounted
+                      ? "Average RP a match earned from scoring in each session, out of 3 (2 with one robot, which can't earn SWARM). A win or tie is not counted."
+                      : `Average RP a match earned from scoring in each session, out of 2 (SWARM ${swarmMissing([{ matchType }])}). A win or tie is not counted.`
+                  }
                   isDarkMode={isDarkMode}
                 >
                   <div className="mt-auto min-w-0 overflow-x-auto">
@@ -1435,7 +1447,7 @@ const Charts = () => {
                         onClick={openSession('rp')}
                         style={chartStyle}
                         title="Ranking points per match"
-                        desc="Average SWARM, POLLINATOR 1 and POLLINATOR 2 ranking points per match in each session, stacked"
+                        desc={`Average ${swarmCounted ? 'SWARM, ' : ''}POLLINATOR 1 and POLLINATOR 2 ranking points per match in each session, stacked`}
                       >
                         <CartesianGrid
                           strokeDasharray="3 3"
@@ -1449,7 +1461,7 @@ const Charts = () => {
                         />
                         <YAxis
                           width={Y_AXIS_WIDTH}
-                          domain={[0, RANKING_POINT_SERIES.length]}
+                          domain={[0, rankingPointSeries.length]}
                           allowDecimals={false}
                           {...axis}
                         />
@@ -1475,12 +1487,12 @@ const Charts = () => {
                         <Legend
                           {...LEGEND_PROPS}
                           itemSorter={item =>
-                            RANKING_POINT_SERIES.findIndex(
+                            rankingPointSeries.findIndex(
                               s => s.label === item.value
                             )
                           }
                         />
-                        {RANKING_POINT_SERIES.map(({ label, color }) => (
+                        {rankingPointSeries.map(({ label, color }) => (
                           <Bar
                             key={label}
                             dataKey={label}

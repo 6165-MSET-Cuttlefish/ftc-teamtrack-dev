@@ -5,7 +5,11 @@ import { ELEMENT_LABELS, calculateScore } from '@/lib';
 import { revealFirstStepperRow } from './controls/revealStepperRow';
 import { requestStartNudge } from './controls/startNudge';
 import { EndNote } from './EndOfMatchParts';
-import { LOCK_REASONS, useScoringLocks } from './useScoringLocks';
+import {
+  LOCK_REASONS,
+  countersShown,
+  useScoringLocks,
+} from './useScoringLocks';
 
 /** How long the End of Match heading stays lit after the buzzer */
 const UNLOCK_PULSE_MS = 1600;
@@ -29,6 +33,7 @@ export const useMatchEntry = () => {
   } = useSessionCore();
   const {
     editing,
+    edited,
     scoring,
     entryKey,
     entryLocked,
@@ -98,12 +103,14 @@ export const useMatchEntry = () => {
   const blockedPress = entryLocked ? requestStartNudge : undefined;
 
   /**
-   * The flower counters, where flowers can score: not in an Autonomous-only
-   * match (no flower scores before 1:00 is left), unless a saved one has
-   * some to fix.
+   * The end-of-match counters, where they can score: not in an
+   * Autonomous-only match (AUTO scores none of them), unless a saved one
+   * has some to fix. Those stay while it is open, at 0 too.
    */
-  const flowersShown =
-    hasTeleop || (sessionData.flower ?? 0) + (sessionData.flowerBonus ?? 0) > 0;
+  const shown = countersShown(hasTeleop, sessionData, edited);
+  const flowersShown = shown.flowers;
+  const hiveGardenShown = shown.hiveGarden;
+  const anyCounter = flowersShown || hiveGardenShown;
 
   // The buzzer hands the scorer from the live counters to this section:
   // light it for a moment, and bring its first row of steppers into view
@@ -150,9 +157,12 @@ export const useMatchEntry = () => {
   );
   const pausedNote = 'Unlocked while paused';
   // The park toggle's own name: 'Park (End)' beside 'Park (Auto)', else
-  // 'Park'
-  const buzzerNote =
-    hasAuto && hasTeleop
+  // 'Park'. An Autonomous match with no counters has only its park left to
+  // mark at the buzzer: Park (Auto), as the desktop pad and screen readers
+  // call it.
+  const buzzerNote = !anyCounter
+    ? `Mark ${ELEMENT_LABELS.parkAuto}, then save`
+    : hasAuto && hasTeleop
       ? `Mark ${ELEMENT_LABELS.parkEnd}, count, then save`
       : `Mark ${ELEMENT_LABELS.park}, count, then save`;
   const editingNote = 'Fix any count, then save';
@@ -166,13 +176,22 @@ export const useMatchEntry = () => {
       {notes[current]}
     </EndNote>
   );
-  const endCaption = endDisabled
-    ? note(0, true)
-    : isTutorialActive
-      ? undefined
-      : editing
-        ? note(3, false)
-        : note(matchPhase !== 'ended' ? 1 : 2, false);
+  /** The note while nothing under it is locked */
+  const openCaption = (): React.ReactNode => {
+    if (isTutorialActive) return undefined;
+    if (editing) return note(3, false);
+    if (anyCounter) return note(matchPhase !== 'ended' ? 1 : 2, false);
+    // No counters (an Autonomous match): nothing waits for the buzzer, so
+    // the band only says what is left once it has gone. Until then its
+    // place is kept, so nothing under it moves.
+    if (matchActive && matchPhase === 'ended') return note(2, false);
+    return (
+      <div aria-hidden className="invisible">
+        {note(2, false)}
+      </div>
+    );
+  };
+  const endCaption = anyCounter && endDisabled ? note(0, true) : openCaption();
 
   return {
     sessionData,
@@ -196,5 +215,6 @@ export const useMatchEntry = () => {
     hasTeleop,
     robots,
     flowersShown,
+    hiveGardenShown,
   };
 };

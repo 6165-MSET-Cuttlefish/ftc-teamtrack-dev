@@ -5,9 +5,11 @@ import { useTheme } from '@/contexts';
 import { useEscapeKey } from '@/hooks';
 import {
   formatDate,
+  includesAuto,
   isArchived,
   matchScore,
   rankingPointTally,
+  swarmMissing,
   toDate,
 } from '@/lib';
 import { headlineMatches } from '@/lib/headlineMatches';
@@ -55,7 +57,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { matchTypeLabel, scoresOf, sessionDateLabel } from './sessionList';
+import { matchTypeLabel, sessionDateLabel } from './sessionList';
 import { SignUpToShare } from './SignUpToShare';
 
 /**
@@ -81,6 +83,12 @@ const settled = (action?: () => void) => () => {
   action?.();
 };
 
+/**
+ * A match type's name in a stat's label, where a cell can be under 60px
+ * across: "Auto", as Analysis's "Best Auto" chip says it.
+ */
+const TYPE_SHORT: Record<string, string> = { Autonomous: 'Auto' };
+
 /** A row in the card's menu: big enough for a thumb, icon then text. */
 const MENU_ITEM =
   'flex items-center gap-2 cursor-pointer [@media(pointer:coarse)]:min-h-11';
@@ -100,6 +108,11 @@ interface StatProps {
   children: ReactNode;
   /** Leave the stat out of the phone's line (it has nothing to say there) */
   wideOnly?: boolean;
+  /**
+   * A short line about the value: under it on a wide card, and after it in
+   * the phone's line
+   */
+  note?: string | null;
   /** A bolder value: the number the line leads with */
   strong?: boolean;
   className?: string;
@@ -108,8 +121,9 @@ interface StatProps {
 /**
  * One number about a session. On a phone the stats run together as a line
  * of text ("Best 142   6 matches   avg 131   48:12"), set apart by space
- * alone and each one kept whole when the line wraps; from 640px each sits in
- * its own cell with an icon and its label above it.
+ * alone and each one kept whole when the line wraps (below 240px, as at
+ * 200% zoom, one wider than the line wraps rather than being cut off);
+ * from 640px each sits in its own cell with an icon and its label above it.
  */
 const Stat = ({
   icon: Icon,
@@ -119,6 +133,7 @@ const Stat = ({
   wideOnly = false,
   strong = false,
   className = '',
+  note,
 }: StatProps) => {
   const { isDarkMode } = useTheme();
   const faint = isDarkMode ? 'text-gray-400' : 'text-gray-500';
@@ -145,21 +160,30 @@ const Stat = ({
   );
 
   return (
-    <div
-      className={`${wideOnly ? 'hidden' : ''} whitespace-nowrap sm:flex sm:items-center sm:gap-2 sm:whitespace-normal ${className}`}
-    >
-      <Icon
-        aria-hidden="true"
-        className={`hidden sm:block h-4 w-4 shrink-0 ${faint}`}
-      />
-      {/* Stacked on a wide card, label on top whichever comes first here */}
-      <span
-        className={`sm:flex ${valueFirst ? 'sm:flex-col-reverse' : 'sm:flex-col'}`}
+    <>
+      <div
+        className={`${wideOnly ? 'hidden' : ''} whitespace-nowrap [@media(max-width:239px)]:whitespace-normal sm:flex sm:items-center sm:gap-2 sm:whitespace-normal ${className}`}
       >
-        {valueFirst ? valueNode : labelNode}{' '}
-        {valueFirst ? labelNode : valueNode}
-      </span>
-    </div>
+        <Icon
+          aria-hidden="true"
+          className={`hidden sm:block h-4 w-4 shrink-0 ${faint}`}
+        />
+        {/* Stacked on a wide card, label on top whichever comes first here */}
+        <span
+          className={`sm:flex ${valueFirst ? 'sm:flex-col-reverse' : 'sm:flex-col'}`}
+        >
+          {valueFirst ? valueNode : labelNode}{' '}
+          {valueFirst ? labelNode : valueNode}
+          {note && (
+            <span className={`hidden sm:block text-xs ${faint}`}>{note}</span>
+          )}
+        </span>
+      </div>
+      {/* In the phone's line it is one more item, which can wrap on its own */}
+      {note && !wideOnly && (
+        <span className={`sm:hidden ${faint}`}>{note}</span>
+      )}
+    </>
   );
 };
 
@@ -312,19 +336,29 @@ export const SessionCard = ({
     focusAfterMenu.current = signUpRef;
   };
 
-  const scores = scoresOf(session);
   const matchCount = (session.matches || []).length;
+  // Best, average and ranking points are of one match type in a Mixed
+  // session, as on its Analysis page, and say which
+  const headline = headlineMatches(session.matches || [], session.matchType);
+  const ofType = headline.mixed
+    ? (TYPE_SHORT[headline.type] ?? headline.type)
+    : null;
+  const scores = headline.matches.map(match =>
+    matchScore(match, session.matchType)
+  );
   const highestScore = scores.length > 0 ? Math.max(...scores) : null;
-  // Of one match type in a Mixed session, as on its Analysis page
-  const averaged = headlineMatches(
-    session.matches || [],
-    session.matchType
-  ).matches.map(match => matchScore(match, session.matchType));
   const averageScore =
-    averaged.length > 0
-      ? Math.round(averaged.reduce((a, b) => a + b, 0) / averaged.length)
+    scores.length > 0
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
       : null;
-  const rp = rankingPointTally(session.matches || [], session.matchType);
+  const rp = rankingPointTally(headline.matches, session.matchType);
+  // Without an Auto period no match could earn SWARM, so it isn't counted:
+  // said as Analysis, Charts and Compare say it
+  const swarmNote =
+    headline.matches.length > 0 &&
+    !headline.matches.some(m => includesAuto(m.matchType || session.matchType))
+      ? `SWARM ${swarmMissing(headline.matches, session.matchType)}`
+      : null;
   const dateLabel = sessionDateLabel(session.createdAt);
   const archived = isArchived(session);
 
@@ -579,8 +613,8 @@ export const SessionCard = ({
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm sm:grid sm:grid-cols-3 sm:items-start sm:gap-y-3">
             <Stat
               icon={Trophy}
-              label="Best"
-              phone={{ before: 'Best' }}
+              label={ofType ? `Best ${ofType}` : 'Best'}
+              phone={{ before: ofType ? `Best ${ofType}` : 'Best' }}
               strong
               // Nothing scored, nothing to lead the phone's line with.
               wideOnly={highestScore === null}
@@ -599,8 +633,8 @@ export const SessionCard = ({
             </Stat>
             <Stat
               icon={Gauge}
-              label="Avg Score"
-              phone={{ before: 'avg' }}
+              label={ofType ? `Avg ${ofType}` : 'Avg Score'}
+              phone={{ before: ofType ? `avg ${ofType}` : 'avg' }}
               // An empty session has no average to put in the phone's line.
               wideOnly={averageScore === null}
             >
@@ -620,15 +654,28 @@ export const SessionCard = ({
             {/* SWARM and POLLINATOR only: a win or tie needs the opponent's score */}
             <Stat
               icon={Award}
-              label="Ranking Points"
+              label={ofType ? `RP in ${ofType}` : 'Ranking Points'}
               phone="value"
               wideOnly={rp.rate === null}
               className="sm:col-span-2"
+              note={swarmNote}
             >
               <span data-testid="session-ranking-points">
-                {rp.rate === null
-                  ? 'N/A'
-                  : `${rp.earned} of ${rp.possible} RP (${rp.rate}%)`}
+                {rp.rate === null ? (
+                  'N/A'
+                ) : (
+                  <>
+                    {rp.earned} of {rp.possible} RP
+                    {/* The phone has no label to say it; a screen reader has */}
+                    {ofType && (
+                      <span aria-hidden="true" className="sm:hidden">
+                        {' '}
+                        in {ofType}
+                      </span>
+                    )}{' '}
+                    ({rp.rate}%)
+                  </>
+                )}
               </span>
             </Stat>
           </div>

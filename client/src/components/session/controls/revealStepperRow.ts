@@ -1,4 +1,8 @@
-import { clearOfBarEdge, visibleBand } from './scrollUnderHeader';
+import {
+  clearOfBarEdge,
+  scrollsWithPage,
+  visibleBand,
+} from './scrollUnderHeader';
 
 /** Space left between what is revealed and the band's edges, in px */
 const REVEAL_GAP = 8;
@@ -10,21 +14,17 @@ const REVEAL_GAP = 8;
  */
 const CLOCK_SLIVER = 24;
 
-/** Whether the element scrolls with the page (not pinned in a column) */
-const scrollsWithPage = (el: Element): boolean => {
-  for (let e: Element | null = el; e; e = e.parentElement) {
-    const { position } = getComputedStyle(e);
-    if (position === 'sticky' || position === 'fixed') return false;
-  }
-  return true;
-};
-
 /**
- * How much further than `by` the page has to go so that no control is left
- * cut by the top edge (`edge`): a strip of buttons peeking out from under
- * the header. 0 where none would be.
+ * The controls left cut by the top edge (`edge`) once the page has gone
+ * `by` px: a strip of buttons peeking out from under the header. How much
+ * further the page has to go to take them all off the top (`past`), and
+ * how much less to have them all under it (`short`). 0 and 0 where none
+ * would be.
  */
-const pastTopEdge = (by: number, edge: number): number => {
+const cutByTopEdge = (
+  by: number,
+  edge: number
+): { past: number; short: number } => {
   const cut = [...document.querySelectorAll('button, input, [role="checkbox"]')]
     .filter(el => !el.closest('header, .sr-only') && scrollsWithPage(el))
     .map(el => el.getBoundingClientRect())
@@ -33,8 +33,11 @@ const pastTopEdge = (by: number, edge: number): number => {
         r.width > 1 && r.height > 1 && r.top - by < edge && r.bottom - by > edge
     );
   return cut.length === 0
-    ? 0
-    : Math.ceil(Math.max(...cut.map(r => r.bottom - by - edge)));
+    ? { past: 0, short: 0 }
+    : {
+        past: Math.ceil(Math.max(...cut.map(r => r.bottom - by - edge))),
+        short: Math.ceil(Math.max(...cut.map(r => edge - (r.top - by)))),
+      };
 };
 
 /**
@@ -95,11 +98,28 @@ export const revealFirstStepperRow = (
   }
   // Nor a strip of the controls over `keep` (+1 Tip) left under the top
   // edge by the gap kept over it: the page goes on until they are gone.
-  const past = pastTopEdge(by, band.top);
+  // Where it is more than that gap (a short scroll that only just clears
+  // the band at the foot of the screen), it stops that little short of
+  // them instead, as long as the row still shows; else it goes on past
+  // them, as long as the row and `keep` stay on screen.
+  const { past, short } = cutByTopEdge(by, band.top);
   if (
     past > 0 &&
     past <= REVEAL_GAP &&
     (!kept || by + past <= keepLimit + REVEAL_GAP)
+  )
+    by += past;
+  else if (
+    past > 0 &&
+    short <= REVEAL_GAP &&
+    row.bottom - by + short <= band.bottom
+  )
+    by -= short;
+  else if (
+    past > 0 &&
+    row.top - by - past >= band.top &&
+    (!kept || by + past <= keepLimit) &&
+    cutByTopEdge(by + past, band.top).past === 0
   )
     by += past;
   by = Math.round(by);

@@ -1,5 +1,5 @@
 import { memo, useId, useState } from 'react';
-import { Check, Lock } from 'lucide-react';
+import { Check, Info, Lock } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { cn } from '@/lib/utils';
 import {
@@ -8,15 +8,19 @@ import {
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
+  POINTS,
 } from '@/lib';
+import { FOULS_RULE } from '@/lib/scoring';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import {
   CountLine,
   CounterHead,
   FlowerSlots,
+  INFO_BUTTON_CLASS,
   LOCKED_SURFACE,
 } from './EndOfMatchParts';
-import { PenaltyField, PenaltyHint } from './PenaltyCounters';
+import { useActiveShort, useActiveSideBySide } from './layout/useActiveCompact';
+import { PenaltyField, PenaltyHint, ToOpponent } from './PenaltyCounters';
 import { ScoreField } from './ScoreField';
 import { SectionNote } from './SectionNote';
 import { toggleOffClass, toggleOnClass } from './toggleTone';
@@ -383,8 +387,9 @@ const ParkHeader = () => (
 );
 
 /**
- * A Scrim's fouls, under the robot rows (and a saved match's that has some,
- * whatever the session is now). Before Start they look ready, as every
+ * A Scrim's fouls (and a saved match's that has some, whatever the session
+ * is now), under the robot rows; a short screen has them elsewhere (see
+ * `MatchEntry`). Before Start they look ready, as every
  * field the match starts with does, and a press asks for Start; why they
  * take nothing yet is read out from `startFirstId`. The line under each
  * counter is kept for what it has given the opponent in every state, so
@@ -426,10 +431,101 @@ const Fouls = ({ startFirstId }: { startFirstId: string }) => {
   );
 };
 
+/**
+ * A Scrim's fouls on a phone on its side, over the robot rows: the screen
+ * has no height for them between the robots and End of Match, which the
+ * buzzer needs on screen together. Drawn as on the desktop pad, so they
+ * take little height and the robot rows stay on screen during play: the
+ * FOULS heading with the rule behind its (i) and what they gave the
+ * opponent on its line, then Minor and Major side by side, each name
+ * beside its stepper where the column has room and over it where not.
+ */
+const FoulsOverRobots = ({ startFirstId }: { startFirstId: string }) => {
+  const {
+    minor,
+    major,
+    entryKey,
+    blockedPress,
+    handleMinorPenalties,
+    handleMajorPenalties,
+  } = usePenaltyCounters();
+  const { isDarkMode } = useTheme();
+  const titleId = useId();
+  const ruleId = useId();
+  // The rule belongs to the match in the fields, as the counters' (i) do:
+  // Start, Save or opening another match closes it.
+  const [ruleFor, setRuleFor] = useState<string | null>(null);
+  const ruleOpen = ruleFor === entryKey;
+  const given =
+    (minor ?? 0) * POINTS.MINOR_PENALTY + (major ?? 0) * POINTS.MAJOR_PENALTY;
+  return (
+    <div
+      role="group"
+      aria-labelledby={titleId}
+      data-tutorial="penalties"
+      className="flex flex-col gap-1"
+    >
+      <div className="flex min-h-5 min-w-0 items-center justify-between gap-2">
+        <h3 className={`flex items-center ${EYEBROW_CLASS}`}>
+          <span id={titleId}>Fouls</span>
+          <button
+            type="button"
+            aria-label="About Fouls"
+            aria-expanded={ruleOpen}
+            aria-controls={ruleOpen ? ruleId : undefined}
+            onClick={() => setRuleFor(ruleOpen ? null : entryKey)}
+            className={`${INFO_BUTTON_CLASS} ml-1.5 normal-case ${
+              isDarkMode
+                ? 'text-gray-400 hover:text-team-blue'
+                : 'text-gray-500 hover:text-team-blue'
+            }`}
+          >
+            <Info size={14} />
+          </button>
+        </h3>
+        <ToOpponent points={given} />
+      </div>
+      {ruleOpen && (
+        <p
+          id={ruleId}
+          className={`text-xs leading-4 text-balance ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+        >
+          {FOULS_RULE}
+        </p>
+      )}
+      {/* Each counter is its name, then its stepper: down a column each
+          where the column is narrow, along one row where it has room */}
+      <div className="grid grid-flow-col grid-cols-2 grid-rows-[auto_auto] gap-x-3 gap-y-1 [@container(min-width:22rem)]:grid-flow-row [@container(min-width:22rem)]:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] [@container(min-width:22rem)]:grid-rows-none [@container(min-width:22rem)]:items-center">
+        <PenaltyField
+          kind="minor"
+          layout="row"
+          value={minor}
+          blockedPress={blockedPress}
+          lockedReasonId={startFirstId}
+          resetKey={entryKey}
+          onChange={handleMinorPenalties}
+        />
+        <PenaltyField
+          kind="major"
+          layout="row"
+          value={major}
+          blockedPress={blockedPress}
+          lockedReasonId={startFirstId}
+          resetKey={entryKey}
+          onChange={handleMajorPenalties}
+        />
+      </div>
+    </div>
+  );
+};
+
 /** Which end-of-match rule is open under its (i) */
 type InfoKey = 'flower' | 'flowerBonus' | 'hive' | 'garden';
 
-/** The two counters only a match with flowers in it has (see `flowersShown`) */
+/**
+ * The flower pair of counters (see `flowersShown`); the other pair is Left
+ * in Hive and Garden (see `hiveGardenShown`)
+ */
 const FLOWER_KEYS: readonly string[] = ['flower', 'flowerBonus'];
 
 /**
@@ -464,8 +560,22 @@ export const MatchEntry = () => {
     hasTeleop,
     robots,
     flowersShown,
+    hiveGardenShown,
   } = useMatchEntry();
   const { shown: foulsShown } = usePenaltyCounters();
+  /**
+   * A phone on its side has no height for the robot rows, the fouls and the
+   * first End of Match counters at once, and the buzzer needs the robots
+   * (Park (End)), the band and the counters together. So the fouls don't go
+   * between the two there. Beside the clock they go over the robots, slim,
+   * where they are on screen during play with the robots; with the clock
+   * over the scoring (an iPhone SE on its side, a 200% zoom), where only
+   * the robots fit under it during play, after End of Match. Always, not
+   * only at the buzzer: nothing moves as the match goes on.
+   */
+  const short = useActiveShort();
+  const foulsFirst = useActiveSideBySide();
+  const foulsLast = short && !foulsFirst;
   const { isDarkMode } = useTheme();
   const ids = {
     flower: useId(),
@@ -537,6 +647,10 @@ export const MatchEntry = () => {
         </span>
       )}
 
+      {foulsShown && foulsFirst && (
+        <FoulsOverRobots startFirstId={startFirstId} />
+      )}
+
       {/*
         The robot rows name themselves: the heading, and why a toggle is
         locked, are read out but not shown. The End toggles carry a lock of
@@ -594,7 +708,7 @@ export const MatchEntry = () => {
         )}
       </Section>
 
-      {foulsShown && <Fouls startFirstId={startFirstId} />}
+      {foulsShown && !short && <Fouls startFirstId={startFirstId} />}
 
       {/* Its groups have titles of their own: only its caption shows */}
       <Section
@@ -618,11 +732,14 @@ export const MatchEntry = () => {
 
           The walkthrough spotlights the counters, not the note over them,
           which is empty while it runs: its ring then sits as close to the
-          fields on every side.
+          fields on every side. An Autonomous match has none to show (see
+          `useMatchEntry`): then there is nothing here to spotlight.
         */}
         <div
-          data-tutorial="end-of-match"
-          className="grid grid-cols-1 gap-x-3 gap-y-4 [@container(min-width:17rem)]:grid-cols-2"
+          data-tutorial={
+            flowersShown || hiveGardenShown ? 'end-of-match' : undefined
+          }
+          className="grid grid-cols-1 gap-x-3 gap-y-4 empty:hidden [@container(min-width:17rem)]:grid-cols-2"
         >
           {(
             [
@@ -663,7 +780,9 @@ export const MatchEntry = () => {
               },
             ] as const
           )
-            .filter(c => flowersShown || !FLOWER_KEYS.includes(c.key))
+            .filter(c =>
+              FLOWER_KEYS.includes(c.key) ? flowersShown : hiveGardenShown
+            )
             .map(c => (
               <div
                 key={c.key}
@@ -700,6 +819,8 @@ export const MatchEntry = () => {
             ))}
         </div>
       </Section>
+
+      {foulsShown && foulsLast && <Fouls startFirstId={startFirstId} />}
     </div>
   );
 };

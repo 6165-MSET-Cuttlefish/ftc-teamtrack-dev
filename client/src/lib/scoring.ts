@@ -579,30 +579,29 @@ export const robotRates = (
 const MAX_CYCLE_SECONDS =
   GAME_TIMING.AUTONOMOUS_DURATION_SECONDS + GAME_TIMING.TELEOP_DURATION_SECONDS;
 
+/** A tip read back from a match's log */
+interface LoggedTip {
+  /** Seconds since the tip it was timed from, or null if not timed */
+  gap: number | null;
+  /** Index of the tip it was timed from, or null if not timed */
+  from: number | null;
+  /** Whether that gap was kept as a cycle */
+  cycle: boolean;
+}
+
 /**
- * Cycle times recorded in a match: the time between Hive Tips, in seconds.
- *
- * Only tip-to-tip gaps count. Sessions recorded while Garden was also tapped
- * live have Garden events in their log, each timed from whatever action came
- * before it; those are never cycles themselves, and their time is added back
- * into the gap between the tips either side. A tip with no earlier tip in
- * the same match has nothing to be measured from. Gaps that are not positive
- * or are longer than a match are dropped.
- *
- * A tip taken back (the count goes down, as −1 after a double tap does) was
- * never a tip: the cycle it ended is dropped, and the time it was timed
- * from the tip before runs on into the next tip's gap. Three tips with a
- * mis-tap fixed in between are two cycles, as long as the real ones.
+ * A match's log read as the tips it counts and the cycles between them
+ * (see `cycleTimesOf` for which gaps are cycles).
  */
-export const cycleTimesOf = (f: Partial<MatchScoringFields>): number[] => {
+const readTips = (
+  f: Partial<MatchScoringFields>
+): { times: number[]; tips: LoggedTip[] } => {
   const times: number[] = [];
-  /** Seconds logged since the last tip; null until the first one */
+  /** Seconds logged since the tip at `anchor`; null when there is none */
   let sinceTip: number | null = null;
-  /**
-   * The tips counted so far, last one last: the seconds since the tip
-   * before it (null if not timed from one), and whether that made a cycle
-   */
-  const tips: { gap: number | null; cycle: boolean }[] = [];
+  let anchor: number | null = null;
+  /** The tips counted so far, last one last */
+  const tips: LoggedTip[] = [];
   /** The count the last tip event left; a lower one takes tips back */
   let count: number | null = null;
 
@@ -618,17 +617,20 @@ export const cycleTimesOf = (f: Partial<MatchScoringFields>): number[] => {
       for (let n = count - value; n > 0; n--) {
         const undone = tips.pop();
         if (undone?.cycle) times.pop();
-        sinceTip =
-          !undone || undone.gap === null || sinceTip === null
-            ? null
-            : undone.gap + sinceTip;
+        if (undone && undone.gap !== null && sinceTip !== null) {
+          sinceTip = undone.gap + sinceTip;
+          anchor = undone.from;
+        } else {
+          sinceTip = null;
+          anchor = null;
+        }
       }
       count = value;
       continue;
     }
     // A typed count can add several at once, none of them timed
     for (let n = (count ?? 0) + 1; value !== null && n < value; n++) {
-      tips.push({ gap: null, cycle: false });
+      tips.push({ gap: null, from: null, cycle: false });
     }
     count = value;
     const timed =
@@ -636,9 +638,50 @@ export const cycleTimesOf = (f: Partial<MatchScoringFields>): number[] => {
     const cycle = timed === null ? null : Math.round(timed * 100) / 100;
     const kept = cycle !== null && cycle > 0 && cycle <= MAX_CYCLE_SECONDS;
     if (kept) times.push(cycle);
-    tips.push({ gap: timed, cycle: kept });
+    tips.push({
+      gap: timed,
+      from: timed === null ? null : anchor,
+      cycle: kept,
+    });
     sinceTip = 0;
+    anchor = tips.length - 1;
   }
 
-  return times;
+  return { times, tips };
+};
+
+/**
+ * Cycle times recorded in a match: the time between Hive Tips, in seconds.
+ *
+ * Only tip-to-tip gaps count. Sessions recorded while Garden was also tapped
+ * live have Garden events in their log, each timed from whatever action came
+ * before it; those are never cycles themselves, and their time is added back
+ * into the gap between the tips either side. A tip with no earlier tip in
+ * the same match has nothing to be measured from. Gaps that are not positive
+ * or are longer than a match are dropped.
+ *
+ * A tip taken back (the count goes down, as −1 after a double tap does) was
+ * never a tip: the cycle it ended is dropped, and the time it was timed
+ * from the tip before runs on into the next tip's gap. Three tips with a
+ * mis-tap fixed in between are two cycles, as long as the real ones.
+ */
+export const cycleTimesOf = (f: Partial<MatchScoringFields>): number[] =>
+  readTips(f).times;
+
+/**
+ * How many tips a match's cycle times run between: every tip that ends a
+ * cycle or starts one. That is not always one more than the cycles: the
+ * clock stops between AUTO and TELEOP, so the first tip after the break is
+ * not timed from the last one before it, and two runs of tips have one gap
+ * fewer between them than tips. Never more than the match's Hive Tips,
+ * which an edit can lower without touching the log.
+ */
+export const timedTipsOf = (f: Partial<MatchScoringFields>): number => {
+  const timed = new Set<number>();
+  readTips(f).tips.forEach((tip, index) => {
+    if (!tip.cycle) return;
+    timed.add(index);
+    if (tip.from !== null) timed.add(tip.from);
+  });
+  return Math.min(timed.size, countOf(f.tipping));
 };

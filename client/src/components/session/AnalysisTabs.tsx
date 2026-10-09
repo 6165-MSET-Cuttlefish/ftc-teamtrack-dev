@@ -51,6 +51,7 @@ import {
   SERIES_COLORS,
   calculateScore,
   cycleTimesOf,
+  includesAuto,
   matchScore,
   rankingPoints,
   rankingPointNames,
@@ -63,7 +64,11 @@ import {
   htmlToText,
 } from '@/lib';
 import { formatPoints } from '@/lib/points';
-import { GROUPED_ELEMENT_ORDER, robotTallies } from '@/lib/scoring';
+import {
+  GROUPED_ELEMENT_ORDER,
+  robotTallies,
+  timedTipsOf,
+} from '@/lib/scoring';
 import { headlineMatches, typesByCount } from '@/lib/headlineMatches';
 import { useArmed } from '@/components/session/controls/useArmed';
 import { sanitizeHtml } from '@/lib/sanitize';
@@ -299,7 +304,7 @@ export interface SessionStats {
   avgCycle: number | null;
   /** How many tip-to-tip gaps `avgCycle` is the average of */
   cycleCount: number;
-  /** How many tips those gaps run between */
+  /** How many tips those gaps run between (`timedTipsOf`) */
   cycleTips: number;
   /**
    * How far a headline match typically lands from their average, in points
@@ -339,8 +344,7 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
   // The rates beside the average are of the same matches
   const { leaveRate, parkRate } = robotRates(headline.matches);
 
-  const cyclesPerMatch = matches.map(cycleTimesOf);
-  const allCycles = cyclesPerMatch.flat();
+  const allCycles = matches.flatMap(cycleTimesOf);
 
   const variance = mean(scores.map(sc => Math.pow(sc - avgScore, 2)));
 
@@ -371,11 +375,7 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
     avgCycle:
       allCycles.length > 0 ? Math.round(mean(allCycles) * 100) / 100 : null,
     cycleCount: allCycles.length,
-    // A match's gaps run between one more tip than there are gaps
-    cycleTips: cyclesPerMatch.reduce(
-      (sum, cycles) => sum + (cycles.length > 0 ? cycles.length + 1 : 0),
-      0
-    ),
+    cycleTips: matches.reduce((sum, m) => sum + timedTipsOf(m), 0),
     scoreSpread: scores.length < 2 ? null : Math.round(Math.sqrt(variance)),
     rankingPoints: rankingPointTally(headline.matches),
     totalMatches: matches.length,
@@ -836,7 +836,7 @@ export const SessionNotes = ({
               // New Session steps back
               data-page-primary
             >
-              {saving ? 'Saving...' : 'Save notes'}
+              {saving ? 'Saving…' : 'Save notes'}
             </Button>
           </div>
         </div>
@@ -1225,12 +1225,17 @@ export const SummaryTab = ({
   const avgMax = Math.max(1, ...avgRows.map(r => Math.abs(r.value)));
 
   const rp = stats.rankingPoints;
+  const rated = headlineMatches(matches).matches;
   // No match could earn SWARM: one robot can't reach it, nor can a match
   // with no Auto period
   const swarmLine =
     rp.swarmChances > 0
       ? `${rp.swarm}/${rp.swarmChances}`
-      : swarmMissing(headlineMatches(matches).matches);
+      : swarmMissing(rated);
+  // With no Auto period SWARM isn't counted at all, which the rate's count
+  // says, as the Sessions card, Charts and Compare do
+  const noAuto =
+    rated.length > 0 && !rated.some(m => includesAuto(m.matchType));
   /**
    * In a session of mixed types the rates are of the headline type's
    * matches, as the average is: their counts say so.
@@ -1326,9 +1331,14 @@ export const SummaryTab = ({
       key: 'rp',
       label: 'RP Rate',
       value: rp.rate === null ? null : `${rp.rate}%`,
-      caption: head.mixed
-        ? `${rp.earned} of ${rp.possible}${ofType}`
-        : `${rp.earned} of ${rp.possible} RP`,
+      caption: (
+        <>
+          {head.mixed
+            ? `${rp.earned} of ${rp.possible}${ofType}`
+            : `${rp.earned} of ${rp.possible} RP`}
+          {noAuto && <span className="block">SWARM {swarmMissing(rated)}</span>}
+        </>
+      ),
       info: (
         <>
           <span className="block">
@@ -2044,7 +2054,7 @@ export const MatchDetailTab = ({
               <StatTile
                 label="Avg time between tips"
                 value={`${mean(cycles).toFixed(1)}s`}
-                caption={`from ${plural(cycles.length + 1, 'tip')}`}
+                caption={`from ${plural(timedTipsOf(match), 'tip')}`}
                 info="Average seconds from one Hive Tip to the next in this match, from tips tapped live."
                 isDarkMode={isDarkMode}
               />

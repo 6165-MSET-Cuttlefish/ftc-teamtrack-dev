@@ -10,6 +10,38 @@ import { cn } from '@/lib/utils';
  */
 const TOUCH_ROW = '[@media(pointer:coarse)]:min-h-11';
 
+/**
+ * A menu never runs past the screen: it is as tall as the room Radix
+ * measures between its button and the screen's edge (less the collision
+ * padding), and scrolls inside itself past that. A small phone, one held
+ * sideways or a short laptop window still reaches the last row.
+ */
+const FITS_SCREEN =
+  'max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto overflow-x-hidden overscroll-contain';
+
+/**
+ * While a menu has rows out of sight, a soft shade lies along that edge, so
+ * a menu that happens to end on a whole row still reads as "more below".
+ * The covers scroll with the rows and hide the shade once that end is
+ * reached; a menu that fits shows none. Colours are the menu's own, so it
+ * holds in every theme.
+ */
+const SCROLL_SHADE: React.CSSProperties = {
+  backgroundImage: [
+    'linear-gradient(hsl(var(--popover)) 30%, hsl(var(--popover) / 0))',
+    'linear-gradient(hsl(var(--popover) / 0), hsl(var(--popover)) 70%)',
+    'radial-gradient(farthest-side at 50% 0, hsl(var(--popover-foreground) / 0.22), transparent)',
+    'radial-gradient(farthest-side at 50% 100%, hsl(var(--popover-foreground) / 0.22), transparent)',
+  ].join(', '),
+  backgroundPosition: 'top, bottom, top, bottom',
+  backgroundSize: '100% 2.5rem, 100% 2.5rem, 100% 0.875rem, 100% 0.875rem',
+  backgroundRepeat: 'no-repeat',
+  backgroundAttachment: 'local, local, scroll, scroll',
+};
+
+/** Kept from every edge of the screen, the bottom one included */
+const COLLISION_PADDING = 8;
+
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -48,35 +80,57 @@ DropdownMenuSubTrigger.displayName =
 const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
->(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.SubContent
-    ref={ref}
-    className={cn(
-      'z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-      className
-    )}
-    {...props}
-  />
-));
+>(
+  (
+    { className, collisionPadding = COLLISION_PADDING, style, ...props },
+    ref
+  ) => (
+    <DropdownMenuPrimitive.SubContent
+      ref={ref}
+      collisionPadding={collisionPadding}
+      className={cn(
+        'z-50 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+        FITS_SCREEN,
+        className
+      )}
+      style={{ ...SCROLL_SHADE, ...style }}
+      {...props}
+    />
+  )
+);
 DropdownMenuSubContent.displayName =
   DropdownMenuPrimitive.SubContent.displayName;
 
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
-  <DropdownMenuPrimitive.Portal>
-    <DropdownMenuPrimitive.Content
-      ref={ref}
-      sideOffset={sideOffset}
-      className={cn(
-        'z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-        className
-      )}
-      {...props}
-    />
-  </DropdownMenuPrimitive.Portal>
-));
+>(
+  (
+    {
+      className,
+      sideOffset = 4,
+      collisionPadding = COLLISION_PADDING,
+      style,
+      ...props
+    },
+    ref
+  ) => (
+    <DropdownMenuPrimitive.Portal>
+      <DropdownMenuPrimitive.Content
+        ref={ref}
+        sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
+        className={cn(
+          'z-50 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+          FITS_SCREEN,
+          className
+        )}
+        style={{ ...SCROLL_SHADE, ...style }}
+        {...props}
+      />
+    </DropdownMenuPrimitive.Portal>
+  )
+);
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef<

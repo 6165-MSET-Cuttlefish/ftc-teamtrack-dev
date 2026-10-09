@@ -15,7 +15,11 @@ import type { Match, MatchScoringFields } from '@/types';
 import { absorbDoubleTap } from './doubleTap';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { formatPoints, useLiveControls } from './liveControlsContext';
-import { revealInView, scrollUnderHeader } from './scrollUnderHeader';
+import {
+  keepClockWhole,
+  revealInView,
+  scrollUnderHeader,
+} from './scrollUnderHeader';
 import { focusMatchRow, hasKeyboardFocus } from './takeDroppedFocus';
 import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
@@ -221,6 +225,19 @@ export const MatchLog = () => {
     );
     if (target) scrollUnderHeader(target);
   }, [editingMatchId, isCompact]);
+
+  // Closing it (Save, Discard changes) can take height with it: an old
+  // Autonomous match shows the counters it was saved with only while it
+  // is open. Where that leaves the page held at its new end with the clock
+  // peeking out under the header, the whole clock shows instead. Not when
+  // another match opens next (that scrolls on its own), nor under a live
+  // match.
+  const openRef = useRef(editingMatchId);
+  useLayoutEffect(() => {
+    const closed = openRef.current !== null && editingMatchId === null;
+    openRef.current = editingMatchId;
+    if (closed && openNextId === null && !matchActive) keepClockWhole();
+  }, [editingMatchId, openNextId, matchActive]);
 
   // Once the saved edit has closed, the match it was saved for opens.
   useEffect(() => {

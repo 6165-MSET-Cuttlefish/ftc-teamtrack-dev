@@ -16,7 +16,11 @@ import {
 } from './takeDroppedFocus';
 import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
-import { useScoringLocks } from '@/components/session/useScoringLocks';
+import { ELEMENT_LABELS } from '@/lib';
+import {
+  countersShown,
+  useScoringLocks,
+} from '@/components/session/useScoringLocks';
 
 /** Shape of the buttons in the action bar; width and colours are per button */
 const BAR_BUTTON = 'h-12 rounded-2xl text-base whitespace-nowrap';
@@ -163,9 +167,11 @@ const StartMatchButton = () => {
       data-start-match
       data-primary-action
       title={hasName ? undefined : 'Name the session before starting'}
-      // As wide as its words at least, so that where Complete Session
-      // can't fit beside it (a 200% zoom) that goes onto a line of its own
-      className={`relative min-w-0 flex-[1_1_auto] px-3 ${BAR_BUTTON} ${actionClass('primary', isDarkMode)}`}
+      // Takes whatever Complete Session leaves: from a 320px phone up that
+      // fits "Start Match 100", so the two share one row. Narrower than
+      // that (a 200% zoom), it is as wide as its words at least, and
+      // Complete Session goes onto a line of its own.
+      className={`relative min-w-0 flex-[1_1_0%] max-[319px]:flex-[1_1_auto] px-3 ${BAR_BUTTON} ${actionClass('primary', isDarkMode)}`}
     >
       Start Match {matchNumber}
       {/* Replayed from the start on every nudge */}
@@ -254,8 +260,18 @@ const EndEarlyButton = () => {
  */
 export const PrimaryAction = () => {
   const { matchEnded, matchNumber } = useLiveControls();
-  // An Autonomous match has no flower counters (no flower scores in AUTO)
-  const { hasTeleop } = useScoringLocks();
+  // An Autonomous match has no end-of-match counters (AUTO scores none of
+  // them): only its park is left to mark
+  const { hasTeleop, scoring } = useScoringLocks();
+  const shown = countersShown(hasTeleop, scoring);
+  const counts = [
+    shown.flowers && 'the flowers',
+    shown.hiveGarden && `${ELEMENT_LABELS.hive} and ${ELEMENT_LABELS.garden}`,
+  ].filter(Boolean);
+  const todo =
+    counts.length > 0
+      ? `count ${counts.join(', ')}, then save`
+      : `mark ${ELEMENT_LABELS.parkAuto}, then save`;
   useWatchFocus();
   useCatchDroppedFocus(focusFallback);
 
@@ -264,9 +280,7 @@ export const PrimaryAction = () => {
       {/* Always on the page, so the buzzer's message is a change to it that
           screen readers announce. */}
       <p role="status" className="sr-only">
-        {matchEnded
-          ? `Match ${matchNumber} over: count ${hasTeleop ? 'the flowers, ' : ''}Left in Hive and Garden, then save`
-          : ''}
+        {matchEnded ? `Match ${matchNumber} over: ${todo}` : ''}
       </p>
       <PrimaryControls />
     </>

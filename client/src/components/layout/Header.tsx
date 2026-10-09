@@ -53,12 +53,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import {
-  CHIP_BASE,
-  CHIP_SIZES,
-  chipTone,
-  primaryClass,
-} from '@/components/ui/tokens';
+import { CHIP_BASE, CHIP_SIZES, chipTone } from '@/components/ui/tokens';
 import {
   Sun,
   Moon,
@@ -70,7 +65,7 @@ import {
   ArrowLeft,
   Radio,
   Plus,
-  EllipsisVertical,
+  Menu as MenuIcon,
   UserPlus,
   LogIn,
   Users,
@@ -290,12 +285,6 @@ const NavigationMenu = ({
     !sessionData.isSessionCompleted &&
     (hasStarted || (sessionData.matches && sessionData.matches.length > 0));
 
-  // Matches only reach the server when the session is completed; signing out
-  // clears the one in progress, a match that is still being scored included.
-  // Not the tutorial's practice match though: that was never going to be kept.
-  const signOutLoss = isTutorialActive
-    ? describeStoredSignOutLoss()
-    : describeSignOutLoss(sessionData, matchActive);
   // What keeps the matches is completing the session, which the question
   // offers itself when it can be done now: saved matches, none being played.
   // Not under the walkthrough, which holds the session as it found it.
@@ -304,6 +293,12 @@ const NavigationMenu = ({
     !sessionData.isSessionCompleted &&
     !matchActive &&
     (sessionData.matches?.length ?? 0) > 0;
+  // Matches only reach the server when the session is completed; signing out
+  // clears the one in progress, a match that is still being scored included.
+  // Not the tutorial's practice match though: that was never going to be kept.
+  const signOutLoss = isTutorialActive
+    ? describeStoredSignOutLoss()
+    : describeSignOutLoss(sessionData, matchActive, canCompleteFirst);
 
   // The text labels only fit once the bar is wide enough for everything in
   // it: guests carry two extra buttons (Sign in / Sign up), and the clock
@@ -575,14 +570,15 @@ const NavigationMenu = ({
         </>
       ) : condensed ? (
         // Everything the bar usually holds, behind one button. Sessions is
-        // the back arrow at the other end of the bar.
+        // the back arrow at the other end of the bar. A hamburger, not a
+        // "⋮": on /active that is the session's own menu, just below.
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               aria-label="More options"
               className={`flex min-h-11 min-w-11 ${iconButtonClass}`}
             >
-              <EllipsisVertical className="w-5 h-5" />
+              <MenuIcon className="w-5 h-5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -641,14 +637,15 @@ const NavigationMenu = ({
 
           {/* On a phone there is no room for a button each: the tutorial, the
               theme and (for guests) Sign up share one menu; zoomed right in,
-              Sign in or the account items too. */}
+              Sign in or the account items too. A hamburger, so "⋮" means
+              only the session's own menu on /active. */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 aria-label="More options"
                 className={`flex sm:hidden ${iconButtonClass}`}
               >
-                <EllipsisVertical className="w-4 h-4" />
+                <MenuIcon className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -752,17 +749,17 @@ const NavigationMenu = ({
         confirmLabel="Sign out anyway"
         icon={LogOut}
         onConfirm={signOut}
-      >
-        {canCompleteFirst && (
-          <button
-            type="button"
-            onClick={completeThenSignOut}
-            className={`flex w-full min-h-11 items-center justify-center rounded-xl border-2 px-4 py-1.5 text-sm font-bold leading-tight transition-colors ${primaryClass(isDarkMode)}`}
-          >
-            Complete session and sign out
-          </button>
-        )}
-      </ConfirmDialog>
+        // The one fill when the session can be kept; signing out anyway
+        // turns to a red outline beside Cancel.
+        primaryAction={
+          canCompleteFirst
+            ? {
+                label: 'Complete session and sign out',
+                onSelect: completeThenSignOut,
+              }
+            : undefined
+        }
+      />
     </div>
   );
 };
