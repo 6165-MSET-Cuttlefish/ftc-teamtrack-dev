@@ -9,6 +9,7 @@ import type {
 import {
   COUNT_LABELS,
   DEFAULT_ROBOT_COUNT,
+  EACH_LABELS,
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
@@ -199,6 +200,13 @@ export const MatchForm = ({
     garden: useId(),
     info: useId(),
   };
+  /** What each counter's stepper is described by (CounterHead's `worth`) */
+  const worthIds = {
+    flower: useId(),
+    flowerBonus: useId(),
+    hive: useId(),
+    garden: useId(),
+  };
   const [formData, setFormData] = useState<Partial<Match>>(() =>
     initialMatch
       ? formOf(initialMatch)
@@ -348,6 +356,7 @@ export const MatchForm = ({
           <CounterHead
             id={ids[key]}
             title={COUNT_LABELS[field]}
+            worth={{ id: worthIds[key], each: EACH_LABELS[field] }}
             points={points}
             pointsClassName="md:hidden"
             info={FIELD_HINTS[field]}
@@ -361,6 +370,7 @@ export const MatchForm = ({
           hideLabel
           label={COUNT_LABELS[field]}
           name={name}
+          describedBy={worthIds[key]}
           max={FIELD_LIMITS[field]}
           value={formData[field] ?? 0}
           points={points}

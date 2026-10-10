@@ -114,7 +114,7 @@ export const useMatchEntry = () => {
 
   // The buzzer hands the scorer from the live counters to this section:
   // light it for a moment, and bring its first row of steppers into view
-  // unless that row is on screen already ("Count them first" does the same).
+  // unless that row is on screen already.
   const endSectionRef = useRef<HTMLDivElement>(null);
   const robotsRef = useRef<HTMLDivElement>(null);
   const [justUnlocked, setJustUnlocked] = useState(false);

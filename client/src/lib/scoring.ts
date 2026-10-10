@@ -468,11 +468,14 @@ export const COUNT_LABELS = {
   garden: ELEMENT_LABELS.garden,
 } as const;
 
-/** What one of each end-of-match counter is worth, beside its count */
+/**
+ * What one of each end-of-match counter is worth: read out with its stepper,
+ * with the points so far, as the screen shows the points beside the name and
+ * keeps the worth in the rule behind the (i)
+ */
 export const EACH_LABELS = {
   flower: `${POINTS.FLOWER_ELEMENT} pts each`,
-  // No break inside "max 4" when the line has to wrap
-  flowerBonus: `${POINTS.FLOWER_BONUS} pts, max\u00a0${FIELD_LIMITS.flowerBonus}`,
+  flowerBonus: `${POINTS.FLOWER_BONUS} pts, max ${FIELD_LIMITS.flowerBonus}`,
   ballsInHive: `${POINTS.CELL_REMAINING} pts each`,
   garden: `${POINTS.GARDEN} pt each`,
 } as const;

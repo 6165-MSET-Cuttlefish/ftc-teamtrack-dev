@@ -371,11 +371,12 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
     };
   }, [barEl, rootRef]);
 
-  // A question opening or closing changes the bar in the same commit:
-  // measured now, before anything is drawn, and before what the answer does
-  // next (Count them first scrolls to End of Match on the next frame) reads
-  // the page. The observer would only see it after that.
-  useLayoutEffect(() => publishRef.current?.(), [pendingConfirm]);
+  // A question opening or closing changes the bar in the same commit, and
+  // so can the buzzer: measured now, before anything is drawn, and before
+  // what comes next reads the page (at the buzzer, the scroll to End of
+  // Match). The observer would only see it after that, and putting back a
+  // lift then (a 200% zoom) would cancel that scroll.
+  useLayoutEffect(() => publishRef.current?.(), [pendingConfirm, matchPhase]);
 
   const present = (region: Region) =>
     slotsInRegion(placement, region).filter(key => slots[key] != null);
@@ -470,8 +471,11 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
           ref={setBarEl}
           data-tutorial="controls"
           // A button that has to go onto a line of its own (a 200% zoom)
-          // goes to its end, under the thumb.
-          className={`fixed left-0 bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] ${
+          // goes to its end, under the thumb. No line along its top, but
+          // its 1px edge is kept, transparent over its own background, so
+          // it is as tall as with one: a pixel shorter, it leaves the tops
+          // of two (i) icons peeking over it (an iPhone 13, two robots).
+          className={`fixed left-0 bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 border-t border-transparent px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] ${
             sideBySide ? 'w-[calc(max(20rem,(100%-3rem)*0.4)+2rem)]' : 'right-0'
           } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
         >

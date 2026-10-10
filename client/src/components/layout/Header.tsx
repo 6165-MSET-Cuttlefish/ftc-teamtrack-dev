@@ -776,7 +776,8 @@ const TEXT = ['text-gray-900', 'text-white'] as const;
  * below the widest layout is not much: the pill is stacked on two lines
  * there, and the logo and nav drop their words to make room. The total and
  * its unit stay in every state from a 360px phone up; narrower than that,
- * the total gives way to the pill rather than have the clock clipped.
+ * the unit goes, and below 280px the phone bar keeps to one thing rather
+ * than have the clock or the pill clipped.
  */
 const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
   const { isDarkMode } = useTheme();
@@ -816,6 +817,12 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
   // wider bar has room for all of it: the logo gives up its name while the
   // clock is there (see `Header`).
   const unitClass = dense ? 'max-[359px]:hidden' : '';
+  // Below 280px (a phone zoomed to 200%) the phone bar's middle has room
+  // for one thing: the PAUSED pill while paused, as it is also the way to
+  // resume, else the clock. The phase and the total give way (the page
+  // shows both); a paused clock and the total are still read out.
+  const tinyClock = dense && paused ? 'max-[279px]:sr-only' : '';
+  const tinyGone = dense ? 'max-[279px]:hidden' : '';
 
   return (
     <span
@@ -831,21 +838,28 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
         data-header-clock
         role="timer"
         aria-label="Match clock"
-        className={`min-w-[2.3em] text-center font-righteous leading-none transition-opacity ${dense ? 'text-3xl' : 'text-xl sm:text-3xl lg:text-4xl'} ${text} ${paused ? 'opacity-40' : ''}`}
+        className={`min-w-[2.3em] text-center font-righteous leading-none transition-opacity ${dense ? 'text-3xl' : 'text-xl sm:text-3xl lg:text-4xl'} ${text} ${paused ? 'opacity-40' : ''} ${tinyClock}`}
       >
         <ClockDigits text={time} />
         <span className="sr-only">{time}</span>
       </span>
-      {paused ? <PausedPill size="sm" /> : <LivePhaseChip size="sm" />}
+      {paused ? (
+        <PausedPill size="sm" />
+      ) : (
+        // No box of its own, so a phase with no chip adds no gap
+        <span className={`contents ${tinyGone}`}>
+          <LivePhaseChip size="sm" />
+        </span>
+      )}
       <span
         aria-hidden="true"
-        className={`w-px ${dense ? 'h-6' : 'h-6 sm:h-8'} ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+        className={`w-px ${dense ? 'h-6' : 'h-6 sm:h-8'} ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'} ${tinyGone}`}
       />
       {/* Read out in words; an aria-label would need a role to be valid */}
       <span className="sr-only">{`Total score ${total} points`}</span>
       <span
         aria-hidden="true"
-        className={`font-bold tabular-nums leading-none ${text} ${dense ? 'text-xl' : 'text-lg sm:text-2xl lg:text-3xl'}`}
+        className={`font-bold tabular-nums leading-none ${text} ${dense ? 'text-xl' : 'text-lg sm:text-2xl lg:text-3xl'} ${tinyGone}`}
       >
         {points}
         <span
@@ -903,15 +917,17 @@ const MatchLabel = ({ withTotal }: { withTotal: boolean }) => {
       className={`inline-flex items-center text-sm font-semibold whitespace-nowrap tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
     >
       Match {matchNumber}
+      {/* Below 280px only 'Match N' fits, as in the clock's row; the total
+          is still read out */}
       {total !== null && (
         <>
           {/* The rule between the clock and the total in the wider bar */}
           <span
             aria-hidden
-            className={`mx-2 h-4 w-px ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+            className={`mx-2 h-4 w-px max-[279px]:hidden ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
           />
           <span className="sr-only">, </span>
-          <span className={TEXT[isDarkMode ? 1 : 0]}>
+          <span className={`max-[279px]:sr-only ${TEXT[isDarkMode ? 1 : 0]}`}>
             {formatPoints(total)}
           </span>
         </>

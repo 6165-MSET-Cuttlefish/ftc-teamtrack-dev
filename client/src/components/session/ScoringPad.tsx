@@ -2,7 +2,13 @@ import { useId, useState } from 'react';
 import { Check, Info } from 'lucide-react';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { useTheme } from '@/contexts';
-import { COUNT_LABELS, ELEMENT_LABELS, FIELD_HINTS, FIELD_LIMITS } from '@/lib';
+import {
+  COUNT_LABELS,
+  EACH_LABELS,
+  ELEMENT_LABELS,
+  FIELD_HINTS,
+  FIELD_LIMITS,
+} from '@/lib';
 import { formatPoints } from '@/lib/points';
 import { FOULS_RULE } from '@/lib/scoring';
 import {
@@ -352,6 +358,10 @@ export const ScoringPad = () => {
     flowerBonus: useId(),
     hive: useId(),
     garden: useId(),
+    flowerWorth: useId(),
+    flowerBonusWorth: useId(),
+    hiveWorth: useId(),
+    gardenWorth: useId(),
     info: useId(),
     robotsNote: useId(),
     fouls: useId(),
@@ -410,10 +420,14 @@ export const ScoringPad = () => {
       </p>
     );
 
-  /** The stepper of one end-of-match counter; its label is drawn above it */
+  /**
+   * The stepper of one end-of-match counter; its label is drawn above it,
+   * and `describedBy` says what one is worth and its points
+   */
   const counter = (
     label: string,
     name: string,
+    describedBy: string,
     max: number,
     value: number,
     onChange: (v: number) => void
@@ -422,6 +436,7 @@ export const ScoringPad = () => {
       label={label}
       name={name}
       hideLabel
+      describedBy={describedBy}
       layout="segment"
       stepper
       max={max}
@@ -626,6 +641,7 @@ export const ScoringPad = () => {
                 key: 'flower',
                 name: 'flower',
                 headId: ids.flower,
+                worthId: ids.flowerWorth,
                 points: breakdown.flower,
                 value: sessionData.flower,
                 onChange: set.flower,
@@ -634,6 +650,7 @@ export const ScoringPad = () => {
                 key: 'flowerBonus',
                 name: 'flower-bonus',
                 headId: ids.flowerBonus,
+                worthId: ids.flowerBonusWorth,
                 points: breakdown.flowerBonus,
                 value: sessionData.flowerBonus,
                 onChange: set.flowerBonus,
@@ -643,6 +660,7 @@ export const ScoringPad = () => {
                 info: 'hive',
                 name: 'left-in-hive',
                 headId: ids.hive,
+                worthId: ids.hiveWorth,
                 points: breakdown.hive,
                 value: sessionData.ballsInHive,
                 onChange: set.ballsInHive,
@@ -651,6 +669,7 @@ export const ScoringPad = () => {
                 key: 'garden',
                 name: 'garden',
                 headId: ids.garden,
+                worthId: ids.gardenWorth,
                 points: breakdown.garden,
                 value: sessionData.garden,
                 onChange: set.garden,
@@ -679,6 +698,7 @@ export const ScoringPad = () => {
                     <CounterHead
                       id={c.headId}
                       title={COUNT_LABELS[c.key]}
+                      worth={{ id: c.worthId, each: EACH_LABELS[c.key] }}
                       points={c.points}
                       info={infoText[which]}
                       infoId={ids.info}
@@ -690,6 +710,7 @@ export const ScoringPad = () => {
                   {counter(
                     COUNT_LABELS[c.key],
                     c.name,
+                    c.worthId,
                     FIELD_LIMITS[c.key],
                     c.value,
                     c.onChange

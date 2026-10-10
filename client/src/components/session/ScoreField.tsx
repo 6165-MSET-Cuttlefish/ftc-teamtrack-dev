@@ -530,6 +530,9 @@ export const ScoreField = memo(
             </div>
           )}
           <div
+            // The −, count and + have no box of their own: this frame is
+            // their outline, so honeycomb lights it with them (global.css)
+            data-joined
             className={`flex h-11 items-stretch overflow-hidden rounded-xl border transition-colors [@media(pointer:coarse)]:h-[2.875rem] ${
               disabled
                 ? LOCKED_SURFACE

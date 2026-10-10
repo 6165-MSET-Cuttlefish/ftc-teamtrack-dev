@@ -455,7 +455,9 @@ const UnsharedBanner = ({
         <button
           type="button"
           onClick={onShare}
-          className={`-my-2 py-2 font-semibold whitespace-nowrap sm:my-0 sm:min-h-11 sm:px-3 sm:rounded-lg sm:border sm:border-team-blue-40 ${
+          // Only `sm:border` gives it an edge. Its colour has no prefix, so
+          // honeycomb outlines it in gold like every other control.
+          className={`-my-2 py-2 font-semibold whitespace-nowrap sm:my-0 sm:min-h-11 sm:px-3 sm:rounded-lg sm:border border-team-blue-40 ${
             pending
               ? ''
               : 'text-team-blue underline underline-offset-2 sm:no-underline sm:hover:bg-team-blue/10 sm:transition-colors'

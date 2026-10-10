@@ -690,11 +690,15 @@ export const TeamManager = ({
     'data-[state=open]:bg-team-blue/15 data-[state=open]:text-team-blue';
 
   // The team dialog's footer stays put while its body scrolls, and stays a
-  // row on a phone too.
-  const footer = 'shrink-0 flex-row gap-3 px-5';
+  // row on a phone too. On a phone zoomed to 200% (195px) the two buttons
+  // can't share a row, so they stack, Done on top as in other dialogs.
+  const footer = 'shrink-0 flex-row gap-3 px-5 max-[279px]:flex-col-reverse';
   // The buttons of the other dialogs' footers: full width when stacked on a
   // phone, and wide enough beside each other not to resize as a label changes.
-  const footerButton = 'h-11 rounded-xl sm:min-w-[7.5rem]';
+  // On a phone zoomed to 200% a long label ('Select sessions to share') wraps
+  // rather than run past the button and the dialog's edge.
+  const footerButton =
+    'h-11 rounded-xl sm:min-w-[7.5rem] max-[279px]:h-auto max-[279px]:min-h-11 max-[279px]:whitespace-normal';
 
   const memberCount = team ? plural(team.members.length, 'member') : '';
 
@@ -938,8 +942,10 @@ export const TeamManager = ({
           closeTeamDialog();
         }}
       >
+        {/* At 200% zoom on a phone the stacked footer would leave the body a
+            sliver, so there the whole dialog scrolls with the backdrop. */}
         <DialogContent
-          className={`max-w-md flex flex-col max-h-[calc(100dvh-2rem)] ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
+          className={`max-w-md flex flex-col max-h-[calc(100dvh-2rem)] max-[279px]:max-h-none ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
           {/* The team's name once, as the title, renamed in place by its owner */}
           <DialogHeader className={`shrink-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
@@ -1236,7 +1242,7 @@ export const TeamManager = ({
             <Button
               onClick={() => askFor({ type: 'leave' })}
               variant="dangerOutline"
-              className="h-11 px-3 min-w-[7.75rem] rounded-xl"
+              className="h-11 px-3 min-w-[7.75rem] max-[279px]:min-w-0 rounded-xl"
             >
               <LogOut className="h-4 w-4" />
               Leave team
@@ -1269,8 +1275,12 @@ export const TeamManager = ({
       />
 
       <Dialog open={showShareDialog} onOpenChange={(open) => { if (!open) handleSkipShare(); }}>
+        {/* On a phone zoomed to 200% the title and the words under it alone
+            are taller than the screen, which left the list no room and
+            pushed the buttons out of the dialog: there it grows to fit its
+            sessions, and the backdrop scrolls instead. */}
         <DialogContent
-          className={`max-w-lg flex flex-col max-h-[calc(100dvh-2rem)] ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
+          className={`max-w-lg flex flex-col max-h-[calc(100dvh-2rem)] max-[279px]:max-h-none ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
           <DialogHeader className={`shrink-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
             <DialogTitle className={titleText}>

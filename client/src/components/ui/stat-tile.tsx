@@ -89,6 +89,7 @@ export const StatTile = ({
   // Below 280px (a phone zoomed to 200%) its one column may shrink below a
   // long word, which then wraps, so a tile never spills past its neighbour
   // or the screen's edge. Wider, a word keeps whole and may use the padding.
+  // The figure is the exception (see `valueRow`).
   const box = cn(
     'relative row-span-3 grid grid-rows-subgrid gap-y-0 content-start min-w-0 rounded-xl p-3 sm:p-5 text-left max-[279px]:grid-cols-[minmax(0,1fr)] max-[279px]:[overflow-wrap:anywhere]',
     isDarkMode ? 'bg-team-blue/10' : 'bg-team-blue/5',
@@ -105,10 +106,15 @@ export const StatTile = ({
       {label}
     </Row>
   );
+  // A figure never breaks between its digits ('190' read as '19' over '0'):
+  // below 280px it is a size smaller instead (and 'None' two, to fit its
+  // column), and may use the padding. It still wraps at a space ('±12 pts').
   const valueRow = (
     <Row
-      className={`block mt-1 text-2xl sm:text-3xl tabular-nums ${
-        empty ? `font-normal ${muted}` : `font-bold ${valueColor}`
+      className={`block mt-1 text-2xl sm:text-3xl max-[279px]:[overflow-wrap:normal] tabular-nums ${
+        empty
+          ? `font-normal max-[279px]:text-base ${muted}`
+          : `font-bold max-[279px]:text-lg ${valueColor}`
       }`}
     >
       {empty ? 'None' : value}

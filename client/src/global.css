@@ -546,18 +546,31 @@
 /*
  * Every control that can be used is outlined in the full gold rather than
  * its 40% tint (or grey), so what can be tapped or typed into stands out
- * from the cards and frames around it, which keep the tint. A joined
- * stepper's frame lights with its buttons. Locked and disabled controls
- * keep their own look.
+ * from the cards and frames around it, which keep the tint. That includes
+ * a control drawn ready before Start that only asks for Start when pressed
+ * (aria-disabled): nothing changes look at Start. Locked and disabled
+ * controls keep their own look, and a field marked invalid keeps its red
+ * edge while it has focus.
+ *
+ * A frame lights with its buttons only where it is their one outline: a
+ * joined stepper (data-joined) and a tab bar. A rich-text box lights as a
+ * field does, the rule under its toolbar with it. A card, notice or list
+ * with a button inside keeps the tint.
  */
 .honeycomb
   :is(button, a[href], input, textarea, select, [role='combobox']):is(
     .border-team-blue-40,
     .border-gray-500,
     .border-team-white-20
-  ):not(:disabled, [aria-disabled='true']),
+  ):not(:disabled, [aria-invalid='true']:focus-visible),
 .honeycomb
-  .border-team-blue-40:has(> :is(button, input):not(:disabled), [contenteditable='true']) {
+  :is([data-joined], [role='tablist']).border-team-blue-40:has(
+    > :is(button, input):not(:disabled)
+  ),
+.honeycomb .border-team-blue-40:has(> [contenteditable='true']),
+.honeycomb
+  .border-team-blue-40:has(> [contenteditable='true'])
+  > .border-team-blue-40 {
   border-color: rgb(var(--team-blue));
 }
 

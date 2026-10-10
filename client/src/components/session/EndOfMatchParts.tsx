@@ -3,10 +3,11 @@ import { useTheme } from '@/contexts';
 import { formatPoints } from '@/lib/points';
 
 /**
- * The pieces the end-of-match counters are built from on the scoring page,
- * shared by the desktop ScoringPad, the phone's MatchEntry and the Add/Edit
- * Match dialog: the note over them that says when they open, and the name
- * over each counter, with its rule (and what one is worth) behind an (i).
+ * The pieces the end-of-match counters are built from: on the scoring page
+ * (the desktop ScoringPad and the phone's MatchEntry), the note over them
+ * that says when they open; there and in the Add/Edit Match dialog, the name
+ * over each counter, with its points beside it and its rule (and what one is
+ * worth) behind an (i).
  */
 
 /**
@@ -97,12 +98,18 @@ export const INFO_BUTTON_CLASS =
  * The name over one end-of-match counter, its points beside it, and the
  * rule behind its (i). The one label above a counter, not muted, and never
  * dimmed while the counters are locked: the steppers show that. A long name
- * wraps rather than cut off, with the (i) after its last word. Not a heading element: the buzzer's scroll and
- * the walkthrough look for the section's first `h3`.
+ * wraps rather than cut off, with the (i) after its last word. Not a
+ * heading element: it names its counter's group (`aria-labelledby`), under
+ * the section's own heading.
+ *
+ * What one is worth isn't on screen (its rule says it). With `worth` it is
+ * read out with the stepper, as its `describedBy`, and the points with it
+ * rather than on their own.
  */
 export const CounterHead = ({
   id,
   title,
+  worth,
   points,
   pointsClassName = '',
   info,
@@ -113,6 +120,11 @@ export const CounterHead = ({
   /** Id of the title, for the group's `aria-labelledby` */
   id: string;
   title: string;
+  /**
+   * What one is worth (EACH_LABELS), and the id of the text that says it
+   * with the points so far, for the stepper's `describedBy`
+   */
+  worth?: { id: string; each: string };
   points?: number;
   /**
    * Extra classes for the points, e.g. `md:hidden` where a wider layout
@@ -155,8 +167,19 @@ export const CounterHead = ({
           </button>
         )}
       </span>
+      {worth && (
+        <span id={worth.id} className="sr-only">
+          {worth.each}
+          {/* Left out where the points don't show */}
+          {!!points && (
+            <span className={pointsClassName}> {formatPoints(points)}</span>
+          )}
+        </span>
+      )}
       {points !== undefined && (
         <span
+          // Read out with the worth instead
+          aria-hidden={worth ? true : undefined}
           className={`shrink-0 text-sm font-semibold leading-5 tabular-nums ${
             points !== 0 ? pointsTone(isDarkMode) : 'invisible'
           } ${pointsClassName}`}

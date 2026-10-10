@@ -41,9 +41,105 @@ const cutByTopEdge = (
 };
 
 /**
+ * Whether the page, once it has gone `by` px, leaves any of `boxes` (as on
+ * screen now) cut by the screen line `edge`: part above it, part below.
+ */
+const cutAt = (boxes: DOMRect[], by: number, edge: number): boolean =>
+  boxes.some(r => r.top - by < edge && r.bottom - by > edge);
+
+/**
+ * Where the page stops, given the scroll the reveal worked out (`by`):
+ * there, or a few px off it where that keeps a control from being cut by
+ * the bar's edge (`clearOfBarEdge`), if nothing is cut by either edge
+ * there. Where the rows only just fit between the edges (a short screen),
+ * clearing one edge can cut a row at the other: then it is the nearest
+ * place clean at both, with no sliver of the clock under the top one
+ * either, that still shows all that `by` does of `shown` (the robot rows,
+ * the section's note, its first row), at most `REVEAL_GAP` further or half
+ * the screen short. Where there is none, it is the one of those places
+ * clean at the top edge with the least of a row peeking over the bar: a
+ * strip of controls left under the header reads worse.
+ */
+const settle = (
+  by: number,
+  band: { top: number; bottom: number },
+  shown: DOMRect[]
+): number => {
+  const moved = by + clearOfBarEdge(by);
+  const controls = [
+    ...document.querySelectorAll('button, input, [role="checkbox"]'),
+  ].filter(el => !el.closest('header, .sr-only') && scrollsWithPage(el));
+  // A stepper's frame is a px taller than its buttons: that px shows too
+  const boxes = [
+    ...controls,
+    ...controls.flatMap(el =>
+      el instanceof HTMLInputElement && el.parentElement
+        ? [el.parentElement]
+        : []
+    ),
+  ]
+    .map(el => el.getBoundingClientRect())
+    .filter(r => r.width > 1 && r.height > 1);
+  const clock = document.querySelector('[data-clock-row]');
+  const clockBottom =
+    clock && scrollsWithPage(clock)
+      ? clock.getBoundingClientRect().bottom
+      : null;
+  const topClean = (to: number) => {
+    const clockShowing = clockBottom === null ? 0 : clockBottom - to - band.top;
+    return (
+      !cutAt(boxes, to, band.top) &&
+      !(clockShowing > 0 && clockShowing < CLOCK_SLIVER)
+    );
+  };
+  // The bar only has an edge to cut at where it is under the section
+  const barEdge = band.bottom < window.innerHeight ? band.bottom : null;
+  /** How far the controls the bar's edge cuts reach over it (0: none) */
+  const overBar = (to: number) =>
+    barEdge === null
+      ? 0
+      : Math.max(
+          0,
+          ...boxes
+            .filter(r => r.top - to < barEdge && r.bottom - to > barEdge)
+            .map(r => barEdge - (r.top - to))
+        );
+  if (topClean(moved) && overBar(moved) === 0) return moved;
+  const onScreen = (r: DOMRect, to: number) =>
+    r.top - to >= band.top && r.bottom - to <= band.bottom;
+  const staying = shown.filter(r => onScreen(r, by));
+  // Only where the page can scroll to: elsewhere it would stop short
+  const least = -window.scrollY;
+  const most =
+    document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+  const back = Math.floor((band.bottom - band.top) / 2);
+  let fallback: { to: number; over: number } | null = null;
+  for (let step = 0; step <= back; step++) {
+    const tries =
+      step === 0
+        ? [by]
+        : step <= REVEAL_GAP
+          ? [by + step, by - step]
+          : [by - step];
+    for (const to of tries) {
+      if (
+        to < least ||
+        to > most ||
+        !topClean(to) ||
+        !staying.every(r => onScreen(r, to))
+      )
+        continue;
+      const over = overBar(to);
+      if (over === 0) return to;
+      if (!fallback || over < fallback.over) fallback = { to, over };
+    }
+  }
+  return fallback?.to ?? by;
+};
+
+/**
  * Bring the first row of steppers in `section` (End of Match) into view,
- * unless it is on screen already. Used at the buzzer (and by "Count them
- * first", so both land the page in the same place).
+ * unless it is on screen already. Used at the buzzer.
  *
  * A heading on screen is not enough: on a phone the steppers under it can
  * sit behind the bar fixed over the bottom of the page. The row is the box
@@ -55,7 +151,8 @@ const cutByTopEdge = (
  * and `keep` can't both be on screen (a short phone on its side, two
  * robots), `keep` wins, as End park is what the band asks for first: the
  * page stops with it at the top, and the counters follow one short scroll
- * down. Either way no control is left cut by the bar's edge.
+ * down. Either way no control is left cut by the bar's edge, nor by the top
+ * edge, wherever there is a place for that (see `settle`).
  */
 export const revealFirstStepperRow = (
   section: Element,
@@ -123,8 +220,10 @@ export const revealFirstStepperRow = (
   )
     by += past;
   by = Math.round(by);
+  // The section's note (the band over the counters): its first paragraph
+  const note = (section.querySelector('p') ?? section).getBoundingClientRect();
   window.scrollBy({
-    top: by + clearOfBarEdge(by),
+    top: settle(by, band, kept ? [kept, note, row] : [note, row]),
     behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
       ? 'instant'
       : 'smooth',

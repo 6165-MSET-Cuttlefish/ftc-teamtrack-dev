@@ -4,6 +4,7 @@ import { useTheme } from '@/contexts';
 import { cn } from '@/lib/utils';
 import {
   COUNT_LABELS,
+  EACH_LABELS,
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
@@ -579,6 +580,10 @@ export const MatchEntry = () => {
     flowerBonus: useId(),
     hive: useId(),
     garden: useId(),
+    flowerWorth: useId(),
+    flowerBonusWorth: useId(),
+    hiveWorth: useId(),
+    gardenWorth: useId(),
     info: useId(),
   };
 
@@ -598,19 +603,21 @@ export const MatchEntry = () => {
 
   /**
    * A counter's name and its points, with its rule under it while its (i)
-   * is open
+   * is open, and what one is worth read out with the stepper (`worth`)
    */
   const head = (
     which: InfoKey,
     id: string,
     title: string,
     rule: string,
-    points: number
+    points: number,
+    worth: { id: string; each: string }
   ) => (
     <div className="min-w-0">
       <CounterHead
         id={id}
         title={title}
+        worth={worth}
         points={points}
         info={rule}
         infoId={ids.info}
@@ -704,7 +711,13 @@ export const MatchEntry = () => {
 
       {foulsShown && !short && <Fouls startFirstId={startFirstId} />}
 
-      {/* Its groups have titles of their own: only its caption shows */}
+      {/* Its groups have titles of their own: only its caption shows. With
+          the clock over the scoring on a short screen (an iPhone SE on its
+          side, a 200% zoom), the robot rows, this note and one row of
+          counters only just fit between the header and the bar, so the
+          counters stand a little further off the note and off each other:
+          where the buzzer's scroll stops (see `revealFirstStepperRow`), the
+          bar's edge then falls in a gap, not across a name or a stepper */}
       <Section
         title="End of Match"
         titleHidden
@@ -712,6 +725,7 @@ export const MatchEntry = () => {
         reserveCaption
         highlight={justUnlocked}
         sectionRef={endSectionRef}
+        className="[@media(max-height:500px)_and_(max-width:639px)]:gap-5"
       >
         {/*
           Four counters drawn alike, as on the desktop pad: a name with the
@@ -731,13 +745,14 @@ export const MatchEntry = () => {
           data-tutorial={
             flowersShown || hiveGardenShown ? 'end-of-match' : undefined
           }
-          className="grid grid-cols-1 gap-x-3 gap-y-4 empty:hidden [@container(min-width:17rem)]:grid-cols-2"
+          className="grid grid-cols-1 gap-x-3 gap-y-4 empty:hidden [@container(min-width:17rem)]:grid-cols-2 [@media(max-height:500px)_and_(max-width:639px)]:gap-y-6"
         >
           {(
             [
               {
                 key: 'flower',
                 headId: ids.flower,
+                worthId: ids.flowerWorth,
                 points: breakdown.flower,
                 value: sessionData.flower,
                 onChange: set.flower,
@@ -745,6 +760,7 @@ export const MatchEntry = () => {
               {
                 key: 'flowerBonus',
                 headId: ids.flowerBonus,
+                worthId: ids.flowerBonusWorth,
                 points: breakdown.flowerBonus,
                 value: sessionData.flowerBonus,
                 onChange: set.flowerBonus,
@@ -753,6 +769,7 @@ export const MatchEntry = () => {
                 key: 'ballsInHive',
                 info: 'hive',
                 headId: ids.hive,
+                worthId: ids.hiveWorth,
                 points: breakdown.hive,
                 value: sessionData.ballsInHive,
                 onChange: set.ballsInHive,
@@ -760,6 +777,7 @@ export const MatchEntry = () => {
               {
                 key: 'garden',
                 headId: ids.garden,
+                worthId: ids.gardenWorth,
                 points: breakdown.garden,
                 value: sessionData.garden,
                 onChange: set.garden,
@@ -781,13 +799,15 @@ export const MatchEntry = () => {
                   c.headId,
                   COUNT_LABELS[c.key],
                   FIELD_HINTS[c.key],
-                  c.points
+                  c.points,
+                  { id: c.worthId, each: EACH_LABELS[c.key] }
                 )}
                 <ScoreField
                   layout="segment"
                   stepper
                   hideLabel
                   label={COUNT_LABELS[c.key]}
+                  describedBy={c.worthId}
                   max={FIELD_LIMITS[c.key]}
                   value={c.value}
                   disabled={endDisabled}
