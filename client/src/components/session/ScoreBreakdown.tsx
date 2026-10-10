@@ -380,11 +380,7 @@ export const ScoreBreakdown = () => {
           robots={robots}
         />
         {(!hasAuto || foulsShown) && (
-          <div
-            className={`space-y-1.5 border-t pt-2.5 ${
-              isDarkMode ? 'border-white/10' : 'border-gray-200'
-            }`}
-          >
+          <div className="space-y-1.5 pt-1">
             {!hasAuto && (
               <PointsLine label={ELEMENT_LABELS.park}>
                 <span className="font-semibold tabular-nums text-foreground">

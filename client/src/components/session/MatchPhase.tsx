@@ -1,4 +1,3 @@
-import { Pause } from 'lucide-react';
 import { CHIP_BASE, CHIP_SIZES } from '@/components/ui/tokens';
 import { useSession, useSessionCore, useTheme } from '@/contexts';
 
@@ -154,9 +153,8 @@ export const PausedPill = ({ size = 'md' }: { size?: Size }) => {
           ? setIsPickupPaused(false)
           : setIsTimerRunning(true)
       }
-      className={`${CHIP_BASE} relative min-h-0 min-w-0 gap-1 after:absolute after:-inset-2 after:content-[''] [@media(pointer:coarse)]:after:-inset-x-3 [@media(pointer:coarse)]:after:inset-y-[calc((100%_-_2.75rem)/2)] ${SIZES[size]} ${PAUSED_TONE[isDarkMode ? 1 : 0]}`}
+      className={`${CHIP_BASE} relative min-h-0 min-w-0 after:absolute after:-inset-2 after:content-[''] [@media(pointer:coarse)]:after:-inset-x-3 [@media(pointer:coarse)]:after:inset-y-[calc((100%_-_2.75rem)/2)] ${SIZES[size]} ${PAUSED_TONE[isDarkMode ? 1 : 0]}`}
     >
-      <Pause className="h-3 w-3 fill-current" aria-hidden />
       Paused
     </button>
   );

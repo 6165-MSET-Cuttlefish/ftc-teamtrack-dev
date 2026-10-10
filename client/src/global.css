@@ -543,6 +543,30 @@
  * field's border from turning the full accent (focus-visible:border-team-blue).
  */
 
+/*
+ * Every control that can be used is outlined in the full gold rather than
+ * its 40% tint (or grey), so what can be tapped or typed into stands out
+ * from the cards and frames around it, which keep the tint. A joined
+ * stepper's frame lights with its buttons. Locked and disabled controls
+ * keep their own look.
+ */
+.honeycomb
+  :is(button, a[href], input, textarea, select, [role='combobox']):is(
+    .border-team-blue-40,
+    .border-gray-500,
+    .border-team-white-20
+  ):not(:disabled, [aria-disabled='true']),
+.honeycomb
+  .border-team-blue-40:has(> :is(button, input):not(:disabled), [contenteditable='true']) {
+  border-color: rgb(var(--team-blue));
+}
+
+/* With every control outlined in gold, a picked one (SELECTED) takes a
+   deeper tint, so it still stands apart from the rest */
+.honeycomb .border-team-blue.bg-team-blue\/15 {
+  background-color: rgb(var(--team-blue) / 0.3);
+}
+
 /* Gold glow effect for honeycomb theme */
 .honeycomb .border-glow:hover {
   box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);

@@ -469,17 +469,11 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
         <div
           ref={setBarEl}
           data-tutorial="controls"
-          // A rule along its top edge in both layouts: what scrolls under it
-          // goes under an edge, rather than being cut off mid-line. A
-          // button that has to go onto a line of its own (a 200% zoom) goes
-          // to its end, under the thumb.
-          className={`fixed left-0 bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 border-t px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] ${
+          // A button that has to go onto a line of its own (a 200% zoom)
+          // goes to its end, under the thumb.
+          className={`fixed left-0 bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] ${
             sideBySide ? 'w-[calc(max(20rem,(100%-3rem)*0.4)+2rem)]' : 'right-0'
-          } ${
-            isDarkMode
-              ? 'bg-team-dark border-team-white-20'
-              : 'bg-[#FEFEFE] border-team-blue/60'
-          }`}
+          } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
         >
           {render('bar')}
         </div>

@@ -685,10 +685,8 @@ export const SessionCard = ({
           <div
             role="status"
             onClick={stop}
-            className={`flex items-center gap-2 border-t pt-3 text-sm cursor-default ${
-              isDarkMode
-                ? 'border-team-blue-40 text-gray-100'
-                : 'border-gray-200 text-gray-900'
+            className={`flex items-center gap-2 text-sm cursor-default ${
+              isDarkMode ? 'text-gray-100' : 'text-gray-900'
             }`}
           >
             <Lock aria-hidden="true" className="h-4 w-4 shrink-0" />

@@ -2,19 +2,11 @@ import { useId, useState } from 'react';
 import { Check, Info } from 'lucide-react';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { useTheme } from '@/contexts';
-import {
-  COUNT_LABELS,
-  EACH_LABELS,
-  ELEMENT_LABELS,
-  FIELD_HINTS,
-  FIELD_LIMITS,
-} from '@/lib';
+import { COUNT_LABELS, ELEMENT_LABELS, FIELD_HINTS, FIELD_LIMITS } from '@/lib';
 import { formatPoints } from '@/lib/points';
 import { FOULS_RULE } from '@/lib/scoring';
 import {
-  CountLine,
   CounterHead,
-  FlowerSlots,
   INFO_BUTTON_CLASS,
   LOCKED_SURFACE,
 } from './EndOfMatchParts';
@@ -42,8 +34,8 @@ import {
  *    leave/park rows beside it, and in a scrim the two foul counters, each
  *    level with a robot row. Every column starts and ends on the same lines.
  *  - After the buzzer: the two flower counters, Left in Hive and Garden as
- *    joined steppers, each under its name (the rule behind an (i)) and what
- *    one is worth, locked until the clock stops (see `useScoringLocks`).
+ *    joined steppers, each under its name (the rule and what one is worth
+ *    behind an (i)), locked until the clock stops (see `useScoringLocks`).
  *  - Then one band across the bottom: the total and the ranking points.
  *    Each element's points are on its own counter, so the band doesn't
  *    repeat them.
@@ -357,13 +349,9 @@ export const ScoringPad = () => {
 
   const ids = {
     flower: useId(),
-    flowerLine: useId(),
     flowerBonus: useId(),
-    flowerBonusLine: useId(),
     hive: useId(),
-    hiveLine: useId(),
     garden: useId(),
-    gardenLine: useId(),
     info: useId(),
     robotsNote: useId(),
     fouls: useId(),
@@ -426,7 +414,6 @@ export const ScoringPad = () => {
   const counter = (
     label: string,
     name: string,
-    describedBy: string,
     max: number,
     value: number,
     onChange: (v: number) => void
@@ -435,7 +422,6 @@ export const ScoringPad = () => {
       label={label}
       name={name}
       hideLabel
-      describedBy={describedBy}
       layout="segment"
       stepper
       max={max}
@@ -615,9 +601,9 @@ export const ScoringPad = () => {
           {endCaption}
         </div>
         {/*
-          Three rows shared across the four counters (subgrid), so every
-          name, every worth line and every stepper sits level with its
-          neighbours however the names wrap: the two flower counters, then
+          Two rows shared across the four counters (subgrid), so every name
+          (with its points) and every stepper sits level with its neighbours
+          however the names wrap: the two flower counters, then
           Left in Hive and Garden. Below `lg` the flower pair takes the first
           row and the other two the next. An open (i) rule sits under its
           own name, in that first row, so the rows under it stay level with
@@ -630,7 +616,7 @@ export const ScoringPad = () => {
           data-tutorial={
             flowersShown || hiveGardenShown ? 'end-of-match' : undefined
           }
-          className={`grid grid-cols-2 gap-x-4 gap-y-1.5 empty:hidden lg:gap-x-5 ${
+          className={`grid grid-cols-2 gap-x-4 gap-y-2 empty:hidden lg:gap-x-5 ${
             flowersShown && hiveGardenShown ? 'lg:grid-cols-4' : ''
           }`}
         >
@@ -640,8 +626,6 @@ export const ScoringPad = () => {
                 key: 'flower',
                 name: 'flower',
                 headId: ids.flower,
-                lineId: ids.flowerLine,
-                icon: <FlowerSlots nectar="top" />,
                 points: breakdown.flower,
                 value: sessionData.flower,
                 onChange: set.flower,
@@ -650,8 +634,6 @@ export const ScoringPad = () => {
                 key: 'flowerBonus',
                 name: 'flower-bonus',
                 headId: ids.flowerBonus,
-                lineId: ids.flowerBonusLine,
-                icon: <FlowerSlots nectar="bottom" />,
                 points: breakdown.flowerBonus,
                 value: sessionData.flowerBonus,
                 onChange: set.flowerBonus,
@@ -661,7 +643,6 @@ export const ScoringPad = () => {
                 info: 'hive',
                 name: 'left-in-hive',
                 headId: ids.hive,
-                lineId: ids.hiveLine,
                 points: breakdown.hive,
                 value: sessionData.ballsInHive,
                 onChange: set.ballsInHive,
@@ -670,7 +651,6 @@ export const ScoringPad = () => {
                 key: 'garden',
                 name: 'garden',
                 headId: ids.garden,
-                lineId: ids.gardenLine,
                 points: breakdown.garden,
                 value: sessionData.garden,
                 onChange: set.garden,
@@ -687,7 +667,7 @@ export const ScoringPad = () => {
                   key={c.key}
                   role="group"
                   aria-labelledby={c.headId}
-                  className={`row-span-3 grid grid-rows-subgrid ${
+                  className={`row-span-2 grid grid-rows-subgrid ${
                     flowersShown &&
                     hiveGardenShown &&
                     !FLOWER_KEYS.includes(c.key)
@@ -699,7 +679,7 @@ export const ScoringPad = () => {
                     <CounterHead
                       id={c.headId}
                       title={COUNT_LABELS[c.key]}
-                      icon={'icon' in c ? c.icon : undefined}
+                      points={c.points}
                       info={infoText[which]}
                       infoId={ids.info}
                       infoOpen={infoOpen === which}
@@ -707,15 +687,9 @@ export const ScoringPad = () => {
                     />
                     {rule(which)}
                   </div>
-                  <CountLine
-                    id={c.lineId}
-                    each={EACH_LABELS[c.key]}
-                    points={c.points}
-                  />
                   {counter(
                     COUNT_LABELS[c.key],
                     c.name,
-                    c.lineId,
                     FIELD_LIMITS[c.key],
                     c.value,
                     c.onChange

@@ -4,7 +4,6 @@ import { useTheme } from '@/contexts';
 import { cn } from '@/lib/utils';
 import {
   COUNT_LABELS,
-  EACH_LABELS,
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
@@ -13,9 +12,7 @@ import {
 import { FOULS_RULE } from '@/lib/scoring';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import {
-  CountLine,
   CounterHead,
-  FlowerSlots,
   INFO_BUTTON_CLASS,
   LOCKED_SURFACE,
 } from './EndOfMatchParts';
@@ -579,13 +576,9 @@ export const MatchEntry = () => {
   const { isDarkMode } = useTheme();
   const ids = {
     flower: useId(),
-    flowerLine: useId(),
     flowerBonus: useId(),
-    flowerBonusLine: useId(),
     hive: useId(),
-    hiveLine: useId(),
     garden: useId(),
-    gardenLine: useId(),
     info: useId(),
   };
 
@@ -603,21 +596,22 @@ export const MatchEntry = () => {
   const toggleInfo = (which: InfoKey) =>
     setInfo({ key: entryKey, open: infoOpen === which ? null : which });
 
-  /** A counter's name, with its rule under it while its (i) is open */
+  /**
+   * A counter's name and its points, with its rule under it while its (i)
+   * is open
+   */
   const head = (
     which: InfoKey,
     id: string,
     title: string,
     rule: string,
-    icon?: React.ReactNode
+    points: number
   ) => (
-    // A little more room under the name than between the worth line and
-    // the stepper.
-    <div className="min-w-0 pb-0.5">
+    <div className="min-w-0">
       <CounterHead
         id={id}
         title={title}
-        icon={icon}
+        points={points}
         info={rule}
         infoId={ids.info}
         infoOpen={infoOpen === which}
@@ -721,14 +715,12 @@ export const MatchEntry = () => {
       >
         {/*
           Four counters drawn alike, as on the desktop pad: a name with the
-          rule behind its (i), what one is worth, then the stepper. The two
-          flower counters come first, side by side so the difference is the
-          first thing seen: what is counted (pieces, or flowers) and where
-          your nectar is (the picture before each name). Left in Hive and
-          Garden are the second pair. A pair goes to one column only where
-          its column is narrower than a 320px phone's (a 200% zoom). Each
-          counter spans its pair's rows (subgrid), so the steppers stay level
-          however the names above them wrap.
+          rule (and what one is worth) behind its (i) and its points beside
+          it, then the stepper. The two flower counters come first, side by
+          side, then Left in Hive and Garden. A pair goes to one column only
+          where its column is narrower than a 320px phone's (a 200% zoom).
+          Each counter spans its pair's rows (subgrid), so the steppers stay
+          level however the names above them wrap.
 
           The walkthrough spotlights the counters, not the note over them,
           which is empty while it runs: its ring then sits as close to the
@@ -746,8 +738,6 @@ export const MatchEntry = () => {
               {
                 key: 'flower',
                 headId: ids.flower,
-                lineId: ids.flowerLine,
-                icon: <FlowerSlots nectar="top" />,
                 points: breakdown.flower,
                 value: sessionData.flower,
                 onChange: set.flower,
@@ -755,8 +745,6 @@ export const MatchEntry = () => {
               {
                 key: 'flowerBonus',
                 headId: ids.flowerBonus,
-                lineId: ids.flowerBonusLine,
-                icon: <FlowerSlots nectar="bottom" />,
                 points: breakdown.flowerBonus,
                 value: sessionData.flowerBonus,
                 onChange: set.flowerBonus,
@@ -765,7 +753,6 @@ export const MatchEntry = () => {
                 key: 'ballsInHive',
                 info: 'hive',
                 headId: ids.hive,
-                lineId: ids.hiveLine,
                 points: breakdown.hive,
                 value: sessionData.ballsInHive,
                 onChange: set.ballsInHive,
@@ -773,7 +760,6 @@ export const MatchEntry = () => {
               {
                 key: 'garden',
                 headId: ids.garden,
-                lineId: ids.gardenLine,
                 points: breakdown.garden,
                 value: sessionData.garden,
                 onChange: set.garden,
@@ -788,26 +774,20 @@ export const MatchEntry = () => {
                 key={c.key}
                 role="group"
                 aria-labelledby={c.headId}
-                className="row-span-3 grid grid-rows-subgrid gap-y-1.5"
+                className="row-span-2 grid grid-rows-subgrid gap-y-2"
               >
                 {head(
                   'info' in c ? c.info : c.key,
                   c.headId,
                   COUNT_LABELS[c.key],
                   FIELD_HINTS[c.key],
-                  'icon' in c ? c.icon : undefined
+                  c.points
                 )}
-                <CountLine
-                  id={c.lineId}
-                  each={EACH_LABELS[c.key]}
-                  points={c.points}
-                />
                 <ScoreField
                   layout="segment"
                   stepper
                   hideLabel
                   label={COUNT_LABELS[c.key]}
-                  describedBy={c.lineId}
                   max={FIELD_LIMITS[c.key]}
                   value={c.value}
                   disabled={endDisabled}

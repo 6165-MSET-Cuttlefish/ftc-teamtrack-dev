@@ -9,7 +9,6 @@ import type {
 import {
   COUNT_LABELS,
   DEFAULT_ROBOT_COUNT,
-  EACH_LABELS,
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
@@ -42,7 +41,7 @@ import {
 } from '@/components/ui/dialog';
 import { ChevronDown, Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
-import { CountLine, CounterHead, FlowerSlots } from './EndOfMatchParts';
+import { CounterHead } from './EndOfMatchParts';
 import { Toggle } from './MatchEntry';
 import { ScoreField } from './ScoreField';
 import { LOCK_REASONS, autonomousNote, countersShown } from './useScoringLocks';
@@ -195,13 +194,9 @@ export const MatchForm = ({
   const breakdownId = useId();
   const ids = {
     flower: useId(),
-    flowerLine: useId(),
     flowerBonus: useId(),
-    flowerBonusLine: useId(),
     hive: useId(),
-    hiveLine: useId(),
     garden: useId(),
-    gardenLine: useId(),
     info: useId(),
   };
   const [formData, setFormData] = useState<Partial<Match>>(() =>
@@ -334,39 +329,31 @@ export const MatchForm = ({
 
   /**
    * One end-of-match counter as one row, like Hive Tips above it: its name
-   * (with the (i)) over what one is worth on the left, the stepper on the
-   * right, in line with every other stepper in the form, and the rule under
-   * the row once opened. Its points sit on the worth line on a phone and in
-   * the points column from md up. Where that would leave the words under
-   * 7.5rem (a 320px phone) the stepper wraps under them, still on the right,
-   * instead of squeezing them a word a line.
+   * (with the (i), which says what one is worth) on the left, the stepper
+   * on the right, in line with every other stepper in the form, and the
+   * rule under the row once opened. Its points sit beside the name on a
+   * phone and in the points column from md up. Where that would leave the
+   * words under 7.5rem (a 320px phone) the stepper wraps under them, still
+   * on the right, instead of squeezing them a word a line.
    */
   const counter = (
     field: 'flower' | 'flowerBonus' | 'ballsInHive' | 'garden',
     key: InfoKey,
-    lineId: string,
     name: string,
-    points: number,
-    icon?: React.ReactNode
+    points: number
   ) => (
     <div role="group" aria-labelledby={ids[key]} className="space-y-2">
       <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 md:gap-x-3">
-        <div className="min-w-0 flex-[1_1_7.5rem] space-y-1">
+        <div className="min-w-0 flex-[1_1_7.5rem]">
           <CounterHead
             id={ids[key]}
             title={COUNT_LABELS[field]}
-            icon={icon}
+            points={points}
+            pointsClassName="md:hidden"
             info={FIELD_HINTS[field]}
             infoId={ids.info}
             infoOpen={infoOpen === key}
             onInfo={() => toggleInfo(key)}
-          />
-          <CountLine
-            id={lineId}
-            each={EACH_LABELS[field]}
-            points={points}
-            footAligned={false}
-            pointsClassName="md:hidden"
           />
         </div>
         <ScoreField
@@ -374,7 +361,6 @@ export const MatchForm = ({
           hideLabel
           label={COUNT_LABELS[field]}
           name={name}
-          describedBy={lineId}
           max={FIELD_LIMITS[field]}
           value={formData[field] ?? 0}
           points={points}
@@ -586,45 +572,20 @@ export const MatchForm = ({
             hidden={!flowersShown && !hiveGardenShown}
           >
             <div className="space-y-3">
-              {/*
-                Each counter under its own name, as on the scoring page: the
-                picture before the two flower names says where your nectar
-                is.
-              */}
+              {/* Each counter under its own name, as on the scoring page */}
               {flowersShown &&
-                counter(
-                  'flower',
-                  'flower',
-                  ids.flowerLine,
-                  'flower',
-                  breakdown.flower,
-                  <FlowerSlots nectar="top" />
-                )}
+                counter('flower', 'flower', 'flower', breakdown.flower)}
               {flowersShown &&
                 counter(
                   'flowerBonus',
                   'flowerBonus',
-                  ids.flowerBonusLine,
                   'flower-bonus',
-                  breakdown.flowerBonus,
-                  <FlowerSlots nectar="bottom" />
+                  breakdown.flowerBonus
                 )}
               {hiveGardenShown &&
-                counter(
-                  'ballsInHive',
-                  'hive',
-                  ids.hiveLine,
-                  'left-in-hive',
-                  breakdown.hive
-                )}
+                counter('ballsInHive', 'hive', 'left-in-hive', breakdown.hive)}
               {hiveGardenShown &&
-                counter(
-                  'garden',
-                  'garden',
-                  ids.gardenLine,
-                  'garden',
-                  breakdown.garden
-                )}
+                counter('garden', 'garden', 'garden', breakdown.garden)}
             </div>
           </Section>
 
@@ -660,19 +621,12 @@ export const MatchForm = ({
         </div>
 
         <div
-          className={`shrink-0 border-t px-4 py-3 sm:px-6 [@media(max-height:500px)]:sticky [@media(max-height:500px)]:bottom-0 [@media(max-height:500px)]:py-2 ${
-            isDarkMode
-              ? 'border-team-blue-40 bg-team-dark'
-              : 'border-gray-200 bg-white'
+          className={`shrink-0 px-4 py-3 sm:px-6 [@media(max-height:500px)]:sticky [@media(max-height:500px)]:bottom-0 [@media(max-height:500px)]:py-2 ${
+            isDarkMode ? 'bg-team-dark' : 'bg-white'
           }`}
         >
           {showBreakdown && (
-            <div
-              id={breakdownId}
-              className={`mb-3 space-y-1 border-b pb-3 ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}
-            >
+            <div id={breakdownId} className="mb-3 space-y-1">
               {rows.map(row => (
                 <div
                   key={row.key}
