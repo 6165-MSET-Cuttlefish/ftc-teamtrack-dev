@@ -12,6 +12,6 @@
 export const LoadingScreen = () => (
   <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-background">
     <div className="animate-spin rounded-full h-10 w-10 border-2 border-team-blue/20 border-t-team-blue"></div>
-    <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
+    <p className="text-sm text-muted-foreground animate-pulse">Loading…</p>
   </div>
 );

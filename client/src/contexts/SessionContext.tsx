@@ -9,11 +9,13 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
 import {
   formatTime as formatTimeUtil,
   getDisplayTimer as getDisplayTimerUtil,
   calculateTotal,
+  DEFAULT_ROBOT_COUNT,
   emptyScoringFields,
   pickScoringFields,
 } from '@/lib';
@@ -46,10 +48,20 @@ import {
 } from '@/lib/matchClock';
 import { matchAudioTime, TELEOP_AUDIO_OFFSET } from '@/lib/matchAudioTime';
 import {
+  clearMatchEditDraft,
+  readMatchEditDraft,
+  saveMatchEditDraft,
+} from '@/lib/matchEditDraft';
+import { finishedSessionOf } from '@/lib/sessionFinished';
+import {
   defaultSessionName,
+  forgetSessionNames,
+  isStaleDefaultName,
   retypeDefaultSessionName,
+  SESSION_NAMES_CHANGED_EVENT,
+  setSessionNamesOwner,
 } from '@/lib/sessionName';
-import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
+import { GAME_TIMING, ROUTES, STORAGE_KEYS } from '@/constants';
 import type {
   Match,
   SessionFormData,
@@ -154,10 +166,10 @@ interface SessionCoreContextType {
   /** AUTO (or controller pickup) of a Full Game straight to the start of TELEOP */
   skipToTeleop: () => void;
   /**
-   * TELEOP straight to the start of ENDGAME (GAME_TIMING.ENDGAME_REMAINING
-   * left). A paused clock stays paused.
+   * TELEOP straight to 1:00, when FLOWERS unlock
+   * (GAME_TIMING.FLOWERS_UNLOCK_REMAINING left). A paused clock stays paused.
    */
-  skipToEndgame: () => void;
+  skipToFlowers: () => void;
   /**
    * A running match straight to the buzzer, from wherever it is: Skip to
    * Buzzer in its last period (TELEOP, or AUTO of an Autonomous match), or
@@ -204,14 +216,15 @@ const PERSIST_DELAY_MS = 300;
 const SEEN_MARK_INTERVAL_MS = 60 * 1000;
 
 /**
- * A new session is ready to start as-is: named and set to Practice, so the
- * first thing a user can do is press Start. The name says what kind of
- * session it is and when ("Practice · Oct 1"), and is confirmed when the
- * session is saved.
+ * A new session is ready to start as-is: named, set to Practice and to one
+ * robot, so the first thing a user can do is press Start. The name says
+ * what kind of session it is and which one ("Practice 4"); it can be
+ * changed from the session menu.
  */
 const createInitialSessionData = (): SessionFormData => {
   return {
     ...emptyScoringFields(),
+    robotCount: DEFAULT_ROBOT_COUNT,
     sessionName: defaultSessionName('Practice'),
     sessionDuration: '',
     sessionType: 'Practice',
@@ -307,6 +320,17 @@ const cueMatchAudio = (time: number, play: boolean) => {
   if (play && audio.paused) audio.play().catch(() => {});
 };
 
+/** One toast for an edit another tab's change closed */
+const EDIT_LOST_TOAST_ID = 'match-edit-lost';
+/** One toast for a session another tab completed or closed */
+const CLOSED_ELSEWHERE_TOAST_ID = 'session-closed-elsewhere';
+
+/** "Match 2", for the saved match `matchId` among `matches` */
+const matchName = (matches: Match[] | undefined, matchId: string): string => {
+  const match = matches?.find(m => m.id === matchId);
+  return match ? `Match ${match.matchNumber}` : 'the match';
+};
+
 const SessionCoreContext = createContext<SessionCoreContextType | undefined>(
   undefined
 );
@@ -321,8 +345,16 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const data = stored?.sessionData ?? createInitialSessionData();
     const clock = stored?.clock ?? idleClock(data.matchType);
     const flags = flagsOf(stored);
+    // A saved match this tab had open for editing comes back open, as it
+    // was left, if it is still in the session.
+    const draft = stored ? readMatchEditDraft() : null;
+    const edit =
+      draft && data.matches?.some(match => match.id === draft.matchId)
+        ? draft
+        : null;
     return {
       data,
+      edit,
       clock,
       flags,
       now: Date.now(),
@@ -338,7 +370,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     };
   });
 
-  const [sessionData, setSessionData] = useState<SessionFormData>(initial.data);
+  const [sessionData, setSessionData] = useState<SessionFormData>(() =>
+    initial.edit ? { ...initial.data, ...initial.edit.fields } : initial.data
+  );
 
   /**
    * The clocks. These anchors are the source of truth; `timer`, `phaseTimer`,
@@ -378,9 +412,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   const [hasStarted, setHasStarted] = useState(initial.flags.hasStarted);
 
-  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(
+    initial.edit?.matchId ?? null
+  );
   const [currentMatchData, setCurrentMatchData] =
-    useState<MatchScoringFields | null>(null);
+    useState<MatchScoringFields | null>(() =>
+      initial.edit ? pickScoringFields(initial.data) : null
+    );
 
   const [matchActive, setMatchActive] = useState<boolean>(
     initial.flags.matchActive
@@ -410,6 +448,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const holdsStoredSessionRef = useRef(initial.restored);
   /** What a save would store right now, for handlers that outlive a render */
   const unsavedRef = useRef({ data: initial.data, flags: initial.flags });
+  /** The saved match open for editing, with its fields as edited so far */
+  const openEditRef = useRef<{
+    matchId: string;
+    fields: MatchScoringFields;
+  } | null>(initial.edit);
   /** When this tab last noted that the stored session is open in it */
   const lastMarkedSeenRef = useRef(0);
   /** Flushes the write that is waiting out PERSIST_DELAY_MS, if any */
@@ -640,12 +683,30 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       const now = Date.now();
       lastReadRef.current = { wall: now, steady: performance.now() };
       publishClock(now);
-      setSessionData(stored.sessionData);
       setHasStarted(flags.hasStarted);
       setMatchActive(flags.matchActive);
-      // Storage always holds the live match, never an edit in progress
-      setEditingMatchId(null);
-      setCurrentMatchData(null);
+      // Storage always holds the live match, never an edit in progress. A
+      // match open for editing here stays open over the other tab's
+      // session while it is still in it; otherwise the edit is gone, and
+      // that is said.
+      const edit = openEditRef.current;
+      const editedMatch = edit
+        ? stored.sessionData.matches?.find(match => match.id === edit.matchId)
+        : undefined;
+      if (edit && editedMatch) {
+        setSessionData({ ...stored.sessionData, ...edit.fields });
+        setCurrentMatchData(pickScoringFields(stored.sessionData));
+      } else {
+        setSessionData(stored.sessionData);
+        setEditingMatchId(null);
+        setCurrentMatchData(null);
+        if (edit) {
+          toast.warning(
+            `Your edit to ${matchName(unsavedRef.current.data.matches, edit.matchId)} wasn't saved: the session changed in another tab`,
+            { id: EDIT_LOST_TOAST_ID }
+          );
+        }
+      }
       sessionStartTimeRef.current = stored.timerState.sessionStartTime;
       matchStartTimeRef.current = stored.timerState.matchStartTime;
       lastSeenTokenRef.current = token;
@@ -663,6 +724,43 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     },
     [publishClock]
   );
+
+  /**
+   * Another tab has completed, discarded or signed out of the session this
+   * tab was showing: say what became of it, rather than turn into a blank
+   * new session without a word. Not for a tab that had not started it.
+   */
+  const sayClosedElsewhere = useCallback(() => {
+    const { data, flags } = unsavedRef.current;
+    const matches = data.matches ?? [];
+    if (matches.length === 0 && !flags.hasStarted) return;
+    const edit = openEditRef.current;
+    const editLost = edit
+      ? ` Your edit to ${matchName(matches, edit.matchId)} wasn't saved.`
+      : '';
+    const finished = finishedSessionOf(matches.map(match => match.id));
+    if (finished) {
+      // Above the router, so the way there is a page load.
+      toast.message(
+        `${finished.name} was completed in another tab.${editLost}`,
+        {
+          id: CLOSED_ELSEWHERE_TOAST_ID,
+          action: {
+            label: 'View',
+            onClick: () =>
+              window.location.assign(
+                `${ROUTES.ANALYSIS}?sessionId=${encodeURIComponent(finished.id)}`
+              ),
+          },
+        }
+      );
+      return;
+    }
+    toast.message(
+      `${data.sessionName || 'This session'} was closed in another tab.${editLost}`,
+      { id: CLOSED_ELSEWHERE_TOAST_ID }
+    );
+  }, []);
 
   /**
    * Catch up with what another tab has stored since this tab last looked:
@@ -705,9 +803,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     lastSeenTokenRef.current = token;
     if (!holdsStoredSessionRef.current) return 'kept';
+    sayClosedElsewhere();
     resetState();
     return 'reset';
-  }, [adoptStoredSession, resetState]);
+  }, [adoptStoredSession, resetState, sayClosedElsewhere]);
 
   // The tutorial plays with real session state and puts it back when it
   // closes; other tabs' changes are picked up once it has.
@@ -727,6 +826,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   /**
+   * Bumped whenever the names a new session is numbered past may have
+   * changed: the account, or its saved sessions read or saved.
+   */
+  const [namesVersion, setNamesVersion] = useState(0);
+  useEffect(() => {
+    const bump = () => setNamesVersion(version => version + 1);
+    window.addEventListener(SESSION_NAMES_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(SESSION_NAMES_CHANGED_EVENT, bump);
+  }, []);
+
+  /**
    * Wipe the in-progress session when the signed-in account goes away (sign
    * out, or a different account signs in). Auth starts out null on every page
    * load, so only a change away from a known account counts — reacting to the
@@ -740,17 +850,59 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     prevUidRef.current = uid;
     if (prevUid === uid) return;
 
+    // A new session is numbered among this account's sessions, or among
+    // this browser's for a guest.
+    setSessionNamesOwner(uid);
+    setNamesVersion(version => version + 1);
+
     if (prevUid) {
+      forgetSessionNames();
       resetState();
       lastSeenTokenRef.current = null;
       removeStoredSession();
       return;
     }
 
-    // A guest signed in and keeps the session they were running. Sign-up
-    // clears storage on its way in, so make sure it is stored again.
+    // A guest signed in (or up) and keeps the session they were running,
+    // stored as it was: refresh the clocks for the account.
     if (prevUid === null) setClockNonce(n => n + 1);
   }, [user, authLoading, resetState]);
+
+  // A session not started yet carries the next number of its type. Its name
+  // was given before the account's sessions were known (a page load signs
+  // in afterwards), or before one was saved under that number (in another
+  // tab, on another device), or in the older dated form: it is given again.
+  // A name the user typed is left alone (even "Practice 1"), and so is one a
+  // started session already carries.
+  const freshSession =
+    !sessionData.isSessionCompleted &&
+    !hasStarted &&
+    !matchActive &&
+    (sessionData.matches?.length ?? 0) === 0 &&
+    !isTutorialActive;
+  useEffect(() => {
+    const type = sessionData.sessionType ?? 'Practice';
+    if (
+      !freshSession ||
+      sessionData.sessionNameTyped ||
+      !isStaleDefaultName(sessionData.sessionName, type)
+    ) {
+      return;
+    }
+    const name = defaultSessionName(type);
+    if (name === sessionData.sessionName) return;
+    setSessionData(prev =>
+      prev.sessionName === sessionData.sessionName
+        ? { ...prev, sessionName: name }
+        : prev
+    );
+  }, [
+    freshSession,
+    sessionData.sessionName,
+    sessionData.sessionNameTyped,
+    sessionData.sessionType,
+    namesVersion,
+  ]);
 
   // Keep the clocks in step with the session they belong to, and replay any
   // phase change that fell due — after a start, pause or skip in this tab,
@@ -892,9 +1044,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         syncFromStorage();
       }
     };
-    // Sign-out and sign-up clear the stored session from outside this
-    // provider. What is in memory is now unsaved: store it again on the
-    // next change instead of mistaking the gap for another tab's doing.
+    // Sign-out clears the stored session from outside this provider. What
+    // is in memory is now unsaved: store it again on the next change
+    // instead of mistaking the gap for another tab's doing.
     const handleClearedHere = () => {
       lastSeenTokenRef.current = null;
       lastSyncedRef.current = null;
@@ -939,7 +1091,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       data: liveSessionData,
       flags: { hasStarted, matchActive },
     };
+    openEditRef.current = editingMatchId
+      ? { matchId: editingMatchId, fields: pickScoringFields(sessionData) }
+      : null;
   });
+
+  // The match open for editing is kept with this tab (see matchEditDraft),
+  // as it is edited, and let go of when the editor closes.
+  useEffect(() => {
+    if (editingMatchId) saveMatchEditDraft(editingMatchId, sessionData);
+    else clearMatchEditDraft();
+  }, [editingMatchId, sessionData]);
 
   const persistNow = useCallback(
     (data: SessionFormData, flags: SessionFlags) => {
@@ -1037,7 +1199,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       if (
         updates.sessionType &&
         updates.sessionType !== prev.sessionType &&
-        updates.sessionName === undefined
+        updates.sessionName === undefined &&
+        !prev.sessionNameTyped
       ) {
         const renamed = retypeDefaultSessionName(
           prev.sessionName,
@@ -1173,7 +1336,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     ) {
       return;
     }
-    // A paused match stays paused, as with Skip to Endgame: TELEOP starts
+    // A paused match stays paused, as with Skip to 1:00: TELEOP starts
     // on Resume, and so does its audio.
     const wasRunning =
       clock.phase === 'controller_pickup' ? !clock.pickupPaused : clock.running;
@@ -1194,28 +1357,29 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     );
   }, [commitClock]);
 
-  const skipToEndgame = useCallback(() => {
+  const skipToFlowers = useCallback(() => {
     const clock = clockRef.current;
-    const endgameMs = GAME_TIMING.ENDGAME_REMAINING * 1000;
-    // Only ever forward: once ENDGAME is on, the skip is to the end.
+    const flowersMs = GAME_TIMING.FLOWERS_UNLOCK_REMAINING * 1000;
+    // Only ever forward: once FLOWERS are unlocked, the skip is to the end.
     if (
       clock.phase !== 'teleop' ||
-      matchSecondsLeft(clock, Date.now()) <= GAME_TIMING.ENDGAME_REMAINING
+      matchSecondsLeft(clock, Date.now()) <=
+        GAME_TIMING.FLOWERS_UNLOCK_REMAINING
     ) {
       return;
     }
-    // The endgame chime is cued off the track, so it sounds as the clock
+    // The wind chimes start the track's 1:00, so they sound as the clock
     // lands there (or on Resume, if paused).
     cueMatchAudio(
       matchAudioTime(
         envRef.current.matchType,
         'teleop',
-        GAME_TIMING.ENDGAME_REMAINING
+        GAME_TIMING.FLOWERS_UNLOCK_REMAINING
       ),
       false
     );
     commitClock(
-      current => ({ ...current, remainingMs: endgameMs, deadline: null }),
+      current => ({ ...current, remainingMs: flowersMs, deadline: null }),
       true
     );
   }, [commitClock]);
@@ -1341,7 +1505,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       matchActive,
       setMatchActive,
       skipToTeleop,
-      skipToEndgame,
+      skipToFlowers,
       skipToEnd,
       holdMatchClock,
       resumeMatchClock,
@@ -1378,7 +1542,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       saveEditedMatch,
       matchActive,
       skipToTeleop,
-      skipToEndgame,
+      skipToFlowers,
       skipToEnd,
       holdMatchClock,
       resumeMatchClock,

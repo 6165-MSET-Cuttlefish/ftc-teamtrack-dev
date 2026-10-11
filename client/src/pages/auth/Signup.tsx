@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -47,10 +46,13 @@ const Signup = () => {
   const location = useLocation();
 
   useEffect(() => {
-    document.title = `Create Account - ${APP_CONFIG.name}`;
+    document.title = `Create an account - ${APP_CONFIG.name}`;
   }, []);
 
-  const from = location.state?.from?.pathname || ROUTES.SESSIONS;
+  // With its query: an /analysis link is nothing without its sessionId
+  const from = location.state?.from?.pathname
+    ? `${location.state.from.pathname}${location.state.from.search ?? ''}`
+    : ROUTES.SESSIONS;
 
   const passwordTooShort =
     formData.password.length > 0 &&
@@ -86,7 +88,10 @@ const Signup = () => {
       !formData.password ||
       !formData.confirmPassword
     ) {
-      setError({ message: 'Please fill in all fields', code: null });
+      setError({
+        message: 'Fill in your name, email and both password fields.',
+        code: null,
+      });
       return;
     }
 
@@ -98,11 +103,12 @@ const Signup = () => {
       return;
     }
 
+    // Whatever this browser holds as a guest (saved sessions, a session
+    // still open) carries into the new account: nothing is cleared here,
+    // so a sign-up that fails or is abandoned costs nothing either.
     try {
       setError(null);
       setLoading(true);
-      const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
-      clearSessionFromStorage();
       await signup(formData.email, formData.password, formData.displayName);
       navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
@@ -116,8 +122,6 @@ const Signup = () => {
     try {
       setError(null);
       setLoading(true);
-      const { clearSessionFromStorage } = await import('@/lib/sessionPersistence');
-      clearSessionFromStorage();
       await loginWithGoogle();
       navigate(getPendingInviteDestination(from), { replace: true });
     } catch (err: unknown) {
@@ -139,13 +143,8 @@ const Signup = () => {
       >
         <CardHeader className="space-y-3 pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-8">
           <CardTitle as="h1" className={`${PAGE_TITLE_CLASS} text-center`}>
-            Create Account
+            Create an account
           </CardTitle>
-          <CardDescription
-            className={`text-center text-sm sm:text-base ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-          >
-            Sign up to get started with TeamTrack
-          </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6 px-4 sm:px-6">
@@ -159,7 +158,7 @@ const Signup = () => {
                 htmlFor="displayName"
                 className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
-                Full Name
+                Name
               </Label>
               <div
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
@@ -172,14 +171,21 @@ const Signup = () => {
                   id="displayName"
                   name="displayName"
                   type="text"
-                  placeholder="Enter your full name"
-                  autoComplete="name"
+                  placeholder="Your name"
+                  autoComplete="given-name"
                   value={formData.displayName}
                   onChange={handleChange}
+                  aria-describedby="displayName-hint"
                   className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
               </div>
+              <p
+                id="displayName-hint"
+                className={`text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+              >
+                Teammates see this. A first name is fine.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -271,7 +277,7 @@ const Signup = () => {
                 htmlFor="confirmPassword"
                 className={isDarkMode ? 'text-team-white' : 'text-gray-700'}
               >
-                Confirm Password
+                Confirm password
               </Label>
               <div
                 className={`relative rounded-lg ${isDarkMode ? 'bg-team-dark-20' : 'bg-gray-50'}`}
@@ -337,7 +343,7 @@ const Signup = () => {
             <span
               className={`text-xs uppercase whitespace-nowrap ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
             >
-              Or continue with
+              or
             </span>
             <div
               className={`flex-1 border-t ${isDarkMode ? 'border-team-blue-40' : 'border-gray-300'}`}

@@ -41,20 +41,29 @@ export const GAME_TIMING = {
   AUTON_END_REMAINING: 120,
   /** Duration of the controller pickup phase (yellow) */
   CONTROLLER_PICKUP_SECONDS: 8,
-  /** Match clock value at which the BIOBUZZ endgame (the last 60 s of teleop) begins */
-  ENDGAME_REMAINING: 60,
+  /** Match clock value at which FLOWERS unlock: manual Table 9-1 "FLOWER Ownership Unlocked", G410/G426 (last 60 s) */
+  FLOWERS_UNLOCK_REMAINING: 60,
 } as const;
 
 /** Season tag written on every new session; older seasons are hidden. */
 export const CURRENT_SEASON = 'biobuzz';
 
 export const SESSION_LIMITS = {
-  MAX_SESSIONS_PER_USER: 50,
   MAX_CYCLE_TIMES: 100,
   /** Longest session name the name inputs accept */
   MAX_SESSION_NAME_LENGTH: 80,
-  /** Maximum sessions to fetch in admin/comparison queries */
-  ALL_SESSIONS_QUERY_LIMIT: 100,
+} as const;
+
+/**
+ * How many sessions a list reads at a time, newest first; Show older
+ * sessions reads the next lot. There is no limit on how many an account or
+ * a team keeps.
+ */
+export const SESSION_PAGE_SIZES = {
+  /** The user's own sessions */
+  OWN: 50,
+  /** Everything filed under a team, which several people add to */
+  TEAM: 250,
 } as const;
 
 export const UI_TIMING = {

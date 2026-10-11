@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTeam, useTheme, useAuth } from '@/contexts';
 import { firebaseService, teamService } from '@/services';
 import { logger, copyToClipboard } from '@/lib';
+import { rememberTeamName } from '@/lib/knownTeams';
 import {
   OPEN_SHARE_SESSIONS_EVENT,
   OPEN_TEAM_DIALOG_EVENT,
@@ -88,6 +89,9 @@ interface ConfirmCopy {
 
 const memberName = (member: TeamMember) => member.displayName || member.email;
 
+/** The next step after a team change the server didn't take */
+const TRY_AGAIN = 'Check your connection and try again.';
+
 const plural = (count: number, noun: string) =>
   `${count} ${noun}${count !== 1 ? 's' : ''}`;
 
@@ -154,9 +158,15 @@ export const TeamManager = ({
   const [personalSessions, setPersonalSessions] = useState<Session[]>([]);
   /** The user has recorded sessions at all, shared or not */
   const [hasOwnSessions, setHasOwnSessions] = useState(false);
+  /** Some of them stay with another team (one the user has left) */
+  const [ownInOtherTeam, setOwnInOtherTeam] = useState(false);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [sharing, setSharing] = useState(false);
   const [loadingPersonal, setLoadingPersonal] = useState(false);
+  /** The share step couldn't read the user's sessions */
+  const [loadFailed, setLoadFailed] = useState(false);
+  /** Bumped by the share step's Try again, to read the list again */
+  const [loadAttempt, setLoadAttempt] = useState(0);
   /** The share step's list was already read for this team by `offerShare` */
   const sharePreloadedFor = useRef<string | null>(null);
 
@@ -164,14 +174,21 @@ export const TeamManager = ({
   const showTeamInfo = !!teamId && teamDialogFor === teamId;
   const showShareDialog = !!teamId && shareDialogFor === teamId;
 
+  // Kept for once the user has left: their sessions stay filed under the
+  // team, and the lists still name it.
+  const currentName = team?.name;
+  useEffect(() => {
+    if (teamId && currentName) rememberTeamName(teamId, currentName);
+  }, [teamId, currentName]);
+
   /** Show the user's sessions that `forTeamId` doesn't have, all ticked. */
   const showShareable = (sessions: Session[], forTeamId: string) => {
-    // Personal sessions and ones left behind in a team the user has left.
-    // Archived ones are put away, so they are not offered.
-    const shareable = sessions.filter(
-      s => s.teamId !== forTeamId && !isArchived(s)
-    );
+    // Personal sessions only. One filed under a team the user has left
+    // stays with that team; archived ones are put away. Neither is offered.
+    const shareable = sessions.filter(s => !s.teamId && !isArchived(s));
+    setLoadFailed(false);
     setHasOwnSessions(sessions.length > 0);
+    setOwnInOtherTeam(sessions.some(s => !!s.teamId && s.teamId !== forTeamId));
     setPersonalSessions(shareable);
     setSelectedSessionIds(new Set(shareable.map(s => s.id)));
     return shareable;
@@ -185,19 +202,33 @@ export const TeamManager = ({
     }
 
     const loadPersonalSessions = async () => {
+      setLoadFailed(false);
       setLoadingPersonal(true);
       try {
         const sessions = await firebaseService.getUserSessions(user.uid);
         showShareable(sessions, teamId);
       } catch {
-        toast.error('Failed to load your sessions');
+        // Nothing from an earlier load stays ticked behind the error
+        setPersonalSessions([]);
+        setSelectedSessionIds(new Set());
+        setLoadFailed(true);
       } finally {
         setLoadingPersonal(false);
       }
     };
 
     loadPersonalSessions();
-  }, [showShareDialog, user?.uid, teamId]);
+  }, [showShareDialog, user?.uid, teamId, loadAttempt]);
+
+  // Try again gives way to the spinner, which takes its focus with it: once
+  // the list (or the error) is back, focus its first control.
+  const shareBodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (loadingPersonal || !showShareDialog) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    shareBodyRef.current?.querySelector<HTMLElement>('button')?.focus();
+  }, [loadingPersonal, showShareDialog]);
 
   /**
    * Right after creating or joining a team: whether to go on to the share
@@ -330,7 +361,7 @@ export const TeamManager = ({
   const handleCreateTeam = async () => {
     const name = teamName.trim();
     if (!name) {
-      toast.error('Please enter a team name');
+      toast.error('Enter a team name');
       return;
     }
     if (name.length > MAX_TEAM_NAME_LENGTH) {
@@ -347,15 +378,15 @@ export const TeamManager = ({
         setShowCreateDialog(false);
         setTeamName('');
         if (offerShare) setShareDialogFor(newTeam.id);
-        else toast.success(`Team "${newTeam.name}" created!`);
+        else toast.success(`Created ${newTeam.name}`);
       } else {
-        toast.error('Failed to create team. Please try again.');
+        toast.error("Couldn't create the team", { description: TRY_AGAIN });
       }
     } catch (err) {
       // The raw error (often a bare Firestore permission message) goes to
       // the log; it means nothing to the person creating the team.
       logger.error('Create team error', err);
-      toast.error('Failed to create team. Please try again.');
+      toast.error("Couldn't create the team", { description: TRY_AGAIN });
     } finally {
       setCreating(false);
     }
@@ -388,15 +419,13 @@ export const TeamManager = ({
         if (result.status === 'joined-unloaded') {
           toast.warning("Joined, but couldn't load the team. Reload the page to see it.");
         } else if (!offerShare) {
-          toast.success(`Joined team "${joined.name}"!`);
+          toast.success(`Joined ${joined.name}`);
         }
         if (offerShare) setShareDialogFor(joined.id);
       }
     } catch (err) {
       logger.error('Join team error', err);
-      setJoinError(
-        "Couldn't join the team. The code may be invalid or expired."
-      );
+      setJoinError(`Couldn't join the team. ${TRY_AGAIN}`);
     } finally {
       setJoining(false);
     }
@@ -409,10 +438,12 @@ export const TeamManager = ({
     try {
       await copyToClipboard(inviteUrl);
       onCopied(true);
-      toast.success('Invite link copied!');
+      toast.success('Invite link copied');
       setTimeout(() => onCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error("Couldn't copy the invite link", {
+        description: `This browser blocked copying. Share the code ${team.inviteCode} instead.`,
+      });
     }
   };
 
@@ -422,10 +453,12 @@ export const TeamManager = ({
     try {
       await copyToClipboard(team.inviteCode);
       setCodeCopied(true);
-      toast.success('Invite code copied!');
+      toast.success('Invite code copied');
       setTimeout(() => setCodeCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error("Couldn't copy the invite code", {
+        description: `This browser blocked copying. Type ${team.inviteCode} where you want to share it.`,
+      });
     }
   };
 
@@ -449,10 +482,10 @@ export const TeamManager = ({
         setIsRenaming(false);
         setRenameValue('');
       } else {
-        toast.error('Failed to rename team');
+        toast.error("Couldn't rename the team", { description: TRY_AGAIN });
       }
     } catch {
-      toast.error('Failed to rename team');
+      toast.error("Couldn't rename the team", { description: TRY_AGAIN });
     } finally {
       setRenaming(false);
     }
@@ -548,7 +581,7 @@ export const TeamManager = ({
           return {
             question: `Leave ${team.name}?`,
             consequence:
-              "You're the only member, so leaving deletes the team and its invite link.",
+              "You're the only member, so leaving deletes the team and its invite link. You keep your sessions.",
             action: 'Delete team and leave',
             destructive: true,
             icon: LogOut,
@@ -558,8 +591,8 @@ export const TeamManager = ({
           question: `Leave ${team.name}?`,
           consequence:
             leaveEffect?.kind === 'handed-over'
-              ? `You lose access to team sessions (the ones you shared stay), and ${memberName(leaveEffect.newOwner)} becomes the owner.`
-              : 'You lose access to team sessions; the ones you shared stay with the team.',
+              ? `You lose access to team sessions, and ${memberName(leaveEffect.newOwner)} becomes the owner. The ones you shared stay with the team, view-only for you.`
+              : 'You lose access to team sessions. The ones you shared stay with the team, view-only for you.',
           action: 'Leave team',
           destructive: true,
           icon: LogOut,
@@ -619,12 +652,12 @@ export const TeamManager = ({
       }
     } catch {
       const failed: Record<PendingAction['type'], string> = {
-        transfer: "Couldn't change the owner. Please try again.",
-        remove: "Couldn't remove that member. Please try again.",
-        resetInvite: "Couldn't reset the invite link. Please try again.",
-        leave: `Couldn't leave ${team.name}. Please try again.`,
+        transfer: "Couldn't change the owner",
+        remove: "Couldn't remove that member",
+        resetInvite: "Couldn't reset the invite link",
+        leave: `Couldn't leave ${team.name}`,
       };
-      toast.error(failed[activeAction.type]);
+      toast.error(failed[activeAction.type], { description: TRY_AGAIN });
     } finally {
       setActing(false);
     }
@@ -657,11 +690,15 @@ export const TeamManager = ({
     'data-[state=open]:bg-team-blue/15 data-[state=open]:text-team-blue';
 
   // The team dialog's footer stays put while its body scrolls, and stays a
-  // row on a phone too.
-  const footer = 'shrink-0 flex-row gap-3 px-5';
+  // row on a phone too. On a phone zoomed to 200% (195px) the two buttons
+  // can't share a row, so they stack, Done on top as in other dialogs.
+  const footer = 'shrink-0 flex-row gap-3 px-5 max-[279px]:flex-col-reverse';
   // The buttons of the other dialogs' footers: full width when stacked on a
   // phone, and wide enough beside each other not to resize as a label changes.
-  const footerButton = 'h-11 rounded-xl sm:min-w-[7.5rem]';
+  // On a phone zoomed to 200% a long label ('Select sessions to share') wraps
+  // rather than run past the button and the dialog's edge.
+  const footerButton =
+    'h-11 rounded-xl sm:min-w-[7.5rem] max-[279px]:h-auto max-[279px]:min-h-11 max-[279px]:whitespace-normal';
 
   const memberCount = team ? plural(team.members.length, 'member') : '';
 
@@ -679,7 +716,8 @@ export const TeamManager = ({
             <button
               type="button"
               onClick={openTeamDialog}
-              aria-label={`${team.name} · ${memberCount} · Manage team`}
+              // Starts with what it shows, so it can be said by name
+              aria-label={`${team.name} (${memberCount}), Manage team`}
               className={
                 compact
                   ? cn(rowButton, 'min-w-0 justify-start')
@@ -697,10 +735,10 @@ export const TeamManager = ({
               <span
                 className={`hidden sm:inline text-xs whitespace-nowrap ${muted}`}
               >
-                · {memberCount}
+                ({memberCount})
               </span>
-              <span className="hidden sm:inline text-xs whitespace-nowrap text-team-blue">
-                · Manage
+              <span className="hidden sm:inline ml-1 text-xs whitespace-nowrap text-team-blue">
+                Manage
               </span>
               <ChevronRight
                 aria-hidden="true"
@@ -904,8 +942,10 @@ export const TeamManager = ({
           closeTeamDialog();
         }}
       >
+        {/* At 200% zoom on a phone the stacked footer would leave the body a
+            sliver, so there the whole dialog scrolls with the backdrop. */}
         <DialogContent
-          className={`max-w-md flex flex-col max-h-[calc(100dvh-2rem)] ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
+          className={`max-w-md flex flex-col max-h-[calc(100dvh-2rem)] max-[279px]:max-h-none ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
           {/* The team's name once, as the title, renamed in place by its owner */}
           <DialogHeader className={`shrink-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
@@ -1202,7 +1242,7 @@ export const TeamManager = ({
             <Button
               onClick={() => askFor({ type: 'leave' })}
               variant="dangerOutline"
-              className="h-11 px-3 min-w-[7.75rem] rounded-xl"
+              className="h-11 px-3 min-w-[7.75rem] max-[279px]:min-w-0 rounded-xl"
             >
               <LogOut className="h-4 w-4" />
               Leave team
@@ -1235,8 +1275,12 @@ export const TeamManager = ({
       />
 
       <Dialog open={showShareDialog} onOpenChange={(open) => { if (!open) handleSkipShare(); }}>
+        {/* On a phone zoomed to 200% the title and the words under it alone
+            are taller than the screen, which left the list no room and
+            pushed the buttons out of the dialog: there it grows to fit its
+            sessions, and the backdrop scrolls instead. */}
         <DialogContent
-          className={`max-w-lg flex flex-col max-h-[calc(100dvh-2rem)] ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
+          className={`max-w-lg flex flex-col max-h-[calc(100dvh-2rem)] max-[279px]:max-h-none ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
           <DialogHeader className={`shrink-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
             <DialogTitle className={titleText}>
@@ -1251,7 +1295,10 @@ export const TeamManager = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto p-6 pb-2">
+          <div
+            ref={shareBodyRef}
+            className="flex-1 min-h-0 overflow-y-auto p-6 pb-2"
+          >
             {loadingPersonal ? (
               <div className="flex items-center justify-center py-8" role="status">
                 <div
@@ -1260,12 +1307,28 @@ export const TeamManager = ({
                 />
                 <span className="sr-only">Loading your sessions</span>
               </div>
+            ) : loadFailed ? (
+              <div className={`text-center py-8 space-y-3 ${muted}`}>
+                <p role="alert">
+                  Couldn't load your sessions. Check your connection and try
+                  again.
+                </p>
+                <Button
+                  onClick={() => setLoadAttempt(n => n + 1)}
+                  variant="neutral"
+                  className={footerButton}
+                >
+                  Try again
+                </Button>
+              </div>
             ) : personalSessions.length === 0 ? (
               <div className={`text-center py-8 ${muted}`}>
                 <p>
-                  {hasOwnSessions
-                    ? `All your sessions are already shared with ${team?.name}.`
-                    : "You haven't recorded any sessions yet."}
+                  {ownInOtherTeam
+                    ? 'No sessions left to share. The rest stay with the team you left.'
+                    : hasOwnSessions
+                      ? `All your sessions are already shared with ${team?.name}.`
+                      : "You haven't recorded any sessions yet."}
                 </p>
               </div>
             ) : (
@@ -1279,7 +1342,7 @@ export const TeamManager = ({
           </div>
 
           <DialogFooter className="shrink-0 pt-3 pb-6">
-            {personalSessions.length > 0 && !loadingPersonal ? (
+            {personalSessions.length > 0 && !loadingPersonal && !loadFailed ? (
               <>
                 <Button
                   onClick={handleSkipShare}

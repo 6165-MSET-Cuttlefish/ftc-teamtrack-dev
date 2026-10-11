@@ -1,11 +1,12 @@
-import { Info } from 'lucide-react';
+import { Info, Lock, LockOpen } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { formatPoints } from '@/lib/points';
 
 /**
- * The pieces the end-of-match counters are built from on the scoring page,
- * shared by the desktop ScoringPad, the phone's MatchEntry and the Add/Edit
- * Match dialog: the name over each counter, with its rule (and what one is
+ * The pieces the end-of-match counters are built from: on the scoring page
+ * (the desktop ScoringPad and the phone's MatchEntry), the note over them
+ * that says when they open; there and in the Add/Edit Match dialog, the name
+ * over each counter, with its points beside it and its rule (and what one is
  * worth) behind an (i).
  */
 
@@ -25,6 +26,54 @@ export const LOCKED_TEXT = 'text-gray-500';
  */
 export const LOCKED_SURFACE =
   'border-transparent text-gray-500 bg-gray-100 dark:bg-white/[0.05]';
+
+/**
+ * The note over the end-of-match counters: why they are locked or, once
+ * open, what to do. One filled band in every state, so it reads at a glance
+ * during play and doesn't change shape as it opens; the lock on it opens
+ * with the counters. It wraps rather than cut off (a 200% zoom), and `reserve` takes
+ * the notes of its other states, laid invisibly in the same place, so it is
+ * as tall as the tallest of them and the counters under it never move.
+ * Its `id` is what the locked steppers point at for their reason.
+ */
+export const EndNote = ({
+  id,
+  locked,
+  reserve = [],
+  children,
+}: {
+  id?: string;
+  locked: boolean;
+  reserve?: React.ReactNode[];
+  children: React.ReactNode;
+}) => {
+  const { isDarkMode } = useTheme();
+  const Icon = locked ? Lock : LockOpen;
+  const tone = isDarkMode
+    ? 'bg-white/[0.06] text-gray-200'
+    : 'bg-gray-100 text-gray-800';
+  const line = (text: React.ReactNode, hidden: boolean, key?: number) => (
+    <span
+      key={key}
+      aria-hidden={hidden || undefined}
+      className={`col-start-1 row-start-1 flex min-w-0 items-center gap-2 ${
+        hidden ? 'invisible' : ''
+      }`}
+    >
+      <Icon size={14} aria-hidden className="shrink-0" />
+      <span className="min-w-0 text-balance">{text}</span>
+    </span>
+  );
+  return (
+    <p
+      id={id}
+      className={`grid min-h-8 min-w-0 items-center rounded-lg px-3 py-1.5 text-sm font-medium leading-5 ${tone}`}
+    >
+      {line(children, false)}
+      {reserve.map((text, i) => line(text, true, i))}
+    </p>
+  );
+};
 
 /**
  * Points beside a counter: data, in the text colour, never the accent.
@@ -49,12 +98,18 @@ export const INFO_BUTTON_CLASS =
  * The name over one end-of-match counter, its points beside it, and the
  * rule behind its (i). The one label above a counter, not muted, and never
  * dimmed while the counters are locked: the steppers show that. A long name
- * wraps rather than cut off, with the (i) after its last word. Not a heading element: the buzzer's scroll and
- * the walkthrough look for the section's first `h3`.
+ * wraps rather than cut off, with the (i) after its last word. Not a
+ * heading element: it names its counter's group (`aria-labelledby`), under
+ * the section's own heading.
+ *
+ * What one is worth isn't on screen (its rule says it). With `worth` it is
+ * read out with the stepper, as its `describedBy`, and the points with it
+ * rather than on their own.
  */
 export const CounterHead = ({
   id,
   title,
+  worth,
   points,
   pointsClassName = '',
   info,
@@ -65,6 +120,11 @@ export const CounterHead = ({
   /** Id of the title, for the group's `aria-labelledby` */
   id: string;
   title: string;
+  /**
+   * What one is worth (EACH_LABELS), and the id of the text that says it
+   * with the points so far, for the stepper's `describedBy`
+   */
+  worth?: { id: string; each: string };
   points?: number;
   /**
    * Extra classes for the points, e.g. `md:hidden` where a wider layout
@@ -107,8 +167,19 @@ export const CounterHead = ({
           </button>
         )}
       </span>
+      {worth && (
+        <span id={worth.id} className="sr-only">
+          {worth.each}
+          {/* Left out where the points don't show */}
+          {!!points && (
+            <span className={pointsClassName}> {formatPoints(points)}</span>
+          )}
+        </span>
+      )}
       {points !== undefined && (
         <span
+          // Read out with the worth instead
+          aria-hidden={worth ? true : undefined}
           className={`shrink-0 text-sm font-semibold leading-5 tabular-nums ${
             points !== 0 ? pointsTone(isDarkMode) : 'invisible'
           } ${pointsClassName}`}

@@ -16,7 +16,12 @@ import {
   TEAM_MANAGER_PATHS,
 } from '@/constants';
 import { ACTIVE_PAGE_CONTAINER, PAGE_CONTAINER } from '@/constants/layout';
-import { calculateScore, getInitials, liveMatchType } from '@/lib';
+import {
+  calculateScore,
+  getInitials,
+  liveMatchType,
+  readGuestSessions,
+} from '@/lib';
 import { formatPoints } from '@/lib/points';
 import { flushPendingDeletes } from '@/lib/pendingSessionDeletes';
 import {
@@ -31,6 +36,7 @@ import {
   useActiveSideBySide,
 } from '@/components/session/layout/useActiveCompact';
 import { ClockDigits } from '@/components/session/ClockDigits';
+import { requestCompleteSession } from '@/components/session/controls/completeRequest';
 import { LivePhaseChip, PausedPill } from '@/components/session/MatchPhase';
 import {
   matchClockText,
@@ -59,7 +65,7 @@ import {
   ArrowLeft,
   Radio,
   Plus,
-  EllipsisVertical,
+  Menu as MenuIcon,
   UserPlus,
   LogIn,
   Users,
@@ -202,6 +208,14 @@ const AUTH_PATHS: readonly string[] = [
   ROUTES.FORGOT_PASSWORD,
 ];
 
+/**
+ * A phone zoomed in a long way (390px at 200% is 195px): the bar's buttons
+ * alone are wider than that. Sign in and the account menu fold into the
+ * overflow menu, and the logo gives way to the back arrow, which leads to
+ * the same place.
+ */
+const TINY_QUERY = '(max-width: 279px)';
+
 /** 44px for a finger, whatever the width of the screen it is on */
 const TOUCH_TARGET =
   '[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
@@ -248,6 +262,7 @@ const NavigationMenu = ({
   const { isDarkMode, themeMode } = useTheme();
   const { user, logout } = useAuth();
   const { team } = useTeam();
+  const tiny = useMediaQuery(TINY_QUERY);
   const { sessionData, hasStarted, matchActive, isTutorialActive } =
     useSessionCore();
   const navigate = useNavigate();
@@ -270,12 +285,20 @@ const NavigationMenu = ({
     !sessionData.isSessionCompleted &&
     (hasStarted || (sessionData.matches && sessionData.matches.length > 0));
 
+  // What keeps the matches is completing the session, which the question
+  // offers itself when it can be done now: saved matches, none being played.
+  // Not under the walkthrough, which holds the session as it found it.
+  const canCompleteFirst =
+    !isTutorialActive &&
+    !sessionData.isSessionCompleted &&
+    !matchActive &&
+    (sessionData.matches?.length ?? 0) > 0;
   // Matches only reach the server when the session is completed; signing out
   // clears the one in progress, a match that is still being scored included.
   // Not the tutorial's practice match though: that was never going to be kept.
   const signOutLoss = isTutorialActive
     ? describeStoredSignOutLoss()
-    : describeSignOutLoss(sessionData, matchActive);
+    : describeSignOutLoss(sessionData, matchActive, canCompleteFirst);
 
   // The text labels only fit once the bar is wide enough for everything in
   // it: guests carry two extra buttons (Sign in / Sign up), and the clock
@@ -310,8 +333,21 @@ const NavigationMenu = ({
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Logout failed', error);
-      toast.error('Failed to sign out. Please try again.');
+      toast.error("Couldn't sign out", {
+        description: 'Check your connection and try again.',
+      });
     }
+  };
+
+  /**
+   * "Complete session and sign out": the scoring page saves the session as
+   * Complete Session does (going there first, if it isn't the page shown),
+   * then signs out. If it can't be saved, it says why and stays signed in.
+   */
+  const completeThenSignOut = () => {
+    setShowLogoutConfirm(false);
+    requestCompleteSession({ onSaved: () => void signOut() });
+    if (!isOnActivePage) navigate(ROUTES.ACTIVE);
   };
 
   const handleLogout = () => {
@@ -393,6 +429,18 @@ const NavigationMenu = ({
     </DropdownMenuItem>
   );
 
+  const signInItem = (
+    <DropdownMenuItem asChild>
+      <Link
+        to={ROUTES.LOGIN}
+        className="flex items-center gap-2 cursor-pointer"
+      >
+        <LogIn className="w-4 h-4" />
+        <span>Sign in</span>
+      </Link>
+    </DropdownMenuItem>
+  );
+
   const signUpItem = (
     <DropdownMenuItem asChild>
       <Link
@@ -462,7 +510,7 @@ const NavigationMenu = ({
     <Link
       to={ROUTES.ACTIVE}
       aria-label="Active session"
-      className={`flex items-center justify-center gap-1.5 sm:gap-2 sm:px-3 sm:py-1.5 rounded-full whitespace-nowrap transition-colors ${TOUCH_TARGET} ${isDarkMode ? 'text-green-400 hover:text-green-300 hover:bg-team-white-10' : 'text-green-600 hover:text-green-700 hover:bg-gray-100'}`}
+      className={`flex items-center justify-center gap-1.5 sm:gap-2 sm:px-3 sm:py-1.5 rounded-full whitespace-nowrap transition-colors ${TOUCH_TARGET} ${isDarkMode ? 'text-green-400 hover:text-green-300 hover:bg-team-white-10' : 'text-green-700 hover:text-green-800 hover:bg-gray-100'}`}
     >
       {/* Label collapses to an icon when the bar is short of room, so this
           doesn't crowd the buttons next to it. The padding keeps the
@@ -522,14 +570,15 @@ const NavigationMenu = ({
         </>
       ) : condensed ? (
         // Everything the bar usually holds, behind one button. Sessions is
-        // the back arrow at the other end of the bar.
+        // the back arrow at the other end of the bar. A hamburger, not a
+        // "⋮": on /active that is the session's own menu, just below.
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               aria-label="More options"
               className={`flex min-h-11 min-w-11 ${iconButtonClass}`}
             >
-              <EllipsisVertical className="w-5 h-5" />
+              <MenuIcon className="w-5 h-5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -550,15 +599,7 @@ const NavigationMenu = ({
               accountItems(compactMenu)
             ) : (
               <>
-                <DropdownMenuItem asChild>
-                  <Link
-                    to={ROUTES.LOGIN}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    <span>Sign in</span>
-                  </Link>
-                </DropdownMenuItem>
+                {signInItem}
                 {signUpItem}
               </>
             )}
@@ -595,17 +636,23 @@ const NavigationMenu = ({
           {themeMenu}
 
           {/* On a phone there is no room for a button each: the tutorial, the
-              theme and (for guests) Sign up share one menu. */}
+              theme and (for guests) Sign up share one menu; zoomed right in,
+              Sign in or the account items too. A hamburger, so "⋮" means
+              only the session's own menu on /active. */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 aria-label="More options"
                 className={`flex sm:hidden ${iconButtonClass}`}
               >
-                <EllipsisVertical className="w-4 h-4" />
+                <MenuIcon className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[160px]">
+            <DropdownMenuContent
+              align="end"
+              className="min-w-[160px]"
+              onCloseAutoFocus={afterAccountMenuClosed}
+            >
               {tutorialItem}
               {tutorialItem && <DropdownMenuSeparator />}
               <DropdownMenuLabel>Theme</DropdownMenuLabel>
@@ -613,13 +660,20 @@ const NavigationMenu = ({
               {!user && (
                 <>
                   <DropdownMenuSeparator />
+                  {tiny && signInItem}
                   {signUpItem}
+                </>
+              )}
+              {user && tiny && (
+                <>
+                  <DropdownMenuSeparator />
+                  {accountItems(true)}
                 </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {user ? (
+          {tiny ? null : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -685,12 +739,26 @@ const NavigationMenu = ({
       <ConfirmDialog
         open={showLogoutConfirm}
         onOpenChange={setShowLogoutConfirm}
-        title="Sign out and lose this session?"
+        title={
+          canCompleteFirst
+            ? 'Complete this session before signing out?'
+            : 'Sign out and lose this session?'
+        }
         description={signOutLoss}
-        cancelLabel="Stay signed in"
+        cancelLabel="Cancel"
         confirmLabel="Sign out anyway"
         icon={LogOut}
         onConfirm={signOut}
+        // The one fill when the session can be kept; signing out anyway
+        // turns to a red outline beside Cancel.
+        primaryAction={
+          canCompleteFirst
+            ? {
+                label: 'Complete session and sign out',
+                onSelect: completeThenSignOut,
+              }
+            : undefined
+        }
       />
     </div>
   );
@@ -708,7 +776,8 @@ const TEXT = ['text-gray-900', 'text-white'] as const;
  * below the widest layout is not much: the pill is stacked on two lines
  * there, and the logo and nav drop their words to make room. The total and
  * its unit stay in every state from a 360px phone up; narrower than that,
- * the total gives way to the pill rather than have the clock clipped.
+ * the unit goes, and below 280px the phone bar keeps to one thing rather
+ * than have the clock or the pill clipped.
  */
 const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
   const { isDarkMode } = useTheme();
@@ -748,6 +817,12 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
   // wider bar has room for all of it: the logo gives up its name while the
   // clock is there (see `Header`).
   const unitClass = dense ? 'max-[359px]:hidden' : '';
+  // Below 280px (a phone zoomed to 200%) the phone bar's middle has room
+  // for one thing: the PAUSED pill while paused, as it is also the way to
+  // resume, else the clock. The phase and the total give way (the page
+  // shows both); a paused clock and the total are still read out.
+  const tinyClock = dense && paused ? 'max-[279px]:sr-only' : '';
+  const tinyGone = dense ? 'max-[279px]:hidden' : '';
 
   return (
     <span
@@ -763,21 +838,28 @@ const HeaderClock = ({ dense = false }: { dense?: boolean }) => {
         data-header-clock
         role="timer"
         aria-label="Match clock"
-        className={`min-w-[2.3em] text-center font-righteous leading-none transition-opacity ${dense ? 'text-3xl' : 'text-xl sm:text-3xl lg:text-4xl'} ${text} ${paused ? 'opacity-40' : ''}`}
+        className={`min-w-[2.3em] text-center font-righteous leading-none transition-opacity ${dense ? 'text-3xl' : 'text-xl sm:text-3xl lg:text-4xl'} ${text} ${paused ? 'opacity-40' : ''} ${tinyClock}`}
       >
         <ClockDigits text={time} />
         <span className="sr-only">{time}</span>
       </span>
-      {paused ? <PausedPill size="sm" /> : <LivePhaseChip size="sm" />}
+      {paused ? (
+        <PausedPill size="sm" />
+      ) : (
+        // No box of its own, so a phase with no chip adds no gap
+        <span className={`contents ${tinyGone}`}>
+          <LivePhaseChip size="sm" />
+        </span>
+      )}
       <span
         aria-hidden="true"
-        className={`w-px ${dense ? 'h-6' : 'h-6 sm:h-8'} ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+        className={`w-px ${dense ? 'h-6' : 'h-6 sm:h-8'} ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'} ${tinyGone}`}
       />
       {/* Read out in words; an aria-label would need a role to be valid */}
       <span className="sr-only">{`Total score ${total} points`}</span>
       <span
         aria-hidden="true"
-        className={`font-bold tabular-nums leading-none ${text} ${dense ? 'text-xl' : 'text-lg sm:text-2xl lg:text-3xl'}`}
+        className={`font-bold tabular-nums leading-none ${text} ${dense ? 'text-xl' : 'text-lg sm:text-2xl lg:text-3xl'} ${tinyGone}`}
       >
         {points}
         <span
@@ -832,16 +914,20 @@ const MatchLabel = ({ withTotal }: { withTotal: boolean }) => {
   return (
     <span
       data-header-match
-      className={`text-sm font-semibold whitespace-nowrap tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+      className={`inline-flex items-center text-sm font-semibold whitespace-nowrap tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
     >
       Match {matchNumber}
+      {/* Below 280px only 'Match N' fits, as in the clock's row; the total
+          is still read out */}
       {total !== null && (
         <>
-          <span aria-hidden className="mx-1.5">
-            ·
-          </span>
+          {/* The rule between the clock and the total in the wider bar */}
+          <span
+            aria-hidden
+            className={`mx-2 h-4 w-px max-[279px]:hidden ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+          />
           <span className="sr-only">, </span>
-          <span className={TEXT[isDarkMode ? 1 : 0]}>
+          <span className={`max-[279px]:sr-only ${TEXT[isDarkMode ? 1 : 0]}`}>
             {formatPoints(total)}
           </span>
         </>
@@ -855,6 +941,7 @@ export const Header = () => {
   const { hasStarted, sessionData, matchActive, matchPhase, editingMatchId } =
     useSessionCore();
   const location = useLocation();
+  const { user } = useAuth();
   const isOnSessionsPage = location.pathname === '/sessions';
   const isOnActivePage = location.pathname.includes('/active');
   const isAuthPage = AUTH_PATHS.includes(location.pathname);
@@ -887,6 +974,7 @@ export const Header = () => {
   const clockInBar =
     !isCompact && (showCompactTimer || (isOnActivePage && isEditing));
   const isWide = useMediaQuery(SPLIT_QUERY);
+  const tiny = useMediaQuery(TINY_QUERY);
 
   /**
    * A match is being scored, or a saved one corrected, on a phone. The bar
@@ -947,8 +1035,16 @@ export const Header = () => {
     isCompact,
   ]);
 
+  // Someone not signed in, with no sessions here, who opened a share link
+  // (a parent from the team chat) has no Sessions to go back to: the arrow
+  // would put them in an empty list as a new guest.
+  const isVisitorOnShare =
+    location.pathname === ROUTES.SHARED_SESSION &&
+    !user &&
+    readGuestSessions().length === 0;
+
   // No way "back" from a sign-in page: the logo still goes to the sessions
-  const backButton = !isOnSessionsPage && !isAuthPage && (
+  const backButton = !isOnSessionsPage && !isAuthPage && !isVisitorOnShare && (
     <Link
       to={ROUTES.SESSIONS}
       aria-label="Back to sessions"
@@ -1015,7 +1111,7 @@ export const Header = () => {
           {backButton}
           {/* The clock needs the room in the middle more than the logo
               needs its name, short of the widest bar. */}
-          {!isScoringBar && (
+          {!isScoringBar && !(tiny && backButton) && (
             <TeamTrackLogo
               iconOnly={isShort || (clockInBar && !isWide)}
               roomy={!backButton}

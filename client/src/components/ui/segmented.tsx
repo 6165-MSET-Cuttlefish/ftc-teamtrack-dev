@@ -157,8 +157,10 @@ export const Segmented = <T extends string>({
               <Icon size={sizing.icon} aria-hidden className="shrink-0" />
             )}
             <span>{option.label}</span>
+            {/* Dimmer than its label, but 4.5:1 on the light track (at 80%
+                it was 4.25:1) */}
             {option.count !== undefined && (
-              <span className="font-normal tabular-nums opacity-80">
+              <span className="font-normal tabular-nums opacity-90">
                 {option.count}
               </span>
             )}

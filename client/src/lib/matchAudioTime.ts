@@ -1,7 +1,7 @@
 /**
  * Where the match is in match-audio.mp3. The track is one Full Game (3-2-1,
  * AUTO, controller pickup, TELEOP); the shorter match types play their part
- * of it.
+ * of it. Its sounds and their file times are listed in `useMatchAudio`.
  */
 
 import { GAME_TIMING } from '@/constants';
@@ -9,11 +9,34 @@ import type { MatchPhase } from '@/types';
 import type { SessionClockState } from '@/types/storage';
 
 /** File time of the start of the 3-2-1, in seconds */
-export const FULL_GAME_AUDIO_OFFSET = 0.8;
+export const FULL_GAME_AUDIO_OFFSET = 1;
 /** File time of the start of AUTO */
 export const AUTON_AUDIO_OFFSET = FULL_GAME_AUDIO_OFFSET + 3;
-/** File time of the start of TELEOP */
-export const TELEOP_AUDIO_OFFSET = 42;
+/** File time of the start of TELEOP, after AUTO and the controller pickup */
+export const TELEOP_AUDIO_OFFSET =
+  AUTON_AUDIO_OFFSET +
+  GAME_TIMING.AUTONOMOUS_DURATION_SECONDS +
+  GAME_TIMING.CONTROLLER_PICKUP_SECONDS;
+
+/**
+ * Seconds after AUTO ends that "Drivers, pick up your controllers" starts,
+ * as in FTC Live: right as AUTO's buzzer stops
+ */
+const PICKUP_CALL_DELAY = 2;
+/** Seconds the end-of-match buzzer is let play on after 0:00 */
+const BUZZER_TAIL = 5;
+
+/**
+ * File time the track stops at once the match is over: after its buzzer
+ * has played out, or for an Autonomous match as AUTO's buzzer stops, before
+ * the call to pick up the controllers.
+ */
+export const matchAudioStopTime = (matchType: string): number =>
+  matchType === 'Autonomous'
+    ? AUTON_AUDIO_OFFSET +
+      GAME_TIMING.AUTONOMOUS_DURATION_SECONDS +
+      PICKUP_CALL_DELAY
+    : TELEOP_AUDIO_OFFSET + GAME_TIMING.TELEOP_DURATION_SECONDS + BUZZER_TAIL;
 
 /** File time for `timer` seconds left on the match clock, in seconds */
 export const matchAudioTime = (

@@ -11,6 +11,7 @@ export type {
   User,
   ChartDataPoint,
   MatchPhase,
+  RobotCount,
 } from './session';
 
 export type {
@@ -23,7 +24,4 @@ export type {
   CreateTeamData,
 } from './team';
 
-export type {
-  SessionFormData,
-  SessionTimerState,
-} from './storage';
+export type { SessionFormData, SessionTimerState } from './storage';

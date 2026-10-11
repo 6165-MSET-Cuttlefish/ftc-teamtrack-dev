@@ -4,12 +4,65 @@ import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { useSessionCore, useTheme } from '@/contexts';
 import { ELEMENT_LABELS, RANKING_POINTS, calculateScore } from '@/lib';
 import { formatPoints } from '@/lib/points';
-import type { MatchScoringFields } from '@/types';
+import { cn } from '@/lib/utils';
+import type { MatchScoringFields, RobotCount } from '@/types';
 import { useActiveSideBySide } from './layout/useActiveCompact';
+import { usePenaltyCounters } from './usePenaltyCounters';
 import { useScoringLocks } from './useScoringLocks';
 
 /** What SWARM counts, in the same words on every layout */
 const SWARM_UNIT = 'leave + park pts';
+
+/**
+ * SWARM where one robot can't reach it (13 leave + park pts at most, of the
+ * 16 it takes): said in place of a bar that could never fill. Its count
+ * stays on the line, as the one place Leave and Park points show (as
+ * "pts" alone where the line is too narrow for its unit), and the row keeps
+ * the bar's height, so the card is the same size either way. Where even
+ * that line is too narrow (a phone zoomed to 200%), "needs 2 robots" takes
+ * the line under it, with the count still on SWARM's line.
+ */
+const SwarmNeedsTwoRobots = ({ value }: { value: number }) => {
+  const { isDarkMode } = useTheme();
+  const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
+  return (
+    <div className="min-w-0 space-y-1 [container-type:inline-size]">
+      <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+        <span
+          className={`font-semibold ${
+            isDarkMode ? 'text-gray-200' : 'text-gray-800'
+          }`}
+        >
+          SWARM
+        </span>
+        <span
+          className={`whitespace-nowrap text-xs ${muted} [@container(max-width:12rem)]:order-last [@container(max-width:12rem)]:basis-full`}
+        >
+          needs 2 robots
+        </span>
+        <span
+          className={`ml-auto whitespace-nowrap tabular-nums text-xs ${muted}`}
+        >
+          {value}{' '}
+          <span className="[@container(max-width:17rem)]:hidden">
+            {SWARM_UNIT}
+          </span>
+          <span className="hidden [@container(max-width:17rem)]:inline">
+            pts
+          </span>
+        </span>
+      </p>
+      <div aria-hidden className="h-2" />
+    </div>
+  );
+};
+
+/**
+ * A heading on the tinted card or band. The shared muted grey is under
+ * 4.5:1 on the light theme's grey-100, so it is a step darker there.
+ */
+const tintedEyebrow = (isDarkMode: boolean) =>
+  cn(EYEBROW_CLASS, !isDarkMode && 'text-gray-600');
 
 /**
  * Progress toward one ranking point. `marks` are the thresholds (a bar can
@@ -20,8 +73,10 @@ const SWARM_UNIT = 'leave + park pts';
  * over tips 1-4 and its second over 5-7. The label counts toward the next
  * threshold ("2/4 tips"), so it always describes the segment that is
  * filling, and a segment turns green once its ranking point is earned.
- * Past the last threshold the label keeps the count itself ("+1 RP · 21
- * leave + park pts"): SWARM's is the one place Leave and Park points show.
+ * Past the last threshold the label keeps the count itself ("+1 RP" then
+ * "21 leave + park pts"): SWARM's is the one place Leave and Park points
+ * show. Too narrow for the name and the label on one line (a 200% zoom),
+ * the label goes under the name.
  */
 const RankingPointRow = ({
   name,
@@ -50,7 +105,7 @@ const RankingPointRow = ({
 
   return (
     <div className="min-w-0 space-y-1">
-      <div className="flex items-center justify-between gap-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-sm">
         <span
           className={`font-semibold ${
             isDarkMode ? 'text-gray-200' : 'text-gray-800'
@@ -58,8 +113,10 @@ const RankingPointRow = ({
         >
           {name}
         </span>
+        {/* In a narrow row (a phone at 200% zoom) the RP and the count
+            each keep to one line and the count drops under the RP */}
         <span
-          className={`flex items-center gap-1 whitespace-nowrap tabular-nums text-xs ${
+          className={`ml-auto flex flex-wrap items-center justify-end gap-x-2.5 gap-y-0.5 tabular-nums text-xs ${
             earned > 0
               ? // green-600 is under 4.5:1 on the light background
                 `font-semibold ${isDarkMode ? 'text-green-400' : 'text-green-700'}`
@@ -68,10 +125,15 @@ const RankingPointRow = ({
                 : 'text-gray-600'
           }`}
         >
-          {earned > 0 && <Check size={14} />}
-          {earned > 0 ? `+${earned} RP` : ''}
-          <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
-            {earned > 0 ? ' · ' : ''}
+          {earned > 0 && (
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <Check size={14} />+{earned} RP
+            </span>
+          )}
+          {/* Set apart from the RP by space and its colour */}
+          <span
+            className={`whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+          >
             {next === undefined ? value : `${value}/${next}`} {unit}
           </span>
         </span>
@@ -114,25 +176,31 @@ const RankingPointRow = ({
  * left out of a match type with no AUTO: the end park alone can't reach it.
  * Its count, the robots' park points, then gets a line of its own beside
  * it (see `ScoreBreakdown` and `BreakdownStrip`), so they still show once.
+ * With one robot it says it needs two, in place of its bar.
  */
 const RankingPointRows = ({
   leavePark,
   tips,
   hasAuto,
+  robots,
 }: {
   leavePark: number;
   tips: number;
   hasAuto: boolean;
+  robots: RobotCount;
 }) => (
   <>
-    {hasAuto && (
-      <RankingPointRow
-        name="SWARM"
-        value={leavePark}
-        marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
-        unit={SWARM_UNIT}
-      />
-    )}
+    {hasAuto &&
+      (robots === 2 ? (
+        <RankingPointRow
+          name="SWARM"
+          value={leavePark}
+          marks={[RANKING_POINTS.SWARM_ROBOT_POINTS]}
+          unit={SWARM_UNIT}
+        />
+      ) : (
+        <SwarmNeedsTwoRobots value={leavePark} />
+      ))}
     <RankingPointRow
       name="POLLINATOR"
       value={tips}
@@ -145,7 +213,7 @@ const RankingPointRows = ({
 /**
  * One plain number under the ranking points on the phone: the park points
  * of a match with no AUTO (no SWARM row to count them), what a Scrim's
- * penalties gave the opponent.
+ * fouls gave the opponent.
  */
 const PointsLine = ({
   label,
@@ -174,12 +242,12 @@ const ANNOUNCED_FIELDS: ReadonlyArray<
   ['tipping', ELEMENT_LABELS.tipping],
   ['minorPenalties', ELEMENT_LABELS.minor],
   ['majorPenalties', ELEMENT_LABELS.major],
-  ['robot1Leave', 'Robot 1 leave'],
-  ['robot1ParkAuto', 'Robot 1 parked at end of auto'],
-  ['robot1ParkTeleop', 'Robot 1 parked at end of match'],
-  ['robot2Leave', 'Robot 2 leave'],
-  ['robot2ParkAuto', 'Robot 2 parked at end of auto'],
-  ['robot2ParkTeleop', 'Robot 2 parked at end of match'],
+  ['robot1Leave', `Robot 1 ${ELEMENT_LABELS.leave}`],
+  ['robot1ParkAuto', `Robot 1 ${ELEMENT_LABELS.parkAuto}`],
+  ['robot1ParkTeleop', `Robot 1 ${ELEMENT_LABELS.parkEnd}`],
+  ['robot2Leave', `Robot 2 ${ELEMENT_LABELS.leave}`],
+  ['robot2ParkAuto', `Robot 2 ${ELEMENT_LABELS.parkAuto}`],
+  ['robot2ParkTeleop', `Robot 2 ${ELEMENT_LABELS.parkEnd}`],
   ['flower', ELEMENT_LABELS.flower],
   ['flowerBonus', ELEMENT_LABELS.flowerBonus],
   ['ballsInHive', ELEMENT_LABELS.hive],
@@ -243,7 +311,7 @@ const useScoreAnnouncement = (
 
 /**
  * The phone's ranking points card, under the scoring fields: SWARM and
- * POLLINATOR, and in a Scrim what the penalties gave the opponent. Each
+ * POLLINATOR, and in a Scrim what the fouls gave the opponent. Each
  * element's points are on its own counter, and Leave and Park on SWARM's
  * line (on a Park line of their own in a match with no AUTO), so they
  * aren't repeated here.
@@ -261,12 +329,14 @@ const useScoreAnnouncement = (
  */
 export const ScoreBreakdown = () => {
   const { sessionData, matchActive, matchPhase } = useSessionCore();
-  const { scoring, editing, hasAuto } = useScoringLocks();
+  const { scoring, editing, hasAuto, robots } = useScoringLocks();
   const { isDarkMode } = useTheme();
   const sideBySide = useActiveSideBySide();
 
   const breakdown = calculateScore(scoring);
-  const isScrim = sessionData.sessionType === 'Scrim';
+  // What fouls gave the opponent shows wherever the foul counters do: in a
+  // Scrim, and for a match with some after a switch to Practice
+  const foulsShown = usePenaltyCounters().shown;
   const showTotal =
     editing || (sideBySide && matchActive && matchPhase !== 'ended');
 
@@ -287,11 +357,15 @@ export const ScoreBreakdown = () => {
       </div>
 
       <div className="space-y-2.5">
-        {/* One fixed height, with or without the total on it */}
-        <div className="flex h-4 items-baseline justify-between gap-3">
-          <h2 className={EYEBROW_CLASS}>Ranking Points</h2>
+        {/* One line's height, with or without the total on it. Too narrow
+            for both (a phone at 200% zoom), the total goes under the
+            heading rather than over the SWARM row */}
+        <div className="flex min-h-4 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h2 className={tintedEyebrow(isDarkMode)}>Ranking Points</h2>
           {showTotal && (
-            <p className={`whitespace-nowrap text-xs leading-4 ${muted}`}>
+            <p
+              className={`ml-auto whitespace-nowrap text-xs leading-4 ${muted}`}
+            >
               Total{' '}
               <span className="text-sm font-bold leading-4 tabular-nums text-foreground">
                 {formatPoints(breakdown.total)}
@@ -303,8 +377,9 @@ export const ScoreBreakdown = () => {
           leavePark={breakdown.leave + breakdown.park}
           tips={sessionData.tipping ?? 0}
           hasAuto={hasAuto}
+          robots={robots}
         />
-        {(!hasAuto || isScrim) && (
+        {(!hasAuto || foulsShown) && (
           <div className="space-y-1.5 pt-1">
             {!hasAuto && (
               <PointsLine label={ELEMENT_LABELS.park}>
@@ -313,7 +388,7 @@ export const ScoreBreakdown = () => {
                 </span>
               </PointsLine>
             )}
-            {isScrim && (
+            {foulsShown && (
               <PointsLine label="To opponent">
                 <span
                   className={`font-semibold tabular-nums ${
@@ -349,29 +424,21 @@ export const ScoreBreakdown = () => {
  */
 export const BreakdownStrip = () => {
   const { sessionData, matchActive } = useSessionCore();
-  const { scoring, editing, hasAuto } = useScoringLocks();
+  const { scoring, editing, hasAuto, robots } = useScoringLocks();
   const { isDarkMode } = useTheme();
 
   const breakdown = calculateScore(scoring);
   const announcement = useScoreAnnouncement(sessionData, breakdown.total);
-  // Between matches with nothing entered the total is a dash, not a big 0;
-  // the bars are drawn empty, so they fill in at Start without moving
-  // anything.
+  // Between matches with nothing entered the total is a muted 0, not one in
+  // the colour of a score; the bars are drawn empty, so they fill in at
+  // Start without moving anything.
   const quiet =
     !matchActive &&
     !editing &&
     breakdown.total === 0 &&
     breakdown.penalties === 0;
   const muted = isDarkMode ? 'text-gray-400' : 'text-gray-600';
-  /** A number with nothing behind it yet: a muted dash, read out as 0 */
-  const none = (
-    <>
-      <span aria-hidden className={`text-sm font-normal leading-5 ${muted}`}>
-        &mdash;
-      </span>
-      <span className="sr-only">0</span>
-    </>
-  );
+
   const rows = (
     <div
       className={`grid min-w-0 gap-x-8 gap-y-2 ${hasAuto ? 'lg:grid-cols-2' : ''}`}
@@ -380,6 +447,7 @@ export const BreakdownStrip = () => {
         leavePark={breakdown.leave + breakdown.park}
         tips={sessionData.tipping ?? 0}
         hasAuto={hasAuto}
+        robots={robots}
       />
     </div>
   );
@@ -396,31 +464,37 @@ export const BreakdownStrip = () => {
       </div>
 
       <div>
-        <h2 className={`mb-1 ${EYEBROW_CLASS}`}>Total</h2>
+        <h2 className={`mb-1 ${tintedEyebrow(isDarkMode)}`}>Total</h2>
         {/* One 48px box whatever it shows, so nothing under it moves */}
         <div
           data-breakdown-total
           className="flex h-12 min-w-[3ch] items-start text-5xl font-bold leading-none tabular-nums text-foreground"
         >
-          {quiet ? <span className="mt-1 flex">{none}</span> : breakdown.total}
+          {quiet ? <span className={muted}>0</span> : breakdown.total}
         </div>
       </div>
 
       {hasAuto ? (
         <div className="min-w-0 space-y-2">
-          <h3 className={EYEBROW_CLASS}>Ranking Points</h3>
+          <h3 className={tintedEyebrow(isDarkMode)}>Ranking Points</h3>
           {rows}
         </div>
       ) : (
         <div className="grid min-w-0 gap-x-8 gap-y-3 lg:grid-cols-2">
           <div className="min-w-0 space-y-2">
-            <h3 className={EYEBROW_CLASS}>Ranking Points</h3>
+            <h3 className={tintedEyebrow(isDarkMode)}>Ranking Points</h3>
             {rows}
           </div>
           <div className="min-w-0 space-y-2">
-            <h3 className={EYEBROW_CLASS}>{ELEMENT_LABELS.park}</h3>
+            <h3 className={tintedEyebrow(isDarkMode)}>{ELEMENT_LABELS.park}</h3>
             <p className="text-sm font-semibold tabular-nums text-foreground">
-              {quiet ? none : formatPoints(breakdown.park)}
+              {quiet ? (
+                <span className={`font-normal ${muted}`}>
+                  {formatPoints(0)}
+                </span>
+              ) : (
+                formatPoints(breakdown.park)
+              )}
             </p>
           </div>
         </div>

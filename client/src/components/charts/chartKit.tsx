@@ -142,9 +142,14 @@ export const ChartTooltip = ({
   if (!active || !payload || payload.length === 0) return null;
   // The axis value is only the row's key; the row carries its full label.
   const row = payload[0].payload;
+  // A series with no value in this row (a match of another type, say) has
+  // nothing to say here.
+  const entries = payload.filter(
+    entry => entry.value !== null && entry.value !== undefined
+  );
   const title = row?.[titleKey] ?? label;
   const note = row?.note;
-  const sum = payload.reduce(
+  const sum = entries.reduce(
     (acc, entry) => acc + (typeof entry.value === 'number' ? entry.value : 0),
     0
   );
@@ -164,7 +169,7 @@ export const ChartTooltip = ({
         </p>
       )}
       <div className="space-y-1 sm:space-y-2">
-        {payload.map((entry, index) => (
+        {entries.map((entry, index) => (
           <div key={index} className="flex items-center justify-between gap-4">
             {/* No colon after the name: the dot and the value across from
                 it pair them, and the colon alone wrapped 'POLLINATOR 1' on

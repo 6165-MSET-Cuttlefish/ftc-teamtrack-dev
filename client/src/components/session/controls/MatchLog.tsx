@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -6,7 +6,6 @@ import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { CHIP_BASE, CHIP_SIZES, chipTone } from '@/components/ui/tokens';
 import {
   calculateScore,
-  FLOWERS_LABEL,
   ELEMENT_LABELS,
   matchScore,
   pickScoringFields,
@@ -14,10 +13,15 @@ import {
 } from '@/lib';
 import type { Match, MatchScoringFields } from '@/types';
 import { absorbDoubleTap } from './doubleTap';
-import { ConfirmInline } from './ConfirmInline';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { formatPoints, useLiveControls } from './liveControlsContext';
-import { revealInView, scrollUnderHeader } from './scrollUnderHeader';
+import {
+  keepClockWhole,
+  revealInView,
+  scrollUnderHeader,
+} from './scrollUnderHeader';
+import { focusMatchRow, hasKeyboardFocus } from './takeDroppedFocus';
+import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
 
 /**
@@ -34,8 +38,8 @@ const SCORING_FIELDS = '[data-tutorial="live"]';
  */
 const PHONE_LIST_HEIGHT = 158;
 /**
- * What opens under a row: the unsaved-changes note, the delete question.
- * Each sits straight inside its row.
+ * What opens under a row: the unsaved-changes note. It sits straight inside
+ * its row.
  */
 const ROW_INSERT = '[data-row-insert]';
 /** The open match's row, with its Editing chip */
@@ -49,12 +53,12 @@ const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`;
 
 /**
- * "3 tips · Leave + Park 16 pts · Flowers 6 + 1 bonus · Left in Hive 3 ·
- * Garden 4 · 2 RP", in the order of the form and in the breakdown's words.
+ * "3 tips, Leave + Park 16 pts, Owned flower pieces 6, Flower nectar at
+ * bottom 1, Left in Hive 3, Garden 4, 2 RP", in the order of the form and
+ * in its counters' words.
  * Only what was scored is listed; a match with nothing at all reads
  * "0 tips". Each part stays on one line with its name when the row wraps,
- * and a dot stays at the end of the line it follows rather than starting
- * the next.
+ * and a comma stays at the end of the line it follows.
  */
 const matchSummary = (match: Match): string => {
   const tips = match.tipping ?? 0;
@@ -69,22 +73,17 @@ const matchSummary = (match: Match): string => {
   const parts = [
     ...(tips > 0 ? [plural(tips, 'tip')] : []),
     ...(robots > 0 ? [`${ELEMENT_LABELS.robots} ${formatPoints(robots)}`] : []),
-    ...(flower > 0 || bonus > 0
-      ? [
-          `${FLOWERS_LABEL} ${[
-            ...(flower > 0 ? [String(flower)] : []),
-            ...(bonus > 0 ? [`${bonus} bonus`] : []),
-          ].join(' + ')}`,
-        ]
-      : []),
+    // Each in the name its counter has, so it reads as what was counted
+    ...(flower > 0 ? [`${ELEMENT_LABELS.flower} ${flower}`] : []),
+    ...(bonus > 0 ? [`${ELEMENT_LABELS.flowerBonus} ${bonus}`] : []),
     ...(hive > 0 ? [`${ELEMENT_LABELS.hive} ${hive}`] : []),
     ...(garden > 0 ? [`${ELEMENT_LABELS.garden} ${garden}`] : []),
-    ...(penalties > 0 ? [plural(penalties, 'penalty', 'penalties')] : []),
+    ...(penalties > 0 ? [plural(penalties, 'foul', 'fouls')] : []),
     ...(rp > 0 ? [`${rp} RP`] : []),
   ];
   return (parts.length > 0 ? parts : ['0 tips'])
     .map(part => part.replace(/ /g, ' '))
-    .join(' · ');
+    .join(', ');
 };
 
 /** The scoring fields as one comparable string */
@@ -92,11 +91,16 @@ const scoringKey = (fields: Partial<MatchScoringFields>) =>
   JSON.stringify(pickScoringFields(fields));
 
 /**
- * The list of saved matches, newest first — the match just saved is the one
+ * The list of saved matches, newest first: the match just saved is the one
  * most likely to need a correction. Each row says what was scored in words,
  * in the order of the entry form. Tapping a row opens it for editing; with
  * another match open, it goes straight over to the tapped one unless the
- * open one has changes, which are asked about under the tapped row.
+ * open one has changes: then the note under the tapped row offers to save
+ * them and open it. The trash deletes at once; its toast has the Undo.
+ *
+ * While a match is being played (or waits to be saved) the rows don't
+ * open: a saved match must not be edited under a live clock. They say so
+ * to a screen reader, and don't look pressable.
  *
  * The per-match score summary wraps on narrow screens rather than
  * overflowing, so the row stays readable on a phone.
@@ -108,20 +112,24 @@ export const MatchLog = () => {
     matchActive,
     editingMatchId,
     editingMatchNumber,
-    deleteConfirmId,
-    setDeleteConfirmId,
     startEditingMatch,
+    saveEditedMatch,
     showUnsavedEditWarning,
     setShowUnsavedEditWarning,
     handleDeleteMatch,
+    matchFirstMessage,
   } = useLiveControls();
   const isCompact = useCompactControls();
   const summaryId = useId();
+  const lockedId = useId();
   const listRef = useRef<HTMLDivElement>(null);
-  /** The row whose delete question is open */
-  const confirmRowRef = useRef<HTMLDivElement>(null);
   /** The "unsaved changes" note under the row that was tapped */
-  const warningRef = useRef<HTMLParagraphElement>(null);
+  const warningRef = useRef<HTMLDivElement>(null);
+  /**
+   * The match to open once the one open now has been saved ("Save and
+   * open"): the editor closes first, then this opens over the live match.
+   */
+  const [openNextId, setOpenNextId] = useState<string | null>(null);
   /** Set by the tap that opens a match, for the effect that follows it */
   const justOpenedRef = useRef(false);
   /** The row tapped while the open match had changes */
@@ -199,7 +207,6 @@ export const MatchLog = () => {
     isCompact,
     matchCount,
     editingMatchId,
-    deleteConfirmId,
     showUnsavedEditWarning,
     blockedRowId,
     blockedTaps,
@@ -219,13 +226,29 @@ export const MatchLog = () => {
     if (target) scrollUnderHeader(target);
   }, [editingMatchId, isCompact]);
 
-  // The delete question opens under its row, which can be at the bottom
-  // edge of the list's own scroll area, or behind the bar on a phone.
+  // Closing it (Save, Discard changes) can take height with it: an old
+  // Autonomous match shows the counters it was saved with only while it
+  // is open. Where that leaves the page held at its new end with the clock
+  // peeking out under the header, the whole clock shows instead. Not when
+  // another match opens next (that scrolls on its own), nor under a live
+  // match.
+  const openRef = useRef(editingMatchId);
   useLayoutEffect(() => {
-    if (deleteConfirmId && confirmRowRef.current) {
-      revealInView(confirmRowRef.current);
-    }
-  }, [deleteConfirmId]);
+    const closed = openRef.current !== null && editingMatchId === null;
+    openRef.current = editingMatchId;
+    if (closed && openNextId === null && !matchActive) keepClockWhole();
+  }, [editingMatchId, openNextId, matchActive]);
+
+  // Once the saved edit has closed, the match it was saved for opens.
+  useEffect(() => {
+    if (openNextId === null || editingMatchId !== null) return;
+    setOpenNextId(null);
+    const next = sessionData.matches?.find(match => match.id === openNextId);
+    if (!next) return;
+    justOpenedRef.current = true;
+    setBlockedRowId(null);
+    startEditingMatch(next);
+  }, [openNextId, editingMatchId, sessionData.matches, startEditingMatch]);
 
   // The note about unsaved changes opens under the row that was tapped.
   useLayoutEffect(() => {
@@ -236,8 +259,11 @@ export const MatchLog = () => {
 
   if (matchCount === 0) return null;
 
+  /** A live match holds the rows: none opens while it is on */
+  const rowsLocked = matchActive && !editingMatchId;
+
   const openMatch = (match: Match) => {
-    if (match.id === editingMatchId || match.id === deleteConfirmId) return;
+    if (match.id === editingMatchId || rowsLocked) return;
     if (editingMatchId) {
       // While a match is open the fields hold its values: unchanged, they
       // are the same as its saved copy, and there is nothing to lose.
@@ -248,13 +274,6 @@ export const MatchLog = () => {
         setShowUnsavedEditWarning(true);
         return;
       }
-    } else if (matchActive) {
-      // A saved match must not be edited under a live clock: its taps would
-      // be stamped with the running match's time.
-      toast.error('Save or discard the running match first', {
-        id: 'edit-match-blocked',
-      });
-      return;
     }
     // The page moves under the pointer: whatever lands there must not take
     // the second tap of a double tap.
@@ -291,6 +310,11 @@ export const MatchLog = () => {
         >
           Tap a match to fix it
         </p>
+        {rowsLocked && (
+          <span id={lockedId} className="sr-only">
+            {matchFirstMessage} to fix a saved match
+          </span>
+        )}
       </div>
       <div
         ref={listRef}
@@ -303,7 +327,6 @@ export const MatchLog = () => {
       >
         {[...matches].reverse().map(match => {
           const isEditing = editingMatchId === match.id;
-          const isConfirmingDelete = deleteConfirmId === match.id;
           const isBlocked =
             showUnsavedEditWarning &&
             editingMatchId !== null &&
@@ -312,11 +335,7 @@ export const MatchLog = () => {
           const score = matchScore(match);
           const detailText = isDarkMode ? 'text-gray-400' : 'text-gray-600';
           return (
-            <div
-              key={match.id}
-              ref={isConfirmingDelete ? confirmRowRef : undefined}
-              data-editing-row={isEditing || undefined}
-            >
+            <div key={match.id} data-editing-row={isEditing || undefined}>
               {/*
                 One amber for editing, as in the header: a soft tint and a
                 bar down the left edge. Every row carries the bar's width, so
@@ -328,30 +347,45 @@ export const MatchLog = () => {
                     ? isDarkMode
                       ? 'border-amber-400 bg-amber-400/10'
                       : 'border-amber-700 bg-amber-50'
-                    : isDarkMode
-                      ? 'border-transparent hover:bg-gray-800'
-                      : 'border-transparent hover:bg-gray-50'
+                    : rowsLocked
+                      ? 'border-transparent'
+                      : isDarkMode
+                        ? 'border-transparent hover:bg-gray-800'
+                        : 'border-transparent hover:bg-gray-50'
                 }`}
               >
                 <button
                   type="button"
                   onKeyDown={ignoreHeldEnter}
                   onClick={() => openMatch(match)}
+                  data-match-id={match.id}
                   aria-label={`Edit match ${match.matchNumber}`}
-                  aria-describedby={rowSummaryId}
+                  aria-describedby={
+                    rowsLocked ? `${rowSummaryId} ${lockedId}` : rowSummaryId
+                  }
                   aria-pressed={isEditing}
-                  className="flex-1 self-stretch min-w-0 flex items-center gap-x-3 gap-y-1 flex-wrap pl-3 py-3 text-left cursor-pointer focus-visible:outline-offset-[-2px]"
+                  aria-disabled={rowsLocked || undefined}
+                  className={`flex-1 self-stretch min-w-0 flex items-center gap-x-3 gap-y-1 flex-wrap pl-3 py-3 text-left focus-visible:outline-offset-[-2px] ${
+                    rowsLocked ? 'cursor-default' : 'cursor-pointer'
+                  }`}
                 >
                   <span
                     id={rowSummaryId}
                     className="min-w-0 flex items-baseline gap-x-3 gap-y-0.5 flex-wrap"
                   >
+                    {/* Its points go under its name where the row is too
+                        narrow for both (a 200% zoom), not over the trash */}
                     <span
-                      className={`text-sm font-bold whitespace-nowrap ${
+                      className={`text-sm font-bold ${
                         isDarkMode ? 'text-white' : 'text-gray-900'
                       }`}
                     >
-                      Match {match.matchNumber} · {formatPoints(score)}
+                      <span className="whitespace-nowrap">
+                        Match {match.matchNumber}:
+                      </span>{' '}
+                      <span className="whitespace-nowrap">
+                        {formatPoints(score)}
+                      </span>
                     </span>
                     <span className={`text-xs ${detailText}`}>
                       {matchSummary(match)}
@@ -361,52 +395,65 @@ export const MatchLog = () => {
                     <span
                       className={`${CHIP_BASE} ${CHIP_SIZES.sm} ${chipTone('amber', isDarkMode)}`}
                     >
-                      Editing · fields above
+                      Editing
                     </span>
                   )}
                 </button>
-                {!isConfirmingDelete && (
-                  <button
-                    type="button"
-                    onKeyDown={ignoreHeldEnter}
-                    onClick={() => setDeleteConfirmId(match.id)}
-                    className={`shrink-0 ${ICON_BUTTON} ${detailText} ${
-                      isDarkMode
-                        ? 'hover:bg-red-500/20 hover:text-red-400'
-                        : 'hover:bg-red-50 hover:text-red-600'
-                    }`}
-                    title="Delete Match"
-                    aria-label={`Delete Match ${match.matchNumber}`}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                  </button>
-                )}
+                {/* Goes at once: its toast has the Undo. From the keyboard,
+                    focus carries on from the row that takes its place (the
+                    one under it, else the one over it); with no row left,
+                    from Start Match (see `useCatchDroppedFocus`). */}
+                <button
+                  type="button"
+                  onKeyDown={ignoreHeldEnter}
+                  onClick={e => {
+                    const viaKeyboard = hasKeyboardFocus(e.currentTarget);
+                    const shown = [...matches].reverse();
+                    const at = shown.findIndex(m => m.id === match.id);
+                    const neighbour = shown[at + 1] ?? shown[at - 1];
+                    handleDeleteMatch(match.id);
+                    if (viaKeyboard) focusMatchRow(neighbour?.id);
+                  }}
+                  className={`shrink-0 ${ICON_BUTTON} ${detailText} ${
+                    isDarkMode
+                      ? 'hover:bg-red-500/20 hover:text-red-400'
+                      : 'hover:bg-red-50 hover:text-red-600'
+                  }`}
+                  title="Delete Match"
+                  aria-label={`Delete Match ${match.matchNumber}`}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                </button>
               </div>
               {isBlocked && (
-                <p
+                <div
                   ref={warningRef}
                   data-row-insert
                   role="alert"
-                  className={`mx-4 mb-3 rounded-xl border px-3 py-2 text-xs font-semibold text-balance ${
+                  className={`mx-4 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
                     isDarkMode
                       ? 'border-amber-400/35 bg-amber-400/10 text-amber-200'
                       : 'border-amber-300 bg-amber-50 text-amber-900'
                   }`}
                 >
-                  Match {editingMatchNumber} has unsaved changes. Save or
-                  discard them, then open Match {match.matchNumber}.
-                </p>
-              )}
-              {isConfirmingDelete && (
-                <div data-row-insert>
-                  <ConfirmInline
-                    className="px-4 pb-3 pt-1"
-                    question={`Delete Match ${match.matchNumber} (${formatPoints(score)})?`}
-                    keepLabel="Keep"
-                    confirmLabel="Delete"
-                    onKeep={() => setDeleteConfirmId(null)}
-                    onConfirm={() => handleDeleteMatch(match.id)}
-                  />
+                  <p className="min-w-0 flex-1 basis-40 text-balance">
+                    Match {editingMatchNumber} has unsaved changes.
+                  </p>
+                  {/* Discard stays with Save in the controls: it has no
+                      Undo, so it is not a one-press way past this */}
+                  <button
+                    type="button"
+                    onKeyDown={ignoreHeldEnter}
+                    onClick={() => {
+                      if (!saveEditedMatch()) return;
+                      toast.success(`Match ${editingMatchNumber} updated`);
+                      setShowUnsavedEditWarning(false);
+                      setOpenNextId(match.id);
+                    }}
+                    className={`min-h-11 shrink-0 rounded-xl px-3 text-sm ${actionClass('neutral', isDarkMode)}`}
+                  >
+                    Save and open Match {match.matchNumber}
+                  </button>
                 </div>
               )}
             </div>

@@ -8,16 +8,19 @@ import {
   useId,
   type ReactNode,
 } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth, useTheme, useTeam } from '@/contexts';
 import { firebaseService } from '@/services';
 import {
+  failureReason,
   formatDate,
   logger,
   cycleTimesOf,
   rankingPoints,
   rankingPointTally,
   robotRates,
+  robotsOf,
+  swarmMissing,
   normalizeForMatchType,
   toneOf,
   ELEMENT_LABELS,
@@ -65,6 +68,7 @@ import {
   type YAxisProps,
 } from 'recharts';
 import {
+  useAddressSettings,
   useLifetimeSessions,
   useSessionScope,
   byDateAscending,
@@ -77,6 +81,8 @@ import {
   mean,
   MATCH_TYPES,
   matchTypeOf,
+  matchTypeFromParam,
+  matchTypeParam,
   ofMatchType,
 } from './lifetime';
 
@@ -180,8 +186,33 @@ const MATCH_TYPE_SHORT: Record<string, string> = { Autonomous: 'Auto' };
 
 const round1 = (value: number): number => Math.round(value * 10) / 10;
 
-const shorten = (text: string, max = 14): string =>
-  text.length > max ? `${text.slice(0, max - 1)}…` : text;
+/** What `Intl.Segmenter` gives, where the browser has one */
+type GraphemeSegmenter = new (
+  locale?: string,
+  options?: { granularity: 'grapheme' }
+) => { segment: (text: string) => Iterable<{ segment: string }> };
+
+/**
+ * The characters of a text as a reader sees them: an emoji built of several
+ * code points (a family, a flag, a skin tone) is one. Without a segmenter,
+ * code points at least, so no emoji is ever cut in half.
+ */
+const graphemes = (text: string): string[] => {
+  const Segmenter = (Intl as unknown as { Segmenter?: GraphemeSegmenter })
+    .Segmenter;
+  return Segmenter
+    ? Array.from(
+        new Segmenter(undefined, { granularity: 'grapheme' }).segment(text),
+        part => part.segment
+      )
+    : Array.from(text);
+};
+
+/** A name cut to `max` characters with an ellipsis, never inside an emoji */
+const shorten = (text: string, max = 14): string => {
+  const chars = graphemes(text);
+  return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : text;
+};
 
 /** 'Sep 24' out of 'Sep 24, 10:15 AM': the time is for the tooltip. */
 const dayOf = (date: string): string => date.split(', ')[0];
@@ -221,14 +252,23 @@ const sessionRate = (
 const sessionRankingPoints = (session: Session): RankingPointTally =>
   rankingPointTally(session.matches, session.matchType);
 
-/** Percentage of a session's matches that earned one ranking point. */
+/**
+ * Percentage of a session's matches that earned one ranking point: for
+ * SWARM, of the matches that could (two robots and an Auto period), null
+ * when none could.
+ */
 const rankingPointShare = (
   session: Session,
   key: 'swarm' | 'pollinator1' | 'pollinator2'
-): number | null =>
-  session.matches.length > 0
-    ? (sessionRankingPoints(session)[key] / session.matches.length) * 100
-    : null;
+): number | null => {
+  const tally = sessionRankingPoints(session);
+  const chances = key === 'swarm' ? tally.swarmChances : session.matches.length;
+  return chances > 0 ? (tally[key] / chances) * 100 : null;
+};
+
+/** Why a session has no SWARM figure: what it would take */
+const sessionSwarmMissing = (session: Session): string =>
+  swarmMissing(session.matches, session.matchType);
 
 const formatRate = (v: number) => `${Math.round(v)}%`;
 const formatSeconds = (v: number) => `${v.toFixed(1)}s`;
@@ -309,6 +349,9 @@ const widerLine = (
   lines: Map<string, readonly [string, string]>,
   key: string
 ) => [...(lines.get(key) ?? [''])].sort((a, b) => b.length - a.length)[0];
+
+/** The fewest sessions a trend chart is drawn for */
+const TREND_SESSIONS_MIN = 3;
 
 /** Most bars that still get their value written on top. */
 const BAR_LABELS_MAX = 8;
@@ -455,6 +498,8 @@ interface RowOptions<T> {
   short?: string;
   /** Also mark the worst cell (only points handed to the opponent) */
   flagWorst?: boolean;
+  /** What a column with no value says, instead of N/A */
+  missing?: (column: T) => string;
   /** A count written under each value: '5.6 tips' under the points */
   detail?: {
     value: (column: T) => number | null;
@@ -549,13 +594,189 @@ const MODE_OPTIONS = [
   { value: 'matches', label: 'Matches' },
 ] as const;
 
+type CompareMode = (typeof MODE_OPTIONS)[number]['value'];
+
+/** A match picked in Matches mode */
+interface PickedMatch {
+  sessionId: string;
+  matchId: string;
+}
+
+/** Picked matches as the address holds them: `sessionId~matchId,...` */
+const serializeMatches = (matches: PickedMatch[]): string =>
+  matches.map(m => `${m.sessionId}~${m.matchId}`).join(',');
+
+const parseMatches = (value: string | null | undefined): PickedMatch[] =>
+  (value ?? '').split(',').flatMap(item => {
+    const [sessionId, matchId] = item.split('~');
+    return sessionId && matchId ? [{ sessionId, matchId }] : [];
+  });
+
+/**
+ * The match types some sessions ran, with how many matches each, in the
+ * order they are offered.
+ */
+const typeCounts = (
+  sessions: Session[]
+): { value: string; label: string; count: number }[] => {
+  const counts = new Map<string, number>();
+  for (const session of sessions) {
+    for (const match of session.matches) {
+      const type = matchTypeOf(match, session);
+      counts.set(type, (counts.get(type) ?? 0) + 1);
+    }
+  }
+  const rank = (type: string) =>
+    MATCH_TYPES.includes(type) ? MATCH_TYPES.indexOf(type) : MATCH_TYPES.length;
+  return [...counts]
+    .map(([value, count]) => ({ value, label: value, count }))
+    .sort((a, b) => rank(a.value) - rank(b.value));
+};
+
+/** The type with the most matches (on a tie, the one offered first) */
+const mostMatchesType = (choices: { value: string; count: number }[]) =>
+  [...choices].sort((a, b) => b.count - a.count)[0]?.value;
+
+/**
+ * What a first visit compares: the newest session and the newest one
+ * before it that ran the type most of its matches are, so the first view
+ * compares two sessions rather than leaving one out; the two newest when no
+ * earlier session ran that type. `type` is that type when the pair's own
+ * most-matches type would still leave one of them out, otherwise null.
+ */
+const firstPick = (
+  sessions: Session[]
+): { sessions: string[]; type: string | null } => {
+  const [newest, ...older] = [...sessions].sort(byDateAscending).reverse();
+  if (!newest) return { sessions: [], type: null };
+  const type = mostMatchesType(typeCounts([newest]));
+  const ran = (session: Session) =>
+    session.matches.some(match => matchTypeOf(match, session) === type);
+  const partner = older.find(ran) ?? older[0];
+  if (!partner) return { sessions: [newest.id], type: null };
+  const shared = mostMatchesType(typeCounts([partner, newest]));
+  const bothRan = [partner, newest].every(session =>
+    session.matches.some(match => matchTypeOf(match, session) === shared)
+  );
+  return {
+    sessions: [partner.id, newest.id],
+    type: !bothRan && type && ran(partner) ? type : null,
+  };
+};
+
+/**
+ * The last comparison made in this browser, by whom: the sessions (`s`),
+ * matches (`m`) and mode, as the address holds them. A convenience: if it
+ * can't be read or written, Compare opens on the two newest sessions that
+ * share a match type.
+ */
+const PICK_KEY = 'teamtrack-compare-pick';
+
+interface RememberedPick {
+  s?: string;
+  m?: string;
+  mode?: string;
+}
+
+const recallPick = (owner: string): RememberedPick | null => {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(PICK_KEY) ?? '');
+    if (typeof value !== 'object' || value === null) return null;
+    const saved = value as RememberedPick & { owner?: string };
+    return saved.owner === owner ? saved : null;
+  } catch {
+    return null;
+  }
+};
+
+const rememberPick = (owner: string, pick: RememberedPick): void => {
+  try {
+    localStorage.setItem(PICK_KEY, JSON.stringify({ owner, ...pick }));
+  } catch {
+    /* private mode: only this visit remembers */
+  }
+};
+
+/**
+ * What Compare compares, kept in its address: the picked sessions (`s`, a
+ * comma list; links made before it say `session1` and `session2`), the
+ * picked matches (`m`), the mode and the match type. `named` says the
+ * address names a pick, even an empty one, which Compare then leaves as it
+ * is.
+ */
+const usePick = () => {
+  const [address, updateAddress] = useAddressSettings();
+  const listed = address.get('s');
+  const first = address.get('session1');
+  const second = address.get('session2');
+  const selectedSessionIds = useMemo(() => {
+    if (listed !== null) return [...new Set(listed.split(',').filter(Boolean))];
+    if (!first) return [];
+    return second && second !== first ? [first, second] : [first];
+  }, [listed, first, second]);
+  const matchesParam = address.get('m');
+  const selectedMatches = useMemo(
+    () => parseMatches(matchesParam),
+    [matchesParam]
+  );
+  const comparisonMode: CompareMode =
+    address.get('mode') === 'matches' ? 'matches' : 'sessions';
+  /** The match type asked for; the most common one until then */
+  const pickedType = matchTypeFromParam(address.get('type'));
+
+  /** Change some of the pick, in one write to the address */
+  const setPick = useCallback(
+    ({
+      sessions,
+      matches,
+      mode,
+      type,
+    }: {
+      sessions?: string[];
+      matches?: PickedMatch[];
+      mode?: CompareMode;
+      /** A match type to compare, when the most common one won't do */
+      type?: string;
+    }) =>
+      updateAddress({
+        ...(sessions && {
+          s: sessions.join(','),
+          session1: null,
+          session2: null,
+        }),
+        ...(matches && { m: serializeMatches(matches) || null }),
+        ...(mode && { mode: mode === 'matches' ? 'matches' : null }),
+        ...(type && { type: matchTypeParam(type) }),
+      }),
+    [updateAddress]
+  );
+  const setPickedType = (type: string) =>
+    updateAddress({ type: matchTypeParam(type) });
+
+  return {
+    selectedSessionIds,
+    selectedMatches,
+    comparisonMode,
+    pickedType,
+    named: listed !== null || !!first,
+    setPick,
+    setPickedType,
+  };
+};
+
 const Compare = () => {
   const { isGuest, user } = useAuth();
   const { isDarkMode, isHoneycombMode, isDeepSeaMode } = useTheme();
   const { team } = useTeam();
-  const [searchParams] = useSearchParams();
 
-  const { sessions: listedSessions, loading } = useLifetimeSessions();
+  // The newest page of sessions, and older ones a press away
+  const {
+    sessions: listedSessions,
+    loading,
+    hasMore,
+    loadingOlder,
+    loadOlder,
+  } = useLifetimeSessions();
   /**
    * The listed sessions that can be compared. A session with no matches has
    * nothing to compare, so it is never offered, nor counted in the scopes.
@@ -564,11 +785,21 @@ const Compare = () => {
     () => listedSessions.filter(s => s.matches.length > 0),
     [listedSessions]
   );
-  const { scope, setScope, inScope, choices, scopeLabel } =
-    useSessionScope(comparableSessions);
-  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
-  /** The match type asked for; the most common one until then */
-  const [pickedType, setPickedType] = useState<string | null>(null);
+  const { scope, setScope, inScope, choices, scopeLabel } = useSessionScope(
+    comparableSessions,
+    !hasMore
+  );
+  // What is compared lives in the address (see `usePick`), so opening a
+  // session and coming Back finds it as it was, and a link carries it.
+  const {
+    selectedSessionIds,
+    selectedMatches,
+    comparisonMode,
+    pickedType,
+    named,
+    setPick,
+    setPickedType,
+  } = usePick();
   /**
    * The session list on a phone: 'auto' folds it to one line once there is
    * something to compare, 'open' (Change) keeps it open until Done, and
@@ -629,13 +860,6 @@ const Compare = () => {
   const [matchScrollerRef, matchTableShadow, matchTableScrolled] =
     useTableScroll(isDarkMode);
 
-  const [comparisonMode, setComparisonMode] = useState<'sessions' | 'matches'>(
-    'sessions'
-  );
-  const [selectedMatches, setSelectedMatches] = useState<
-    Array<{ sessionId: string; matchId: string }>
-  >([]);
-
   /**
    * Sessions named in the URL that the list doesn't hold (someone else's
    * link, or an older session). Each is fetched once and kept.
@@ -647,23 +871,49 @@ const Compare = () => {
     document.title = `Compare - ${APP_CONFIG.name}`;
   }, []);
 
-  const linkedIds = useMemo(() => {
-    const session1Id = searchParams.get('session1');
-    const session2Id = searchParams.get('session2');
-    if (!session1Id) return [];
-    return session2Id && session2Id !== session1Id
-      ? [session1Id, session2Id]
-      : [session1Id];
-  }, [searchParams]);
+  /** This viewer's last pick, kept in this browser */
+  const pickOwner = user?.uid ?? 'guest';
 
+  // The first visit compares the two newest sessions that share a match
+  // type (`firstPick`), and every later one what was compared last, unless
+  // the address names a pick (a link, or Back from a session). Only
+  // sessions still listed are picked again.
+  const preselected = useRef(false);
   useEffect(() => {
-    if (linkedIds.length > 0) setSelectedSessionIds(linkedIds);
-  }, [linkedIds]);
+    if (preselected.current || loading) return;
+    preselected.current = true;
+    if (named) return;
+    const listed = (id: string) => comparableSessions.some(s => s.id === id);
+    const last = recallPick(pickOwner);
+    const lastIds = (last?.s ?? '').split(',').filter(listed);
+    if (last && lastIds.length > 0) {
+      setPick({
+        sessions: lastIds,
+        matches: parseMatches(last.m).filter(m =>
+          lastIds.includes(m.sessionId)
+        ),
+        mode: last.mode === 'matches' ? 'matches' : 'sessions',
+      });
+      return;
+    }
+    const first = firstPick(comparableSessions.filter(inScope));
+    if (first.sessions.length > 0) {
+      setPick({ sessions: first.sessions, type: first.type ?? undefined });
+    }
+  }, [loading, named, comparableSessions, inScope, pickOwner, setPick]);
+
+  // Whatever is compared now is what the next visit opens on
+  const pickKey = `${selectedSessionIds.join(',')}|${serializeMatches(selectedMatches)}|${comparisonMode}`;
+  useEffect(() => {
+    if (!preselected.current) return;
+    const [s, m, mode] = pickKey.split('|');
+    rememberPick(pickOwner, { s, m, mode });
+  }, [pickKey, pickOwner]);
 
   useEffect(() => {
     // A guest's sessions are all in the list already.
     if (loading || isGuest) return;
-    for (const id of linkedIds) {
+    for (const id of selectedSessionIds) {
       if (
         requestedLinks.current.has(id) ||
         listedSessions.some(s => s.id === id) ||
@@ -679,10 +929,12 @@ const Compare = () => {
         })
         .catch(error => {
           logger.error('Error loading sessions', error);
-          toast.error('Failed to load some sessions');
+          toast.error("Couldn't load a linked session", {
+            description: failureReason(error, { reading: true }),
+          });
         });
     }
-  }, [loading, isGuest, linkedIds, listedSessions]);
+  }, [loading, isGuest, selectedSessionIds, listedSessions]);
 
   /**
    * Every session that can be picked: the list in the chosen scope, then any
@@ -726,22 +978,10 @@ const Compare = () => {
   );
 
   /** The match types the picked sessions ran, with how many matches each. */
-  const typeChoices = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const session of pickedSessions) {
-      for (const match of session.matches) {
-        const type = matchTypeOf(match, session);
-        counts.set(type, (counts.get(type) ?? 0) + 1);
-      }
-    }
-    const rank = (type: string) =>
-      MATCH_TYPES.includes(type)
-        ? MATCH_TYPES.indexOf(type)
-        : MATCH_TYPES.length;
-    return [...counts]
-      .map(([value, count]) => ({ value, label: value, count }))
-      .sort((a, b) => rank(a.value) - rank(b.value));
-  }, [pickedSessions]);
+  const typeChoices = useMemo(
+    () => typeCounts(pickedSessions),
+    [pickedSessions]
+  );
 
   /**
    * The one match type compared, as on Charts: the one asked for while the
@@ -749,7 +989,7 @@ const Compare = () => {
    */
   const matchType =
     typeChoices.find(choice => choice.value === pickedType)?.value ??
-    [...typeChoices].sort((a, b) => b.count - a.count)[0]?.value ??
+    mostMatchesType(typeChoices) ??
     MATCH_TYPES[0];
 
   /**
@@ -812,16 +1052,16 @@ const Compare = () => {
     return member?.displayName || member?.email || session.userEmail;
   };
 
-  /** 'Sep 25', plus who recorded it when that was a teammate. */
+  /** 'Sep 25', plus who recorded it when that was a teammate ('by Vedant'). */
   const whenAndWho = (session: Session): string => {
     const owner = ownerOf(session);
     const date = dateLabels.get(session.id) ?? '';
-    return owner ? `${date} · ${owner}` : date;
+    return owner ? `${date} by ${owner}` : date;
   };
 
   /**
    * The same, for a narrow column: it may break only between its parts
-   * ('Sep 26,' '10:15 AM' '· Vedant'), never inside one.
+   * ('Sep 26,' '10:15 AM' 'by Vedant'), never inside one.
    */
   const whenAndWhoLines = (session: Session): ReactNode => {
     const [day, time] = (dateLabels.get(session.id) ?? '').split(', ');
@@ -841,7 +1081,7 @@ const Compare = () => {
         {owner && (
           <>
             {' '}
-            <span className="whitespace-nowrap">· {owner}</span>
+            <span className="whitespace-nowrap">by {owner}</span>
           </>
         )}
       </>
@@ -989,31 +1229,35 @@ const Compare = () => {
   );
 
   const clearSessions = () => {
-    setSelectedSessionIds([]);
-    setSelectedMatches([]);
+    setPick({ sessions: [], matches: [] });
     setPickerState('auto');
   };
 
   const toggleSession = (sessionId: string) => {
     if (selectedSessionIds.includes(sessionId)) {
       const rest = selectedSessionIds.filter(id => id !== sessionId);
-      setSelectedSessionIds(rest);
       // Its matches leave the comparison with it, in the same update.
-      setSelectedMatches(prev => prev.filter(m => m.sessionId !== sessionId));
+      setPick({
+        sessions: rest,
+        matches: selectedMatches.filter(m => m.sessionId !== sessionId),
+      });
       if (rest.length === 0) setPickerState('auto');
     } else {
-      setSelectedSessionIds(prev => [...prev, sessionId]);
+      setPick({ sessions: [...selectedSessionIds, sessionId] });
     }
   };
 
   const toggleMatch = (match: CompareMatch) => {
-    const isSame = (m: { sessionId: string; matchId: string }) =>
+    const isSame = (m: PickedMatch) =>
       m.sessionId === match.sessionId && m.matchId === match.id;
-    setSelectedMatches(prev =>
-      prev.some(isSame)
-        ? prev.filter(m => !isSame(m))
-        : [...prev, { sessionId: match.sessionId, matchId: match.id }]
-    );
+    setPick({
+      matches: selectedMatches.some(isSame)
+        ? selectedMatches.filter(m => !isSame(m))
+        : [
+            ...selectedMatches,
+            { sessionId: match.sessionId, matchId: match.id },
+          ],
+    });
   };
 
   /**
@@ -1035,6 +1279,7 @@ const Compare = () => {
       short,
       flagWorst = false,
       detail,
+      missing,
     } = opts;
     const values = table.columns.map(getValue);
     const show = (v: number | null) => (v === null ? 'N/A' : format(v));
@@ -1084,20 +1329,27 @@ const Compare = () => {
                 highlight || mark === 'best' ? 'font-bold' : 'font-normal'
               } tabular-nums ${mark === 'worst' ? badTone : 'text-foreground'}`}
             >
-              <span
-                data-best={mark === 'best' ? '' : undefined}
-                className="inline-flex items-center justify-end gap-1 whitespace-nowrap"
-              >
-                {mark === 'best' && star && (
-                  <Star
-                    aria-hidden="true"
-                    className={`w-3 h-3 shrink-0 fill-current ${goodTone}`}
-                  />
-                )}
-                {shown[i]}
-                {mark === 'best' && <span className="sr-only"> (best)</span>}
-                {mark === 'worst' && <span className="sr-only"> (most)</span>}
-              </span>
+              {values[i] === null && missing ? (
+                // Words, not a figure: muted, and free to wrap
+                <span className={`block text-xs font-normal ${mutedText}`}>
+                  {missing(column)}
+                </span>
+              ) : (
+                <span
+                  data-best={mark === 'best' ? '' : undefined}
+                  className="inline-flex items-center justify-end gap-1 whitespace-nowrap"
+                >
+                  {mark === 'best' && star && (
+                    <Star
+                      aria-hidden="true"
+                      className={`w-3 h-3 shrink-0 fill-current ${goodTone}`}
+                    />
+                  )}
+                  {shown[i]}
+                  {mark === 'best' && <span className="sr-only"> (best)</span>}
+                  {mark === 'worst' && <span className="sr-only"> (most)</span>}
+                </span>
+              )}
               {values[i] !== null && countLine(counts[i])}
             </td>
           );
@@ -1148,7 +1400,7 @@ const Compare = () => {
   });
 
   /**
-   * Match charts: session over 'M# · date' on the axis. The time of day,
+   * Match charts: session over 'M#, date' on the axis. The time of day,
    * when the date has one, is only in the tooltip: on the axis it made each
    * tick wider than its bar and ran into the next.
    */
@@ -1157,7 +1409,7 @@ const Compare = () => {
       match.key,
       [
         shorten(match.sessionName),
-        `M${match.matchNumber} · ${dayOf(match.sessionDate)}`,
+        `M${match.matchNumber}, ${dayOf(match.sessionDate)}`,
       ] as const,
     ])
   );
@@ -1172,7 +1424,7 @@ const Compare = () => {
       >
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
-          <p className="text-sm text-team-blue">Loading sessions...</p>
+          <p className="text-sm text-team-blue">Loading sessions…</p>
         </div>
       </div>
     );
@@ -1206,9 +1458,7 @@ const Compare = () => {
   /** The line over a table that says what its marks mean. */
   const tableKey = (withOpponentRow: boolean) => (
     <div className="mb-3">
-      <p
-        className={`flex flex-wrap items-center gap-x-1.5 text-xs ${mutedText}`}
-      >
+      <p className={`flex flex-wrap items-center gap-x-3 text-xs ${mutedText}`}>
         <span className="inline-flex items-center gap-1">
           <Star
             aria-hidden="true"
@@ -1216,16 +1466,12 @@ const Compare = () => {
           />
           best
         </span>
-        <span aria-hidden="true">·</span>
         <span>N/A not run</span>
         {withOpponentRow && (
-          <>
-            <span aria-hidden="true">·</span>
-            <span>
-              <span className={`font-semibold ${badTone}`}>red</span> most to
-              opponent
-            </span>
-          </>
+          <span>
+            <span className={`font-semibold ${badTone}`}>red</span> most to
+            opponent
+          </span>
         )}
         <button
           type="button"
@@ -1288,7 +1534,7 @@ const Compare = () => {
       className={`w-3.5 h-3.5 shrink-0 ${active ? '' : 'invisible'}`}
     />
   );
-  const chipDetail = `text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`;
+  const chipDetail = `text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`;
 
   const pickedCount = pickedSessions.length;
   /**
@@ -1328,7 +1574,7 @@ const Compare = () => {
           {plural(pickedCount, 'session')}
         </span>
         <span className={mutedText}>
-          {' · '}
+          {': '}
           {pickedSessions.map(sessionTitle).join(', ')}
         </span>
       </span>
@@ -1336,6 +1582,20 @@ const Compare = () => {
         {pickerFolded ? 'Change' : 'Done'}
       </span>
     </button>
+  );
+
+  /** The end of the sessions read so far: the next page is a press away */
+  const showOlderButton = hasMore && (
+    <div aria-live="polite" className="mt-3">
+      <button
+        type="button"
+        onClick={() => void loadOlder()}
+        disabled={loadingOlder}
+        className={`min-h-11 rounded-lg border px-5 text-sm font-semibold transition-colors disabled:opacity-60 ${isDarkMode ? 'border-team-blue-40 text-white hover:border-team-blue' : 'border-gray-300 text-gray-900 hover:border-gray-400'}`}
+      >
+        {loadingOlder ? 'Loading older sessions…' : 'Show older sessions'}
+      </button>
+    </div>
   );
 
   const sessionList =
@@ -1346,15 +1606,13 @@ const Compare = () => {
         <p
           className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}
         >
-          {scope === 'all'
-            ? 'No sessions available'
-            : `No sessions ${scopeLabel}`}
+          {scope === 'all' ? 'No sessions yet' : `No sessions ${scopeLabel}`}
         </p>
         <p
           className={`text-sm mb-4 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
         >
           {scope === 'all'
-            ? 'Complete some practice sessions first, then come back to compare them.'
+            ? 'Score at least two sessions to compare them.'
             : `${plural(comparableSessions.length, 'session')} under All.`}
         </p>
         {/* The view's one fill: the header's New Session steps back */}
@@ -1399,7 +1657,7 @@ const Compare = () => {
                   handFocusOn(e.currentTarget, pickerSummaryButton);
                 }}
                 aria-pressed={isSelected}
-                title={`${sessionTitle(session)} · ${formatDate(session.createdAt)}${owner ? ` · ${owner}` : ''}`}
+                title={`${sessionTitle(session)}, ${formatDate(session.createdAt)}${owner ? `, by ${owner}` : ''}`}
                 className={`${toggleChip(isSelected)} flex min-w-0 flex-col items-stretch px-3 py-1.5 text-left ${isCompact ? '' : 'max-w-[18rem]'}`}
               >
                 <span className="flex min-w-0 items-start gap-1.5">
@@ -1416,13 +1674,14 @@ const Compare = () => {
                   {/* Who recorded it before how many matches: cut short,
                       the count is the part to lose */}
                   {dateLabels.get(session.id)}
-                  {owner && ` · ${owner}`} ·{' '}
+                  {owner && ` by ${owner}`},{' '}
                   {plural(session.matches.length, 'match', 'matches')}
                 </span>
               </button>
             );
           })}
         </div>
+        {showOlderButton}
         {isCompact && pickedCount > 0 && (
           // Clear only where the list carries the count: in Matches mode
           // the Clear beside the count clears the matches
@@ -1472,7 +1731,7 @@ const Compare = () => {
             data={chartData}
             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
             title="Average score trend"
-            desc={`Average ${ELEMENT_NAMES[scoreChartPhase]} points per match in each compared session, oldest first. The Score Breakdown table below lists the same averages.`}
+            desc={`Average ${ELEMENT_NAMES[scoreChartPhase]} points per match in each compared session, oldest first. The Score Breakdown table above lists the same averages.`}
             accessibilityLayer={false}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -1524,7 +1783,7 @@ const Compare = () => {
         <div
           className={`flex items-center justify-center h-32 rounded-lg border-2 border-dashed ${isDarkMode ? 'border-team-blue-40 text-team-white-60' : 'border-gray-200 text-gray-600'} text-sm`}
         >
-          No cycle time data for the selected sessions
+          No tip times in the picked sessions
         </div>
       );
     }
@@ -1534,8 +1793,8 @@ const Compare = () => {
           <LineChart
             data={chartData}
             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-            title="Average cycle time trend"
-            desc="Average time between Hive Tips in each compared session, oldest first. The Score Breakdown table below lists the same averages."
+            title="Time between Hive Tips trend"
+            desc="Average time between Hive Tips in each compared session, oldest first. The Score Breakdown table above lists the same averages."
             accessibilityLayer={false}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -1555,7 +1814,7 @@ const Compare = () => {
             />
             <Line
               dataKey="cycleTime"
-              name="Avg Cycle Time"
+              name="Average"
               stroke={color}
               strokeWidth={2.5}
               type="linear"
@@ -1572,7 +1831,7 @@ const Compare = () => {
     const color = tone(ELEMENT_TONES[matchScoreChartPhase]);
     const chartData = matchColumns.map(match => ({
       key: match.key,
-      label: `Match ${match.matchNumber} · ${match.sessionName}`,
+      label: `Match ${match.matchNumber}, ${match.sessionName}`,
       note: match.sessionDate,
       score: elementPoints(match.breakdown, matchScoreChartPhase),
     }));
@@ -1590,7 +1849,7 @@ const Compare = () => {
             data={chartData}
             margin={{ top: 20, right: 16, left: 0, bottom: 0 }}
             title="Score by match"
-            desc={`${ELEMENT_NAMES[matchScoreChartPhase]} points of each picked match. The Score Breakdown table below lists the same values.`}
+            desc={`${ELEMENT_NAMES[matchScoreChartPhase]} points of each picked match. The Score Breakdown table above lists the same values.`}
             accessibilityLayer={false}
           >
             <CartesianGrid
@@ -1649,7 +1908,7 @@ const Compare = () => {
         <div
           className={`flex items-center justify-center h-32 rounded-lg border-2 border-dashed ${isDarkMode ? 'border-team-blue-40 text-team-white-60' : 'border-gray-200 text-gray-600'} text-sm`}
         >
-          No cycle time data for selected matches
+          No tip times in the picked matches
         </div>
       );
     // Cycle i is the gap that ends at tip i + 2.
@@ -1669,7 +1928,7 @@ const Compare = () => {
           <LineChart
             data={chartData}
             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-            title="Cycle times per match"
+            title="Time between Hive Tips per match"
             desc="Seconds between one Hive Tip and the next, tip by tip, one line per match."
           >
             <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -1686,7 +1945,7 @@ const Compare = () => {
                 <Line
                   key={match.key}
                   dataKey={`match${idx}`}
-                  name={`M${match.matchNumber} · ${shorten(match.sessionName, 20)}`}
+                  name={`M${match.matchNumber}, ${shorten(match.sessionName, 20)}`}
                   stroke={color}
                   strokeWidth={2.5}
                   type="linear"
@@ -1737,30 +1996,14 @@ const Compare = () => {
     </th>
   );
 
+  /**
+   * Sessions side by side: the numbers first, the answer to "which was
+   * better, and where". A trend needs three points: with two, a line between
+   * them says nothing the table doesn't.
+   */
+  const showTrends = comparedSessions.length >= TREND_SESSIONS_MIN;
   const sessionsView = () => (
     <div className="space-y-6">
-      <CompareCard
-        title="Average Score Trend"
-        open={isScoreChartOpen}
-        onToggle={() => setIsScoreChartOpen(!isScoreChartOpen)}
-        className={cardClass}
-      >
-        {elementPicker(scoreChartPhase, setScoreChartPhase)}
-        {scoreTrend()}
-      </CompareCard>
-
-      <CompareCard
-        title="Average Cycle Time Trend"
-        open={isCycleChartOpen}
-        onToggle={() => setIsCycleChartOpen(!isCycleChartOpen)}
-        className={cardClass}
-      >
-        <p className={`text-xs mb-4 ${mutedText}`}>
-          Average time between Hive Tips in each session. Lower is faster.
-        </p>
-        {cycleTrend()}
-      </CompareCard>
-
       <CompareCard
         title="Score Breakdown"
         open={isDetailedBreakdownOpen}
@@ -1808,6 +2051,7 @@ const Compare = () => {
                 `${ELEMENT_LABELS.tipping} Points`,
                 s => avgPoints(s, b => b.tipping),
                 {
+                  format: formatNumber,
                   short: `${ELEMENT_LABELS.tipping}\u00A0pts`,
                   detail: {
                     value: s => avgCount(s, m => m.tipping || 0),
@@ -1818,7 +2062,10 @@ const Compare = () => {
               {renderSessionRow(
                 `${ELEMENT_LABELS.robots} Points`,
                 s => avgPoints(s, b => b.leave + b.park),
-                { short: `${ELEMENT_LABELS.robots}\u00A0pts` }
+                {
+                  format: formatNumber,
+                  short: `${ELEMENT_LABELS.robots}\u00A0pts`,
+                }
               )}
               {renderSessionRow(
                 'Leave Rate',
@@ -1874,6 +2121,7 @@ const Compare = () => {
                 `${ELEMENT_LABELS.flower} Points`,
                 s => avgPoints(s, b => b.flower),
                 {
+                  format: formatNumber,
                   short: `${ELEMENT_LABELS.flower}\u00A0pts`,
                   detail: {
                     value: s => avgCount(s, m => m.flower || 0),
@@ -1884,12 +2132,16 @@ const Compare = () => {
               {renderSessionRow(
                 `${ELEMENT_LABELS.flowerBonus} Points`,
                 s => avgPoints(s, b => b.flowerBonus),
-                { short: `${ELEMENT_LABELS.flowerBonus}\u00A0pts` }
+                {
+                  format: formatNumber,
+                  short: `${ELEMENT_LABELS.flowerBonus}\u00A0pts`,
+                }
               )}
               {renderSessionRow(
                 `${ELEMENT_LABELS.hive} Points`,
                 s => avgPoints(s, b => b.hive),
                 {
+                  format: formatNumber,
                   short: `${ELEMENT_LABELS.hive}\u00A0pts`,
                   detail: {
                     value: s => avgCount(s, m => m.ballsInHive || 0),
@@ -1900,7 +2152,10 @@ const Compare = () => {
               {renderSessionRow(
                 `${ELEMENT_LABELS.garden} Points`,
                 s => avgPoints(s, b => b.garden),
-                { short: `${ELEMENT_LABELS.garden}\u00A0pts` }
+                {
+                  format: formatNumber,
+                  short: `${ELEMENT_LABELS.garden}\u00A0pts`,
+                }
               )}
               {/* Fouls only exist against an opponent, so only Scrim
                   sessions have a figure. It is what they handed the
@@ -1916,7 +2171,7 @@ const Compare = () => {
                     short: 'To opponent',
                   }
                 )}
-              {renderSessionRow('Cycle Time', sessionCycleTime, {
+              {renderSessionRow('Time between tips', sessionCycleTime, {
                 higherIsBetter: false,
                 format: formatSeconds,
               })}
@@ -1931,7 +2186,13 @@ const Compare = () => {
               {renderSessionRow(
                 'Matches with SWARM',
                 s => rankingPointShare(s, 'swarm'),
-                { indent: true, format: formatRate, short: 'SWARM' }
+                {
+                  indent: true,
+                  format: formatRate,
+                  short: 'SWARM',
+                  // One robot can't earn it: no unreachable 0%
+                  missing: sessionSwarmMissing,
+                }
               )}
               {renderSessionRow(
                 'Matches with POLLINATOR 1',
@@ -1955,6 +2216,36 @@ const Compare = () => {
           </table>
         </div>
       </CompareCard>
+      {showTrends ? (
+        <>
+          <CompareCard
+            title="Average Score Trend"
+            open={isScoreChartOpen}
+            onToggle={() => setIsScoreChartOpen(!isScoreChartOpen)}
+            className={cardClass}
+          >
+            {elementPicker(scoreChartPhase, setScoreChartPhase)}
+            {scoreTrend()}
+          </CompareCard>
+
+          <CompareCard
+            title="Time Between Hive Tips"
+            open={isCycleChartOpen}
+            onToggle={() => setIsCycleChartOpen(!isCycleChartOpen)}
+            className={cardClass}
+          >
+            <p className={`text-xs mb-4 ${mutedText}`}>
+              Average time between Hive Tips in each session. Lower is faster.
+            </p>
+            {cycleTrend()}
+          </CompareCard>
+        </>
+      ) : (
+        <p className={`text-center text-sm ${mutedText}`}>
+          Trend charts appear when {TREND_SESSIONS_MIN} or more sessions are
+          picked.
+        </p>
+      )}
     </div>
   );
 
@@ -2001,10 +2292,8 @@ const Compare = () => {
               <div
                 className={`text-xs font-semibold uppercase tracking-wide mb-2 break-words [overflow-wrap:anywhere] min-w-0 ${mutedText}`}
               >
-                {sessionTitle(session)}{' '}
-                <span className="whitespace-nowrap">
-                  · {whenAndWho(session)}
-                </span>
+                {sessionTitle(session)},{' '}
+                <span className="whitespace-nowrap">{whenAndWho(session)}</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {sessionMatches.map(match => {
@@ -2015,7 +2304,7 @@ const Compare = () => {
                       type="button"
                       onClick={() => toggleMatch(match)}
                       aria-pressed={isChecked}
-                      title={`${ELEMENT_LABELS.tipping} ${match.tipping || 0} · ${ELEMENT_LABELS.garden} ${match.garden || 0} · ${ELEMENT_LABELS.flower} ${match.flower || 0} · ${ELEMENT_LABELS.hive} ${match.ballsInHive || 0}`}
+                      title={`${ELEMENT_LABELS.tipping} ${match.tipping || 0}, ${ELEMENT_LABELS.garden} ${match.garden || 0}, ${ELEMENT_LABELS.flower} ${match.flower || 0}, ${ELEMENT_LABELS.hive} ${match.ballsInHive || 0}`}
                       className={`${toggleChip(isChecked)} inline-flex items-center gap-1.5 px-3 py-1.5 text-sm`}
                     >
                       <span className="font-medium whitespace-nowrap">
@@ -2041,32 +2330,7 @@ const Compare = () => {
         )
       ) : (
         <>
-          <CompareCard
-            title="Score by Match"
-            open={isMatchScoreChartOpen}
-            onToggle={() => setIsMatchScoreChartOpen(!isMatchScoreChartOpen)}
-            className={cardClass}
-          >
-            {elementPicker(matchScoreChartPhase, setMatchScoreChartPhase)}
-            {matchBars()}
-          </CompareCard>
-
-          <CompareCard
-            title="Cycle Times per Match"
-            open={isMatchCycleChartOpen}
-            onToggle={() => setIsMatchCycleChartOpen(!isMatchCycleChartOpen)}
-            className={cardClass}
-          >
-            <p className={`text-xs mb-4 ${mutedText}`}>
-              Time between Hive Tips in{' '}
-              {matchColumns.length > CYCLE_LINES_MAX
-                ? `the first ${CYCLE_LINES_MAX} of ${matchColumns.length} matches`
-                : 'each match'}
-              : Tip 2 is the time from the first tip to the second.
-            </p>
-            {matchCycles()}
-          </CompareCard>
-
+          {/* The numbers first, then the charts of them */}
           <CompareCard
             title="Score Breakdown"
             open={isMatchBreakdownOpen}
@@ -2142,6 +2406,7 @@ const Compare = () => {
                     `${ELEMENT_LABELS.tipping} Points`,
                     m => m.breakdown.tipping,
                     {
+                      format: formatNumber,
                       short: `${ELEMENT_LABELS.tipping}\u00A0pts`,
                       detail: {
                         value: m => m.tipping || 0,
@@ -2152,19 +2417,34 @@ const Compare = () => {
                   {renderMatchRow(
                     `${ELEMENT_LABELS.leave} Points`,
                     m => m.breakdown.leave,
-                    { short: `${ELEMENT_LABELS.leave}\u00A0pts` }
+                    {
+                      format: formatNumber,
+                      short: `${ELEMENT_LABELS.leave}\u00A0pts`,
+                    }
                   )}
                   {renderMatchRow(
                     `${ELEMENT_LABELS.park} Points`,
                     m => m.breakdown.park,
-                    { short: `${ELEMENT_LABELS.park}\u00A0pts` }
+                    {
+                      format: formatNumber,
+                      short: `${ELEMENT_LABELS.park}\u00A0pts`,
+                    }
                   )}
                   {textMatchRow('Robot 1 Park', match => parksOf(match, 1))}
-                  {textMatchRow('Robot 2 Park', match => parksOf(match, 2))}
+                  {/* Only where a match had a second robot on the field */}
+                  {matchColumns.some(match => robotsOf(match) === 2) &&
+                    textMatchRow('Robot 2 Park', match =>
+                      robotsOf(match) === 2 ? (
+                        parksOf(match, 2)
+                      ) : (
+                        <span className={mutedText}>1 robot</span>
+                      )
+                    )}
                   {renderMatchRow(
                     `${ELEMENT_LABELS.flower} Points`,
                     m => m.breakdown.flower,
                     {
+                      format: formatNumber,
                       short: `${ELEMENT_LABELS.flower}\u00A0pts`,
                       detail: {
                         value: m => m.flower || 0,
@@ -2175,12 +2455,16 @@ const Compare = () => {
                   {renderMatchRow(
                     `${ELEMENT_LABELS.flowerBonus} Points`,
                     m => m.breakdown.flowerBonus,
-                    { short: `${ELEMENT_LABELS.flowerBonus}\u00A0pts` }
+                    {
+                      format: formatNumber,
+                      short: `${ELEMENT_LABELS.flowerBonus}\u00A0pts`,
+                    }
                   )}
                   {renderMatchRow(
                     `${ELEMENT_LABELS.hive} Points`,
                     m => m.breakdown.hive,
                     {
+                      format: formatNumber,
                       short: `${ELEMENT_LABELS.hive}\u00A0pts`,
                       detail: {
                         value: m => m.ballsInHive || 0,
@@ -2191,7 +2475,10 @@ const Compare = () => {
                   {renderMatchRow(
                     `${ELEMENT_LABELS.garden} Points`,
                     m => m.breakdown.garden,
-                    { short: `${ELEMENT_LABELS.garden}\u00A0pts` }
+                    {
+                      format: formatNumber,
+                      short: `${ELEMENT_LABELS.garden}\u00A0pts`,
+                    }
                   )}
                   {/* Scrim matches only; never part of the score */}
                   {anyScrimMatch &&
@@ -2205,10 +2492,14 @@ const Compare = () => {
                         short: 'To opponent',
                       }
                     )}
-                  {renderMatchRow('Cycle Time', m => mean(cycleTimesOf(m)), {
-                    higherIsBetter: false,
-                    format: formatSeconds,
-                  })}
+                  {renderMatchRow(
+                    'Time between tips',
+                    m => mean(cycleTimesOf(m)),
+                    {
+                      higherIsBetter: false,
+                      format: formatSeconds,
+                    }
+                  )}
                   {renderMatchRow(
                     'Ranking Points',
                     m => rankingPoints(m).total,
@@ -2217,10 +2508,7 @@ const Compare = () => {
                   {textMatchRow('Earned', match => {
                     const earned = earnedOf(match);
                     return earned.length === 0 ? (
-                      <span className={mutedText}>
-                        <span aria-hidden="true">—</span>
-                        <span className="sr-only">none</span>
-                      </span>
+                      <span className={mutedText}>None</span>
                     ) : (
                       <span className="inline-flex flex-wrap justify-end gap-1">
                         {earned.map(([badge, name]) => (
@@ -2240,6 +2528,32 @@ const Compare = () => {
               </table>
             </div>
           </CompareCard>
+
+          <CompareCard
+            title="Score by Match"
+            open={isMatchScoreChartOpen}
+            onToggle={() => setIsMatchScoreChartOpen(!isMatchScoreChartOpen)}
+            className={cardClass}
+          >
+            {elementPicker(matchScoreChartPhase, setMatchScoreChartPhase)}
+            {matchBars()}
+          </CompareCard>
+
+          <CompareCard
+            title="Time Between Hive Tips per Match"
+            open={isMatchCycleChartOpen}
+            onToggle={() => setIsMatchCycleChartOpen(!isMatchCycleChartOpen)}
+            className={cardClass}
+          >
+            <p className={`text-xs mb-4 ${mutedText}`}>
+              Time between Hive Tips in{' '}
+              {matchColumns.length > CYCLE_LINES_MAX
+                ? `the first ${CYCLE_LINES_MAX} of ${matchColumns.length} matches`
+                : 'each match'}
+              : Tip 2 is the time from the first tip to the second.
+            </p>
+            {matchCycles()}
+          </CompareCard>
         </>
       )}
     </div>
@@ -2252,13 +2566,8 @@ const Compare = () => {
       {/* The header's column, so their ends line up at every width */}
       <div className={`${PAGE_CONTAINER} py-8`}>
         <PageHeader
-          title="Comparison"
-          subtitle={
-            <>
-              Compare sessions and matches side-by-side
-              {scopeLabel && ` · ${scopeLabel}`}
-            </>
-          }
+          title="Compare"
+          subtitle={scopeLabel ? `Sessions ${scopeLabel}.` : undefined}
         >
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex flex-wrap gap-2">
@@ -2266,7 +2575,7 @@ const Compare = () => {
                 label="Compare"
                 value={comparisonMode}
                 options={MODE_OPTIONS}
-                onChange={setComparisonMode}
+                onChange={mode => setPick({ mode })}
                 isDarkMode={isDarkMode}
               />
               {typeChoices.length > 1 && (
@@ -2295,7 +2604,7 @@ const Compare = () => {
                   selected
                   {!statusInPicker && (
                     <>
-                      {' · '}
+                      {' '}
                       <button
                         type="button"
                         onClick={e => {
@@ -2303,7 +2612,7 @@ const Compare = () => {
                             clearSessions();
                             handFocusOn(e.currentTarget, firstSessionChip);
                           } else {
-                            setSelectedMatches([]);
+                            setPick({ matches: [] });
                             handFocusOn(e.currentTarget, firstMatchChip);
                           }
                         }}
@@ -2346,6 +2655,7 @@ const Compare = () => {
                   </div>
                 )}
                 {sessionList}
+                {sessions.length === 0 && showOlderButton}
               </>
             )}
           </div>

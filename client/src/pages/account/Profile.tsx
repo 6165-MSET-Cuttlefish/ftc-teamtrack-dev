@@ -96,7 +96,7 @@ const Section = ({
   );
 };
 
-/** The small capitals over a field (Display name, Email, Current password…) */
+/** The small capitals over a field (Name, Email, Current password…) */
 const fieldLabelClass = (isDarkMode: boolean) =>
   `text-xs font-medium uppercase tracking-wider ${
     isDarkMode ? 'text-team-white-60' : 'text-gray-500'
@@ -136,6 +136,7 @@ const PasswordInput = ({
   errorId,
   invalid,
   autoFocus,
+  fullWidth = false,
   isDarkMode,
 }: {
   id: string;
@@ -148,11 +149,16 @@ const PasswordInput = ({
   errorId?: string;
   invalid?: boolean;
   autoFocus?: boolean;
+  /**
+   * As wide as the fields around it, in a dialog; on the page it stops at
+   * the width of the forms beside it
+   */
+  fullWidth?: boolean;
   isDarkMode: boolean;
 }) => {
   const [shown, setShown] = useState(false);
   return (
-    <div className="relative sm:max-w-sm">
+    <div className={`relative ${fullWidth ? '' : 'sm:max-w-sm'}`}>
       <Input
         id={id}
         type={shown ? 'text' : 'password'}
@@ -190,6 +196,22 @@ const INLINE_EDIT_INPUT =
 const INLINE_EDIT_BUTTON = 'h-10 px-4 text-sm max-[359px]:flex-1';
 
 const MIN_PASSWORD_LENGTH = 6;
+
+/**
+ * Once an action has re-rendered the page (an inline form closing, a button
+ * disabled while it works), put focus on `find()` if it fell to the page.
+ */
+const focusIfDropped = (find: () => HTMLElement | null | undefined) =>
+  requestAnimationFrame(() => {
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    find()?.focus();
+  });
+
+/** The field a failed form is about: the one marked invalid, else `fallbackId` */
+const invalidFieldOr = (fallbackId: string) => () =>
+  document.querySelector<HTMLElement>('input[aria-invalid="true"]') ??
+  document.getElementById(fallbackId);
 
 /** The inputs that can carry an error of their own */
 type FieldErrorKey =
@@ -275,6 +297,8 @@ const Profile = () => {
    * account menu) or deleting the account from here is not "please sign in".
    */
   const wasSignedInRef = useRef(signedIn);
+  /** The account is being deleted from here */
+  const deletingRef = useRef(false);
   useEffect(() => {
     if (signedIn) wasSignedInRef.current = true;
   }, [signedIn]);
@@ -283,7 +307,7 @@ const Profile = () => {
   // before the redirect commits, and the id keeps it to one toast anyway.
   useEffect(() => {
     if (signedIn || wasSignedInRef.current) return;
-    toast.error('Please sign in to view your profile', {
+    toast.error('Sign in to see your profile', {
       id: 'profile-needs-account',
     });
   }, [signedIn]);
@@ -313,6 +337,12 @@ const Profile = () => {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // Where focus goes back to when an inline form closes
+  const editNameRef = useRef<HTMLButtonElement>(null);
+  const editEmailRef = useRef<HTMLButtonElement>(null);
+  const changePasswordRef = useRef<HTMLButtonElement>(null);
+  const sendVerificationRef = useRef<HTMLButtonElement>(null);
 
   const isPasswordProvider =
     user?.providerId === 'password' || !user?.providerId;
@@ -364,6 +394,7 @@ const Profile = () => {
   const cancelNameEdit = () => {
     setEditingName(false);
     setNameValue('');
+    focusIfDropped(() => editNameRef.current);
   };
 
   const saveName = async () => {
@@ -373,9 +404,11 @@ const Profile = () => {
       await updateDisplayName(nameValue.trim());
       await updateMemberDisplayName(nameValue.trim());
       setEditingName(false);
-      toast.success('Display name updated');
+      focusIfDropped(() => editNameRef.current);
+      toast.success('Name updated');
     } catch (err) {
       showAuthError(err);
+      focusIfDropped(() => document.getElementById('profile-display-name'));
     } finally {
       setNameLoading(false);
     }
@@ -386,6 +419,7 @@ const Profile = () => {
     setEmailValue('');
     setEmailPasswordValue('');
     clearFieldError('email', 'emailPassword');
+    focusIfDropped(() => editEmailRef.current);
   };
 
   const saveEmail = async () => {
@@ -395,9 +429,11 @@ const Profile = () => {
       setEmailLoading(true);
       await updateUserEmail(emailValue.trim(), emailPasswordValue);
       setEditingEmail(false);
+      focusIfDropped(() => editEmailRef.current);
       toast.success('Email updated');
     } catch (err) {
       showAuthError(err, { password: 'emailPassword', email: 'email' });
+      focusIfDropped(invalidFieldOr('profile-email'));
     } finally {
       setEmailLoading(false);
     }
@@ -414,6 +450,8 @@ const Profile = () => {
       showAuthError(err);
     } finally {
       setVerificationLoading(false);
+      // Disabled while it sent, which took the focus off it
+      focusIfDropped(() => sendVerificationRef.current);
     }
   };
 
@@ -423,6 +461,7 @@ const Profile = () => {
     setNewPassword('');
     setConfirmPassword('');
     clearFieldError('currentPassword', 'newPassword');
+    focusIfDropped(() => changePasswordRef.current);
   };
 
   const savePassword = async () => {
@@ -444,12 +483,14 @@ const Profile = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      focusIfDropped(() => changePasswordRef.current);
       toast.success('Password updated');
     } catch (err) {
       showAuthError(err, {
         password: 'currentPassword',
         newPassword: 'newPassword',
       });
+      focusIfDropped(invalidFieldOr('profile-current-password'));
     } finally {
       setPasswordLoading(false);
     }
@@ -464,11 +505,15 @@ const Profile = () => {
 
   const handleDeleteAccount = async () => {
     clearFieldError('deletePassword');
+    // Set first: the page leaves as soon as the account is gone, before the
+    // deletion's promise settles.
+    deletingRef.current = true;
     try {
       setDeleteLoading(true);
       await deleteAccount(isPasswordProvider ? deletePassword : undefined);
       toast.success('Your account and data were deleted');
     } catch (err) {
+      deletingRef.current = false;
       showAuthError(err, { password: 'deletePassword' });
     } finally {
       setDeleteLoading(false);
@@ -477,9 +522,17 @@ const Profile = () => {
 
   if (!signedIn || !user) {
     // Signed out or deleted from this page: that isn't "please sign in".
+    // After deleting the account they are a guest, and go where a guest
+    // starts; after signing out, to sign in again.
     return (
       <Navigate
-        to={wasSignedInRef.current ? ROUTES.LOGIN : ROUTES.SESSIONS}
+        to={
+          deletingRef.current
+            ? ROUTES.HOME
+            : wasSignedInRef.current
+              ? ROUTES.LOGIN
+              : ROUTES.SESSIONS
+        }
         replace
       />
     );
@@ -507,9 +560,9 @@ const Profile = () => {
 
         {/* Who you are, once: the avatar beside the name, Verified as the
             email's badge. Sign out is in the account menu. */}
-        <Section title="Profile Information" isDarkMode={isDarkMode}>
+        <Section title="Name and email" isDarkMode={isDarkMode}>
           <Field
-            label="Display Name"
+            label="Name"
             htmlFor={editingName ? 'profile-display-name' : undefined}
             isDarkMode={isDarkMode}
           >
@@ -524,7 +577,7 @@ const Profile = () => {
                     if (e.key === 'Escape') cancelNameEdit();
                   }}
                   autoFocus
-                  placeholder="Enter display name"
+                  placeholder="Your name"
                   autoComplete="name"
                   className={INLINE_EDIT_INPUT}
                 />
@@ -568,10 +621,11 @@ const Profile = () => {
                   )}
                 </p>
                 <Button
+                  ref={editNameRef}
                   variant="neutral"
                   size="sm"
                   className="shrink-0"
-                  aria-label="Edit display name"
+                  aria-label="Edit name"
                   onClick={() => {
                     setNameValue(user?.displayName || '');
                     setEditingName(true);
@@ -692,6 +746,7 @@ const Profile = () => {
                           Not verified
                         </span>
                         <button
+                          ref={sendVerificationRef}
                           type="button"
                           onClick={handleSendVerification}
                           disabled={verificationLoading}
@@ -712,6 +767,7 @@ const Profile = () => {
                 </div>
                 {isPasswordProvider && (
                   <Button
+                    ref={editEmailRef}
                     variant="neutral"
                     size="sm"
                     className="shrink-0"
@@ -740,7 +796,7 @@ const Profile = () => {
                   {isOwner ? "You're the owner" : "You're a member"}
                   {/* From sm up the team button carries the count */}
                   <span className="sm:hidden">
-                    {` · ${team.members.length} member${team.members.length === 1 ? '' : 's'}`}
+                    {`. Team of ${team.members.length}.`}
                   </span>
                 </>
               ) : (
@@ -885,6 +941,7 @@ const Profile = () => {
                     ••••••••••••
                   </p>
                   <Button
+                    ref={changePasswordRef}
                     variant="neutral"
                     size="sm"
                     aria-label="Change password"
@@ -912,18 +969,17 @@ const Profile = () => {
           <ShareLinks userId={user.uid} isDarkMode={isDarkMode} />
         </Section>
 
-        <Section title="Danger Zone" isDarkMode={isDarkMode} variant="danger">
+        <Section
+          title="Delete account"
+          isDarkMode={isDarkMode}
+          variant="danger"
+        >
           {/* The button never shrinks below its label; on the narrowest
               phones it drops under the text instead of squeezing it. */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-            <div className="min-w-0 flex-1 basis-44">
-              <p className={`text-sm font-medium ${strongText}`}>
-                Delete your account
-              </p>
-              <p className={`text-xs mt-0.5 ${mutedText}`}>
-                Permanently remove your account, sessions and share links
-              </p>
-            </div>
+            <p className={`min-w-0 flex-1 basis-44 text-sm ${mutedText}`}>
+              Removes your account, your sessions and your share links for good.
+            </p>
             <Button
               variant="dangerOutline"
               size="sm"
@@ -991,6 +1047,8 @@ const Profile = () => {
                 autoComplete="current-password"
                 invalid={!!fieldErrors.deletePassword}
                 errorId="delete-password-error"
+                // Lined up with Type DELETE under it
+                fullWidth
                 isDarkMode={isDarkMode}
               />
               {fieldErrors.deletePassword && (

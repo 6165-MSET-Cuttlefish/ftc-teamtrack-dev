@@ -17,6 +17,10 @@ import { isArchived } from '@/lib/sessionFilters';
 const plural = (count: number, noun: string) =>
   `${count} ${noun}${count !== 1 ? 's' : ''}`;
 
+/** An invite code no team has (any more): reset, or the team deleted */
+const INVITE_GONE =
+  'This invite link no longer works. Ask a teammate for a new one.';
+
 const JoinTeam = () => {
   const { inviteCode } = useParams<{ inviteCode: string }>();
   const { user, loading: authLoading } = useAuth();
@@ -40,9 +44,11 @@ const JoinTeam = () => {
   const [resolvedCode, setResolvedCode] = useState<string>('');
   /** Asking whether to leave the current team for the invited one */
   const [confirmSwitch, setConfirmSwitch] = useState(false);
+  /** The card's title: it takes the focus when the card's buttons go */
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    document.title = `Join Team - ${APP_CONFIG.name}`;
+    document.title = `Join team - ${APP_CONFIG.name}`;
   }, []);
 
   useEffect(() => {
@@ -53,7 +59,9 @@ const JoinTeam = () => {
         localStorage.setItem(STORAGE_KEYS.PENDING_INVITE_CODE, inviteCode);
         localStorage.setItem(STORAGE_KEYS.PENDING_INVITE_EXPIRY, String(Date.now() + 60 * 60 * 1000));
       }
-      navigate(ROUTES.LOGIN);
+      // In place of this page, so Back from sign-in leaves rather than
+      // coming here to be sent straight back again
+      navigate(ROUTES.LOGIN, { replace: true });
       return;
     }
 
@@ -67,7 +75,9 @@ const JoinTeam = () => {
 
     if (!codeToUse) {
       setStatus('error');
-      setErrorMessage('No invite code provided');
+      setErrorMessage(
+        'This link has no invite code. Ask a teammate to send the invite link again.'
+      );
       return;
     }
 
@@ -87,31 +97,37 @@ const JoinTeam = () => {
         } else {
           clearPendingInvite();
           setStatus('error');
-          setErrorMessage('Invalid invite code. Please check the link and try again.');
+          setErrorMessage(INVITE_GONE);
         }
       } catch {
         setStatus('error');
-        setErrorMessage('Failed to look up team. The invite code may be invalid or expired.');
+        setErrorMessage(
+          "Couldn't look up this team. Check your connection, then reload the page."
+        );
       }
     };
 
     doLookup();
   }, [user, authLoading, inviteCode, navigate]);
 
-  /** Find the user's own sessions that `forTeamId` doesn't have yet. */
-  const loadShareable = async (forTeamId: string) => {
-    if (!user?.uid) return;
+  /**
+   * Find the user's own sessions that no team has yet. Resolves with them,
+   * or null when they couldn't be looked up.
+   */
+  const loadShareable = async (): Promise<Session[] | null> => {
+    if (!user?.uid) return null;
     setLoadingShareable(true);
     try {
       const allSessions = await firebaseService.getUserSessions(user.uid);
-      // Archived sessions are put away: not offered for sharing.
-      const shareable = allSessions.filter(
-        s => s.teamId !== forTeamId && !isArchived(s)
-      );
+      // Personal ones only: archived sessions are put away, and one filed
+      // under a team the user has left stays with that team.
+      const shareable = allSessions.filter(s => !s.teamId && !isArchived(s));
       setShareableSessions(shareable as Session[]);
       setSelectedSessionIds(new Set(shareable.map(s => s.id)));
+      return shareable;
     } catch (err) {
       logger.warn('Could not fetch sessions to share', err instanceof Error ? { message: err.message } : undefined);
+      return null;
     } finally {
       setLoadingShareable(false);
     }
@@ -137,7 +153,7 @@ const JoinTeam = () => {
       if (result.status === 'invalid') {
         clearPendingInvite();
         setStatus('error');
-        setErrorMessage('Invalid invite code. Please check the link and try again.');
+        setErrorMessage(INVITE_GONE);
         return;
       }
 
@@ -145,19 +161,35 @@ const JoinTeam = () => {
       setTeamName(joined.name);
       setTeamId(joined.id);
       setTeamUnloaded(result.status === 'joined-unloaded');
-      setStatus('success');
       clearPendingInvite();
-      await loadShareable(joined.id);
+      // Still "Joining" while the user's own sessions are looked up: with
+      // some to share, this page asks about them; with none (or none found)
+      // there is nothing more to do here, and Sessions offers any it finds.
+      const shareable = await loadShareable();
+      if (shareable && shareable.length > 0) {
+        setStatus('success');
+        return;
+      }
+      toast.success(`Joined ${joined.name}`, {
+        description:
+          result.status === 'joined-unloaded'
+            ? "The team couldn't be loaded yet. Reload the page if it doesn't show up."
+            : undefined,
+      });
+      navigate(ROUTES.SESSIONS, { replace: true });
     } catch {
       setStatus('error');
-      setErrorMessage('Failed to join team. The invite code may be invalid or expired.');
+      setErrorMessage(
+        "Couldn't join the team. Check your connection, then reload the page."
+      );
     }
   };
 
   /** Leave the invite (turned down, or nothing left to do) for the list */
   const goToSessions = () => {
     clearPendingInvite();
-    navigate(ROUTES.SESSIONS);
+    // The invite is answered: Back from Sessions doesn't bring it up again
+    navigate(ROUTES.SESSIONS, { replace: true });
   };
 
   const handleShare = async () => {
@@ -178,13 +210,19 @@ const JoinTeam = () => {
             "Couldn't share your sessions. They stay private; you can share them later from the team panel."
           );
         }
-        await loadShareable(teamId);
+        await loadShareable();
         return;
       }
       toast.success(`Shared ${plural(count, 'session')} with ${teamName}`);
-      setShareableSessions(prev =>
-        (prev ?? []).filter(s => !selectedSessionIds.has(s.id))
+      const left = (shareableSessions ?? []).filter(
+        s => !selectedSessionIds.has(s.id)
       );
+      // Shared, the step is done; asked again only about the ones left
+      if (left.length === 0 && status === 'success') {
+        goToSessions();
+        return;
+      }
+      setShareableSessions(left);
       setSelectedSessionIds(new Set());
     } catch {
       toast.error(
@@ -198,6 +236,16 @@ const JoinTeam = () => {
   // The invite is read against the team the user is in, so that is waited
   // for: the card differs for someone already in this team, or in another.
   const view = status === 'preview' && teamLoading ? 'loading' : status;
+
+  // Each step of the card replaces the buttons of the one before (and Share
+  // is disabled while it runs): where focus fell to the page, the new
+  // title takes it.
+  useEffect(() => {
+    if (sharing) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    headingRef.current?.focus();
+  }, [view, sharing]);
   const alreadyMember = !!team && team.id === teamId;
   const currentTeam = team && team.id !== teamId ? team : null;
   /** What leaving the current team to take this invite would do to it */
@@ -212,30 +260,39 @@ const JoinTeam = () => {
    */
   const primaryButton = `bg-team-blue hover:bg-team-blue/90 ${isDarkMode ? 'text-black' : 'text-white'}`;
   /** The card is the page: its title is the page's h1 */
-  const heading = `${PAGE_TITLE_CLASS} mb-2 text-balance`;
+  const heading = `${PAGE_TITLE_CLASS} mb-2 text-balance focus:outline-none`;
   const hasShareable = !!shareableSessions && shareableSessions.length > 0;
 
-  /** Matches the team dialog's share step: same picker, same words */
-  const sharePanel = hasShareable && (
-    <div className="mb-6 text-left">
-      <p
-        className={`text-sm mb-2 ${
-          isDarkMode ? 'text-team-white-60' : 'text-gray-600'
-        }`}
-      >
-        Share your{' '}
-        <strong>{plural(shareableSessions.length, 'session')}</strong> with{' '}
-        <strong>{teamName}</strong>? Teammates see shared sessions with their
-        notes, and they stay with the team if you leave.
-      </p>
-      <ShareSessionsPicker
-        sessions={shareableSessions}
-        selected={selectedSessionIds}
-        onChange={setSelectedSessionIds}
-        isDarkMode={isDarkMode}
-      />
-    </div>
-  );
+  /**
+   * Matches the team dialog's share step: same picker, same words. Asks the
+   * question itself unless the page's title already does (`titleAsks`).
+   */
+  const sharePanel = (titleAsks = false) =>
+    hasShareable && (
+      <div className="mb-6 text-left">
+        <p
+          className={`text-sm mb-2 ${
+            isDarkMode ? 'text-team-white-60' : 'text-gray-600'
+          }`}
+        >
+          {!titleAsks && (
+            <>
+              Share your{' '}
+              <strong>{plural(shareableSessions.length, 'session')}</strong>{' '}
+              with <strong>{teamName}</strong>?{' '}
+            </>
+          )}
+          Teammates see shared sessions with their notes, and they stay with the
+          team if you leave.
+        </p>
+        <ShareSessionsPicker
+          sessions={shareableSessions}
+          selected={selectedSessionIds}
+          onChange={setSelectedSessionIds}
+          isDarkMode={isDarkMode}
+        />
+      </div>
+    );
 
   /**
    * A card's buttons: side by side from `sm` up, the main one last; stacked
@@ -267,7 +324,7 @@ const JoinTeam = () => {
           >
             {selectedSessionIds.size > 0 && <Share2 className="h-4 w-4" />}
             {sharing
-              ? 'Sharing...'
+              ? 'Sharing…'
               : selectedSessionIds.size === 0
                 ? 'Select sessions to share'
                 : `Share ${plural(selectedSessionIds.size, 'session')}`}
@@ -292,7 +349,7 @@ const JoinTeam = () => {
   const switchConsequence = !currentTeam
     ? ''
     : leaveEffect?.kind === 'deleted'
-      ? `You're its only member, so ${currentTeam.name} and its invite link are deleted.`
+      ? `You're its only member, so ${currentTeam.name} and its invite link are deleted. You keep your sessions.`
       : leaveEffect?.kind === 'handed-over'
         ? `${leaveEffect.newOwner.displayName || leaveEffect.newOwner.email} becomes the owner of ${currentTeam.name}, and sessions you shared there stay with it.`
         : `Sessions you shared with ${currentTeam.name} stay with that team.`;
@@ -317,12 +374,13 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
               <div className="h-8 w-8 border-[3px] border-team-blue border-t-transparent rounded-full animate-spin" />
             </div>
-            <h1 className={heading}>
-              {view === 'joining' ? 'Joining team...' : 'Looking up team...'}
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              {view === 'joining'
+                ? teamName
+                  ? `Joining ${teamName}…`
+                  : 'Joining team…'
+                : 'Opening invite…'}
             </h1>
-            <p className={isDarkMode ? 'text-team-white-60' : 'text-gray-500'}>
-              {view === 'joining' ? 'Please wait while we add you to the team.' : 'Verifying invite code...'}
-            </p>
           </>
         )}
 
@@ -331,12 +389,14 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
               <Users className="h-8 w-8 text-team-blue" />
             </div>
-            <h1 className={heading}>You're already in {teamName}</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              You're already in {teamName}
+            </h1>
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
               This invite is for the team you're in, so there's nothing to
               join.
             </p>
-            {sharePanel}
+            {sharePanel()}
             {shareableSessions?.length === 0 && (
               <p
                 role="status"
@@ -352,13 +412,13 @@ const JoinTeam = () => {
             {finishButtons(
               shareableSessions === null && (
                 <Button
-                  onClick={() => loadShareable(teamId)}
+                  onClick={() => loadShareable()}
                   disabled={loadingShareable}
                   variant="neutral"
                   className={rowButton}
                 >
                   <Share2 className="h-4 w-4" />
-                  {loadingShareable ? 'Loading...' : 'Share more sessions'}
+                  {loadingShareable ? 'Loading…' : 'Share more sessions'}
                 </Button>
               )
             )}
@@ -372,7 +432,9 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-team-blue/15 flex items-center justify-center mb-6">
               <Users className="h-8 w-8 text-team-blue" />
             </div>
-            <h1 className={heading}>Join {teamName}?</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              Join {teamName}?
+            </h1>
             <p className={`mb-4 ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}>
               You've been invited to join this team.
             </p>
@@ -433,7 +495,11 @@ const JoinTeam = () => {
                 className={`text-green-500 ${hasShareable ? 'h-6 w-6' : 'h-8 w-8'}`}
               />
             </div>
-            <h1 className={heading}>Welcome to {teamName}!</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              {hasShareable
+                ? `Share your sessions with ${teamName}?`
+                : `You're in ${teamName}`}
+            </h1>
             <p
               className={`${hasShareable ? 'mb-4' : 'mb-6'} ${
                 isDarkMode ? 'text-team-white-60' : 'text-gray-500'
@@ -456,7 +522,7 @@ const JoinTeam = () => {
               </p>
             )}
 
-            {sharePanel}
+            {sharePanel(true)}
 
             {finishButtons()}
           </>
@@ -467,7 +533,9 @@ const JoinTeam = () => {
             <div className="mx-auto w-16 h-16 rounded-full bg-red-500/15 flex items-center justify-center mb-6">
               <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
-            <h1 className={heading}>Unable to Join</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              Couldn't join
+            </h1>
             <p className={`mb-6 ${isDarkMode ? 'text-team-white-60' : 'text-gray-500'}`}>
               {errorMessage}
             </p>

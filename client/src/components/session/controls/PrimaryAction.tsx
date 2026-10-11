@@ -1,36 +1,44 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { GAME_TIMING } from '@/constants';
-import { useSession } from '@/contexts';
 import { ConfirmInline } from './ConfirmInline';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
-import { PauseResumeButton } from './MatchControls';
 import {
   formatPoints,
   isPrimarySlotConfirm,
   useLiveControls,
-  type PendingConfirm,
 } from './liveControlsContext';
-import { roomAboveBar } from './scrollUnderHeader';
-import { useTakeDroppedFocus, useWatchFocus } from './takeDroppedFocus';
+import { useStartNudge } from './startNudge';
+import {
+  useCatchDroppedFocus,
+  useTakeDroppedFocus,
+  useWatchFocus,
+} from './takeDroppedFocus';
 import { actionClass } from './tones';
 import { useCompactControls } from './useCompactControls';
-
-/** Match clock values above this are the 3-2-1 before AUTO of a Full Game */
-const PLAYING_SECONDS =
-  GAME_TIMING.AUTONOMOUS_DURATION_SECONDS + GAME_TIMING.TELEOP_DURATION_SECONDS;
+import { ELEMENT_LABELS } from '@/lib';
+import {
+  countersShown,
+  useScoringLocks,
+} from '@/components/session/useScoringLocks';
 
 /** Shape of the buttons in the action bar; width and colours are per button */
 const BAR_BUTTON = 'h-12 rounded-2xl text-base whitespace-nowrap';
 
+/** How long "Press Start first" stays up after a nudge */
+const NUDGE_NOTE_MS = 2200;
+
 /**
- * "1:35": the playing time left in the match. The only part of the controls
- * that follows the clock, so it alone re-renders every second.
+ * Where keyboard focus goes when the control that had it is gone and
+ * nothing took its place: Pause while a match is played, else the one
+ * filled button of the moment (Start Match, Save Match, Save the edit).
  */
-const TimeLeft = () => {
-  const { timer, formatTime } = useSession();
-  return <>{formatTime(Math.min(timer, PLAYING_SECONDS))}</>;
+const focusFallback = (): HTMLElement | null => {
+  for (const selector of ['[data-play-pause]', '[data-primary-action]']) {
+    const el = document.querySelector<HTMLButtonElement>(selector);
+    if (el && !el.disabled && el.getClientRects().length > 0) return el;
+  }
+  return null;
 };
 
 /**
@@ -59,7 +67,9 @@ export const EditMatchActions = ({ quiet = false }: { quiet?: boolean }) => {
     // the rest goes by the width the pair actually has (a phone's bar, or
     // its narrower column on its side), not the screen's: under 22rem
     // "Discard changes" would be the wider, so it is just "Discard" there.
-    <div className="flex-1 min-w-0 flex items-center gap-2 [container-type:inline-size]">
+    // Too narrow for both on one line (a 200% zoom), Discard goes under
+    // Save, at the end of the line, rather than past the screen's edge.
+    <div className="flex-1 min-w-0 flex flex-wrap items-center justify-end gap-2 [container-type:inline-size]">
       <button
         type="button"
         onKeyDown={ignoreHeldEnter}
@@ -69,7 +79,8 @@ export const EditMatchActions = ({ quiet = false }: { quiet?: boolean }) => {
           toast.success(`${name} updated`);
           setShowUnsavedEditWarning(false);
         }}
-        className={`flex-1 min-w-0 px-4 ${size} ${actionClass(quiet ? 'neutral' : 'primary', isDarkMode)}`}
+        data-primary-action={quiet ? undefined : true}
+        className={`min-w-0 flex-[1_1_auto] px-4 ${size} ${actionClass(quiet ? 'neutral' : 'primary', isDarkMode)}`}
       >
         Save {name}
       </button>
@@ -92,228 +103,24 @@ export const EditMatchActions = ({ quiet = false }: { quiet?: boolean }) => {
 };
 
 /**
- * From the left edge of `button` to the end of the row of controls it is
- * in, in px: how wide the safe answer of the question it asks has to be to
- * cover its spot, ending the row where the tools that give way to the
- * question (Skip, the X) were.
- */
-const spanToRowEnd = (button: HTMLElement): number | undefined => {
-  const row = button.closest<HTMLElement>('[data-tutorial="controls"]');
-  if (!row) return undefined;
-  const end =
-    row.getBoundingClientRect().right -
-    (parseFloat(getComputedStyle(row).paddingRight) || 0);
-  return Math.ceil(end - button.getBoundingClientRect().left);
-};
-
-/**
- * The question's own words where the phone's bar has one row for it (see
- * `PrimaryQuestion`): which wording shows goes by the width it gets (the
- * row's spare width, a size container), with room to spare for a
- * two-digit match number and for the fallback font. The time left follows
- * the clock, so only this re-renders every second.
- */
-const ShortEndEarly = ({ matchNumber }: { matchNumber: number }) => (
-  <>
-    <span className="block truncate">
-      <span className="[@container(max-width:6.5rem)]:hidden">
-        End Match {matchNumber}?
-      </span>
-      <span className="hidden [@container(max-width:6.5rem)]:inline">
-        End now?
-      </span>
-    </span>
-    <span className="block truncate font-normal">
-      <TimeLeft /> left
-    </span>
-  </>
-);
-
-/** See `ShortEndEarly`: the name over two lines where only that fits */
-const ShortDiscard = ({ matchNumber }: { matchNumber: number }) => (
-  <>
-    <span className="text-balance line-clamp-2 [@container(min-width:8rem)]:line-clamp-1">
-      Discard Match {matchNumber}?
-    </span>
-    <span className="hidden [@container(min-width:8rem)]:block truncate font-normal">
-      Nothing is saved.
-    </span>
-  </>
-);
-
-/** The question about the match (or, on a phone, the session) in the bar. */
-const PrimaryQuestion = ({
-  pending,
-  endEarlySpan,
-}: {
-  pending: PendingConfirm;
-  /** See `spanToRowEnd`: End early's (as it was pressed, if it was) */
-  endEarlySpan?: number;
-}) => {
-  const {
-    matchNumber,
-    matchActive,
-    matchEnded,
-    handleKeepConfirm,
-    handleConfirmEndMatch,
-    handleConfirmSaveMatch,
-    handleCountFirst,
-    handleDiscardCurrentMatch,
-  } = useLiveControls();
-  const stacked = useCompactControls();
-  const layout = { stacked, className: 'flex-1 basis-full' };
-
-  // Until the buzzer the page doesn't scroll to make room for the phone's
-  // bar (see ActiveMobileLayout), so a question that grew it by a row
-  // would cover whatever is under that row: +1 Tip's neighbours, a robot
-  // row, Discard Session at the end of the page. So the question is asked
-  // in the bar's one row, and the bar keeps its height. Only where the room
-  // above the bar has nothing in it (a phone on its side has the clock's
-  // column there) does it get the second row back, and Pause with it.
-  // Decided as it opens: a question stays put once shown.
-  const [oneRow, setOneRow] = useState(
-    () => stacked && matchActive && !matchEnded
-  );
-  useLayoutEffect(() => {
-    if (!oneRow) return;
-    const row = document.querySelector<HTMLElement>(
-      '[data-tutorial="controls"] [data-confirm-inline]'
-    );
-    if (!row) return;
-    // Two rows are this one and another as tall, a gap apart
-    const rowGap = parseFloat(getComputedStyle(row).rowGap) || 0;
-    if (roomAboveBar(row.offsetHeight + rowGap)) setOneRow(false);
-    // Only as it opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // On a phone the bar's bottom row is where the thumb goes back to without
-  // looking. Through a question about the match it keeps Pause on its spot
-  // (until the buzzer) and the safe choice on the rest, where End early or
-  // the full-width Save Match was: a reach for either can't land on the
-  // button that ends, saves or discards. In one row the question takes
-  // Pause's place, and the safe choice covers all of End early's: for the
-  // X's question too, so a reach for End early can't discard.
-  //
-  // On a full-size screen the question is asked in the row of controls,
-  // in one line as tall as its buttons, so nothing under the row moves.
-  // The tools beside it give it their places, so it spans the row. Until
-  // the buzzer Pause stays first in the row (see `PlayPauseControl`) and
-  // takes the width the question doesn't need. The safe choice ends the
-  // row, nearest the button that asked: from where End early was to the
-  // end, or over the X. Save Match is the exception: it took the row's
-  // whole width, so its question does too, and the safe choice most of
-  // it: wherever Save was pressed, it is there.
-  const askedBySave = pending === 'saveZeroEom';
-  const matchLayout = !matchActive
-    ? layout
-    : stacked
-      ? oneRow
-        ? {
-            oneRow: true,
-            keepMinWidth: endEarlySpan,
-            className: layout.className,
-          }
-        : {
-            ...layout,
-            keepBelow: true,
-            aside: matchEnded ? undefined : <PauseResumeButton quiet />,
-          }
-      : {
-          inline: true,
-          keepWide: askedBySave,
-          keepMinWidth: pending === 'endEarly' ? endEarlySpan : undefined,
-          // With no Pause to take the spare width (after the buzzer), the
-          // question takes it and keeps its answers at the end.
-          className: matchEnded
-            ? `flex-1 min-w-0 ${askedBySave ? '' : 'justify-end'}`
-            : '',
-        };
-
-  switch (pending) {
-    case 'endEarly':
-      // Ending stops the clock as the buzzer does; the match is then counted
-      // and saved like any other.
-      return (
-        <ConfirmInline
-          {...matchLayout}
-          tone="save"
-          question={
-            <>
-              End Match {matchNumber} now?{' '}
-              <span className="whitespace-nowrap">
-                (<TimeLeft /> left)
-              </span>
-            </>
-          }
-          shortQuestion={<ShortEndEarly matchNumber={matchNumber} />}
-          keepLabel="Keep scoring"
-          confirmLabel="End Match"
-          onKeep={handleKeepConfirm}
-          onConfirm={handleConfirmEndMatch}
-        />
-      );
-    case 'saveZeroEom':
-      return (
-        <ConfirmInline
-          {...matchLayout}
-          tone="save"
-          question={`Save Match ${matchNumber} with flowers, Left in Hive and Garden at 0?`}
-          keepLabel="Count them first"
-          confirmLabel="Save anyway"
-          onKeep={handleCountFirst}
-          onConfirm={handleConfirmSaveMatch}
-        />
-      );
-    case 'discardMatch':
-      return (
-        <ConfirmInline
-          {...matchLayout}
-          question={`Discard Match ${matchNumber}?`}
-          detail="Nothing from it is saved."
-          shortQuestion={<ShortDiscard matchNumber={matchNumber} />}
-          keepLabel="Keep Match"
-          confirmLabel="Discard Match"
-          // The X that asked is named "Discard Match N" too, and stays on
-          // screen: focus moves on to the question's safe answer.
-          confirmAriaLabel={`Yes, discard Match ${matchNumber}`}
-          autoFocusKeep
-          onKeep={handleKeepConfirm}
-          onConfirm={handleDiscardCurrentMatch}
-        />
-      );
-    case 'completeWithStray':
-      return <StrayNumbersQuestion {...layout} />;
-    default:
-      return null;
-  }
-};
-
-/**
  * Complete Session pressed with numbers in Match Entry that belong to no
- * saved match. Asked where that button is: in the bar on a phone, with the
- * session buttons on a full-size screen.
+ * saved match: asked in the bar, where that button is. On a phone in two
+ * rows, the question over its answers; on a full-size screen in one line
+ * as tall as the row of controls, so nothing under it moves.
  */
-export const StrayNumbersQuestion = ({
-  stacked = false,
-  keepFirst = false,
-  className = '',
-}: {
-  stacked?: boolean;
-  keepFirst?: boolean;
-  className?: string;
-}) => {
+const StrayNumbersQuestion = () => {
   const {
     currentMatchTotal,
     handleKeepConfirm,
     handleConfirmCompleteWithStray,
   } = useLiveControls();
+  const stacked = useCompactControls();
 
   return (
     <ConfirmInline
       stacked={stacked}
-      keepFirst={keepFirst}
-      className={className}
+      inline={!stacked}
+      className={stacked ? 'flex-1 basis-full' : 'flex-1 min-w-0 justify-end'}
       question={`There are unsaved numbers in Match Entry${
         currentMatchTotal > 0 ? ` (${formatPoints(currentMatchTotal)})` : ''
       }.`}
@@ -327,20 +134,29 @@ export const StrayNumbersQuestion = ({
 };
 
 /**
- * Start Match N. It comes up where Save Match (or Discard Match) was
- * pressed, and keyboard focus carries on from it.
+ * Start Match N. It comes up where Save Match (or the X) was pressed, and
+ * a keyboard user's focus carries on from it.
+ *
+ * Before Start, the controls a match uses look ready, but a tap on one has
+ * no match to go into: it nudges this button instead (see `startNudge`).
+ * Each nudge plays a short pulse around it and shows "Press Start first"
+ * above it for a moment, also said to a screen reader.
  */
-const StartMatchButton = ({ asking }: { asking: boolean }) => {
-  const {
-    sessionData,
-    isDarkMode,
-    matchNumber,
-    isSessionSetupSaved,
-    handleStartMatch,
-  } = useLiveControls();
+const StartMatchButton = () => {
+  const { sessionData, isDarkMode, matchNumber, handleStartMatch } =
+    useLiveControls();
   const ref = useRef<HTMLButtonElement>(null);
   useTakeDroppedFocus(ref);
   const hasName = Boolean(sessionData.sessionName?.trim());
+  const nudge = useStartNudge();
+  const [noteShown, setNoteShown] = useState(false);
+
+  useEffect(() => {
+    if (nudge === 0) return;
+    setNoteShown(true);
+    const timer = setTimeout(() => setNoteShown(false), NUDGE_NOTE_MS);
+    return () => clearTimeout(timer);
+  }, [nudge]);
 
   return (
     <button
@@ -348,57 +164,75 @@ const StartMatchButton = ({ asking }: { asking: boolean }) => {
       type="button"
       onKeyDown={ignoreHeldEnter}
       onClick={handleStartMatch}
-      disabled={!hasName}
-      title={
-        !isSessionSetupSaved
-          ? 'Save session settings before starting'
-          : !hasName
-            ? 'Complete session setup (Session Name) before starting'
-            : undefined
-      }
-      className={`flex-1 min-w-0 px-3 ${BAR_BUTTON} ${actionClass(asking ? 'neutral' : 'primary', isDarkMode)}`}
+      data-start-match
+      data-primary-action
+      title={hasName ? undefined : 'Name the session before starting'}
+      // Takes whatever Complete Session leaves: from a 320px phone up that
+      // fits "Start Match 100", so the two share one row. Narrower than
+      // that (a 200% zoom), it is as wide as its words at least, and
+      // Complete Session goes onto a line of its own.
+      className={`relative min-w-0 flex-[1_1_0%] max-[319px]:flex-[1_1_auto] px-3 ${BAR_BUTTON} ${actionClass('primary', isDarkMode)}`}
     >
       Start Match {matchNumber}
+      {/* Replayed from the start on every nudge */}
+      {nudge > 0 && (
+        <span
+          key={nudge}
+          aria-hidden
+          className="tt-start-nudge pointer-events-none absolute -inset-0.5 rounded-2xl"
+        />
+      )}
+      {noteShown && (
+        <span
+          key={`note-${nudge}`}
+          aria-hidden
+          className={`tt-start-note pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full border-2 px-3 py-1 text-sm font-bold shadow-lg ${
+            isDarkMode
+              ? 'border-team-blue bg-team-dark text-white'
+              : 'border-team-blue bg-white text-gray-900'
+          }`}
+        >
+          Press Start first
+        </span>
+      )}
+      <span role="status" className="sr-only">
+        {noteShown ? 'Press Start first' : ''}
+      </span>
+      <style>{`
+        @keyframes ttStartNudge {
+          from { box-shadow: 0 0 0 0 rgb(var(--team-blue) / 0.75); }
+          to { box-shadow: 0 0 0 14px rgb(var(--team-blue) / 0); }
+        }
+        @keyframes ttStartNote {
+          from { opacity: 0; transform: translate(-50%, 4px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .tt-start-nudge { animation: ttStartNudge 700ms ease-out 2 both; }
+        .tt-start-note { animation: ttStartNote 160ms ease-out both; }
+        @media (prefers-reduced-motion: reduce) {
+          .tt-start-nudge { animation: none; box-shadow: 0 0 0 3px rgb(var(--team-blue) / 0.6); }
+          .tt-start-note { animation: none; }
+        }
+      `}</style>
     </button>
   );
 };
 
 /**
- * End early. It comes back where Keep scoring was (or the question closed
- * with Escape), and keyboard focus carries on from it. `onSpan` is told
- * how far its spot reaches to the end of its row (see `spanToRowEnd`): as
- * it shows and as its row changes size, for a question asked from
- * elsewhere (the X), and as it is pressed.
+ * End early: the match ends at once, as at its buzzer, and is counted and
+ * saved from there; its toast has the Undo. A small outline, so the one
+ * large target during play is Pause and a stray thumb pauses rather than
+ * ends the match. A press the moment it appears (the tail of a double tap
+ * on Start or Resume) does nothing.
  */
-const EndEarlyButton = ({
-  onSpan,
-}: {
-  onSpan: (span: number | undefined) => void;
-}) => {
-  const { isDarkMode, handleRequestEndMatch } = useLiveControls();
-  const ref = useRef<HTMLButtonElement>(null);
-  useTakeDroppedFocus(ref);
-
-  useLayoutEffect(() => {
-    const button = ref.current;
-    const row = button?.closest('[data-tutorial="controls"]');
-    if (!button || !row) return;
-    const measure = () => onSpan(spanToRowEnd(button));
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(row);
-    return () => observer.disconnect();
-  }, [onSpan]);
+const EndEarlyButton = () => {
+  const { isDarkMode, handleEndEarly } = useLiveControls();
 
   return (
     <button
-      ref={ref}
       type="button"
       onKeyDown={ignoreHeldEnter}
-      onClick={event => {
-        onSpan(spanToRowEnd(event.currentTarget));
-        handleRequestEndMatch();
-      }}
+      onClick={handleEndEarly}
       className={`shrink-0 px-4 ${BAR_BUTTON} ${actionClass('neutral', isDarkMode)}`}
     >
       End early
@@ -409,17 +243,16 @@ const EndEarlyButton = ({
 /**
  * The button that drives a match forward, by state:
  *
- * - no match running: "Start Match N", and on a phone, once a match is
- *   saved, Complete Session beside it (the session buttons are at the far
- *   end of the page there);
+ * - no match running: "Start Match N", and once a match is saved, Complete
+ *   Session beside it, on every layout;
  * - match running or paused: a small "End early", so the one large target
- *   during play is Pause and a stray thumb can't end the match. It asks,
- *   then ends the match as the buzzer does (it is never saved before the
- *   end-of-match counts can be made);
- * - after the buzzer: "Save Match N · X pts" alone. What to count first is
+ *   during play is Pause and a stray thumb can't end the match. It ends
+ *   the match as the buzzer does (it is never saved before the
+ *   end-of-match counts can be made), with an Undo;
+ * - after the buzzer: "Save Match N (X pts)" alone. What to count first is
  *   said once, by End of Match's own caption; here it is only announced;
  * - a logged match open for editing: Save / Discard changes;
- * - a question about the match, in place of all of the above.
+ * - Complete Session's question about stray numbers, in place of Start.
  *
  * Its children sit in the layout's action bar (fixed to the bottom of the
  * screen on a phone) next to Pause / Resume. Exactly one of them is filled
@@ -427,16 +260,27 @@ const EndEarlyButton = ({
  */
 export const PrimaryAction = () => {
   const { matchEnded, matchNumber } = useLiveControls();
+  // An Autonomous match has no end-of-match counters (AUTO scores none of
+  // them): only its park is left to mark
+  const { hasTeleop, scoring } = useScoringLocks();
+  const shown = countersShown(hasTeleop, scoring);
+  const counts = [
+    shown.flowers && 'the flowers',
+    shown.hiveGarden && `${ELEMENT_LABELS.hive} and ${ELEMENT_LABELS.garden}`,
+  ].filter(Boolean);
+  const todo =
+    counts.length > 0
+      ? `count ${counts.join(', ')}, then save`
+      : `mark ${ELEMENT_LABELS.parkAuto}, then save`;
   useWatchFocus();
+  useCatchDroppedFocus(focusFallback);
 
   return (
     <>
       {/* Always on the page, so the buzzer's message is a change to it that
           screen readers announce. */}
       <p role="status" className="sr-only">
-        {matchEnded
-          ? `Match ${matchNumber} over: count the flowers, Left in Hive and Garden, then save`
-          : ''}
+        {matchEnded ? `Match ${matchNumber} over: ${todo}` : ''}
       </p>
       <PrimaryControls />
     </>
@@ -457,50 +301,18 @@ const PrimaryControls = () => {
     handleSaveMatch,
     handleRequestCompleteSession,
   } = useLiveControls();
-  const isCompact = useCompactControls();
-  /** End early's spot to the row's end, as it was pressed */
-  const [endEarlySpan, setEndEarlySpan] = useState<number>();
 
-  // That span belongs to the width it was pressed at: once the window is
-  // made wider or narrower, the safe answer takes its own width. Not when
-  // only its height changes (a tablet's toolbar folding away as the page
-  // scrolls, an on-screen keyboard): End Match would move along the row to
-  // where Skip was.
-  useEffect(() => {
-    if (endEarlySpan === undefined) return;
-    const width = window.innerWidth;
-    const forget = () => {
-      if (window.innerWidth !== width) setEndEarlySpan(undefined);
-    };
-    window.addEventListener('resize', forget);
-    return () => window.removeEventListener('resize', forget);
-  }, [endEarlySpan]);
-
-  if (pendingConfirm && isPrimarySlotConfirm(pendingConfirm, isCompact)) {
-    return (
-      // Each question is laid out as it opens (see `PrimaryQuestion`)
-      <PrimaryQuestion
-        key={pendingConfirm}
-        pending={pendingConfirm}
-        endEarlySpan={endEarlySpan}
-      />
-    );
-  }
+  if (isPrimarySlotConfirm(pendingConfirm)) return <StrayNumbersQuestion />;
 
   // Tapping another match while this one has unsaved changes is answered
   // under the row that was tapped, in the Match Log, not here.
   if (editingMatchId) return <EditMatchActions />;
 
   if (!matchActive) {
-    // A question about the session (Discard Session, or Complete Session
-    // with stray numbers on a full-size screen) is asked elsewhere on the
-    // page: while it is open its answer is the next step, so Start Match
-    // stays usable as an outline, as +1 Tip does.
-    const asking = pendingConfirm !== null;
     return (
       <>
-        <StartMatchButton asking={asking} />
-        {isCompact && savedMatchCount > 0 && (
+        <StartMatchButton />
+        {savedMatchCount > 0 && (
           <button
             type="button"
             onKeyDown={ignoreHeldEnter}
@@ -515,19 +327,50 @@ const PrimaryControls = () => {
     );
   }
 
-  if (!matchEnded) return <EndEarlyButton onSpan={setEndEarlySpan} />;
+  if (!matchEnded) return <EndEarlyButton />;
 
-  // One button, the width Start Match will have: on a phone the bar stays
-  // one button tall at the buzzer, and on a full-size screen the next
-  // match's Start comes up where this was.
+  return (
+    <SaveMatchButton
+      matchNumber={matchNumber}
+      total={currentMatchTotal}
+      onSave={handleSaveMatch}
+    />
+  );
+};
+
+/**
+ * Save Match N, with its points, after the buzzer. One button, the width
+ * Start Match will have: on a phone the bar stays one button tall at the
+ * buzzer, and on a full-size screen the next match's Start comes up where
+ * this was. It comes up where End early or Skip to Buzzer was pressed, and
+ * a keyboard user's focus carries on from them.
+ *
+ * Too narrow for it on one line (a 200% zoom), the points go under the
+ * name rather than past the edge of the screen.
+ */
+const SaveMatchButton = ({
+  matchNumber,
+  total,
+  onSave,
+}: {
+  matchNumber: number;
+  total: number;
+  onSave: () => void;
+}) => {
+  const { isDarkMode } = useLiveControls();
+  const ref = useRef<HTMLButtonElement>(null);
+  useTakeDroppedFocus(ref);
+
   return (
     <button
+      ref={ref}
       type="button"
       onKeyDown={ignoreHeldEnter}
-      onClick={handleSaveMatch}
-      className={`flex-1 min-w-0 px-3 ${BAR_BUTTON} ${actionClass('primary', isDarkMode)}`}
+      onClick={onSave}
+      data-primary-action
+      className={`flex-1 min-w-0 flex-wrap gap-x-1.5 px-3 ${BAR_BUTTON} max-[259px]:h-auto max-[259px]:min-h-12 max-[259px]:py-1 max-[259px]:leading-tight ${actionClass('primary', isDarkMode)}`}
     >
-      Save Match {matchNumber} · {formatPoints(currentMatchTotal)}
+      <span>Save Match {matchNumber}</span> <span>({formatPoints(total)})</span>
     </button>
   );
 };

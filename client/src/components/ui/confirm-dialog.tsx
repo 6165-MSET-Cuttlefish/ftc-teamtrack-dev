@@ -1,8 +1,9 @@
 import { Loader2, type LucideIcon } from 'lucide-react';
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useArmedAfterOpen } from '@/hooks/useArmedAfterOpen';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,13 @@ export interface ConfirmDialogProps {
   /** Holds the confirm button back (a field in `children` not filled in yet) */
   confirmDisabled?: boolean;
   /**
+   * A way forward that keeps what the confirm button would throw away
+   * ("Complete session and sign out"). It takes the one fill, on a row of
+   * its own above [Cancel][confirm], and the confirm button turns to a red
+   * outline. Held back for a moment after opening, as the confirm button is.
+   */
+  primaryAction?: { label: string; onSelect: () => void };
+  /**
    * Fields the answer needs (a password, a typed DELETE), between the
    * question and the buttons. An `autoFocus` field there takes the focus
    * from Cancel.
@@ -78,8 +86,19 @@ const NEUTRAL = [
 ] as const;
 
 /**
+ * Throws something away, beside a filled way that keeps it: the red as an
+ * outline (the same pairs as /active's dangerOutline), [light, dark themes]
+ */
+const DANGER_OUTLINE = [
+  'border-red-600 bg-transparent text-red-700 hover:bg-red-50',
+  'border-red-500/70 bg-transparent text-red-400 hover:bg-red-500/10',
+] as const;
+
+/**
  * The one way a page asks "are you sure?" in a modal: a question, one
- * sentence under it, and [Cancel][Confirm] in that order at every width.
+ * sentence under it, and [Cancel][Confirm] in that order at every width
+ * (with `primaryAction`, under a full-width button that keeps what would
+ * be lost).
  *
  * The safe answer takes the focus as the dialog opens, so Enter or a second
  * tap on the spot that opened it never goes ahead. The confirm button
@@ -100,16 +119,75 @@ export const ConfirmDialog = ({
   icon: Icon,
   busy = false,
   confirmDisabled = false,
+  primaryAction,
   children,
 }: ConfirmDialogProps) => {
   const { isDarkMode } = useTheme();
   const armed = useArmedAfterOpen(open);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const wasBusy = useRef(false);
+
+  // Both buttons are disabled while it runs, which drops the focus. If the
+  // dialog is still up afterwards (it failed), focus goes back: to the field
+  // the error is about, else to the button that was pressed.
+  useEffect(() => {
+    const finished = wasBusy.current && !busy;
+    wasBusy.current = busy;
+    if (!finished || !open) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    const dialog = confirmRef.current?.closest('[role="alertdialog"]');
+    const field = dialog?.querySelector<HTMLElement>(
+      'input[aria-invalid="true"]'
+    );
+    (field ?? confirmRef.current)?.focus();
+  }, [busy, open]);
   const iconTone =
     tone === 'primary'
       ? 'text-team-blue'
       : isDarkMode
         ? 'text-red-400'
         : 'text-red-700';
+
+  // Under a full-width primary the pair splits its row at every width
+  const pairWidth = primaryAction ? 'sm:flex-1' : undefined;
+  const cancelButton = (
+    <button
+      type="button"
+      data-autofocus
+      disabled={busy}
+      onKeyDown={ignoreHeldEnter}
+      onClick={() => onOpenChange(false)}
+      className={cn(BUTTON, pairWidth, NEUTRAL[isDarkMode ? 1 : 0])}
+    >
+      {cancelLabel}
+    </button>
+  );
+  const confirmButton = (
+    <button
+      ref={confirmRef}
+      type="button"
+      disabled={busy || confirmDisabled}
+      onKeyDown={ignoreHeldEnter}
+      onClick={() => {
+        if (!busy && armed()) onConfirm();
+      }}
+      className={cn(
+        BUTTON,
+        pairWidth,
+        primaryAction
+          ? DANGER_OUTLINE[isDarkMode ? 1 : 0]
+          : tone === 'primary'
+            ? primaryClass(isDarkMode)
+            : DESTRUCTIVE_CLASS
+      )}
+    >
+      {busy && (
+        <Loader2 aria-hidden className="h-4 w-4 shrink-0 animate-spin" />
+      )}
+      {confirmLabel}
+    </button>
+  );
 
   return (
     <Dialog
@@ -144,33 +222,37 @@ export const ConfirmDialog = ({
           </DialogDescription>
         </DialogHeader>
         {children && <div className="px-6 pt-5 pb-1">{children}</div>}
-        <DialogFooter className="flex-row">
-          <button
-            type="button"
-            data-autofocus
-            disabled={busy}
-            onKeyDown={ignoreHeldEnter}
-            onClick={() => onOpenChange(false)}
-            className={`${BUTTON} ${NEUTRAL[isDarkMode ? 1 : 0]}`}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            disabled={busy || confirmDisabled}
-            onKeyDown={ignoreHeldEnter}
-            onClick={() => {
-              if (!busy && armed()) onConfirm();
-            }}
-            className={`${BUTTON} ${
-              tone === 'primary' ? primaryClass(isDarkMode) : DESTRUCTIVE_CLASS
-            }`}
-          >
-            {busy && (
-              <Loader2 aria-hidden className="h-4 w-4 shrink-0 animate-spin" />
-            )}
-            {confirmLabel}
-          </button>
+        <DialogFooter
+          className={primaryAction ? 'flex-col sm:flex-col' : 'flex-row'}
+        >
+          {primaryAction && (
+            <button
+              type="button"
+              disabled={busy}
+              onKeyDown={ignoreHeldEnter}
+              onClick={() => {
+                if (!busy && armed()) primaryAction.onSelect();
+              }}
+              className={cn(
+                BUTTON,
+                'w-full flex-none',
+                primaryClass(isDarkMode)
+              )}
+            >
+              {primaryAction.label}
+            </button>
+          )}
+          {primaryAction ? (
+            <div className="flex gap-2">
+              {cancelButton}
+              {confirmButton}
+            </div>
+          ) : (
+            <>
+              {cancelButton}
+              {confirmButton}
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

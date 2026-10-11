@@ -9,6 +9,7 @@ import {
   cycleTimesOf,
   robotRates,
   rankingPointTally,
+  swarmMissing,
   toneOf,
   CHART_COLORS,
   ELEMENT_COLORS,
@@ -62,6 +63,7 @@ import {
 } from 'recharts';
 import type { MouseHandlerDataParam } from 'recharts';
 import {
+  useAddressSettings,
   useLifetimeSessions,
   useSessionScope,
   byDateAscending,
@@ -75,6 +77,8 @@ import {
   mean,
   MATCH_TYPES,
   matchTypeOf,
+  matchTypeFromParam,
+  matchTypeParam,
   ofMatchType,
 } from './lifetime';
 import { Segmented } from './LifetimeControls';
@@ -182,6 +186,16 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   all: 'all time',
 };
 
+/** The range Charts opens on, which the address leaves out */
+const DEFAULT_RANGE: TimeRange = '30';
+
+/** Only the ranges offered: `in` would also take toString and the like */
+const isTimeRange = (value: string | null): value is TimeRange =>
+  value !== null && Object.keys(RANGE_LABELS).includes(value);
+
+const isSeries = (value: string | null): value is Series =>
+  SERIES.some(s => s.value === value);
+
 /** A session with no usable date is in no day range, only in "All time". */
 const isUndated = (session: Session): boolean =>
   !session.createdAt || isNaN(toDate(session.createdAt).getTime());
@@ -251,7 +265,7 @@ const labelSessions = (sessions: Session[]): SessionLabels => {
       session.id,
       {
         tick: sessionDay(session),
-        full: `${dates.get(session.id) ?? ''} · ${sessionTitle(session)}`,
+        full: `${sessionTitle(session)} (${dates.get(session.id) ?? sessionDay(session)})`,
       },
     ])
   );
@@ -329,7 +343,7 @@ const cycleTimeRows = (
       {
         id: session.id,
         label: labels.get(session.id)?.full,
-        'Avg Cycle': round1(mean(cycleTimes) ?? 0),
+        Average: round1(mean(cycleTimes) ?? 0),
         Fastest: round1(Math.min(...cycleTimes)),
         Slowest: round1(Math.max(...cycleTimes)),
       },
@@ -362,7 +376,7 @@ const foulSummary = (
         id: session.id,
         label: labels.get(session.id)?.full,
         [ELEMENT_LABELS.penalties]: round1(mean(given) ?? 0),
-        note: `Penalty-free: ${penaltyFree} of ${plural(given.length, 'match', 'matches')}`,
+        note: `Foul-free: ${penaltyFree} of ${plural(given.length, 'match', 'matches')}`,
       };
     });
   return { rows, clean, total };
@@ -448,7 +462,11 @@ const CHART_MARGIN = { top: 10, right: 12, left: 0, bottom: 0 };
 /** Wide enough for '160' or '0.5'. The plot starts this far from the left. */
 const Y_AXIS_WIDTH = 40;
 
-/** Narrow enough for a 320px phone: the chart then fits its card. */
+/**
+ * Narrow enough for a 320px phone: the chart then fits its card. Narrower
+ * still (a phone zoomed to 200%), the chart scrolls sideways in its card
+ * rather than the page.
+ */
 const MIN_CHART_WIDTH = 240;
 
 /**
@@ -591,22 +609,29 @@ const keyInsights = (
 
   return [
     {
-      label: 'Top scorer',
+      label: 'Most points',
       text:
         avgScore > 0
-          ? `${best.label} · ${best.avg >= 10 ? Math.round(best.avg) : formatNumber(best.avg)} pts/match (${Math.round((best.avg / avgScore) * 100)}%)`
+          ? `${best.label}, ${best.avg >= 10 ? Math.round(best.avg) : formatNumber(best.avg)} per match (${Math.round((best.avg / avgScore) * 100)}%)`
           : 'No points scored yet',
     },
     {
       label: 'Robots',
       text:
         robots.length > 0
-          ? `${robots.join(' · ')} of chances`
+          ? `${robots.join(', ')} of chances`
           : 'No Leave or Park chances',
     },
     {
       label: 'RP',
-      text: `${rp.rate ?? 0}% (${rp.earned}/${rp.possible}) · SWARM ${rp.swarm} · P1 ${rp.pollinator1} · P2 ${rp.pollinator2}`,
+      // One robot, or no Auto period, can't earn SWARM: no count of 0. The
+      // space in 'POLLINATOR 1' is U+00A0: the name never breaks before its
+      // number.
+      text: `${rp.rate ?? 0}% (${rp.earned} of ${rp.possible}). SWARM ${
+        rp.swarmChances > 0
+          ? `in ${plural(rp.swarm, 'match', 'matches')}`
+          : swarmMissing(matches)
+      }, POLLINATOR\u00A01 in ${rp.pollinator1}, POLLINATOR\u00A02 in ${rp.pollinator2}`,
     },
     avgGiven !== null
       ? {
@@ -615,7 +640,7 @@ const keyInsights = (
         }
       : {
           label: 'Best session',
-          text: `${sessionDay(bestSession)} · ${sessionTitle(bestSession)} · ${sessionAverage(bestSession)} avg`,
+          text: `${sessionTitle(bestSession)} on ${sessionDay(bestSession)}, ${sessionAverage(bestSession)} avg`,
         },
   ];
 };
@@ -626,14 +651,45 @@ const Charts = () => {
   const navigate = useNavigate();
   const finePointer = useMediaQuery(FINE_POINTER);
 
-  const { sessions, loading } = useLifetimeSessions();
-  const { scope, setScope, inScope, choices, scopeLabel } =
-    useSessionScope(sessions);
-  const [timeRange, setTimeRange] = useState<TimeRange>('30');
+  const {
+    sessions,
+    loading,
+    hasMore,
+    loadingOlder,
+    olderFailed,
+    completeAfter,
+    loadOlder,
+    loadAll,
+  } = useLifetimeSessions();
+  /**
+   * The sessions with matches: an empty one is never charted, so the scope
+   * choices don't count it either (as on Compare).
+   */
+  const scorableSessions = useMemo(
+    () => sessions.filter(session => session.matches.length > 0),
+    [sessions]
+  );
+  const { scope, setScope, inScope, choices, scopeLabel } = useSessionScope(
+    scorableSessions,
+    !hasMore
+  );
+  // What the page shows lives in its address, so opening a session from a
+  // chart and coming Back finds it as it was (and Sessions' Charts button
+  // can pass on its match type and scope).
+  const [address, updateAddress] = useAddressSettings();
+  const rangeParam = address.get('range');
+  const timeRange = isTimeRange(rangeParam) ? rangeParam : DEFAULT_RANGE;
+  const setTimeRange = (value: TimeRange) =>
+    updateAddress({ range: value === DEFAULT_RANGE ? null : value });
   /** The match type asked for; null until one is, and the commonest is used */
-  const [pickedType, setPickedType] = useState<string | null>(null);
+  const pickedType = matchTypeFromParam(address.get('type'));
+  const setPickedType = (value: string) =>
+    updateAddress({ type: matchTypeParam(value) });
   /** What Score Trends draws */
-  const [series, setSeries] = useState<Series>('total');
+  const seriesParam = address.get('series');
+  const series = isSeries(seriesParam) ? seriesParam : 'total';
+  const setSeries = (value: Series) =>
+    updateAddress({ series: value === 'total' ? null : value });
   /** The session last tapped on a chart, on a screen with no hover */
   const [tapped, setTapped] = useState<{ chart: ChartId; id: string } | null>(
     null
@@ -674,6 +730,40 @@ const Charts = () => {
     () => sessions.filter(inScope),
     [sessions, inScope]
   );
+
+  /**
+   * Sessions are read newest first, a page at a time. The range on screen
+   * is drawn from every session in it: older pages are read until it is
+   * covered (all of them for All time). The default 30 days takes only the
+   * first page unless more sessions were recorded in them than a page
+   * holds (a busy team, or a member with many of their own beside it):
+   * those are read too, rather than charted in part.
+   */
+  const rangeCovered =
+    !hasMore ||
+    (timeRange !== 'all' &&
+      completeAfter !== null &&
+      completeAfter.getTime() <=
+        Date.now() - parseInt(timeRange) * 24 * 60 * 60 * 1000);
+  /**
+   * Nothing read so far is this season's: whether there are any at all is
+   * only known once older pages say, whatever the range.
+   */
+  const noneRead = sessions.length === 0 && hasMore;
+  useEffect(() => {
+    if (loading || loadingOlder || olderFailed) return;
+    if (rangeCovered && !noneRead) return;
+    void (timeRange === 'all' ? loadAll() : loadOlder());
+  }, [
+    loading,
+    rangeCovered,
+    noneRead,
+    loadingOlder,
+    olderFailed,
+    timeRange,
+    loadAll,
+    loadOlder,
+  ]);
 
   const filteredSessions = useMemo((): Session[] => {
     if (timeRange === 'all') return scopedSessions;
@@ -738,14 +828,15 @@ const Charts = () => {
   const wrapClass = `${PAGE_CONTAINER} py-4 sm:py-6 md:py-8`;
   const cardClass = `rounded-xl shadow-none ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40' : 'bg-white border-gray-200'}`;
 
-  if (loading) {
+  // Nothing read so far is this season's: older pages are read for some.
+  if (loading || (noneRead && !olderFailed)) {
     return (
       <div
         className={`min-h-[100dvh] flex items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
       >
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
-          <p className="text-sm text-team-blue">Loading charts...</p>
+          <p className="text-sm text-team-blue">Loading charts…</p>
         </div>
       </div>
     );
@@ -755,7 +846,7 @@ const Charts = () => {
     return (
       <div className={pageClass}>
         <div className={wrapClass}>
-          <PageHeader title="Performance Charts" />
+          <PageHeader title="Charts" />
           <Card className={cardClass}>
             <CardContent className="px-4 py-10 sm:py-12">
               <div className="text-center">
@@ -801,6 +892,14 @@ const Charts = () => {
   const fouls = foulSummary(scoredSessions, labels);
   const foulData = fouls.rows;
   const rankingPointData = rankingPointRows(scoredSessions, labels);
+  // Where no match could earn SWARM (no Auto period, or one robot), it is
+  // not one of the bars, and the card says why, as Highlights does
+  const swarmCounted = scoredSessions.some(
+    s => rankingPointTally(s.matches, s.matchType).swarmChances > 0
+  );
+  const rankingPointSeries = swarmCounted
+    ? RANKING_POINT_SERIES
+    : RANKING_POINT_SERIES.filter(({ key }) => key !== 'swarm');
 
   // Match-level figures, the same ones Analysis shows for a single session.
   const allScores = scoredSessions.flatMap(matchScores);
@@ -814,18 +913,23 @@ const Charts = () => {
   const gridStroke = isDarkMode ? '#2a2a2a' : '#e5e7eb';
   const axis = axisProps(isDarkMode);
 
-  /** What the page is looking at, under its title. */
+  /**
+   * What the page is looking at, under its title, in sentences: what the
+   * controls under it don't already say (the range is on its own control).
+   */
   const subtitle = [
     scoredSessions.length > 0
-      ? `${plural(allScores.length, `${matchType} match`, `${matchType} matches`)} · ${plural(scoredSessions.length, 'session')}`
-      : 'No matches',
+      ? `${plural(allScores.length, `${matchType} match`, `${matchType} matches`)} in ${plural(scoredSessions.length, 'session')}${scopeLabel ? ` (${scopeLabel})` : ''}.`
+      : 'No matches.',
     emptySessionCount > 0 &&
-      `${plural(emptySessionCount, 'empty session')} not counted`,
-    RANGE_LABELS[timeRange],
-    scopeLabel,
+      `${plural(emptySessionCount, 'empty session')} not counted.`,
+    !rangeCovered &&
+      (olderFailed
+        ? "Older sessions couldn't be read."
+        : 'Reading older sessions…'),
   ]
     .filter(Boolean)
-    .join(' · ');
+    .join(' ');
 
   const analysisPath = (id: string) =>
     `${ROUTES.ANALYSIS}?sessionId=${encodeURIComponent(id)}`;
@@ -911,7 +1015,7 @@ const Charts = () => {
   return (
     <div className={pageClass}>
       <div className={wrapClass}>
-        <PageHeader title="Performance Charts" subtitle={subtitle}>
+        <PageHeader title="Charts" subtitle={subtitle}>
           <div className="flex flex-wrap items-center gap-2">
             {typeChoices.length > 1 && (
               <Segmented
@@ -967,7 +1071,7 @@ const Charts = () => {
                 </h2>
                 <p className={`mb-6 text-sm sm:text-base ${muted}`}>
                   {scopedSessions.length === 0
-                    ? `${plural(sessions.length, 'session')} under All.`
+                    ? `${plural(sessions.length, 'session')} under All${hasMore ? ', and older ones not read yet' : ''}.`
                     : filteredSessions.length === 0
                       ? outOfRangeMessage(scopedSessions)
                       : filteredSessions.length === 1
@@ -1020,14 +1124,14 @@ const Charts = () => {
               <Card className={cardClass}>
                 <CardContent className="p-4 sm:p-6">
                   <p className={`text-sm sm:text-base ${muted}`}>
-                    Trends appear after 2 sessions —{' '}
+                    Trends appear after 2 sessions.{' '}
                     <Link
                       to={analysisPath(scoredSessions[0].id)}
                       // Inline, so the sentence wraps as one; the padding
                       // makes it a full-size target without moving a line
                       className="py-3 font-semibold text-team-blue underline underline-offset-2"
                     >
-                      open {labels.get(scoredSessions[0].id)?.full} in Analysis
+                      Open {labels.get(scoredSessions[0].id)?.full} in Analysis
                     </Link>
                   </p>
                 </CardContent>
@@ -1060,7 +1164,7 @@ const Charts = () => {
                       className="w-max flex-nowrap"
                     />
                   </div>
-                  <div className="mt-auto min-w-0">
+                  <div className="mt-auto min-w-0 overflow-x-auto">
                     <ResponsiveContainer
                       width="100%"
                       height={250}
@@ -1162,7 +1266,7 @@ const Charts = () => {
                       as="h2"
                       className={`${SECTION_TITLE_CLASS} leading-snug tracking-normal`}
                     >
-                      Key Insights
+                      Highlights
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
@@ -1191,10 +1295,10 @@ const Charts = () => {
                       <span className="mr-2 text-2xl font-bold tabular-nums text-foreground">
                         {Math.round((fouls.clean / fouls.total) * 100)}%
                       </span>
-                      penalty-free · {fouls.clean} of{' '}
+                      foul-free, {fouls.clean} of{' '}
                       {plural(fouls.total, 'Scrim match', 'Scrim matches')}
                     </p>
-                    <div className="mt-auto min-w-0">
+                    <div className="mt-auto min-w-0 overflow-x-auto">
                       <ResponsiveContainer
                         width="100%"
                         height={220}
@@ -1206,7 +1310,7 @@ const Charts = () => {
                           onClick={openSession('fouls')}
                           style={chartStyle}
                           title="Points given to the opponent per match"
-                          desc={`Average points per match the opponent got from your penalties in each of the last ${RECENT_SESSIONS} Scrim sessions`}
+                          desc={`Average points per match the opponent got from your fouls in each of the last ${RECENT_SESSIONS} Scrim sessions`}
                         >
                           <CartesianGrid
                             strokeDasharray="3 3"
@@ -1260,7 +1364,7 @@ const Charts = () => {
                   description="Average count of each element scored per match"
                   isDarkMode={isDarkMode}
                 >
-                  <div className="mt-auto min-w-0">
+                  <div className="mt-auto min-w-0 overflow-x-auto">
                     <ResponsiveContainer
                       width="100%"
                       height={240}
@@ -1272,7 +1376,7 @@ const Charts = () => {
                         onClick={openSession('volume')}
                         style={chartStyle}
                         title="Scoring volume per session"
-                        desc="Average count per match of Hive Tips, Garden, Flower and Left in Hive in each session"
+                        desc="Average count per match of Hive Tips, owned flower pieces, Left in Hive and Garden in each session"
                       >
                         <CartesianGrid
                           strokeDasharray="3 3"
@@ -1324,10 +1428,14 @@ const Charts = () => {
 
                 <ChartCard
                   title="Ranking Points per Match"
-                  description="Average RP a match earned from scoring in each session, out of 3. A win or tie is not counted."
+                  description={
+                    swarmCounted
+                      ? "Average RP a match earned from scoring in each session, out of 3 (2 with one robot, which can't earn SWARM). A win or tie is not counted."
+                      : `Average RP a match earned from scoring in each session, out of 2 (SWARM ${swarmMissing([{ matchType }])}). A win or tie is not counted.`
+                  }
                   isDarkMode={isDarkMode}
                 >
-                  <div className="mt-auto min-w-0">
+                  <div className="mt-auto min-w-0 overflow-x-auto">
                     <ResponsiveContainer
                       width="100%"
                       height={240}
@@ -1339,7 +1447,7 @@ const Charts = () => {
                         onClick={openSession('rp')}
                         style={chartStyle}
                         title="Ranking points per match"
-                        desc="Average SWARM, POLLINATOR 1 and POLLINATOR 2 ranking points per match in each session, stacked"
+                        desc={`Average ${swarmCounted ? 'SWARM, ' : ''}POLLINATOR 1 and POLLINATOR 2 ranking points per match in each session, stacked`}
                       >
                         <CartesianGrid
                           strokeDasharray="3 3"
@@ -1353,7 +1461,7 @@ const Charts = () => {
                         />
                         <YAxis
                           width={Y_AXIS_WIDTH}
-                          domain={[0, RANKING_POINT_SERIES.length]}
+                          domain={[0, rankingPointSeries.length]}
                           allowDecimals={false}
                           {...axis}
                         />
@@ -1379,12 +1487,12 @@ const Charts = () => {
                         <Legend
                           {...LEGEND_PROPS}
                           itemSorter={item =>
-                            RANKING_POINT_SERIES.findIndex(
+                            rankingPointSeries.findIndex(
                               s => s.label === item.value
                             )
                           }
                         />
-                        {RANKING_POINT_SERIES.map(({ label, color }) => (
+                        {rankingPointSeries.map(({ label, color }) => (
                           <Bar
                             key={label}
                             dataKey={label}
@@ -1401,11 +1509,11 @@ const Charts = () => {
 
                 {cycleTimeData.length > 0 && (
                   <ChartCard
-                    title="Average Cycle Time Trend"
+                    title="Time Between Hive Tips"
                     description="Average, fastest and slowest time between Hive Tips in each session, in seconds"
                     isDarkMode={isDarkMode}
                   >
-                    <div className="mt-auto min-w-0">
+                    <div className="mt-auto min-w-0 overflow-x-auto">
                       <ResponsiveContainer
                         width="100%"
                         height={240}
@@ -1447,7 +1555,7 @@ const Charts = () => {
                           <Legend {...LEGEND_PROPS} itemSorter={null} />
                           {(
                             [
-                              ['Avg Cycle', CHART_COLORS.cycle, false],
+                              ['Average', CHART_COLORS.cycle, false],
                               ['Fastest', CHART_COLORS.better, true],
                               ['Slowest', CHART_COLORS.worse, true],
                             ] as const

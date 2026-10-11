@@ -5,7 +5,7 @@ import { phaseLabel, type PhaseLabel } from './matchPhaseLabel';
 
 /**
  * Tint, text and ring per phase, [light theme, dark themes]. Each phase has
- * its own muted hue so AUTO, TELEOP and ENDGAME read apart at a glance, kept
+ * its own muted hue so AUTO, TELEOP and FLOWERS read apart at a glance, kept
  * soft so the chip never looks like a button: the accent fill is for actions,
  * amber for PAUSED and Hive Tips, emerald for Garden. Text is at least 4.5:1
  * on its tint, and the word is always there, so colour is never the only cue.
@@ -34,7 +34,7 @@ const CHIP_TONES: Record<PhaseLabel, readonly [string, string]> = {
     'bg-teal-100 text-teal-800 ring-teal-200',
     'bg-teal-400/15 text-teal-200 ring-teal-400/30',
   ],
-  ENDGAME: [
+  FLOWERS: [
     'bg-rose-100 text-rose-800 ring-rose-200',
     'bg-rose-400/15 text-rose-200 ring-rose-400/30',
   ],
@@ -54,7 +54,7 @@ const CHIP_WORDS: Record<PhaseLabel, string> = {
   AUTO: 'Auto',
   PICKUP: 'Pickup',
   TELEOP: 'Teleop',
-  ENDGAME: 'Endgame',
+  FLOWERS: 'Flowers',
   DONE: 'Done',
 };
 

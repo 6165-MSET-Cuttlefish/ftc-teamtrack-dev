@@ -20,8 +20,9 @@ const plural = (count: number, noun: string) =>
  * team, or "Share my sessions…") and on the invite page after joining.
  *
  * Rows wrap rather than truncate, and a summary breaks only between its
- * parts. Three rows always show whole; from four on the list scrolls inside
- * its border, the cut-off row showing there is more.
+ * parts, which are set apart by space. Three rows always show whole; from
+ * four on the list scrolls inside its border, the cut-off row showing there
+ * is more.
  */
 export const ShareSessionsPicker = ({
   sessions,
@@ -114,12 +115,18 @@ export const ShareSessionsPicker = ({
                 >
                   {session.sessionName || 'Untitled Session'}
                 </span>
+                {/* Set apart by space; read out with commas */}
                 <span
-                  className={`block text-xs ${
+                  className={`flex flex-wrap gap-x-3 text-xs ${
                     isDarkMode ? 'text-team-white-60' : 'text-gray-500'
                   }`}
                 >
-                  {sessionSummary(session)}
+                  {sessionSummary(session).map((part, i) => (
+                    <span key={i} className="whitespace-nowrap">
+                      {i > 0 && <span className="sr-only">, </span>}
+                      {part}
+                    </span>
+                  ))}
                 </span>
               </span>
             </button>

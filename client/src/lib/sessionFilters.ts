@@ -7,6 +7,7 @@
  */
 
 import type { Session } from '@/types';
+import { headlineMatches } from './headlineMatches';
 import { matchScore } from './scoring';
 import { toDate } from './utils';
 
@@ -23,8 +24,8 @@ export type SortOption =
 export const SORT_LABELS: Record<SortOption, string> = {
   'date-desc': 'Newest first',
   'date-asc': 'Oldest first',
-  'name-asc': 'Name (A–Z)',
-  'name-desc': 'Name (Z–A)',
+  'name-asc': 'Name (A to Z)',
+  'name-desc': 'Name (Z to A)',
   'score-desc': 'Highest score',
   'score-asc': 'Lowest score',
   'matches-desc': 'Most matches',
@@ -47,11 +48,13 @@ export const isArchived = (session: Pick<Session, 'archived'>): boolean =>
 
 /**
  * A session's best match score — the figure on its card — or 0 with no
- * matches. Recomputed from each match's fields like every other score:
- * the cached `finalScore` can be stale.
+ * matches. In a Mixed session that is the best of its headline type's
+ * matches (`headlineMatches`), as the card shows it. Recomputed from each
+ * match's fields like every other score: the cached `finalScore` can be
+ * stale.
  */
 export const bestScore = (session: Session): number =>
-  (session.matches ?? []).reduce(
+  headlineMatches(session.matches ?? [], session.matchType).matches.reduce(
     (max, match) => Math.max(max, matchScore(match, session.matchType)),
     0
   );

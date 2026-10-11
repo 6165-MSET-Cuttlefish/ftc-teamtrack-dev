@@ -11,6 +11,7 @@ export {
   getErrorMessage,
 } from './utils';
 export { logger } from './logger';
+export { failureReason, ShownError } from './failure';
 export {
   hasCompletedASession,
   markSessionCompleted,
@@ -49,6 +50,7 @@ export {
   rankingPoints,
   rankingPointNames,
   rankingPointTally,
+  swarmMissing,
   FIELD_LIMITS,
   FIELD_HINTS,
   COUNT_LABELS,
@@ -58,6 +60,9 @@ export {
   liveMatchType,
   includesAuto,
   includesTeleop,
+  DEFAULT_ROBOT_COUNT,
+  robotCountOf,
+  robotsOf,
   robotRates,
 } from './scoring';
 export { formatPoints } from './points';
@@ -89,7 +94,6 @@ export {
 export type { SortOption, ArchiveViewer } from './sessionFilters';
 export {
   ELEMENT_LABELS,
-  FLOWERS_LABEL,
   ELEMENT_COLORS,
   CHART_COLORS,
   RANKING_POINT_COLORS,

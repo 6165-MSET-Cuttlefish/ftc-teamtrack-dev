@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { getFirebase, logger, clearSessionFromStorage, clearHasCompletedSession } from '@/lib';
+import { markLeavingTeam, unmarkLeavingTeam } from '@/lib/leavingTeams';
 import { STORAGE_KEYS } from '@/constants';
 import type { User } from '@/types';
 import type {
@@ -43,6 +44,9 @@ type FirebaseAuthModule = {
     auth: Auth,
     provider: FirebaseGoogleAuthProvider
   ) => Promise<UserCredential>;
+  getAdditionalUserInfo?: (
+    credential: UserCredential
+  ) => { isNewUser: boolean } | null;
 };
 
 let firebaseAuthModule: FirebaseAuthModule | null = null;
@@ -83,6 +87,30 @@ export const useAuth = () => {
 const GUEST_ID_KEY = 'teamtrack-guest-id';
 const GUEST_MODE_KEY = 'teamtrack-guest-mode';
 
+// Shown as they are under the sign-in forms and on Profile (lib/authErrors
+// passes the app's own messages through), so each says what to do next.
+/** The sign-in code never arrived (the page was loaded offline) */
+const AUTH_NOT_LOADED =
+  "Sign-in didn't load. Check your connection, then reload the page.";
+/** Part of the sign-in code is missing for want of a connection */
+const AUTH_OFFLINE =
+  "Couldn't reach the server. Check your connection and try again.";
+/** Signed out in another tab (or the session expired) mid-change */
+const SIGNED_OUT = "You're signed out. Sign in again, then try again.";
+
+/**
+ * A new account is the guest's own, so the sessions they saved in this
+ * browser move into it (see lib/guestImport). Not waited for: Sessions
+ * shows the move while it runs, and reads the list again once it is done.
+ */
+const moveGuestSessions = (uid: string, email: string | null) => {
+  void import('@/lib/guestImport')
+    .then(({ moveGuestSessionsIntoNewAccount }) =>
+      moveGuestSessionsIntoNewAccount(uid, email)
+    )
+    .catch(error => logger.error('Could not move guest sessions', error));
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -120,15 +148,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const { authInstance, authModule } = await ensureAuth();
 
     if (!authInstance) {
-      throw new Error(
-        'Authentication service unavailable. Please refresh the page.'
-      );
+      throw new Error(AUTH_NOT_LOADED);
     }
 
     if (!authModule?.createUserWithEmailAndPassword) {
-      throw new Error(
-        'Sign-up service unavailable. Please check your internet connection.'
-      );
+      throw new Error(AUTH_OFFLINE);
     }
 
     const userCredential = await authModule.createUserWithEmailAndPassword(
@@ -143,21 +167,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       const { uid } = userCredential.user;
       setUser(prev => (prev?.uid === uid ? { ...prev, displayName } : prev));
     }
+    moveGuestSessions(userCredential.user.uid, userCredential.user.email);
   };
 
   const login = async (email: string, password: string) => {
     const { authInstance, authModule } = await ensureAuth();
 
     if (!authInstance) {
-      throw new Error(
-        'Authentication service unavailable. Please refresh the page.'
-      );
+      throw new Error(AUTH_NOT_LOADED);
     }
 
     if (!authModule?.signInWithEmailAndPassword) {
-      throw new Error(
-        'Sign-in service unavailable. Please check your internet connection.'
-      );
+      throw new Error(AUTH_OFFLINE);
     }
 
     await authModule.signInWithEmailAndPassword(authInstance, email, password);
@@ -188,15 +209,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const { authInstance, authModule } = await ensureAuth();
 
     if (!authInstance) {
-      throw new Error(
-        'Authentication service unavailable. Please refresh the page.'
-      );
+      throw new Error(AUTH_NOT_LOADED);
     }
 
     if (!authModule?.sendPasswordResetEmail) {
-      throw new Error(
-        'Password reset service unavailable. Please check your internet connection.'
-      );
+      throw new Error(AUTH_OFFLINE);
     }
 
     await authModule.sendPasswordResetEmail(authInstance, email);
@@ -205,20 +222,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const updateDisplayName = async (displayName: string) => {
     const { authInstance, authModule } = await ensureAuth();
     if (!authInstance || !authModule?.updateProfile) {
-      throw new Error('Update service unavailable.');
+      throw new Error(AUTH_NOT_LOADED);
     }
     const currentUser = authInstance.currentUser;
-    if (!currentUser) throw new Error('No authenticated user.');
+    if (!currentUser) throw new Error(SIGNED_OUT);
     await authModule.updateProfile(currentUser, { displayName });
     setUser(prev => (prev ? { ...prev, displayName } : prev));
   };
 
   const updateUserEmail = async (newEmail: string, currentPassword: string) => {
     const { authInstance } = await ensureAuth();
-    if (!authInstance) throw new Error('Authentication service unavailable.');
+    if (!authInstance) throw new Error(AUTH_NOT_LOADED);
     const currentUser = authInstance.currentUser;
-    if (!currentUser || !currentUser.email)
-      throw new Error('No authenticated user.');
+    if (!currentUser || !currentUser.email) throw new Error(SIGNED_OUT);
     const rawModule = await import('firebase/auth');
     const credential = rawModule.EmailAuthProvider.credential(
       currentUser.email,
@@ -231,19 +247,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const sendVerificationEmail = async () => {
     const { authInstance } = await ensureAuth();
-    if (!authInstance) throw new Error('Authentication service unavailable.');
+    if (!authInstance) throw new Error(AUTH_NOT_LOADED);
     const currentUser = authInstance.currentUser;
-    if (!currentUser) throw new Error('No authenticated user.');
+    if (!currentUser) throw new Error(SIGNED_OUT);
     const rawModule = await import('firebase/auth');
     await rawModule.sendEmailVerification(currentUser);
   };
 
   const updateUserPassword = async (currentPassword: string, newPassword: string) => {
     const { authInstance } = await ensureAuth();
-    if (!authInstance) throw new Error('Authentication service unavailable.');
+    if (!authInstance) throw new Error(AUTH_NOT_LOADED);
     const currentUser = authInstance.currentUser;
-    if (!currentUser || !currentUser.email)
-      throw new Error('No authenticated user.');
+    if (!currentUser || !currentUser.email) throw new Error(SIGNED_OUT);
     const rawModule = await import('firebase/auth');
     const credential = rawModule.EmailAuthProvider.credential(
       currentUser.email,
@@ -255,9 +270,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const deleteAccount = async (currentPassword?: string) => {
     const { authInstance } = await ensureAuth();
-    if (!authInstance) throw new Error('Authentication service unavailable.');
+    if (!authInstance) throw new Error(AUTH_NOT_LOADED);
     const currentUser = authInstance.currentUser;
-    if (!currentUser) throw new Error('No authenticated user.');
+    if (!currentUser) throw new Error(SIGNED_OUT);
 
     const rawModule = await import('firebase/auth');
     const providerId = currentUser.providerData?.[0]?.providerId;
@@ -272,7 +287,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       );
       await rawModule.reauthenticateWithCredential(currentUser, credential);
     } else {
-      throw new Error('Password is required to delete your account.');
+      throw new Error('Enter your password to delete your account.');
     }
 
     // Remove the user's data while they are still signed in — the rules only
@@ -298,10 +313,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     await firebaseService.deleteAllUserData(uid);
     const notLeft =
       "Your sessions and share links were deleted, but you couldn't be " +
-      'removed from your team, so your account is still here. Please try again.';
+      'removed from your team, so your account is still here. Try again.';
     try {
       for (const teamId of await firebaseService.getUserTeamIds(uid)) {
-        await teamService.leaveTeam(teamId, uid);
+        // Chosen, not a removal: no "You're no longer a member" notice.
+        markLeavingTeam(teamId);
+        try {
+          await teamService.leaveTeam(teamId, uid);
+        } catch (error) {
+          unmarkLeavingTeam(teamId);
+          throw error;
+        }
       }
     } catch (error) {
       logger.error('Error leaving team while deleting account', error);
@@ -315,26 +337,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     clearSessionFromStorage();
     clearHasCompletedSession();
     setUser(null);
+    // A guest from here on, at once rather than when the sign-in listener
+    // catches up: the page they go to is the guest start, not a sign-in.
+    becomeGuest();
   };
 
   const loginWithGoogle = async () => {
     const { authInstance, authModule } = await ensureAuth();
 
     if (!authInstance) {
-      throw new Error(
-        'Authentication service unavailable. Please refresh the page.'
-      );
+      throw new Error(AUTH_NOT_LOADED);
     }
 
     if (!authModule?.signInWithPopup || !authModule?.GoogleAuthProvider) {
-      throw new Error(
-        'Google Sign-In unavailable. Please check your internet connection.'
-      );
+      throw new Error(AUTH_OFFLINE);
     }
 
     const provider = new authModule.GoogleAuthProvider();
-    await authModule.signInWithPopup(authInstance, provider);
+    const credential = await authModule.signInWithPopup(authInstance, provider);
+    // A Google account seen for the first time is a sign-up, whichever
+    // page it came from.
+    if (authModule.getAdditionalUserInfo?.(credential)?.isNewUser) {
+      moveGuestSessions(credential.user.uid, credential.user.email);
+    }
   };
+
+  // Module-scoped flag survives React StrictMode double-mount
+  const guestToastShownRef = useRef(false);
 
   const continueAsGuest = () => {
     let guestUserId = localStorage.getItem(GUEST_ID_KEY);
@@ -350,8 +379,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setLoading(false);
   };
 
-  // Module-scoped flag survives React StrictMode double-mount
-  const guestToastShownRef = useRef(false);
+  /** A guest now, for good: the sign-in listener leaves it at that. */
+  const becomeGuest = () => {
+    guestToastShownRef.current = true;
+    continueAsGuest();
+  };
 
   useEffect(() => {
     let unsubscribe: () => void = () => {};

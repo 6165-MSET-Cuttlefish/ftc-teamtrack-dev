@@ -3,119 +3,128 @@
  * analyse, and how a session, a date or a number is written on them.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from 'react';
-import { toast } from 'sonner';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth, useTeam } from '@/contexts';
-import { firebaseService } from '@/services';
-import {
-  calculateScore,
-  isAbortError,
-  logger,
-  readGuestSessions,
-  toDate,
-} from '@/lib';
+import { calculateScore, toDate } from '@/lib';
 import {
   getPendingDeleteIds,
-  onSessionDeleted,
   subscribePendingDeletes,
 } from '@/lib/pendingSessionDeletes';
 import type { Match, ScoreBreakdown, Session } from '@/types';
-import { inSessionScope, SESSION_SCOPES } from './sessionList';
+import { inSessionScope, scopeFromParam, SESSION_SCOPES } from './sessionList';
 import type { SessionScope } from './sessionList';
+import { useSessionList } from './useSessionList';
+import type { SessionList } from './useSessionList';
 
 /**
  * The sessions the signed-in user (or their team, or this browser's guest)
- * has, newest first. Sessions deleted but still inside their undo window are
- * left out, and come back if the delete is undone.
+ * has, newest first: the newest page to begin with (the same one the
+ * Sessions page opens on), and older ones as `loadOlder` and `loadAll`
+ * read them. Sessions deleted but still inside their undo window are left
+ * out, and come back if the delete is undone.
  */
-export const useLifetimeSessions = (): {
-  sessions: Session[];
-  loading: boolean;
-} => {
-  const { user, isGuest } = useAuth();
-  const { team } = useTeam();
-  const [loaded, setLoaded] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
+export const useLifetimeSessions = (): Pick<
+  SessionList,
+  | 'sessions'
+  | 'loading'
+  | 'hasMore'
+  | 'loadingOlder'
+  | 'olderFailed'
+  | 'completeAfter'
+  | 'loadOlder'
+  | 'loadAll'
+> => {
+  const list = useSessionList();
   const hiddenIds = useSyncExternalStore(
     subscribePendingDeletes,
     getPendingDeleteIds
   );
 
-  const uid = user?.uid;
-  const teamId = team?.id;
-
-  useEffect(
-    () =>
-      onSessionDeleted(sessionId =>
-        setLoaded(prev => prev.filter(s => s.id !== sessionId))
-      ),
-    []
-  );
-
-  useEffect(() => {
-    // A guest's sessions live in this browser.
-    if (isGuest) {
-      setLoaded(readGuestSessions());
-      setLoading(false);
-      return;
-    }
-    if (!uid) return;
-
-    let active = true;
-    setLoading(true);
-    (async () => {
-      try {
-        const fetched = teamId
-          ? await firebaseService.getTeamSessions(teamId)
-          : await firebaseService.getUserSessions(uid);
-        if (active) setLoaded(fetched);
-      } catch (error) {
-        if (!active || isAbortError(error)) return;
-        logger.error('Error loading sessions', error);
-        toast.error('Failed to load sessions');
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [uid, isGuest, teamId]);
-
+  const loaded = list.sessions;
   const sessions = useMemo(
     () => loaded.filter(s => !hiddenIds.has(s.id)),
     [loaded, hiddenIds]
   );
 
-  return { sessions, loading };
+  return {
+    sessions,
+    loading: list.loading,
+    hasMore: list.hasMore,
+    loadingOlder: list.loadingOlder,
+    olderFailed: list.olderFailed,
+    completeAfter: list.completeAfter,
+    loadOlder: list.loadOlder,
+    loadAll: list.loadAll,
+  };
+};
+
+/**
+ * A page's settings kept in its address, as the Sessions page keeps its
+ * filters: opening a session from the page and coming Back finds them as
+ * they were, and a link carries them. Returns the address's settings and a
+ * function that changes some of them (null takes one out). The page's
+ * history entry is replaced, not added to, so Back still leaves the page in
+ * one press. Nothing is written once the browser's address has moved on to
+ * another page: that would replace the new page's entry with this one's.
+ */
+export const useAddressSettings = (): [
+  URLSearchParams,
+  (changes: Record<string, string | null>) => void,
+] => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { pathname } = useLocation();
+  const update = useCallback(
+    (changes: Record<string, string | null>) => {
+      if (window.location.pathname !== pathname) return;
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          for (const [key, value] of Object.entries(changes)) {
+            if (value === null) next.delete(key);
+            else next.set(key, value);
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams, pathname]
+  );
+  return [searchParams, update];
 };
 
 /**
  * In a team the list is the team's sessions plus the user's own unshared
  * ones. This narrows it to either half and says in words what is on screen.
- * Outside a team there is one list, so no choices and no label.
+ * Outside a team there is one list, so no choices and no label. `complete`
+ * says the list holds every session; until it does, the choices carry no
+ * counts, which would only count the sessions read so far. The choice is
+ * the address's `scope`, the one the Sessions page writes, so it carries
+ * over from there and survives a trip to a session and Back.
  */
 export const useSessionScope = (
-  sessions: Session[]
+  sessions: Session[],
+  complete = true
 ): {
   scope: SessionScope;
   setScope: (scope: SessionScope) => void;
   /** Whether a session belongs to the chosen scope */
   inScope: (session: Session) => boolean;
   /** The choices with how many sessions each holds; empty outside a team */
-  choices: Array<{ value: SessionScope; label: string; count: number }>;
-  /** 'shared with <team>' and the like; null outside a team */
+  choices: Array<{ value: SessionScope; label: string; count?: number }>;
+  /** 'shared with <team>', 'recorded by you' or 'from <team> and your own'; null outside a team */
   scopeLabel: string | null;
 } => {
   const { user, isGuest } = useAuth();
   const { team } = useTeam();
-  const [picked, setScope] = useState<SessionScope>('all');
+  const [searchParams, updateAddress] = useAddressSettings();
+  const picked = scopeFromParam(searchParams.get('scope'));
+  const setScope = useCallback(
+    (value: SessionScope) =>
+      updateAddress({ scope: value === 'all' ? null : value }),
+    [updateAddress]
+  );
 
   const uid = user?.uid;
   const teamId = isGuest ? undefined : team?.id;
@@ -136,12 +145,14 @@ export const useSessionScope = (
         ? SESSION_SCOPES.map(({ value, label }) => ({
             value,
             label,
-            count: sessions.filter(session =>
-              inSessionScope(session, value, { teamId, uid })
-            ).length,
+            count: complete
+              ? sessions.filter(session =>
+                  inSessionScope(session, value, { teamId, uid })
+                ).length
+              : undefined,
           }))
         : [],
-    [sessions, teamId, uid]
+    [sessions, complete, teamId, uid]
   );
 
   const scopeLabel = !teamId
@@ -150,7 +161,7 @@ export const useSessionScope = (
       ? `shared with ${teamName}`
       : scope === 'mine'
         ? 'recorded by you'
-        : `${teamName} + your own`;
+        : `from ${teamName} and your own`;
 
   return { scope, setScope, inScope, choices, scopeLabel };
 };
@@ -165,6 +176,17 @@ export const sessionTitle = (session: Session): string =>
 
 /** The order match types are offered in, on Charts and on Compare. */
 export const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
+
+/** A match type as an address holds it, as Sessions writes it: 'full-game' */
+export const matchTypeParam = (type: string): string =>
+  type
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+/** The match type an address names, or null for none (or 'mixed') */
+export const matchTypeFromParam = (param: string | null): string | null =>
+  MATCH_TYPES.find(type => matchTypeParam(type) === param) ?? null;
 
 /** The type a match was run as; one saved without its own has its session's. */
 export const matchTypeOf = (match: Match, session: Session): string =>

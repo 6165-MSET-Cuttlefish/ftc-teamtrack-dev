@@ -3,6 +3,7 @@ import type { DocumentData, Firestore } from 'firebase/firestore';
 import type { Session } from '@/types';
 import { pickScoringFields } from './scoring';
 import { toDate } from './utils';
+import { ShownError } from './failure';
 
 /** When a session was recorded, as an ISO string, if it carries a real date */
 const recordedAt = (createdAt: Session['createdAt'] | undefined) => {
@@ -124,7 +125,7 @@ export const generateShareableLink = async (
 
   const { firebaseService } = await import('@/services');
   const signedIn = await signedInFirestore();
-  if (!signedIn) throw new Error('Sign in to share sessions');
+  if (!signedIn) throw new ShownError('Sign in to share sessions.');
   // Not finding one is no reason not to share: a new link is made instead.
   const shortId =
     (await sameSnapshotLink(signedIn.db, signedIn.uid, shareData).catch(
@@ -230,7 +231,7 @@ export const countShareLinks = async (
     Pick<Partial<Session>, 'matches' | 'sessionName' | 'notes'>
 ): Promise<number> => {
   const signedIn = await signedInFirestore();
-  if (!signedIn) throw new Error('Sign in to share sessions');
+  if (!signedIn) throw new ShownError('Sign in to share sessions.');
   const { db, uid } = signedIn;
   const {
     collection,

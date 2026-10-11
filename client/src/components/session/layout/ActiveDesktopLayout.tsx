@@ -9,10 +9,6 @@ import {
 
 import { useSessionCore, useTheme } from '@/contexts';
 
-import {
-  isPrimarySlotConfirm,
-  useLiveControls,
-} from '../controls/liveControlsContext';
 import { revealInView, visibleBand } from '../controls/scrollUnderHeader';
 
 import {
@@ -23,12 +19,12 @@ import {
 import { useHeaderHeightVar } from './useHeaderHeightVar';
 
 type Region =
+  | 'notice'
   | 'headline'
   | 'bar'
   | 'barTools'
   | 'barEnd'
-  | 'completed'
-  | 'setup'
+  | 'menu'
   | 'main'
   | 'footer'
   | 'hidden';
@@ -38,29 +34,24 @@ type Region =
  * The centered title, clock and status, then one row of controls, then the
  * scoring pad across the full width (Hive Tips, the robots and a scrim's
  * fouls in one band, the end-of-match fields under it, its breakdown band
- * last), then the match log and notes below the fold.
+ * last), then the match log and notes below the fold. A session left open
+ * since an earlier day is asked about above all of it.
  *
- * The controls are one row, as tall as its buttons in every state (a
- * question asked there included), so the scoring fields below it stay
- * where they are from idle to the buzzer and still start high enough to be
- * on a short laptop screen:
+ * The controls are one row, as tall as its buttons in every state, so the
+ * scoring fields below it stay where they are from idle to the buzzer and
+ * still start high enough to be on a short laptop screen:
  *
  * - `bar` is pause and the one button that drives the match (start, end
- *   early, save), and takes the row's spare width.
- * - `barTools` is skip (while it applies) and the settings toggle (between
- *   matches).
+ *   early, save), with Complete Session beside Start between matches, and
+ *   takes the row's spare width.
+ * - `barTools` is skip, while it applies.
  * - `barEnd`, past a divider, is discarding the match while one runs.
- *
- * A question about the match takes the row's full width: the tools and
- * the divider give up their places to it, and its safe answer reaches the
- * row's end.
- *
- * The session's own buttons (Complete, Discard Session) are at the end of
- * the page under the Match Log, as on a phone: never in the row, so Start
- * is one width for every match and nothing beside it throws the session
- * away.
+ * - `menu`, always last, is the session menu: its settings, and Discard
+ *   session. It never moves.
  */
 const PLACEMENT: PlacementMap<Region> = {
+  staleNotice: { region: 'notice', order: 0 },
+
   title: { region: 'headline', order: 0 },
   timer: { region: 'headline', order: 1 },
   status: { region: 'headline', order: 2 },
@@ -68,14 +59,8 @@ const PLACEMENT: PlacementMap<Region> = {
   playPause: { region: 'bar', order: 0 },
   primaryAction: { region: 'bar', order: 1 },
   matchExtras: { region: 'barTools', order: 0 },
-  openSetup: { region: 'barTools', order: 1 },
   cancelMatch: { region: 'barEnd', order: 0 },
-
-  completionNotice: { region: 'completed', order: 0 },
-  completedActions: { region: 'completed', order: 1 },
-  completedLinks: { region: 'completed', order: 2 },
-
-  setup: { region: 'setup', order: 0 },
+  sessionMenu: { region: 'menu', order: 0 },
 
   scoring: { region: 'main', order: 0 },
   matchLog: { region: 'main', order: 1 },
@@ -87,7 +72,6 @@ const PLACEMENT: PlacementMap<Region> = {
   breakdown: { region: 'hidden', order: 3 },
 
   notes: { region: 'footer', order: 0 },
-  sessionActions: { region: 'footer', order: 1 },
 };
 
 /** Thin divider that adapts to the current theme */
@@ -177,16 +161,11 @@ const useFollowUnpinnedRow = (
 export const ActiveDesktopLayout = ({ slots }: { slots: ActiveSlots }) => {
   const { isDarkMode } = useTheme();
   const { matchActive, editingMatchId } = useSessionCore();
-  const { pendingConfirm } = useLiveControls();
   const rootRef = useHeaderHeightVar();
   const rowRef = useRef<HTMLDivElement>(null);
   const pinned = usePinnedControls();
   const stuck = useStuck(rowRef, pinned);
   useFollowUnpinnedRow(rowRef, pinned);
-  // A question about the match is asked in the row: the tools give up
-  // their places to it (see `MatchControls`), and the divider goes with
-  // them, so the question spans the row.
-  const rowQuestion = isPrimarySlotConfirm(pendingConfirm, false);
 
   const present = (region: Region) =>
     slotsInRegion(PLACEMENT, region).filter(key => slots[key] != null);
@@ -194,55 +173,37 @@ export const ActiveDesktopLayout = ({ slots }: { slots: ActiveSlots }) => {
   const render = (region: Region) =>
     present(region).map(key => <Fragment key={key}>{slots[key]}</Fragment>);
 
-  /**
-   * The footer's sections, apart by its gap alone: Notes and the Match Log
-   * above it have their own edges, and a rule between boxes only piles up.
-   */
-  const footerSections = () =>
-    present('footer').map(key => (
-      <Fragment key={key}>
-        {key === 'sessionActions' ? (
-          // A run of buttons rather than a section: laid out as a row. A
-          // question asked in place of them takes the whole row, so its
-          // go-ahead is never where Discard Session or Complete Session was
-          // pressed (see `SessionActions` for where the safe choice goes).
-          <div className="flex items-center gap-3 flex-wrap [&>[data-confirm-inline]]:flex-1">
-            {slots[key]}
-          </div>
-        ) : (
-          slots[key]
-        )}
-      </Fragment>
-    ));
-
   const main = present('main');
   const footer = present('footer');
   const barEnd = present('barEnd');
   const hasControls =
     present('bar').length > 0 ||
     present('barTools').length > 0 ||
-    barEnd.length > 0;
+    barEnd.length > 0 ||
+    present('menu').length > 0;
   // Discard is only there while a match runs (and isn't one being edited)
   const discardShown =
     barEnd.length > 0 && matchActive && editingMatchId === null;
 
   return (
     // A laptop screen is often under 760px tall: the spacing tightens there
-    // so the robot rows still start above the fold.
+    // so the robot rows still start above the fold. A gap rather than
+    // margins, so a section with nothing in it (the notice, most days)
+    // takes no room at all.
     <div
       ref={rootRef}
-      className="space-y-4 [@media(max-height:760px)]:space-y-3"
+      className="flex flex-col gap-4 [@media(max-height:760px)]:gap-3"
     >
+      {present('notice').length > 0 && (
+        <div className="px-4 empty:hidden">{render('notice')}</div>
+      )}
+
       <div
         className="space-y-2 px-4 pt-2 [@media(max-height:760px)]:space-y-1"
         data-tutorial="timer"
       >
         {render('headline')}
       </div>
-
-      {present('completed').length > 0 && (
-        <div className="px-4 flex flex-col gap-6">{render('completed')}</div>
-      )}
 
       {hasControls && (
         <div
@@ -282,19 +243,14 @@ export const ActiveDesktopLayout = ({ slots }: { slots: ActiveSlots }) => {
           {render('barTools')}
           {discardShown && (
             <>
-              {!rowQuestion && (
-                <div className="flex self-center">
-                  <Divider vertical />
-                </div>
-              )}
+              <div className="flex self-center">
+                <Divider vertical />
+              </div>
               {render('barEnd')}
             </>
           )}
+          {render('menu')}
         </div>
-      )}
-
-      {present('setup').length > 0 && (
-        <div className="px-4">{render('setup')}</div>
       )}
 
       {main.length > 0 && (
@@ -307,7 +263,7 @@ export const ActiveDesktopLayout = ({ slots }: { slots: ActiveSlots }) => {
         // As far below the Match Log as its own sections are apart, as on
         // a phone
         <div className="px-4 pt-2 pb-4 flex flex-col gap-6 min-w-0">
-          {footerSections()}
+          {render('footer')}
         </div>
       )}
     </div>

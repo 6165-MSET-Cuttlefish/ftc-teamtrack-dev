@@ -8,6 +8,11 @@ import type {
 /** Shape of session form data persisted to localStorage */
 export interface SessionFormData extends MatchScoringFields {
   sessionName: string;
+  /**
+   * The name was typed by the user (Rename), so it is theirs even where it
+   * reads like one the app gives ("Practice 1"): never numbered afresh.
+   */
+  sessionNameTyped?: boolean;
   sessionDuration: string;
   /** Practice or Scrim */
   sessionType: SessionType;

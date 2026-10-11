@@ -9,7 +9,7 @@ export type PhaseLabel =
   | 'AUTO'
   | 'PICKUP'
   | 'TELEOP'
-  | 'ENDGAME'
+  | 'FLOWERS'
   | 'DONE';
 
 /** Match clock values above this are the 3-2-1 before AUTO of a Full Game */
@@ -47,8 +47,9 @@ export const inCountdown = ({
 /**
  * Names the phase of the match. Before Start it is READY, and through the
  * 3-2-1 STARTING: a clock that reads 3, 2, 1 beside READY looked like
- * seconds left of something. The last minute of TELEOP is ENDGAME, the cue
- * to watch for parking.
+ * seconds left of something. The last minute of TELEOP is FLOWERS: NECTAR
+ * may go into FLOWERS from 1:00 (G410; Table 9-1 "FLOWER Ownership
+ * Unlocked").
  */
 export const phaseLabel = (input: PhaseInput): PhaseLabel => {
   const { matchActive, matchPhase, timer } = input;
@@ -57,7 +58,7 @@ export const phaseLabel = (input: PhaseInput): PhaseLabel => {
   if (matchPhase === 'controller_pickup') return 'PICKUP';
   if (matchPhase === 'ended' || timer <= 0) return 'DONE';
   if (matchPhase === 'auton') return 'AUTO';
-  return timer <= GAME_TIMING.ENDGAME_REMAINING ? 'ENDGAME' : 'TELEOP';
+  return timer <= GAME_TIMING.FLOWERS_UNLOCK_REMAINING ? 'FLOWERS' : 'TELEOP';
 };
 
 interface ClockInput extends PhaseInput {

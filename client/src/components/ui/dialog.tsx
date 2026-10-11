@@ -131,15 +131,27 @@ export const Dialog = ({
   // no sticky header or other stacking context can trap it underneath. The
   // z-index clears the walkthrough (its card is 10001); Select lists and
   // menus opened from a dialog sit above it (see the end of global.css).
+  //
+  // The backdrop scrolls, and the panel sits in a column at least as tall as
+  // the screen that centres it and pads it by 1rem. A dialog that fits sits
+  // where it always has; one taller than the screen (a phone on its side,
+  // or zoomed to 200%) scrolls as a whole instead of running off both ends,
+  // so its title and its buttons can always be reached. That column is the
+  // backdrop a press closes the dialog on. Only the panel itself may make it
+  // scroll: the column holds and clips anything positioned inside a dialog
+  // (an sr-only word in a list that scrolls has escaped that list), which
+  // would otherwise let a dialog that fits slide up the screen.
   return createPortal(
-    <div
-      className="fixed inset-0 z-[10050] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
-      onMouseDown={e => {
-        pressedBackdropRef.current = e.target === e.currentTarget;
-      }}
-      onClick={handleBackdropClick}
-    >
-      {children}
+    <div className="fixed inset-0 z-[10050] overflow-y-auto overscroll-contain bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div
+        className="relative flex min-h-full items-center justify-center overflow-clip p-4"
+        onMouseDown={e => {
+          pressedBackdropRef.current = e.target === e.currentTarget;
+        }}
+        onClick={handleBackdropClick}
+      >
+        {children}
+      </div>
     </div>,
     document.body
   );
@@ -183,11 +195,16 @@ export const DialogContent = ({
     openPanels.push(panel);
 
     if (!panel.contains(document.activeElement)) {
-      const target =
-        panel.querySelector<HTMLElement>('[data-autofocus]') ??
-        focusableIn(panel)[0] ??
-        panel;
-      target.focus();
+      // A dialog taller than the screen (less the backdrop's 1rem padding)
+      // opens at its title, so focus starts on the dialog itself rather than
+      // on a button below the fold; Tab then reaches its first control.
+      const tall = panel.offsetHeight > window.innerHeight - 32;
+      const target = tall
+        ? panel
+        : (panel.querySelector<HTMLElement>('[data-autofocus]') ??
+          focusableIn(panel)[0] ??
+          panel);
+      target.focus({ preventScroll: true });
     }
 
     const trapTab = (e: KeyboardEvent) => {

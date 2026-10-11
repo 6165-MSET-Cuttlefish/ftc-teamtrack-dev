@@ -11,6 +11,12 @@ const fixedBar = (): HTMLElement | null => {
   return bar && getComputedStyle(bar).position === 'fixed' ? bar : null;
 };
 
+/** Whether two boxes share any of the screen's width */
+const overlapsAcross = (
+  a: { left: number; right: number },
+  b: { left: number; right: number }
+): boolean => a.left < b.right && a.right > b.left;
+
 /**
  * Where the controls on the page are on screen: not those in the bar or
  * the header (which stay put when the page scrolls), nor toasts, nor any
@@ -63,11 +69,14 @@ const MAX_SHORT = 48;
  * all under the bar; whichever is less, and only if that leaves no other
  * control cut instead. Else 0.
  */
-const clearOfBarEdge = (by: number): number => {
+export const clearOfBarEdge = (by: number): number => {
   const bar = fixedBar();
   if (!bar) return 0;
-  const edge = bar.getBoundingClientRect().top;
-  const controls = pageControls(bar);
+  const barRect = bar.getBoundingClientRect();
+  const edge = barRect.top;
+  // Side by side the bar only spans the clock's column: what scrolls
+  // beside it isn't cut by its edge.
+  const controls = pageControls(bar).filter(r => overlapsAcross(r, barRect));
   // The controls the edge cuts once the page is scrolled by `to`
   const cutAt = (to: number) =>
     controls.filter(r => r.top - to < edge && r.bottom - to > edge);
@@ -88,8 +97,14 @@ const clearOfBarEdge = (by: number): number => {
  * the bottom of the screen (the phone layout). On a full-size screen the
  * controls are pinned under the header after the buzzer, with a band of
  * background `HEADER_GAP` deep under them: the page shows below that.
+ *
+ * Given what is to be shown (`target`), the bar only counts where it is
+ * under it: on a phone on its side the bar spans the clock's column alone,
+ * and the scoring column beside it shows down to the bottom of the screen.
  */
-export const visibleBand = (): { top: number; bottom: number } => {
+export const visibleBand = (
+  target?: Element
+): { top: number; bottom: number } => {
   const header = document.querySelector('header');
   const headerPinned =
     header !== null &&
@@ -103,17 +118,79 @@ export const visibleBand = (): { top: number; bottom: number } => {
         ? headerHeight + bar.offsetHeight + HEADER_GAP
         : headerHeight,
     bottom:
-      bar && barPosition === 'fixed'
+      bar &&
+      barPosition === 'fixed' &&
+      (!target ||
+        overlapsAcross(
+          bar.getBoundingClientRect(),
+          target.getBoundingClientRect()
+        ))
         ? bar.getBoundingClientRect().top
         : window.innerHeight,
   };
+};
+
+/** Whether the element scrolls with the page (not pinned in a column) */
+export const scrollsWithPage = (el: Element): boolean => {
+  for (let e: Element | null = el; e; e = e.parentElement) {
+    const { position } = getComputedStyle(e);
+    if (position === 'sticky' || position === 'fixed') return false;
+  }
+  return true;
+};
+
+/**
+ * Where a scroll of `by` px stops short because the page ends first (a
+ * short page on a tall screen), and that would leave the match clock's
+ * group (the clock, and on a full-size screen the session name over it)
+ * cut by the top edge, part of its digits peeking out: a scroll that shows
+ * the whole group instead, just under the edge, with what follows it (the
+ * target) under it. Else `by`.
+ */
+const wholeClock = (by: number, edge: number): number => {
+  const room =
+    document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+  if (by <= room) return by;
+  const clock = document.querySelector('[data-clock-row]');
+  const group = clock?.closest('[data-tutorial="timer"]') ?? clock;
+  if (!group || !scrollsWithPage(group)) return by;
+  const { top, bottom } = group.getBoundingClientRect();
+  const cut = top - room < edge && bottom - room > edge;
+  return cut ? Math.round(top - edge - HEADER_GAP) : by;
+};
+
+/**
+ * For a page that has just grown shorter under the reader (an edit closed
+ * and took a pair of counters with it): the browser holds a page scrolled
+ * past its new end at that end, which can leave the clock's group cut by
+ * the top edge, its digits peeking out under the header. Then show the
+ * whole group instead, as `wholeClock` does for a scroll the page ends
+ * too soon for. A page not at its end, or the group off the top with only
+ * its last few px of space under the edge, is left as it is.
+ */
+export const keepClockWhole = () => {
+  const room =
+    document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+  if (room > 1) return;
+  const clock = document.querySelector('[data-clock-row]');
+  const group = clock?.closest('[data-tutorial="timer"]') ?? clock;
+  if (!group || !scrollsWithPage(group)) return;
+  const edge = visibleBand().top;
+  const { top, bottom } = group.getBoundingClientRect();
+  if (top >= edge || bottom - edge <= HEADER_GAP) return;
+  window.scrollBy({
+    top: Math.round(top - edge - HEADER_GAP),
+    behavior: 'instant',
+  });
 };
 
 /**
  * Scroll the page so `target` starts just under the site header.
  * `scrollIntoView` would put it underneath a pinned header instead. On a
  * phone the page goes a few px further, or stops a little short, where
- * that keeps a control from being cut by the bar's edge.
+ * that keeps a control from being cut by the bar's edge. Where the page
+ * ends too soon to get the target that far, it stops with the whole clock
+ * over the target rather than a strip of it under the header.
  *
  * With `onlyIfHidden`, a target that is already on screen in full is left
  * where it is.
@@ -122,7 +199,7 @@ export const scrollUnderHeader = (
   target: Element,
   { onlyIfHidden = false }: { onlyIfHidden?: boolean } = {}
 ) => {
-  const band = visibleBand();
+  const band = visibleBand(target);
   const { top, bottom } = target.getBoundingClientRect();
   if (onlyIfHidden && top >= band.top && bottom <= band.bottom) return;
   const reduceMotion = window.matchMedia(
@@ -130,7 +207,7 @@ export const scrollUnderHeader = (
   ).matches;
   // In whole px, as the page scrolls: what is worked out for the bar's
   // edge must be where things land.
-  const by = Math.round(top - band.top - HEADER_GAP);
+  const by = wholeClock(Math.round(top - band.top - HEADER_GAP), band.top);
   window.scrollBy({
     top: by + clearOfBarEdge(by),
     behavior: reduceMotion ? 'instant' : 'smooth',
@@ -143,7 +220,7 @@ export const scrollUnderHeader = (
  */
 export const revealInView = (target: Element) => {
   target.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-  const band = visibleBand();
+  const band = visibleBand(target);
   const { top, bottom } = target.getBoundingClientRect();
   const under = bottom + HEADER_GAP - band.bottom;
   const over = band.top + HEADER_GAP - top;

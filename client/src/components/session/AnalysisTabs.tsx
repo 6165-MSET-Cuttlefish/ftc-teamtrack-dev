@@ -24,6 +24,7 @@ import {
   ChevronRight,
   ChevronDown,
   Check,
+  Pencil,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -51,20 +52,29 @@ import {
   calculateScore,
   cycleTimesOf,
   includesAuto,
-  includesTeleop,
   matchScore,
   rankingPoints,
   rankingPointNames,
   rankingPointTally,
   robotRates,
   scoreRows,
+  swarmMissing,
   toDate,
   toneOf,
+  htmlToText,
 } from '@/lib';
 import { formatPoints } from '@/lib/points';
-import { GROUPED_ELEMENT_ORDER } from '@/lib/scoring';
+import {
+  GROUPED_ELEMENT_ORDER,
+  robotTallies,
+  timedTipsOf,
+} from '@/lib/scoring';
+import { headlineMatches, typesByCount } from '@/lib/headlineMatches';
+import { useArmed } from '@/components/session/controls/useArmed';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { StatTile, type StatTileProps } from '@/components/ui/stat-tile';
+import { Button } from '@/components/ui/button';
+import { NotesEditor } from './NotesEditor';
 import { Segmented } from '@/components/ui/segmented';
 import {
   SECTION_TITLE_CLASS,
@@ -74,7 +84,6 @@ import {
   CHIP_BASE,
   CHIP_SIZES,
   DATA_CLASS,
-  DESTRUCTIVE_CLASS,
   chipTone,
   primaryClass,
   selectedClass,
@@ -108,16 +117,15 @@ const TOUCH_TARGET =
   '[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
 
 /**
- * Whether to show foul figures. Fouls are only recorded in a Scrim; a view
- * that isn't told the session type shows them when there are any.
+ * Whether to show foul figures: in a Scrim, where they are recorded, and
+ * wherever a match has some (a Scrim switched to Practice keeps them).
  */
 const showsFouls = (
   sessionType: SessionType | undefined,
   matches: Match[]
 ): boolean =>
-  sessionType
-    ? sessionType === 'Scrim'
-    : matches.some(m => (m.minorPenalties ?? 0) + (m.majorPenalties ?? 0) > 0);
+  sessionType === 'Scrim' ||
+  matches.some(m => (m.minorPenalties ?? 0) + (m.majorPenalties ?? 0) > 0);
 
 /** Trend icon based on positive/negative/zero */
 const TrendIcon = ({ value, size = 16 }: { value: number; size?: number }) => {
@@ -241,11 +249,31 @@ interface Tally {
   chances: number;
 }
 
+/** The matches a session's average and swing are taken from */
+export interface HeadlineStats {
+  /** Their type */
+  type: string;
+  /**
+   * The session mixes match types, so only the matches of `type` count: an
+   * Autonomous run can't score what a full game does.
+   */
+  mixed: boolean;
+  /** How many matches of `type` there are */
+  count: number;
+  /** The session's other types, with their own average score */
+  others: { type: string; count: number; avg: number }[];
+}
+
 export interface SessionStats {
+  /** Average match score of the headline matches (`headline`) */
   avgScore: number;
-  maxScore: number;
-  minScore: number;
-  /** Average points from each scoring element */
+  /**
+   * The matches the average, the typical swing and the per-element averages
+   * are taken from: every one, or in a session of mixed types the ones of
+   * its commonest type (`headlineMatches`), as Best and Worst are.
+   */
+  headline: HeadlineStats;
+  /** Average points from each scoring element, per headline match */
   avgGarden: number;
   avgTipping: number;
   avgFlower: number;
@@ -254,13 +282,20 @@ export interface SessionStats {
   /** Leave and both Parks together (`ELEMENT_LABELS.robots`) */
   avgRobots: number;
   /**
-   * Average points per match this alliance's fouls gave the opponent.
-   * Not part of any score here.
+   * Average points per match this alliance's fouls gave the opponent, over
+   * every match (a foul costs the same in any type). Not part of any score.
    */
   avgPenalties: number;
-  /** Percentage of robot-matches with an auto that left; null if no auto was run */
+  /**
+   * Percentage of robot-matches with an auto that left; null if no auto was
+   * run. Of the headline matches, as the average is: an Auto run's chances
+   * aren't a full game's.
+   */
   leaveRate: number | null;
-  /** Percentage of park opportunities converted, counting only periods that were run */
+  /**
+   * Percentage of park opportunities converted, counting only periods that
+   * were run, in the headline matches
+   */
   parkRate: number | null;
   /** The counts behind `leaveRate` and `parkRate` */
   leaves: Tally;
@@ -269,16 +304,19 @@ export interface SessionStats {
   avgCycle: number | null;
   /** How many tip-to-tip gaps `avgCycle` is the average of */
   cycleCount: number;
+  /** How many tips those gaps run between (`timedTipsOf`) */
+  cycleTips: number;
   /**
-   * How far a match typically lands from the average, in points (the
-   * standard deviation of the scores). Null with fewer than two matches.
+   * How far a headline match typically lands from their average, in points
+   * (the standard deviation of their scores). Null with fewer than two.
    */
   scoreSpread: number | null;
-  /** Ranking points earned from scoring alone (SWARM, POLLINATOR 1 and 2) */
+  /**
+   * Ranking points earned from scoring alone (SWARM, POLLINATOR 1 and 2) in
+   * the headline matches
+   */
   rankingPoints: RankingPointTally;
   totalMatches: number;
-  bestMatch: number;
-  worstMatch: number;
 }
 
 /**
@@ -293,39 +331,18 @@ const mean = (values: number[]) =>
 /** One decimal place, so per-element averages still add up to the total. */
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/**
- * Leaves and parks made, out of the chances the periods that were run gave.
- * Counted the way `robotRates` counts them, which only reports percentages.
- */
-const robotTallies = (matches: Match[]): { leaves: Tally; parks: Tally } => {
-  const leaves: Tally = { made: 0, chances: 0 };
-  const parks: Tally = { made: 0, chances: 0 };
-  for (const m of matches) {
-    if (includesAuto(m.matchType)) {
-      leaves.chances += 2;
-      leaves.made += (m.robot1Leave ? 1 : 0) + (m.robot2Leave ? 1 : 0);
-      parks.chances += 2;
-      parks.made += (m.robot1ParkAuto ? 1 : 0) + (m.robot2ParkAuto ? 1 : 0);
-    }
-    if (includesTeleop(m.matchType)) {
-      parks.chances += 2;
-      parks.made += (m.robot1ParkTeleop ? 1 : 0) + (m.robot2ParkTeleop ? 1 : 0);
-    }
-  }
-  return { leaves, parks };
-};
-
 export const computeStats = (matches: Match[]): SessionStats | null => {
   if (matches.length === 0) return null;
 
-  const scores = matches.map(scoreOf);
+  // In a session of mixed types the score figures are about one type only
+  const headline = headlineMatches(matches);
+  const scores = headline.matches.map(scoreOf);
   const avgScore = mean(scores);
-  const maxScore = Math.max(...scores);
-  const minScore = Math.min(...scores);
 
-  const breakdowns = matches.map(m => calculateScore(m));
+  const breakdowns = headline.matches.map(m => calculateScore(m));
 
-  const { leaveRate, parkRate } = robotRates(matches);
+  // The rates beside the average are of the same matches
+  const { leaveRate, parkRate } = robotRates(headline.matches);
 
   const allCycles = matches.flatMap(cycleTimesOf);
 
@@ -333,26 +350,35 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
 
   return {
     avgScore: Math.round(avgScore),
-    maxScore,
-    minScore,
+    headline: {
+      type: headline.type,
+      mixed: headline.mixed,
+      count: headline.matches.length,
+      others: headline.others.map(({ type, count }) => ({
+        type,
+        count,
+        avg: Math.round(
+          mean(matches.filter(m => typeOf(m) === type).map(scoreOf))
+        ),
+      })),
+    },
     avgGarden: round1(mean(breakdowns.map(b => b.garden))),
     avgTipping: round1(mean(breakdowns.map(b => b.tipping))),
     avgFlower: round1(mean(breakdowns.map(b => b.flower))),
     avgFlowerBonus: round1(mean(breakdowns.map(b => b.flowerBonus))),
     avgHive: round1(mean(breakdowns.map(b => b.hive))),
     avgRobots: round1(mean(breakdowns.map(b => b.leave + b.park))),
-    avgPenalties: round1(mean(breakdowns.map(b => b.penalties))),
+    avgPenalties: round1(mean(matches.map(m => calculateScore(m).penalties))),
     leaveRate,
     parkRate,
-    ...robotTallies(matches),
+    ...robotTallies(headline.matches),
     avgCycle:
       allCycles.length > 0 ? Math.round(mean(allCycles) * 100) / 100 : null,
     cycleCount: allCycles.length,
-    scoreSpread: matches.length < 2 ? null : Math.round(Math.sqrt(variance)),
-    rankingPoints: rankingPointTally(matches),
+    cycleTips: matches.reduce((sum, m) => sum + timedTipsOf(m), 0),
+    scoreSpread: scores.length < 2 ? null : Math.round(Math.sqrt(variance)),
+    rankingPoints: rankingPointTally(headline.matches),
     totalMatches: matches.length,
-    bestMatch: scores.indexOf(maxScore),
-    worstMatch: scores.indexOf(minScore),
   };
 };
 
@@ -402,8 +428,9 @@ interface Ranking {
   peers: (index: number) => number[];
   /**
    * The best and worst match for the Summary: of the whole session, or in a
-   * mixed one of the largest type that has them (`type` names it). Null when
-   * there is no pair to tell apart.
+   * mixed one of the commonest type that has them (`type` names it), the
+   * type the average is about whenever it has a pair. Null when there is no
+   * pair to tell apart.
    */
   headline: { best: number; worst: number; type: string | null } | null;
 }
@@ -418,8 +445,10 @@ const rankMatches = (matches: Match[]): Ranking => {
   });
 
   const ranks = new Map<number, 'best' | 'worst'>();
+  /** The groups' types in the order they head the Summary */
+  const order = typesByCount(matches).map(({ type }) => type);
   let headline: Ranking['headline'] = null;
-  let headlineSize = 0;
+  let headlineRank = Infinity;
   for (const [type, members] of groups) {
     if (members.length < 2) continue;
     const memberScores = members.map(i => scores[i]);
@@ -430,8 +459,9 @@ const rankMatches = (matches: Match[]): Ranking => {
     const worst = members[memberScores.indexOf(min)];
     ranks.set(best, 'best');
     ranks.set(worst, 'worst');
-    if (members.length > headlineSize) {
-      headlineSize = members.length;
+    const rank = mixed ? order.indexOf(type) : 0;
+    if (rank < headlineRank) {
+      headlineRank = rank;
       headline = { best, worst, type: mixed ? type : null };
     }
   }
@@ -464,7 +494,13 @@ const rowSum = (row: ScoreRow): string => {
   return unit === undefined ? `${row.count}` : `${row.count} × ${unit}`;
 };
 
-/** Penalties come at two values, so their sum has two terms. */
+/** A stored foul count as a number: anything unusable is none */
+const foulCount = (value: unknown): number => {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+/** Fouls come at two values, so their sum has two terms. */
 const foulSum = (m: Match): string => {
   const minor = m.minorPenalties ?? 0;
   const major = m.majorPenalties ?? 0;
@@ -480,7 +516,9 @@ export type TabId = 'summary' | 'matches' | 'compare';
 export const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: 'summary', label: 'Summary', icon: BarChart3 },
   { id: 'matches', label: 'Matches', icon: LayoutList },
-  { id: 'compare', label: 'Compare', icon: ArrowRightLeft },
+  // Two matches of this session. Not 'Compare', the page of sessions side
+  // by side, and short enough for one line in a 320px wide tab bar.
+  { id: 'compare', label: 'Side by Side', icon: ArrowRightLeft },
 ];
 
 /** DOM ids tying each tab button to the panel it shows */
@@ -585,9 +623,9 @@ const durationLabel = (duration: string): string => {
 };
 
 /**
- * The line under a session's name that says what it was and when:
- * "Practice · Full Game · Wed, Sep 30, 2026 · 6 matches · 48 min".
- * Whatever isn't known is left out.
+ * The line under a session's name that says what it was and when: Practice,
+ * Full Game, Wed, Sep 30, 2026, 6 matches, 48 min, each part set apart by
+ * space alone. Whatever isn't known is left out.
  */
 export const SessionMeta = ({
   sessionType,
@@ -639,24 +677,17 @@ export const SessionMeta = ({
   ];
 
   return (
-    // Every part carries the dot before it, in its own left padding. The
-    // line is pulled left by that much inside a box that clips, so the dot
-    // of the first part on each line falls outside and is cut off: no line
-    // starts or ends with a dot.
-    <div className="overflow-hidden">
-      <p
-        className={`-ml-5 flex flex-wrap gap-y-0.5 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
-      >
-        {parts.map(part => (
-          <span key={part.key} className="relative pl-5 whitespace-nowrap">
-            <span aria-hidden className="absolute left-0 w-5 text-center">
-              ·
-            </span>
-            {part.node}
-          </span>
-        ))}
-      </p>
-    </div>
+    <p
+      className={`flex flex-wrap gap-x-4 gap-y-0.5 text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+    >
+      {parts.map((part, i) => (
+        <span key={part.key} className="whitespace-nowrap">
+          {part.node}
+          {/* The gap sets the parts apart on screen; a pause, when read */}
+          {i < parts.length - 1 && <span className="sr-only">,</span>}
+        </span>
+      ))}
+    </p>
   );
 };
 
@@ -668,22 +699,36 @@ const NOTES_WHOLE_LINES = 5;
 /**
  * A session's notes. With `clamp` only the first three lines show until
  * "Show more" is pressed, so long notes don't push the charts down.
+ *
+ * With `onSave` (a session its viewer may change) the card is there even
+ * with no notes yet, and Edit (or Add notes) opens them in the scoring
+ * page's notes box, with Save and Cancel: notes are mostly written after
+ * practice, at the review.
  */
 export const SessionNotes = ({
   notes,
   isDarkMode,
   clamp = false,
+  onSave,
 }: {
   /** Rich-text HTML as stored; sanitized here */
   notes: string;
   isDarkMode: boolean;
   clamp?: boolean;
+  /** Save changed notes; resolves to whether they were saved */
+  onSave?: (notes: string) => Promise<boolean>;
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [clampHeight, setClampHeight] = useState<number | null>(null);
   const [overflows, setOverflows] = useState(false);
+  /** The notes as edited so far, while they are open for editing */
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const bodyId = useId();
+  const titleId = useId();
+  const editing = draft !== null;
 
   // Whether there is more than three lines can only be measured, and
   // changes with the width of the page.
@@ -698,32 +743,129 @@ export const SessionNotes = ({
     });
     observer.observe(body);
     return () => observer.disconnect();
-  }, [clamp, notes]);
+  }, [clamp, notes, editing]);
+
+  // Opening them is asking to write: the caret goes at the end.
+  useEffect(() => {
+    if (!editing) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }, [editing]);
+
+  const save = async () => {
+    if (draft === null || !onSave || saving) return;
+    // Nothing typed is no notes, not an empty paragraph
+    const next = htmlToText(draft).trim() === '' ? '' : draft;
+    if (next === notes) {
+      setDraft(null);
+      return;
+    }
+    setSaving(true);
+    const saved = await onSave(next);
+    setSaving(false);
+    if (saved) setDraft(null);
+  };
 
   const clamped = clamp && overflows && !expanded;
+  const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
+
+  if (!notes && !onSave) return null;
 
   return (
     <div className={cardClass(isDarkMode)}>
       {/* Titled like the cards above it */}
-      <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>Notes</h2>
-      {/* contain:paint keeps whatever the notes hold inside this box */}
-      <div
-        ref={bodyRef}
-        id={bodyId}
-        style={clamped && clampHeight ? { maxHeight: clampHeight } : undefined}
-        className={`[contain:paint] relative overflow-hidden text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${isDarkMode ? "text-team-white-60 [&_[style*='background-color']]:text-black" : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(notes) }}
-      />
-      {clamp && overflows && (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-controls={bodyId}
-          onClick={() => setExpanded(v => !v)}
-          className="mt-1 inline-flex items-center text-sm font-semibold text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
-        >
-          {expanded ? 'Show less' : 'Show more'}
-        </button>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 id={titleId} className={SECTION_TITLE_CLASS}>
+          Notes
+        </h2>
+        {onSave && !editing && (
+          <button
+            type="button"
+            onClick={() => setDraft(notes)}
+            className={`-my-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${TOUCH_TARGET} ${
+              isDarkMode
+                ? 'text-team-white-60 hover:text-white hover:bg-white/5'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            {notes ? (
+              <>
+                <Edit size={15} aria-hidden /> Edit
+              </>
+            ) : (
+              <>
+                <Pencil size={15} aria-hidden /> Add notes
+              </>
+            )}
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="space-y-3">
+          <NotesEditor
+            html={notes}
+            onChange={setDraft}
+            labelledBy={titleId}
+            editorRef={editorRef}
+          />
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="neutral"
+              size="touch"
+              disabled={saving}
+              onClick={() => setDraft(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="touch"
+              disabled={saving}
+              aria-busy={saving}
+              onClick={() => void save()}
+              // The view's one fill while the notes are open: the header's
+              // New Session steps back
+              data-page-primary
+            >
+              {saving ? 'Saving…' : 'Save notes'}
+            </Button>
+          </div>
+        </div>
+      ) : !notes ? (
+        <p className={`text-sm ${muted}`}>No notes yet.</p>
+      ) : (
+        <>
+          {/* contain:paint keeps whatever the notes hold inside this box */}
+          <div
+            ref={bodyRef}
+            id={bodyId}
+            style={
+              clamped && clampHeight ? { maxHeight: clampHeight } : undefined
+            }
+            className={`[contain:paint] relative overflow-hidden text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${isDarkMode ? "text-team-white-60 [&_[style*='background-color']]:text-black" : 'text-gray-600'} [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5`}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(notes) }}
+          />
+          {clamp && overflows && (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={bodyId}
+              onClick={() => setExpanded(v => !v)}
+              className="mt-1 inline-flex items-center text-sm font-semibold text-team-blue underline underline-offset-4 [@media(pointer:coarse)]:min-h-11"
+            >
+              {expanded ? 'Show less' : 'Show more'}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -992,6 +1134,7 @@ export const SummaryTab = ({
   });
 
   const n = stats.totalMatches;
+  const head = stats.headline;
   const trendColumns = useColumnPadding(n);
   const cycleColumns = useColumnPadding(n);
   /** A line through one point says nothing */
@@ -999,12 +1142,14 @@ export const SummaryTab = ({
   const nothingScored = matches.every(m => scoreOf(m) === 0);
 
   // The average is a series of its own so the legend and the tooltip name
-  // the dashed line.
+  // the dashed line. In a session of mixed types it is the average of one
+  // type, drawn across that type's matches only.
   const trendData = matches.map((m, i) => ({
     ...matchRow(m, i),
     score: scoreOf(m),
-    average: stats.avgScore,
+    average: !head.mixed || typeOf(m) === head.type ? stats.avgScore : null,
   }));
+  const averageName = head.mixed ? `${head.type} average` : 'Session average';
 
   const elementData = matches.map((m, i) => {
     const b = calculateScore(m);
@@ -1019,12 +1164,22 @@ export const SummaryTab = ({
     };
   });
 
+  // In points, as the tile above and Charts give them: two minor fouls are
+  // 10, one major 20, and the bars rank the matches that way.
   const penaltyData = matches.map((m, i) => ({
     ...matchRow(m, i),
-    minor: m.minorPenalties ?? 0,
-    major: m.majorPenalties ?? 0,
+    minor: foulCount(m.minorPenalties) * POINTS.MINOR_PENALTY,
+    major: foulCount(m.majorPenalties) * POINTS.MAJOR_PENALTY,
   }));
   const hasPenalties = penaltyData.some(d => d.minor + d.major > 0);
+  /** A bar's value with the fouls behind it: "2 (10 pts)" */
+  const foulValue = (points: number, name: string) => {
+    const each =
+      name === ELEMENT_LABELS.major
+        ? POINTS.MAJOR_PENALTY
+        : POINTS.MINOR_PENALTY;
+    return `${points / each} (${formatPts(points)})`;
+  };
 
   // Every match keeps its column, so one without tip times (entered after
   // the fact) is a gap in the line rather than a column that isn't there.
@@ -1070,18 +1225,49 @@ export const SummaryTab = ({
   const avgMax = Math.max(1, ...avgRows.map(r => Math.abs(r.value)));
 
   const rp = stats.rankingPoints;
+  const rated = headlineMatches(matches).matches;
+  // No match could earn SWARM: one robot can't reach it, nor can a match
+  // with no Auto period
+  const swarmLine =
+    rp.swarmChances > 0
+      ? `${rp.swarm}/${rp.swarmChances}`
+      : swarmMissing(rated);
+  // With no Auto period SWARM isn't counted at all, which the rate's count
+  // says, as the Sessions card, Charts and Compare do
+  const noAuto =
+    rated.length > 0 && !rated.some(m => includesAuto(m.matchType));
+  /**
+   * In a session of mixed types the rates are of the headline type's
+   * matches, as the average is: their counts say so.
+   */
+  const ofType = head.mixed ? ` in ${head.type}` : '';
+  const rateScope = head.mixed
+    ? ` Only the ${head.type} matches count, as for the average.`
+    : '';
+
   // Best and worst only where two matches can be told apart, and in a
   // session of mixed types only among matches of one type.
   const top = rankMatches(matches).headline;
   const numberOf = (index: number) => matches[index]?.matchNumber ?? index + 1;
   const [pollinator1, pollinator2] = RANKING_POINTS.POLLINATOR_TIPS;
 
+  /** The other types' own averages, said where the average leaves them out */
+  const otherAverages = head.others
+    .map(
+      other =>
+        `${other.type}: ${other.avg} average over ${plural(other.count, 'match', 'matches')}.`
+    )
+    .join(' ');
+
   const tiles: (Omit<StatTileProps, 'isDarkMode'> & { key: string })[] = [
     {
       key: 'average',
-      label: 'Average Score',
+      label: head.mixed ? `Average ${head.type}` : 'Average Score',
       value: stats.avgScore,
-      caption: `across ${plural(n, 'match', 'matches')}`,
+      caption: `across ${plural(head.count, 'match', 'matches')}`,
+      info: head.mixed
+        ? `Only the ${head.type} matches: other types can't score what they do. ${otherAverages}`
+        : undefined,
     },
     ...(top
       ? [
@@ -1107,8 +1293,15 @@ export const SummaryTab = ({
       key: 'swing',
       label: 'Typical swing',
       value: stats.scoreSpread === null ? null : `±${stats.scoreSpread} pts`,
-      caption: stats.scoreSpread === null ? 'needs 2+ matches' : undefined,
-      info: 'How far a match usually lands from the average score (the standard deviation of the match scores).',
+      caption:
+        stats.scoreSpread === null
+          ? 'needs 2+ matches'
+          : head.mixed
+            ? `${head.type} matches`
+            : undefined,
+      info: head.mixed
+        ? `How far a ${head.type} match usually lands from their average (the standard deviation of their scores).`
+        : 'How far a match usually lands from the average score (the standard deviation of the match scores).',
     },
     {
       key: 'leave',
@@ -1117,8 +1310,10 @@ export const SummaryTab = ({
       caption:
         stats.leaveRate === null
           ? 'no Auto period'
-          : `Leave ${stats.leaves.made} of ${stats.leaves.chances}`,
-      info: 'Robots that left in Auto, out of two for every match that ran an Auto period.',
+          : head.mixed
+            ? `${stats.leaves.made} of ${stats.leaves.chances}${ofType}`
+            : `Leave ${stats.leaves.made} of ${stats.leaves.chances}`,
+      info: `Robots that left in Auto, out of the robots played in every match that ran an Auto period.${rateScope}`,
     },
     {
       key: 'park',
@@ -1127,24 +1322,40 @@ export const SummaryTab = ({
       caption:
         stats.parkRate === null
           ? 'no park chances'
-          : `Park ${stats.parks.made} of ${stats.parks.chances}`,
-      info: 'Parks made out of the chances: two robots at the end of Auto and two at the end of the match, for the periods each match ran.',
+          : head.mixed
+            ? `${stats.parks.made} of ${stats.parks.chances}${ofType}`
+            : `Park ${stats.parks.made} of ${stats.parks.chances}`,
+      info: `Parks made out of the chances: each robot played, at the end of Auto and again at the end of the match, for the periods each match ran.${rateScope}`,
     },
     {
       key: 'rp',
       label: 'RP Rate',
       value: rp.rate === null ? null : `${rp.rate}%`,
-      caption: `${rp.earned} of ${rp.possible} RP`,
+      caption: (
+        <>
+          {head.mixed
+            ? `${rp.earned} of ${rp.possible}${ofType}`
+            : `${rp.earned} of ${rp.possible} RP`}
+          {noAuto && <span className="block">SWARM {swarmMissing(rated)}</span>}
+        </>
+      ),
       info: (
         <>
           <span className="block">
-            Share of the ranking points scoring can earn, three a match: SWARM
-            at {RANKING_POINTS.SWARM_ROBOT_POINTS} Leave + Park points,
-            POLLINATOR at {pollinator1} and at {pollinator2} Hive Tips.
+            Share of the ranking points scoring could earn: POLLINATOR at{' '}
+            {pollinator1} and at {pollinator2} Hive Tips in every match, and
+            SWARM at {RANKING_POINTS.SWARM_ROBOT_POINTS} Leave + Park points in
+            a match played with 2 robots and an Auto period.{rateScope}
           </span>
+          {/* Each ranking point stays on one line with its count */}
           <span className="block mt-1.5 tabular-nums">
-            SWARM {rp.swarm}/{n} · POLLINATOR 1 {rp.pollinator1}/{n} ·
-            POLLINATOR 2 {rp.pollinator2}/{n}
+            <span className="whitespace-nowrap">SWARM {swarmLine},</span>{' '}
+            <span className="whitespace-nowrap">
+              POLLINATOR 1 {rp.pollinator1}/{head.count},
+            </span>{' '}
+            <span className="whitespace-nowrap">
+              POLLINATOR 2 {rp.pollinator2}/{head.count}
+            </span>
           </span>
         </>
       ),
@@ -1156,7 +1367,7 @@ export const SummaryTab = ({
             key: 'cycle',
             label: 'Avg time between tips',
             value: `${stats.avgCycle.toFixed(1)}s`,
-            caption: `over ${plural(stats.cycleCount, 'gap')}`,
+            caption: `from ${plural(stats.cycleTips, 'tip')}`,
             info: 'Average seconds from one Hive Tip to the next within a match, from tips tapped live.',
           },
         ]
@@ -1167,8 +1378,7 @@ export const SummaryTab = ({
             key: 'penalties',
             label: 'Avg points given to opponent',
             value: stats.avgPenalties,
-            caption:
-              "per match, from this team's penalties · not part of the score",
+            caption: "per match, from this team's fouls, not part of the score",
           },
         ]
       : []),
@@ -1208,7 +1418,9 @@ export const SummaryTab = ({
                 style={chartStyle}
                 {...chartA11y(
                   'Score trend',
-                  'The final score of each match, with the session average as a dashed line.'
+                  head.mixed
+                    ? `The final score of each match, with the ${head.type} average as a dashed line.`
+                    : 'The final score of each match, with the session average as a dashed line.'
                 )}
               >
                 <CartesianGrid
@@ -1246,13 +1458,15 @@ export const SummaryTab = ({
                 />
                 <Line
                   dataKey="average"
-                  name="Session average"
+                  name={averageName}
                   stroke={colors.average}
                   strokeWidth={1.5}
                   strokeDasharray="4 4"
                   legendType="plainline"
                   dot={false}
                   activeDot={false}
+                  // Across the other types' matches, where it has no value
+                  connectNulls
                   isAnimationActive={false}
                 />
               </LineChart>
@@ -1265,7 +1479,20 @@ export const SummaryTab = ({
         </ChartNote>
       )}
 
-      <Section title="Where the Points Came From" isDarkMode={isDarkMode}>
+      <Section
+        title="Points by Element"
+        // Per match of the type the average is about
+        action={
+          head.mixed && (
+            <span
+              className={`text-sm ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+            >
+              Per {head.type} match
+            </span>
+          )
+        }
+        isDarkMode={isDarkMode}
+      >
         <div className="space-y-4">
           {avgRows.map(row => (
             <ElementBar
@@ -1336,10 +1563,7 @@ export const SummaryTab = ({
           className={`grid grid-cols-1 gap-4 sm:gap-6 ${fouls && showTimes ? 'lg:grid-cols-2' : ''}`}
         >
           {fouls && (
-            <Section
-              title="Penalties (points to the opponent)"
-              isDarkMode={isDarkMode}
-            >
+            <Section title="Points Given to Opponent" isDarkMode={isDarkMode}>
               {hasPenalties ? (
                 <div data-chart="penalties">
                   <ResponsiveContainer width="100%" height={260}>
@@ -1348,8 +1572,8 @@ export const SummaryTab = ({
                       onClick={openFromChart('penalties', penaltyData)}
                       style={chartStyle}
                       {...chartA11y(
-                        'Penalties by match',
-                        'Minor and major penalties in each match; their points go to the opponent.'
+                        'Points given to the opponent by match',
+                        'The points minor and major fouls gave the opponent in each match, stacked. They are never taken off the score.'
                       )}
                     >
                       <CartesianGrid
@@ -1370,6 +1594,8 @@ export const SummaryTab = ({
                           <ChartTooltip
                             isDarkMode={isDarkMode}
                             titleKey="title"
+                            formatValue={foulValue}
+                            formatTotal={formatPts}
                             hint={tooltipHint}
                           />
                         }
@@ -1378,12 +1604,14 @@ export const SummaryTab = ({
                       <Bar
                         dataKey="minor"
                         name={ELEMENT_LABELS.minor}
+                        stackId="fouls"
                         fill={colors.minor}
                         maxBarSize={MAX_BAR_SIZE}
                       />
                       <Bar
                         dataKey="major"
                         name={ELEMENT_LABELS.major}
+                        stackId="fouls"
                         fill={colors.major}
                         maxBarSize={MAX_BAR_SIZE}
                       />
@@ -1392,7 +1620,7 @@ export const SummaryTab = ({
                 </div>
               ) : (
                 <EmptyChart
-                  message="No penalties recorded · nice driving"
+                  message="No fouls this session"
                   isDarkMode={isDarkMode}
                 />
               )}
@@ -1501,85 +1729,6 @@ const RankMark = ({
 };
 
 /**
- * How long the Delete in a just-opened question ignores presses, so the
- * second tap of a double tap can't answer it.
- */
-const CONFIRM_ARM_MS = 500;
-
-/**
- * "Delete Match 3 (31 pts)?" in place of the buttons that asked. Keep sits
- * on the right, where Delete was, so a second press on the same spot
- * changes nothing; it also takes the keyboard focus.
- */
-const DeleteMatchConfirm = ({
-  question,
-  onKeep,
-  onDelete,
-  isDarkMode,
-}: {
-  question: string;
-  onKeep: () => void;
-  onDelete: () => void;
-  isDarkMode: boolean;
-}) => {
-  const questionId = useId();
-  const keepRef = useRef<HTMLButtonElement>(null);
-  const shownAt = useRef(0);
-
-  useEffect(() => {
-    shownAt.current = Date.now();
-    keepRef.current?.focus({ preventScroll: true });
-  }, []);
-
-  const button =
-    'inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-semibold transition-colors [@media(pointer:coarse)]:min-h-11';
-
-  return (
-    <div
-      role="group"
-      aria-labelledby={questionId}
-      onKeyDown={e => {
-        if (e.key === 'Escape') onKeep();
-      }}
-      // One row at any width - a long question wraps within itself - so the
-      // buttons stay where the ones they replace were.
-      className="flex items-center justify-end gap-2 ml-auto min-w-0"
-    >
-      <p
-        id={questionId}
-        className={`min-w-0 text-right text-sm font-semibold leading-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-      >
-        {question}
-      </p>
-      <div className="flex gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={() => {
-            if (Date.now() - shownAt.current >= CONFIRM_ARM_MS) onDelete();
-          }}
-          className={`${button} ${DESTRUCTIVE_CLASS}`}
-        >
-          Delete
-        </button>
-        <button
-          ref={keepRef}
-          type="button"
-          onClick={onKeep}
-          // As wide as the Delete button it replaces, to cover all of it
-          className={`${button} min-w-[5.75rem] ${
-            isDarkMode
-              ? 'border-team-blue-40 text-white hover:bg-white/5'
-              : 'border-gray-300 text-gray-800 hover:bg-gray-50'
-          }`}
-        >
-          Keep
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/**
  * How far in from an edge of the match strip its chips fade out, while the
  * strip runs on past that edge. A chip cut off there then reads as "more
  * this way", not as the end of the row.
@@ -1629,7 +1778,6 @@ export const MatchDetailTab = ({
   sessionType?: SessionType;
 }) => {
   const [ownIdx, setOwnIdx] = useState(0);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   /** Whether the strip runs on past its left and its right edge */
   const [moreLeft, setMoreLeft] = useState(false);
@@ -1637,6 +1785,11 @@ export const MatchDetailTab = ({
 
   // Clamped here rather than stored: the list shrinks under it on a delete.
   const idx = Math.max(0, Math.min(selectedIdx ?? ownIdx, matches.length - 1));
+  // Delete acts at once (with an Undo), and the next match takes the place
+  // of the one deleted: Delete ignores presses for a moment after the list
+  // changes, so the second tap of a double tap can't delete that one too.
+  // Picking another match leaves it armed.
+  const deleteArmed = useArmed(undefined, matches.length);
   const select = (index: number) => {
     setOwnIdx(index);
     onSelect?.(index);
@@ -1720,7 +1873,6 @@ export const MatchDetailTab = ({
   const showDiff = peers.length >= 2;
   const rp = rankingPoints(match);
   const rpBadges = rankingPointNames(rp);
-  const confirming = confirmDeleteId === match.id;
 
   const outline = isDarkMode
     ? 'border-team-blue-40 text-white hover:bg-white/5'
@@ -1772,7 +1924,8 @@ export const MatchDetailTab = ({
             <button
               key={m.id}
               type="button"
-              aria-label={`Match ${m.matchNumber}, ${plural(scoreOf(m), 'point')}${chipRank ? `, ${chipRank} ${ranking.mixed ? typeOf(m) : 'match'}` : ''}`}
+              // Led by what the chip shows ('M1'), so speech can press it
+              aria-label={`M${m.matchNumber}, Match ${m.matchNumber}, ${plural(scoreOf(m), 'point')}${chipRank ? `, ${chipRank} ${ranking.mixed ? typeOf(m) : 'match'}` : ''}`}
               aria-pressed={i === idx}
               onClick={() => select(i)}
               className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors [@media(pointer:coarse)]:min-h-11 ${
@@ -1834,7 +1987,7 @@ export const MatchDetailTab = ({
               className={`${SECTION_TITLE_CLASS} flex items-baseline gap-x-2 flex-wrap`}
             >
               Match {match.matchNumber}
-              <span className={`font-medium ${muted}`}>· {typeOf(match)}</span>
+              <span className={`font-medium ${muted}`}>{typeOf(match)}</span>
             </h2>
             <p className={`text-sm tabular-nums ${muted}`}>
               <span className="font-semibold text-foreground">
@@ -1842,7 +1995,7 @@ export const MatchDetailTab = ({
               </span>
               {showDiff && (
                 <>
-                  {' · '}
+                  {', '}
                   <span className={`font-semibold ${diffTone}`}>
                     {formatDiff(diff)}
                   </span>{' '}
@@ -1853,49 +2006,39 @@ export const MatchDetailTab = ({
           </div>
         </div>
 
-        {confirming && onDelete ? (
-          <DeleteMatchConfirm
-            question={`Delete Match ${match.matchNumber} (${plural(score, 'pt')})?`}
-            onKeep={() => setConfirmDeleteId(null)}
-            onDelete={() => {
-              setConfirmDeleteId(null);
-              onDelete(match.id);
-            }}
-            isDarkMode={isDarkMode}
-          />
-        ) : (
-          (onEdit || onDelete) && (
-            <div className="flex items-center gap-1 ml-auto">
-              {onEdit && (
-                <button
-                  type="button"
-                  onClick={() => onEdit(match)}
-                  className={`${quietButton} ${
-                    isDarkMode
-                      ? 'text-team-white-60 hover:text-white hover:bg-white/5'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Edit size={15} aria-hidden /> Edit
-                </button>
-              )}
-              {/* Rightmost, as wide as Keep, which takes its place when it
-                  asks */}
-              {onDelete && (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteId(match.id)}
-                  className={`${quietButton} min-w-[5.75rem] ${
-                    isDarkMode
-                      ? 'text-red-400 hover:bg-red-500/10'
-                      : 'text-red-600 hover:bg-red-50'
-                  }`}
-                >
-                  <Trash2 size={15} aria-hidden /> Delete
-                </button>
-              )}
-            </div>
-          )
+        {(onEdit || onDelete) && (
+          <div className="flex items-center gap-1 ml-auto">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => onEdit(match)}
+                className={`${quietButton} ${
+                  isDarkMode
+                    ? 'text-team-white-60 hover:text-white hover:bg-white/5'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Edit size={15} aria-hidden /> Edit
+              </button>
+            )}
+            {/* Deletes at once; the toast it leaves has the Undo */}
+            {onDelete && (
+              <button
+                type="button"
+                aria-label={`Delete Match ${match.matchNumber}`}
+                onClick={() => {
+                  if (deleteArmed) onDelete(match.id);
+                }}
+                className={`${quietButton} ${
+                  isDarkMode
+                    ? 'text-red-400 hover:bg-red-500/10'
+                    : 'text-red-600 hover:bg-red-50'
+                }`}
+              >
+                <Trash2 size={15} aria-hidden /> Delete
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -1911,7 +2054,7 @@ export const MatchDetailTab = ({
               <StatTile
                 label="Avg time between tips"
                 value={`${mean(cycles).toFixed(1)}s`}
-                caption={`over ${plural(cycles.length, 'gap')}`}
+                caption={`from ${plural(timedTipsOf(match), 'tip')}`}
                 info="Average seconds from one Hive Tip to the next in this match, from tips tapped live."
                 isDarkMode={isDarkMode}
               />
@@ -2069,8 +2212,8 @@ export const CompareTab = ({
 
   // The letter tells the two sides apart even when they share a match
   // number (sessions edited before deletes renumbered) or are one match.
-  const aLabel = `A · Match ${a.matchNumber}`;
-  const bLabel = `B · Match ${b.matchNumber}`;
+  const aLabel = `A (Match ${a.matchNumber})`;
+  const bLabel = `B (Match ${b.matchNumber})`;
 
   const cellTone = isDarkMode ? 'text-gray-300' : 'text-gray-700';
   const mutedTone = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
@@ -2099,7 +2242,7 @@ export const CompareTab = ({
           const r = ranking.rank(i);
           return (
             <option key={m.id} value={i}>
-              Match {m.matchNumber} · {plural(scoreOf(m), 'pt')}
+              Match {m.matchNumber}, {plural(scoreOf(m), 'pt')}
               {/* Ranked within its type when the session mixes them */}
               {r ? ` (${r}${ranking.mixed ? ` ${typeOf(m)}` : ''})` : ''}
             </option>
@@ -2244,9 +2387,7 @@ export const CompareTab = ({
     <td className="text-right tabular-nums py-1.5 align-top">
       <span className="block font-semibold">{row.points}</span>
       <span className={`block text-xs ${mutedTone}`}>
-        {row.informational
-          ? plural(row.count, 'penalty', 'penalties')
-          : rowSum(row)}
+        {row.informational ? plural(row.count, 'foul', 'fouls') : rowSum(row)}
       </span>
     </td>
   );
@@ -2295,7 +2436,7 @@ export const CompareTab = ({
         {typeOf(a) !== typeOf(b) && (
           <span className={mutedTone}>
             {' '}
-            · {typeOf(a)} vs {typeOf(b)}
+            ({typeOf(a)} vs {typeOf(b)})
           </span>
         )}
       </p>
@@ -2311,10 +2452,10 @@ export const CompareTab = ({
                 Element
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
-                A · M{a.matchNumber}
+                A: M{a.matchNumber}
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
-                B · M{b.matchNumber}
+                B: M{b.matchNumber}
               </th>
               <th scope="col" className="text-right font-semibold pb-2">
                 Change
@@ -2499,7 +2640,7 @@ export const LegacySeasonView = ({
                 <span>
                   Match {m.matchNumber || i + 1}
                   {m.matchType && (
-                    <span className={muted}> · {m.matchType}</span>
+                    <span className={muted}>, {m.matchType}</span>
                   )}
                 </span>
                 <span className={`font-bold ${DATA_CLASS}`}>

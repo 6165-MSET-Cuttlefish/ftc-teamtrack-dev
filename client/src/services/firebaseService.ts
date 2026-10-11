@@ -1,17 +1,12 @@
 import {
   collection,
   addDoc,
-  getDocs,
   doc,
   getDoc,
+  setDoc,
   updateDoc,
-  deleteField,
   query,
   where,
-  orderBy,
-  limit,
-  startAfter,
-  onSnapshot,
   runTransaction,
   writeBatch,
   getDocFromServer,
@@ -21,43 +16,35 @@ import {
   type DocumentData,
   type DocumentReference,
   type Firestore,
-  type QueryConstraint,
   type QueryDocumentSnapshot,
-  type Unsubscribe,
 } from 'firebase/firestore';
 import { getFirebase, logger, isAbortError, toDate } from '@/lib';
+import { ShownError } from '@/lib/failure';
 import {
   LEGACY_SEASON,
   normalizeSession,
   seasonOf,
 } from '@/lib/sessionNormalize';
-import { CURRENT_SEASON, SESSION_LIMITS } from '@/constants';
+import { CURRENT_SEASON, SESSION_PAGE_SIZES } from '@/constants';
 import type { Session, CreateSessionData, Match, Team } from '@/types';
+import {
+  SessionFeed,
+  mergeSessions,
+  readSessionPage,
+  type SessionFeedState,
+  type SessionSource,
+} from './sessionFeed';
 import { teamService } from './teamService';
+
+/** What a list calls the user's own sessions (see `SessionFeedState.unread`) */
+export const OWN_SESSIONS = 'own';
 
 /** Firestore allows at most 500 writes in one batch. */
 const BATCH_SIZE = 500;
 
-/**
- * Upper bound on pages read to fill one list. Only reached by an account
- * with thousands of older-season sessions newer than its current ones.
- */
-const MAX_LIST_PAGES = 20;
-
 /** Thrown by the delete paths when they can't confirm what exists. */
 const UNREACHABLE_MESSAGE =
   "Couldn't reach the server, so nothing was deleted. Check your connection and try again.";
-
-/** One query's worth of sessions to list: where to look and what to keep. */
-interface SessionSource {
-  constraints: QueryConstraint[];
-  /** Page size, and the most sessions this source contributes */
-  max: number;
-  keep: (session: Session) => boolean;
-}
-
-const toSession = (snapshot: QueryDocumentSnapshot): Session =>
-  normalizeSession(snapshot.data(), snapshot.id);
 
 /** A share link as listed for someone who can take it down */
 export interface ShareLink {
@@ -79,17 +66,6 @@ export interface ShareLink {
 const isCurrentSeason = (session: Session): boolean =>
   session.season === CURRENT_SEASON;
 
-/** Several lists as one: each session once, newest first. */
-const mergeNewestFirst = (lists: Session[][]): Session[] => {
-  const byId = new Map<string, Session>();
-  for (const session of lists.flat()) {
-    if (!byId.has(session.id)) byId.set(session.id, session);
-  }
-  return [...byId.values()].sort(
-    (a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime()
-  );
-};
-
 /** Firestore rejects `undefined`; drop it from plain objects and arrays. */
 const withoutUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) return value.map(withoutUndefined) as T;
@@ -107,12 +83,9 @@ const withoutUndefined = <T>(value: T): T => {
   return value;
 };
 
+/** A read this viewer isn't allowed: for a single document, it isn't theirs to see */
 const isPermissionDenied = (error: unknown): boolean =>
   (error as { code?: string } | null)?.code === 'permission-denied';
-
-/** Whether a stored session is filed under a team. */
-const hasTeam = (stored: DocumentData | undefined): boolean =>
-  typeof stored?.teamId === 'string' && stored.teamId !== '';
 
 /** String IDs of the matches in a stored `matches` value. */
 const matchIdsOf = (matches: unknown): string[] =>
@@ -198,86 +171,68 @@ class FirebaseService {
       return await read();
     } catch (error) {
       if ((error as { code?: string } | null)?.code === 'unavailable') {
-        throw new Error(UNREACHABLE_MESSAGE);
+        throw new ShownError(UNREACHABLE_MESSAGE);
       }
       throw error;
     }
   }
 
   /**
-   * Read up to `source.max` sessions the source wants to keep, newest first.
+   * Where a list's sessions come from. Without a team: the user's own.
+   * In a team: everything filed under the team, plus the user's own
+   * sessions that aren't (ones they chose not to import when they created
+   * or joined it), which would otherwise vanish from every list the moment
+   * they are on a team. Only this season's are kept.
    *
-   * The season filter runs on the client, after Firestore's `limit`, so one
-   * page is not enough: untagged older-season documents dated after the
-   * current ones would fill the page and push real sessions out of the list.
-   * Pages are read until the list is full or the collection runs out.
-   * `firstPage` lets a snapshot listener supply the page it already has.
-   *
-   * Once scripts/backfill-sessions.mjs has tagged every stored session with
-   * its season, `where('season', '==', CURRENT_SEASON)` in the query can
-   * replace both the client-side filter and this paging.
+   * The season filter runs on the client: once scripts/backfill-sessions.mjs
+   * has tagged every stored session with its season, `where('season', '==',
+   * CURRENT_SEASON)` in the query can replace it (and the reads it skips).
    */
-  private async collectSessions(
-    db: Firestore,
-    source: SessionSource,
-    firstPage?: QueryDocumentSnapshot[]
-  ): Promise<Session[]> {
-    const kept: Session[] = [];
-    let docs = firstPage;
-    let cursor: QueryDocumentSnapshot | undefined;
+  private sessionSources(
+    uid: string | null,
+    teamId?: string | null
+  ): SessionSource[] {
+    const own = (keep: (session: Session) => boolean): SessionSource[] =>
+      uid
+        ? [
+            {
+              constraints: [where('userId', '==', uid)],
+              pageSize: SESSION_PAGE_SIZES.OWN,
+              keep,
+              name: OWN_SESSIONS,
+            },
+          ]
+        : [];
+    if (!teamId) return own(isCurrentSeason);
+    return [
+      {
+        constraints: [where('teamId', '==', teamId)],
+        pageSize: SESSION_PAGE_SIZES.TEAM,
+        keep: isCurrentSeason,
+      },
+      ...own(session => isCurrentSeason(session) && session.teamId !== teamId),
+    ];
+  }
 
-    for (let page = 0; page < MAX_LIST_PAGES; page++) {
-      if (!docs) {
-        const snapshot = await getDocs(
-          query(
-            collection(db, 'sessions'),
-            ...source.constraints,
-            orderBy('createdAt', 'desc'),
-            ...(cursor ? [startAfter(cursor)] : []),
-            limit(source.max)
-          )
-        );
-        docs = snapshot.docs;
-      }
-      for (const snapshot of docs) {
-        const session = toSession(snapshot);
-        if (!source.keep(session)) continue;
-        kept.push(session);
-        if (kept.length >= source.max) return kept;
-      }
-      if (docs.length < source.max) break;
-      cursor = docs[docs.length - 1];
-      docs = undefined;
-    }
-    return kept;
+  /** Every session a source keeps, newest first: read to the end. */
+  private async readAll(db: Firestore, source: SessionSource) {
+    const page = await readSessionPage(db, source, {
+      need: Infinity,
+      maxReads: Infinity,
+    });
+    return page.sessions;
   }
 
   /**
-   * Where a team member's sessions come from: everything filed under the
-   * team, plus their own sessions that aren't (ones they chose not to import
-   * when they created or joined it), which would otherwise vanish from every
-   * list the moment they are on a team.
+   * Create a new session. Under `id` when given, so a retry of the same save
+   * writes over the first attempt rather than adding a second copy. Dated
+   * `createdAt` when given (when it was played), else now.
    */
-  private teamSources(teamId: string, uid: string | null): SessionSource[] {
-    const sources: SessionSource[] = [
-      {
-        constraints: [where('teamId', '==', teamId)],
-        max: SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5, // Allow more for teams
-        keep: isCurrentSeason,
-      },
-    ];
-    if (uid) {
-      sources.push({
-        constraints: [where('userId', '==', uid)],
-        max: SESSION_LIMITS.MAX_SESSIONS_PER_USER,
-        keep: session => isCurrentSeason(session) && session.teamId !== teamId,
-      });
-    }
-    return sources;
-  }
-
-  /** Create a new session */
-  async createSession(sessionData: CreateSessionData): Promise<Session | null> {
+  async createSession(
+    sessionData: CreateSessionData,
+    id?: string,
+    createdAt?: Date
+  ): Promise<Session | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
@@ -286,8 +241,14 @@ class FirebaseService {
         const newSession = {
           ...clean,
           season: CURRENT_SEASON,
-          createdAt: Timestamp.now(),
+          createdAt: createdAt
+            ? Timestamp.fromDate(createdAt)
+            : Timestamp.now(),
         };
+        if (id) {
+          await setDoc(doc(db, 'sessions', id), newSession);
+          return normalizeSession(newSession, id);
+        }
         const docRef = await addDoc(collection(db, 'sessions'), newSession);
         return normalizeSession(newSession, docRef.id);
       },
@@ -298,18 +259,17 @@ class FirebaseService {
   }
 
   /**
-   * Get all sessions for a specific user. Throws when the query fails (no
-   * connection, a missing index), so an empty list always means "none".
+   * Every one of this season's sessions the user owns, newest first, for
+   * choosing which to share with a team (a list is read a page at a time:
+   * see `openSessionFeed`). Throws when the query fails (no connection, a
+   * missing index), so an empty list always means "none".
    */
   async getUserSessions(userId: string): Promise<Session[]> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
-        return this.collectSessions(db, {
-          constraints: [where('userId', '==', userId)],
-          max: SESSION_LIMITS.MAX_SESSIONS_PER_USER,
-          keep: isCurrentSeason,
-        });
+        const [own] = this.sessionSources(userId);
+        return this.readAll(db, own);
       },
       [],
       'Error fetching user sessions:',
@@ -318,150 +278,61 @@ class FirebaseService {
   }
 
   /**
-   * How many current-season sessions the user owns, counted by the server
-   * without downloading them. Throws when the server can't be reached.
-   * Sessions saved before the season tag existed are not counted until
-   * scripts/backfill-sessions.mjs has tagged them.
+   * Open a session list, read a page at a time, newest first: the user's
+   * own, or in a team the team's (see `sessionSources`). `onChange` hears
+   * the list once its first page is in and after every change; the feed's
+   * `ready` settles then too, and rejects when the list can't be read (no
+   * connection, a missing index, no longer in the team). With no connection
+   * a list already read in this visit is shown as it was instead, marked
+   * `offline`. `live` follows the first page as it changes on the server,
+   * reporting failures after that to `onError`. Close the feed when done
+   * with it.
    */
-  async countUserSessions(userId: string): Promise<number> {
-    const db = await this.getDB();
-    const snapshot = await getCountFromServer(
-      query(
-        collection(db, 'sessions'),
-        where('userId', '==', userId),
-        where('season', '==', CURRENT_SEASON)
-      )
-    );
-    return snapshot.data().count;
-  }
-
-  /**
-   * Get all sessions for a specific team, plus the current user's own
-   * sessions that aren't filed under it. Throws when the team's list can't
-   * be read.
-   */
-  async getTeamSessions(teamId: string): Promise<Session[]> {
-    return this.safeExecute(
-      async () => {
-        const db = await this.getDB();
-        const [team, own] = this.teamSources(teamId, await this.signedInUid());
-        const lists = await Promise.all([
-          this.collectSessions(db, team),
-          own
-            ? this.collectSessions(db, own).catch(error => {
-                logger.error('Error fetching own sessions:', error);
-                return [];
-              })
-            : [],
-        ]);
-        return mergeNewestFirst(lists);
-      },
-      [],
-      'Error fetching team sessions:',
-      true
-    );
-  }
-
-  /**
-   * Subscribe to real-time team session updates. Like `getTeamSessions`, the
-   * list includes the current user's own sessions that aren't filed under
-   * the team.
-   */
-  async subscribeTeamSessions(
-    teamId: string,
-    onUpdate: (sessions: Session[]) => void,
+  async openSessionFeed(
+    {
+      uid,
+      teamId,
+      live = false,
+    }: {
+      uid: string;
+      teamId?: string | null;
+      live?: boolean;
+    },
+    onChange: (state: SessionFeedState) => void,
     onError?: (error: Error) => void
-  ): Promise<Unsubscribe> {
+  ): Promise<SessionFeed> {
     const db = await this.getDB();
-    const sources = this.teamSources(teamId, await this.signedInUid());
-    const lists: Array<Session[] | null> = sources.map(() => null);
-    const runs = sources.map(() => 0);
-    let closed = false;
-
-    // Nothing is reported until every source has answered once, so the list
-    // doesn't flash empty (or half-full) while the second query is loading.
-    const publish = () => {
-      if (closed || lists.some(list => list === null)) return;
-      onUpdate(mergeNewestFirst(lists as Session[][]));
-    };
-
-    const unsubscribes = sources.map((source, index) =>
-      onSnapshot(
-        query(
-          collection(db, 'sessions'),
-          ...source.constraints,
-          orderBy('createdAt', 'desc'),
-          limit(source.max)
-        ),
-        async snapshot => {
-          const run = ++runs[index];
-          // Anything thrown in here would otherwise vanish inside the SDK and
-          // leave the page waiting on a list that never arrives.
-          try {
-            const sessions = await this.collectSessions(
-              db,
-              source,
-              snapshot.docs
-            );
-            // A newer snapshot overtook this one while it was paging.
-            if (run !== runs[index]) return;
-            lists[index] = sessions;
-            publish();
-          } catch (error) {
-            logger.error('Error reading team sessions', error);
-            if (!closed) onError?.(error as Error);
-          }
-        },
-        error => {
-          if (index > 0) {
-            // The team's own list still works without the extra sessions.
-            logger.error('Error in own sessions listener', error);
-            lists[index] = lists[index] ?? [];
-            publish();
-            return;
-          }
-          logger.error('Error in team sessions listener', error);
-          onError?.(error);
-        }
-      )
-    );
-
-    return () => {
-      closed = true;
-      unsubscribes.forEach(unsubscribe => unsubscribe());
-    };
+    return new SessionFeed(db, this.sessionSources(uid, teamId), onChange, {
+      live,
+      onError,
+      // Live or not, the same account and team list the same sessions.
+      key: `${uid}|${teamId ?? ''}`,
+    });
   }
 
-  /** Get a single session by ID */
-  async getSession(sessionId: string): Promise<Session | null> {
+  /**
+   * Get a single session by ID: null when it doesn't exist or this viewer
+   * can't read it. By default a failed read is null too; pass `strict` to
+   * have it throw instead, for a page that must not mistake being offline
+   * for a session that isn't there.
+   */
+  async getSession(sessionId: string, strict = false): Promise<Session | null> {
     return this.safeExecute(
       async () => {
         const db = await this.getDB();
         const docRef = doc(db, 'sessions', sessionId);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDoc(docRef).catch(error => {
+          if (isPermissionDenied(error)) return null;
+          throw error;
+        });
 
-        if (!docSnap.exists()) return null;
+        if (!docSnap?.exists()) return null;
 
         return normalizeSession(docSnap.data(), docSnap.id);
       },
       null,
-      'Error fetching session:'
-    );
-  }
-
-  /** Get all sessions for the current user and their teams (comparison view) */
-  async getAllSessions(userId: string): Promise<Session[]> {
-    return this.safeExecute(
-      async () => {
-        const db = await this.getDB();
-        return this.collectSessions(db, {
-          constraints: [where('userId', '==', userId)],
-          max: SESSION_LIMITS.ALL_SESSIONS_QUERY_LIMIT,
-          keep: isCurrentSeason,
-        });
-      },
-      [],
-      'Error fetching all sessions:'
+      'Error fetching session:',
+      strict
     );
   }
 
@@ -475,14 +346,14 @@ class FirebaseService {
     const sources: SessionSource[] = [
       {
         constraints: [where('userId', '==', userId)],
-        max: SESSION_LIMITS.ALL_SESSIONS_QUERY_LIMIT,
+        pageSize: SESSION_PAGE_SIZES.OWN,
         keep: older,
       },
     ];
     if (teamId) {
       sources.push({
         constraints: [where('teamId', '==', teamId)],
-        max: SESSION_LIMITS.MAX_SESSIONS_PER_USER * 5,
+        pageSize: SESSION_PAGE_SIZES.TEAM,
         keep: older,
       });
     }
@@ -526,10 +397,10 @@ class FirebaseService {
         const db = await this.getDB();
         const lists = await Promise.all(
           this.olderSeasonSources(userId, teamId).map(source =>
-            this.collectSessions(db, source)
+            this.readAll(db, source)
           )
         );
-        return mergeNewestFirst(lists);
+        return mergeSessions(lists);
       },
       [],
       'Error fetching older-season sessions:',
@@ -552,10 +423,9 @@ class FirebaseService {
    * Update an existing session.
    *
    * The rules only let an author change a team session while they are still
-   * in that team. For someone who has left it (or was removed), the same
-   * change is retried with the session taken out of the team, which the
-   * rules do allow — otherwise they could never rename or edit their own
-   * old sessions again.
+   * in that team. Someone who has left it (or was removed) is refused, and
+   * the session stays with the team as it was: a change never takes it out
+   * of the team on the quiet. The lists show such a session as view-only.
    */
   async updateSession(
     sessionId: string,
@@ -569,22 +439,10 @@ class FirebaseService {
         // left untagged; the update itself still goes ahead.
         const stored = await getDoc(docRef).catch(() => null);
         const data = stored?.exists() ? stored.data() : undefined;
-        const changes = {
+        await updateDoc(docRef, {
           ...(withoutUndefined(updates) as Record<string, unknown>),
           ...(data ? this.seasonTag(data) : {}),
-        };
-        try {
-          await updateDoc(docRef, changes);
-        } catch (error) {
-          if (
-            !isPermissionDenied(error) ||
-            !hasTeam(data) ||
-            'teamId' in changes
-          ) {
-            throw error;
-          }
-          await updateDoc(docRef, { ...changes, teamId: deleteField() });
-        }
+        });
         return true;
       },
       false,
@@ -602,7 +460,7 @@ class FirebaseService {
    * side effects.
    *
    * Like `updateSession`, an author who is no longer in the session's team
-   * gets the edit by taking the session out of that team.
+   * is refused, and the session stays with the team.
    */
   async mutateSessionMatches(
     sessionId: string,
@@ -611,29 +469,16 @@ class FirebaseService {
     try {
       const db = await this.getDB();
       const docRef = doc(db, 'sessions', sessionId);
-      let inTeam = false;
-      const write = (leaveTeam: boolean) =>
-        runTransaction(db, async transaction => {
-          const stored = await transaction.get(docRef);
-          if (!stored.exists()) throw new Error('Session not found');
-          const data = stored.data();
-          inTeam = hasTeam(data);
-          const matches = withoutUndefined(
-            mutate(normalizeSession(data, stored.id).matches)
-          );
-          transaction.update(docRef, {
-            matches,
-            ...(leaveTeam ? { teamId: deleteField() } : {}),
-            ...this.seasonTag(data),
-          });
-          return matches;
-        });
-      try {
-        return await write(false);
-      } catch (error) {
-        if (!isPermissionDenied(error) || !inTeam) throw error;
-        return await write(true);
-      }
+      return await runTransaction(db, async transaction => {
+        const stored = await transaction.get(docRef);
+        if (!stored.exists()) throw new Error('Session not found');
+        const data = stored.data();
+        const matches = withoutUndefined(
+          mutate(normalizeSession(data, stored.id).matches)
+        );
+        transaction.update(docRef, { matches, ...this.seasonTag(data) });
+        return matches;
+      });
     } catch (error) {
       logger.error('Error updating session matches:', error);
       throw error;
@@ -665,7 +510,7 @@ class FirebaseService {
     const team = await getDocFromServer(doc(db, 'teams', teamId)).catch(
       error => {
         if ((error as { code?: string } | null)?.code === 'unavailable') {
-          throw new Error(UNREACHABLE_MESSAGE);
+          throw new ShownError(UNREACHABLE_MESSAGE);
         }
         return null;
       }
@@ -688,8 +533,8 @@ class FirebaseService {
       const session = stored.data();
       const asTeamOwner = !!session && session.userId !== uid;
       if (asTeamOwner && !(await this.ownsTeam(db, session.teamId, uid))) {
-        throw new Error(
-          "Only the person who recorded a session, or their team's owner, can delete it"
+        throw new ShownError(
+          "Only the person who recorded a session, or their team's owner, can delete it."
         );
       }
       const links = await this.sharedSessionRefs(
@@ -948,7 +793,11 @@ class FirebaseService {
     throw new Error('Failed to create shared session after retries');
   }
 
-  /** Retrieve a shared session snapshot by short ID; returns null if not found */
+  /**
+   * Retrieve a shared session snapshot by short ID; returns null if not
+   * found. Throws when it couldn't be read (offline), which says nothing
+   * about whether the link still works.
+   */
   async getSharedSession(
     shortId: string
   ): Promise<Record<string, unknown> | null> {
@@ -956,12 +805,16 @@ class FirebaseService {
       async () => {
         const db = await this.getDB();
         const ref = doc(db, 'sharedSessions', shortId);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) return null;
+        const snap = await getDoc(ref).catch(error => {
+          if (isPermissionDenied(error)) return null;
+          throw error;
+        });
+        if (!snap?.exists()) return null;
         return snap.data() as Record<string, unknown>;
       },
       null,
-      'Error fetching shared session:'
+      'Error fetching shared session:',
+      true
     );
   }
 

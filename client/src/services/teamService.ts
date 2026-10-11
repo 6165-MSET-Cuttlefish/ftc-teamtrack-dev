@@ -48,6 +48,13 @@ const JOIN_READ_TIMEOUT_MS = 4000;
  */
 const CLOCK_SLACK_MS = 5 * 60 * 1000;
 
+/**
+ * Sessions of other members taken out of a team per write when it is
+ * deleted. The rules read the team for each, and a write may make 20 such
+ * reads in all.
+ */
+const UNFILE_BATCH = 10;
+
 /** A stored `teamInvites` document. `revoked` marks a retired code. */
 interface StoredInvite {
   teamId: string | null;
@@ -386,7 +393,9 @@ class TeamService {
 
   /**
    * Look up which team an invite code belongs to. A retired code (replaced,
-   * or its team deleted) is as invalid as one that never existed.
+   * or its team deleted) is as invalid as one that never existed. Throws
+   * when the lookup itself failed (offline), so a dropped connection is
+   * never taken for a bad code, and the invite is kept to try again.
    */
   async getInviteByCode(inviteCode: string): Promise<TeamInvite | null> {
     return this.safeExecute(
@@ -394,12 +403,16 @@ class TeamService {
         const db = await this.getDB();
         const code = inviteCode.trim().toUpperCase();
         if (!code) return null;
-        const invite = await this.readInvite(db, code);
+        const invite = await this.readInvite(db, code).catch(error => {
+          if (isPermissionDenied(error)) return null;
+          throw error;
+        });
         if (!invite || invite.revoked || !invite.teamId) return null;
         return { code, teamId: invite.teamId, teamName: invite.teamName };
       },
       null,
-      'Error fetching team by invite code:'
+      'Error fetching team by invite code:',
+      true
     );
   }
 
@@ -684,6 +697,36 @@ class TeamService {
   }
 
   /**
+   * Take every session filed under `teamId` out of it, for its owner
+   * (`userId`) to delete it. Their own sessions go in `batch`, with the
+   * delete. Members who left earlier have sessions there too, which only
+   * the owner can take out, and only while the team exists: those go
+   * first, a few to a write, since the rules read the team for each one.
+   */
+  private async unfileTeamSessions(
+    db: Firestore,
+    teamId: string,
+    userId: string,
+    batch: WriteBatch
+  ): Promise<void> {
+    const filed = await getDocsFromServer(
+      query(collection(db, 'sessions'), where('teamId', '==', teamId))
+    );
+    const unfile = { teamId: deleteField() };
+    const others = filed.docs.filter(s => s.data().userId !== userId);
+    for (let start = 0; start < others.length; start += UNFILE_BATCH) {
+      const earlier = writeBatch(db);
+      others
+        .slice(start, start + UNFILE_BATCH)
+        .forEach(s => earlier.update(s.ref, unfile));
+      await earlier.commit();
+    }
+    filed.docs
+      .filter(s => s.data().userId === userId)
+      .forEach(s => batch.update(s.ref, unfile));
+  }
+
+  /**
    * Leave a team. A member just removes themselves. The owner hands the team
    * to the longest-standing member, or deletes it if they were the last one.
    * Resolves to what happened (see `leaveOutcome`), or null if the team could
@@ -716,9 +759,12 @@ class TeamService {
 
         if (outcome.kind === 'deleted') {
           // The team and its invite go together, so no live link is left
-          // pointing at a team that no longer exists.
+          // pointing at a team that no longer exists. So do its sessions:
+          // they go back to whoever recorded them. Left filed under a team
+          // that is gone, nobody could ever change or share them again.
           const invite = await this.readInvite(db, team.inviteCode);
           const batch = writeBatch(db);
+          await this.unfileTeamSessions(db, teamId, userId, batch);
           this.retireInvite(batch, db, team, invite);
           batch.delete(docRef);
           await batch.commit();

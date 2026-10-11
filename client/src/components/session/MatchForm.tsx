@@ -1,18 +1,27 @@
 import { Fragment, useState, useEffect, useId, useRef } from 'react';
 import { useTheme } from '@/contexts';
-import type { Match, MatchScoringFields, SessionType } from '@/types';
+import type {
+  Match,
+  MatchScoringFields,
+  RobotCount,
+  SessionType,
+} from '@/types';
 import {
   COUNT_LABELS,
+  DEFAULT_ROBOT_COUNT,
+  EACH_LABELS,
   ELEMENT_LABELS,
   FIELD_HINTS,
   FIELD_LIMITS,
   POINTS,
   calculateScore,
+  failureReason,
   emptyScoringFields,
   includesAuto,
   includesTeleop,
   normalizeForMatchType,
   pickScoringFields,
+  robotsOf,
   scoreRows,
 } from '@/lib';
 import { Button } from '@/components/ui/button';
@@ -28,7 +37,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -37,6 +45,7 @@ import { toast } from 'sonner';
 import { CounterHead } from './EndOfMatchParts';
 import { Toggle } from './MatchEntry';
 import { ScoreField } from './ScoreField';
+import { LOCK_REASONS, autonomousNote, countersShown } from './useScoringLocks';
 
 interface MatchFormProps {
   isOpen: boolean;
@@ -50,6 +59,13 @@ interface MatchFormProps {
   isLoading?: boolean;
   /** Fouls are only recorded for a Scrim; other sessions don't show them */
   sessionType?: SessionType;
+  /**
+   * What a new match starts as: the session's match type, so a run added to
+   * an Autonomous session is an Autonomous run unless changed here.
+   */
+  defaultMatchType?: string;
+  /** The robots a new match starts with, as the session was played */
+  defaultRobotCount?: RobotCount;
 }
 
 /**
@@ -61,14 +77,18 @@ interface MatchFormProps {
 const Section = ({
   title,
   note,
+  hidden = false,
   children,
 }: {
   title: string;
   /** One muted line beside the title: what the section's entries are worth */
   note?: string;
+  /** Left out, with its title: it has nothing to show */
+  hidden?: boolean;
   children: React.ReactNode;
 }) => {
   const { isDarkMode } = useTheme();
+  if (hidden) return null;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
@@ -132,9 +152,29 @@ const COL_SPAN = { 1: 'col-span-1', 2: 'col-span-2' } as const;
 /** Which end-of-match rule is open under its (i) */
 type InfoKey = 'flower' | 'flowerBonus' | 'hive' | 'garden';
 
-const blankForm = (): Partial<Match> => ({
-  matchType: 'Full Game',
+const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
+
+/** The robot counts offered, in the session menu's words */
+const ROBOT_COUNTS: Array<{ value: RobotCount; label: string }> = [
+  { value: 1, label: '1 robot' },
+  { value: 2, label: '2 robots' },
+];
+
+const blankForm = (
+  matchType = 'Full Game',
+  robotCount: RobotCount = DEFAULT_ROBOT_COUNT
+): Partial<Match> => ({
+  matchType: MATCH_TYPES.includes(matchType) ? matchType : 'Full Game',
   ...emptyScoringFields(),
+  robotCount,
+});
+
+/** A saved match as the form edits it */
+const formOf = (match: Match): Partial<Match> => ({
+  matchType: match.matchType || 'Full Game',
+  ...pickScoringFields(match),
+  // Saved before the count existed, or with Robot 2 marked: both rows
+  robotCount: robotsOf(match),
 });
 
 export const MatchForm = ({
@@ -144,6 +184,8 @@ export const MatchForm = ({
   initialMatch,
   isLoading = false,
   sessionType,
+  defaultMatchType,
+  defaultRobotCount,
 }: MatchFormProps) => {
   const { isDarkMode } = useTheme();
   /** A save is in flight: a second click must not send it twice */
@@ -158,27 +200,38 @@ export const MatchForm = ({
     garden: useId(),
     info: useId(),
   };
+  /** What each counter's stepper is described by (CounterHead's `worth`) */
+  const worthIds = {
+    flower: useId(),
+    flowerBonus: useId(),
+    hive: useId(),
+    garden: useId(),
+  };
   const [formData, setFormData] = useState<Partial<Match>>(() =>
     initialMatch
-      ? {
-          matchType: initialMatch.matchType || 'Full Game',
-          ...pickScoringFields(initialMatch),
-        }
-      : blankForm()
+      ? formOf(initialMatch)
+      : blankForm(defaultMatchType, defaultRobotCount)
   );
+  /**
+   * The counts in the form when its match type was last changed: an
+   * Autonomous match keeps showing those it had, to be fixed (see
+   * `countersShown`)
+   */
+  const [countedAtTypeChange, setCountedAtTypeChange] =
+    useState<Partial<Match>>();
 
   useEffect(() => {
     if (initialMatch) {
-      setFormData({
-        matchType: initialMatch.matchType || 'Full Game',
-        ...pickScoringFields(initialMatch),
-      });
+      setFormData(formOf(initialMatch));
     } else if (isOpen) {
-      setFormData(blankForm());
+      setFormData(blankForm(defaultMatchType, defaultRobotCount));
     }
     // Each opening starts with every rule closed.
-    if (isOpen) setInfoOpen(null);
-  }, [initialMatch, isOpen]);
+    if (isOpen) {
+      setInfoOpen(null);
+      setCountedAtTypeChange(undefined);
+    }
+  }, [initialMatch, isOpen, defaultMatchType, defaultRobotCount]);
 
   const setField = <K extends keyof MatchScoringFields>(
     field: K,
@@ -188,6 +241,34 @@ export const MatchForm = ({
   const matchType = formData.matchType || 'Full Game';
   const hasAuto = includesAuto(matchType);
   const hasTeleop = includesTeleop(matchType);
+  /** One robot row, or two, as on the scoring page */
+  const robots = robotsOf(formData);
+  /**
+   * The end-of-match counters, where they can score, as on the scoring
+   * page: not in an Autonomous-only match, unless it has some to fix (saved
+   * with them, or counted before the type was changed here). Those stay
+   * while the form is open, at 0 too.
+   */
+  const shown = countersShown(
+    hasTeleop,
+    initialMatch,
+    countedAtTypeChange,
+    formData
+  );
+  const flowersShown = shown.flowers;
+  const hiveGardenShown = shown.hiveGarden;
+
+  /** One robot clears a second robot's LEAVE and PARK, as the session menu does */
+  const setRobotCount = (robotCount: RobotCount) =>
+    setFormData(prev => ({
+      ...prev,
+      robotCount,
+      ...(robotCount === 1 && {
+        robot2Leave: false,
+        robot2ParkAuto: false,
+        robot2ParkTeleop: false,
+      }),
+    }));
 
   const breakdown = calculateScore(formData);
   // Fouls are credited to the opponent, so they are not one of the rows
@@ -209,12 +290,15 @@ export const MatchForm = ({
       await onSave({
         ...normalizeForMatchType(formData, matchType),
         matchType,
+        robotCount: robots,
         finalScore: breakdown.total,
       });
     } catch (error) {
       const { logger } = await import('@/lib/logger');
       logger.error('Error saving match', error);
-      toast.error('Failed to save match');
+      toast.error("Couldn't save the match", {
+        description: failureReason(error, { nothingChanged: true }),
+      });
     } finally {
       savingRef.current = false;
     }
@@ -222,11 +306,14 @@ export const MatchForm = ({
 
   const mutedTone = isDarkMode ? 'text-gray-400' : 'text-gray-600';
 
-  /** Which toggles this match type leaves out, said once for the section */
+  /**
+   * Which toggles this match type leaves out, said once for the section in
+   * the live page's words
+   */
   const periodNote = !hasAuto
-    ? `No Leave or Auto park in a ${matchType} match`
+    ? LOCK_REASONS.noAuto
     : !hasTeleop
-      ? `No End park in an ${matchType} match`
+      ? autonomousNote(shown)
       : undefined;
 
   /** Only the toggles this match type can score: no dead columns */
@@ -269,6 +356,7 @@ export const MatchForm = ({
           <CounterHead
             id={ids[key]}
             title={COUNT_LABELS[field]}
+            worth={{ id: worthIds[key], each: EACH_LABELS[field] }}
             points={points}
             pointsClassName="md:hidden"
             info={FIELD_HINTS[field]}
@@ -282,6 +370,7 @@ export const MatchForm = ({
           hideLabel
           label={COUNT_LABELS[field]}
           name={name}
+          describedBy={worthIds[key]}
           max={FIELD_LIMITS[field]}
           value={formData[field] ?? 0}
           points={points}
@@ -330,11 +419,11 @@ export const MatchForm = ({
             {initialMatch ? (
               <>
                 <Pencil className="h-5 w-5 shrink-0" aria-hidden />
-                {/* Where it has to wrap, the type goes down whole, dot and
-                    all: never one word of it on a line of its own. */}
+                {/* Where it has to wrap, the type goes down whole:
+                    never one word of it on a line of its own. */}
                 <span>
                   Edit Match {initialMatch.matchNumber}{' '}
-                  <span className="whitespace-nowrap">· {matchType}</span>
+                  <span className="whitespace-nowrap">({matchType})</span>
                 </span>
               </>
             ) : (
@@ -344,11 +433,6 @@ export const MatchForm = ({
               </>
             )}
           </DialogTitle>
-          <DialogDescription className="sr-only">
-            {initialMatch
-              ? 'Change what was scored in this match, then update it.'
-              : 'Enter what was scored in the new match.'}
-          </DialogDescription>
         </DialogHeader>
 
         {/*
@@ -364,9 +448,10 @@ export const MatchForm = ({
             </Label>
             <Select
               value={formData.matchType || 'Full Game'}
-              onValueChange={value =>
-                setFormData(prev => ({ ...prev, matchType: value }))
-              }
+              onValueChange={value => {
+                setCountedAtTypeChange(formData);
+                setFormData(prev => ({ ...prev, matchType: value }));
+              }}
             >
               <SelectTrigger
                 id="matchType"
@@ -389,6 +474,39 @@ export const MatchForm = ({
             </Select>
           </div>
 
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="robotCount" className="text-foreground">
+              Robots
+            </Label>
+            <Select
+              value={String(robots)}
+              onValueChange={value =>
+                setRobotCount(Number(value) as RobotCount)
+              }
+            >
+              <SelectTrigger
+                id="robotCount"
+                disabled={isLoading}
+                className={`w-44 ${
+                  isDarkMode
+                    ? 'bg-team-dark border border-team-blue-40 text-white'
+                    : 'bg-white border border-team-blue-40'
+                }`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                className={isDarkMode ? 'bg-team-dark border-team-blue-40' : ''}
+              >
+                {ROBOT_COUNTS.map(count => (
+                  <SelectItem key={count.value} value={String(count.value)}>
+                    {count.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <ScoreField
             {...stepperProps}
             labelClassName={nameClass}
@@ -403,7 +521,7 @@ export const MatchForm = ({
 
           <Section
             title="Robots"
-            note={`Leave ${POINTS.LEAVE} pts · Park ${POINTS.PARK} pts each`}
+            note={`Leave ${POINTS.LEAVE} pts and Park ${POINTS.PARK} pts each`}
           >
             {/*
               Rows as on the scoring page. Its own width picks the labels (a
@@ -426,7 +544,7 @@ export const MatchForm = ({
                   Park
                 </div>
                 {/* Each toggle's own name says which robot it is for */}
-                {ROBOTS.map(robot => (
+                {ROBOTS.slice(0, robots).map(robot => (
                   <Fragment key={robot.name}>
                     <div
                       aria-hidden
@@ -458,25 +576,33 @@ export const MatchForm = ({
             )}
           </Section>
 
-          <Section title="End of Match">
+          {/* An Autonomous match has none of its counters to show */}
+          <Section
+            title="End of Match"
+            hidden={!flowersShown && !hiveGardenShown}
+          >
             <div className="space-y-3">
               {/* Each counter under its own name, as on the scoring page */}
-              {counter('flower', 'flower', 'flower', breakdown.flower)}
-              {counter(
-                'flowerBonus',
-                'flowerBonus',
-                'flower-bonus',
-                breakdown.flowerBonus
-              )}
-              {counter('ballsInHive', 'hive', 'left-in-hive', breakdown.hive)}
-              {counter('garden', 'garden', 'garden', breakdown.garden)}
+              {flowersShown &&
+                counter('flower', 'flower', 'flower', breakdown.flower)}
+              {flowersShown &&
+                counter(
+                  'flowerBonus',
+                  'flowerBonus',
+                  'flower-bonus',
+                  breakdown.flowerBonus
+                )}
+              {hiveGardenShown &&
+                counter('ballsInHive', 'hive', 'left-in-hive', breakdown.hive)}
+              {hiveGardenShown &&
+                counter('garden', 'garden', 'garden', breakdown.garden)}
             </div>
           </Section>
 
           {showFouls && (
             <Section
-              title="Penalties"
-              note="Credited to the opponent · not off your score"
+              title="Fouls"
+              note="Goes to the opponent, not off your score"
             >
               <ScoreField
                 {...stepperProps}

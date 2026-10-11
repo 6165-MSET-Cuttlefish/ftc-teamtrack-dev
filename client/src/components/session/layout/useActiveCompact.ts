@@ -13,8 +13,12 @@ const SHORT_WIDE_QUERY = '(max-height: 500px) and (min-width: 640px)';
 /**
  * A phone on its side too narrow for that (an iPhone SE): the clock stays
  * above the scoring controls, on a screen with no height to spare under it.
+ * Not under 400px wide, where the clock can't share a row with the title's
+ * buttons: that is a phone held upright at 200% zoom (390 x 844 is
+ * 195 x 422), laid out as a phone held upright.
  */
-const SHORT_NARROW_QUERY = '(max-height: 500px) and (max-width: 639px)';
+const SHORT_NARROW_QUERY =
+  '(max-height: 500px) and (min-width: 400px) and (max-width: 639px)';
 
 /**
  * True when the active-session page uses its phone layout: a phone-width

@@ -4,10 +4,14 @@ import { SESSION_LIMITS } from '@/constants';
 import { FIELD_LIMITS, calculateScore } from '@/lib';
 import type { ScoreEvent } from '@/types';
 import { useLiveControls } from './controls';
-import { useScoringLocks } from './useScoringLocks';
+import { requestStartNudge } from './controls/startNudge';
+import { START_FIRST, useScoringLocks } from './useScoringLocks';
 
 /** Adds a tip from a laptop keyboard while the match is being played */
 export const TIP_SHORTCUT = 'T';
+
+/** A press on a field that is waiting, which does nothing */
+const ignorePress = () => {};
 
 /**
  * State and handlers for Hive Tips, the counter tapped while the match runs:
@@ -31,6 +35,7 @@ export const useLiveCounters = () => {
     tippingEnabled,
     tippingLive,
     awaitingStart,
+    entryLocked,
     inCountdown,
     clockRunning,
   } = useScoringLocks();
@@ -104,11 +109,13 @@ export const useLiveCounters = () => {
   );
 
   // On a laptop every tip is otherwise a mouse aim at the button. The key
-  // only counts while the match is being played, and never while something
-  // is being typed or a dialog is asking a question.
+  // only counts while the match is being played (the walkthrough's practice
+  // match stands for one, though its clock never runs), and never while
+  // something is being typed or a dialog is asking a question.
   const tipping = sessionData.tipping;
+  const tipKeyLive = tippingLive || (isTutorialActive && tippingEnabled);
   useEffect(() => {
-    if (!tippingLive) return;
+    if (!tipKeyLive) return;
     const addTipOnKey = (e: KeyboardEvent) => {
       if (e.key.toUpperCase() !== TIP_SHORTCUT) return;
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented)
@@ -132,7 +139,7 @@ export const useLiveCounters = () => {
     };
     document.addEventListener('keydown', addTipOnKey);
     return () => document.removeEventListener('keydown', addTipOnKey);
-  }, [tippingLive, tipping]);
+  }, [tipKeyLive, tipping]);
 
   return {
     sessionData,
@@ -140,16 +147,30 @@ export const useLiveCounters = () => {
     entryKey,
     tippingEnabled,
     tippingLive,
+    /** The T key adds a tip (see above) */
+    tipKeyLive,
+    /**
+     * Hive Tips always looks ready, as it will be once play is on, but takes
+     * no taps before Start, in the 3-2-1 and while the walkthrough has no
+     * match open: its buttons call this instead. Before Start it asks the
+     * Start button to show it is the next step; otherwise Start has been
+     * pressed (or the walkthrough says what to press), and a tap waits.
+     */
+    blockedPress: tippingEnabled
+      ? undefined
+      : entryLocked
+        ? requestStartNudge
+        : ignorePress,
     handleTipping,
     // The walkthrough's practice match stands for one being played, though
     // its clock never runs. While a question is open, its answer is the
     // next step: the button stays usable, as an outline.
     liveActionFilled:
       !pendingConfirm && (tippingLive || (isTutorialActive && tippingEnabled)),
-    // Read out with the counter, not shown: the locked look and the lock
-    // on +1 Tip show it is locked
+    // Read out with the counter, not shown: it looks ready, and Start (or
+    // the 3-2-1 on the clock) is what it waits for
     lockedReason: awaitingStart
-      ? 'Unlocks at Start'
+      ? START_FIRST
       : inCountdown
         ? 'Unlocks when Auto starts'
         : undefined,

@@ -1,5 +1,77 @@
 import { useSessionCore } from '@/contexts';
-import { includesAuto, includesTeleop, liveMatchType } from '@/lib';
+import type { MatchScoringFields } from '@/types';
+import {
+  ELEMENT_LABELS,
+  includesAuto,
+  includesTeleop,
+  liveMatchType,
+} from '@/lib';
+import { robotsOf } from '@/lib/scoring';
+
+/**
+ * Why a field that looks ready before Start takes nothing yet, read out
+ * with it: the words the Start button shows when such a field is pressed
+ */
+export const START_FIRST = 'Press Start first';
+
+/**
+ * Why a robot toggle can't be scored, in the same words on the phone and
+ * the desktop pad (and for the Add/Edit Match dialog to say too), with
+ * each park toggle called by its own name.
+ */
+export const LOCK_REASONS = {
+  /** A Teleop match has no AUTO */
+  noAuto: `No ${ELEMENT_LABELS.leave} or ${ELEMENT_LABELS.parkAuto} in a Teleop match`,
+  /** An Autonomous match has no end of TELEOP */
+  noEndPark: `No ${ELEMENT_LABELS.parkEnd} in an Autonomous match`,
+  /** The same, where its flower counters are left out too */
+  noEndParkOrFlowers: `No ${ELEMENT_LABELS.parkEnd} or flowers in an Autonomous match`,
+  /** The same, where every end-of-match counter is left out */
+  noEndParkOrCounts: `No ${ELEMENT_LABELS.parkEnd}, flowers, ${ELEMENT_LABELS.hive} or ${ELEMENT_LABELS.garden} in an Autonomous match`,
+  /** During AUTO (and before Start, as the match starts in AUTO) */
+  endParkWaits: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop or on pause`,
+} as const;
+
+/** The end-of-match counters in their pairs, as they are laid out */
+const COUNTER_PAIRS = {
+  flowers: ['flower', 'flowerBonus'],
+  hiveGarden: ['ballsInHive', 'garden'],
+} as const;
+
+/** Which pairs of end-of-match counters a match shows */
+export interface CountersShown {
+  /** Owned flower pieces and Flower nectar at bottom */
+  flowers: boolean;
+  /** Left in Hive and Garden */
+  hiveGarden: boolean;
+}
+
+/**
+ * The end-of-match counters a match has, a pair at a time. AUTO scores none
+ * of them, so an Autonomous-only match leaves them out, unless one of
+ * `counted` (the match as saved, the counts in the fields) has some of a
+ * pair: those stay, to be seen and fixed, as nothing counted is ever hidden.
+ */
+export const countersShown = (
+  hasTeleop: boolean,
+  ...counted: Array<Partial<MatchScoringFields> | undefined>
+): CountersShown => {
+  const shown = (keys: readonly (keyof MatchScoringFields)[]) =>
+    hasTeleop ||
+    counted.some(fields => keys.some(key => Number(fields?.[key] ?? 0) > 0));
+  return {
+    flowers: shown(COUNTER_PAIRS.flowers),
+    hiveGarden: shown(COUNTER_PAIRS.hiveGarden),
+  };
+};
+
+/** What an Autonomous match leaves out, said once over its robot rows */
+export const autonomousNote = (shown: CountersShown): string =>
+  !shown.flowers && !shown.hiveGarden
+    ? LOCK_REASONS.noEndParkOrCounts
+    : !shown.flowers
+      ? LOCK_REASONS.noEndParkOrFlowers
+      : LOCK_REASONS.noEndPark;
 
 /**
  * Which scoring inputs on /active are open right now.
@@ -9,7 +81,11 @@ import { includesAuto, includesTeleop, liveMatchType } from '@/lib';
  *
  * - A saved match opened from the Match Log is final, so nothing about the
  *   clock locks it — not even a later match running underneath it.
- * - Nothing is entered before Start: no match is open to hold it.
+ * - Nothing is entered before Start: no match is open to hold it. What the
+ *   match starts with still looks as it will at Start (Hive Tips, Leave,
+ *   Park (Auto), a Scrim's fouls): only what its first period locks is
+ *   locked, so nothing changes look at Start, and a press on the rest asks
+ *   for Start instead (see `startNudge`).
  * - Tipping is counted while the match runs, but not during the 3-2-1.
  * - Flower, hive and garden contents can only be judged once play has
  *   stopped: after the buzzer (End early ends a match there too), or
@@ -37,6 +113,20 @@ export const useScoringLocks = () => {
 
   /** The type of the match in the fields: the saved one while editing. */
   const matchType = liveMatchType(sessionData, editingMatchId);
+  const hasAuto = includesAuto(matchType);
+
+  /**
+   * The robots the fields have rows for: the session's count, or while a
+   * saved match is open, the one it was played with (2 for a match saved
+   * before the count existed).
+   */
+  const edited = editing
+    ? sessionData.matches?.find(m => m.id === editingMatchId)
+    : undefined;
+  const robots = robotsOf({
+    ...sessionData,
+    robotCount: edited ? edited.robotCount : sessionData.robotCount,
+  });
 
   // The walkthrough holds a match open without starting its clock, which
   // would otherwise look like a countdown that never ends.
@@ -50,7 +140,10 @@ export const useScoringLocks = () => {
 
   return {
     editing,
+    /** The saved match open for editing, as it was saved */
+    edited,
     matchType,
+    robots,
     /** The fields being scored, tagged with the match type they belong to */
     scoring: { ...sessionData, matchType },
     /**
@@ -74,9 +167,11 @@ export const useScoringLocks = () => {
      */
     awaitingStart: !editing && !matchActive,
     /**
-     * Robots, End of Match and Scrim penalties wait for Start like Hive Tips
-     * do ('Unlocks at Start'): no match is open to put them in. A saved match
-     * opened for editing, and the walkthrough's practice match, keep them
+     * No match is open to put anything in (before Start and between
+     * matches): every field waits for Start. Those the match starts with
+     * look ready all the same, and a press on one asks for Start; End park
+     * and End of Match keep the lock their first period gives them. A saved
+     * match opened for editing, and the walkthrough's practice match, are
      * open.
      */
     entryLocked,
@@ -113,11 +208,13 @@ export const useScoringLocks = () => {
           : !isTimerRunning)),
     /**
      * End-of-match park can't be known while AUTO is still running; a pause
-     * opens it, as it opens the End of Match counts.
+     * opens it, as it opens the End of Match counts. Before Start it has
+     * the lock the match will start with: AUTO's, where there is one.
      */
     endParkLocked:
-      !editing && matchActive && matchPhase === 'auton' && isTimerRunning,
-    hasAuto: includesAuto(matchType),
+      (entryLocked && hasAuto) ||
+      (!editing && matchActive && matchPhase === 'auton' && isTimerRunning),
+    hasAuto,
     hasTeleop: includesTeleop(matchType),
   };
 };
