@@ -31,6 +31,8 @@ const snapshotOf = (
     id: match.id,
     matchNumber: match.matchNumber,
     matchType: match.matchType,
+    // Without it a match played alone shows as two robots (`robotCountOf`)
+    robotCount: match.robotCount,
     finalScore: match.finalScore,
   })),
 });
