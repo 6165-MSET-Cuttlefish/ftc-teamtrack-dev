@@ -54,6 +54,15 @@
     /* Design tokens (light mode defaults) */
     --team-blue: 83 119 136; /* #537788 */
     --team-white: 254 254 254; /* #FEFEFE (slightly off-white) */
+
+    /*
+     * The outline of every text field, select and notes box (FIELD_BORDER in
+     * ui/input.tsx), at least 3:1 against the page, card or dialog around it
+     * in each theme: gray-500 is 4.8:1 on white, where the outlines it
+     * replaces were 1.2 to 2.4. Focus turns it the accent inside a solid
+     * ring of it; a field marked invalid turns both red.
+     */
+    --field-border: rgb(107 114 128); /* gray-500 */
   }
 
   /*
@@ -94,6 +103,9 @@
     /* Design tokens for dark mode */
     --team-blue: 176 229 254; /* #B0E5FE */
     --team-white: 255 255 255; /* pure white for dark mode */
+
+    /* The accent's 40% tint (border-team-blue-40), 3.1:1 on the page */
+    --field-border: rgb(var(--team-blue) / 0.4);
   }
 
   /* Honeycomb theme - builds on dark mode */
@@ -114,6 +126,9 @@
     --accent: 0 0% 15%; /* #262626 */
     --border: 0 0% 23%; /* #3b3b3b */
     --input: 0 0% 23%;
+
+    /* The full gold, as every control here is outlined (see below) */
+    --field-border: rgb(var(--team-blue));
   }
 
   /* Deep Sea theme - builds on dark mode */
@@ -135,6 +150,9 @@
     --accent: 211 45% 18%; /* #193043 */
     --border: 215 17% 28%; /* #3b4553 */
     --input: 215 17% 28%;
+
+    /* The cyan's 40% tint is only 2.2:1 on this navy: 60% is 3.5 */
+    --field-border: rgb(var(--team-blue) / 0.6);
   }
 }
 
@@ -553,9 +571,10 @@
  * edge while it has focus.
  *
  * A frame lights with its buttons only where it is their one outline: a
- * joined stepper (data-joined) and a tab bar. A rich-text box lights as a
- * field does, the rule under its toolbar with it. A card, notice or list
- * with a button inside keeps the tint.
+ * joined stepper (data-joined) and a tab bar. A card, notice or list with a
+ * button inside keeps the tint. Fields drawn with FIELD_BORDER, and the
+ * rich-text box with the rule under its toolbar, are already this gold
+ * (--field-border above).
  */
 .honeycomb
   :is(button, a[href], input, textarea, select, [role='combobox']):is(
@@ -566,12 +585,13 @@
 .honeycomb
   :is([data-joined], [role='tablist']).border-team-blue-40:has(
     > :is(button, input):not(:disabled)
-  ),
-.honeycomb .border-team-blue-40:has(> [contenteditable='true']),
-.honeycomb
-  .border-team-blue-40:has(> [contenteditable='true'])
-  > .border-team-blue-40 {
+  ) {
   border-color: rgb(var(--team-blue));
+}
+
+/* A disabled field keeps the tint, as a disabled control does above */
+.honeycomb :disabled {
+  --field-border: rgb(var(--team-blue) / 0.4);
 }
 
 /* With every control outlined in gold, a picked one (SELECTED) takes a

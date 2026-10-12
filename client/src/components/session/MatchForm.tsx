@@ -1,4 +1,12 @@
-import { Fragment, useState, useEffect, useId, useRef } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useState,
+  useEffect,
+  useId,
+  useRef,
+  type CSSProperties,
+} from 'react';
 import { useTheme } from '@/contexts';
 import type {
   Match,
@@ -138,16 +146,45 @@ const ROBOT_COLUMNS = [
  * With three, Leave never goes under 4rem, the width of its label with the
  * check mark: on a 320px phone it takes that and the two parks share the
  * rest ("Auto" and "End" are shorter). Wherever there is room the three are
- * equal.
+ * equal. Under 280px wide (a phone zoomed to 200%) a robot's name takes a
+ * line of its own over its toggles (ROBOT_NAME), which then have the whole
+ * width, each at least its label's: beside the name the parks were
+ * squeezed to a sliver with their labels over their neighbours.
  */
 const ROBOT_GRID = {
-  1: 'grid-cols-[auto_minmax(0,1fr)]',
-  2: 'grid-cols-[auto_repeat(2,minmax(0,1fr))]',
-  3: 'grid-cols-[auto_minmax(4rem,1fr)_repeat(2,minmax(0,1fr))]',
+  1: 'grid-cols-[auto_minmax(0,1fr)] max-[279px]:grid-cols-1',
+  2: 'grid-cols-[auto_repeat(2,minmax(0,1fr))] max-[279px]:grid-cols-[repeat(2,minmax(min-content,1fr))]',
+  3: 'grid-cols-[auto_minmax(4rem,1fr)_repeat(2,minmax(0,1fr))] max-[279px]:grid-cols-[repeat(3,minmax(min-content,1fr))]',
 } as const;
 
-/** Spans for the Park heading's row: what goes before it, and its own */
+/** Where a robot's name goes on its own line (see ROBOT_GRID) */
+const ROBOT_NAME = 'max-[279px]:col-span-full';
+
+/**
+ * Spans for the Park heading's row: what goes before it, and its own. What
+ * goes before it counts the name column, which is gone under 280px.
+ */
 const COL_SPAN = { 1: 'col-span-1', 2: 'col-span-2' } as const;
+const BEFORE_PARK_NARROW = {
+  1: 'max-[279px]:hidden',
+  2: 'max-[279px]:col-span-1',
+} as const;
+
+/**
+ * A select beside its label. Under 280px wide (a phone zoomed to 200%) the
+ * select goes under its label at full width instead, where beside it its
+ * value was cut to "Full..".
+ */
+const SELECT_ROW =
+  'flex items-center justify-between gap-3 max-[279px]:flex-col max-[279px]:items-stretch max-[279px]:gap-1.5';
+
+/**
+ * Where the whole panel scrolls rather than its body (see the panel): a
+ * short screen, and a screen under 280px wide (a phone zoomed to 200%),
+ * whose footer of stacked buttons would leave the body a sliver too. The
+ * classes that go with it repeat the two conditions as Tailwind variants.
+ */
+const WHOLE_PANEL_SCROLLS = '(max-height: 500px), (max-width: 279px)';
 
 /** Which end-of-match rule is open under its (i) */
 type InfoKey = 'flower' | 'flowerBonus' | 'hive' | 'garden';
@@ -191,6 +228,40 @@ export const MatchForm = ({
   /** A save is in flight: a second click must not send it twice */
   const savingRef = useRef(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  /**
+   * The footer's height, kept as the panel's scroll padding on a short
+   * screen. There the footer is pinned over the bottom of the panel as it
+   * scrolls, and a field or button the keyboard moves to would otherwise be
+   * scrolled only as far as the panel's edge, under the footer.
+   */
+  const [footerHeight, setFooterHeight] = useState(0);
+  const footerEl = useRef<HTMLDivElement | null>(null);
+  const footerObserver = useRef<ResizeObserver | null>(null);
+  const footerRef = useCallback((footer: HTMLDivElement | null) => {
+    footerEl.current = footer;
+    footerObserver.current?.disconnect();
+    footerObserver.current = null;
+    if (!footer) return;
+    // Measured again as the breakdown opens and closes
+    const observer = new ResizeObserver(() =>
+      setFooterHeight(footer.offsetHeight)
+    );
+    observer.observe(footer);
+    footerObserver.current = observer;
+  }, []);
+  // With the breakdown open the footer is taller than a short screen's
+  // panel (and nearly as tall as one under 280px wide): pinned, it would
+  // cover the whole form and the keyboard's every stop in it. So it goes
+  // back to the end of the panel, which scrolls down to it, the breakdown
+  // and the button just pressed in view.
+  const pinFooter = !showBreakdown;
+  useEffect(() => {
+    if (!showBreakdown || !window.matchMedia(WHOLE_PANEL_SCROLLS).matches) {
+      return;
+    }
+    const panel = footerEl.current?.parentElement;
+    if (panel) panel.scrollTop = panel.scrollHeight;
+  }, [showBreakdown]);
   const [infoOpen, setInfoOpen] = useState<InfoKey | null>(null);
   const breakdownId = useId();
   const ids = {
@@ -400,12 +471,21 @@ export const MatchForm = ({
         A column with one scrolling body: the header and the footer (the
         running total and the buttons) stay put, so the score and Save are on
         screen wherever the form is scrolled to. On a phone it is a
-        full-height sheet. On a short screen (a phone on its side) the two
-        bars would leave the form a sliver, so the whole panel scrolls
-        instead and only the footer stays, pinned to its bottom.
+        full-height sheet. On a short screen (a phone on its side), or one
+        under 280px wide, the two bars would leave the form a sliver, so the
+        whole panel scrolls instead (WHOLE_PANEL_SCROLLS) and only the
+        footer stays, pinned to its bottom (not while
+        the breakdown is open, see pinFooter). The panel then keeps the
+        footer's height (and a little) as scroll padding, so whatever the
+        keyboard moves to is scrolled clear of it.
       */}
       <DialogContent
-        className={`flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden border-2 max-md:h-[calc(100dvh-2rem)] max-md:max-h-none [@media(max-height:500px)]:overflow-y-auto [@media(max-height:500px)]:overscroll-contain ${
+        style={{ '--footer-h': `${footerHeight}px` } as CSSProperties}
+        className={`flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden border-2 max-md:h-[calc(100dvh-2rem)] max-md:max-h-none [@media(max-height:500px)]:overflow-y-auto [@media(max-height:500px)]:overscroll-contain max-[279px]:overflow-y-auto max-[279px]:overscroll-contain ${
+          pinFooter
+            ? '[@media(max-height:500px)]:[scroll-padding-bottom:calc(var(--footer-h)+0.5rem)] max-[279px]:[scroll-padding-bottom:calc(var(--footer-h)+0.5rem)]'
+            : ''
+        } ${
           isDarkMode
             ? 'bg-team-dark border-team-blue-40'
             : 'bg-white border-team-blue-40'
@@ -441,8 +521,8 @@ export const MatchForm = ({
           a line saying what to count, its stepper), then a Scrim's fouls.
           No boxes inside the dialog: titles and spacing group the fields.
         */}
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5 [@media(max-height:500px)]:flex-none [@media(max-height:500px)]:overflow-visible">
-          <div className="flex items-center justify-between gap-3">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5 [@media(max-height:500px)]:flex-none [@media(max-height:500px)]:overflow-visible max-[279px]:flex-none max-[279px]:overflow-visible">
+          <div className={SELECT_ROW}>
             <Label htmlFor="matchType" className="text-foreground">
               Match Type
             </Label>
@@ -456,10 +536,8 @@ export const MatchForm = ({
               <SelectTrigger
                 id="matchType"
                 disabled={isLoading}
-                className={`w-44 ${
-                  isDarkMode
-                    ? 'bg-team-dark border border-team-blue-40 text-white'
-                    : 'bg-white border border-team-blue-40'
+                className={`w-44 max-[279px]:w-full ${
+                  isDarkMode ? 'bg-team-dark text-white' : 'bg-white'
                 }`}
               >
                 <SelectValue />
@@ -474,7 +552,7 @@ export const MatchForm = ({
             </Select>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
+          <div className={SELECT_ROW}>
             <Label htmlFor="robotCount" className="text-foreground">
               Robots
             </Label>
@@ -487,10 +565,8 @@ export const MatchForm = ({
               <SelectTrigger
                 id="robotCount"
                 disabled={isLoading}
-                className={`w-44 ${
-                  isDarkMode
-                    ? 'bg-team-dark border border-team-blue-40 text-white'
-                    : 'bg-white border border-team-blue-40'
+                className={`w-44 max-[279px]:w-full ${
+                  isDarkMode ? 'bg-team-dark text-white' : 'bg-white'
                 }`}
               >
                 <SelectValue />
@@ -535,7 +611,7 @@ export const MatchForm = ({
               >
                 <div
                   aria-hidden
-                  className={`${COL_SPAN[beforePark]} [@container(min-width:27.5rem)]:hidden`}
+                  className={`${COL_SPAN[beforePark]} ${BEFORE_PARK_NARROW[beforePark]} [@container(min-width:27.5rem)]:hidden`}
                 />
                 <div
                   aria-hidden
@@ -548,7 +624,7 @@ export const MatchForm = ({
                   <Fragment key={robot.name}>
                     <div
                       aria-hidden
-                      className={`whitespace-nowrap ${nameClass} ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+                      className={`whitespace-nowrap ${ROBOT_NAME} ${nameClass} ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
                     >
                       {robot.name}
                     </div>
@@ -631,9 +707,12 @@ export const MatchForm = ({
         </div>
 
         <div
-          className={`shrink-0 px-4 py-3 sm:px-6 [@media(max-height:500px)]:sticky [@media(max-height:500px)]:bottom-0 [@media(max-height:500px)]:py-2 ${
-            isDarkMode ? 'bg-team-dark' : 'bg-white'
-          }`}
+          ref={footerRef}
+          className={`shrink-0 px-4 py-3 sm:px-6 [@media(max-height:500px)]:py-2 ${
+            pinFooter
+              ? '[@media(max-height:500px)]:sticky [@media(max-height:500px)]:bottom-0 max-[279px]:sticky max-[279px]:bottom-0'
+              : ''
+          } ${isDarkMode ? 'bg-team-dark' : 'bg-white'}`}
         >
           {showBreakdown && (
             <div id={breakdownId} className="mb-3 space-y-1">
@@ -661,10 +740,16 @@ export const MatchForm = ({
             </div>
           )}
 
-          {/* Two rows on a phone, so the buttons are each half the width */}
+          {/* Two rows on a phone, so the buttons are each half the width.
+              Under 280px wide (a phone zoomed to 200%) half is too narrow
+              for "Update Match", so the buttons stack full width, the main
+              one on top, as other dialogs' do on a phone. */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            {/* Score and toggle share a line on a short screen, too */}
-            <div className="flex min-w-0 flex-1 items-center justify-between gap-3 sm:block [@media(max-height:500px)]:flex">
+            {/* Score and toggle share a line on a short screen, too. Under
+                320px wide the two don't fit on one line (an edited match's
+                three-digit score at 280px ran the toggle off the edge), so
+                there the toggle may go under the score. */}
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-3 sm:block max-[319px]:flex-wrap [@media(max-height:500px)]:flex">
               <p
                 aria-live="polite"
                 aria-atomic="true"
@@ -692,7 +777,7 @@ export const MatchForm = ({
                 />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3 max-[279px]:flex max-[279px]:flex-col-reverse">
               <Button
                 variant="neutral"
                 onClick={onClose}

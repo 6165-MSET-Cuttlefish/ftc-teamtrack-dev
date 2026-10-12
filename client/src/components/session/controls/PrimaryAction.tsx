@@ -107,6 +107,14 @@ export const EditMatchActions = ({ quiet = false }: { quiet?: boolean }) => {
  * saved match: asked in the bar, where that button is. On a phone in two
  * rows, the question over its answers; on a full-size screen in one line
  * as tall as the row of controls, so nothing under it moves.
+ *
+ * On a phone the answers share a row, their labels on two lines at most.
+ * At a 200% zoom, where squeezed side by side the labels went a word to a
+ * line and Keep editing ran past the edge of the screen, each gets a row
+ * of its own, Keep editing at the bottom, where Complete Session was. Only
+ * there: stacked, the bar is a row taller, and on a phone on its side it
+ * would cover the clock beside it, which can't scroll out from under it.
+ * (Its answers are the question's one `div`.)
  */
 const StrayNumbersQuestion = () => {
   const {
@@ -120,7 +128,11 @@ const StrayNumbersQuestion = () => {
     <ConfirmInline
       stacked={stacked}
       inline={!stacked}
-      className={stacked ? 'flex-1 basis-full' : 'flex-1 min-w-0 justify-end'}
+      className={
+        stacked
+          ? 'flex-1 basis-full max-[279px]:[&>div]:flex-wrap-reverse'
+          : 'flex-1 min-w-0 justify-end'
+      }
       question={`There are unsaved numbers in Match Entry${
         currentMatchTotal > 0 ? ` (${formatPoints(currentMatchTotal)})` : ''
       }.`}

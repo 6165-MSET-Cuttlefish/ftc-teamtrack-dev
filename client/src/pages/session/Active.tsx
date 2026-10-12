@@ -275,12 +275,12 @@ const statusTone = (isDarkMode: boolean) =>
  * Between two facts on the line under the clock ("Match 2", "Session
  * 4:10"): a hairline, as between the match and its points in the header.
  */
-const StatusDivider = () => {
+const StatusDivider = ({ className = '' }: { className?: string }) => {
   const { isDarkMode } = useTheme();
   return (
     <span
       aria-hidden
-      className={`h-4 w-px shrink-0 ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
+      className={`h-4 w-px shrink-0 ${className} ${isDarkMode ? 'bg-team-white-20' : 'bg-gray-300'}`}
     />
   );
 };
@@ -440,6 +440,10 @@ const CARD_TOTAL_LINE = '[data-breakdown-card] h2';
  * One fixed-height line in every state, blank while a saved match is open
  * in the fields (the header says which): what is below it sits at the same
  * height from the first match to the last.
+ *
+ * At a 200% zoom the line has room for only one of the two, and once a
+ * match is saved that one is the last match: cut short beside the session's
+ * time, its points never showed.
  */
 const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
   const { isDarkMode } = useTheme();
@@ -487,10 +491,12 @@ const PhoneStatus = ({ fallbackMatchType }: { fallbackMatchType: string }) => {
 
   return (
     <div data-match-status className={lineClass}>
-      <span className="shrink-0">Session {formatTime(sessionTimer)}</span>
+      <span className={`shrink-0 ${last ? 'max-[279px]:hidden' : ''}`}>
+        Session {formatTime(sessionTimer)}
+      </span>
       {last && (
         <>
-          {divider}
+          <StatusDivider className="max-[279px]:hidden" />
           <button
             type="button"
             onClick={showMatchLog}
@@ -534,11 +540,28 @@ const leaveQuestion = (matchEnded: boolean, matchNumber: number) =>
           'Its clock keeps going, and you can only score it on this page.',
       };
 
+/**
+ * Whether the match on now was started on this page, rather than found on
+ * as the page opened. One found on can be from an earlier day (left at its
+ * buzzer), which the stale-session notice is there for: "Finish it, start
+ * new" keeps it, dated when it was played. One started here is today's.
+ */
+const useMatchStartedHere = (matchActive: boolean): boolean => {
+  const [seen, setSeen] = useState({ matchActive, startedHere: false });
+  // Kept in step as it renders, so it holds from the commit the match
+  // starts in
+  if (seen.matchActive !== matchActive) {
+    setSeen({ matchActive, startedHere: matchActive });
+  }
+  return matchActive && seen.startedHere;
+};
+
 const Active = () => {
   const { isDarkMode } = useTheme();
   const isCompact = useActiveCompact();
   const { sessionData, matchActive, matchPhase, isTutorialActive } =
     useSessionCore();
+  const matchStartedHere = useMatchStartedHere(matchActive);
 
   useEffect(() => {
     document.title = `Active Session - ${APP_CONFIG.name}`;
@@ -567,7 +590,10 @@ const Active = () => {
    * of page-level spacing so both layouts can position them.
    */
   const slots: ActiveSlots = {
-    staleNotice: <StaleSessionNotice />,
+    // Not over a match started here, paused or at its buzzer: nothing on
+    // the page moves while a match is on, and a session in use today is
+    // not one left open since an earlier day.
+    staleNotice: matchStartedHere ? null : <StaleSessionNotice />,
 
     title: isCompact ? (
       // One line beside the session menu. Once a match is running the name

@@ -292,9 +292,33 @@ export const isPinned = (el: HTMLElement) => {
 };
 
 /**
+ * How far down the screen the page can be seen between `left` and `right`:
+ * to the top of `bar` (pinned over the bottom of the screen: the phone's
+ * match controls) where it is under them, else to the bottom of the screen.
+ * Measured on what is spotlit, not on the opening round it: side by side
+ * (a phone on its side) the bar spans the clock's column only, and the
+ * opening round something in the next column reaches a few px over the
+ * bar's edge without anything of it being under the bar. Counted as under,
+ * the bar cut the opening off at its top, across the counters below.
+ */
+export const floorOver = (
+  bar: DOMRect,
+  left: number,
+  right: number,
+  viewHeight: number
+): number => {
+  const under = bar.left < right && bar.right > left;
+  return under && bar.top > viewHeight / 2
+    ? Math.min(viewHeight, bar.top)
+    : viewHeight;
+};
+
+/**
  * How far down the screen the page can be seen round `target`: to the top
  * of a bar pinned over the bottom of the screen (the phone's match
- * controls) where the bar is under it, else to the bottom of the screen.
+ * controls) where the bar is under what it shows, else to the bottom of
+ * the screen. The same test as the spotlight's, so the two agree on what
+ * is in view.
  */
 export const screenFloor = (
   target: HTMLElement,
@@ -303,12 +327,14 @@ export const screenFloor = (
 ): number => {
   const bar = document.querySelector<HTMLElement>(barSelector);
   if (!bar || bar.contains(target) || !isPinned(bar)) return viewHeight;
-  const edge = bar.getBoundingClientRect();
   const rect = target.getBoundingClientRect();
-  const under = edge.left < rect.right && edge.right > rect.left;
-  return under && edge.top > viewHeight / 2
-    ? Math.min(viewHeight, edge.top)
-    : viewHeight;
+  const painted = measurePainted(target);
+  return floorOver(
+    bar.getBoundingClientRect(),
+    rect.left + (painted?.edges.left ?? 0),
+    painted ? rect.left + painted.edges.right : rect.right,
+    viewHeight
+  );
 };
 
 /**

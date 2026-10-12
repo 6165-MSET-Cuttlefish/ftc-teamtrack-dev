@@ -40,6 +40,14 @@ export const secondaryButton = `${BUTTON} border border-border px-4 font-medium 
 /** Skip: a quiet way out */
 export const quietButton = `${BUTTON} -ml-2 px-2 font-medium text-[color:var(--tt-muted)] hover:text-[color:var(--tt-text)]`;
 
+/**
+ * Skip beside the title, on a card too narrow for it beside Back and Next:
+ * no taller than its line of text, so the title's row does not grow, with
+ * an invisible tap area round it that is 44px tall for a finger.
+ */
+export const quietTextButton =
+  "relative min-h-0 min-w-0 text-sm font-medium text-[color:var(--tt-muted)] hover:text-[color:var(--tt-text)] transition-colors after:absolute after:-inset-x-3 after:-inset-y-1 after:content-[''] [@media(pointer:coarse)]:after:inset-y-[calc((100%_-_2.75rem)/2)]";
+
 /** Body text and secondary text */
 export const BODY_TEXT = 'text-sm leading-relaxed text-[color:var(--tt-sub)]';
 export const MUTED_TEXT = 'text-xs text-[color:var(--tt-muted)]';

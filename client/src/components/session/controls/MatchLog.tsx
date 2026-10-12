@@ -151,6 +151,26 @@ export const MatchLog = () => {
     previousMatchCount.current = matchCount;
   }, [matchCount]);
 
+  // A match opened from a row that only partly showed in the phone's list
+  // window (the oldest, scrolled to its bottom edge) would stay cut there,
+  // and the Editing chip it gains with it. The list scrolls to show the row
+  // whole, or from its top where it is taller than the window (a 200%
+  // zoom), which then grows to the row's end (next). Only the list: the
+  // page itself goes to the scoring fields.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!isCompact || !list || editingMatchId === null) return;
+    const row = list.querySelector<HTMLElement>(EDITING_ROW);
+    if (!row) return;
+    const view = list.getBoundingClientRect();
+    const box = row.getBoundingClientRect();
+    if (box.top < view.top) {
+      list.scrollTop -= view.top - box.top;
+    } else if (box.bottom > view.bottom) {
+      list.scrollTop += Math.min(box.bottom - view.bottom, box.top - view.top);
+    }
+  }, [editingMatchId, isCompact]);
+
   // On a phone the rows scroll in a short window of their own. Whatever
   // opens under a row makes the window that much taller, instead of pushing
   // the rows below it out of sight: the open match keeps its row, and its
@@ -165,15 +185,12 @@ export const MatchLog = () => {
       return;
     }
     const inserts = [...list.querySelectorAll<HTMLElement>(ROW_INSERT)];
-    // While something is open under a row, that row and the open match's
-    // are kept whole
-    const wholeRows =
-      inserts.length === 0
-        ? []
-        : [
-            ...inserts.map(insert => insert.parentElement),
-            list.querySelector<HTMLElement>(EDITING_ROW),
-          ].filter(row => row !== null);
+    // The open match's row is kept whole, and while something is open under
+    // a row, that row too
+    const wholeRows = [
+      ...inserts.map(insert => insert.parentElement),
+      list.querySelector<HTMLElement>(EDITING_ROW),
+    ].filter(row => row !== null);
     const fit = () => {
       const extra = inserts.reduce((sum, insert) => {
         const { marginTop, marginBottom } = getComputedStyle(insert);
@@ -198,7 +215,7 @@ export const MatchLog = () => {
       list.style.maxHeight = `${Math.max(height, ...ends)}px`;
     };
     fit();
-    if (inserts.length === 0) return;
+    if (wholeRows.length === 0) return;
     // A note or a row that wraps differently once the screen turns
     const observer = new ResizeObserver(fit);
     [...inserts, ...wholeRows].forEach(el => observer.observe(el));
@@ -425,12 +442,17 @@ export const MatchLog = () => {
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
               </div>
+              {/* Under 280px wide (a 200% zoom) the note had a third of
+                  the screen and read a word to a line, and its button ran
+                  past the screen's edge: there the note takes more of the
+                  list's width, and the button a line of its own, its label
+                  wrapping inside it with the match's name kept whole. */}
               {isBlocked && (
                 <div
                   ref={warningRef}
                   data-row-insert
                   role="alert"
-                  className={`mx-4 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+                  className={`mx-4 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2 text-xs font-semibold max-[279px]:mx-2 max-[279px]:px-2 ${
                     isDarkMode
                       ? 'border-amber-400/35 bg-amber-400/10 text-amber-200'
                       : 'border-amber-300 bg-amber-50 text-amber-900'
@@ -450,9 +472,14 @@ export const MatchLog = () => {
                       setShowUnsavedEditWarning(false);
                       setOpenNextId(match.id);
                     }}
-                    className={`min-h-11 shrink-0 rounded-xl px-3 text-sm ${actionClass('neutral', isDarkMode)}`}
+                    className={`min-h-11 shrink-0 rounded-xl px-3 text-sm max-[279px]:w-full max-[279px]:px-2 ${actionClass('neutral', isDarkMode)}`}
                   >
-                    Save and open Match {match.matchNumber}
+                    <span className="text-balance">
+                      Save and open{' '}
+                      <span className="whitespace-nowrap">
+                        Match {match.matchNumber}
+                      </span>
+                    </span>
                   </button>
                 </div>
               )}

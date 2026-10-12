@@ -50,15 +50,16 @@ const cutAt = (boxes: DOMRect[], by: number, edge: number): boolean =>
 /**
  * Where the page stops, given the scroll the reveal worked out (`by`):
  * there, or a few px off it where that keeps a control from being cut by
- * the bar's edge (`clearOfBarEdge`), if nothing is cut by either edge
- * there. Where the rows only just fit between the edges (a short screen),
- * clearing one edge can cut a row at the other: then it is the nearest
- * place clean at both, with no sliver of the clock under the top one
- * either, that still shows all that `by` does of `shown` (the robot rows,
- * the section's note, its first row), at most `REVEAL_GAP` further or half
- * the screen short. Where there is none, it is the one of those places
- * clean at the top edge with the least of a row peeking over the bar: a
- * strip of controls left under the header reads worse.
+ * the bar's edge (`clearOfBarEdge`), if nothing (no control, nor a
+ * counter's name) is cut by either edge there. Where the rows only just
+ * fit between the edges (a short screen), clearing one edge can cut a row
+ * at the other: then it is the nearest place clean at both, with no sliver
+ * of the clock under the top one either, that still shows all that `by`
+ * does of `shown` (the robot rows, the section's note, its first row), at
+ * most `REVEAL_GAP` further or half the screen short. Where there is none,
+ * it is the one of those places clean at the top edge with the least of a
+ * row peeking over the bar: a strip of controls left under the header
+ * reads worse.
  */
 const settle = (
   by: number,
@@ -69,6 +70,20 @@ const settle = (
   const controls = [
     ...document.querySelectorAll('button, input, [role="checkbox"]'),
   ].filter(el => !el.closest('header, .sr-only') && scrollsWithPage(el));
+  // A counter's name (what its group is labelled by) is kept whole too: a
+  // two-line name with its second line under the bar reads as a shorter
+  // name, over a stepper that is not on screen.
+  const names = [
+    ...document.querySelectorAll('[role="group"][aria-labelledby]'),
+  ].flatMap(group =>
+    (group.getAttribute('aria-labelledby') ?? '')
+      .split(' ')
+      .map(id => document.getElementById(id))
+      .filter(
+        (el): el is HTMLElement =>
+          el !== null && !el.closest('header, .sr-only') && scrollsWithPage(el)
+      )
+  );
   // A stepper's frame is a px taller than its buttons: that px shows too
   const boxes = [
     ...controls,
@@ -77,6 +92,7 @@ const settle = (
         ? [el.parentElement]
         : []
     ),
+    ...names,
   ]
     .map(el => el.getBoundingClientRect())
     .filter(r => r.width > 1 && r.height > 1);

@@ -56,8 +56,9 @@ export interface ConfirmDialogProps {
   primaryAction?: { label: string; onSelect: () => void };
   /**
    * Fields the answer needs (a password, a typed DELETE), between the
-   * question and the buttons. An `autoFocus` field there takes the focus
-   * from Cancel.
+   * question and the buttons. A field marked `data-autofocus` there takes
+   * the focus from Cancel, as it comes first. Not `autoFocus`: that scrolls
+   * the dialog to the field while it is still zooming in.
    */
   children?: ReactNode;
 }

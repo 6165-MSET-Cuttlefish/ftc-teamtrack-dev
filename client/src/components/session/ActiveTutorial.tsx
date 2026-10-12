@@ -16,7 +16,7 @@ import { GAME_TIMING, STORAGE_KEYS } from '@/constants';
 import { ELEMENT_LABELS, POINTS } from '@/lib';
 import { nextMatchNumber } from '@/lib/matchNumber';
 import { setWalkthroughSession } from '@/lib/signOutLoss';
-import { formatTime } from '@/lib/utils';
+import { cn, formatTime } from '@/lib/utils';
 import type { MatchPhase, SessionFormData } from '@/types';
 import {
   useActiveCompact,
@@ -44,6 +44,7 @@ import {
   cardVars,
   primaryButton,
   quietButton,
+  quietTextButton,
   secondaryButton,
 } from './tutorial/cardUi';
 
@@ -214,6 +215,11 @@ const Z_CARD = 10001;
 const NARROW_WIDTH = 640;
 /** Viewports shorter than this (a phone on its side) get the one-row card */
 const SHORT_HEIGHT = 500;
+/**
+ * Viewports narrower than this (a phone at 200% zoom) leave the card too
+ * narrow for Skip, Back and Next in one row: Skip goes up beside the title
+ */
+const NAV_ROW_WIDTH = 250;
 /** Space kept between the card and the spotlight's ring, in px */
 const CARD_GAP = 12;
 /** Space kept between the spotlight's ring and the header, in px */
@@ -1260,31 +1266,59 @@ export const ActiveTutorial = ({
   // buttons beside the title.
   const compactCard = hasTarget && short;
 
+  // A card too narrow for Skip, Back and Next in a row (a phone at 200%
+  // zoom) puts Skip up beside the title, over the step count, where the
+  // title's two lines leave the room; Back and Next go a little tighter to
+  // share a row. Next on a line of its own made the card taller than there
+  // is room for beside the spotlit element, which then went under the bar.
+  const skipBesideTitle = viewport.width < NAV_ROW_WIDTH;
+  const tight = (button: string) => cn(button, skipBesideTitle && 'px-3');
+  const skip = (className: string) => (
+    <button type="button" onClick={dismiss} className={className}>
+      Skip
+    </button>
+  );
+
+  // Skip on the left, Back and Next on the right. Whatever still does not
+  // fit (Get started beside Back on the narrowest card) goes on a line of
+  // its own, still on the right, rather than past the card's edge and off
+  // the screen. Beside the title the row may shrink to do that, which it
+  // only does on a line of its own: the title takes just the room left
+  // beside it.
   const nav = (
     <div
-      className={`flex items-center gap-2 flex-shrink-0 ${
-        compactCard ? '' : 'justify-between mt-3'
+      className={`flex flex-wrap items-center justify-end gap-2 ${
+        compactCard
+          ? skipBesideTitle
+            ? 'basis-full'
+            : ''
+          : 'flex-shrink-0 mt-3'
       }`}
     >
-      <button type="button" onClick={dismiss} className={quietButton}>
-        Skip
-      </button>
-      <div className="flex items-center gap-2">
-        {!isFirst && (
-          <button type="button" onClick={prev} className={secondaryButton}>
-            Back
-          </button>
-        )}
-        <button
-          type="button"
-          ref={nextButtonRef}
-          onClick={next}
-          className={primaryButton(isDarkMode)}
-        >
-          {isLast ? (isReplay ? 'Done' : 'Get started') : 'Next'}
+      {!skipBesideTitle && skip(`${quietButton} mr-auto`)}
+      {!isFirst && (
+        <button type="button" onClick={prev} className={tight(secondaryButton)}>
+          Back
         </button>
-      </div>
+      )}
+      <button
+        type="button"
+        ref={nextButtonRef}
+        onClick={next}
+        className={tight(primaryButton(isDarkMode))}
+      >
+        {isLast ? (isReplay ? 'Done' : 'Get started') : 'Next'}
+      </button>
     </div>
+  );
+
+  const stepCount = (
+    <span
+      className={`${MUTED_TEXT} font-medium tabular-nums whitespace-nowrap`}
+    >
+      <span className="sr-only">Step </span>
+      {step + 1} / {STEPS.length}
+    </span>
   );
 
   return createPortal(
@@ -1340,12 +1374,14 @@ export const ActiveTutorial = ({
             <h2 className="text-base font-semibold text-balance">
               {current.title}
             </h2>
-            <span
-              className={`${MUTED_TEXT} font-medium tabular-nums whitespace-nowrap`}
-            >
-              <span className="sr-only">Step </span>
-              {step + 1} / {STEPS.length}
-            </span>
+            {skipBesideTitle ? (
+              <div className="flex flex-col items-end">
+                {skip(quietTextButton)}
+                {stepCount}
+              </div>
+            ) : (
+              stepCount
+            )}
           </div>
           {compactCard && nav}
         </div>

@@ -74,6 +74,7 @@ import { useArmed } from '@/components/session/controls/useArmed';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { StatTile, type StatTileProps } from '@/components/ui/stat-tile';
 import { Button } from '@/components/ui/button';
+import { FIELD_BORDER } from '@/components/ui/input';
 import { NotesEditor } from './NotesEditor';
 import { Segmented } from '@/components/ui/segmented';
 import {
@@ -2232,10 +2233,8 @@ export const CompareTab = ({
       <select
         value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className={`w-full min-w-0 px-3 py-2 rounded-lg border text-sm font-semibold [@media(pointer:coarse)]:min-h-11 ${
-          isDarkMode
-            ? 'bg-team-dark border-team-blue-40 text-white'
-            : 'bg-white border-gray-200 text-gray-900'
+        className={`w-full min-w-0 px-3 py-2 rounded-lg border ${FIELD_BORDER} text-sm font-semibold [@media(pointer:coarse)]:min-h-11 ${
+          isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-gray-900'
         }`}
       >
         {matches.map((m, i) => {

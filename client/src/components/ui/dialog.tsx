@@ -35,6 +35,25 @@ const focusableIn = (node: HTMLElement): HTMLElement[] =>
     el => el.getClientRects().length > 0
   );
 
+/**
+ * Whether `el` is wholly on screen in a dialog that has just opened, with
+ * its backdrop scrolled to the top. Added up from layout offsets, which
+ * leave out the panel's zoom-in (a transform) that a rect taken now would
+ * include. The panel's offset parent is the backdrop's column.
+ */
+const isOnScreenAtOpen = (el: HTMLElement, panel: HTMLElement): boolean => {
+  const column = panel.offsetParent;
+  if (!(column instanceof HTMLElement)) return false;
+  let top = column.getBoundingClientRect().top;
+  let node: Element | null = el;
+  while (node !== column) {
+    if (!(node instanceof HTMLElement)) return false;
+    top += node.offsetTop;
+    node = node.offsetParent;
+  }
+  return top >= 0 && top + el.offsetHeight <= window.innerHeight;
+};
+
 /** Open dialog panels, outermost first: only the last one traps Tab */
 const openPanels: HTMLElement[] = [];
 
@@ -195,15 +214,18 @@ export const DialogContent = ({
     openPanels.push(panel);
 
     if (!panel.contains(document.activeElement)) {
-      // A dialog taller than the screen (less the backdrop's 1rem padding)
-      // opens at its title, so focus starts on the dialog itself rather than
-      // on a button below the fold; Tab then reaches its first control.
+      // The control marked data-autofocus (a field to type in, or the safe
+      // answer), else the first one. A dialog taller than the screen (less
+      // the backdrop's 1rem padding) opens at its title, so focus starts on
+      // that control only if it is on screen there too, else on the dialog
+      // itself rather than below the fold; Tab then reaches its first
+      // control. Never by scrolling, which would take the title away.
+      const first =
+        panel.querySelector<HTMLElement>('[data-autofocus]') ??
+        focusableIn(panel)[0];
       const tall = panel.offsetHeight > window.innerHeight - 32;
-      const target = tall
-        ? panel
-        : (panel.querySelector<HTMLElement>('[data-autofocus]') ??
-          focusableIn(panel)[0] ??
-          panel);
+      const target =
+        first && (!tall || isOnScreenAtOpen(first, panel)) ? first : panel;
       target.focus({ preventScroll: true });
     }
 

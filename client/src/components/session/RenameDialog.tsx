@@ -87,7 +87,7 @@ export const RenameDialog = ({
               onFocus={e => e.target.select()}
               aria-invalid={!hasName}
               aria-describedby={hasName ? undefined : errorId}
-              className={`h-12 px-4 rounded-xl border-2 border-team-blue-40 focus:ring-2 focus:ring-team-blue/20 ${
+              className={`h-12 px-4 rounded-xl border-2 ${
                 isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
               }`}
             />

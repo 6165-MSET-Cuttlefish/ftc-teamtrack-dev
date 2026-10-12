@@ -1041,7 +1041,7 @@ const Charts = () => {
             >
               <SelectTrigger
                 aria-label="Time range"
-                className={`w-auto text-xs sm:text-sm px-2 h-9 [@media(pointer:coarse)]:min-h-11 ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
+                className={`w-auto text-xs sm:text-sm px-2 h-9 [@media(pointer:coarse)]:min-h-11 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-white'}`}
               >
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                 <SelectValue />

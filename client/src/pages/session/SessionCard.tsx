@@ -416,8 +416,8 @@ export const SessionCard = ({
                   aria-label="Session name"
                   className={`h-11 text-lg font-semibold md:text-lg ${
                     isDarkMode
-                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                      : 'bg-gray-50 border-team-blue/60 text-gray-900 placeholder-gray-500'
+                      ? 'bg-team-dark-20 text-white placeholder-team-white-40'
+                      : 'bg-gray-50 text-gray-900 placeholder-gray-500'
                   }`}
                   autoFocus
                   onFocus={e => e.currentTarget.select()}

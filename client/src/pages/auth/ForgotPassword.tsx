@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card';
 import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert';
+import { useRevealKeyboardFocus } from './useRevealKeyboardFocus';
 import { Mail, ArrowLeft } from 'lucide-react';
 
 const ForgotPassword = () => {
@@ -29,6 +30,7 @@ const ForgotPassword = () => {
 
   const { resetPassword } = useAuth();
   const { isDarkMode } = useTheme();
+  const revealKeyboardFocus = useRevealKeyboardFocus();
 
   useEffect(() => {
     document.title = `Reset your password - ${APP_CONFIG.name}`;
@@ -76,6 +78,8 @@ const ForgotPassword = () => {
     // flex-1 under the header (main is a flex column), not a second screen
     // height; on a phone the card starts at the top instead of mid-screen.
     <div
+      // Keyboard focus brings the whole control and its ring on screen
+      onFocus={revealKeyboardFocus}
       className={`flex-1 flex items-start sm:items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-6 sm:py-8 px-3 sm:px-4 md:px-6 lg:px-8`}
     >
       <Card
@@ -186,7 +190,7 @@ const ForgotPassword = () => {
                         setEmail(e.target.value);
                         if (error) setError(null);
                       }}
-                      className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
+                      className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                       required
                     />
                   </div>

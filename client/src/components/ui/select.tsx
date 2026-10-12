@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { FIELD_BORDER } from './input';
 
 const Select = SelectPrimitive.Root;
 
@@ -16,15 +17,14 @@ const SelectTrigger = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => {
   const { isDarkMode } = useTheme();
-  // Same focus as Input, and only for the keyboard: a list picked from by
-  // mouse or touch hands focus back to the trigger, which then keeps no
-  // ring. Same text size as Input too (16px on phones, 14px from md), so a
-  // field and a select side by side match.
-  const base =
-    'flex h-12 w-full items-center justify-between rounded-md px-2.5 py-2.5 text-base md:text-sm border placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-team-blue/30 focus-visible:ring-offset-0 focus-visible:border-team-blue aria-[invalid=true]:focus-visible:border-red-500 aria-[invalid=true]:focus-visible:ring-red-500/30 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1';
+  // Same outline and focus as Input, the focus only for the keyboard: a
+  // list picked from by mouse or touch hands focus back to the trigger,
+  // which then keeps no ring. Same text size as Input too (16px on phones,
+  // 14px from md), so a field and a select side by side match.
+  const base = `flex h-12 w-full items-center justify-between rounded-md px-2.5 py-2.5 text-base md:text-sm border ${FIELD_BORDER} placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-team-blue focus-visible:ring-offset-0 focus-visible:border-team-blue aria-[invalid=true]:focus-visible:border-red-500 aria-[invalid=true]:focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1`;
   const themeClasses = isDarkMode
-    ? 'border-team-white-20 bg-team-dark text-white'
-    : 'border-team-blue/60 bg-[#FEFEFE] text-black';
+    ? 'bg-team-dark text-white'
+    : 'bg-[#FEFEFE] text-black';
 
   return (
     <SelectPrimitive.Trigger
