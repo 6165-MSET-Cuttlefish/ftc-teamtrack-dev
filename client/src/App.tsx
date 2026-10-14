@@ -7,8 +7,7 @@ import {
   useLocation,
   useNavigationType,
 } from 'react-router-dom';
-import { logEvent } from 'firebase/analytics';
-import { getFirebase } from '@/lib';
+import { logPageView } from '@/lib/analytics';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 // Loaded with the app, on every route: finishes any session delete that a
 // closed tab left inside its undo window.
@@ -64,13 +63,9 @@ const RouteTracker = () => {
       lastPathname.current === location.pathname;
     lastPathname.current = location.pathname;
     if (samePage) return;
-    getFirebase().then(firebase => {
-      if (firebase?.analytics) {
-        logEvent(firebase.analytics, 'page_view', {
-          page_path: location.pathname + location.search,
-          page_location: window.location.href,
-        });
-      }
+    logPageView({
+      page_path: location.pathname + location.search,
+      page_location: window.location.href,
     });
   }, [location, navigationType]);
   return null;

@@ -5,7 +5,7 @@ import './global.css';
 import { isAbortError, getFirebase } from '@/lib';
 import { isChunkLoadError, recoverFromChunkError } from '@/lib/lazyWithRetry';
 
-// Initialize Firebase (including Analytics) eagerly on page load
+// Initialize Firebase eagerly on page load
 getFirebase();
 
 if (import.meta.env.DEV) {
