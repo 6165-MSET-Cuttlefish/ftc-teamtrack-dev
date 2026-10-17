@@ -29,7 +29,7 @@ export const LOCK_REASONS = {
   /** The same, where every end-of-match counter is left out */
   noEndParkOrCounts: `No ${ELEMENT_LABELS.parkEnd}, flowers, ${ELEMENT_LABELS.hive} or ${ELEMENT_LABELS.garden} in an Autonomous match`,
   /** During AUTO (and before Start, as the match starts in AUTO) */
-  endParkWaits: `${ELEMENT_LABELS.parkEnd} unlocks in Teleop or on pause`,
+  endParkWaits: `Pause or wait for Teleop to score ${ELEMENT_LABELS.parkEnd}`,
 } as const;
 
 /** The end-of-match counters in their pairs, as they are laid out */
