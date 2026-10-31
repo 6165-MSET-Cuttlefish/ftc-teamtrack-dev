@@ -140,6 +140,9 @@ export const SessionMenu = () => {
   return (
     <>
       <DropdownMenu>
+        {/* Radix gives the trigger an id, so global.css's 5rem margin for
+            anchors would scroll the page when focus comes back to it as
+            the menu closes. */}
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -147,7 +150,7 @@ export const SessionMenu = () => {
             aria-label="Session menu"
             title="Session menu"
             data-session-menu
-            className={`shrink-0 ${
+            className={`shrink-0 scroll-mt-0 ${
               isCompact ? 'h-11 w-11 rounded-xl' : 'h-12 w-12 rounded-2xl'
             } ${actionClass('neutral', isDarkMode)}`}
           >
@@ -371,7 +374,7 @@ const RenameSessionDialog = ({ onClose }: { onClose: () => void }) => {
               onFocus={e => e.target.select()}
               aria-invalid={!hasName}
               aria-describedby={hasName ? undefined : errorId}
-              className={`h-12 px-4 rounded-xl border-2 border-team-blue-40 focus:ring-2 focus:ring-team-blue/20 ${
+              className={`h-12 px-4 rounded-xl border-2 ${
                 isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
               }`}
             />
@@ -468,7 +471,7 @@ const AddDriverDialog = ({ onClose }: { onClose: () => void }) => {
               maxLength={MAX_DRIVER_LENGTH}
               value={name}
               onChange={e => setName(e.target.value)}
-              className={`h-12 px-4 rounded-xl border-2 border-team-blue-40 focus:ring-2 focus:ring-team-blue/20 ${
+              className={`h-12 px-4 rounded-xl border-2 ${
                 isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
               }`}
             />

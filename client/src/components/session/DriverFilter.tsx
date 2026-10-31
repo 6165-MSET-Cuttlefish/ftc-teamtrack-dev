@@ -34,7 +34,7 @@ export const DriverFilter = ({
     >
       <SelectTrigger
         aria-label="Driver"
-        className={`w-auto max-w-[12rem] text-xs sm:text-sm px-2 h-9 [@media(pointer:coarse)]:min-h-11 ${isDarkMode ? 'bg-team-dark border-team-blue-40 text-white' : 'bg-white border-gray-300'}`}
+        className={`w-auto max-w-[12rem] text-xs sm:text-sm px-2 h-9 [@media(pointer:coarse)]:min-h-11 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-white'}`}
       >
         <UserRound className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
         <span className="min-w-0 truncate">

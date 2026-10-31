@@ -2,6 +2,7 @@ import { useState, useEffect, useId, useRef, memo } from 'react';
 import { Info, Lock, Minus, Plus } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { formatPoints } from '@/lib/points';
+import { FIELD_BORDER } from '@/components/ui/input';
 import {
   INFO_BUTTON_CLASS,
   LOCKED_TEXT,
@@ -281,6 +282,13 @@ export const ScoreField = memo(
      * so there the points go under the label too.
      */
     const pointsUnderOnNarrow = isLarge && !pointsUnderLabel;
+    /**
+     * A compact row with no live button (a dialog's counter) under 280px
+     * wide, a phone zoomed to 200%: there the name, with its points, takes
+     * a line of its own and the stepper fills the line under it, where
+     * side by side the name was drawn over − and + ran off the edge.
+     */
+    const stackWhenNarrow = isCompact && !hasLiveAction;
 
     const step = (delta: number) => {
       const typedText = editing ? draft.trim() : '';
@@ -300,7 +308,9 @@ export const ScoreField = memo(
     // a live button they take its height, so the row is one height; on a
     // phone on its side too narrow for the clock's column (an iPhone SE)
     // the row gives up its extra height, down to 44px, so the robot rows
-    // under it clear the bar fixed over the bottom of the screen.
+    // under it clear the bar fixed over the bottom of the screen. A row
+    // stacked under 280px gives − and + 40px, so the count between them
+    // keeps room for two digits.
     const shortStacked = hasLiveAction
       ? '[@media(max-height:500px)_and_(max-width:639px)]:h-11'
       : '';
@@ -308,9 +318,9 @@ export const ScoreField = memo(
       ? 'w-11 h-11 md:w-12 md:h-12'
       : hasLiveAction
         ? `w-12 h-14 ${shortStacked}`
-        : isLarge
-          ? 'w-12 h-12'
-          : 'w-10 h-10';
+        : `${isLarge ? 'w-12 h-12' : 'w-10 h-10'} ${
+            stackWhenNarrow ? 'max-[279px]:w-10' : ''
+          }`;
     const stepIconSize = isLarge || isStacked ? 20 : 16;
     // The one locked look, as on the robot toggles and the desktop pad: no
     // outline, a faint fill and muted text that still reads (over 3:1).
@@ -383,7 +393,9 @@ export const ScoreField = memo(
     const countBox = isStacked
       ? 'h-11 w-full md:h-12 md:w-20'
       : isCompact
-        ? `${hasLiveAction ? `h-14 w-11 ${shortStacked}` : isLarge ? 'h-12 w-12' : 'h-10 w-12'} md:w-20`
+        ? `${hasLiveAction ? `h-14 w-11 ${shortStacked}` : isLarge ? 'h-12 w-12' : 'h-10 w-12'} md:w-20 ${
+            stackWhenNarrow ? 'max-[279px]:min-w-0 max-[279px]:flex-1' : ''
+          }`
         : isLarge
           ? 'h-12 w-16 md:w-20'
           : 'h-10 w-20';
@@ -531,16 +543,16 @@ export const ScoreField = memo(
           )}
           <div
             // The −, count and + have no box of their own: this frame is
-            // their outline, so honeycomb lights it with them (global.css)
+            // their outline, a field's (the full gold in honeycomb)
             data-joined
             className={`flex h-11 items-stretch overflow-hidden rounded-xl border transition-colors [@media(pointer:coarse)]:h-[2.875rem] ${
               disabled
                 ? LOCKED_SURFACE
                 : invalid
                   ? 'border-red-500'
-                  : isDarkMode
-                    ? 'border-team-blue-40 bg-black/30 focus-within:border-team-blue'
-                    : 'border-gray-500 bg-white focus-within:border-team-blue'
+                  : `${FIELD_BORDER} focus-within:border-team-blue ${
+                      isDarkMode ? 'bg-black/30' : 'bg-white'
+                    }`
             }`}
           >
             {stepper && (
@@ -596,7 +608,10 @@ export const ScoreField = memo(
     }
 
     return (
-      <div ref={rootRef} className="space-y-1">
+      <div
+        ref={rootRef}
+        className={`space-y-1 ${stackWhenNarrow ? 'max-[279px]:w-full' : ''}`}
+      >
         <div
           className={
             isStacked
@@ -604,8 +619,9 @@ export const ScoreField = memo(
               : isCompact
                 ? // In a column narrower than 15rem (a 200% zoom) the live
                   // row's name takes a line of its own above −, the count
-                  // and +1 Tip, which would not fit beside it
-                  `flex items-center gap-1.5 md:gap-3 ${hasLiveAction ? 'min-h-14 [@media(max-height:500px)_and_(max-width:639px)]:min-h-11 [@container(max-width:15rem)]:flex-wrap [@container(max-width:15rem)]:gap-y-1' : ''}`
+                  // and +1 Tip, which would not fit beside it; so does a
+                  // dialog's row on a screen that narrow (stackWhenNarrow)
+                  `flex items-center gap-1.5 md:gap-3 ${hasLiveAction ? 'min-h-14 [@media(max-height:500px)_and_(max-width:639px)]:min-h-11 [@container(max-width:15rem)]:flex-wrap [@container(max-width:15rem)]:gap-y-1' : 'max-[279px]:flex-wrap max-[279px]:gap-x-1'}`
                 : 'flex items-center gap-2 md:gap-3'
           }
         >
@@ -620,7 +636,7 @@ export const ScoreField = memo(
                   ? 'col-span-3 md:flex-1'
                   : hasLiveAction
                     ? 'flex-none md:flex-1 [@container(max-width:15rem)]:basis-full'
-                    : 'flex-1'
+                    : `flex-1 ${stackWhenNarrow ? 'max-[279px]:basis-full' : ''}`
               }`}
             >
               <div
@@ -662,7 +678,7 @@ export const ScoreField = memo(
                   <div
                     className={`text-xs leading-4 font-semibold tabular-nums ${
                       isCompact
-                        ? `absolute left-0 top-full whitespace-nowrap ${hasLiveAction ? '[@container(max-width:15rem)]:static' : ''}`
+                        ? `absolute left-0 top-full whitespace-nowrap ${hasLiveAction ? '[@container(max-width:15rem)]:static' : 'max-[279px]:static'}`
                         : ''
                     } ${
                       pointsUnderOnNarrow ? 'min-[360px]:hidden' : 'md:hidden'
@@ -710,11 +726,20 @@ export const ScoreField = memo(
               {value}
             </div>
           ) : (
+            // Focused, as an Input is: the accent border inside a solid ring
+            // of it, red while the entry is rejected. The outline at rest is
+            // about as dark as the accent in light, and is the accent in
+            // honeycomb, so a border change alone hardly showed. Only the
+            // box itself takes it: a press on − or + doesn't focus it.
             renderInput(
               `text-center font-bold rounded-lg border-2 transition-colors tabular-nums ${countBox} ${countText} ${
                 disabled
                   ? lockedTone
-                  : `${invalid ? 'border-red-500' : isDarkMode ? 'border-team-blue-40 focus:border-team-blue' : 'border-gray-500 focus:border-team-blue'} focus:outline-none ${
+                  : `${
+                      invalid
+                        ? 'border-red-500 focus-visible:ring-red-500'
+                        : `${FIELD_BORDER} focus:border-team-blue focus-visible:ring-team-blue`
+                    } focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 ${
                       isDarkMode
                         ? 'bg-team-dark text-white'
                         : 'bg-white text-black'

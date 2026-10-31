@@ -85,7 +85,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
+import { FIELD_BORDER, Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
 import { StatTile } from '@/components/ui/stat-tile';
 import { CHIP_BASE, CHIP_SIZES } from '@/components/ui/tokens';
@@ -1372,9 +1372,9 @@ const Sessions = () => {
   const fieldIcon = isDarkMode ? 'text-team-white-60' : 'text-gray-500';
   const outlineButton = `border border-team-blue hover:bg-team-blue/10 transition-colors text-xs sm:text-sm md:text-base px-2.5 sm:px-3 py-2 min-h-11 flex items-center gap-1 sm:gap-1.5 text-team-blue border-team-blue-40`;
   /** Search, the selects and the view toggle: one field look */
-  const fieldTone = isDarkMode
-    ? 'bg-team-dark border-team-blue-40 text-white'
-    : 'bg-white border-gray-200 text-gray-900';
+  const fieldTone = `${FIELD_BORDER} ${
+    isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-gray-900'
+  }`;
   const countBadge = `${CHIP_BASE} ${CHIP_SIZES.sm} min-w-[1.25rem] justify-center tabular-nums bg-team-blue/15 ring-team-blue/40 ${
     isDarkMode ? 'text-white' : 'text-gray-900'
   }`;
@@ -1730,8 +1730,8 @@ const Sessions = () => {
                     searchTerm ? 'pr-11' : ''
                   } ${
                     isDarkMode
-                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue'
-                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-team-blue'
+                      ? 'bg-team-dark-20 text-white placeholder-team-white-40 focus:border-team-blue'
+                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-team-blue'
                   }`}
                 />
                 {searchTerm && (

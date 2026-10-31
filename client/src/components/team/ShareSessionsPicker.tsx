@@ -40,6 +40,7 @@ export const ShareSessionsPicker = ({
     onChange(next);
   };
 
+  // An empty box's outline is at least 3:1 on the dialog, as a field's is
   const box = (checked: boolean) =>
     checked ? (
       <CheckSquare
@@ -49,7 +50,7 @@ export const ShareSessionsPicker = ({
     ) : (
       <Square
         aria-hidden="true"
-        className={`h-4 w-4 shrink-0 ${isDarkMode ? 'text-team-white-40' : 'text-gray-400'}`}
+        className={`h-4 w-4 shrink-0 ${isDarkMode ? 'text-team-white-40' : 'text-gray-500'}`}
       />
     );
 

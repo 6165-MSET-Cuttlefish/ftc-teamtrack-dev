@@ -17,6 +17,7 @@ import {
 import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert';
 import { PendingInviteBanner } from '@/components/auth/PendingInviteBanner';
+import { useRevealKeyboardFocus } from './useRevealKeyboardFocus';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -42,6 +43,7 @@ const Signup = () => {
 
   const { signup, loginWithGoogle } = useAuth();
   const { isDarkMode } = useTheme();
+  const revealKeyboardFocus = useRevealKeyboardFocus();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -136,6 +138,8 @@ const Signup = () => {
     // flex-1 under the header (main is a flex column), not a second screen
     // height; on a phone the card starts at the top instead of mid-screen.
     <div
+      // Keyboard focus brings the whole control and its ring on screen
+      onFocus={revealKeyboardFocus}
       className={`flex-1 flex items-start sm:items-center justify-center ${isDarkMode ? 'bg-team-dark' : 'bg-gray-50'} py-6 sm:py-8 px-3 sm:px-4 md:px-6 lg:px-8`}
     >
       <Card
@@ -176,7 +180,7 @@ const Signup = () => {
                   value={formData.displayName}
                   onChange={handleChange}
                   aria-describedby="displayName-hint"
-                  className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
+                  className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
               </div>
@@ -210,7 +214,7 @@ const Signup = () => {
                   autoComplete="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
+                  className={`h-12 pl-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
               </div>
@@ -242,7 +246,7 @@ const Signup = () => {
                   onBlur={handleBlur}
                   aria-invalid={showTooShort || undefined}
                   aria-describedby="password-hint"
-                  className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
+                  className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
                 <button
@@ -300,7 +304,7 @@ const Signup = () => {
                   aria-describedby={
                     showMismatch ? 'confirmPassword-error' : undefined
                   }
-                  className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
+                  className={`h-12 pl-12 pr-12 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md focus:shadow-lg ${isDarkMode ? 'bg-team-dark-20 text-white placeholder-team-white-40 focus:border-team-blue' : 'bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-team-blue'}`}
                   required
                 />
                 <button

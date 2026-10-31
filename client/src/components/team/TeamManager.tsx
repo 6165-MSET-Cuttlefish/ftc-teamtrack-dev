@@ -692,7 +692,14 @@ export const TeamManager = ({
   // The team dialog's footer stays put while its body scrolls, and stays a
   // row on a phone too. On a phone zoomed to 200% (195px) the two buttons
   // can't share a row, so they stack, Done on top as in other dialogs.
-  const footer = 'shrink-0 flex-row gap-3 px-5 max-[279px]:flex-col-reverse';
+  const footer =
+    'shrink-0 flex-row gap-3 px-5 max-[279px]:flex-col-reverse max-[279px]:px-4';
+  // There, too, a title's icon and its 20px words left the team's name a
+  // few letters a line ('Cutt / lefis / h'): the icon goes and the title is
+  // a step smaller. The team dialog also trades its 24px sides for 16px
+  // (narrowSides), and its rename button makes way for the name (below).
+  const narrowTitle = 'max-[279px]:text-lg max-[279px]:[&>svg]:hidden';
+  const narrowSides = 'max-[279px]:px-4';
   // The buttons of the other dialogs' footers: full width when stacked on a
   // phone, and wide enough beside each other not to resize as a label changes.
   // On a phone zoomed to 200% a long label ('Select sessions to share') wraps
@@ -824,13 +831,14 @@ export const TeamManager = ({
                 maxLength={MAX_TEAM_NAME_LENGTH}
                 className={`h-12 rounded-xl ${
                   isDarkMode
-                    ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                    ? 'bg-team-dark-20 text-white placeholder-team-white-40'
+                    : 'bg-gray-50 text-gray-900 placeholder-gray-400'
                 }`}
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleCreateTeam();
                 }}
-                autoFocus
+                // Focused by the dialog as it opens, without scrolling it
+                data-autofocus
               />
             </div>
           </div>
@@ -894,14 +902,15 @@ export const TeamManager = ({
                 aria-describedby={joinError ? 'team-join-error' : undefined}
                 className={`h-12 rounded-xl text-center text-lg font-mono tracking-widest ${
                   isDarkMode
-                    ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                    ? 'bg-team-dark-20 text-white placeholder-team-white-40'
+                    : 'bg-gray-50 text-gray-900 placeholder-gray-400'
                 } ${joinError ? '!border-red-500' : ''}`}
                 maxLength={64}
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleJoinTeam();
                 }}
-                autoFocus
+                // Focused by the dialog as it opens, without scrolling it
+                data-autofocus
               />
               {joinError && (
                 <p
@@ -948,10 +957,22 @@ export const TeamManager = ({
           className={`max-w-md flex flex-col max-h-[calc(100dvh-2rem)] max-[279px]:max-h-none ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
           {/* The team's name once, as the title, renamed in place by its owner */}
-          <DialogHeader className={`shrink-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
-            <div className={isRenaming ? 'contents' : 'flex items-start gap-1'}>
+          <DialogHeader
+            className={`shrink-0 ${narrowSides} ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}
+          >
+            {/* Beside the rename button the name had under 8rem at 200%
+                zoom, too little for most names ('Overclock / ed'): where it
+                would get less, the button goes to the line under the name,
+                at the same edge, and the name has the whole line. */}
+            <div
+              className={
+                isRenaming
+                  ? 'contents'
+                  : 'flex items-start gap-1 max-[279px]:flex-wrap'
+              }
+            >
               <DialogTitle
-                className={`${titleText} ${isRenaming ? 'sr-only' : 'flex-1 min-w-0'}`}
+                className={`${titleText} ${narrowTitle} ${isRenaming ? 'sr-only' : 'flex-1 min-w-0 max-[279px]:basis-32'}`}
               >
                 {/* With the first line of a title that wraps */}
                 <Users className="h-5 w-5 self-start mt-1 shrink-0 text-team-blue" />
@@ -962,7 +983,7 @@ export const TeamManager = ({
                   type="button"
                   onClick={handleStartRename}
                   aria-label="Rename team"
-                  className={`h-9 w-9 -mr-2 shrink-0 ${iconButton}`}
+                  className={`h-9 w-9 -mr-2 shrink-0 max-[279px]:ml-auto ${iconButton}`}
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -979,8 +1000,8 @@ export const TeamManager = ({
                   onChange={e => setRenameValue(e.target.value)}
                   className={`flex-1 h-11 rounded-xl text-base font-semibold ${
                     isDarkMode
-                      ? 'bg-team-dark-20 border-team-blue-40 text-white placeholder-team-white-40'
-                      : 'bg-gray-50 border-gray-200 text-gray-900'
+                      ? 'bg-team-dark-20 text-white placeholder-team-white-40'
+                      : 'bg-gray-50 text-gray-900'
                   }`}
                   maxLength={MAX_TEAM_NAME_LENGTH}
                   autoFocus
@@ -1019,7 +1040,9 @@ export const TeamManager = ({
             )}
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
+          <div
+            className={`flex-1 min-h-0 overflow-y-auto p-5 space-y-5 ${narrowSides}`}
+          >
             <section aria-labelledby="team-invite-heading">
               <div className="flex items-center justify-between gap-2 mb-2 min-h-9">
                 <h3 id="team-invite-heading" className={EYEBROW_CLASS}>
@@ -1052,10 +1075,11 @@ export const TeamManager = ({
                   </DropdownMenu>
                 )}
               </div>
-              {/* The dialog's one filled button: inviting is what it is for */}
+              {/* The dialog's one filled button: inviting is what it is for.
+                  Its words wrap at 200% zoom rather than run past its edges. */}
               <Button
                 onClick={() => copyInviteLink(setCopied)}
-                className={`w-full h-11 rounded-xl ${primaryButton}`}
+                className={`w-full h-11 rounded-xl max-[279px]:h-auto max-[279px]:min-h-11 max-[279px]:whitespace-normal ${primaryButton}`}
               >
                 {copied ? (
                   <>
@@ -1124,9 +1148,13 @@ export const TeamManager = ({
                           : 'bg-gray-50 has-[[data-state=open]]:bg-team-blue/10'
                       }`}
                     >
+                      {/* At 200% zoom (195px) the picture and the Owner chip
+                          beside the name left it no room ('(you)' was drawn
+                          over the chip): there the picture goes and the chip
+                          sits under the name. */}
                       <div
                         aria-hidden="true"
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 max-[279px]:hidden ${
                           member.role === 'owner'
                             ? 'bg-team-blue/20 text-team-blue'
                             : isDarkMode
@@ -1162,10 +1190,17 @@ export const TeamManager = ({
                             {member.email}
                           </div>
                         )}
+                        {member.role === 'owner' && (
+                          <span
+                            className={`${CHIP_BASE} ${CHIP_SIZES.sm} ${chipTone('neutral', isDarkMode)} hidden mt-1 max-[279px]:inline-flex`}
+                          >
+                            Owner
+                          </span>
+                        )}
                       </div>
                       {member.role === 'owner' && (
                         <span
-                          className={`${CHIP_BASE} ${CHIP_SIZES.sm} ${chipTone('neutral', isDarkMode)} shrink-0`}
+                          className={`${CHIP_BASE} ${CHIP_SIZES.sm} ${chipTone('neutral', isDarkMode)} shrink-0 max-[279px]:hidden`}
                         >
                           Owner
                         </span>
@@ -1231,7 +1266,7 @@ export const TeamManager = ({
             <Button
               onClick={() => team && openShareDialog(team.id)}
               variant="neutral"
-              className="w-full h-11 rounded-xl"
+              className="w-full h-11 rounded-xl max-[279px]:h-auto max-[279px]:min-h-11 max-[279px]:whitespace-normal"
             >
               <Share2 className="h-4 w-4" />
               Share my sessions…
@@ -1283,7 +1318,7 @@ export const TeamManager = ({
           className={`max-w-lg flex flex-col max-h-[calc(100dvh-2rem)] max-[279px]:max-h-none ${isDarkMode ? 'bg-team-dark border border-team-blue-40' : 'bg-white border border-gray-200'}`}
         >
           <DialogHeader className={`shrink-0 ${isDarkMode ? 'border-team-blue-40' : 'border-gray-200'}`}>
-            <DialogTitle className={titleText}>
+            <DialogTitle className={`${titleText} ${narrowTitle}`}>
               <Share2 className="h-5 w-5 shrink-0 text-team-blue" />
               <span className="min-w-0 break-words">Share sessions with {team?.name}</span>
             </DialogTitle>

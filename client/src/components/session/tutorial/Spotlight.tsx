@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   SPOT_RING,
+  floorOver,
   holeAround,
   isPinned,
   keepInBand,
   measurePainted,
+  type Edges,
   type HoleBox,
   type Painted,
 } from './geometry';
@@ -120,10 +122,11 @@ export const Spotlight = ({
     let bar: HTMLElement | null = null;
     let barPinned = false;
     /**
-     * How far down the page shows round `box`: to the bar's top edge where
-     * the bar is under it, else to the bottom of the screen.
+     * How far down the page shows round `edges` (what is spotlit): to the
+     * bar's top edge where the bar is under it, else to the bottom of the
+     * screen.
      */
-    const floor = (box: HoleBox, height: number) => {
+    const floor = (edges: Edges, height: number) => {
       const el = bottomBar
         ? document.querySelector<HTMLElement>(bottomBar)
         : null;
@@ -132,11 +135,12 @@ export const Spotlight = ({
         barPinned = !!el && !el.contains(target) && isPinned(el);
       }
       if (!bar || !barPinned) return height;
-      const edge = bar.getBoundingClientRect();
-      const under = edge.left < box.left + box.width && edge.right > box.left;
-      return under && edge.top > height / 2
-        ? Math.min(height, edge.top)
-        : height;
+      return floorOver(
+        bar.getBoundingClientRect(),
+        edges.left,
+        edges.right,
+        height
+      );
     };
 
     let last = '';
@@ -191,23 +195,19 @@ export const Spotlight = ({
       }
       if (!painted) return;
       const rect = target.getBoundingClientRect();
-      const box = holeAround(
-        {
-          top: rect.top + painted.edges.top,
-          left: rect.left + painted.edges.left,
-          right: rect.left + painted.edges.right,
-          bottom: rect.top + painted.edges.bottom,
-        },
-        painted.radius,
-        view,
-        fixed
-      );
+      const edges = {
+        top: rect.top + painted.edges.top,
+        left: rect.left + painted.edges.left,
+        right: rect.left + painted.edges.right,
+        bottom: rect.top + painted.edges.bottom,
+      };
+      const box = holeAround(edges, painted.radius, view, fixed);
       write(
         fixed
           ? box
           : keepInBand(box, {
               top: headerBottomRef.current,
-              bottom: floor(box, view.height),
+              bottom: floor(edges, view.height),
             }),
         true
       );

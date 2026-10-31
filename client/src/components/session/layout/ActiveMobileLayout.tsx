@@ -10,13 +10,14 @@ import {
 import { useSessionCore, useTheme } from '@/contexts';
 
 import { useLiveControls } from '../controls/liveControlsContext';
-import { visibleBand } from '../controls/scrollUnderHeader';
+import { scrollsWithPage, visibleBand } from '../controls/scrollUnderHeader';
 import {
   slotsInRegion,
   type ActiveSlots,
   type PlacementMap,
 } from './activeSlots';
 import { useActiveShortStacked, useActiveSideBySide } from './useActiveCompact';
+import { useFocusClearOfEdges } from './useFocusClearOfEdges';
 import { useHeaderHeightVar } from './useHeaderHeightVar';
 
 type Region =
@@ -152,7 +153,83 @@ const keepLiveClear = (bar: HTMLElement, grew: number): number | null => {
   const bottom = Math.max(...buttons.map(b => b.bottom));
   const overlap = bottom + LIVE_GAP - barRect.top;
   if (overlap <= 0 || overlap > grew + LIVE_GAP) return null;
-  return scrollDown(Math.min(overlap, top - headerBottom() - LIVE_GAP));
+  const by = Math.min(overlap, top - headerBottom() - LIVE_GAP);
+  // Where the gap kept over the bar would take the row of buttons over
+  // the clock (Skip, Discard, the session menu) partly under the header (a
+  // 200% zoom has no px to spare between the two), the counters sit right
+  // on the bar instead: nothing is left cut by either edge.
+  const flush = Math.max(0, overlap - LIVE_GAP);
+  return scrollDown(
+    by > flush && cutByHeader(by) && !cutByHeader(flush) ? flush : by
+  );
+};
+
+/**
+ * The controls of the page that the top edge of what shows of it would cut
+ * once the page is scrolled down by `by` px: part above it, part below. That
+ * edge is the header's bottom, or the top of the screen where the header
+ * has scrolled away (it is only pinned while a match runs on a short
+ * screen). Those that stay put as the page scrolls (the bar, the header,
+ * toasts) aren't cut.
+ */
+const cutAtTop = (by: number): DOMRect[] => {
+  const edge = Math.max(0, headerBottom());
+  return [...document.querySelectorAll(CONTROLS)]
+    .filter(control => !control.closest('header') && scrollsWithPage(control))
+    .map(control => control.getBoundingClientRect())
+    .filter(
+      r =>
+        r.width > 1 && r.height > 1 && r.top - by < edge && r.bottom - by > edge
+    );
+};
+
+/** Whether scrolling the page down by `by` px would leave a control cut */
+const cutByHeader = (by: number): boolean => cutAtTop(by).length > 0;
+
+/**
+ * Whether scrolling the page down by `by` px would leave a control of the
+ * page cut by the top edge of the bar, where the bar is over it
+ */
+const cutByBar = (bar: HTMLElement, by: number): boolean => {
+  const edge = bar.getBoundingClientRect();
+  return [...document.querySelectorAll(CONTROLS)].some(control => {
+    if (bar.contains(control) || !scrollsWithPage(control)) return false;
+    const r = control.getBoundingClientRect();
+    return (
+      r.width > 1 &&
+      r.height > 1 &&
+      r.left < edge.right &&
+      r.right > edge.left &&
+      r.top - by < edge.top &&
+      r.bottom - by > edge.top
+    );
+  });
+};
+
+/**
+ * Saving a match reshapes the page above where it is (the fields empty,
+ * the breakdown folds away, the Match Log gains a row), and the browser
+ * holds the page where it can, which could leave a strip of a control at
+ * the top edge: 10px of Hive Tips at a 200% zoom, the bottom 2px of the
+ * session menu on a phone on its side. The page goes the least way that
+ * leaves nothing cut at either edge: back up until that control shows
+ * whole (with a gap over it), or on down until it is gone. Where neither
+ * does, it stays.
+ */
+const clearOfTopEdge = () => {
+  const cut = cutAtTop(0);
+  if (cut.length === 0) return;
+  const edge = Math.max(0, headerBottom());
+  const bar = document.querySelector<HTMLElement>('[data-tutorial="controls"]');
+  const up = Math.ceil(Math.max(...cut.map(r => edge - r.top))) + LIVE_GAP;
+  const down = Math.ceil(Math.max(...cut.map(r => r.bottom - edge)));
+  // Only as far as the page can go
+  const end = document.documentElement.scrollHeight - window.innerHeight;
+  const by = [-up, down]
+    .filter(to => window.scrollY + to >= 0 && window.scrollY + to <= end)
+    .sort((a, b) => Math.abs(a) - Math.abs(b))
+    .find(to => !cutByHeader(to) && !(bar && cutByBar(bar, to)));
+  if (by !== undefined) window.scrollBy({ top: by, behavior: 'instant' });
 };
 
 /**
@@ -194,6 +271,21 @@ const keepControlsClear = (
     if (liveTop >= bandTop) by = Math.min(by, liveTop - bandTop - LIVE_GAP);
   }
   return scrollDown(by);
+};
+
+/**
+ * Side by side, the bar is under the clock's column, which is pinned and
+ * doesn't scroll away from it. The bar has just grown over the column's
+ * last line (a question on a phone 360px tall): the page scrolls by as much
+ * as lifts the column clear, which it can until the column reaches where
+ * it is pinned (the header above it scrolls away between matches). Returns
+ * how far the page moved, in px.
+ */
+const keepColumnClear = (bar: HTMLElement, column: HTMLElement): number => {
+  const { top, bottom } = column.getBoundingClientRect();
+  const need = bottom + LIVE_GAP - bar.getBoundingClientRect().top;
+  const room = top - (parseFloat(getComputedStyle(column).top) || 0);
+  return scrollDown(Math.min(need, room));
 };
 
 /**
@@ -245,17 +337,20 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
    * (a match before its buzzer, and not the walkthrough's), so the bar
    * growing at the buzzer is not taken for a question. `pageMoves`: the
    * page may scroll for the bar at all; not for the walkthrough, which
-   * moves the page itself, nor side by side, where the bar is beside the
-   * scrolling column rather than over it.
+   * moves the page itself. `sideBySide`: the bar is beside the scrolling
+   * column rather than over it, and only the clock's column is kept clear
+   * of it (see `keepColumnClear`).
    */
   const pageRef = useRef({
     scoringLive: false,
     pageMoves: true,
+    sideBySide: false,
   });
   useLayoutEffect(() => {
     pageRef.current = {
       scoringLive: matchActive && matchPhase !== 'ended' && !isTutorialActive,
-      pageMoves: !isTutorialActive && !sideBySide,
+      pageMoves: !isTutorialActive,
+      sideBySide,
     };
   }, [matchActive, matchPhase, isTutorialActive, sideBySide]);
 
@@ -265,7 +360,14 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
   // are, the page goes back to the top, as for the first match, as the
   // match starts (during the 3-2-1), so nothing moves once play is on. The
   // walkthrough moves the page itself.
+  //
+  // At the top, the live counters are then kept clear of the bar as when
+  // it grows (see `keepLiveClear`): the bar of a match (Pause, End early) is
+  // as tall as the one between matches once Complete Session has joined
+  // Start (a 200% zoom, two rows), so it doesn't grow at the next Start,
+  // which left +1 Tip under it.
   const wasActiveRef = useRef(matchActive);
+  const clearLiveRef = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
     const started = matchActive && !wasActiveRef.current;
     wasActiveRef.current = matchActive;
@@ -274,6 +376,7 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
     if (live && live.getBoundingClientRect().top < visibleBand().top) {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
+    clearLiveRef.current?.();
   }, [matchActive, isTutorialActive]);
 
   // Saving a match (or the changes to a logged one, or dropping them)
@@ -313,10 +416,20 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
         behavior: 'instant',
       });
     }
+    // Nothing left cut at the top edge, now and again once the browser has
+    // laid the new page out: it moves the page itself then, to hold what is
+    // on screen in place (a 200% zoom went from 263 to 301 that way).
+    clearOfTopEdge();
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(clearOfTopEdge);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [matchActive, editing, isTutorialActive]);
 
   const placement = shortStacked ? SHORT_STACKED_PLACEMENT : PLACEMENT;
   const [barEl, setBarEl] = useState<HTMLDivElement | null>(null);
+  /** The clock's column, side by side (see `keepColumnClear`) */
+  const columnRef = useRef<HTMLDivElement>(null);
   const publishRef = useRef<(() => void) | null>(null);
 
   // The bar covers the bottom of the page, and its height follows what is in
@@ -343,13 +456,17 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
       height = barEl.offsetHeight;
       root.style.setProperty('--bar-h', `${height}px`);
       const { scoringLive, pageMoves } = pageRef.current;
+      const column = pageRef.current.sideBySide ? columnRef.current : null;
       if (grew > 0 && pageMoves) {
-        // While the clock runs the page only moves to keep the live counters
-        // out from under the bar: a scorer's thumb may be on +1 Tip, so
-        // nothing else is worth moving it for.
-        const by = scoringLive
-          ? (keepLiveClear(barEl, grew) ?? 0)
-          : keepControlsClear(barEl, grew, atEnd, false);
+        // Side by side only the clock's column is kept clear. Stacked, while
+        // the clock runs the page only moves to keep the live counters out
+        // from under the bar: a scorer's thumb may be on +1 Tip, so nothing
+        // else is worth moving it for.
+        const by = column
+          ? keepColumnClear(barEl, column)
+          : scoringLive
+            ? (keepLiveClear(barEl, grew) ?? 0)
+            : keepControlsClear(barEl, grew, atEnd, false);
         if (by > 0) lifted = { by, at: window.scrollY };
       } else if (grew < 0 && lifted) {
         // The question is answered: what it scrolled away comes back,
@@ -360,14 +477,26 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
         lifted = null;
       }
     };
+    /**
+     * A match has just started: the live counters are kept clear of the
+     * bar as if all of it had just grown, and the lift is put back at the
+     * buzzer as any other.
+     */
+    const clearLive = () => {
+      if (!pageRef.current.pageMoves || pageRef.current.sideBySide) return;
+      const by = keepLiveClear(barEl, barEl.offsetHeight) ?? 0;
+      if (by > 0) lifted = { by, at: window.scrollY };
+    };
     root.style.setProperty('--bar-h', `${height}px`);
     publishRef.current = publish;
+    clearLiveRef.current = clearLive;
 
     const observer = new ResizeObserver(publish);
     observer.observe(barEl);
     return () => {
       observer.disconnect();
       publishRef.current = null;
+      clearLiveRef.current = null;
     };
   }, [barEl, rootRef]);
 
@@ -377,6 +506,8 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
   // Match). The observer would only see it after that, and putting back a
   // lift then (a 200% zoom) would cancel that scroll.
   useLayoutEffect(() => publishRef.current?.(), [pendingConfirm, matchPhase]);
+
+  useFocusClearOfEdges();
 
   const present = (region: Region) =>
     slotsInRegion(placement, region).filter(key => slots[key] != null);
@@ -404,8 +535,9 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
     // Stacked, the two groups below are `contents`: their children are laid
     // out by this column directly and put in reading order with `order-*`
     // (notice, title row, clock, live counters, the rest). Side by side
-    // they are the two columns. Either way it is the same tree, so turning
-    // the phone doesn't remount the scoring fields and lose what is in them.
+    // they are the two columns, the notice over the second. Either way it
+    // is the same tree, so turning the phone doesn't remount the scoring
+    // fields and lose what is in them.
     <div
       ref={rootRef}
       className={`px-4 ${shortStacked ? 'pt-1' : 'pt-2'} ${
@@ -417,19 +549,29 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
             `flex flex-col ${shortStacked ? 'gap-1' : 'gap-3'}`
       }`}
     >
+      {/* Side by side it heads the scoring column, not the clock's: there
+          it pushed the clock's last line under the bar, and the clock with
+          it once a question made the bar taller (a phone 360px tall). Not
+          shown, it takes no row. */}
+      {present('notice').length > 0 && (
+        <div
+          className={`empty:hidden ${sideBySide ? 'col-start-2 row-start-1 mb-3' : 'order-0'}`}
+        >
+          {render('notice')}
+        </div>
+      )}
+
       <div
+        ref={columnRef}
         className={
           sideBySide
             ? // Stays beside the scoring fields as they scroll. The header is
               // only pinned while a match runs (see Header), which is when
               // this has to stop below it.
-              `sticky flex flex-col gap-2 ${matchActive ? 'top-[calc(var(--header-h,3.25rem)+0.25rem)]' : 'top-1'}`
+              `sticky col-start-1 row-span-2 row-start-1 flex flex-col gap-2 ${matchActive ? 'top-[calc(var(--header-h,3.25rem)+0.25rem)]' : 'top-1'}`
             : 'contents'
         }
       >
-        {present('notice').length > 0 && (
-          <div className="order-0 empty:hidden">{render('notice')}</div>
-        )}
         {shortStacked ? (
           <ShortStackedTitleRow slots={slots} clock={clock} />
         ) : (
@@ -483,7 +625,13 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
         </div>
       )}
 
-      <div className={sideBySide ? 'flex flex-col gap-3 min-w-0' : 'contents'}>
+      <div
+        className={
+          sideBySide
+            ? 'col-start-2 row-start-2 flex flex-col gap-3 min-w-0'
+            : 'contents'
+        }
+      >
         {present('live').length > 0 && (
           <div className="order-4">{render('live')}</div>
         )}

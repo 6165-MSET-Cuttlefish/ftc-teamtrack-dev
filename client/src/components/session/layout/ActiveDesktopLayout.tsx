@@ -16,6 +16,7 @@ import {
   type ActiveSlots,
   type PlacementMap,
 } from './activeSlots';
+import { useFocusClearOfEdges } from './useFocusClearOfEdges';
 import { useHeaderHeightVar } from './useHeaderHeightVar';
 
 type Region =
@@ -165,6 +166,7 @@ export const ActiveDesktopLayout = ({ slots }: { slots: ActiveSlots }) => {
   const rowRef = useRef<HTMLDivElement>(null);
   const pinned = usePinnedControls();
   const stuck = useStuck(rowRef, pinned);
+  useFocusClearOfEdges();
   useFollowUnpinnedRow(rowRef, pinned);
 
   const present = (region: Region) =>

@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { FIELD_BORDER } from '@/components/ui/input';
 
 /**
  * Highlight colours, as applied. Each is a see-through tint of a mid shade,
@@ -141,16 +142,18 @@ export const NotesEditor = ({
 
   return (
     // One box: the toolbar is its top row, the text under it, inside a
-    // single border that lights up while either has focus.
+    // single border that lights up while either has focus. Outlined as a
+    // field is, the rule under the toolbar in the same colour, and focused
+    // as one too: the accent border with the solid ring Input draws.
     <div
-      className={`overflow-hidden rounded-xl border-2 border-team-blue-40 transition-colors focus-within:border-team-blue ${
+      className={`overflow-hidden rounded-xl border-2 ${FIELD_BORDER} transition-colors focus-within:border-team-blue focus-within:ring-2 focus-within:ring-team-blue ${
         isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'
       }`}
     >
       <div
         role="toolbar"
         aria-label="Text formatting"
-        className="flex flex-nowrap items-center gap-1 border-b border-team-blue-40 px-1 py-1"
+        className={`flex flex-nowrap items-center gap-1 border-b ${FIELD_BORDER} px-1 py-1`}
       >
         <button
           type="button"

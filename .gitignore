@@ -43,3 +43,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+# Service account / admin credentials (never commit)
+serviceAccountKey*.json
+*-firebase-adminsdk-*.json
+*service-account*.json
