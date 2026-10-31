@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { ELEMENT_LABELS, FIELD_LIMITS } from '@/lib';
 import { ScoreField } from './ScoreField';
+import { ShotPicker } from './ShotPicker';
 import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
 
 /**
@@ -71,6 +72,7 @@ export const LiveCounters = () => {
           </span>
         )}
       </div>
+      <ShotPicker />
     </div>
   );
 };

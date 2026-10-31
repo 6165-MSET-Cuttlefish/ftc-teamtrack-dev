@@ -11,6 +11,7 @@ import type { Session } from '@/types';
 import {
   calculateScore,
   cycleTimesOf,
+  shotsOf,
   includesAuto,
   includesTeleop,
   rankingPoints,
@@ -129,6 +130,11 @@ const MATCH_HEADERS = [
   'Major Fouls',
   'Points Given to Opponent',
   'Time Between Hive Tips (s)',
+  `Auto ${L.made}`,
+  `Auto ${L.missed}`,
+  `Teleop ${L.made}`,
+  `Teleop ${L.missed}`,
+  `${L.accuracy} (%)`,
   'SWARM RP',
   'POLLINATOR RPs',
   'Ranking Points',
@@ -138,6 +144,12 @@ const MATCH_HEADERS = [
 const TRAILING_HEADERS = ['Notes', 'User Email'] as const;
 
 const BLANK = '""';
+
+/** Made out of every shot, as a whole percent; blank with none taken */
+const accuracyCell = (match: Parameters<typeof shotsOf>[0]): string => {
+  const { accuracy } = shotsOf(match);
+  return accuracy === null ? BLANK : num(Math.round(accuracy * 100));
+};
 
 /**
  * One row per match (one row for a session with none), under a header row.
@@ -221,6 +233,11 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
         foul(match.majorPenalties),
         foul(b.penalties),
         esc(cycleTimesOf(match).join('; ')),
+        auto ? num(shotsOf(match, 'auto').made) : BLANK,
+        auto ? num(shotsOf(match, 'auto').missed) : BLANK,
+        teleop ? num(shotsOf(match, 'teleop').made) : BLANK,
+        teleop ? num(shotsOf(match, 'teleop').missed) : BLANK,
+        accuracyCell(match),
         flag(swarmReachable({ ...match, matchType }), rp.swarm),
         num(rp.pollinator),
         num(rp.total),

@@ -64,6 +64,11 @@ export {
   robotCountOf,
   robotsOf,
   robotRates,
+  MAX_VOLLEY,
+  shotsOf,
+  hasShots,
+  formatAccuracy,
+  periodSplitOf,
 } from './scoring';
 export { formatPoints } from './points';
 export { isCurrentSeasonSession } from './sessionNormalize';
@@ -72,6 +77,8 @@ export type {
   ScoreRow,
   RankingPoints,
   RankingPointTally,
+  Shots,
+  PeriodSplit,
 } from './scoring';
 export {
   buildSessionsCsv,

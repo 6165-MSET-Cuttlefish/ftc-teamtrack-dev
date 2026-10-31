@@ -21,6 +21,11 @@ export interface SessionFormData extends MatchScoringFields {
   selectedFeature: string;
   notes: string;
   matches: Match[];
+  /**
+   * Who drives the next match, kept from one match to the next and saved
+   * on each match as it is saved (see `Match.driver`)
+   */
+  driver?: string;
 }
 
 /**

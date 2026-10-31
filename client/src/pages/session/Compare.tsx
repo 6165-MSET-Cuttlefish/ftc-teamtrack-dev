@@ -37,6 +37,8 @@ import type { Session, Match, ScoreBreakdown } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader, SECTION_TITLE_CLASS } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
+import { DriverFilter } from '@/components/session/DriverFilter';
+import { driversInSessions, sessionsForDriver } from '@/lib/drivers';
 import {
   CHIP_BASE,
   CHIP_SIZES,
@@ -781,9 +783,22 @@ const Compare = () => {
    * The listed sessions that can be compared. A session with no matches has
    * nothing to compare, so it is never offered, nor counted in the scopes.
    */
-  const comparableSessions = useMemo(
+  const withMatches = useMemo(
     () => listedSessions.filter(s => s.matches.length > 0),
     [listedSessions]
+  );
+  // One driver's matches only, when one is picked: sessions without any of
+  // theirs drop out, and the rest are compared on theirs alone
+  const [driverAddress, updateDriverAddress] = useAddressSettings();
+  const driverChoices = useMemo(
+    () => driversInSessions(withMatches),
+    [withMatches]
+  );
+  const askedDriver = driverAddress.get('driver') ?? '';
+  const pickedDriver = driverChoices.includes(askedDriver) ? askedDriver : '';
+  const comparableSessions = useMemo(
+    () => sessionsForDriver(withMatches, pickedDriver),
+    [withMatches, pickedDriver]
   );
   const { scope, setScope, inScope, choices, scopeLabel } = useSessionScope(
     comparableSessions,
@@ -947,16 +962,20 @@ const Compare = () => {
       ...comparableSessions.filter(
         s => inScope(s) || selectedSessionIds.includes(s.id)
       ),
-      ...linkedSessions.filter(
-        linked =>
-          linked.matches.length > 0 &&
-          !listedSessions.some(s => s.id === linked.id)
+      ...sessionsForDriver(
+        linkedSessions.filter(
+          linked =>
+            linked.matches.length > 0 &&
+            !listedSessions.some(s => s.id === linked.id)
+        ),
+        pickedDriver
       ),
     ],
     [
       comparableSessions,
       listedSessions,
       linkedSessions,
+      pickedDriver,
       inScope,
       selectedSessionIds,
     ]
@@ -2587,6 +2606,14 @@ const Compare = () => {
                   isDarkMode={isDarkMode}
                 />
               )}
+              <DriverFilter
+                drivers={driverChoices}
+                value={pickedDriver}
+                onChange={value =>
+                  updateDriverAddress({ driver: value || null })
+                }
+                isDarkMode={isDarkMode}
+              />
             </div>
             <p
               aria-live="polite"

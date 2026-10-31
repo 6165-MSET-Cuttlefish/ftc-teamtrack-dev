@@ -34,6 +34,10 @@ export const ELEMENT_LABELS = {
   major: 'Major Foul',
   /** Points this alliance's fouls gave the opponent; never off its own score */
   penalties: 'Given to opponent',
+  /** Balls shot at any target: those that scored, and those that didn't */
+  made: 'Made',
+  missed: 'Missed',
+  accuracy: 'Accuracy',
 } as const;
 
 /**

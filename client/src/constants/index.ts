@@ -99,6 +99,8 @@ export const STORAGE_KEYS = {
   PENDING_INVITE_EXPIRY: 'teamtrack-pending-invite-expiry',
   START_TUTORIAL: 'teamtrack-start-tutorial',
   GUEST_SESSIONS: 'teamtrack-guest-sessions',
+  /** Driver names seen on this device, for the driver picker */
+  KNOWN_DRIVERS: 'teamtrack-known-drivers',
   /** Session deletes still inside their undo window, to finish after a reload */
   PENDING_SESSION_DELETES: 'teamtrack-pending-session-deletes',
   /** Own sessions kept private with "Not now" on the Sessions page banner */

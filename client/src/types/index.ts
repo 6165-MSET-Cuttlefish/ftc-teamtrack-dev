@@ -12,6 +12,8 @@ export type {
   ChartDataPoint,
   MatchPhase,
   RobotCount,
+  ShotPeriod,
+  ShotVolley,
 } from './session';
 
 export type {

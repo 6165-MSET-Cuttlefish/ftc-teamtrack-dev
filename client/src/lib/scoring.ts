@@ -10,7 +10,12 @@
  * Table 10-4 (Section 10.6 Violations).
  */
 
-import type { MatchScoringFields, RobotCount, ScoreBreakdown } from '@/types';
+import type {
+  MatchScoringFields,
+  RobotCount,
+  ScoreBreakdown,
+  ShotPeriod,
+} from '@/types';
 import { GAME_TIMING } from '@/constants';
 import { ELEMENT_LABELS } from './scoringLabels';
 
@@ -98,7 +103,16 @@ export const normalizeForMatchType = <T extends Partial<MatchScoringFields>>(
           robot1ParkAuto: false,
           robot2ParkAuto: false,
         }),
-    ...(teleop ? {} : { robot1ParkTeleop: false, robot2ParkTeleop: false }),
+    ...(teleop
+      ? {}
+      : {
+          robot1ParkTeleop: false,
+          robot2ParkTeleop: false,
+        }),
+    // Volleys of a period it didn't run
+    ...(fields.shots && {
+      shots: fields.shots.filter(v => (v.period === 'auto' ? auto : teleop)),
+    }),
   };
 };
 
@@ -280,6 +294,7 @@ export const emptyScoringFields = (): MatchScoringFields => ({
   robot2ParkTeleop: false,
   minorPenalties: 0,
   majorPenalties: 0,
+  shots: [],
   phaseLog: [],
 });
 
@@ -302,6 +317,7 @@ export const pickScoringFields = (
     robot2ParkTeleop: source.robot2ParkTeleop ?? empty.robot2ParkTeleop,
     minorPenalties: source.minorPenalties ?? empty.minorPenalties,
     majorPenalties: source.majorPenalties ?? empty.majorPenalties,
+    shots: source.shots ? source.shots.map(v => ({ ...v })) : [],
     phaseLog: source.phaseLog ? [...source.phaseLog] : [],
   };
 };
@@ -432,6 +448,9 @@ export const FIELD_LIMITS = {
   minorPenalties: 30,
   majorPenalties: 30,
 } as const;
+
+/** The most balls one volley can be: what a robot holds */
+export const MAX_VOLLEY = 4;
 
 /**
  * The rule behind a counter's (i): what it is worth and what its name
@@ -684,4 +703,96 @@ export const timedTipsOf = (f: Partial<MatchScoringFields>): number => {
     if (tip.from !== null) timed.add(tip.from);
   });
   return Math.min(timed.size, countOf(f.tipping));
+};
+
+/** Made and missed balls, and the share made (null with none shot) */
+export interface Shots {
+  made: number;
+  missed: number;
+  /** Made out of every ball shot, 0 to 1; null when none were */
+  accuracy: number | null;
+}
+
+/**
+ * A match's (or several matches') balls shot: in one period, or the whole
+ * match without `period`. Matches saved before volleys were kept have none.
+ */
+export const shotsOf = (
+  f: Partial<MatchScoringFields> | ReadonlyArray<Partial<MatchScoringFields>>,
+  period?: ShotPeriod
+): Shots => {
+  const list = Array.isArray(f) ? f : [f as Partial<MatchScoringFields>];
+  let made = 0;
+  let shot = 0;
+  for (const m of list) {
+    for (const v of m.shots ?? []) {
+      if (period && v.period !== period) continue;
+      shot += countOf(v.shot);
+      made += Math.min(countOf(v.made), countOf(v.shot));
+    }
+  }
+  return {
+    made,
+    missed: shot - made,
+    accuracy: shot > 0 ? made / shot : null,
+  };
+};
+
+/** Whether any shots were counted in these matches */
+export const hasShots = (
+  f: Partial<MatchScoringFields> | ReadonlyArray<Partial<MatchScoringFields>>
+): boolean => {
+  const s = shotsOf(f);
+  return s.made + s.missed > 0;
+};
+
+/** "62%" */
+export const formatAccuracy = (accuracy: number): string =>
+  `${Math.round(accuracy * 100)}%`;
+
+/** A match's points and tips by the period they were scored in */
+export interface PeriodSplit {
+  auto: { points: number; tips: number };
+  teleop: { points: number; tips: number };
+}
+
+/**
+ * Hive Tips counted in AUTO, read from the match's log: each logged change
+ * of the count goes to the period it was made in, and a tip taken back comes
+ * off that period. Never more than the match's tips, which an edit can lower
+ * without touching the log.
+ */
+const autoTipsOf = (f: ScoringInput): number => {
+  const tips = countOf(f.tipping);
+  if (!includesAuto(f.matchType)) return 0;
+  if (!includesTeleop(f.matchType)) return tips;
+  let auto = 0;
+  let count = 0;
+  for (const event of f.phaseLog ?? []) {
+    if (!event || event.field !== 'tipping') continue;
+    const value = countOf(event.value);
+    if (event.phase === 'auton') auto += value - count;
+    count = value;
+  }
+  return Math.min(Math.max(auto, 0), tips);
+};
+
+/**
+ * Points by the period that scores them, as the manual does. AUTO: Leave,
+ * Park (Auto) and the tips counted in AUTO. Teleop: every other tip, Park
+ * (End), and the flower, hive and garden counts, which are only assessed at
+ * the end of the match. Tips with no log (a saved match whose count was
+ * edited) count as Teleop. The two always add up to the match score.
+ */
+export const periodSplitOf = (f: ScoringInput): PeriodSplit => {
+  const b = calculateScore(f);
+  const n = normalizeForMatchType(f, f.matchType);
+  const autoParks = (n.robot1ParkAuto ? 1 : 0) + (n.robot2ParkAuto ? 1 : 0);
+  const tips = countOf(f.tipping);
+  const autoTips = autoTipsOf(f);
+  const auto = b.leave + autoParks * POINTS.PARK + autoTips * POINTS.HIVE_TIP;
+  return {
+    auto: { points: auto, tips: autoTips },
+    teleop: { points: b.total - auto, tips: tips - autoTips },
+  };
 };

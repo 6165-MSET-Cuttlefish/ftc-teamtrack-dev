@@ -994,6 +994,8 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
       id: generateId(),
       matchNumber,
       matchType: sessionData.matchType,
+      // Who drove it, as picked in the session menu
+      ...(sessionData.driver?.trim() && { driver: sessionData.driver.trim() }),
       finalScore: calculateScore(scoring).total,
       createdAt: new Date(at).toISOString(),
     };

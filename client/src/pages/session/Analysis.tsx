@@ -48,6 +48,8 @@ import type {
   TimestampValue,
 } from '@/types';
 import { MatchForm } from '@/components';
+import { DriverFilter } from '@/components/session/DriverFilter';
+import { driverOf, driversIn } from '@/lib/drivers';
 import { RenameDialog } from '@/components/session/RenameDialog';
 import {
   DropdownMenu,
@@ -356,9 +358,25 @@ const Analysis = () => {
     return matches.map(m => (m.matchType ? m : { ...m, matchType: fallback }));
   }, [sessionData.matches, sessionData.matchType]);
 
+  /**
+   * One driver's matches only, when one is picked: the tabs' figures,
+   * charts and match list are theirs. Export and the session's totals in
+   * its header stay the whole session's.
+   */
+  const [driver, setDriver] = useState('');
+  const drivers = useMemo(() => driversIn(sessionMatches), [sessionMatches]);
+  const pickedDriver = drivers.includes(driver) ? driver : '';
+  const viewMatches = useMemo(
+    () =>
+      pickedDriver
+        ? sessionMatches.filter(m => driverOf(m) === pickedDriver)
+        : sessionMatches,
+    [sessionMatches, pickedDriver]
+  );
+
   const stats = useMemo(
-    () => (legacySeason ? null : computeStats(sessionMatches)),
-    [sessionMatches, legacySeason]
+    () => (legacySeason ? null : computeStats(viewMatches)),
+    [viewMatches, legacySeason]
   );
 
   /**
@@ -750,6 +768,9 @@ const Analysis = () => {
             // The robots it was played with, which the scoring fields leave
             // out
             robotCount: matchData.robotCount ?? newRobotCount,
+            ...(matchData.driver?.trim() && {
+              driver: matchData.driver.trim(),
+            }),
             finalScore: calculateTotal(matchData),
           },
         });
@@ -1170,6 +1191,20 @@ const Analysis = () => {
 
         {hasTabs && (
           <>
+            {/* Only once some match has a driver; the tab bar fills its row */}
+            {drivers.length > 0 && (
+              <div className="flex justify-end">
+                <DriverFilter
+                  drivers={drivers}
+                  value={pickedDriver}
+                  onChange={value => {
+                    setDriver(value);
+                    setSelectedIdx(0);
+                  }}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+            )}
             <AnalysisTabBar
               active={activeTab}
               onChange={setActiveTab}
@@ -1183,7 +1218,7 @@ const Analysis = () => {
             >
               {activeTab === 'summary' && stats && (
                 <SummaryTab
-                  matches={sessionMatches}
+                  matches={viewMatches}
                   stats={stats}
                   isDarkMode={isDarkMode}
                   sessionType={sessionType}
@@ -1192,7 +1227,7 @@ const Analysis = () => {
               )}
               {activeTab === 'matches' && (
                 <MatchDetailTab
-                  matches={sessionMatches}
+                  matches={viewMatches}
                   isDarkMode={isDarkMode}
                   sessionType={sessionType}
                   selectedIdx={selectedIdx}
@@ -1206,7 +1241,7 @@ const Analysis = () => {
               )}
               {activeTab === 'compare' && (
                 <CompareTab
-                  matches={sessionMatches}
+                  matches={viewMatches}
                   isDarkMode={isDarkMode}
                   sessionType={sessionType}
                 />

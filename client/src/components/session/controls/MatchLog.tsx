@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
@@ -7,11 +7,15 @@ import { CHIP_BASE, CHIP_SIZES, chipTone } from '@/components/ui/tokens';
 import {
   calculateScore,
   ELEMENT_LABELS,
+  includesAuto,
+  includesTeleop,
   matchScore,
+  periodSplitOf,
   pickScoringFields,
   rankingPoints,
 } from '@/lib';
 import type { Match, MatchScoringFields } from '@/types';
+import { MatchInsights } from '../MatchInsights';
 import { absorbDoubleTap } from './doubleTap';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { formatPoints, useLiveControls } from './liveControlsContext';
@@ -71,6 +75,7 @@ const matchSummary = (match: Match): string => {
   const robots = score.leave + score.park;
   const rp = rankingPoints(match).total;
   const parts = [
+    ...(match.driver ? [match.driver] : []),
     ...(tips > 0 ? [plural(tips, 'tip')] : []),
     ...(robots > 0 ? [`${ELEMENT_LABELS.robots} ${formatPoints(robots)}`] : []),
     // Each in the name its counter has, so it reads as what was counted
@@ -84,6 +89,18 @@ const matchSummary = (match: Match): string => {
   return (parts.length > 0 ? parts : ['0 tips'])
     .map(part => part.replace(/ /g, ' '))
     .join(', ');
+};
+
+/**
+ * "Auto 26, Tele 118": the match score by the period that scored it (see
+ * `periodSplitOf`), for a match that ran both. A one-period match is all
+ * one period, which its score already says.
+ */
+const periodSummary = (match: Match): string | null => {
+  if (!includesAuto(match.matchType) || !includesTeleop(match.matchType))
+    return null;
+  const split = periodSplitOf(match);
+  return `Auto ${split.auto.points}, Tele ${split.teleop.points}`;
 };
 
 /** The scoring fields as one comparable string */
@@ -136,6 +153,8 @@ export const MatchLog = () => {
   const [blockedRowId, setBlockedRowId] = useState<string | null>(null);
   /** Bumped by each such tap, to bring the note back into view */
   const [blockedTaps, setBlockedTaps] = useState(0);
+  /** The match whose analytics are open under its row */
+  const [detailsId, setDetailsId] = useState<string | null>(null);
 
   const matches = sessionData.matches || [];
   const matchCount = matches.length;
@@ -210,6 +229,7 @@ export const MatchLog = () => {
     showUnsavedEditWarning,
     blockedRowId,
     blockedTaps,
+    detailsId,
   ]);
 
   // Opening a match loads it into the scoring fields, which are a screen or
@@ -332,6 +352,8 @@ export const MatchLog = () => {
             editingMatchId !== null &&
             blockedRowId === match.id;
           const rowSummaryId = `${summaryId}-${match.id}`;
+          const detailsOpen = detailsId === match.id;
+          const detailsPanelId = `${rowSummaryId}-details`;
           const score = matchScore(match);
           const detailText = isDarkMode ? 'text-gray-400' : 'text-gray-600';
           return (
@@ -386,6 +408,13 @@ export const MatchLog = () => {
                       <span className="whitespace-nowrap">
                         {formatPoints(score)}
                       </span>
+                      {periodSummary(match) && (
+                        <span
+                          className={`ml-2 whitespace-nowrap text-xs font-semibold tabular-nums ${detailText}`}
+                        >
+                          {periodSummary(match)}
+                        </span>
+                      )}
                     </span>
                     <span className={`text-xs ${detailText}`}>
                       {matchSummary(match)}
@@ -398,6 +427,25 @@ export const MatchLog = () => {
                       Editing
                     </span>
                   )}
+                </button>
+                {/* Opens this match's analytics under the row; the row
+                    itself opens the match for editing */}
+                <button
+                  type="button"
+                  onKeyDown={ignoreHeldEnter}
+                  onClick={() => setDetailsId(detailsOpen ? null : match.id)}
+                  aria-expanded={detailsOpen}
+                  aria-controls={detailsOpen ? detailsPanelId : undefined}
+                  className={`shrink-0 ${ICON_BUTTON} ${detailText} ${
+                    isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                  }`}
+                  title={detailsOpen ? 'Hide analytics' : 'Show analytics'}
+                  aria-label={`Analytics for Match ${match.matchNumber}`}
+                >
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
+                    aria-hidden
+                  />
                 </button>
                 {/* Goes at once: its toast has the Undo. From the keyboard,
                     focus carries on from the row that takes its place (the
@@ -425,6 +473,18 @@ export const MatchLog = () => {
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
               </div>
+              {detailsOpen && (
+                <div
+                  id={detailsPanelId}
+                  // Grows a phone's short list window, as the note does
+                  data-row-insert
+                  className={`border-l-4 border-transparent px-4 pb-4 pt-1 ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}
+                >
+                  <MatchInsights match={match} isDarkMode={isDarkMode} />
+                </div>
+              )}
               {isBlocked && (
                 <div
                   ref={warningRef}

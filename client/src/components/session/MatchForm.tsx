@@ -25,6 +25,7 @@ import {
   scoreRows,
 } from '@/lib';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import {
@@ -42,6 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { ChevronDown, Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { MAX_DRIVER_LENGTH, rememberedDrivers } from '@/lib/drivers';
 import { CounterHead } from './EndOfMatchParts';
 import { Toggle } from './MatchEntry';
 import { ScoreField } from './ScoreField';
@@ -175,6 +177,7 @@ const formOf = (match: Match): Partial<Match> => ({
   ...pickScoringFields(match),
   // Saved before the count existed, or with Robot 2 marked: both rows
   robotCount: robotsOf(match),
+  driver: match.driver ?? '',
 });
 
 export const MatchForm = ({
@@ -291,6 +294,8 @@ export const MatchForm = ({
         ...normalizeForMatchType(formData, matchType),
         matchType,
         robotCount: robots,
+        // Cleared with '' rather than left out, so an edit can remove it
+        driver: formData.driver?.trim() ?? '',
         finalScore: breakdown.total,
       });
     } catch (error) {
@@ -505,6 +510,36 @@ export const MatchForm = ({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="matchDriver" className="text-foreground">
+              Driver
+            </Label>
+            {/* Free text, with the names seen on this device offered */}
+            <Input
+              id="matchDriver"
+              name="driver"
+              list="matchDriverNames"
+              autoComplete="off"
+              placeholder="No driver"
+              maxLength={MAX_DRIVER_LENGTH}
+              disabled={isLoading}
+              value={formData.driver ?? ''}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, driver: e.target.value }))
+              }
+              className={`w-44 ${
+                isDarkMode
+                  ? 'bg-team-dark border border-team-blue-40 text-white'
+                  : 'bg-white border border-team-blue-40'
+              }`}
+            />
+            <datalist id="matchDriverNames">
+              {rememberedDrivers().map(name => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </div>
 
           <ScoreField

@@ -11,6 +11,7 @@ import { firebaseService } from '@/services';
 import { OWN_SESSIONS } from '@/services/firebaseService';
 import type { SessionFeed, SessionFeedState } from '@/services/sessionFeed';
 import { failureReason, isAbortError, logger, readGuestSessions } from '@/lib';
+import { driversInSessions, rememberDrivers } from '@/lib/drivers';
 import { onSessionDeleted } from '@/lib/pendingSessionDeletes';
 import { UI_TIMING } from '@/constants';
 import type { Session } from '@/types';
@@ -94,6 +95,12 @@ export const useSessionList = ({
   const { user, isGuest } = useAuth();
   const { team, loading: teamLoading, refreshTeam } = useTeam();
   const [list, setList] = useState<SessionFeedState>(EMPTY);
+
+  // The drivers on every session read (a teammate's too) are offered by the
+  // driver picker on this device from now on.
+  useEffect(() => {
+    rememberDrivers(driversInSessions(list.sessions));
+  }, [list.sessions]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   /** The list failed because the server couldn't be reached */

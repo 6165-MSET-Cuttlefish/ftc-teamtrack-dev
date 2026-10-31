@@ -8,7 +8,7 @@
  * down for everyone who can see it.
  */
 
-import type { Match, ScoreEvent, Session } from '@/types';
+import type { Match, ScoreEvent, Session, ShotVolley } from '@/types';
 import { CURRENT_SEASON } from '@/constants';
 
 /** Season recorded for sessions that predate the season tag. */
@@ -124,6 +124,24 @@ const toPhaseLog = (value: unknown): ScoreEvent[] => {
   return events as unknown as ScoreEvent[];
 };
 
+/** Volleys that make sense: 1 or more balls shot, no more made than shot */
+const toShots = (value: unknown): ShotVolley[] => {
+  if (!Array.isArray(value)) return [];
+  const volleys: ShotVolley[] = [];
+  for (const entry of value) {
+    if (!isObject(entry)) continue;
+    if (entry.period !== 'auto' && entry.period !== 'teleop') continue;
+    const shot = Math.floor(toCount(entry.shot));
+    if (shot < 1) continue;
+    volleys.push({
+      period: entry.period,
+      shot,
+      made: Math.min(Math.floor(toCount(entry.made)), shot),
+    });
+  }
+  return volleys;
+};
+
 const hasAnyKey = (match: Raw, keys: readonly string[]): boolean =>
   keys.some(key => key in match);
 
@@ -179,6 +197,7 @@ export const normalizeMatch = (raw: unknown, index = 0): Match | null => {
   for (const key of COUNT_FIELDS) match[key] = toCount(raw[key]);
   for (const key of FLAG_FIELDS) match[key] = toFlag(raw[key]);
   match.phaseLog = toPhaseLog(raw.phaseLog);
+  match.shots = toShots(raw.shots);
 
   match.id =
     typeof raw.id === 'string' && raw.id
@@ -190,6 +209,13 @@ export const normalizeMatch = (raw: unknown, index = 0): Match | null => {
 
   if ('matchType' in raw && typeof raw.matchType !== 'string') {
     delete match.matchType;
+  }
+  if ('driver' in raw) {
+    if (typeof raw.driver === 'string' && raw.driver.trim()) {
+      match.driver = raw.driver.trim();
+    } else {
+      delete match.driver;
+    }
   }
   if ('finalScore' in raw) {
     const finalScore = toNumber(raw.finalScore);

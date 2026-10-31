@@ -329,6 +329,14 @@ const DesktopStatus = () => {
       className={`h-6 flex items-center justify-center gap-3 whitespace-nowrap text-sm sm:text-base font-semibold tabular-nums ${statusTone(isDarkMode)}`}
     >
       <span>Match {matchNumber}</span>
+      {sessionData.driver?.trim() && (
+        <>
+          {divider}
+          <span className="max-w-[12rem] truncate">
+            {sessionData.driver.trim()}
+          </span>
+        </>
+      )}
       {!matchActive && (
         <>
           {divider}

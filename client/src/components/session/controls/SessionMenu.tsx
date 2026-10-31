@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { EllipsisVertical, Lock, Pencil, Trash2 } from 'lucide-react';
+import { EllipsisVertical, Lock, Pencil, Trash2, UserPlus } from 'lucide-react';
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -16,6 +16,12 @@ import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { useSessionCore } from '@/contexts';
 import { robotCountOf } from '@/lib';
+import {
+  MAX_DRIVER_LENGTH,
+  driversIn,
+  rememberDrivers,
+  rememberedDrivers,
+} from '@/lib/drivers';
 import type { RobotCount, SessionType } from '@/types';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
@@ -66,9 +72,10 @@ const GroupLabel = ({
  * is), and it never opens over the fields by itself.
  *
  * - the session's name, which opens a small dialog to rename it;
- * - match type, Practice or Scrim, and how many robots: chosen in place,
- *   applied at once, and held while a match is being played (the match
- *   being played was started as it is);
+ * - match type, Practice or Scrim, how many robots and who drives: chosen
+ *   in place, applied at once, and held while a match is being played (the
+ *   match being played was started as it is). The driver stays from one
+ *   match to the next and is saved on each;
  * - Discard session, which goes at once with an Undo (see
  *   `handleDiscardSession`).
  */
@@ -86,12 +93,22 @@ export const SessionMenu = () => {
   const isCompact = useCompactControls();
   /** Rename was chosen: the dialog opens once the menu has closed */
   const renameRef = useRef(false);
+  /** Add driver was chosen: its dialog opens once the menu has closed */
+  const addDriverRef = useRef(false);
+  const [addingDriver, setAddingDriver] = useState(false);
 
   // The match being played was started as these say. The walkthrough's
   // practice match doesn't count: it is put back when the walkthrough
   // closes, settings and all.
   const locked = matchActive && !isTutorialActive;
   const name = sessionData.sessionName?.trim() || 'Untitled session';
+  const driver = sessionData.driver?.trim() ?? '';
+  // The names seen on this device, this session's, and the one picked
+  const drivers = driversIn([
+    ...rememberedDrivers().map(d => ({ driver: d })),
+    ...(sessionData.matches ?? []),
+    { driver },
+  ]);
 
   const setSessionType = (value: string) => {
     const type = value as SessionType;
@@ -143,6 +160,11 @@ export const SessionMenu = () => {
           // The rename dialog opens once the menu has handed focus back to
           // its button, where the dialog then returns it.
           onCloseAutoFocus={() => {
+            if (addDriverRef.current) {
+              addDriverRef.current = false;
+              setAddingDriver(true);
+              return;
+            }
             if (!renameRef.current) return;
             renameRef.current = false;
             setShowRenameDialog(true);
@@ -221,6 +243,36 @@ export const SessionMenu = () => {
           </DropdownMenuRadioGroup>
 
           <DropdownMenuSeparator />
+          <GroupLabel locked={locked}>Driver</GroupLabel>
+          <DropdownMenuRadioGroup
+            value={driver}
+            onValueChange={value => updateSessionData({ driver: value })}
+          >
+            <DropdownMenuRadioItem value="" disabled={locked || loading}>
+              <span className="text-muted-foreground">No driver</span>
+            </DropdownMenuRadioItem>
+            {drivers.map(d => (
+              <DropdownMenuRadioItem
+                key={d}
+                value={d}
+                disabled={locked || loading}
+              >
+                <span className="min-w-0 truncate">{d}</span>
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuItem
+            disabled={locked || loading}
+            onSelect={() => {
+              addDriverRef.current = true;
+            }}
+            className="gap-2"
+          >
+            <UserPlus aria-hidden className="h-4 w-4 shrink-0" />
+            Add driver…
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={loading}
             onSelect={handleDiscardSession}
@@ -239,6 +291,9 @@ export const SessionMenu = () => {
 
       {showRenameDialog && (
         <RenameSessionDialog onClose={() => setShowRenameDialog(false)} />
+      )}
+      {addingDriver && (
+        <AddDriverDialog onClose={() => setAddingDriver(false)} />
       )}
     </>
   );
@@ -344,6 +399,94 @@ const RenameSessionDialog = ({ onClose }: { onClose: () => void }) => {
               className={`px-5 min-h-11 rounded-xl text-sm ${actionClass('primary', isDarkMode)}`}
             >
               Save
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/**
+ * Adds a driver by name and makes them the one driving from the next match
+ * on. The name is offered by the menu on this device from then on, and on a
+ * teammate's once a session with it has been opened there.
+ */
+const AddDriverDialog = ({ onClose }: { onClose: () => void }) => {
+  const { isDarkMode } = useLiveControls();
+  const { updateSessionData } = useSessionCore();
+  const [name, setName] = useState('');
+  const hasName = name.trim().length > 0;
+  const nameId = useId();
+
+  const save = () => {
+    if (!hasName) return;
+    const typed = name.trim();
+    rememberDrivers([typed]);
+    updateSessionData({ driver: typed });
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open
+      onOpenChange={open => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        className={`max-w-sm border p-6 ${
+          isDarkMode
+            ? 'bg-team-dark border-team-blue-40'
+            : 'bg-white border-gray-200'
+        }`}
+      >
+        <form
+          noValidate
+          onSubmit={e => {
+            e.preventDefault();
+            save();
+          }}
+          className="space-y-4"
+        >
+          <DialogTitle className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+            Add a driver
+          </DialogTitle>
+          <div className="space-y-2">
+            <label
+              htmlFor={nameId}
+              className={`block ${EYEBROW_CLASS} ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+            >
+              Driver name
+            </label>
+            <Input
+              id={nameId}
+              name="driver"
+              type="text"
+              autoComplete="off"
+              data-autofocus
+              maxLength={MAX_DRIVER_LENGTH}
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className={`h-12 px-4 rounded-xl border-2 border-team-blue-40 focus:ring-2 focus:ring-team-blue/20 ${
+                isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
+              }`}
+            />
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`px-4 min-h-11 rounded-xl text-sm ${actionClass('neutral', isDarkMode)}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!hasName}
+              className={`px-5 min-h-11 rounded-xl text-sm ${actionClass('primary', isDarkMode)}`}
+            >
+              Add
             </button>
           </div>
         </form>

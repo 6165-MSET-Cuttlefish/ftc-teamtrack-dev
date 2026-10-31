@@ -20,6 +20,7 @@ import { PenaltyField, ToOpponent } from './PenaltyCounters';
 import { BreakdownStrip } from './ScoreBreakdown';
 import { ScoreField } from './ScoreField';
 import { SectionNote } from './SectionNote';
+import { ShotPicker } from './ShotPicker';
 import { toggleOffClass, toggleOnClass } from './toggleTone';
 import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
 import { useMatchEntry } from './useMatchEntry';
@@ -601,6 +602,8 @@ export const ScoringPad = () => {
           </p>
         )}
       </div>
+
+      <ShotPicker />
 
       <div ref={endSectionRef} className="flex flex-col gap-2">
         <h2 className="sr-only">End of match</h2>

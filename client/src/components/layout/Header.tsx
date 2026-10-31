@@ -69,6 +69,7 @@ import {
   UserPlus,
   LogIn,
   Users,
+  LayoutList,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect, useRef } from 'react';
@@ -268,6 +269,7 @@ const NavigationMenu = ({
   const navigate = useNavigate();
   const location = useLocation();
   const isOnActivePage = location.pathname.includes('/active');
+  const isOnSessionsPage = location.pathname === ROUTES.SESSIONS;
   const canTour = !AUTH_PATHS.includes(location.pathname);
   // Someone who opened a share link without an account has no sessions to
   // go to and nothing to start: the page they were sent is the whole visit.
@@ -429,6 +431,22 @@ const NavigationMenu = ({
     </DropdownMenuItem>
   );
 
+  // Everywhere but the list itself and the sign-in pages, and not for a
+  // visitor on a share link, who has no sessions to list.
+  const showMySessions = !isOnSessionsPage && !isVisitor && canTour;
+
+  const mySessionsItem = showMySessions && (
+    <DropdownMenuItem asChild>
+      <Link
+        to={ROUTES.SESSIONS}
+        className="flex items-center gap-2 cursor-pointer"
+      >
+        <LayoutList className="w-4 h-4" />
+        <span>My Sessions</span>
+      </Link>
+    </DropdownMenuItem>
+  );
+
   const signInItem = (
     <DropdownMenuItem asChild>
       <Link
@@ -586,6 +604,8 @@ const NavigationMenu = ({
             className="min-w-[200px]"
             onCloseAutoFocus={afterAccountMenuClosed}
           >
+            {mySessionsItem}
+            {mySessionsItem && <DropdownMenuSeparator />}
             {compactMenu && (
               <>
                 {tutorialItem}
@@ -607,8 +627,19 @@ const NavigationMenu = ({
         </DropdownMenu>
       ) : (
         <>
-          {/* No "Sessions" here: the back arrow and the logo lead there
-              from every other page. */}
+          {/* An outline beside New Session, so the bar keeps one fill. On a
+              phone it is the first item in the overflow menu below. */}
+          {showMySessions && (
+            <Link
+              to={ROUTES.SESSIONS}
+              aria-label="My Sessions"
+              className={`hidden sm:inline-flex ${PILL} gap-2 font-semibold ring-1 ring-inset ring-team-blue ${hoverClass} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+            >
+              <span className={labels.text}>My Sessions</span>
+              <LayoutList className={`w-4 h-4 ${labels.icon}`} />
+            </Link>
+          )}
+
           {activeSessionLink ||
             (!isOnActivePage && !isVisitor && (
               <button
@@ -653,6 +684,8 @@ const NavigationMenu = ({
               className="min-w-[160px]"
               onCloseAutoFocus={afterAccountMenuClosed}
             >
+              {mySessionsItem}
+              {mySessionsItem && <DropdownMenuSeparator />}
               {tutorialItem}
               {tutorialItem && <DropdownMenuSeparator />}
               <DropdownMenuLabel>Theme</DropdownMenuLabel>

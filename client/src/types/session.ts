@@ -59,8 +59,27 @@ export interface MatchScoringFields {
    * read it with `robotCountOf`.
    */
   robotCount?: RobotCount;
+  /**
+   * Each volley shot at any target, in order: how many balls were shot and
+   * how many went in, and the period it was in. Not scored: it gives
+   * accuracy only. Matches saved before it existed have none; read it with
+   * `shotsOf`.
+   */
+  shots?: ShotVolley[];
   /** Timeline of Hive Tips as they were counted, for cycle-time analysis */
   phaseLog?: ScoreEvent[];
+}
+
+/** The period a volley is kept under */
+export type ShotPeriod = 'auto' | 'teleop';
+
+/** One volley: balls shot at once, and how many of them went in */
+export interface ShotVolley {
+  period: ShotPeriod;
+  /** 1 to 4 */
+  shot: number;
+  /** 0 to `shot` */
+  made: number;
 }
 
 /** One live scoring action, timestamped against the match clock */
@@ -112,6 +131,8 @@ export interface Match extends MatchScoringFields {
   /** Which segment of the game was run: Full Game, Autonomous, or Teleop */
   matchType?: string;
   createdAt?: TimestampValue;
+  /** Who drove: a name picked or typed when it was scored. Optional */
+  driver?: string;
   /**
    * Cached final score. May be stale on older matches (fouls used to be
    * subtracted from it) — read scores with `matchScore`, which recomputes.

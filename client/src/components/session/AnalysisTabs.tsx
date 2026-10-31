@@ -74,6 +74,9 @@ import { useArmed } from '@/components/session/controls/useArmed';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { StatTile, type StatTileProps } from '@/components/ui/stat-tile';
 import { Button } from '@/components/ui/button';
+import { MatchInsights } from './MatchInsights';
+import { Section } from './AnalysisSection';
+import { cardClass } from './analysisCard';
 import { NotesEditor } from './NotesEditor';
 import { Segmented } from '@/components/ui/segmented';
 import {
@@ -172,38 +175,6 @@ const ElementBar = ({
     </div>
   );
 };
-
-/** The card every chart and list on these tabs sits on */
-const cardClass = (isDarkMode: boolean) =>
-  `rounded-xl border p-4 sm:p-6 ${isDarkMode ? 'border-team-blue-40 bg-team-dark-20' : 'border-gray-200 bg-white'}`;
-
-const Section = ({
-  title,
-  action,
-  as: Heading = 'h2',
-  className = '',
-  children,
-  isDarkMode,
-}: {
-  title: string;
-  /** A control beside the title, e.g. one that shows or hides the content */
-  action?: ReactNode;
-  /** h3 where the card belongs to a heading above it (a match's breakdown) */
-  as?: 'h2' | 'h3';
-  className?: string;
-  children?: ReactNode;
-  isDarkMode: boolean;
-}) => (
-  <div className={`${cardClass(isDarkMode)} ${className}`}>
-    <div
-      className={`flex items-center justify-between gap-x-4 gap-y-1 flex-wrap ${children ? 'mb-4 sm:mb-5' : ''}`}
-    >
-      <Heading className={SECTION_TITLE_CLASS}>{title}</Heading>
-      {action}
-    </div>
-    {children}
-  </div>
-);
 
 const EmptyChart = ({
   message,
@@ -1863,7 +1834,6 @@ export const MatchDetailTab = ({
   const rows = allRows.filter(row => !row.informational);
   const foulRow = allRows.find(row => row.informational);
   const fouls = showsFouls(sessionType, matches);
-  const cycles = cycleTimesOf(match);
   const score = scoreOf(match);
   const ranking = rankMatches(matches);
   // Measured against the matches it can be compared with: every one, or in
@@ -1988,6 +1958,9 @@ export const MatchDetailTab = ({
             >
               Match {match.matchNumber}
               <span className={`font-medium ${muted}`}>{typeOf(match)}</span>
+              {match.driver && (
+                <span className={`font-medium ${muted}`}>{match.driver}</span>
+              )}
             </h2>
             <p className={`text-sm tabular-nums ${muted}`}>
               <span className="font-semibold text-foreground">
@@ -2048,18 +2021,9 @@ export const MatchDetailTab = ({
           first. */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,36rem)_minmax(0,1fr)] lg:items-start">
         <div className="space-y-4 sm:space-y-6 lg:col-start-2 lg:row-start-1">
-          {/* Only from tips tapped live; a match entered afterwards has none */}
-          {cycles.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-4">
-              <StatTile
-                label="Avg time between tips"
-                value={`${mean(cycles).toFixed(1)}s`}
-                caption={`from ${plural(timedTipsOf(match), 'tip')}`}
-                info="Average seconds from one Hive Tip to the next in this match, from tips tapped live."
-                isDarkMode={isDarkMode}
-              />
-            </div>
-          )}
+          {/* By period, shots and the tips' timing (the last only from
+              tips tapped live; a match entered afterwards has none) */}
+          <MatchInsights match={match} isDarkMode={isDarkMode} />
 
           <div
             role="group"

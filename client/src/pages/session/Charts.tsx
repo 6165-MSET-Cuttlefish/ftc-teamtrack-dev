@@ -82,6 +82,8 @@ import {
   ofMatchType,
 } from './lifetime';
 import { Segmented } from './LifetimeControls';
+import { DriverFilter } from '@/components/session/DriverFilter';
+import { driversInSessions, sessionsForDriver } from '@/lib/drivers';
 
 type TimeRange = '7' | '30' | '90' | 'all';
 
@@ -685,6 +687,9 @@ const Charts = () => {
   const pickedType = matchTypeFromParam(address.get('type'));
   const setPickedType = (value: string) =>
     updateAddress({ type: matchTypeParam(value) });
+  /** One driver's matches only; '' for everyone's */
+  const driver = address.get('driver') ?? '';
+  const setDriver = (value: string) => updateAddress({ driver: value || null });
   /** What Score Trends draws */
   const seriesParam = address.get('series');
   const series = isSeries(seriesParam) ? seriesParam : 'total';
@@ -730,6 +735,12 @@ const Charts = () => {
     () => sessions.filter(inScope),
     [sessions, inScope]
   );
+  const driverChoices = useMemo(
+    () => driversInSessions(scopedSessions),
+    [scopedSessions]
+  );
+  /** The driver picked, while any of their matches are still there */
+  const pickedDriver = driverChoices.includes(driver) ? driver : '';
 
   /**
    * Sessions are read newest first, a page at a time. The range on screen
@@ -766,16 +777,17 @@ const Charts = () => {
   ]);
 
   const filteredSessions = useMemo((): Session[] => {
-    if (timeRange === 'all') return scopedSessions;
+    const driven = sessionsForDriver(scopedSessions, pickedDriver);
+    if (timeRange === 'all') return driven;
 
     const days = parseInt(timeRange);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    return scopedSessions.filter(
+    return driven.filter(
       session => !isUndated(session) && toDate(session.createdAt) >= cutoffDate
     );
-  }, [scopedSessions, timeRange]);
+  }, [scopedSessions, pickedDriver, timeRange]);
 
   /** The match types run in this range, with how many matches each has. */
   const typeChoices = useMemo(() => {
@@ -1035,6 +1047,12 @@ const Charts = () => {
                 isDarkMode={isDarkMode}
               />
             )}
+            <DriverFilter
+              drivers={driverChoices}
+              value={pickedDriver}
+              onChange={setDriver}
+              isDarkMode={isDarkMode}
+            />
             <Select
               value={timeRange}
               onValueChange={value => setTimeRange(value as TimeRange)}
