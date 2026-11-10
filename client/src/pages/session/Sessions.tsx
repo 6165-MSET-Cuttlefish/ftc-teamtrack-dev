@@ -115,6 +115,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SessionCard } from './SessionCard';
+import { LiveNowBanner } from '@/components/team/LiveNowBanner';
 import {
   ALL_MATCH_TYPES,
   MATCH_TYPE_FILTERS,
@@ -1602,6 +1603,8 @@ const Sessions = () => {
             </div>
           )}
         </div>
+
+        <LiveNowBanner />
 
         {isGuest && !loading && hasSessions && (
           <p

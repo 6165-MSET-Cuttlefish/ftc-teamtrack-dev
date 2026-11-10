@@ -14,7 +14,10 @@ import type {
   MatchScoringFields,
   RobotCount,
   ScoreBreakdown,
+  ShotEntry,
   ShotPeriod,
+  ShotTap,
+  ShotVolley,
 } from '@/types';
 import { GAME_TIMING } from '@/constants';
 import { ELEMENT_LABELS } from './scoringLabels';
@@ -449,8 +452,11 @@ export const FIELD_LIMITS = {
   majorPenalties: 30,
 } as const;
 
-/** The most balls one volley can be: what a robot holds */
+/** The most balls in one volley */
 export const MAX_VOLLEY = 4;
+
+/** The most of any one per-ball shot counter in a match (`ShotCounters`) */
+export const MAX_SHOT_TAPS = 999;
 
 /**
  * The rule behind a counter's (i): what it is worth and what its name
@@ -711,30 +717,110 @@ export interface Shots {
   missed: number;
   /** Made out of every ball shot, 0 to 1; null when none were */
   accuracy: number | null;
+  /** POLLEN that scored (volleys saved before the split don't say) */
+  pollen: number;
+  /** NECTAR that scored (volleys saved before the split don't say) */
+  nectar: number;
+  /** NECTAR that missed, from matches scored on the old miss counter */
+  nectarMissed: number;
+  /** NECTAR made out of NECTAR tried; null when no NECTAR miss was counted */
+  nectarAccuracy: number | null;
 }
+
+/** A whole number of balls, 0 or more */
+const ballsOf = (value: unknown): number => Math.floor(countOf(value));
+
+/**
+ * A stored volley that makes sense, or null: a period, 1 to `MAX_VOLLEY`
+ * balls shot (more, from an older save, are kept), and no more made than
+ * shot. With a POLLEN/NECTAR split, `made` is their sum. Without `robot`.
+ */
+export const toShotVolley = (
+  value: unknown
+): Omit<ShotVolley, 'robot'> | null => {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  if (v.period !== 'auto' && v.period !== 'teleop') return null;
+  const shot = ballsOf(v.shot);
+  if (shot < 1) return null;
+  if (v.pollen === undefined && v.nectar === undefined) {
+    return { period: v.period, shot, made: Math.min(ballsOf(v.made), shot) };
+  }
+  const pollen = Math.min(ballsOf(v.pollen), shot);
+  const nectar = Math.min(ballsOf(v.nectar), shot - pollen);
+  return { period: v.period, shot, made: pollen + nectar, pollen, nectar };
+};
+
+/** Whether a shots entry is a counter tap (not a volley) */
+export const isShotTap = (entry: ShotEntry): entry is ShotTap =>
+  'kind' in entry;
+
+/** The robot a shots entry belongs to */
+export const shotRobotOf = (entry: ShotEntry): 1 | 2 =>
+  entry.robot === 2 ? 2 : 1;
+
+/** Whether Robot 2's shots were counted on their own in these matches */
+export const hasRobot2Shots = (
+  f: Partial<MatchScoringFields> | ReadonlyArray<Partial<MatchScoringFields>>
+): boolean =>
+  (Array.isArray(f) ? f : [f as Partial<MatchScoringFields>]).some(m =>
+    (m.shots ?? []).some((e: ShotEntry) => shotRobotOf(e) === 2)
+  );
 
 /**
  * A match's (or several matches') balls shot: in one period, or the whole
  * match without `period`. Matches saved before volleys were kept have none.
+ *
+ * Shots are recorded a volley at a time: the balls shot together and how
+ * many went in, split into POLLEN and NECTAR. Matches scored on the short-
+ * lived per-ball counters kept taps instead; those counted a ball made
+ * without its shot when the shot tap was forgotten, so for them a match
+ * never counts fewer shots than balls made. Accuracy never passes 100%.
  */
 export const shotsOf = (
   f: Partial<MatchScoringFields> | ReadonlyArray<Partial<MatchScoringFields>>,
-  period?: ShotPeriod
+  period?: ShotPeriod,
+  /** One robot's only; entries without `robot` are Robot 1's */
+  robot?: 1 | 2
 ): Shots => {
   const list = Array.isArray(f) ? f : [f as Partial<MatchScoringFields>];
   let made = 0;
   let shot = 0;
+  let pollen = 0;
+  let nectar = 0;
+  let nectarMissed = 0;
   for (const m of list) {
+    let tapShots = 0;
+    let tapMade = 0;
     for (const v of m.shots ?? []) {
       if (period && v.period !== period) continue;
-      shot += countOf(v.shot);
-      made += Math.min(countOf(v.made), countOf(v.shot));
+      if (robot && shotRobotOf(v) !== robot) continue;
+      if (isShotTap(v)) {
+        if (v.kind === 'shot') tapShots += 1;
+        else if (v.kind === 'nectarMissed') nectarMissed += 1;
+        else {
+          tapMade += 1;
+          if (v.kind === 'pollen') pollen += 1;
+          else nectar += 1;
+        }
+      } else {
+        shot += countOf(v.shot);
+        made += Math.min(countOf(v.made), countOf(v.shot));
+        pollen += countOf(v.pollen);
+        nectar += countOf(v.nectar);
+      }
     }
+    shot += Math.max(tapShots, tapMade);
+    made += tapMade;
   }
   return {
     made,
     missed: shot - made,
     accuracy: shot > 0 ? made / shot : null,
+    pollen,
+    nectar,
+    nectarMissed,
+    nectarAccuracy: nectarMissed > 0 ? nectar / (nectar + nectarMissed) : null,
   };
 };
 
@@ -743,7 +829,7 @@ export const hasShots = (
   f: Partial<MatchScoringFields> | ReadonlyArray<Partial<MatchScoringFields>>
 ): boolean => {
   const s = shotsOf(f);
-  return s.made + s.missed > 0;
+  return s.made + s.missed + s.nectarMissed > 0;
 };
 
 /** "62%" */

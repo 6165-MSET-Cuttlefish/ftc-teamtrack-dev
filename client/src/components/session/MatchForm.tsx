@@ -52,6 +52,12 @@ import {
 import { ChevronDown, Plus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { MAX_DRIVER_LENGTH, rememberedDrivers } from '@/lib/drivers';
+import {
+  BATTERY_MAX_V,
+  BATTERY_MIN_V,
+  toBatteryVoltage,
+  useRecordBattery,
+} from '@/lib/battery';
 import { CounterHead } from './EndOfMatchParts';
 import { Toggle } from './MatchEntry';
 import { ScoreField } from './ScoreField';
@@ -294,12 +300,26 @@ export const MatchForm = ({
   const [countedAtTypeChange, setCountedAtTypeChange] =
     useState<Partial<Match>>();
 
+  /** The battery voltage as typed: kept as text until it is saved */
+  const voltsOf = (match?: Match) =>
+    typeof match?.batteryVoltage === 'number'
+      ? String(match.batteryVoltage)
+      : '';
+  const [batteryText, setBatteryText] = useState(() => voltsOf(initialMatch));
+  const [batteryInvalid, setBatteryInvalid] = useState(false);
+  const recordBattery = useRecordBattery();
+  /** Asked for on this device, or the match has one to change */
+  const showBattery =
+    recordBattery || typeof initialMatch?.batteryVoltage === 'number';
+
   useEffect(() => {
     if (initialMatch) {
       setFormData(formOf(initialMatch));
     } else if (isOpen) {
       setFormData(blankForm(defaultMatchType, defaultRobotCount));
     }
+    setBatteryText(voltsOf(initialMatch));
+    setBatteryInvalid(false);
     // Each opening starts with every rule closed.
     if (isOpen) {
       setInfoOpen(null);
@@ -358,6 +378,11 @@ export const MatchForm = ({
 
   const handleSave = async () => {
     if (savingRef.current) return;
+    const volts = toBatteryVoltage(batteryText);
+    if (showBattery && batteryText.trim() !== '' && volts === null) {
+      setBatteryInvalid(true);
+      return;
+    }
     savingRef.current = true;
     try {
       // Flags for a period this match type never ran are dropped, not saved.
@@ -367,6 +392,8 @@ export const MatchForm = ({
         robotCount: robots,
         // Cleared with '' rather than left out, so an edit can remove it
         driver: formData.driver?.trim() ?? '',
+        // null clears it, as '' does the driver
+        ...(showBattery && { batteryVoltage: volts }),
         finalScore: breakdown.total,
       });
     } catch (error) {
@@ -615,6 +642,46 @@ export const MatchForm = ({
               ))}
             </datalist>
           </div>
+
+          {showBattery && (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="matchBattery" className="text-foreground">
+                  Battery (V)
+                </Label>
+                <Input
+                  id="matchBattery"
+                  name="batteryVoltage"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="Not recorded"
+                  disabled={isLoading}
+                  value={batteryText}
+                  aria-invalid={batteryInvalid || undefined}
+                  aria-describedby={
+                    batteryInvalid ? 'matchBatteryError' : undefined
+                  }
+                  onChange={e => {
+                    setBatteryText(e.target.value);
+                    setBatteryInvalid(false);
+                  }}
+                  className={`w-44 tabular-nums max-[279px]:w-full ${
+                    isDarkMode ? 'bg-team-dark text-white' : 'bg-white'
+                  } ${batteryInvalid ? '!border-red-500' : ''}`}
+                />
+              </div>
+              {batteryInvalid && (
+                <p
+                  id="matchBatteryError"
+                  className="text-right text-xs text-red-500"
+                >
+                  Enter volts between {BATTERY_MIN_V} and {BATTERY_MAX_V}, or
+                  leave it empty
+                </p>
+              )}
+            </div>
+          )}
 
           <ScoreField
             {...stepperProps}

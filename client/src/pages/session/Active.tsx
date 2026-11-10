@@ -18,6 +18,7 @@ import {
 } from '@/components';
 import { ClockDigits } from '@/components/session/ClockDigits';
 import { SessionMenu } from '@/components/session/controls/SessionMenu';
+import { LiveHostProvider } from '@/components/session/live/LiveHostProvider';
 import { StaleSessionNotice } from '@/components/session/controls/StaleSessionNotice';
 import {
   useActiveCompact,
@@ -703,25 +704,27 @@ const Active = () => {
       <ScreenAwake />
 
       <LiveControlsProvider>
-        {/* The phone layout brings its own gutters, at whatever width it is
+        <LiveHostProvider>
+          {/* The phone layout brings its own gutters, at whatever width it is
             used (a phone on its side is wider than a small tablet). The
             site header lines its ends up with this column plus the layout's
             own px-4 (ACTIVE_PAGE_CONTAINER in constants/layout.ts): change
             that too if the width or padding here changes. */}
-        <div
-          className={`max-w-6xl mx-auto relative ${isCompact ? '' : 'md:px-6 lg:px-8 md:pt-4 md:pb-10'}`}
-        >
-          {tutorial.wanted && (
-            <Suspense fallback={null}>
-              <ActiveTutorial openOnMount={tutorial.askedFor} />
-            </Suspense>
-          )}
-          {isCompact ? (
-            <ActiveMobileLayout slots={slots} />
-          ) : (
-            <ActiveDesktopLayout slots={slots} />
-          )}
-        </div>
+          <div
+            className={`max-w-6xl mx-auto relative ${isCompact ? '' : 'md:px-6 lg:px-8 md:pt-4 md:pb-10'}`}
+          >
+            {tutorial.wanted && (
+              <Suspense fallback={null}>
+                <ActiveTutorial openOnMount={tutorial.askedFor} />
+              </Suspense>
+            )}
+            {isCompact ? (
+              <ActiveMobileLayout slots={slots} />
+            ) : (
+              <ActiveDesktopLayout slots={slots} />
+            )}
+          </div>
+        </LiveHostProvider>
       </LiveControlsProvider>
     </div>
   );

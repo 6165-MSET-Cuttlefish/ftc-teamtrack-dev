@@ -69,6 +69,8 @@ export const StatTile = ({
   className,
 }: StatTileProps) => {
   const [showInfo, setShowInfo] = useState(false);
+  /** A mouse over the (i) shows its text too, without pinning it open */
+  const [hovered, setHovered] = useState(false);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
 
   // The 500 shades are unreadable on the pale light-theme tint.
@@ -156,9 +158,12 @@ export const StatTile = ({
               nothing. Radix closes it on Escape, on a press outside it and
               when the page scrolls. */}
           <Tooltip
-            open={showInfo}
+            open={showInfo || hovered}
             onOpenChange={open => {
-              if (!open) setShowInfo(false);
+              if (!open) {
+                setShowInfo(false);
+                setHovered(false);
+              }
             }}
           >
             <button
@@ -167,6 +172,12 @@ export const StatTile = ({
               aria-label={`About ${label}`}
               aria-expanded={showInfo}
               onClick={() => setShowInfo(v => !v)}
+              onPointerEnter={e => {
+                if (e.pointerType === 'mouse') setHovered(true);
+              }}
+              onPointerLeave={e => {
+                if (e.pointerType === 'mouse') setHovered(false);
+              }}
               // Tabbing on to another control closes it.
               onBlur={event => {
                 if (event.relatedTarget) setShowInfo(false);

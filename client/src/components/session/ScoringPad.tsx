@@ -1,7 +1,9 @@
 import { useId, useState } from 'react';
+import { robot2ScoredBy, useLiveHost } from './live/liveHostContext';
+import { HoverHint } from '@/components/ui/hover-hint';
 import { Check, Info } from 'lucide-react';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
-import { useTheme } from '@/contexts';
+import { useSessionCore, useTheme } from '@/contexts';
 import {
   COUNT_LABELS,
   EACH_LABELS,
@@ -20,6 +22,7 @@ import { PenaltyField, ToOpponent } from './PenaltyCounters';
 import { BreakdownStrip } from './ScoreBreakdown';
 import { ScoreField } from './ScoreField';
 import { SectionNote } from './SectionNote';
+import { BatteryField } from './BatteryField';
 import { ShotPicker } from './ShotPicker';
 import { toggleOffClass, toggleOnClass } from './toggleTone';
 import { TIP_SHORTCUT, useLiveCounters } from './useLiveCounters';
@@ -243,11 +246,14 @@ const Chip = ({
   blockedPress,
   onChange,
   className = '',
+  lockedReason,
 }: {
   on: boolean;
   label: string;
   ariaLabel: string;
   disabled: boolean;
+  /** Why it is locked, shown on hover (a disabled button can't be hovered) */
+  lockedReason?: string;
   /** Id of the note that says why it is locked, or waiting for Start */
   describedBy?: string;
   /** Before Start: drawn ready, and a press asks for Start instead */
@@ -257,7 +263,7 @@ const Chip = ({
 }) => {
   const { isDarkMode } = useTheme();
   const blocked = blockedPress !== undefined && !disabled;
-  return (
+  const chip = (
     <button
       type="button"
       role="checkbox"
@@ -280,6 +286,13 @@ const Chip = ({
       {on && <Check size={14} strokeWidth={3} className="shrink-0" />}
       <span className="truncate">{label}</span>
     </button>
+  );
+  return disabled && lockedReason ? (
+    <HoverHint text={lockedReason} wrap>
+      {chip}
+    </HoverHint>
+  ) : (
+    chip
   );
 };
 
@@ -353,6 +366,14 @@ export const ScoringPad = () => {
    * robot, whose chips are then as tall as the pad beside them
    */
   const robotSpan = robots === 1 ? 'row-span-2' : '';
+  /** A teammate scoring Robot 2 live has it to themselves */
+  const { robot2Scorer } = useLiveHost();
+  const { editingMatchId } = useSessionCore();
+  const robot2Live =
+    robot2Scorer && editingMatchId === null
+      ? robot2ScoredBy(robot2Scorer)
+      : undefined;
+  const liveLock = (id: number) => (id === 2 ? robot2Live : undefined);
 
   const ids = {
     flower: useId(),
@@ -507,7 +528,8 @@ export const ScoringPad = () => {
                     on={r.leave}
                     label={ELEMENT_LABELS.leave}
                     ariaLabel={`Robot ${r.id} ${ELEMENT_LABELS.leave}`}
-                    disabled={false}
+                    disabled={!!liveLock(r.id)}
+                    lockedReason={liveLock(r.id)}
                     describedBy={startFirstId}
                     blockedPress={blockedPress}
                     onChange={r.onLeave}
@@ -517,7 +539,8 @@ export const ScoringPad = () => {
                     on={r.parkAuto}
                     label={ELEMENT_LABELS.parkAuto}
                     ariaLabel={`Robot ${r.id} ${ELEMENT_LABELS.parkAuto}`}
-                    disabled={false}
+                    disabled={!!liveLock(r.id)}
+                    lockedReason={liveLock(r.id)}
                     describedBy={startFirstId}
                     blockedPress={blockedPress}
                     onChange={r.onParkAuto}
@@ -530,7 +553,8 @@ export const ScoringPad = () => {
                   on={r.parkEnd}
                   label={ELEMENT_LABELS.parkEnd}
                   ariaLabel={`Robot ${r.id} ${ELEMENT_LABELS.parkEnd}`}
-                  disabled={endParkLocked}
+                  disabled={endParkLocked || !!liveLock(r.id)}
+                  lockedReason={liveLock(r.id)}
                   describedBy={endParkLocked ? ids.robotsNote : startFirstId}
                   blockedPress={blockedPress}
                   onChange={r.onParkEnd}
@@ -552,22 +576,24 @@ export const ScoringPad = () => {
             <div className="col-span-4 flex min-h-5 min-w-0 items-center justify-between gap-2 lg:col-span-2">
               <h3 className={`flex items-center ${EYEBROW_CLASS}`}>
                 <span id={ids.fouls}>Fouls</span>
-                <button
-                  type="button"
-                  aria-label="About Fouls"
-                  aria-expanded={infoOpen === 'fouls'}
-                  aria-controls={
-                    infoOpen === 'fouls' ? ids.foulsRule : undefined
-                  }
-                  onClick={() => toggleInfo('fouls')}
-                  className={`${INFO_BUTTON_CLASS} ml-1.5 normal-case ${
-                    isDarkMode
-                      ? 'text-gray-400 hover:text-team-blue'
-                      : 'text-gray-500 hover:text-team-blue'
-                  }`}
-                >
-                  <Info size={14} />
-                </button>
+                <HoverHint text={FOULS_RULE} suppressed={infoOpen === 'fouls'}>
+                  <button
+                    type="button"
+                    aria-label="About Fouls"
+                    aria-expanded={infoOpen === 'fouls'}
+                    aria-controls={
+                      infoOpen === 'fouls' ? ids.foulsRule : undefined
+                    }
+                    onClick={() => toggleInfo('fouls')}
+                    className={`${INFO_BUTTON_CLASS} ml-1.5 normal-case ${
+                      isDarkMode
+                        ? 'text-gray-400 hover:text-team-blue'
+                        : 'text-gray-500 hover:text-team-blue'
+                    }`}
+                  >
+                    <Info size={14} />
+                  </button>
+                </HoverHint>
               </h3>
               <ToOpponent points={breakdown.penalties} />
             </div>
@@ -603,6 +629,7 @@ export const ScoringPad = () => {
         )}
       </div>
 
+      <BatteryField />
       <ShotPicker />
 
       <div ref={endSectionRef} className="flex flex-col gap-2">

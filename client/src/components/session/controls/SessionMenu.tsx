@@ -1,9 +1,17 @@
 import { useId, useRef, useState } from 'react';
-import { EllipsisVertical, Lock, Pencil, Trash2, UserPlus } from 'lucide-react';
+import {
+  EllipsisVertical,
+  Lock,
+  Pencil,
+  Radio,
+  Trash2,
+  UserPlus,
+} from 'lucide-react';
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -16,6 +24,7 @@ import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { useSessionCore } from '@/contexts';
 import { robotCountOf } from '@/lib';
+import { setRecordBattery, useRecordBattery } from '@/lib/battery';
 import {
   MAX_DRIVER_LENGTH,
   driversIn,
@@ -25,6 +34,7 @@ import {
 import type { RobotCount, SessionType } from '@/types';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
+import { useLiveHost } from '../live/liveHostContext';
 import { actionClass, toneText } from './tones';
 import { useCompactControls } from './useCompactControls';
 
@@ -76,6 +86,8 @@ const GroupLabel = ({
  *   in place, applied at once, and held while a match is being played (the
  *   match being played was started as it is). The driver stays from one
  *   match to the next and is saved on each;
+ * - Record battery voltage, a setting of this device for every session:
+ *   on, the scoring page asks for each match's voltage (`BatteryField`);
  * - Discard session, which goes at once with an Undo (see
  *   `handleDiscardSession`).
  */
@@ -91,6 +103,8 @@ export const SessionMenu = () => {
   } = useLiveControls();
   const { updateSessionData, matchActive, isTutorialActive } = useSessionCore();
   const isCompact = useCompactControls();
+  const recordBattery = useRecordBattery();
+  const liveHost = useLiveHost();
   /** Rename was chosen: the dialog opens once the menu has closed */
   const renameRef = useRef(false);
   /** Add driver was chosen: its dialog opens once the menu has closed */
@@ -150,11 +164,19 @@ export const SessionMenu = () => {
             aria-label="Session menu"
             title="Session menu"
             data-session-menu
-            className={`shrink-0 scroll-mt-0 ${
+            className={`relative shrink-0 scroll-mt-0 ${
               isCompact ? 'h-11 w-11 rounded-xl' : 'h-12 w-12 rounded-2xl'
             } ${actionClass('neutral', isDarkMode)}`}
           >
             <EllipsisVertical aria-hidden className="h-5 w-5 shrink-0" />
+            {/* Shared live with the team: says so wherever the menu is */}
+            {liveHost.live && (
+              <span
+                aria-label="Live"
+                role="img"
+                className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 motion-safe:animate-pulse"
+              />
+            )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -186,6 +208,33 @@ export const SessionMenu = () => {
             </span>
             <span className="shrink-0 text-xs text-muted-foreground">
               Rename
+            </span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            disabled={loading || liveHost.busy || !liveHost.available}
+            onSelect={() =>
+              void (liveHost.live ? liveHost.stopLive() : liveHost.goLive())
+            }
+            className="gap-2"
+          >
+            <Radio
+              aria-hidden
+              className={`h-4 w-4 shrink-0 ${liveHost.live ? 'text-red-500' : ''}`}
+            />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="font-semibold">
+                {liveHost.live ? 'Stop sharing live' : 'Share live with team'}
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {!liveHost.available
+                  ? liveHost.unavailableReason
+                  : liveHost.live
+                    ? liveHost.robot2Scorer
+                      ? `${liveHost.robot2Scorer} is scoring Robot 2`
+                      : 'Teammates can watch or score Robot 2'
+                    : 'Teammates watch along or score Robot 2'}
+              </span>
             </span>
           </DropdownMenuItem>
 
@@ -274,6 +323,23 @@ export const SessionMenu = () => {
             <UserPlus aria-hidden className="h-4 w-4 shrink-0" />
             Add driver…
           </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+          <GroupLabel locked={false}>Recording</GroupLabel>
+          {/* A setting of this device, for every session, so not locked */}
+          <DropdownMenuCheckboxItem
+            checked={recordBattery}
+            onCheckedChange={on => setRecordBattery(on === true)}
+            // Stays open, so the tick is seen to change
+            onSelect={e => e.preventDefault()}
+          >
+            <span className="flex min-w-0 flex-col">
+              <span>Record battery voltage</span>
+              <span className="text-xs text-muted-foreground">
+                Asked for before each match
+              </span>
+            </span>
+          </DropdownMenuCheckboxItem>
 
           <DropdownMenuSeparator />
           <DropdownMenuItem

@@ -1,6 +1,8 @@
 import { memo, useId, useState } from 'react';
+import { robot2ScoredBy, useLiveHost } from './live/liveHostContext';
+import { HoverHint } from '@/components/ui/hover-hint';
 import { Check, Info, Lock } from 'lucide-react';
-import { useTheme } from '@/contexts';
+import { useSessionCore, useTheme } from '@/contexts';
 import { cn } from '@/lib/utils';
 import {
   COUNT_LABELS,
@@ -154,7 +156,7 @@ export const Toggle = ({
 }) => {
   const { isDarkMode } = useTheme();
   const blocked = blockedPress !== undefined && !disabled;
-  return (
+  const button = (
     <button
       type="button"
       role="checkbox"
@@ -163,7 +165,6 @@ export const Toggle = ({
       aria-describedby={disabled || blocked ? describedBy : undefined}
       aria-disabled={blocked || undefined}
       disabled={disabled}
-      title={disabled ? disabledReason : undefined}
       onClick={() => (blocked ? blockedPress?.() : onChange(!checked))}
       // `touch-manipulation`: two quick taps are two taps, not a zoom. Thin
       // side padding, so the check mark fits beside "Leave" in the 69px a
@@ -209,6 +210,14 @@ export const Toggle = ({
         <span className="truncate">{label}</span>
       )}
     </button>
+  );
+  // A disabled button gets no hover, so its reason hangs on a wrapper
+  return disabled && disabledReason ? (
+    <HoverHint text={disabledReason} wrap>
+      {button}
+    </HoverHint>
+  ) : (
+    button
   );
 };
 
@@ -466,20 +475,22 @@ const FoulsOverRobots = ({ startFirstId }: { startFirstId: string }) => {
       <div className="flex min-h-5 min-w-0 items-center justify-between gap-2">
         <h3 className={`flex items-center ${EYEBROW_CLASS}`}>
           <span id={titleId}>Fouls</span>
-          <button
-            type="button"
-            aria-label="About Fouls"
-            aria-expanded={ruleOpen}
-            aria-controls={ruleOpen ? ruleId : undefined}
-            onClick={() => setRuleFor(ruleOpen ? null : entryKey)}
-            className={`${INFO_BUTTON_CLASS} ml-1.5 normal-case ${
-              isDarkMode
-                ? 'text-gray-400 hover:text-team-blue'
-                : 'text-gray-500 hover:text-team-blue'
-            }`}
-          >
-            <Info size={14} />
-          </button>
+          <HoverHint text={FOULS_RULE} suppressed={ruleOpen}>
+            <button
+              type="button"
+              aria-label="About Fouls"
+              aria-expanded={ruleOpen}
+              aria-controls={ruleOpen ? ruleId : undefined}
+              onClick={() => setRuleFor(ruleOpen ? null : entryKey)}
+              className={`${INFO_BUTTON_CLASS} ml-1.5 normal-case ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-team-blue'
+                  : 'text-gray-500 hover:text-team-blue'
+              }`}
+            >
+              <Info size={14} />
+            </button>
+          </HoverHint>
         </h3>
         <ToOpponent points={given} />
       </div>
@@ -561,6 +572,12 @@ export const MatchEntry = () => {
     hiveGardenShown,
   } = useMatchEntry();
   const { shown: foulsShown } = usePenaltyCounters();
+  const { robot2Scorer } = useLiveHost();
+  const { editingMatchId } = useSessionCore();
+  const robot2Live =
+    robot2Scorer && editingMatchId === null
+      ? robot2ScoredBy(robot2Scorer)
+      : undefined;
   /**
    * A phone on its side has no height for the robot rows, the fouls and the
    * first End of Match counters at once, and the buzzer needs the robots
@@ -700,8 +717,9 @@ export const MatchEntry = () => {
             onLeave={set.robot2Leave}
             onParkAuto={set.robot2ParkAuto}
             onParkTeleop={set.robot2ParkTeleop}
-            autoDisabledReason={autoDisabledReason}
-            parkTeleopDisabledReason={parkTeleopDisabledReason}
+            // A teammate scoring Robot 2 live has it to themselves
+            autoDisabledReason={robot2Live ?? autoDisabledReason}
+            parkTeleopDisabledReason={robot2Live ?? parkTeleopDisabledReason}
             reasonId={robotsReason ? robotsReasonId : undefined}
             blockedPress={blockedPress}
             blockedReasonId={startFirstId}

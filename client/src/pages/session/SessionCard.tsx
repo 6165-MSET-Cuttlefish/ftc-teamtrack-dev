@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { HoverHint } from '@/components/ui/hover-hint';
 import type { MouseEvent, ReactNode, RefObject } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts';
@@ -595,17 +596,16 @@ export const SessionCard = ({
           {/* Leaving a team doesn't take a session out of it: it stays,
               view-only for its author (the menu says why) */}
           {filedUnder && (
-            <span
-              className={`${chip} min-w-0 max-w-full gap-1`}
-              title={viewOnlyNote(filedUnder.name)}
-            >
-              <Lock aria-hidden="true" className="h-3 w-3 shrink-0" />
-              <span className="truncate">
-                {filedUnder.name
-                  ? `Filed under ${filedUnder.name}`
-                  : 'Old team'}
+            <HoverHint text={viewOnlyNote(filedUnder.name)}>
+              <span className={`${chip} min-w-0 max-w-full gap-1`}>
+                <Lock aria-hidden="true" className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {filedUnder.name
+                    ? `Filed under ${filedUnder.name}`
+                    : 'Old team'}
+                </span>
               </span>
-            </span>
+            </HoverHint>
           )}
         </div>
 

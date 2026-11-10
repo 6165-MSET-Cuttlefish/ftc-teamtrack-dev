@@ -771,6 +771,9 @@ const Analysis = () => {
             ...(matchData.driver?.trim() && {
               driver: matchData.driver.trim(),
             }),
+            ...(typeof matchData.batteryVoltage === 'number' && {
+              batteryVoltage: matchData.batteryVoltage,
+            }),
             finalScore: calculateTotal(matchData),
           },
         });

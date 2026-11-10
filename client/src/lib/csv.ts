@@ -135,6 +135,10 @@ const MATCH_HEADERS = [
   `Teleop ${L.made}`,
   `Teleop ${L.missed}`,
   `${L.accuracy} (%)`,
+  `${L.pollenMade}`,
+  `${L.nectarMade}`,
+  `${L.nectarMissed}`,
+  'Battery (V)',
   'SWARM RP',
   'POLLINATOR RPs',
   'Ranking Points',
@@ -238,6 +242,12 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
         teleop ? num(shotsOf(match, 'teleop').made) : BLANK,
         teleop ? num(shotsOf(match, 'teleop').missed) : BLANK,
         accuracyCell(match),
+        num(shotsOf(match).pollen),
+        num(shotsOf(match).nectar),
+        num(shotsOf(match).nectarMissed),
+        typeof match.batteryVoltage === 'number'
+          ? num(match.batteryVoltage)
+          : BLANK,
         flag(swarmReachable({ ...match, matchType }), rp.swarm),
         num(rp.pollinator),
         num(rp.total),

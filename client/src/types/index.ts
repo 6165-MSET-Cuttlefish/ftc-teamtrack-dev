@@ -14,6 +14,9 @@ export type {
   RobotCount,
   ShotPeriod,
   ShotVolley,
+  ShotKind,
+  ShotTap,
+  ShotEntry,
 } from './session';
 
 export type {
@@ -27,3 +30,5 @@ export type {
 } from './team';
 
 export type { SessionFormData, SessionTimerState } from './storage';
+
+export type { LiveSession, LiveRobot2, LiveMatchState } from './live';

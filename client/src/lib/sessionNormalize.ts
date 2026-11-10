@@ -8,8 +8,10 @@
  * down for everyone who can see it.
  */
 
-import type { Match, ScoreEvent, Session, ShotVolley } from '@/types';
+import type { Match, ScoreEvent, Session, ShotEntry, ShotKind } from '@/types';
 import { CURRENT_SEASON } from '@/constants';
+import { toShotVolley } from './scoring';
+import { toBatteryVoltage } from './battery';
 
 /** Season recorded for sessions that predate the season tag. */
 export const LEGACY_SEASON = 'decode';
@@ -124,22 +126,33 @@ const toPhaseLog = (value: unknown): ScoreEvent[] => {
   return events as unknown as ScoreEvent[];
 };
 
-/** Volleys that make sense: 1 or more balls shot, no more made than shot */
-const toShots = (value: unknown): ShotVolley[] => {
+const SHOT_KINDS: readonly ShotKind[] = [
+  'shot',
+  'pollen',
+  'nectar',
+  'nectarMissed',
+];
+
+/**
+ * Shots that make sense: volleys (`toShotVolley`), and taps of a known kind
+ * from matches scored on the old per-ball counters.
+ */
+const toShots = (value: unknown): ShotEntry[] => {
   if (!Array.isArray(value)) return [];
-  const volleys: ShotVolley[] = [];
+  const entries: ShotEntry[] = [];
   for (const entry of value) {
     if (!isObject(entry)) continue;
     if (entry.period !== 'auto' && entry.period !== 'teleop') continue;
-    const shot = Math.floor(toCount(entry.shot));
-    if (shot < 1) continue;
-    volleys.push({
-      period: entry.period,
-      shot,
-      made: Math.min(Math.floor(toCount(entry.made)), shot),
-    });
+    const robot = entry.robot === 2 ? { robot: 2 as const } : {};
+    if ('kind' in entry) {
+      const kind = SHOT_KINDS.find(k => k === entry.kind);
+      if (kind) entries.push({ period: entry.period, kind, ...robot });
+      continue;
+    }
+    const volley = toShotVolley(entry);
+    if (volley) entries.push({ ...volley, ...robot });
   }
-  return volleys;
+  return entries;
 };
 
 const hasAnyKey = (match: Raw, keys: readonly string[]): boolean =>
@@ -216,6 +229,11 @@ export const normalizeMatch = (raw: unknown, index = 0): Match | null => {
     } else {
       delete match.driver;
     }
+  }
+  if ('batteryVoltage' in raw) {
+    const volts = toBatteryVoltage(raw.batteryVoltage);
+    if (volts === null) delete match.batteryVoltage;
+    else match.batteryVoltage = volts;
   }
   if ('finalScore' in raw) {
     const finalScore = toNumber(raw.finalScore);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useId, useRef, memo } from 'react';
+import { HoverHint } from '@/components/ui/hover-hint';
 import { Info, Lock, Minus, Plus } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { formatPoints } from '@/lib/points';
@@ -505,20 +506,22 @@ export const ScoreField = memo(
                 {icon}
                 <span className="truncate">{label}</span>
                 {info && (
-                  <button
-                    type="button"
-                    aria-label={`About ${a11yName}`}
-                    aria-expanded={showInfo}
-                    aria-controls={showInfo ? infoId : undefined}
-                    onClick={() => setShowInfo(v => !v)}
-                    className={`${INFO_BUTTON_CLASS} ${
-                      isDarkMode
-                        ? 'text-gray-400 hover:text-team-blue'
-                        : 'text-gray-500 hover:text-team-blue'
-                    }`}
-                  >
-                    <Info size={14} />
-                  </button>
+                  <HoverHint text={info} suppressed={showInfo}>
+                    <button
+                      type="button"
+                      aria-label={`About ${a11yName}`}
+                      aria-expanded={showInfo}
+                      aria-controls={showInfo ? infoId : undefined}
+                      onClick={() => setShowInfo(v => !v)}
+                      className={`${INFO_BUTTON_CLASS} ${
+                        isDarkMode
+                          ? 'text-gray-400 hover:text-team-blue'
+                          : 'text-gray-500 hover:text-team-blue'
+                      }`}
+                    >
+                      <Info size={14} />
+                    </button>
+                  </HoverHint>
                 )}
               </span>
               {points !== undefined ? (
@@ -646,20 +649,22 @@ export const ScoreField = memo(
                   {icon}
                   {label}
                   {info && (
-                    <button
-                      type="button"
-                      aria-label={`About ${a11yName}`}
-                      aria-expanded={showInfo}
-                      aria-controls={showInfo ? infoId : undefined}
-                      onClick={() => setShowInfo(v => !v)}
-                      className={`${INFO_BUTTON_CLASS} ${
-                        isDarkMode
-                          ? 'text-gray-400 hover:text-team-blue'
-                          : 'text-gray-500 hover:text-team-blue'
-                      }`}
-                    >
-                      <Info size={14} />
-                    </button>
+                    <HoverHint text={info} suppressed={showInfo}>
+                      <button
+                        type="button"
+                        aria-label={`About ${a11yName}`}
+                        aria-expanded={showInfo}
+                        aria-controls={showInfo ? infoId : undefined}
+                        onClick={() => setShowInfo(v => !v)}
+                        className={`${INFO_BUTTON_CLASS} ${
+                          isDarkMode
+                            ? 'text-gray-400 hover:text-team-blue'
+                            : 'text-gray-500 hover:text-team-blue'
+                        }`}
+                      >
+                        <Info size={14} />
+                      </button>
+                    </HoverHint>
                   )}
                 </span>
               </div>

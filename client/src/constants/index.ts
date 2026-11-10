@@ -20,6 +20,8 @@ export const ROUTES = {
   PROFILE: '/profile',
   SHARED_SESSION: '/shared/preview',
   TEAM_INVITE: '/join/:inviteCode',
+  /** A teammate's live session: /live/{hostId} */
+  LIVE: '/live/:hostId',
 } as const;
 
 export const FIREBASE_CONFIG = {
@@ -81,6 +83,12 @@ export const UI_TIMING = {
 export const STORAGE_KEYS = {
   THEME: 'teamtrack-theme',
   TUTORIAL_SEEN: 'teamtrack-tutorial-v2-seen',
+  /** This device asks for each match's battery voltage (see `lib/battery`) */
+  RECORD_BATTERY: 'teamtrack-record-battery',
+  /** The scorer counts NECTAR misses on a counter of their own */
+  TRACK_NECTAR_MISSES: 'teamtrack-track-nectar-misses',
+  /** The account this device is sharing its session live for */
+  LIVE_HOSTING: 'teamtrack-live-hosting',
 
   GUEST_PROMPT_DISMISSED: 'teamtrack-guest-prompt-dismissed',
   GUEST_PROMPT_LAST_SHOWN: 'teamtrack-guest-prompt-last-shown',

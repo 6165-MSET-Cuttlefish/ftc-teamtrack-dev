@@ -52,7 +52,12 @@ export const useLiveCounters = () => {
 
   // A cycle is the gap between two tips in one stretch of play. Whenever the
   // clock isn't running — between matches, paused, controller pickup, after
-  // the buzzer — the stretch is over and the next tip starts a new one.
+  // the buzzer — the stretch is over and the next tip starts a new one. So
+  // is a new period: Skip to Teleop goes from AUTO straight into a running
+  // TELEOP with no pickup, and a cycle must not span the two.
+  useEffect(() => {
+    lastTipRef.current = null;
+  }, [matchPhase]);
   useEffect(() => {
     if (!clockRunning) lastTipRef.current = null;
   }, [clockRunning]);

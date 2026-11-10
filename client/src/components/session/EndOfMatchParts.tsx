@@ -1,4 +1,5 @@
 import { Info, Lock, LockOpen } from 'lucide-react';
+import { HoverHint } from '@/components/ui/hover-hint';
 import { useTheme } from '@/contexts';
 import { formatPoints } from '@/lib/points';
 
@@ -151,20 +152,22 @@ export const CounterHead = ({
       >
         <span id={id}>{title}</span>
         {info && onInfo && (
-          <button
-            type="button"
-            aria-label={`About ${title}`}
-            aria-expanded={infoOpen}
-            aria-controls={infoOpen ? infoId : undefined}
-            onClick={onInfo}
-            className={`${INFO_BUTTON_CLASS} ml-1 align-[-2px] ${
-              isDarkMode
-                ? 'text-gray-400 hover:text-team-blue'
-                : 'text-gray-500 hover:text-team-blue'
-            }`}
-          >
-            <Info size={14} />
-          </button>
+          <HoverHint text={info} suppressed={infoOpen}>
+            <button
+              type="button"
+              aria-label={`About ${title}`}
+              aria-expanded={infoOpen}
+              aria-controls={infoOpen ? infoId : undefined}
+              onClick={onInfo}
+              className={`${INFO_BUTTON_CLASS} ml-1 align-[-2px] ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-team-blue'
+                  : 'text-gray-500 hover:text-team-blue'
+              }`}
+            >
+              <Info size={14} />
+            </button>
+          </HoverHint>
         )}
       </span>
       {worth && (

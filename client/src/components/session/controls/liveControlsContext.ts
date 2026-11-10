@@ -996,6 +996,10 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
       matchType: sessionData.matchType,
       // Who drove it, as picked in the session menu
       ...(sessionData.driver?.trim() && { driver: sessionData.driver.trim() }),
+      // Its battery voltage, where it was asked for and typed
+      ...(sessionData.batteryVoltage !== undefined && {
+        batteryVoltage: sessionData.batteryVoltage,
+      }),
       finalScore: calculateScore(scoring).total,
       createdAt: new Date(at).toISOString(),
     };
@@ -1011,6 +1015,8 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
     updateSessionData({
       matches: updatedMatches,
       ...emptyScoringFields(),
+      // Read afresh before the next match
+      batteryVoltage: undefined,
     });
     savedRunRef.current = matchRunRef.current;
 

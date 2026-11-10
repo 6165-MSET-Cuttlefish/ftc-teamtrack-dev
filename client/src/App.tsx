@@ -34,15 +34,20 @@ import { GuestPrompt, HomeRedirect, ProtectedRoute } from '@/components/auth';
 import { ROUTES } from '@/constants';
 
 const Active = lazyWithRetry(() => import('./pages/session/Active'));
+const LiveSession = lazyWithRetry(() => import('./pages/session/LiveSession'));
 const Analysis = lazyWithRetry(() => import('./pages/session/Analysis'));
 const Login = lazyWithRetry(() => import('./pages/auth/Login'));
 const Signup = lazyWithRetry(() => import('./pages/auth/Signup'));
-const ForgotPassword = lazyWithRetry(() => import('./pages/auth/ForgotPassword'));
+const ForgotPassword = lazyWithRetry(
+  () => import('./pages/auth/ForgotPassword')
+);
 const Profile = lazyWithRetry(() => import('./pages/account/Profile'));
 const Sessions = lazyWithRetry(() => import('./pages/session/Sessions'));
 const Compare = lazyWithRetry(() => import('./pages/session/Compare'));
 const Charts = lazyWithRetry(() => import('./pages/session/Charts'));
-const SharedSession = lazyWithRetry(() => import('./pages/session/SharedSession'));
+const SharedSession = lazyWithRetry(
+  () => import('./pages/session/SharedSession')
+);
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
 const JoinTeam = lazyWithRetry(() => import('./pages/team/JoinTeam'));
 
@@ -111,105 +116,118 @@ const App = () => (
         <AuthProvider>
           <TeamProvider>
             <SessionProvider>
-            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <RouteTracker />
-              <div className="min-h-screen flex flex-col">
-                <DeepSeaBubbles />
-                <Header />
-                {/* A flex column, so a page that fills the screen does it
+              <BrowserRouter
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true,
+                }}
+              >
+                <RouteTracker />
+                <div className="min-h-screen flex flex-col">
+                  <DeepSeaBubbles />
+                  <Header />
+                  {/* A flex column, so a page that fills the screen does it
                     with flex-1 under the header rather than a second
                     100dvh that scrolls by exactly the header's height. */}
-                <main className="flex-1 flex flex-col">
-                  <RouteErrorBoundary>
-                  <Suspense fallback={<LoadingScreen />}>
-                    <Routes>
-                      <Route path={ROUTES.LOGIN} element={<Login />} />
-                      <Route path={ROUTES.SIGNUP} element={<Signup />} />
-                      <Route
-                        path={ROUTES.FORGOT_PASSWORD}
-                        element={<ForgotPassword />}
-                      />
-                      <Route
-                        path={ROUTES.TEAM_INVITE}
-                        element={
-                          <Protected>
-                            <JoinTeam />
-                          </Protected>
-                        }
-                      />
+                  <main className="flex-1 flex flex-col">
+                    <RouteErrorBoundary>
+                      <Suspense fallback={<LoadingScreen />}>
+                        <Routes>
+                          <Route path={ROUTES.LOGIN} element={<Login />} />
+                          <Route path={ROUTES.SIGNUP} element={<Signup />} />
+                          <Route
+                            path={ROUTES.FORGOT_PASSWORD}
+                            element={<ForgotPassword />}
+                          />
+                          <Route
+                            path={ROUTES.TEAM_INVITE}
+                            element={
+                              <Protected>
+                                <JoinTeam />
+                              </Protected>
+                            }
+                          />
 
-                      <Route
-                        path={ROUTES.SHARED_SESSION}
-                        element={<SharedSession />}
-                      />
+                          <Route
+                            path={ROUTES.SHARED_SESSION}
+                            element={<SharedSession />}
+                          />
 
-                      <Route
-                        path={ROUTES.HOME}
-                        element={
-                          <AuthReady>
-                            <HomeRedirect />
-                          </AuthReady>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.ACTIVE}
-                        element={
-                          <Protected>
-                            <Active />
-                          </Protected>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.ANALYSIS}
-                        element={
-                          <Protected>
-                            <Analysis />
-                          </Protected>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.PROFILE}
-                        element={
-                          <Protected>
-                            <Profile />
-                          </Protected>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.SESSIONS}
-                        element={
-                          <Protected>
-                            <Sessions />
-                          </Protected>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.COMPARE}
-                        element={
-                          <Protected>
-                            <Compare />
-                          </Protected>
-                        }
-                      />
-                      <Route
-                        path={ROUTES.CHARTS}
-                        element={
-                          <Protected>
-                            <Charts />
-                          </Protected>
-                        }
-                      />
+                          <Route
+                            path={ROUTES.HOME}
+                            element={
+                              <AuthReady>
+                                <HomeRedirect />
+                              </AuthReady>
+                            }
+                          />
+                          <Route
+                            path={ROUTES.ACTIVE}
+                            element={
+                              <Protected>
+                                <Active />
+                              </Protected>
+                            }
+                          />
+                          <Route
+                            path={ROUTES.LIVE}
+                            element={
+                              <Protected>
+                                <LiveSession />
+                              </Protected>
+                            }
+                          />
+                          <Route
+                            path={ROUTES.ANALYSIS}
+                            element={
+                              <Protected>
+                                <Analysis />
+                              </Protected>
+                            }
+                          />
+                          <Route
+                            path={ROUTES.PROFILE}
+                            element={
+                              <Protected>
+                                <Profile />
+                              </Protected>
+                            }
+                          />
+                          <Route
+                            path={ROUTES.SESSIONS}
+                            element={
+                              <Protected>
+                                <Sessions />
+                              </Protected>
+                            }
+                          />
+                          <Route
+                            path={ROUTES.COMPARE}
+                            element={
+                              <Protected>
+                                <Compare />
+                              </Protected>
+                            }
+                          />
+                          <Route
+                            path={ROUTES.CHARTS}
+                            element={
+                              <Protected>
+                                <Charts />
+                              </Protected>
+                            }
+                          />
 
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                  </RouteErrorBoundary>
-                </main>
-              </div>
-              <GuestPrompt />
-              <Sonner />
-            </BrowserRouter>
-          </SessionProvider>
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </Suspense>
+                    </RouteErrorBoundary>
+                  </main>
+                </div>
+                <GuestPrompt />
+                <Sonner />
+              </BrowserRouter>
+            </SessionProvider>
           </TeamProvider>
         </AuthProvider>
       </ErrorBoundary>

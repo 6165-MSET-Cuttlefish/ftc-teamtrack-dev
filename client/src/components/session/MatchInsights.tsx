@@ -9,12 +9,14 @@ import {
   includesTeleop,
   periodSplitOf,
   shotsOf,
+  hasRobot2Shots,
   toneOf,
 } from '@/lib';
 import { formatPoints } from '@/lib/points';
 import { cycleTimesOf, timedTipsOf } from '@/lib/scoring';
 import { matchDurationSeconds } from '@/lib/matchClock';
 import { Section } from './AnalysisSection';
+import { formatVoltage } from '@/lib/battery';
 
 /**
  * The tips that were tapped live, as seconds into the match. A typed count
@@ -102,6 +104,39 @@ export const MatchInsights = ({
           }
           isDarkMode={isDarkMode}
         />
+        {hasRobot2Shots(match) && (
+          <StatTile
+            label="Robot 1 / Robot 2"
+            value={[1, 2]
+              .map(r => {
+                const a = shotsOf(match, undefined, r as 1 | 2).accuracy;
+                return a === null ? '–' : formatAccuracy(a);
+              })
+              .join(' / ')}
+            caption="accuracy"
+            isDarkMode={isDarkMode}
+          />
+        )}
+        {typeof match.batteryVoltage === 'number' && (
+          <StatTile
+            label="Battery"
+            value={formatVoltage(match.batteryVoltage)}
+            caption="before the match"
+            isDarkMode={isDarkMode}
+          />
+        )}
+        {shots.pollen + shots.nectar + shots.nectarMissed > 0 && (
+          <StatTile
+            label="Pollen / Nectar"
+            value={`${shots.pollen} / ${shots.nectar}`}
+            caption={
+              shots.nectarAccuracy === null
+                ? 'made'
+                : `Nectar ${formatAccuracy(shots.nectarAccuracy)} (${shots.nectar} of ${shots.nectar + shots.nectarMissed})`
+            }
+            isDarkMode={isDarkMode}
+          />
+        )}
         <StatTile
           label="Avg time between tips"
           value={cycles.length > 0 ? `${mean(cycles).toFixed(1)}s` : null}

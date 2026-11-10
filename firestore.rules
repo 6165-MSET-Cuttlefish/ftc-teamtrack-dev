@@ -175,6 +175,74 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && canTakeDown(resource.data);
     }
 
+    // ── Live sessions ─────────────────────────────────────────────────
+    // liveSessions/{hostId}: the session a host is scoring, shared with
+    // their team while they choose to. Only members of that team can read
+    // it (one by one, or the team's list with a teamId filter). The host
+    // writes everything, and only for a team they are in. One teammate at a
+    // time can take Robot 2: they write `robot2` and nothing else, claiming
+    // it only while nobody else holds it, and letting go only of their own.
+    match /liveSessions/{hostId} {
+      function validLive(d) {
+        return d.hostId == hostId
+          && d.teamId is string
+          && isTeamMember(d.teamId)
+          && d.keys().hasOnly(['hostId', 'hostName', 'teamId', 'sessionName',
+               'sessionType', 'matchType', 'matchNumber', 'matchKey', 'clock',
+               'state', 'fields', 'savedScores', 'robot2', 'updatedAt'])
+          && (!('hostName' in d) || (d.hostName is string && d.hostName.size() <= 100))
+          && (!('sessionName' in d) || (d.sessionName is string && d.sessionName.size() <= 200))
+          && (!('savedScores' in d) || (d.savedScores is list && d.savedScores.size() <= 200))
+          && (!('updatedAt' in d) || d.updatedAt == request.time);
+      }
+
+      function validRobot2(r) {
+        return r is map
+          && r.keys().hasOnly(['scorerId', 'scorerName', 'match', 'leave',
+               'parkAuto', 'parkTeleop', 'shots'])
+          && (!('scorerName' in r) || (r.scorerName is string && r.scorerName.size() <= 100))
+          && (!('shots' in r) || (r.shots is list && r.shots.size() <= 3000));
+      }
+
+      function heldBy(r) {
+        return r != null && r.get('scorerId', null) != null;
+      }
+
+      function scoresRobot2(before, after) {
+        let was = before.get('robot2', null);
+        let now = after.robot2;
+        return isTeamMember(before.teamId)
+          && after.diff(before).affectedKeys().hasOnly(['robot2'])
+          && validRobot2(now)
+          && (
+            // Take it while nobody holds it, or keep scoring it
+            (now.scorerId == request.auth.uid
+              && (!heldBy(was) || was.scorerId == request.auth.uid))
+            // Let go of it
+            || (heldBy(was) && was.scorerId == request.auth.uid
+              && now.scorerId == null)
+          );
+      }
+
+      // A get of one that is gone is allowed, so a teammate watching it
+      // hears that it ended rather than being refused; it holds nothing.
+      allow get: if isAuthenticated()
+        && (resource == null || isTeamMember(resource.data.teamId));
+      allow list: if isAuthenticated() && isTeamMember(resource.data.teamId);
+      allow create: if isAuthenticated()
+        && request.auth.uid == hostId
+        && validLive(request.resource.data)
+        && request.resource.data.get('robot2', null) == null;
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == hostId
+          && validLive(request.resource.data)
+          && (request.resource.data.get('robot2', null) == null
+              || validRobot2(request.resource.data.robot2)))
+        || scoresRobot2(resource.data, request.resource.data)
+      );
+      allow delete: if isAuthenticated() && request.auth.uid == hostId;
+    }
+
     // ── Team invites ──────────────────────────────────────────────────
     // teamInvites/{code} → { teamId, teamName }. Any signed-in user can
     // fetch one by its exact code (that is what an invite link is), but they

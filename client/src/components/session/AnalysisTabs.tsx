@@ -32,6 +32,9 @@ import {
   Bar,
   LineChart,
   Line,
+  ScatterChart,
+  Scatter,
+  ReferenceLine,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -51,6 +54,7 @@ import {
   SERIES_COLORS,
   calculateScore,
   cycleTimesOf,
+  formatAccuracy,
   includesAuto,
   matchScore,
   rankingPoints,
@@ -64,9 +68,11 @@ import {
   htmlToText,
 } from '@/lib';
 import { formatPoints } from '@/lib/points';
+import { formatVoltage } from '@/lib/battery';
 import {
   GROUPED_ELEMENT_ORDER,
   robotTallies,
+  shotsOf,
   timedTipsOf,
 } from '@/lib/scoring';
 import { headlineMatches, typesByCount } from '@/lib/headlineMatches';
@@ -279,6 +285,15 @@ export interface SessionStats {
   /** How many tips those gaps run between (`timedTipsOf`) */
   cycleTips: number;
   /**
+   * Balls made out of balls shot over every match, both robots; null if no
+   * shot was counted. Of every match, as `avgCycle` is: a ball is a ball in
+   * any match type.
+   */
+  accuracy: number | null;
+  /** The counts behind `accuracy` */
+  shotsMade: number;
+  shotsTaken: number;
+  /**
    * How far a headline match typically lands from their average, in points
    * (the standard deviation of their scores). Null with fewer than two.
    */
@@ -317,6 +332,7 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
   const { leaveRate, parkRate } = robotRates(headline.matches);
 
   const allCycles = matches.flatMap(cycleTimesOf);
+  const shots = shotsOf(matches);
 
   const variance = mean(scores.map(sc => Math.pow(sc - avgScore, 2)));
 
@@ -348,6 +364,9 @@ export const computeStats = (matches: Match[]): SessionStats | null => {
       allCycles.length > 0 ? Math.round(mean(allCycles) * 100) / 100 : null,
     cycleCount: allCycles.length,
     cycleTips: matches.reduce((sum, m) => sum + timedTipsOf(m), 0),
+    accuracy: shots.accuracy,
+    shotsMade: shots.made,
+    shotsTaken: shots.made + shots.missed,
     scoreSpread: scores.length < 2 ? null : Math.round(Math.sqrt(variance)),
     rankingPoints: rankingPointTally(headline.matches),
     totalMatches: matches.length,
@@ -371,6 +390,7 @@ const chartColors = (isDarkMode: boolean) => {
     total: tone(CHART_COLORS.total),
     average: tone(CHART_COLORS.average),
     cycle: tone(CHART_COLORS.cycle),
+    accuracy: tone(CHART_COLORS.accuracy),
     matchA,
     matchB,
   };
@@ -1030,6 +1050,7 @@ const TILE_LAYOUT: Record<number, { grid: string; last: string }> = {
   7: { grid: 'md:grid-cols-4', last: 'col-span-2 md:col-span-1' },
   8: { grid: 'md:grid-cols-4', last: '' },
   9: { grid: 'sm:grid-cols-3', last: 'col-span-2 sm:col-span-1' },
+  10: { grid: 'lg:grid-cols-5', last: '' },
 };
 
 export const SummaryTab = ({
@@ -1109,6 +1130,7 @@ export const SummaryTab = ({
   const head = stats.headline;
   const trendColumns = useColumnPadding(n);
   const cycleColumns = useColumnPadding(n);
+  const accuracyColumns = useColumnPadding(n);
   /** A line through one point says nothing */
   const trends = n >= 2;
   const nothingScored = matches.every(m => scoreOf(m) === 0);
@@ -1163,6 +1185,58 @@ export const SummaryTab = ({
     };
   });
   const showTimes = trends && stats.avgCycle !== null;
+
+  // As the cycle line: a match with no shots counted is a gap, not a 0%.
+  const accuracyData = matches.map((m, i) => {
+    const { accuracy } = shotsOf(m);
+    return {
+      ...matchRow(m, i),
+      accuracy: accuracy === null ? null : Math.round(accuracy * 100),
+      average:
+        stats.accuracy === null ? null : Math.round(stats.accuracy * 100),
+    };
+  });
+  const showAccuracy = trends && stats.accuracy !== null;
+
+  // Accuracy against the battery each match was played on: one point per
+  // match with both a voltage and a shot counted.
+  const batteryData = matches.flatMap((m, i) => {
+    const volts = m.batteryVoltage;
+    const shot = shotsOf(m);
+    if (typeof volts !== 'number' || shot.accuracy === null) return [];
+    return [
+      {
+        ...matchRow(m, i),
+        volts,
+        accuracy: Math.round(shot.accuracy * 100),
+        note: `${shot.made} of ${shot.made + shot.missed} shots`,
+      },
+    ];
+  });
+  const showBattery = batteryData.length >= 2;
+  /**
+   * The straight line that fits the points best (least squares), across the
+   * voltages played: drawn from 3 points at more than one voltage, where it
+   * says more than the points do.
+   */
+  const batteryFit = (() => {
+    if (batteryData.length < 3) return null;
+    const xs = batteryData.map(d => d.volts);
+    const ys = batteryData.map(d => d.accuracy);
+    const mx = mean(xs);
+    const my = mean(ys);
+    const sxx = xs.reduce((a, x) => a + (x - mx) ** 2, 0);
+    if (sxx === 0) return null;
+    const slope = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / sxx;
+    const at = (x: number) => Math.min(100, Math.max(0, my + slope * (x - mx)));
+    const lo = Math.min(...xs);
+    const hi = Math.max(...xs);
+    return [
+      { x: lo, y: at(lo) },
+      { x: hi, y: at(hi) },
+    ] as const;
+  })();
+  const lowerCharts = [fouls, showTimes, showAccuracy].filter(Boolean).length;
 
   // Session-average element mix, in the scoring page's order and named as
   // the stacked 'Scoring by Match' bars below name them (Leave + Park).
@@ -1341,6 +1415,18 @@ export const SummaryTab = ({
             value: `${stats.avgCycle.toFixed(1)}s`,
             caption: `from ${plural(stats.cycleTips, 'tip')}`,
             info: 'Average seconds from one Hive Tip to the next within a match, from tips tapped live.',
+          },
+        ]
+      : []),
+    // Only once a shot has been counted: older matches have none.
+    ...(stats.accuracy !== null
+      ? [
+          {
+            key: 'accuracy',
+            label: ELEMENT_LABELS.accuracy,
+            value: formatAccuracy(stats.accuracy),
+            caption: `${stats.shotsMade} of ${plural(stats.shotsTaken, 'shot')}`,
+            info: 'Balls made (Pollen and Nectar) out of every ball shot, over all the matches in this session, both robots.',
           },
         ]
       : []),
@@ -1530,9 +1616,9 @@ export const SummaryTab = ({
         </Section>
       )}
 
-      {(fouls || showTimes) && (
+      {lowerCharts > 0 && (
         <div
-          className={`grid grid-cols-1 gap-4 sm:gap-6 ${fouls && showTimes ? 'lg:grid-cols-2' : ''}`}
+          className={`grid grid-cols-1 gap-4 sm:gap-6 ${lowerCharts > 1 ? 'lg:grid-cols-2' : ''}`}
         >
           {fouls && (
             <Section title="Points Given to Opponent" isDarkMode={isDarkMode}>
@@ -1659,7 +1745,168 @@ export const SummaryTab = ({
               </div>
             </Section>
           )}
+
+          {showAccuracy && (
+            <Section
+              title="Accuracy by Match"
+              isDarkMode={isDarkMode}
+              // The third of three charts takes the whole row, not half of it
+              className={lowerCharts === 3 ? 'lg:col-span-2' : ''}
+            >
+              <div data-chart="accuracy">
+                <ResponsiveContainer
+                  width="100%"
+                  height={260}
+                  onResize={accuracyColumns.onResize}
+                >
+                  <LineChart
+                    data={accuracyData}
+                    onClick={openFromChart('accuracy', accuracyData)}
+                    style={chartStyle}
+                    {...chartA11y(
+                      'Accuracy by match',
+                      'Balls made out of balls shot in each match, with the session accuracy as a dashed line; a gap is a match without shots counted.'
+                    )}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={isDarkMode ? '#334155' : '#e2e8f0'}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      padding={accuracyColumns.padding}
+                      {...axisProps(isDarkMode)}
+                    />
+                    <YAxis
+                      width={Y_AXIS_WIDTH}
+                      unit="%"
+                      domain={[0, 100]}
+                      ticks={[0, 25, 50, 75, 100]}
+                      {...axisProps(isDarkMode)}
+                    />
+                    <Tooltip
+                      {...tooltipProps('accuracy')}
+                      content={
+                        <ChartTooltip
+                          isDarkMode={isDarkMode}
+                          titleKey="title"
+                          formatValue={value => `${formatNumber(value)}%`}
+                          hint={tooltipHint}
+                        />
+                      }
+                    />
+                    <Legend {...LEGEND_PROPS} />
+                    <Line
+                      type="monotone"
+                      dataKey="accuracy"
+                      name={ELEMENT_LABELS.accuracy}
+                      stroke={colors.accuracy}
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      activeDot={activeDot('accuracy')}
+                      connectNulls={false}
+                    />
+                    <Line
+                      dataKey="average"
+                      name="Session accuracy"
+                      stroke={colors.average}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 4"
+                      legendType="plainline"
+                      dot={false}
+                      activeDot={false}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Section>
+          )}
         </div>
+      )}
+
+      {showBattery && (
+        <Section title="Accuracy vs. Battery Voltage" isDarkMode={isDarkMode}>
+          <div data-chart="battery">
+            <ResponsiveContainer width="100%" height={280}>
+              <ScatterChart
+                margin={{ top: 10, right: 10, bottom: 10, left: 0 }}
+                {...chartA11y(
+                  'Accuracy against battery voltage',
+                  'Each point is a match: the battery voltage it was played on, and its shooting accuracy. The dashed line is the trend across them.'
+                )}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={isDarkMode ? '#334155' : '#e2e8f0'}
+                />
+                <XAxis
+                  type="number"
+                  dataKey="volts"
+                  name="Battery"
+                  unit=" V"
+                  domain={['dataMin - 0.2', 'dataMax + 0.2']}
+                  tickFormatter={(v: number) => v.toFixed(1)}
+                  {...axisProps(isDarkMode)}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="accuracy"
+                  name={ELEMENT_LABELS.accuracy}
+                  unit="%"
+                  width={Y_AXIS_WIDTH}
+                  domain={[0, 100]}
+                  ticks={[0, 25, 50, 75, 100]}
+                  {...axisProps(isDarkMode)}
+                />
+                <Tooltip
+                  {...tooltipProps('battery')}
+                  cursor={{ strokeDasharray: '3 3' }}
+                  content={
+                    <ChartTooltip
+                      isDarkMode={isDarkMode}
+                      titleKey="title"
+                      formatValue={(value, name) =>
+                        name === 'Battery'
+                          ? formatVoltage(value)
+                          : `${formatNumber(value)}%`
+                      }
+                      hint={tooltipHint}
+                    />
+                  }
+                />
+                {batteryFit && (
+                  <ReferenceLine
+                    segment={batteryFit}
+                    stroke={colors.average}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    ifOverflow="hidden"
+                  />
+                )}
+                <Scatter
+                  data={batteryData}
+                  fill={colors.accuracy}
+                  style={chartStyle}
+                  onClick={
+                    onOpenMatch
+                      ? (point: { matchIndex?: number }) => {
+                          if (typeof point.matchIndex === 'number')
+                            onOpenMatch(point.matchIndex);
+                        }
+                      : undefined
+                  }
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+          <p
+            className={`mt-2 text-xs ${isDarkMode ? 'text-team-white-60' : 'text-gray-600'}`}
+          >
+            One point per match with a battery voltage and shots
+            {batteryFit ? '; the dashed line is the trend' : ''}.
+          </p>
+        </Section>
       )}
     </div>
   );

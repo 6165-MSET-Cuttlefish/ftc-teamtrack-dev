@@ -26,6 +26,11 @@ export interface SessionFormData extends MatchScoringFields {
    * on each match as it is saved (see `Match.driver`)
    */
   driver?: string;
+  /**
+   * The next match's battery voltage, typed before or during it and saved
+   * on it (see `Match.batteryVoltage`); cleared once that match is saved
+   */
+  batteryVoltage?: number;
 }
 
 /**

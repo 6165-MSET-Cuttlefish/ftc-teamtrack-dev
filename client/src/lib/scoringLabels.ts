@@ -38,6 +38,10 @@ export const ELEMENT_LABELS = {
   made: 'Made',
   missed: 'Missed',
   accuracy: 'Accuracy',
+  /** What scored, by kind, and NECTAR that missed (old miss counter) */
+  pollenMade: 'Pollen Made',
+  nectarMade: 'Nectar Made',
+  nectarMissed: 'Nectar Missed',
 } as const;
 
 /**
@@ -93,6 +97,8 @@ export const CHART_COLORS = {
   movingAverage: NEUTRAL,
   /** Time between Hive Tips */
   cycle: NEUTRAL,
+  /** Shooting accuracy by match */
+  accuracy: NEUTRAL,
   /** The better and the worse of a pair, such as fastest and slowest */
   better: { dark: '#10b981', light: '#059669' },
   worse: { dark: '#ef4444', light: '#dc2626' },

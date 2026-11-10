@@ -6,6 +6,26 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 8080
+    },
+    {
+      "name": "emulators",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "firebase-tools",
+        "emulators:start",
+        "--only",
+        "auth,firestore",
+        "--project",
+        "demo-teamtrack"
+      ],
+      "port": 9099
+    },
+    {
+      "name": "dev-emulator",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--mode", "emulator"],
+      "port": 8080
     }
   ]
 }

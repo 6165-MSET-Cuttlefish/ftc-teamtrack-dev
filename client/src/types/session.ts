@@ -60,12 +60,12 @@ export interface MatchScoringFields {
    */
   robotCount?: RobotCount;
   /**
-   * Each volley shot at any target, in order: how many balls were shot and
-   * how many went in, and the period it was in. Not scored: it gives
-   * accuracy only. Matches saved before it existed have none; read it with
-   * `shotsOf`.
+   * Shots at any target, in order, each kept under the period it was in:
+   * a volley at a time (`ShotVolley`), or, in matches scored on the short-
+   * lived per-ball counters, one tap each (`ShotTap`). Not scored: it gives
+   * accuracy and the POLLEN/NECTAR split only. Read it with `shotsOf`.
    */
-  shots?: ShotVolley[];
+  shots?: ShotEntry[];
   /** Timeline of Hive Tips as they were counted, for cycle-time analysis */
   phaseLog?: ScoreEvent[];
 }
@@ -73,14 +73,47 @@ export interface MatchScoringFields {
 /** The period a volley is kept under */
 export type ShotPeriod = 'auto' | 'teleop';
 
-/** One volley: balls shot at once, and how many of them went in */
+/**
+ * One volley: the balls shot at once, and how many of them went in. Volleys
+ * saved before the POLLEN/NECTAR split have `made` only.
+ */
 export interface ShotVolley {
   period: ShotPeriod;
-  /** 1 to 4 */
+  /** 1 to `MAX_VOLLEY` */
   shot: number;
-  /** 0 to `shot` */
+  /** 0 to `shot`; `pollen + nectar` when they are given */
   made: number;
+  /** POLLEN that went in */
+  pollen?: number;
+  /** NECTAR that went in */
+  nectar?: number;
+  /**
+   * Robot 2's, recorded by a teammate scoring it in a live session. Absent
+   * for Robot 1, the robot scored on the session's own device.
+   */
+  robot?: 2;
 }
+
+/**
+ * What one tap of a shot counter counted: a ball shot, a POLLEN or a NECTAR
+ * that scored, or a NECTAR that missed (counted only when the scorer turned
+ * NECTAR misses on).
+ */
+export type ShotKind = 'shot' | 'pollen' | 'nectar' | 'nectarMissed';
+
+/** One tap of the per-ball shot counters, kept for matches scored on them */
+export interface ShotTap {
+  period: ShotPeriod;
+  kind: ShotKind;
+  /**
+   * Robot 2's taps, counted by a teammate scoring it in a live session.
+   * Absent for Robot 1, the robot scored on the session's own device.
+   */
+  robot?: 2;
+}
+
+/** One entry in a match's shots: a volley, or an old counter tap */
+export type ShotEntry = ShotTap | ShotVolley;
 
 /** One live scoring action, timestamped against the match clock */
 export interface ScoreEvent {
@@ -133,6 +166,12 @@ export interface Match extends MatchScoringFields {
   createdAt?: TimestampValue;
   /** Who drove: a name picked or typed when it was scored. Optional */
   driver?: string;
+  /**
+   * Battery voltage read before the match, in volts. Only where the scorer
+   * had battery voltage turned on. Optional; an edit that clears it saves
+   * null (Firestore takes no undefined), which loading drops
+   */
+  batteryVoltage?: number | null;
   /**
    * Cached final score. May be stale on older matches (fouls used to be
    * subtracted from it) — read scores with `matchScore`, which recomputes.

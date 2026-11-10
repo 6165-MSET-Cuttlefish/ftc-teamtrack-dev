@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { FIREBASE_CONFIG } from '@/constants';
 import { logger } from './logger';
 
@@ -19,6 +19,14 @@ export async function getFirebase() {
     const app = getApps().length > 0 ? getApp() : initializeApp(FIREBASE_CONFIG);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    // Local testing only (`.env.emulator`): the Firebase emulators, never
+    // the real project
+    if (import.meta.env.VITE_USE_EMULATOR === 'true') {
+      connectAuthEmulator(auth, 'http://127.0.0.1:9099', {
+        disableWarnings: true,
+      });
+      connectFirestoreEmulator(db, '127.0.0.1', 8085);
+    }
 
     cachedFirebase = { app, auth, db };
     return cachedFirebase;
