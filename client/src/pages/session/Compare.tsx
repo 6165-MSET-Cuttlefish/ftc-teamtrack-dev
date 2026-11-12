@@ -37,6 +37,7 @@ import type { Session, Match, ScoreBreakdown } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader, SECTION_TITLE_CLASS } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
+import { HoverHint } from '@/components/ui/hover-hint';
 import { DriverFilter } from '@/components/session/DriverFilter';
 import { driversInSessions, sessionsForDriver } from '@/lib/drivers';
 import {
@@ -1475,48 +1476,55 @@ const Compare = () => {
   );
 
   /** The line over a table that says what its marks mean. */
-  const tableKey = (withOpponentRow: boolean) => (
-    <div className="mb-3">
-      <p className={`flex flex-wrap items-center gap-x-3 text-xs ${mutedText}`}>
-        <span className="inline-flex items-center gap-1">
-          <Star
-            aria-hidden="true"
-            className={`w-3 h-3 fill-current ${goodTone}`}
-          />
-          best
-        </span>
-        <span>N/A not run</span>
-        {withOpponentRow && (
-          <span>
-            <span className={`font-semibold ${badTone}`}>red</span> most to
-            opponent
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => setShowKeyInfo(v => !v)}
-          aria-expanded={showKeyInfo}
-          aria-controls={keyInfoId}
-          aria-label="About these marks"
-          className={`inline-flex items-center justify-center rounded-full p-1 -my-1 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:-my-3.5 transition-colors hover:text-team-blue aria-expanded:text-team-blue ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+  const tableKey = (withOpponentRow: boolean) => {
+    // Shown on hover over the (i), and inline below it once it is clicked
+    const keyInfo = `The star marks the best Final Score and Ranking Points; in the other rows the best value is bold. Values that read the same are a tie and are not marked. N/A means that part of the match was not run${
+      withOpponentRow
+        ? ', or, for points given to the opponent, that it was not a Scrim.'
+        : '.'
+    }`;
+    return (
+      <div className="mb-3">
+        <p
+          className={`flex flex-wrap items-center gap-x-3 text-xs ${mutedText}`}
         >
-          <Info size={14} aria-hidden="true" />
-        </button>
-      </p>
-      <p
-        id={keyInfoId}
-        hidden={!showKeyInfo}
-        className={`mt-1 text-xs text-balance ${mutedText}`}
-      >
-        The star marks the best Final Score and Ranking Points; in the other
-        rows the best value is bold. Values that read the same are a tie and are
-        not marked. N/A means that part of the match was not run
-        {withOpponentRow
-          ? ', or, for points given to the opponent, that it was not a Scrim.'
-          : '.'}
-      </p>
-    </div>
-  );
+          <span className="inline-flex items-center gap-1">
+            <Star
+              aria-hidden="true"
+              className={`w-3 h-3 fill-current ${goodTone}`}
+            />
+            best
+          </span>
+          <span>N/A not run</span>
+          {withOpponentRow && (
+            <span>
+              <span className={`font-semibold ${badTone}`}>red</span> most to
+              opponent
+            </span>
+          )}
+          <HoverHint text={keyInfo} suppressed={showKeyInfo}>
+            <button
+              type="button"
+              onClick={() => setShowKeyInfo(v => !v)}
+              aria-expanded={showKeyInfo}
+              aria-controls={keyInfoId}
+              aria-label="About these marks"
+              className={`inline-flex items-center justify-center rounded-full p-1 -my-1 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:-my-3.5 transition-colors hover:text-team-blue aria-expanded:text-team-blue ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            >
+              <Info size={14} aria-hidden="true" />
+            </button>
+          </HoverHint>
+        </p>
+        <p
+          id={keyInfoId}
+          hidden={!showKeyInfo}
+          className={`mt-1 text-xs text-balance ${mutedText}`}
+        >
+          {keyInfo}
+        </p>
+      </div>
+    );
+  };
 
   /**
    * Shown in place of the comparison until something is picked. The same
