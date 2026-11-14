@@ -20,6 +20,7 @@ const snapshotOf = (
   sessionOwnerId: session.userId,
   sessionName: session.sessionName,
   sessionType: session.sessionType,
+  ...(session.eventCode && { eventCode: session.eventCode }),
   season: session.season,
   sessionDuration: session.sessionDuration,
   sessionCreatedAt: recordedAt(session.createdAt),

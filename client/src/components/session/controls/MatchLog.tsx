@@ -15,6 +15,25 @@ import {
   rankingPoints,
 } from '@/lib';
 import type { Match, MatchScoringFields } from '@/types';
+import {
+  RESULT_NAMES,
+  describeTournamentMatch,
+  matchResult,
+} from '@/lib/tournament';
+
+/** "Q12 · Red · with 1234 vs 5678 · Win 120 to 95" */
+const tournamentLine = (match: Match, score: number): string => {
+  const t = match.tournament;
+  const result = matchResult(t, score);
+  return [
+    describeTournamentMatch(t),
+    result
+      ? `${RESULT_NAMES[result]} ${t?.ourScore ?? score} to ${t?.theirScore}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
 import { MatchInsights } from '../MatchInsights';
 import { absorbDoubleTap } from './doubleTap';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
@@ -436,6 +455,11 @@ export const MatchLog = () => {
                     <span className={`text-xs ${detailText}`}>
                       {matchSummary(match)}
                     </span>
+                    {match.tournament && (
+                      <span className={`text-xs ${detailText}`}>
+                        {tournamentLine(match, score)}
+                      </span>
+                    )}
                   </span>
                   {isEditing && (
                     <span

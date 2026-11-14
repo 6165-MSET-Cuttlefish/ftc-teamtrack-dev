@@ -5,14 +5,15 @@ import { readGuestSessions } from './guestSessions';
 const LEGACY_DEFAULT_NAME = 'Default Session';
 
 /** A default name: the session type and its number, "Practice 3" */
-const NUMBERED_NAME = /^(Practice|Scrim) (\d{1,6})$/;
+const NUMBERED_NAME = /^(Practice|Scrim|Tournament) (\d{1,6})$/;
 
 /**
  * The default names that carried the date instead ("Practice · Oct 1", and
  * "Practice - Oct 1"). Sessions saved or left open with them keep them;
  * they are still the app's names, not the user's.
  */
-const DATED_NAME = /^(Practice|Scrim) (?:·|-) [A-Z][a-z]{2} \d{1,2}$/;
+const DATED_NAME =
+  /^(Practice|Scrim|Tournament) (?:·|-) [A-Z][a-z]{2} \d{1,2}$/;
 
 /**
  * The names of the signed-in user's own saved sessions, as last read from

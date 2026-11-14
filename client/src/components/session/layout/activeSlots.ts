@@ -28,6 +28,7 @@ export type ActiveSlotKey =
   | 'scoring'
   | 'matchEntry'
   | 'breakdown'
+  | 'matchDetails'
   | 'notes';
 
 /**

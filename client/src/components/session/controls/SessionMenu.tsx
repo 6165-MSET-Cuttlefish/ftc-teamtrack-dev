@@ -1,10 +1,12 @@
 import { useId, useRef, useState } from 'react';
 import {
+  CalendarDays,
   EllipsisVertical,
   Lock,
   Pencil,
   Radio,
   Trash2,
+  Undo2,
   UserPlus,
 } from 'lucide-react';
 
@@ -23,7 +25,7 @@ import {
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { useSessionCore } from '@/contexts';
-import { robotCountOf } from '@/lib';
+import { cleanEventCode, ftcScoutEventUrl, robotCountOf } from '@/lib';
 import { setRecordBattery, useRecordBattery } from '@/lib/battery';
 import {
   MAX_DRIVER_LENGTH,
@@ -35,6 +37,10 @@ import type { RobotCount, SessionType } from '@/types';
 import { ignoreHeldEnter } from './ignoreHeldEnter';
 import { useLiveControls } from './liveControlsContext';
 import { useLiveHost } from '../live/liveHostContext';
+import {
+  UNDO_SHORTCUT_LABEL,
+  useScoringUndo,
+} from '../undo/scoringUndoContext';
 import { actionClass, toneText } from './tones';
 import { useCompactControls } from './useCompactControls';
 
@@ -46,6 +52,10 @@ const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'] as const;
 const SESSION_TYPES: Array<{ value: SessionType; hint: string }> = [
   { value: 'Practice', hint: 'Just your team' },
   { value: 'Scrim', hint: 'Against another alliance, with fouls' },
+  {
+    value: 'Tournament',
+    hint: 'An official event: fouls, alliances and results',
+  },
 ];
 
 const ROBOT_COUNTS: Array<{ value: RobotCount; label: string }> = [
@@ -105,11 +115,15 @@ export const SessionMenu = () => {
   const isCompact = useCompactControls();
   const recordBattery = useRecordBattery();
   const liveHost = useLiveHost();
+  const scoringUndo = useScoringUndo();
   /** Rename was chosen: the dialog opens once the menu has closed */
   const renameRef = useRef(false);
   /** Add driver was chosen: its dialog opens once the menu has closed */
   const addDriverRef = useRef(false);
   const [addingDriver, setAddingDriver] = useState(false);
+  /** Event code was chosen: its dialog opens once the menu has closed */
+  const eventCodeRef = useRef(false);
+  const [editingEventCode, setEditingEventCode] = useState(false);
 
   // The match being played was started as these say. The walkthrough's
   // practice match doesn't count: it is put back when the walkthrough
@@ -190,6 +204,11 @@ export const SessionMenu = () => {
               setAddingDriver(true);
               return;
             }
+            if (eventCodeRef.current) {
+              eventCodeRef.current = false;
+              setEditingEventCode(true);
+              return;
+            }
             if (!renameRef.current) return;
             renameRef.current = false;
             setShowRenameDialog(true);
@@ -209,6 +228,25 @@ export const SessionMenu = () => {
             <span className="shrink-0 text-xs text-muted-foreground">
               Rename
             </span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            disabled={loading || !scoringUndo.canUndo}
+            onSelect={() => scoringUndo.undo()}
+            className="gap-2"
+          >
+            <Undo2 aria-hidden className="h-4 w-4 shrink-0" />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="font-semibold">Undo last change</span>
+              <span className="truncate text-xs text-muted-foreground">
+                {scoringUndo.nextLabel
+                  ? `Puts back ${scoringUndo.nextLabel}`
+                  : 'Nothing to undo in this match'}
+              </span>
+            </span>
+            <kbd className="hidden shrink-0 rounded border border-current px-1 font-sans text-[10px] font-semibold leading-4 opacity-70 md:inline-block [@media(pointer:coarse)]:hidden">
+              {UNDO_SHORTCUT_LABEL}
+            </kbd>
           </DropdownMenuItem>
 
           <DropdownMenuItem
@@ -276,6 +314,25 @@ export const SessionMenu = () => {
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
+          {sessionData.sessionType === 'Tournament' && (
+            <DropdownMenuItem
+              disabled={loading}
+              onSelect={() => {
+                eventCodeRef.current = true;
+              }}
+              className="gap-2"
+            >
+              <CalendarDays aria-hidden className="h-4 w-4 shrink-0" />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span>
+                  {sessionData.eventCode ? 'Event code' : 'Add event code…'}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {sessionData.eventCode || 'Links the event on FTC Scout'}
+                </span>
+              </span>
+            </DropdownMenuItem>
+          )}
 
           <DropdownMenuSeparator />
           <GroupLabel locked={locked}>Robots</GroupLabel>
@@ -363,6 +420,9 @@ export const SessionMenu = () => {
       )}
       {addingDriver && (
         <AddDriverDialog onClose={() => setAddingDriver(false)} />
+      )}
+      {editingEventCode && (
+        <EventCodeDialog onClose={() => setEditingEventCode(false)} />
       )}
     </>
   );
@@ -556,6 +616,119 @@ const AddDriverDialog = ({ onClose }: { onClose: () => void }) => {
               className={`px-5 min-h-11 rounded-xl text-sm ${actionClass('primary', isDarkMode)}`}
             >
               Add
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/**
+ * A Tournament's FTC event code, as FTC Scout and the FTC Events site list
+ * it ("USCAFFFAQ"). Optional: it only links the event from the session.
+ */
+const EventCodeDialog = ({ onClose }: { onClose: () => void }) => {
+  const { sessionData, isDarkMode } = useLiveControls();
+  const { updateSessionData } = useSessionCore();
+  const [code, setCode] = useState(sessionData.eventCode ?? '');
+  const cleaned = cleanEventCode(code);
+  const valid = code.trim() === '' || cleaned !== '';
+  const codeId = useId();
+  const hintId = useId();
+  const link = ftcScoutEventUrl(cleaned);
+
+  const save = () => {
+    if (!valid) return;
+    updateSessionData({ eventCode: cleaned || undefined });
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open
+      onOpenChange={open => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        className={`max-w-sm border p-6 ${
+          isDarkMode
+            ? 'bg-team-dark border-team-blue-40'
+            : 'bg-white border-gray-200'
+        }`}
+      >
+        <form
+          noValidate
+          onSubmit={e => {
+            e.preventDefault();
+            save();
+          }}
+          className="space-y-4"
+        >
+          <DialogTitle className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+            Event code
+          </DialogTitle>
+          <div className="space-y-2">
+            <label
+              htmlFor={codeId}
+              className={`block ${EYEBROW_CLASS} ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+            >
+              FTC event code
+            </label>
+            <Input
+              id={codeId}
+              name="eventCode"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              data-autofocus
+              maxLength={20}
+              placeholder="USCAFFFAQ"
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              aria-invalid={!valid}
+              aria-describedby={hintId}
+              className={`h-12 px-4 rounded-xl border-2 uppercase ${
+                isDarkMode ? 'bg-team-dark text-white' : 'bg-white text-black'
+              }`}
+            />
+            <p
+              id={hintId}
+              role={valid ? undefined : 'alert'}
+              className={`text-xs ${valid ? 'text-muted-foreground' : `font-medium ${toneText('red', isDarkMode)}`}`}
+            >
+              {!valid ? (
+                'Letters and numbers only, as the event lists it'
+              ) : link ? (
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-team-blue underline underline-offset-2"
+                >
+                  Check it on FTC Scout
+                </a>
+              ) : (
+                'Find it on the event’s FTC Scout or FTC Events page'
+              )}
+            </p>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`px-4 min-h-11 rounded-xl text-sm ${actionClass('neutral', isDarkMode)}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!valid}
+              className={`px-5 min-h-11 rounded-xl text-sm ${actionClass('primary', isDarkMode)}`}
+            >
+              Save
             </button>
           </div>
         </form>

@@ -20,7 +20,8 @@ export const cardVars = (isDarkMode: boolean): React.CSSProperties =>
  * The theme's own popover surface (navy in Deep Sea, near-black in
  * Honeycomb, white in light), with the theme's border.
  */
-export const CARD_SURFACE = 'bg-popover border border-border';
+// Glass (global.css), over the page the spotlight dims
+export const CARD_SURFACE = 'glass-thick border';
 
 export const cardShadow = (isDarkMode: boolean): string =>
   isDarkMode

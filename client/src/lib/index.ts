@@ -11,6 +11,7 @@ export {
   getErrorMessage,
 } from './utils';
 export { logger } from './logger';
+export { sessionAuthorName } from './sessionAuthor';
 export { failureReason, ShownError } from './failure';
 export {
   hasCompletedASession,
@@ -124,3 +125,24 @@ export type {
   AuthErrorContext,
   AuthErrorInfo,
 } from './authErrors';
+export {
+  SESSION_TYPES,
+  isSessionType,
+  countsFouls,
+  isTournament,
+  cleanTeamNumber,
+  cleanEventCode,
+  toTournamentInfo,
+  matchResult,
+  tournamentRecord,
+  formatRecord,
+  describeTournamentMatch,
+  ftcScoutTeamUrl,
+  ftcScoutEventUrl,
+  hasTournamentInfo,
+  RESULT_NAMES,
+  ALLIANCE_NAMES,
+  FTC_SCOUT_SEASON,
+  MAX_MATCH_LABEL,
+} from './tournament';
+export type { MatchResult, TournamentRecord } from './tournament';

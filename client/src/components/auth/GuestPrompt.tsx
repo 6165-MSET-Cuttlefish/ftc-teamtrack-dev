@@ -178,13 +178,13 @@ export const GuestPrompt = () => {
         style={{ height: cardHeight + CARD_GAP * 2 }}
       />
       {/* One line: what is at risk, the fix, and a way to close it. The
-          popover surface of the theme, like a toast. z-40: under a dialog's
+          glass of a toast (global.css), floating over the page. z-40: under a dialog's
           backdrop, so it never takes a dialog's taps. */}
       <div
         ref={setCardEl}
         role="region"
         aria-label="Back up your sessions"
-        className="fixed bottom-4 left-4 right-4 ml-auto sm:left-auto sm:w-max max-w-md flex items-center gap-2 rounded-xl border border-team-blue-40 bg-popover text-popover-foreground shadow-2xl py-1.5 pl-4 pr-1.5 z-40 animate-slide-up"
+        className="fixed bottom-4 left-4 right-4 ml-auto sm:left-auto sm:w-max max-w-md flex items-center gap-2 glass rounded-xl border border-team-blue-40 text-popover-foreground py-1.5 pl-4 pr-1.5 z-40 animate-slide-up"
       >
         <p className="min-w-0 flex-1 text-sm font-medium leading-tight text-balance">
           {safariErases

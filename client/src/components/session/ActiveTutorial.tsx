@@ -1,3 +1,4 @@
+import { countsFouls } from '@/lib/tournament';
 import {
   useState,
   useEffect,
@@ -1396,7 +1397,7 @@ export const ActiveTutorial = ({
               narrow: viewport.width < NARROW_WIDTH,
               compact: isCompactLayout,
               matchType: sessionData.matchType,
-              scrim: sessionData.sessionType === 'Scrim',
+              scrim: countsFouls(sessionData.sessionType),
               shortFouls: isSideBySide
                 ? 'over'
                 : isShortLayout

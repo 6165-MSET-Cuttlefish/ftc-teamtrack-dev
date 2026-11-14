@@ -29,6 +29,7 @@ import {
   sessionMatchType,
   toDate,
   writeGuestSessions,
+  toTournamentInfo,
 } from '@/lib';
 import { followMatchClock } from '@/lib/followMatchClock';
 import { nextMatchNumber } from '@/lib/matchNumber';
@@ -937,9 +938,15 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
 
     // A match starts from nothing. Numbers entered between matches belong to
     // no match: left in, they would be saved as part of this one.
+    // A Tournament match's details are the exception: who plays whom is
+    // known before the match is, so they are typed before Start and kept.
     const stray = pickScoringFields(sessionData);
-    if (JSON.stringify(stray) !== JSON.stringify(emptyScoringFields())) {
-      updateSessionData(emptyScoringFields());
+    const fresh = {
+      ...emptyScoringFields(),
+      tournament: stray.tournament,
+    };
+    if (JSON.stringify(stray) !== JSON.stringify(fresh)) {
+      updateSessionData(fresh);
     }
     if (hasUnsavedMatchData) {
       offerClearedUndo(stray, currentMatchScore.earned);
@@ -989,6 +996,8 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
     );
     return {
       ...scoring,
+      // Tidied as stored: empty opponent slots and the like left out
+      tournament: toTournamentInfo(scoring.tournament),
       // The robots it was played with, as the session had it then
       robotCount: robotCountOf(sessionData),
       id: generateId(),
@@ -1321,9 +1330,16 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
   /** Everything stored for a completed session, signed in or guest. */
   const buildSessionToSave = (sessionName: string, teamId?: string) => {
     const matches = sessionData.matches || [];
+    const authorName =
+      team?.members.find(m => m.userId === uid)?.displayName?.trim() ||
+      user?.displayName?.trim() ||
+      '';
     return {
       sessionName,
       sessionType: sessionData.sessionType || 'Practice',
+      // A Tournament's event, for its FTC Scout link
+      ...(sessionData.sessionType === 'Tournament' &&
+        sessionData.eventCode && { eventCode: sessionData.eventCode }),
       matchType: sessionMatchType(
         matches,
         sessionData.matchType || 'Full Game'
@@ -1333,6 +1349,8 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
 
       userId: uid || localStorage.getItem('teamtrack-guest-id') || 'guest',
       userEmail: user?.email || '',
+      // Shown on it in the team, and kept if its author leaves
+      ...(authorName && { userName: authorName }),
       ...(teamId ? { teamId } : {}),
 
       selectedFeature: sessionData.selectedFeature || '',
@@ -1348,12 +1366,15 @@ export const useLiveControlsState = (_props: LiveControlsProps) => {
   const sessionContentKey = (session: {
     sessionName?: string;
     sessionType?: string;
+    eventCode?: string;
     notes?: string;
     matches?: Match[];
   }) =>
     JSON.stringify([
       session.sessionName || '',
       session.sessionType || 'Practice',
+      // Saved only on a Tournament (see buildSessionToSave)
+      session.sessionType === 'Tournament' ? session.eventCode || '' : '',
       session.notes || '',
       session.matches || [],
     ]);

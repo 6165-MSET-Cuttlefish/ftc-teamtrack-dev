@@ -14,8 +14,10 @@ export interface SessionFormData extends MatchScoringFields {
    */
   sessionNameTyped?: boolean;
   sessionDuration: string;
-  /** Practice or Scrim */
+  /** Practice, Scrim or Tournament */
   sessionType: SessionType;
+  /** A Tournament's FTC event code (see `Session.eventCode`) */
+  eventCode?: string;
   matchType: string;
   isSessionCompleted: boolean;
   selectedFeature: string;

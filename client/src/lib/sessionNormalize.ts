@@ -12,6 +12,7 @@ import type { Match, ScoreEvent, Session, ShotEntry, ShotKind } from '@/types';
 import { CURRENT_SEASON } from '@/constants';
 import { toShotVolley } from './scoring';
 import { toBatteryVoltage } from './battery';
+import { cleanEventCode, isSessionType, toTournamentInfo } from './tournament';
 
 /** Season recorded for sessions that predate the season tag. */
 export const LEGACY_SEASON = 'decode';
@@ -67,6 +68,7 @@ const LEGACY_MATCH_KEYS = [
 
 const OPTIONAL_TEXT_FIELDS = [
   'userEmail',
+  'userName',
   'teamId',
   'matchType',
   'sessionDuration',
@@ -246,6 +248,11 @@ export const normalizeMatch = (raw: unknown, index = 0): Match | null => {
   if ('createdAt' in raw && !isTimestamp(raw.createdAt)) {
     delete match.createdAt;
   }
+  if ('tournament' in raw) {
+    const info = toTournamentInfo(raw.tournament);
+    if (info) match.tournament = info;
+    else delete match.tournament;
+  }
 
   return match as unknown as Match;
 };
@@ -281,8 +288,13 @@ export const normalizeSession = (raw: unknown, id: string): Session => {
       delete session[key];
     }
   }
-  if (data.sessionType !== 'Practice' && data.sessionType !== 'Scrim') {
+  if (!isSessionType(data.sessionType)) {
     delete session.sessionType;
+  }
+  if ('eventCode' in data) {
+    const code = cleanEventCode(data.eventCode);
+    if (code) session.eventCode = code;
+    else delete session.eventCode;
   }
   if (!isTimestamp(data.createdAt)) delete session.createdAt;
   // Only a stored `true` archives a session; anything else reads as active.

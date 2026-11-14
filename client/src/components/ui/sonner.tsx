@@ -363,7 +363,8 @@ const SHORT_VIEWPORT_QUERY = '(max-height: 500px)';
  * inverse of that surface, and stays readable on every coloured toast too.
  */
 const SURFACE_VARS = {
-  '--normal-bg': 'hsl(var(--popover))',
+  // Glass (global.css): what is under the toast shows through, blurred
+  '--normal-bg': 'var(--glass-fill-thick)',
   '--normal-text': 'hsl(var(--popover-foreground))',
   // The accent, as on the toast's own border (see `toast` below): the close
   // button on its corner takes this on the dark themes, so the border runs
@@ -376,6 +377,18 @@ const SURFACE_VARS = {
  * their tinted backgrounds. These are the same hues, dark enough to read
  * (6:1 or better). Its dark-theme colours are fine as they are.
  */
+/**
+ * A coloured toast (saved, failed, a warning) is glass too, as a plain one
+ * is: it keeps its icon, its coloured text and border, so what it says is
+ * never down to colour alone.
+ */
+const RICH_GLASS_VARS = {
+  '--success-bg': 'var(--glass-fill-thick)',
+  '--info-bg': 'var(--glass-fill-thick)',
+  '--warning-bg': 'var(--glass-fill-thick)',
+  '--error-bg': 'var(--glass-fill-thick)',
+} as CSSProperties;
+
 const LIGHT_TEXT_VARS = {
   '--success-text': '#166534',
   '--info-text': '#1e40af',
@@ -469,6 +482,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       closeButton
       style={{
         ...SURFACE_VARS,
+        ...RICH_GLASS_VARS,
         ...(isDarkMode ? undefined : LIGHT_TEXT_VARS),
         ...(onTop ? OVER_HEADER_WIDTH : undefined),
         ...(topWidth ? { '--width': `${topWidth}px` } : undefined),
@@ -483,7 +497,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           // reach as well as out of sight: Sonner only fades it out, and Tab
           // went on from the front toast's Undo to its unseen buttons.
           toast: cn(
-            'group toast border border-[rgb(var(--team-blue)/0.4)] group-[.toaster]:shadow-lg data-[visible=false]:invisible',
+            'glass-backdrop group toast border border-[rgb(var(--team-blue)/0.4)] group-[.toaster]:shadow-lg data-[visible=false]:invisible',
             onTop &&
               cn(
                 'py-1.5',

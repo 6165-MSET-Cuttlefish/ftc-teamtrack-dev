@@ -139,13 +139,14 @@ export const Segmented = <T extends string>({
                 }
               : { 'aria-pressed': active })}
             onClick={() => onChange(option.value)}
-            className={`inline-flex items-center justify-center rounded-md border font-semibold transition-colors [@media(pointer:coarse)]:min-h-11 ${sizing.button} ${
+            className={`inline-flex items-center justify-center rounded-md border font-semibold transition-[color,background-color,border-color,box-shadow] duration-200 [@media(pointer:coarse)]:min-h-11 ${sizing.button} ${
               stackIcons && Icon
                 ? 'flex-col gap-0.5 sm:flex-row sm:gap-2'
                 : sizing.gap
             } ${fill ? 'flex-1 min-w-0' : ''} ${
               active
-                ? selectedClass(isDarkMode)
+                ? // Raised like a lens over the track (global.css)
+                  `glass-lens ${selectedClass(isDarkMode)}`
                 : `border-transparent ${
                     isDarkMode
                       ? 'text-team-white-60 hover:bg-white/10 hover:text-white'

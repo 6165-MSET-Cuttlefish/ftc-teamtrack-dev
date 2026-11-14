@@ -28,8 +28,10 @@ const FITS_SCREEN =
  */
 const SCROLL_SHADE: React.CSSProperties = {
   backgroundImage: [
-    'linear-gradient(hsl(var(--popover)) 30%, hsl(var(--popover) / 0))',
-    'linear-gradient(hsl(var(--popover) / 0), hsl(var(--popover)) 70%)',
+    // Covers in the menu's own glass, which hide the shadows while there
+    // is nothing more to scroll that way
+    'linear-gradient(var(--glass-fill-thick) 30%, transparent)',
+    'linear-gradient(transparent, var(--glass-fill-thick) 70%)',
     'radial-gradient(farthest-side at 50% 0, hsl(var(--popover-foreground) / 0.22), transparent)',
     'radial-gradient(farthest-side at 50% 100%, hsl(var(--popover-foreground) / 0.22), transparent)',
   ].join(', '),
@@ -89,7 +91,7 @@ const DropdownMenuSubContent = React.forwardRef<
       ref={ref}
       collisionPadding={collisionPadding}
       className={cn(
-        'z-50 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+        'glass-thick z-50 min-w-[8rem] rounded-xl border p-1 text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
         FITS_SCREEN,
         className
       )}
@@ -121,7 +123,7 @@ const DropdownMenuContent = React.forwardRef<
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          'z-50 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+          'glass-thick z-50 min-w-[8rem] rounded-xl border p-1 text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
           FITS_SCREEN,
           className
         )}

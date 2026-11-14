@@ -16,7 +16,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { useAuth, useSessionCore, useTheme, useTeam } from '@/contexts';
-import { firebaseService, teamService } from '@/services';
+import { firebaseService } from '@/services';
 import { TeamManager } from '@/components';
 import {
   isAbortError,
@@ -34,6 +34,7 @@ import {
   isGuestSessionId,
   readGuestSessions,
   writeGuestSessions,
+  sessionAuthorName,
 } from '@/lib';
 import type { SortOption } from '@/lib';
 import {
@@ -1037,10 +1038,8 @@ const Sessions = () => {
   const canDelete = (session: Session): boolean =>
     isGuest ||
     (!!uid && session.userId === uid) ||
-    (!!uid &&
-      !!team &&
-      session.teamId === team.id &&
-      teamService.ownerOf(team) === uid);
+    // Every member of the team runs its sessions
+    (!!uid && !!team && session.teamId === team.id);
 
   const handleUpdateSessionName = async (
     sessionId: string,
@@ -1211,17 +1210,9 @@ const Sessions = () => {
     if (uid) writeImportDismissed(uid);
   };
 
-  /**
-   * Who recorded a teammate's session, for its card. The viewer's own have
-   * no name on them: a card without one is yours, and Mine lists them.
-   */
-  const getSessionOwnerName = (session: Session): string | undefined => {
-    if (!team || session.userId === uid) return undefined;
-    const member = team.members.find(m => m.userId === session.userId);
-    return (
-      member?.displayName || member?.email || session.userEmail || undefined
-    );
-  };
+  /** Who recorded a team session, for its card: every one says, yours too */
+  const getSessionOwnerName = (session: Session): string | undefined =>
+    team ? sessionAuthorName(session, team) : undefined;
 
   /**
    * Download `toExport` as one CSV and say how much went into it. Under a

@@ -161,7 +161,9 @@ export const Dialog = ({
   // (an sr-only word in a list that scrolls has escaped that list), which
   // would otherwise let a dialog that fits slide up the screen.
   return createPortal(
-    <div className="fixed inset-0 z-[10050] overflow-y-auto overscroll-contain bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    // A dim with no blur of its own: the dialog's glass does the blurring,
+    // and a blur here would leave it nothing behind to see but the dim
+    <div className="fixed inset-0 z-[10050] overflow-y-auto overscroll-contain bg-black/45 animate-in fade-in duration-200">
       <div
         className="relative flex min-h-full items-center justify-center overflow-clip p-4"
         onMouseDown={e => {
@@ -293,7 +295,9 @@ export const DialogContent = ({
         aria-describedby={describedBy}
         // Merged, so a caller's own width replaces the default one.
         className={cn(
-          'rounded-2xl shadow-2xl max-w-lg w-full animate-in zoom-in-95 duration-200 focus:outline-none',
+          // Glass (global.css), over any surface colour the caller gives,
+          // which stays as its fallback
+          'glass-sheet rounded-2xl shadow-2xl max-w-lg w-full animate-in zoom-in-95 duration-200 focus:outline-none',
           className
         )}
         onClick={e => e.stopPropagation()}

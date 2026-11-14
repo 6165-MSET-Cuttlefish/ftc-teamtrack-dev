@@ -601,7 +601,7 @@ class TeamService {
     );
   }
 
-  /** Update team name (owner only) */
+  /** Update team name (any member) */
   async updateTeamName(teamId: string, name: string): Promise<boolean> {
     return this.safeExecute(
       async () => {
@@ -635,7 +635,7 @@ class TeamService {
     );
   }
 
-  /** Regenerate invite code (owner only). Old links stop working. */
+  /** Regenerate invite code (any member). Old links stop working. */
   async regenerateInviteCode(teamId: string): Promise<string | null> {
     return this.safeExecute(
       async () => {
@@ -821,7 +821,8 @@ class TeamService {
   }
 
   /**
-   * Kick a member from the team (owner only). The invite code changes in
+   * Remove a member from the team (any member can, except the owner, who
+   * nobody else removes). The invite code changes in
    * the same write: every member has seen the old one, so leaving it valid
    * would let the removed member straight back in.
    */
@@ -836,13 +837,17 @@ class TeamService {
         const team = this.toTeam(teamDoc);
         const members: TeamMember[] = team.members || [];
 
-        if (this.ownerOf(team) !== ownerUserId) return false;
-        if (ownerUserId === targetUserId) return false;
+        // Any member can remove another, but nobody removes the owner
+        // (they hand the team over, or leave, themselves)
+        const owner = this.ownerOf(team);
+        const memberIds = team.memberIds ?? members.map((m) => m.userId);
+        if (!memberIds.includes(ownerUserId)) return false;
+        if (ownerUserId === targetUserId || targetUserId === owner) return false;
 
         const remaining = members.filter((m) => m.userId !== targetUserId);
 
         await this.rotateInviteCode(db, team, {
-          ownerId: ownerUserId,
+          ...(owner ? { ownerId: owner } : {}),
           members: remaining.map((m) => this.cleanMember(m)),
           memberIds: remaining.map((m) => m.userId),
         });

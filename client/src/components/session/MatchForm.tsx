@@ -1,3 +1,5 @@
+import { countsFouls, isTournament, toTournamentInfo } from '@/lib/tournament';
+import { TournamentDetailsEditor } from './TournamentDetails';
 import {
   Fragment,
   useCallback,
@@ -369,12 +371,16 @@ export const MatchForm = ({
   // that add up to the score; they get their own line under the total.
   const rows = scoreRows(formData).filter(row => !row.informational);
 
-  // Fouls belong to a Scrim. A match that already has some keeps the panel
+  // Fouls belong to a Scrim or Tournament. A match that already has some keeps the panel
   // whatever the session type, so they can still be seen and corrected.
   const showFouls =
-    sessionType === 'Scrim' ||
+    countsFouls(sessionType) ||
     (initialMatch?.minorPenalties ?? 0) + (initialMatch?.majorPenalties ?? 0) >
       0;
+
+  // A Tournament's match details; a match that has some keeps them shown
+  const showTournament =
+    isTournament(sessionType) || !!initialMatch?.tournament;
 
   const handleSave = async () => {
     if (savingRef.current) return;
@@ -394,6 +400,11 @@ export const MatchForm = ({
         driver: formData.driver?.trim() ?? '',
         // null clears it, as '' does the driver
         ...(showBattery && { batteryVoltage: volts }),
+        // null clears them, as it does the battery voltage
+        ...(showTournament && {
+          tournament: (toTournamentInfo(formData.tournament) ??
+            null) as Match['tournament'],
+        }),
         finalScore: breakdown.total,
       });
     } catch (error) {
@@ -774,6 +785,18 @@ export const MatchForm = ({
                 counter('garden', 'garden', 'garden', breakdown.garden)}
             </div>
           </Section>
+
+          {showTournament && (
+            <Section title="Tournament match">
+              <TournamentDetailsEditor
+                info={formData.tournament}
+                scored={breakdown.total}
+                onChange={tournament =>
+                  setFormData(prev => ({ ...prev, tournament }))
+                }
+              />
+            </Section>
+          )}
 
           {showFouls && (
             <Section

@@ -7,8 +7,10 @@
  */
 
 import type { CSSProperties } from 'react';
+import { Rectangle } from 'recharts';
 import type {
   AreaProps,
+  CartesianGridProps,
   LegendProps,
   LineProps,
   XAxisProps,
@@ -41,8 +43,162 @@ export const axisProps = (isDarkMode: boolean) => {
   return {
     stroke: color,
     tick: { fontSize: 12, fill: color },
+    // The gridlines carry the scale: no axis rule or tick marks of their
+    // own, only the labels, a little apart from the plot
+    axisLine: false,
+    tickLine: false,
+    tickMargin: 8,
   } satisfies XAxisProps & YAxisProps;
 };
+
+/** The background of the cards the charts sit on, in every theme */
+export const CARD_BG = 'hsl(var(--card))';
+
+/**
+ * Spread on every CartesianGrid: `<CartesianGrid {...gridProps(isDarkMode)} />`.
+ * Hairline, solid and across only, one step off the card, so the marks are
+ * the loudest thing in the plot.
+ */
+export const gridProps = (isDarkMode: boolean) =>
+  ({
+    vertical: false,
+    stroke: isDarkMode ? 'rgba(148, 163, 184, 0.16)' : '#e8edf3',
+  }) satisfies CartesianGridProps;
+
+/**
+ * The widest a bar gets, so a few columns never become walls of colour:
+ * the rest of each column's slot is air.
+ */
+export const MAX_BAR_SIZE = 28;
+
+/** A bar's data end, rounded; square where it stands on the baseline */
+export const BAR_RADIUS: [number, number, number, number] = [4, 4, 0, 0];
+
+/** The band behind the hovered column of a bar chart */
+export const barCursor = (isDarkMode: boolean) => ({
+  fill: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.04)',
+});
+
+/** The rule under the pointer on a line or area chart */
+export const lineCursor = (isDarkMode: boolean) => ({
+  stroke: axisColor(isDarkMode),
+  strokeWidth: 1,
+});
+
+interface SegmentProps {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  fill?: string;
+  payload?: Record<string, unknown>;
+}
+
+/**
+ * The `shape` of one series of a stacked Bar, `key` among `keys` (bottom
+ * first): `<Bar dataKey={key} shape={stackSegment(key, keys)} … />`. Each
+ * segment stands 2px clear of the one under it, in the card's colour, and
+ * only the top one of a column is rounded, whichever series that is in it.
+ */
+export const stackSegment = (key: string, keys: readonly string[]) =>
+  function StackSegment(props: unknown) {
+    const {
+      x = 0,
+      y = 0,
+      width = 0,
+      height = 0,
+      fill,
+      payload,
+    } = props as SegmentProps;
+    if (width <= 0 || height <= 0) return <g />;
+    const filled = keys.filter(k => Number(payload?.[k] ?? 0) > 0);
+    const top = filled[filled.length - 1];
+    const bottom = filled[0];
+    const h = key === bottom ? height : Math.max(0, height - 2);
+    const r = key === top ? Math.min(4, width / 2, h) : 0;
+    return (
+      <Rectangle
+        x={x}
+        y={y}
+        width={width}
+        height={h}
+        fill={fill}
+        radius={[r, r, 0, 0]}
+      />
+    );
+  };
+
+/**
+ * The soft wash under a line, its colour fading to nothing at the
+ * baseline: put `{areaWash(id, color, isDarkMode)}` in the chart and give
+ * the Area `fill={`url(#${id})`}`. Ids are per page, so make each one
+ * unique to its chart.
+ */
+export const areaWash = (id: string, color: string, isDarkMode: boolean) => (
+  <defs>
+    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+      <stop
+        offset="0%"
+        stopColor={color}
+        stopOpacity={isDarkMode ? 0.24 : 0.14}
+      />
+      <stop offset="95%" stopColor={color} stopOpacity={0} />
+    </linearGradient>
+  </defs>
+);
+
+/** One legend entry, as Recharts hands it to the legend */
+interface LegendEntry {
+  value?: string | number;
+  color?: string;
+  type?: string;
+  payload?: { strokeDasharray?: string | number };
+}
+
+/**
+ * The legend's keys: a round dot in the series colour, as the tooltip's,
+ * or a short dashed line for a reference drawn dashed (a series with
+ * `legendType="plainline"`), in the order the chart gives them.
+ */
+export const LegendKeys = ({
+  payload = [],
+}: {
+  payload?: ReadonlyArray<LegendEntry>;
+}) => (
+  <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+    {payload
+      .filter(entry => entry.type !== 'none')
+      .map((entry, i) => (
+        <li
+          key={`${entry.value}-${i}`}
+          className="inline-flex items-center gap-1.5"
+        >
+          {entry.type === 'plainline' ? (
+            <svg width="14" height="8" aria-hidden className="shrink-0">
+              <line
+                x1="0"
+                y1="4"
+                x2="14"
+                y2="4"
+                stroke={entry.color}
+                strokeWidth="2"
+                strokeDasharray={
+                  entry.payload?.strokeDasharray ? '3 2' : undefined
+                }
+              />
+            </svg>
+          ) : (
+            <span
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+          )}
+          <span className="recharts-legend-item-text">{entry.value}</span>
+        </li>
+      ))}
+  </ul>
+);
 
 /**
  * Spread on every Legend: `<Legend {...LEGEND_PROPS} itemSorter={null} />`.
@@ -50,8 +206,8 @@ export const axisProps = (isDarkMode: boolean) => {
  * global.css, `.recharts-legend-item-text`).
  */
 export const LEGEND_PROPS = {
-  wrapperStyle: { fontSize: 12 },
-  iconSize: 10,
+  wrapperStyle: { fontSize: 12, paddingTop: 8 },
+  content: <LegendKeys />,
 } satisfies LegendProps;
 
 /**
@@ -158,9 +314,7 @@ export const ChartTooltip = ({
   return (
     // Kept narrower than a phone's chart, or Recharts can't place it inside
     // and its right-hand values are cut off.
-    <div
-      className={`max-w-[min(20rem,calc(100vw-6rem))] p-3 sm:p-4 rounded-lg border ${isDarkMode ? 'bg-team-dark/95 border-team-blue-40 backdrop-blur-sm' : 'bg-white/95 border-gray-200 backdrop-blur-sm'} shadow-xl`}
-    >
+    <div className="glass-thick max-w-[min(20rem,calc(100vw-6rem))] p-3 sm:p-4 rounded-xl border">
       {title !== undefined && title !== '' && (
         <p
           className={`text-sm sm:text-base font-bold mb-2 pb-1.5 sm:mb-3 sm:pb-2 border-b [overflow-wrap:anywhere] ${isDarkMode ? 'text-white border-team-blue-40' : 'text-gray-900 border-gray-200'}`}

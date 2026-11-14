@@ -1,6 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import {
+  countsFouls,
+  formatRecord,
+  isTournament,
+  tournamentRecord,
+} from '@/lib/tournament';
+import { EventLink, TournamentSummary } from './TournamentDetails';
+import {
   useState,
   useEffect,
   useLayoutEffect,
@@ -30,7 +37,8 @@ import {
 import {
   BarChart,
   Bar,
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
   ScatterChart,
   Scatter,
@@ -103,6 +111,15 @@ import {
   LEGEND_PROPS,
   TOOLTIP_WRAPPER_STYLE,
   axisProps,
+  gridProps,
+  CARD_BG,
+  MAX_BAR_SIZE,
+  BAR_RADIUS,
+  areaWash,
+  barCursor,
+  lineCursor,
+  stackSegment,
+  dotProps,
 } from '@/components/charts/chartKit';
 
 /**
@@ -134,7 +151,7 @@ const showsFouls = (
   sessionType: SessionType | undefined,
   matches: Match[]
 ): boolean =>
-  sessionType === 'Scrim' ||
+  countsFouls(sessionType) ||
   matches.some(m => (m.minorPenalties ?? 0) + (m.majorPenalties ?? 0) > 0);
 
 /** Trend icon based on positive/negative/zero */
@@ -403,6 +420,9 @@ const chartColors = (isDarkMode: boolean) => {
  */
 const SERIES_KEYS = GROUPED_ELEMENT_ORDER;
 
+/** The fouls' stack, bottom first */
+const FOUL_KEYS = ['minor', 'major'] as const;
+
 /** The type a match was run as; matches saved without one were full games */
 const typeOf = (m: Match): string => m.matchType || 'Full Game';
 
@@ -626,6 +646,9 @@ export const SessionMeta = ({
   matchCount,
   duration,
   isDarkMode,
+  matches,
+  eventCode,
+  recordedBy,
 }: {
   sessionType?: SessionType;
   matchType?: string;
@@ -635,8 +658,19 @@ export const SessionMeta = ({
   /** As stored, "MM:SS" or "H:MM:SS" */
   duration?: string;
   isDarkMode: boolean;
+  /** A Tournament's matches, for its record */
+  matches?: Match[];
+  /** A Tournament's event code, linked to FTC Scout */
+  eventCode?: string;
+  /** Who recorded it, on a session filed under a team */
+  recordedBy?: string;
 }) => {
   const date = dateOf(createdAt);
+  const tournament = isTournament(sessionType);
+  const record =
+    tournament && matches
+      ? tournamentRecord(matches, i => matchScore(matches[i]!))
+      : null;
   const durationText = duration ? durationLabel(duration) : '';
   const parts: { key: string; node: React.ReactNode }[] = [
     ...(sessionType ? [{ key: 'type', node: sessionType }] : []),
@@ -664,8 +698,36 @@ export const SessionMeta = ({
           },
         ]
       : []),
+    ...(recordedBy ? [{ key: 'by', node: `by ${recordedBy}` }] : []),
     { key: 'matches', node: plural(matchCount, 'match', 'matches') },
     ...(durationText ? [{ key: 'duration', node: durationText }] : []),
+    ...(record && record.played > 0
+      ? [
+          {
+            key: 'record',
+            node: (
+              <span title="Wins, losses and ties in the matches with a result">
+                Record{' '}
+                <span className="font-semibold text-foreground tabular-nums">
+                  {formatRecord(record)}
+                </span>
+              </span>
+            ),
+          },
+        ]
+      : []),
+    ...(tournament && eventCode
+      ? [
+          {
+            key: 'event',
+            node: (
+              <span>
+                Event <EventLink code={eventCode} />
+              </span>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -863,14 +925,6 @@ export const SessionNotes = ({
   );
 };
 
-/**
- * The band behind the hovered column of a bar chart. The library's own is a
- * light grey block, which glares on the dark cards.
- */
-const barCursor = (isDarkMode: boolean) => ({
-  fill: isDarkMode ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
-});
-
 /** A chart row that stands for one match */
 interface MatchRow {
   /** Axis tick: "M3" */
@@ -989,7 +1043,8 @@ const useChartTaps = (touch: boolean) => {
      * A line's enlarged point under the tooltip, which the tooltip's
      * `active` doesn't take away: gone with the tooltip.
      */
-    activeDot: (chart: string) => (marks(chart) ? { r: 7 } : false),
+    activeDot: (chart: string) =>
+      marks(chart) ? { r: 6, stroke: CARD_BG, strokeWidth: 2 } : false,
     tapped,
     setTapped,
   };
@@ -1013,8 +1068,6 @@ const seriesOrder =
   (item: { dataKey?: unknown }): number =>
     keys.indexOf(String(item.dataKey));
 
-/** The widest a bar gets, so a session of one match isn't one wall of colour */
-const MAX_BAR_SIZE = 64;
 
 /** The y axis's width on every chart here */
 const Y_AXIS_WIDTH = 40;
@@ -1470,7 +1523,7 @@ export const SummaryTab = ({
               height={280}
               onResize={trendColumns.onResize}
             >
-              <LineChart
+              <ComposedChart
                 data={trendData}
                 onClick={openFromChart('trend', trendData)}
                 style={chartStyle}
@@ -1481,10 +1534,8 @@ export const SummaryTab = ({
                     : 'The final score of each match, with the session average as a dashed line.'
                 )}
               >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-                />
+                {areaWash('summaryTrendWash', colors.total, isDarkMode)}
+                <CartesianGrid {...gridProps(isDarkMode)} />
                 {/* Each point sits over its match's bar below */}
                 <XAxis
                   dataKey="name"
@@ -1494,6 +1545,7 @@ export const SummaryTab = ({
                 <YAxis width={Y_AXIS_WIDTH} {...axisProps(isDarkMode)} />
                 <Tooltip
                   {...tooltipProps('trend')}
+                  cursor={lineCursor(isDarkMode)}
                   itemSorter={seriesOrder(['score', 'average'])}
                   content={
                     <ChartTooltip
@@ -1505,13 +1557,15 @@ export const SummaryTab = ({
                   }
                 />
                 <Legend {...LEGEND_PROPS} itemSorter={null} />
-                <Line
+                <Area
                   type="monotone"
                   dataKey="score"
                   name="Final Score"
                   stroke={colors.total}
-                  strokeWidth={3}
-                  dot={{ r: 4 }}
+                  strokeWidth={2.5}
+                  fill="url(#summaryTrendWash)"
+                  fillOpacity={1}
+                  dot={dotProps(CARD_BG, colors.total).dot}
                   activeDot={activeDot('trend')}
                 />
                 <Line
@@ -1527,7 +1581,7 @@ export const SummaryTab = ({
                   connectNulls
                   isAnimationActive={false}
                 />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </Section>
@@ -1578,10 +1632,7 @@ export const SummaryTab = ({
                   'The points each scoring element earned in every match, stacked into the match score.'
                 )}
               >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-                />
+                <CartesianGrid {...gridProps(isDarkMode)} />
                 <XAxis dataKey="name" {...axisProps(isDarkMode)} />
                 <YAxis width={Y_AXIS_WIDTH} {...axisProps(isDarkMode)} />
                 <Tooltip
@@ -1608,6 +1659,7 @@ export const SummaryTab = ({
                     stackId="a"
                     fill={colors[key]}
                     maxBarSize={MAX_BAR_SIZE}
+                    shape={stackSegment(key, SERIES_KEYS)}
                   />
                 ))}
               </BarChart>
@@ -1634,10 +1686,7 @@ export const SummaryTab = ({
                         'The points minor and major fouls gave the opponent in each match, stacked. They are never taken off the score.'
                       )}
                     >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-                      />
+                      <CartesianGrid {...gridProps(isDarkMode)} />
                       <XAxis dataKey="name" {...axisProps(isDarkMode)} />
                       <YAxis
                         width={Y_AXIS_WIDTH}
@@ -1665,6 +1714,7 @@ export const SummaryTab = ({
                         stackId="fouls"
                         fill={colors.minor}
                         maxBarSize={MAX_BAR_SIZE}
+                        shape={stackSegment('minor', FOUL_KEYS)}
                       />
                       <Bar
                         dataKey="major"
@@ -1672,6 +1722,7 @@ export const SummaryTab = ({
                         stackId="fouls"
                         fill={colors.major}
                         maxBarSize={MAX_BAR_SIZE}
+                        shape={stackSegment('major', FOUL_KEYS)}
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -1693,7 +1744,7 @@ export const SummaryTab = ({
                   height={260}
                   onResize={cycleColumns.onResize}
                 >
-                  <LineChart
+                  <ComposedChart
                     data={cycleData}
                     onClick={openFromChart('cycle', cycleData)}
                     style={chartStyle}
@@ -1702,10 +1753,8 @@ export const SummaryTab = ({
                       'Average seconds between Hive Tips in each match; a gap is a match without tip times.'
                     )}
                   >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-                    />
+                    {areaWash('summaryCycleWash', colors.cycle, isDarkMode)}
+                    <CartesianGrid {...gridProps(isDarkMode)} />
                     <XAxis
                       dataKey="name"
                       padding={cycleColumns.padding}
@@ -1718,6 +1767,7 @@ export const SummaryTab = ({
                     />
                     <Tooltip
                       {...tooltipProps('cycle')}
+                      cursor={lineCursor(isDarkMode)}
                       content={
                         <ChartTooltip
                           isDarkMode={isDarkMode}
@@ -1730,17 +1780,19 @@ export const SummaryTab = ({
                     {/* Its own legend line, so beside the penalties chart
                         both plots sit on the same baseline */}
                     <Legend {...LEGEND_PROPS} />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="cycle"
                       name="Avg time between tips"
                       stroke={colors.cycle}
-                      strokeWidth={3}
-                      dot={{ r: 4 }}
+                      strokeWidth={2}
+                      fill="url(#summaryCycleWash)"
+                      fillOpacity={1}
+                      dot={dotProps(CARD_BG, colors.cycle).dot}
                       activeDot={activeDot('cycle')}
                       connectNulls={false}
                     />
-                  </LineChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </Section>
@@ -1759,7 +1811,7 @@ export const SummaryTab = ({
                   height={260}
                   onResize={accuracyColumns.onResize}
                 >
-                  <LineChart
+                  <ComposedChart
                     data={accuracyData}
                     onClick={openFromChart('accuracy', accuracyData)}
                     style={chartStyle}
@@ -1768,10 +1820,8 @@ export const SummaryTab = ({
                       'Balls made out of balls shot in each match, with the session accuracy as a dashed line; a gap is a match without shots counted.'
                     )}
                   >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-                    />
+                    {areaWash('summaryAccuracyWash', colors.accuracy, isDarkMode)}
+                    <CartesianGrid {...gridProps(isDarkMode)} />
                     <XAxis
                       dataKey="name"
                       padding={accuracyColumns.padding}
@@ -1786,6 +1836,7 @@ export const SummaryTab = ({
                     />
                     <Tooltip
                       {...tooltipProps('accuracy')}
+                      cursor={lineCursor(isDarkMode)}
                       content={
                         <ChartTooltip
                           isDarkMode={isDarkMode}
@@ -1796,13 +1847,15 @@ export const SummaryTab = ({
                       }
                     />
                     <Legend {...LEGEND_PROPS} />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="accuracy"
                       name={ELEMENT_LABELS.accuracy}
                       stroke={colors.accuracy}
-                      strokeWidth={3}
-                      dot={{ r: 4 }}
+                      strokeWidth={2}
+                      fill="url(#summaryAccuracyWash)"
+                      fillOpacity={1}
+                      dot={dotProps(CARD_BG, colors.accuracy).dot}
                       activeDot={activeDot('accuracy')}
                       connectNulls={false}
                     />
@@ -1817,7 +1870,7 @@ export const SummaryTab = ({
                       activeDot={false}
                       isAnimationActive={false}
                     />
-                  </LineChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </Section>
@@ -1836,10 +1889,7 @@ export const SummaryTab = ({
                   'Each point is a match: the battery voltage it was played on, and its shooting accuracy. The dashed line is the trend across them.'
                 )}
               >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-                />
+                <CartesianGrid {...gridProps(isDarkMode)} />
                 <XAxis
                   type="number"
                   dataKey="volts"
@@ -1887,6 +1937,9 @@ export const SummaryTab = ({
                 <Scatter
                   data={batteryData}
                   fill={colors.accuracy}
+                  stroke={CARD_BG}
+                  strokeWidth={2}
+                  shape="circle"
                   style={chartStyle}
                   onClick={
                     onOpenMatch
@@ -2210,6 +2263,11 @@ export const MatchDetailTab = ({
                 <span className={`font-medium ${muted}`}>{match.driver}</span>
               )}
             </h2>
+            {match.tournament && (
+              <p className={`mt-0.5 ${muted}`}>
+                <TournamentSummary info={match.tournament} scored={score} />
+              </p>
+            )}
             <p className={`text-sm tabular-nums ${muted}`}>
               <span className="font-semibold text-foreground">
                 {formatPoints(score)}
@@ -2532,10 +2590,7 @@ export const CompareTab = ({
                 'The points each scoring element earned in Match A and Match B, side by side.'
               )}
             >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={isDarkMode ? '#334155' : '#e2e8f0'}
-              />
+              <CartesianGrid {...gridProps(isDarkMode)} />
               {isCompact ? (
                 <>
                   <XAxis type="number" {...axisProps(isDarkMode)} />
@@ -2578,12 +2633,14 @@ export const CompareTab = ({
                 name={aLabel}
                 fill={colors.matchA}
                 maxBarSize={MAX_BAR_SIZE}
+                radius={BAR_RADIUS}
               />
               <Bar
                 dataKey="b"
                 name={bLabel}
                 fill={colors.matchB}
                 maxBarSize={MAX_BAR_SIZE}
+                radius={BAR_RADIUS}
               />
             </BarChart>
           </ResponsiveContainer>

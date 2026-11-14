@@ -278,7 +278,7 @@ export const VolleyPicker = ({
 
       {editing !== null && (
         <p className="text-xs font-semibold text-team-blue" aria-live="polite">
-          Editing volley #{editing + 1} ({periodName(log[editing])}). Record
+          Editing cycle #{editing + 1} ({periodName(log[editing])}). Record
           saves it; Undo leaves it as it was.
         </p>
       )}
@@ -305,10 +305,10 @@ export const VolleyPicker = ({
           disabled={shot === 0}
           aria-label={
             editing !== null
-              ? `${r}Save volley ${editing + 1}, ${made} of ${shot} in`
+              ? `${r}Save cycle ${editing + 1}, ${made} of ${shot} in`
               : shot === 0
-                ? `${r}Record volley`
-                : `${r}Record volley, ${made} of ${shot} in`
+                ? `${r}Record cycle`
+                : `${r}Record cycle, ${made} of ${shot} in`
           }
           aria-keyshortcuts="Enter"
           className={`flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold ${outline} ${editing !== null ? '!border-team-blue' : ''}`}
@@ -331,15 +331,15 @@ export const VolleyPicker = ({
             editing !== null
               ? `${r}Cancel edit`
               : shot > 0
-                ? `${r}Clear volley`
-                : `${r}Undo last volley`
+                ? `${r}Clear cycle`
+                : `${r}Undo last cycle`
           }
           title={
             editing !== null
               ? 'Cancel edit'
               : shot > 0
-                ? 'Clear this volley'
-                : 'Undo last volley'
+                ? 'Clear this cycle'
+                : 'Undo last cycle'
           }
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${outline}`}
         >
@@ -398,7 +398,7 @@ export const VolleyPicker = ({
               aria-hidden
               className={`h-4 w-4 transition-transform ${logOpen || editing !== null ? 'rotate-180' : ''}`}
             />
-            {r}Shot log · {log.length} {log.length === 1 ? 'volley' : 'volleys'}
+            {r}Shot log · {log.length} {log.length === 1 ? 'cycle' : 'cycles'}
           </button>
           {(logOpen || editing !== null) && (
             <ol
@@ -434,10 +434,10 @@ export const VolleyPicker = ({
                         onClick={() => startEdit(position)}
                         disabled={!hasSplit(v) || isEditing}
                         aria-disabled={blocked}
-                        aria-label={`${r}Edit volley ${position + 1}, ${describe(v)}`}
+                        aria-label={`${r}Edit cycle ${position + 1}, ${describe(v)}`}
                         title={
                           hasSplit(v)
-                            ? 'Edit this volley'
+                            ? 'Edit this cycle'
                             : 'Saved before Pollen and Nectar were split: delete and record it again to change it'
                         }
                         className={iconButton}
@@ -452,8 +452,8 @@ export const VolleyPicker = ({
                         aria-disabled={blocked}
                         aria-label={
                           confirming
-                            ? `${r}Confirm delete volley ${position + 1}`
-                            : `${r}Delete volley ${position + 1}`
+                            ? `${r}Confirm delete cycle ${position + 1}`
+                            : `${r}Delete cycle ${position + 1}`
                         }
                         className={
                           confirming

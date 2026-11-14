@@ -44,6 +44,12 @@ import {
   dotProps,
   LEGEND_PROPS,
   TOOLTIP_WRAPPER_STYLE,
+  gridProps,
+  CARD_BG,
+  BAR_RADIUS,
+  MAX_BAR_SIZE,
+  barCursor,
+  stackSegment,
 } from '@/components/charts/chartKit';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Calendar } from 'lucide-react';
@@ -476,7 +482,6 @@ const MIN_CHART_WIDTH = 240;
  * the card. The cards are bg-team-dark-20 / bg-white, which every theme
  * paints the same as its --card.
  */
-const CARD_BG = 'hsl(var(--card))';
 
 /** A pointer that can hover, so a click on a chart can open its session. */
 const FINE_POINTER = '(hover: hover) and (pointer: fine)';
@@ -638,7 +643,7 @@ const keyInsights = (
     avgGiven !== null
       ? {
           label: 'To opponent',
-          text: `${formatNumber(avgGiven)} pts per Scrim match`,
+          text: `${formatNumber(avgGiven)} pts per match vs an opponent`,
         }
       : {
           label: 'Best session',
@@ -922,7 +927,6 @@ const Charts = () => {
   ).length;
 
   const tickLabel = (id: string) => labels.get(id)?.tick ?? '';
-  const gridStroke = isDarkMode ? '#2a2a2a' : '#e5e7eb';
   const axis = axisProps(isDarkMode);
 
   /**
@@ -1216,10 +1220,7 @@ const Charts = () => {
                             />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={gridStroke}
-                        />
+                        <CartesianGrid {...gridProps(isDarkMode)} />
                         <XAxis
                           dataKey="id"
                           tickFormatter={tickLabel}
@@ -1250,23 +1251,23 @@ const Charts = () => {
                         {/* The series is the heaviest mark; the average is
                             a thin dashed slate line under it */}
                         <Area
-                          type="linear"
+                          type="monotone"
                           dataKey="value"
                           name={seriesInfo.label}
                           stroke={seriesColor}
-                          strokeWidth={3}
+                          strokeWidth={2.5}
                           fillOpacity={1}
                           fill="url(#trendFill)"
                           {...dots('trend', seriesColor)}
                           animationDuration={800}
                         />
                         <Line
-                          type="linear"
+                          type="monotone"
                           dataKey="average"
                           name={MOVING_AVERAGE_LABEL}
                           stroke={tone(CHART_COLORS.movingAverage)}
-                          strokeWidth={2}
-                          strokeDasharray="6 4"
+                          strokeWidth={1.5}
+                          strokeDasharray="4 4"
                           legendType="plainline"
                           dot={false}
                           activeDot={false}
@@ -1304,7 +1305,7 @@ const Charts = () => {
                 {foulData.length > 0 && (
                   <ChartCard
                     title="Points Given to Opponent"
-                    description={`Per match, in each Scrim session (last ${RECENT_SESSIONS}). Never taken off your score.`}
+                    description={`Per match, in each Scrim or Tournament session (last ${RECENT_SESSIONS}). Never taken off your score.`}
                     isDarkMode={isDarkMode}
                   >
                     {/* A share of matches is a different unit from points
@@ -1314,7 +1315,11 @@ const Charts = () => {
                         {Math.round((fouls.clean / fouls.total) * 100)}%
                       </span>
                       foul-free, {fouls.clean} of{' '}
-                      {plural(fouls.total, 'Scrim match', 'Scrim matches')}
+                      {plural(
+                        fouls.total,
+                        'match vs an opponent',
+                        'matches vs an opponent'
+                      )}
                     </p>
                     <div className="mt-auto min-w-0 overflow-x-auto">
                       <ResponsiveContainer
@@ -1328,13 +1333,9 @@ const Charts = () => {
                           onClick={openSession('fouls')}
                           style={chartStyle}
                           title="Points given to the opponent per match"
-                          desc={`Average points per match the opponent got from your fouls in each of the last ${RECENT_SESSIONS} Scrim sessions`}
+                          desc={`Average points per match the opponent got from your fouls in each of the last ${RECENT_SESSIONS} Scrim or Tournament sessions`}
                         >
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke={gridStroke}
-                            vertical={false}
-                          />
+                          <CartesianGrid {...gridProps(isDarkMode)} />
                           <XAxis
                             dataKey="id"
                             tickFormatter={tickLabel}
@@ -1350,11 +1351,7 @@ const Charts = () => {
                           />
                           <Tooltip
                             {...tooltipProps('fouls')}
-                            cursor={{
-                              fill: isDarkMode
-                                ? 'rgba(255,255,255,0.06)'
-                                : 'rgba(0,0,0,0.04)',
-                            }}
+                            cursor={barCursor(isDarkMode)}
                             content={
                               <ChartTooltip
                                 isDarkMode={isDarkMode}
@@ -1366,8 +1363,8 @@ const Charts = () => {
                           <Bar
                             dataKey={ELEMENT_LABELS.penalties}
                             fill={tone(ELEMENT_COLORS.penalties)}
-                            radius={[6, 6, 0, 0]}
-                            maxBarSize={48}
+                            radius={BAR_RADIUS}
+                            maxBarSize={MAX_BAR_SIZE}
                             animationDuration={800}
                           />
                         </BarChart>
@@ -1396,10 +1393,7 @@ const Charts = () => {
                         title="Scoring volume per session"
                         desc="Average count per match of Hive Tips, owned flower pieces, Left in Hive and Garden in each session"
                       >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={gridStroke}
-                        />
+                        <CartesianGrid {...gridProps(isDarkMode)} />
                         <XAxis
                           dataKey="id"
                           tickFormatter={tickLabel}
@@ -1430,7 +1424,7 @@ const Charts = () => {
                         {COUNTED_ELEMENTS.map(({ label, color }) => (
                           <Line
                             key={label}
-                            type="linear"
+                            type="monotone"
                             dataKey={label}
                             stroke={tone(color)}
                             strokeWidth={2}
@@ -1467,10 +1461,7 @@ const Charts = () => {
                         title="Ranking points per match"
                         desc={`Average ${swarmCounted ? 'SWARM, ' : ''}POLLINATOR 1 and POLLINATOR 2 ranking points per match in each session, stacked`}
                       >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={gridStroke}
-                        />
+                        <CartesianGrid {...gridProps(isDarkMode)} />
                         <XAxis
                           dataKey="id"
                           tickFormatter={tickLabel}
@@ -1516,6 +1507,11 @@ const Charts = () => {
                             dataKey={label}
                             stackId="rp"
                             fill={tone(color)}
+                            maxBarSize={MAX_BAR_SIZE}
+                            shape={stackSegment(
+                              label,
+                              rankingPointSeries.map(rp => rp.label)
+                            )}
                             animationDuration={800}
                           />
                         ))}
@@ -1545,10 +1541,7 @@ const Charts = () => {
                           title="Time between Hive Tips per session"
                           desc="Average, fastest and slowest seconds between Hive Tips in each session"
                         >
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke={gridStroke}
-                          />
+                          <CartesianGrid {...gridProps(isDarkMode)} />
                           <XAxis
                             dataKey="id"
                             tickFormatter={tickLabel}
@@ -1580,10 +1573,10 @@ const Charts = () => {
                           ).map(([key, color, dashed]) => (
                             <Line
                               key={key}
-                              type="linear"
+                              type="monotone"
                               dataKey={key}
                               stroke={tone(color)}
-                              strokeWidth={dashed ? 2 : 3}
+                              strokeWidth={dashed ? 1.5 : 2.5}
                               strokeDasharray={dashed ? '5 5' : undefined}
                               {...dots('cycle', tone(color))}
                               animationDuration={800}

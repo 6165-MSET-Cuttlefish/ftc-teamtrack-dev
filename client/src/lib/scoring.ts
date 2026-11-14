@@ -299,6 +299,8 @@ export const emptyScoringFields = (): MatchScoringFields => ({
   majorPenalties: 0,
   shots: [],
   phaseLog: [],
+  // Present, so spreading these clears a match's details too
+  tournament: undefined,
 });
 
 /** Extract just the scoring fields from any object that carries them. */
@@ -322,6 +324,7 @@ export const pickScoringFields = (
     majorPenalties: source.majorPenalties ?? empty.majorPenalties,
     shots: source.shots ? source.shots.map(v => ({ ...v })) : [],
     phaseLog: source.phaseLog ? [...source.phaseLog] : [],
+    tournament: source.tournament ? { ...source.tournament } : undefined,
   };
 };
 

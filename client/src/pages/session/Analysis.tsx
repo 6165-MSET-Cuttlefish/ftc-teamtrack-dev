@@ -28,6 +28,7 @@ import {
   csvFileName,
   downloadCsv,
   logger,
+  sessionAuthorName,
 } from '@/lib';
 import { readAllGuestSessions } from '@/lib/guestSessions';
 import { filedUnderName, teamFiling, viewOnlyNote } from '@/lib/sessionAccess';
@@ -80,7 +81,6 @@ import {
 import { PAGE_TITLE_CLASS } from '@/components/ui/page-header';
 import { SignUpToShare } from './SignUpToShare';
 import {
-  SummaryTab,
   MatchDetailTab,
   CompareTab,
   AnalysisTabBar,
@@ -92,6 +92,7 @@ import {
   tabPanelId,
   useAnalysisNav,
 } from '@/components/session/AnalysisTabs';
+import { RobotScopedSummary } from '@/components/session/RobotAnalysis';
 
 /** What a `sessionId` in the URL turned out to be */
 interface LoadedSession {
@@ -111,6 +112,8 @@ interface LoadedSession {
    */
   createdAt?: Session['createdAt'];
   userEmail?: string;
+  /** The author's name as saved with it */
+  userName?: string;
   /** The team it is filed under, as stored */
   teamId?: string;
   /** Season tag of a session recorded before this season, else null */
@@ -184,6 +187,7 @@ const toLoaded = (
     ...EMPTY_SESSION,
     sessionName: session.sessionName || '',
     sessionType: session.sessionType || 'Practice',
+    ...(session.eventCode && { eventCode: session.eventCode }),
     sessionDuration: session.sessionDuration || '',
     matchType: session.matchType || '',
     selectedFeature: session.selectedFeature || '',
@@ -194,6 +198,7 @@ const toLoaded = (
   sessionType: session?.sessionType,
   createdAt: session?.createdAt,
   userEmail: session?.userEmail,
+  userName: session?.userName,
   teamId: session?.teamId,
   legacySeason:
     session && !isCurrentSeasonSession(session)
@@ -558,6 +563,7 @@ const Analysis = () => {
           season: CURRENT_SEASON,
           sessionName: sessionData.sessionName,
           sessionType,
+          eventCode: sessionData.eventCode,
           sessionDuration: sessionData.sessionDuration,
           createdAt,
           matchType: sessionData.matchType,
@@ -611,6 +617,7 @@ const Analysis = () => {
       userEmail: sessionId ? current?.userEmail : (user?.email ?? undefined),
       sessionName,
       sessionType,
+      eventCode: sessionData.eventCode,
       matchType: sessionData.matchType,
       sessionDuration: sessionData.sessionDuration,
       createdAt: sessionId ? (createdAt as TimestampValue) : new Date(),
@@ -1044,6 +1051,21 @@ const Analysis = () => {
               matchCount={sessionMatches.length}
               duration={sessionData.sessionDuration}
               isDarkMode={isDarkMode}
+              matches={sessionMatches}
+              eventCode={sessionData.eventCode}
+              recordedBy={
+                current?.teamId
+                  ? sessionAuthorName(
+                      {
+                        userId: current.ownerId,
+                        teamId: current.teamId,
+                        userName: current.userName,
+                        userEmail: current.userEmail,
+                      },
+                      team
+                    )
+                  : undefined
+              }
             />
             {readOnlyReason && sessionMatches.length > 0 && (
               <div className={badgeClass}>{readOnlyReason}</div>
@@ -1220,7 +1242,7 @@ const Analysis = () => {
               aria-labelledby={tabButtonId(activeTab)}
             >
               {activeTab === 'summary' && stats && (
-                <SummaryTab
+                <RobotScopedSummary
                   matches={viewMatches}
                   stats={stats}
                   isDarkMode={isDarkMode}

@@ -18,6 +18,7 @@ import {
   DEFAULT_ROBOT_COUNT,
   emptyScoringFields,
   pickScoringFields,
+  toTournamentInfo,
 } from '@/lib';
 import {
   hasDraftContent,
@@ -1276,7 +1277,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     if (!editingMatchId) return;
 
     setSessionData(prev => {
-      const edited = pickScoringFields(prev);
+      const picked = pickScoringFields(prev);
+      const edited = {
+        ...picked,
+        tournament: toTournamentInfo(picked.tournament),
+      };
       const updatedMatches = prev.matches.map(match => {
         if (match.id !== editingMatchId) return match;
         // Scored as the kind of match it was, not the type selected now

@@ -52,6 +52,9 @@ type Region =
  */
 const PLACEMENT: PlacementMap<Region> = {
   staleNotice: { region: 'notice', order: 0 },
+  // A Tournament match's label, alliances and result: one row at the top,
+  // opened to change it
+  matchDetails: { region: 'notice', order: 1 },
 
   title: { region: 'headline', order: 0 },
   timer: { region: 'headline', order: 1 },
@@ -197,7 +200,9 @@ export const ActiveDesktopLayout = ({ slots }: { slots: ActiveSlots }) => {
       className="flex flex-col gap-4 [@media(max-height:760px)]:gap-3"
     >
       {present('notice').length > 0 && (
-        <div className="px-4 empty:hidden">{render('notice')}</div>
+        <div className="px-4 flex flex-col gap-3 empty:hidden">
+          {render('notice')}
+        </div>
       )}
 
       <div

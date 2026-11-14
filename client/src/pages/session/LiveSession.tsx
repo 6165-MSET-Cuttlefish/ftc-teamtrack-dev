@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Check, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth, useTheme } from '@/contexts';
-import { GAME_TIMING, ROUTES } from '@/constants';
+import { APP_CONFIG, GAME_TIMING, ROUTES } from '@/constants';
 import { EYEBROW_CLASS } from '@/components/ui/page-header';
 import { LOCKED_SURFACE } from '@/components/session/EndOfMatchParts';
 import { toggleOffClass, toggleOnClass } from '@/components/session/toggleTone';
@@ -148,6 +148,10 @@ const LiveSession = () => {
   }, [release]);
 
   const timer = useLiveClock(live);
+  const liveName = live?.sessionName;
+  useEffect(() => {
+    document.title = `${liveName ? `Live: ${liveName}` : 'Live session'} - ${APP_CONFIG.name}`;
+  }, [liveName]);
   const page = `flex-1 ${isDarkMode ? 'bg-team-dark text-white' : 'bg-[#FEFEFE] text-gray-900'}`;
   const muted = isDarkMode ? 'text-team-white-60' : 'text-gray-600';
   const card = `rounded-2xl border p-4 ${isDarkMode ? 'border-team-blue-40 bg-white/[0.03]' : 'border-gray-200 bg-white'}`;
@@ -189,6 +193,14 @@ const LiveSession = () => {
   const active = live.state.matchActive;
   const stale = timer ? timer.now - live.updatedAt > LIVE_STALE_MS : false;
   const robot2 = live.robot2;
+  // Between matches the clock waits at the full match; in the 3-2-1 it
+  // counts that down, the way the host's own clock does
+  const rawSeconds = timer?.seconds ?? 0;
+  const clockSeconds = !active
+    ? Math.min(rawSeconds, COUNTDOWN_ABOVE_S)
+    : timer?.countdown
+      ? rawSeconds - COUNTDOWN_ABOVE_S
+      : rawSeconds;
   const robots = f.robotCount === 1 && !robot2?.scorerId ? 1 : 2;
   const shotLine = (r: 1 | 2) => {
     const s = shotsOf(f, undefined, r);
@@ -239,7 +251,7 @@ const LiveSession = () => {
             className="font-mono text-6xl font-bold tabular-nums"
             aria-live="off"
           >
-            {formatTime(timer?.seconds ?? 0)}
+            {formatTime(clockSeconds)}
           </p>
           <p className="text-lg font-semibold tabular-nums">
             {formatPoints(score.total)}

@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { useSessionCore, useTheme } from '@/contexts';
+import { useSessionCore } from '@/contexts';
 
 import { useLiveControls } from '../controls/liveControlsContext';
 import { scrollsWithPage, visibleBand } from '../controls/scrollUnderHeader';
@@ -58,6 +58,9 @@ type Region =
  */
 const PLACEMENT: PlacementMap<Region> = {
   staleNotice: { region: 'notice', order: 0 },
+  // A Tournament match's label, alliances and result: one row at the top,
+  // opened to change it
+  matchDetails: { region: 'notice', order: 1 },
 
   title: { region: 'titleRow', order: 0 },
   matchExtras: { region: 'titleRow', order: 1 },
@@ -323,7 +326,6 @@ const ShortStackedTitleRow = ({
 );
 
 export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
-  const { isDarkMode } = useTheme();
   const { matchActive, matchPhase, isTutorialActive } = useSessionCore();
   const { pendingConfirm, editingMatchId } = useLiveControls();
   const rootRef = useHeaderHeightVar();
@@ -555,7 +557,7 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
           shown, it takes no row. */}
       {present('notice').length > 0 && (
         <div
-          className={`empty:hidden ${sideBySide ? 'col-start-2 row-start-1 mb-3' : 'order-0'}`}
+          className={`flex flex-col gap-3 empty:hidden ${sideBySide ? 'col-start-2 row-start-1 mb-3' : 'order-0'}`}
         >
           {render('notice')}
         </div>
@@ -617,9 +619,11 @@ export const ActiveMobileLayout = ({ slots }: { slots: ActiveSlots }) => {
           // its 1px edge is kept, transparent over its own background, so
           // it is as tall as with one: a pixel shorter, it leaves the tops
           // of two (i) icons peeking over it (an iPhone 13, two robots).
-          className={`fixed left-0 bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 border-t border-transparent px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] ${
+          // Glass (global.css): the scoring fields scroll under it, seen
+          // through it as they go, behind its lit top edge
+          className={`glass-bar-bottom fixed left-0 bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 border-t px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] ${
             sideBySide ? 'w-[calc(max(20rem,(100%-3rem)*0.4)+2rem)]' : 'right-0'
-          } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+          }`}
         >
           {render('bar')}
         </div>

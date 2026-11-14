@@ -980,6 +980,17 @@ export const Header = () => {
   const isAuthPage = AUTH_PATHS.includes(location.pathname);
   const [timerScrolledPast, setTimerScrolledPast] = useState(false);
   const [headerEl, setHeaderEl] = useState<HTMLElement | null>(null);
+  // Content under the pinned bar: from then on it is glass (global.css),
+  // as at the top of the page there is nothing under it to show through
+  const [scrolledUnder, setScrolledUnder] = useState(
+    () => typeof window !== 'undefined' && window.scrollY > 2
+  );
+  useEffect(() => {
+    const onScroll = () => setScrolledUnder(window.scrollY > 2);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const isNarrow = useIsCompact();
   const isActiveCompact = useActiveCompact();
   const isShort = useActiveShort();
@@ -1127,11 +1138,19 @@ export const Header = () => {
       // `[id]` override, the 5rem scroll margin every element with an id gets
       // (global.css) made a menu's button, focused again as the menu closed,
       // scroll the page up by up to 5rem.
-      className={`top-0 w-full z-50 [&_[id]]:scroll-mt-0 ${
-        isShort && !matchActive ? 'relative' : 'sticky'
+      // The faint rule under the bar (back from before the October clean
+      // up), the same whether the bar is solid or glass
+      className={`top-0 w-full border-b z-50 transition-[background-color,box-shadow] duration-300 [&_[id]]:scroll-mt-0 ${
+        isDarkMode ? 'border-team-white-20' : 'border-team-blue/60'
       } ${
-        isShort ? 'py-1' : isFixedHeight ? 'py-2' : 'py-2 sm:py-3 md:py-4'
-      } ${isDarkMode ? 'bg-team-dark' : 'bg-[#FEFEFE]'}`}
+        isShort && !matchActive ? 'relative' : 'sticky'
+      } ${isShort ? 'py-1' : isFixedHeight ? 'py-2' : 'py-2 sm:py-3 md:py-4'} ${
+        scrolledUnder && !(isShort && !matchActive)
+          ? 'glass-bar-top'
+          : isDarkMode
+            ? 'bg-team-dark'
+            : 'bg-[#FEFEFE]'
+      }`}
     >
       {/* The pages' own column, so the bar's ends line up with the content
           under it. */}

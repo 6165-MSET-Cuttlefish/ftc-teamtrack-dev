@@ -156,6 +156,177 @@
   }
 }
 
+/*
+ * Liquid Glass: the material of the layer that floats over the content
+ * (the header once the page scrolls under it, the phone's action bar,
+ * menus, tooltips, toasts and dialogs), never of the content itself (cards,
+ * tiles, charts stay solid), and never stacked on itself.
+ *
+ * A tint of the theme's surface the content shows through, blurred and a
+ * little more saturated, so what passes under it reads as colour and
+ * movement but never competes with the text on it. A light top edge (the
+ * specular highlight) and a soft offset shadow lift it off the page. Where
+ * the viewer asks for less transparency or more contrast, or the browser
+ * can't blur, it is the solid surface instead.
+ */
+@layer base {
+  :root {
+    --glass-fill: rgb(254 254 254 / 0.68);
+    --glass-fill-thick: rgb(254 254 254 / 0.86);
+    --glass-highlight: rgb(255 255 255 / 0.9);
+    --glass-rim: rgb(15 23 42 / 0.1);
+    --glass-shadow:
+      0 12px 32px -12px rgb(15 23 42 / 0.24),
+      0 2px 6px -2px rgb(15 23 42 / 0.08);
+    --glass-solid: #fefefe;
+  }
+
+  .dark {
+    --glass-fill: rgb(34 34 36 / 0.58);
+    --glass-fill-thick: rgb(30 30 32 / 0.82);
+    --glass-highlight: rgb(255 255 255 / 0.13);
+    --glass-rim: rgb(255 255 255 / 0.1);
+    --glass-shadow:
+      0 18px 40px -14px rgb(0 0 0 / 0.65), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+    --glass-solid: #222224;
+  }
+
+  /* Warmed toward the gold, over the honeycomb pattern */
+  .honeycomb {
+    --glass-fill: rgb(26 22 12 / 0.6);
+    --glass-fill-thick: rgb(22 19 11 / 0.84);
+    --glass-highlight: rgb(255 215 0 / 0.16);
+    --glass-rim: rgb(218 165 32 / 0.22);
+    --glass-solid: #17140c;
+  }
+
+  /* Cooled toward the cyan, over the bubbles */
+  .deepsea {
+    --glass-fill: rgb(14 32 54 / 0.56);
+    --glass-fill-thick: rgb(11 26 45 / 0.84);
+    --glass-highlight: rgb(77 208 225 / 0.16);
+    --glass-rim: rgb(0 188 212 / 0.2);
+    --glass-solid: #0f2236;
+  }
+}
+
+@layer components {
+  .glass,
+  .glass-thick,
+  .glass-bar-top,
+  .glass-bar-bottom,
+  .glass-backdrop,
+  [role='dialog'].glass-sheet,
+  [role='alertdialog'].glass-sheet {
+    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    backdrop-filter: blur(24px) saturate(170%);
+  }
+
+  /* A floating panel: a tooltip, a toast */
+  .glass {
+    background-color: var(--glass-fill);
+    border-color: var(--glass-rim);
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-highlight),
+      var(--glass-shadow);
+  }
+
+  /* A panel held to read and pick from: a menu, a select list */
+  .glass-thick {
+    background-color: var(--glass-fill-thick);
+    border-color: var(--glass-rim);
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-highlight),
+      var(--glass-shadow);
+  }
+
+  /*
+   * A dialog, and a question asked in one: as thick as a menu, a form being
+   * filled in on it. Above any surface colour its caller gives it, which
+   * stays as the fallback.
+   */
+  [role='dialog'].glass-sheet,
+  [role='alertdialog'].glass-sheet {
+    background-color: var(--glass-fill-thick);
+    border-color: var(--glass-rim);
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-highlight),
+      var(--glass-shadow);
+  }
+
+  /*
+   * A bar pinned to the top of the screen. Its rule underneath is its own
+   * border (the header's), so this adds only the soft shadow below it.
+   */
+  .glass-bar-top {
+    background-color: var(--glass-fill);
+    box-shadow: 0 10px 24px -20px rgb(0 0 0 / 0.5);
+  }
+
+  /* A bar pinned to the bottom: its lit top edge over what scrolls under */
+  .glass-bar-bottom {
+    background-color: var(--glass-fill);
+    border-top-color: var(--glass-rim);
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-highlight),
+      0 -12px 28px -22px rgb(0 0 0 / 0.55);
+  }
+
+  /*
+   * The picked option of a segmented control, raised like a lens over its
+   * track: the lit top edge and a soft shadow, no blur (it sits on the
+   * page, not over moving content).
+   */
+  .glass-lens {
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-highlight),
+      0 1px 2px 0 rgb(0 0 0 / 0.16),
+      0 4px 12px -6px rgb(0 0 0 / 0.3);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .glass,
+    .glass-thick,
+    .glass-bar-top,
+    .glass-bar-bottom,
+    [role='dialog'].glass-sheet,
+    [role='alertdialog'].glass-sheet {
+      background-color: var(--glass-solid);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .glass-backdrop {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    .glass,
+    .glass-thick,
+    .glass-bar-top,
+    .glass-bar-bottom,
+    [role='dialog'].glass-sheet,
+    [role='alertdialog'].glass-sheet {
+      background-color: var(--glass-solid);
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    .glass,
+    .glass-thick,
+    .glass-bar-top,
+    .glass-bar-bottom,
+    [role='dialog'].glass-sheet,
+    [role='alertdialog'].glass-sheet {
+      background-color: var(--glass-solid);
+      border-color: rgb(var(--team-blue));
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-[hsl(var(--border))];

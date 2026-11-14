@@ -50,6 +50,26 @@ service cloud.firestore {
               || ownerSlot(m, 9)));
     }
 
+    // The same legacy test for any uid: is `uid` the team's owner as its
+    // member roles (or, failing those, createdBy) record it?
+    function slotOwnedBy(members, i, uid) {
+      return ownerSlot(members, i) && members[i].get('userId', '') == uid;
+    }
+
+    function isLegacyOwnerUid(team, uid) {
+      let m = team.get('members', []);
+      return slotOwnedBy(m, 0, uid) || slotOwnedBy(m, 1, uid)
+        || slotOwnedBy(m, 2, uid) || slotOwnedBy(m, 3, uid)
+        || slotOwnedBy(m, 4, uid) || slotOwnedBy(m, 5, uid)
+        || slotOwnedBy(m, 6, uid) || slotOwnedBy(m, 7, uid)
+        || slotOwnedBy(m, 8, uid) || slotOwnedBy(m, 9, uid)
+        || (team.createdBy == uid
+            && !(ownerSlot(m, 0) || ownerSlot(m, 1) || ownerSlot(m, 2)
+              || ownerSlot(m, 3) || ownerSlot(m, 4) || ownerSlot(m, 5)
+              || ownerSlot(m, 6) || ownerSlot(m, 7) || ownerSlot(m, 8)
+              || ownerSlot(m, 9)));
+    }
+
     function isOwnerOf(team) {
       return isMemberOf(team) && (
         team.get('ownerId', null) != null
@@ -58,17 +78,13 @@ service cloud.firestore {
       );
     }
 
-    function isTeamOwner(teamId) {
-      return isAuthenticated() && isOwnerOf(teamData(teamId));
-    }
-
     // ── Sessions ──────────────────────────────────────────────────────
     // The author can read/write; members of the session's team can read.
     // userId must match the writer and never changes. A session can only be
     // filed under a team the writer belongs to, and once it is, only someone
     // still in that team can change it: a removed member can take their
-    // session out of the team (or delete it), nothing else. The team owner
-    // can delete a team session, or take it out of the team.
+    // session out of the team (or delete it), nothing else. Any member of
+    // the team can delete a team session, or take it out of the team.
     // Shapes are checked as far as rules can (they cannot loop over
     // matches): notes limited to 50 000 chars, matches to 200, names to 200.
     // `archived` is the author's own flag (it only hides the session from
@@ -99,8 +115,10 @@ service cloud.firestore {
         return d.get('teamId', null) == null || isTeamMember(d.teamId);
       }
 
+      // Every member of the session's team can take it out of the team or
+      // delete it (once only the team's owner could).
       function ownsSessionTeam(d) {
-        return d.get('teamId', null) != null && isTeamOwner(d.teamId);
+        return d.get('teamId', null) != null && isTeamMember(d.teamId);
       }
 
       allow read: if isAuthenticated() && (
@@ -135,7 +153,7 @@ service cloud.firestore {
     // ── Shared session snapshots ──────────────────────────────────────
     // Anyone with the link can open one (get), but nobody can list them
     // except the people allowed to take them down: whoever made the link,
-    // the owner of the session it was made from, and the owner of the team
+    // the owner of the session it was made from, and any member of the team
     // that session is filed under — who can delete the session, and its
     // links have to go with it.
     match /sharedSessions/{shortId} {
@@ -152,7 +170,7 @@ service cloud.firestore {
       // gone has no team owner.
       function ownsSourceTeam(d) {
         let source = get(/databases/$(database)/documents/sessions/$(d.sessionId)).data;
-        return source.get('teamId', null) != null && isTeamOwner(source.teamId);
+        return source.get('teamId', null) != null && isTeamMember(source.teamId);
       }
 
       function canTakeDown(d) {
@@ -253,6 +271,8 @@ service cloud.firestore {
     // still naming the team, marked `revoked`. It is never live again and
     // never deleted — a freed code could be claimed by anyone who remembers
     // it, and every copy of the old link would then lead to their team.
+    // Any member of the team can write and retire its invites (once only the
+    // owner could): every member runs the team.
     match /teamInvites/{code} {
       // getAfter: the invite is written in the same batch as the team
       // document that claims the code.
@@ -262,7 +282,7 @@ service cloud.firestore {
           && d.teamId is string
           && d.teamName is string
           && d.teamName.size() <= 100
-          && isOwnerOf(team)
+          && isMemberOf(team)
           && team.inviteCode == code
           && team.name == d.teamName;
       }
@@ -277,7 +297,7 @@ service cloud.firestore {
           && d.teamName is string
           && d.teamName.size() <= 100
           && d.revoked == true
-          && isOwnerOf(get(team).data)
+          && isMemberOf(get(team).data)
           && (!existsAfter(team) || getAfter(team).data.inviteCode != code);
       }
 
@@ -305,10 +325,11 @@ service cloud.firestore {
 
     // ── Teams ─────────────────────────────────────────────────────────
     // Only members can read a team. Writes are split by who is asking:
-    //   owner  — rename, remove members, hand over ownership, change the
-    //            invite code. Never add members: joining is the joiner's
+    //   member — rename, remove other members (never the owner), change the
+    //            invite code; remove themselves, or change their own
+    //            display name. Never add members: joining is the joiner's
     //            own act, so nobody can be put into a team.
-    //   member — remove themselves, or change their own display name;
+    //   owner  — all of that, and hand over ownership;
     //   anyone else — add only themselves, as a plain member, and only by
     //                 presenting the team's current invite code, bound to
     //                 their own uid, as joinCode.
@@ -352,12 +373,30 @@ service cloud.firestore {
       // write: every member has seen the old one, so leaving it valid would
       // let the removed member straight back in. (An owner who leaves keeps
       // the code; they chose to go.)
+      //
+      // Every member can do this (once only the owner could): rename the
+      // team, change its code, remove someone. Only the owner hands the
+      // team over; anyone else keeps the owner as they are, and cannot
+      // remove them. A legacy team's owner (no ownerId yet) can be recorded
+      // by anyone, as long as it is the member the roles say owns it.
+      function keepsOwner(before, after) {
+        let was = before.get('ownerId', null);
+        let now = after.get('ownerId', null);
+        return was != null
+          ? now == was && after.memberIds.hasAny([now])
+          : (now == null || (now is string
+              && isLegacyOwnerUid(before, now)
+              && after.memberIds.hasAny([now])));
+      }
+
       function ownerUpdate(before, after) {
-        return isOwnerOf(before)
+        return isMemberOf(before)
           && after.diff(before).affectedKeys().hasOnly(
             ['name', 'inviteCode', 'members', 'memberIds', 'ownerId', 'joinCode'])
-          && after.get('ownerId', null) is string
-          && after.memberIds.hasAny([after.ownerId])
+          && (isOwnerOf(before)
+            ? (after.get('ownerId', null) is string
+                && after.memberIds.hasAny([after.ownerId]))
+            : keepsOwner(before, after))
           && after.memberIds.removeAll(before.memberIds).size() == 0
           && after.members.size() == after.memberIds.size()
           && (after.inviteCode == before.inviteCode || claimsInvite(after.inviteCode))

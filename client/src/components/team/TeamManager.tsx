@@ -491,11 +491,14 @@ export const TeamManager = ({
     }
   };
 
-  // Same test the Firestore rules apply, so the UI never offers an owner
-  // action the server would reject. On teams saved before `ownerId` existed
-  // that is the member holding the 'owner' role, not whoever created it.
-  const isOwner =
-    !!team && !!user?.uid && teamService.ownerOf(team) === user.uid;
+  // Same tests the Firestore rules apply, so the UI never offers an action
+  // the server would reject. Every member runs the team (renames it,
+  // changes its invite, removes someone); only the owner hands it over, and
+  // nobody but the owner removes the owner. On teams saved before `ownerId`
+  // existed the owner is the member holding the 'owner' role.
+  const ownerId = team ? teamService.ownerOf(team) : '';
+  const isOwner = !!user?.uid && ownerId === user.uid;
+  const canRun = !!team && !!user?.uid;
 
   /**
    * The question being asked, if it still makes sense: the member may have
@@ -504,8 +507,9 @@ export const TeamManager = ({
   const activeAction = ((): PendingAction | null => {
     if (!team || !showTeamInfo || !pendingAction) return null;
     if (pendingAction.type === 'leave') return pendingAction;
-    if (!isOwner) return null;
+    if (!canRun) return null;
     if (pendingAction.type === 'resetInvite') return pendingAction;
+    if (pendingAction.type === 'transfer' && !isOwner) return null;
     const member = team.members.find(
       m => m.userId === pendingAction.member.userId
     );
@@ -978,7 +982,7 @@ export const TeamManager = ({
                 <Users className="h-5 w-5 self-start mt-1 shrink-0 text-team-blue" />
                 <span className="min-w-0 break-words">{team?.name}</span>
               </DialogTitle>
-              {isOwner && !isRenaming && (
+              {canRun && !isRenaming && (
                 <button
                   type="button"
                   onClick={handleStartRename}
@@ -989,7 +993,7 @@ export const TeamManager = ({
                 </button>
               )}
             </div>
-            {isOwner && isRenaming && (
+            {canRun && isRenaming && (
               <div className="flex items-center gap-2">
                 <label htmlFor="team-rename" className="sr-only">
                   Team name
@@ -1048,7 +1052,7 @@ export const TeamManager = ({
                 <h3 id="team-invite-heading" className={EYEBROW_CLASS}>
                   Invite
                 </h3>
-                {isOwner && (
+                {canRun && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -1136,7 +1140,9 @@ export const TeamManager = ({
                 {team?.members.map(member => {
                   const name = memberName(member);
                   const isYou = member.userId === user?.uid;
-                  const canManage = isOwner && !isYou;
+                  // The owner can't be removed by anyone else
+                  const canManage =
+                    canRun && !isYou && member.userId !== ownerId;
                   return (
                     <li
                       key={member.userId}
@@ -1232,15 +1238,17 @@ export const TeamManager = ({
                               {name}
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onSelect={() =>
-                                askAfterMenu({ type: 'transfer', member })
-                              }
-                              className="gap-2 [@media(pointer:coarse)]:min-h-11"
-                            >
-                              <Crown className="h-4 w-4" />
-                              Make owner
-                            </DropdownMenuItem>
+                            {isOwner && (
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  askAfterMenu({ type: 'transfer', member })
+                                }
+                                className="gap-2 [@media(pointer:coarse)]:min-h-11"
+                              >
+                                <Crown className="h-4 w-4" />
+                                Make owner
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onSelect={() =>
                                 askAfterMenu({ type: 'remove', member })

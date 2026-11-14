@@ -3,6 +3,7 @@
  * analyse, and how a session, a date or a number is written on them.
  */
 
+import { countsFouls } from '@/lib/tournament';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth, useTeam } from '@/contexts';
@@ -202,9 +203,12 @@ export const ofMatchType = (session: Session, type: string): Session | null => {
   return matches.length > 0 ? { ...session, matches, matchType: type } : null;
 };
 
-/** Fouls are only recorded against an opponent, so only in a Scrim. */
+/**
+ * Fouls are only recorded against an opponent: in a Scrim or a Tournament.
+ * (The name is kept from when a Scrim was the only such session.)
+ */
 export const isScrim = (session: Session): boolean =>
-  session.sessionType === 'Scrim';
+  countsFouls(session.sessionType);
 
 /**
  * A match's score components. A match saved without its own type is scored

@@ -27,6 +27,7 @@ import {
   ELEMENT_COLORS,
   CHART_COLORS,
   SERIES_COLORS,
+  sessionAuthorName,
 } from '@/lib';
 import type { RankingPointTally, Tone } from '@/lib';
 import { getPendingDeleteIds } from '@/lib/pendingSessionDeletes';
@@ -54,11 +55,19 @@ import {
   dotProps,
   LEGEND_PROPS,
   TOOLTIP_WRAPPER_STYLE,
+  gridProps,
+  BAR_RADIUS,
+  MAX_BAR_SIZE,
+  areaWash,
+  barCursor,
+  lineCursor,
 } from '@/components/charts/chartKit';
 import { Check, ChevronDown, Info, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   LineChart,
+  ComposedChart,
+  Area,
   Line,
   BarChart,
   Bar,
@@ -97,7 +106,7 @@ interface CompareMatch extends Match {
   sessionName: string;
   /** When its session was recorded, as written beside the session's name */
   sessionDate: string;
-  /** Fouls are only recorded in a Scrim */
+  /** Fouls are only recorded in a Scrim or Tournament */
   scrim: boolean;
   breakdown: ScoreBreakdown;
 }
@@ -1062,15 +1071,9 @@ const Compare = () => {
     [allMatches, selectedMatches]
   );
 
-  /**
-   * Who recorded a session, when a team shares the list and it was someone
-   * else: your own sessions need no name on them.
-   */
-  const ownerOf = (session: Session): string | undefined => {
-    if (!team || session.userId === user?.uid) return undefined;
-    const member = team.members.find(m => m.userId === session.userId);
-    return member?.displayName || member?.email || session.userEmail;
-  };
+  /** Who recorded a team session: every one says, yours too */
+  const ownerOf = (session: Session): string | undefined =>
+    team ? sessionAuthorName(session, team) : undefined;
 
   /** 'Sep 25', plus who recorded it when that was a teammate ('by Vedant'). */
   const whenAndWho = (session: Session): string => {
@@ -1389,8 +1392,6 @@ const Compare = () => {
     getValue: (match: CompareMatch) => number | null,
     opts: RowOptions<CompareMatch> = {}
   ) => renderRow(matchTable, label, getValue, opts);
-
-  const gridStroke = isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
   const tickFill = axisColor(isDarkMode);
   const axis = axisProps(isDarkMode);
   const tooltipFor = (formatValue: (v: number) => string) => (
@@ -1480,7 +1481,7 @@ const Compare = () => {
     // Shown on hover over the (i), and inline below it once it is clicked
     const keyInfo = `The star marks the best Final Score and Ranking Points; in the other rows the best value is bold. Values that read the same are a tie and are not marked. N/A means that part of the match was not run${
       withOpponentRow
-        ? ', or, for points given to the opponent, that it was not a Scrim.'
+        ? ', or, for points given to the opponent, that it was not a Scrim or Tournament.'
         : '.'
     }`;
     return (
@@ -1754,19 +1755,23 @@ const Compare = () => {
     return (
       <div className="w-full overflow-x-auto">
         <ResponsiveContainer width="100%" height={280} minWidth={240}>
-          <LineChart
+          <ComposedChart
             data={chartData}
             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
             title="Average score trend"
             desc={`Average ${ELEMENT_NAMES[scoreChartPhase]} points per match in each compared session, oldest first. The Score Breakdown table above lists the same averages.`}
             accessibilityLayer={false}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            {areaWash('compareScoreWash', color, isDarkMode)}
+            <CartesianGrid {...gridProps(isDarkMode)} />
             <XAxis
               dataKey="id"
               height={44}
               {...twoLineAxis(isCompact)}
               stroke={axis.stroke}
+              axisLine={false}
+              tickLine={false}
+              tickMargin={8}
               tick={twoLineTick(sessionTicks, tickFill)}
               tickFormatter={id => widerLine(sessionTicks, id)}
             />
@@ -1780,17 +1785,19 @@ const Compare = () => {
             <Tooltip
               wrapperStyle={TOOLTIP_WRAPPER_STYLE}
               content={tooltipFor(formatAvgPoints)}
-              cursor={{ stroke: color, strokeWidth: 2 }}
+              cursor={lineCursor(isDarkMode)}
             />
-            <Line
+            <Area
               dataKey="score"
               name={`Avg ${ELEMENT_NAMES[scoreChartPhase]}`}
               stroke={color}
               strokeWidth={2.5}
-              type="linear"
+              type="monotone"
+              fill="url(#compareScoreWash)"
+              fillOpacity={1}
               {...dotProps(cardBg, color)}
             />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     );
@@ -1817,19 +1824,23 @@ const Compare = () => {
     return (
       <div className="w-full overflow-x-auto">
         <ResponsiveContainer width="100%" height={280} minWidth={240}>
-          <LineChart
+          <ComposedChart
             data={chartData}
             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
             title="Time between Hive Tips trend"
             desc="Average time between Hive Tips in each compared session, oldest first. The Score Breakdown table above lists the same averages."
             accessibilityLayer={false}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            {areaWash('compareCycleWash', color, isDarkMode)}
+            <CartesianGrid {...gridProps(isDarkMode)} />
             <XAxis
               dataKey="id"
               height={44}
               {...twoLineAxis(isCompact)}
               stroke={axis.stroke}
+              axisLine={false}
+              tickLine={false}
+              tickMargin={8}
               tick={twoLineTick(sessionTicks, tickFill)}
               tickFormatter={id => widerLine(sessionTicks, id)}
             />
@@ -1837,17 +1848,19 @@ const Compare = () => {
             <Tooltip
               wrapperStyle={TOOLTIP_WRAPPER_STYLE}
               content={tooltipFor(formatSeconds)}
-              cursor={{ stroke: color, strokeWidth: 2 }}
+              cursor={lineCursor(isDarkMode)}
             />
-            <Line
+            <Area
               dataKey="cycleTime"
               name="Average"
               stroke={color}
               strokeWidth={2.5}
-              type="linear"
+              type="monotone"
+              fill="url(#compareCycleWash)"
+              fillOpacity={1}
               {...dotProps(cardBg, color)}
             />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     );
@@ -1879,16 +1892,15 @@ const Compare = () => {
             desc={`${ELEMENT_NAMES[matchScoreChartPhase]} points of each picked match. The Score Breakdown table above lists the same values.`}
             accessibilityLayer={false}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={gridStroke}
-              vertical={false}
-            />
+            <CartesianGrid {...gridProps(isDarkMode)} />
             <XAxis
               dataKey="key"
               height={44}
               interval={0}
               stroke={axis.stroke}
+              axisLine={false}
+              tickLine={false}
+              tickMargin={8}
               tick={twoLineTick(matchTicks, tickFill)}
             />
             <YAxis
@@ -1901,18 +1913,14 @@ const Compare = () => {
             <Tooltip
               wrapperStyle={TOOLTIP_WRAPPER_STYLE}
               content={tooltipFor(v => `${formatNumber(v)}\u00A0pts`)}
-              cursor={{
-                fill: isDarkMode
-                  ? 'rgba(255,255,255,0.06)'
-                  : 'rgba(0,0,0,0.04)',
-              }}
+              cursor={barCursor(isDarkMode)}
             />
             <Bar
               dataKey="score"
               name={ELEMENT_NAMES[matchScoreChartPhase]}
               fill={color}
-              radius={[4, 4, 0, 0]}
-              maxBarSize={56}
+              radius={BAR_RADIUS}
+              maxBarSize={MAX_BAR_SIZE}
               label={
                 chartData.length <= BAR_LABELS_MAX
                   ? { position: 'top', fill: tickFill, fontSize: 11 }
@@ -1958,7 +1966,7 @@ const Compare = () => {
             title="Time between Hive Tips per match"
             desc="Seconds between one Hive Tip and the next, tip by tip, one line per match."
           >
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <CartesianGrid {...gridProps(isDarkMode)} />
             <XAxis dataKey="tip" {...axis} />
             <YAxis {...axis} tickFormatter={v => `${v}s`} width={40} />
             <Tooltip
@@ -1974,8 +1982,8 @@ const Compare = () => {
                   dataKey={`match${idx}`}
                   name={`M${match.matchNumber}, ${shorten(match.sessionName, 20)}`}
                   stroke={color}
-                  strokeWidth={2.5}
-                  type="linear"
+                  strokeWidth={2}
+                  type="monotone"
                   connectNulls={false}
                   {...dotProps(cardBg, color)}
                 />

@@ -12,14 +12,13 @@ export const Notes = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
   const panelId = useId();
-  // Closed by default so the scoring page stays short; the choice sticks on
-  // this device. The editor stays mounted while closed (it is uncontrolled),
-  // only hidden.
+  // Open by default, ready to write in; closing it sticks on this device.
+  // The editor stays mounted while closed (it is uncontrolled), only hidden.
   const [expanded, setExpanded] = useState(() => {
     try {
-      return localStorage.getItem(STORAGE_KEYS.NOTES_EXPANDED) === '1';
+      return localStorage.getItem(STORAGE_KEYS.NOTES_COLLAPSED) !== '1';
     } catch {
-      return false;
+      return true;
     }
   });
   const preview = useMemo(
@@ -31,7 +30,8 @@ export const Notes = () => {
     const next = !expanded;
     setExpanded(next);
     try {
-      localStorage.setItem(STORAGE_KEYS.NOTES_EXPANDED, next ? '1' : '0');
+      if (next) localStorage.removeItem(STORAGE_KEYS.NOTES_COLLAPSED);
+      else localStorage.setItem(STORAGE_KEYS.NOTES_COLLAPSED, '1');
     } catch {
       /* private mode: just this visit */
     }

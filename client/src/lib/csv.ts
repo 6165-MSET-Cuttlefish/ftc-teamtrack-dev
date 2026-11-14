@@ -7,6 +7,13 @@
  * so no stored value can start a formula or break out of its cell.
  */
 
+import {
+  ALLIANCE_NAMES,
+  RESULT_NAMES,
+  countsFouls,
+  isTournament,
+  matchResult,
+} from './tournament';
 import type { Session } from '@/types';
 import {
   calculateScore,
@@ -142,12 +149,42 @@ const MATCH_HEADERS = [
   'SWARM RP',
   'POLLINATOR RPs',
   'Ranking Points',
+  // A Tournament's: blank for other sessions
+  'Event Code',
+  'Event Match',
+  'Alliance',
+  'Partner',
+  'Opponents',
+  'Official Score',
+  'Opponent Score',
+  'Result',
 ] as const;
 
 /** Session columns that close every row. Notes are written once per session. */
 const TRAILING_HEADERS = ['Notes', 'User Email'] as const;
 
 const BLANK = '""';
+
+/** A Tournament match's columns, in MATCH_HEADERS' order; blank otherwise */
+const tournamentCells = (
+  session: Session,
+  match: Session['matches'][number],
+  scored: number
+): string[] => {
+  if (!isTournament(session.sessionType)) return Array<string>(8).fill(BLANK);
+  const t = match.tournament;
+  const result = matchResult(t, scored);
+  return [
+    esc(session.eventCode ?? ''),
+    esc(t?.label ?? ''),
+    esc(t?.alliance ? ALLIANCE_NAMES[t.alliance] : ''),
+    esc(t?.partner ?? ''),
+    esc(t?.opponents?.join('; ') ?? ''),
+    t?.ourScore !== undefined ? num(t.ourScore) : BLANK,
+    t?.theirScore !== undefined ? num(t.theirScore) : BLANK,
+    esc(result ? RESULT_NAMES[result] : ''),
+  ];
+};
 
 /** Made out of every shot, as a whole percent; blank with none taken */
 const accuracyCell = (match: Parameters<typeof shotsOf>[0]): string => {
@@ -176,7 +213,7 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
 
   for (const session of sessions) {
     const matches = Array.isArray(session.matches) ? session.matches : [];
-    const isScrim = session.sessionType === 'Scrim';
+    const isScrim = countsFouls(session.sessionType);
     const leading = [
       esc(session.sessionName || 'Untitled Session'),
       esc(isoDate(session.createdAt)),
@@ -251,6 +288,7 @@ export const buildSessionsCsv = (sessions: Session[]): string => {
         flag(swarmReachable({ ...match, matchType }), rp.swarm),
         num(rp.pollinator),
         num(rp.total),
+        ...tournamentCells(session, match, b.total),
         index === 0 ? notes : BLANK,
         email,
       ]);

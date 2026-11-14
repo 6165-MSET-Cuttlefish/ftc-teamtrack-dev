@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import type { Match, Session } from '@/types';
 import {
-  SummaryTab,
   MatchDetailTab,
   CompareTab,
   AnalysisTabBar,
@@ -32,6 +31,7 @@ import {
   tabPanelId,
   useAnalysisNav,
 } from '@/components/session/AnalysisTabs';
+import { RobotScopedSummary } from '@/components/session/RobotAnalysis';
 
 const MATCH_TYPES = ['Full Game', 'Autonomous', 'Teleop'];
 
@@ -244,6 +244,8 @@ const SharedSession = () => {
             matchCount={sessionMatches.length}
             duration={session?.sessionDuration}
             isDarkMode={isDarkMode}
+            matches={sessionMatches}
+            eventCode={session?.eventCode}
           />
         </div>
 
@@ -274,7 +276,7 @@ const SharedSession = () => {
               aria-labelledby={tabButtonId(activeTab)}
             >
               {activeTab === 'summary' && stats && (
-                <SummaryTab
+                <RobotScopedSummary
                   matches={sessionMatches}
                   stats={stats}
                   isDarkMode={isDarkMode}

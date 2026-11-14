@@ -1,3 +1,4 @@
+import { countsFouls } from '@/lib/tournament';
 import { useCallback, useState } from 'react';
 import { useSessionCore } from '@/contexts';
 import { requestStartNudge } from './controls/startNudge';
@@ -46,7 +47,7 @@ export const usePenaltyCounters = () => {
     minor,
     major,
     shown:
-      sessionData.sessionType === 'Scrim' || hasFouls || heldFor === entryKey,
+      countsFouls(sessionData.sessionType) || hasFouls || heldFor === entryKey,
     entryKey,
     blockedPress: entryLocked ? requestStartNudge : undefined,
     handleMinorPenalties,

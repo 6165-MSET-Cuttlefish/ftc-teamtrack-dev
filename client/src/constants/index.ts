@@ -118,8 +118,12 @@ export const STORAGE_KEYS = {
    * discarded it, so that tab's Undo can't put a stored session back
    */
   SESSION_SAVED_ELSEWHERE: 'teamtrack-session-saved-elsewhere',
-  /** Whether Session Notes on the scoring page was left open on this device */
-  NOTES_EXPANDED: 'teamtrack-notes-expanded',
+  /**
+   * Session Notes on the scoring page was closed on this device ('1'); it is
+   * open otherwise. (Replaces 'teamtrack-notes-expanded', from when it
+   * started closed, so every device starts open again.)
+   */
+  NOTES_COLLAPSED: 'teamtrack-notes-collapsed',
   /** sessionStorage: the Sessions list's scroll position per history entry */
   SESSIONS_SCROLL: 'teamtrack-sessions-scroll',
 } as const;

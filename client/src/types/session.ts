@@ -3,8 +3,33 @@ import type { Timestamp } from 'firebase/firestore';
 /** Match phase during active gameplay */
 export type MatchPhase = 'auton' | 'controller_pickup' | 'teleop' | 'ended';
 
-/** How a session was run */
-export type SessionType = 'Practice' | 'Scrim';
+/**
+ * How a session was run: on your own, against another alliance (a Scrim,
+ * fouls counted), or at an official event (a Tournament: fouls counted, and
+ * each match can carry its label, alliances and official result)
+ */
+export type SessionType = 'Practice' | 'Scrim' | 'Tournament';
+
+/** The alliance colour a team played a tournament match in */
+export type AllianceColor = 'red' | 'blue';
+
+/**
+ * A tournament match as the event ran it. Every part is optional: it is
+ * filled in as it becomes known, and a match without it scores the same.
+ */
+export interface TournamentMatchInfo {
+  /** As the event lists it: "Q12", "SF1-2", "F1" */
+  label?: string;
+  alliance?: AllianceColor;
+  /** The alliance partner's team number */
+  partner?: string;
+  /** The opposing alliance's team numbers (up to two) */
+  opponents?: string[];
+  /** The official score posted for this alliance, where it differs */
+  ourScore?: number;
+  /** The official score posted for the opposing alliance */
+  theirScore?: number;
+}
 
 export interface FirebaseTimestamp {
   seconds: number;
@@ -68,6 +93,8 @@ export interface MatchScoringFields {
   shots?: ShotEntry[];
   /** Timeline of Hive Tips as they were counted, for cycle-time analysis */
   phaseLog?: ScoreEvent[];
+  /** A Tournament match's label, alliances and result (see the type) */
+  tournament?: TournamentMatchInfo;
 }
 
 /** The period a volley is kept under */
@@ -189,10 +216,14 @@ export interface Session {
   id: string;
   userId: string;
   userEmail?: string;
+  /** The author's name as it was when they saved it, shown on team sessions */
+  userName?: string;
   teamId?: string;
   sessionName: string;
-  /** Practice or Scrim */
+  /** Practice, Scrim or Tournament */
   sessionType?: SessionType;
+  /** A Tournament's FTC event code ("USCAFFFAQ"), for its FTC Scout page */
+  eventCode?: string;
   /**
    * The type its matches share, or 'Mixed'. Matches carry their own type;
    * derive this with `sessionMatchType` rather than trusting the stored value.

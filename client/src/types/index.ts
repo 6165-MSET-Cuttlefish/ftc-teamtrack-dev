@@ -1,6 +1,8 @@
 export type {
   Session,
   SessionType,
+  AllianceColor,
+  TournamentMatchInfo,
   Match,
   CreateSessionData,
   MatchScoringFields,

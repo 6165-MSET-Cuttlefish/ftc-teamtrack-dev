@@ -34,7 +34,6 @@ import {
   type SessionFeedState,
   type SessionSource,
 } from './sessionFeed';
-import { teamService } from './teamService';
 
 /** What a list calls the user's own sessions (see `SessionFeedState.unread`) */
 export const OWN_SESSIONS = 'own';
@@ -515,7 +514,10 @@ class FirebaseService {
         return null;
       }
     );
-    return !!team?.exists() && teamService.ownerOf(team.data() as Team) === uid;
+    // Every member runs the team's sessions (once only its owner did)
+    return (
+      !!team?.exists() && ((team.data() as Team).memberIds ?? []).includes(uid)
+    );
   }
 
   /**
@@ -534,7 +536,7 @@ class FirebaseService {
       const asTeamOwner = !!session && session.userId !== uid;
       if (asTeamOwner && !(await this.ownsTeam(db, session.teamId, uid))) {
         throw new ShownError(
-          "Only the person who recorded a session, or their team's owner, can delete it."
+          'Only the person who recorded a session, or someone in its team, can delete it.'
         );
       }
       const links = await this.sharedSessionRefs(
